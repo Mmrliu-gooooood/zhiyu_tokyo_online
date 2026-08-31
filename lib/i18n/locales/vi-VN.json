@@ -1785,6 +1785,7 @@
     "clearCacheBlockedByOtherTabs": "Hãy đóng các tab khác của ứng dụng rồi thử lại.",
     "persistUnavailable": "Các thay đổi của bạn không được lưu vì ứng dụng không truy cập được vùng dữ liệu của nó. Nếu tải lại trang vẫn không đỡ, hãy xóa dữ liệu cục bộ trong Cài đặt.",
     "persistChangesLost": "Bộ lưu trữ đã hoạt động lại, nhưng những thay đổi bạn làm trong lúc nó gặp sự cố đã không lưu được và bị thay bằng bản lưu gần nhất.",
+    "persistRecovered": "Bộ nhớ cục bộ đã hoạt động trở lại. Các thay đổi mới sẽ tiếp tục được lưu.",
     "webSearchSettings": "Tìm trên web",
     "webSearchApiKey": "Khóa API tìm kiếm",
     "webSearchApiKeyPlaceholder": "Nhập khóa API tìm kiếm của bạn",
@@ -2012,7 +2013,9 @@
   "accessCode": {
     "title": "Nhập mã truy cập",
     "placeholder": "Mã truy cập",
-    "error": "Mã truy cập không đúng. Vui lòng thử lại."
+    "error": "Mã truy cập không đúng. Vui lòng thử lại.",
+    "validating": "Đang xác minh…",
+    "success": "Đã cấp quyền truy cập"
   },
   "proMode": {
     "attach": "Đính kèm tài liệu",

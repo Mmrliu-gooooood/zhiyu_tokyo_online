@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { isWorkbenchEntryEnabled } from '@/lib/workbench/entry-gate';
 import { WorkbenchLaunchBridge } from './client';
+import { ZhiyuRouteLoading } from '@/components/brand/ZhiyuRouteLoading';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,9 @@ export default function WorkbenchNewCompatibilityPage() {
   if (!isWorkbenchEntryEnabled()) notFound();
 
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={<ZhiyuRouteLoading labelKey="workspace.loading" testId="workbench-bridge-loading" />}
+    >
       <WorkbenchLaunchBridge />
     </Suspense>
   );

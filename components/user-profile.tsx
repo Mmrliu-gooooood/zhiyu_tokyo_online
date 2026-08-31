@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Pencil, Check, ImagePlus, ChevronDown } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ export function UserProfileCard() {
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     setHydrated(true); // eslint-disable-line react-hooks/set-state-in-effect -- Store hydration on mount
@@ -109,6 +110,7 @@ export function UserProfileCard() {
         type="file"
         accept="image/*"
         className="sr-only"
+        aria-label={t('profile.uploadAvatar')}
         onChange={handleAvatarUpload}
       />
 
@@ -116,10 +118,13 @@ export function UserProfileCard() {
       <div className="flex items-center gap-3.5">
         {/* Avatar — click to toggle picker */}
         <button
+          type="button"
           onClick={() => setAvatarPickerOpen(!avatarPickerOpen)}
           className="shrink-0 group/avatar relative cursor-pointer"
+          aria-label={t('profile.chooseAvatar')}
+          aria-expanded={avatarPickerOpen}
         >
-          <div className="size-11 rounded-full bg-gray-50 dark:bg-gray-800 overflow-hidden ring-2 ring-violet-300/50 dark:ring-violet-600/40 group-hover/avatar:ring-violet-400 dark:group-hover/avatar:ring-violet-500 transition-all">
+          <div className="size-11 rounded-full bg-gray-50 dark:bg-gray-800 overflow-hidden ring-2 ring-primary/30 group-hover/avatar:ring-primary/55 transition-all">
             <img src={avatar} alt="" className="size-full object-cover" />
           </div>
           <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-white dark:bg-slate-800 border border-muted/60 flex items-center justify-center">
@@ -147,11 +152,14 @@ export function UserProfileCard() {
                 onBlur={commitName}
                 maxLength={20}
                 placeholder={t('profile.defaultNickname')}
-                className="flex-1 min-w-0 h-7 bg-transparent border-b-2 border-violet-400 dark:border-violet-500 text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/40"
+                aria-label={t('profile.editTooltip')}
+                className="flex-1 min-w-0 h-7 bg-transparent border-b-2 border-primary text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/40"
               />
               <button
+                type="button"
                 onClick={commitName}
-                className="shrink-0 size-6 rounded-md flex items-center justify-center text-violet-500 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                aria-label={t('common.confirm')}
+                className="shrink-0 size-6 rounded-md flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
               >
                 <Check className="size-3.5" />
               </button>
@@ -176,20 +184,23 @@ export function UserProfileCard() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
             {/* p-1 gives breathing room so ring-offset / hover-scale aren't clipped */}
             <div className="pt-3 pb-1 px-1 flex items-center gap-1.5 flex-wrap">
-              {AVATAR_OPTIONS.map((url) => (
+              {AVATAR_OPTIONS.map((url, index) => (
                 <button
                   key={url}
+                  type="button"
                   onClick={() => setAvatar(url)}
+                  aria-label={`${t('profile.chooseAvatar')} ${index + 1}`}
+                  aria-pressed={avatar === url}
                   className={cn(
                     'size-8 rounded-full overflow-hidden bg-gray-50 dark:bg-gray-800 cursor-pointer transition-all duration-150',
-                    'hover:scale-110 active:scale-95',
+                    'motion-safe:hover:scale-110 motion-safe:active:scale-95',
                     avatar === url
-                      ? 'ring-2 ring-violet-400 dark:ring-violet-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-900'
+                      ? 'ring-2 ring-primary ring-offset-1 ring-offset-white dark:ring-offset-slate-900'
                       : 'hover:ring-1 hover:ring-muted-foreground/30',
                   )}
                 >
@@ -202,9 +213,9 @@ export function UserProfileCard() {
                 htmlFor={FILE_INPUT_ID}
                 className={cn(
                   'size-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-150 border border-dashed',
-                  'hover:scale-110 active:scale-95',
+                  'motion-safe:hover:scale-110 motion-safe:active:scale-95',
                   isCustomAvatar(avatar)
-                    ? 'ring-2 ring-violet-400 dark:ring-violet-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-900 border-violet-300 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/30'
+                    ? 'ring-2 ring-primary ring-offset-1 ring-offset-white dark:ring-offset-slate-900 border-primary/40 bg-primary/10'
                     : 'border-muted-foreground/30 text-muted-foreground/50 hover:border-muted-foreground/50',
                 )}
                 title={t('profile.uploadAvatar')}

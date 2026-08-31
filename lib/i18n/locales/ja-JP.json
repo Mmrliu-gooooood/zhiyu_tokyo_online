@@ -1785,6 +1785,7 @@
     "clearCacheBlockedByOtherTabs": "このアプリを開いている他のタブを閉じて、もう一度お試しください。",
     "persistUnavailable": "変更が保存されていません。アプリが保存済みデータにアクセスできません。再読み込みしても解決しない場合は、設定からローカルキャッシュを削除してください。",
     "persistChangesLost": "ストレージは復旧しましたが、利用できなかった間の変更は保存できず、最後に保存された内容に戻りました。",
+    "persistRecovered": "ローカルストレージが復旧しました。今後の変更は引き続き保存されます。",
     "webSearchSettings": "ウェブ検索",
     "webSearchApiKey": "検索APIキー",
     "webSearchApiKeyPlaceholder": "検索APIキーを入力",
@@ -2012,7 +2013,9 @@
   "accessCode": {
     "title": "アクセスコードを入力",
     "placeholder": "アクセスコード",
-    "error": "アクセスコードが正しくありません。もう一度お試しください。"
+    "error": "アクセスコードが正しくありません。もう一度お試しください。",
+    "validating": "確認中…",
+    "success": "アクセスが許可されました"
   },
   "proMode": {
     "attach": "教材を添付",

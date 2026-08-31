@@ -54,7 +54,9 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
           }}
         />
       )}
-      {children}
+      <div className="contents" inert={needsAuth ? true : undefined} aria-hidden={needsAuth || undefined}>
+        {children}
+      </div>
     </>
   );
 }

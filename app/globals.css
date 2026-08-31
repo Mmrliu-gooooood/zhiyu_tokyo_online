@@ -164,6 +164,7 @@
        to forcing overflow-y: scroll as well. */
     scrollbar-gutter: stable;
     overflow-y: scroll;
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground;
@@ -178,6 +179,46 @@
   body[data-scroll-locked] {
     padding-right: 0 !important;
     margin-right: 0 !important;
+  }
+}
+
+/* Sonner owns announcement semantics; these classes only make each truthful
+   status visually distinct in both themes without introducing another toast
+   implementation or changing call-site behavior. */
+.cn-toast {
+  border-width: 1px !important;
+  box-shadow: 0 12px 34px rgb(20 32 25 / 0.1) !important;
+}
+.cn-toast-success {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border)) !important;
+  background: color-mix(in srgb, var(--primary) 10%, var(--popover)) !important;
+}
+.cn-toast-info,
+.cn-toast-loading {
+  border-color: color-mix(in srgb, var(--zhiyu-ai) 32%, var(--border)) !important;
+  background: color-mix(in srgb, var(--zhiyu-ai-soft) 74%, var(--popover)) !important;
+}
+.cn-toast-warning {
+  border-color: color-mix(in srgb, var(--zhiyu-learning) 36%, var(--border)) !important;
+  background: color-mix(in srgb, var(--zhiyu-learning-soft) 78%, var(--popover)) !important;
+}
+.cn-toast-error {
+  border-color: color-mix(in srgb, var(--zhiyu-coral) 38%, var(--border)) !important;
+  background: color-mix(in srgb, var(--zhiyu-coral-soft) 76%, var(--popover)) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .animate-spin,
+  .animate-pulse,
+  .animate-bounce {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 /* ProseMirror Editor Styles */

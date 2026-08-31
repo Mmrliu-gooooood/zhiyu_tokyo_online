@@ -1785,6 +1785,7 @@
     "clearCacheBlockedByOtherTabs": "Schließe andere App-Tabs und versuche es erneut.",
     "persistUnavailable": "Deine Änderungen werden nicht gespeichert, da die App nicht auf ihren Datenspeicher zugreifen kann. Wenn ein Neuladen nicht hilft, leere den lokalen Cache in den Einstellungen.",
     "persistChangesLost": "Der Speicher funktioniert wieder. Änderungen, die du während des Ausfalls vorgenommen hast, konnten jedoch nicht gespeichert werden und wurden durch die zuletzt gespeicherte Version ersetzt.",
+    "persistRecovered": "Der lokale Speicher ist wieder verfügbar. Neue Änderungen werden weiterhin gespeichert.",
     "webSearchSettings": "Websuche",
     "webSearchApiKey": "Such-API-Schlüssel",
     "webSearchApiKeyPlaceholder": "Such-API-Schlüssel eingeben",
@@ -2012,7 +2013,9 @@
   "accessCode": {
     "title": "Zugangscode eingeben",
     "placeholder": "Zugangscode",
-    "error": "Ungültiger Zugangscode. Bitte versuche es erneut."
+    "error": "Ungültiger Zugangscode. Bitte versuche es erneut.",
+    "validating": "Wird überprüft…",
+    "success": "Zugriff gewährt"
   },
   "proMode": {
     "attach": "Attach material",

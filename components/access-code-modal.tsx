@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { ArrowRight, ShieldCheck, LoaderCircle } from 'lucide-react';
+import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
+import { projectAccessCodeVisualState } from '@/lib/access-code/presentation';
 
 interface AccessCodeModalProps {
   open: boolean;
@@ -17,18 +19,59 @@ export function AccessCodeModal({ open, onSuccess }: AccessCodeModalProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduceMotion = useReducedMotion();
+  const visualState = projectAccessCodeVisualState({ error, loading, success });
 
   useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    inputRef.current?.focus();
+
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      previouslyFocused?.focus();
+    };
   }, [open]);
+
+  function keepFocusInDialog(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      inputRef.current?.focus();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'input:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    );
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!code || loading) return;
     setError('');
     setLoading(true);
+    // Keep a stable focus target while the submit control becomes disabled.
+    // The secure gate must never hand focus back to the inert application.
+    inputRef.current?.focus();
 
     try {
       const res = await fetch('/api/access-code/verify', {
@@ -39,7 +82,7 @@ export function AccessCodeModal({ open, onSuccess }: AccessCodeModalProps) {
 
       if (res.ok) {
         setSuccess(true);
-        setTimeout(onSuccess, 600);
+        successTimerRef.current = setTimeout(onSuccess, reduceMotion ? 0 : 600);
       } else {
         setError(t('accessCode.error'));
         setCode('');
@@ -47,6 +90,8 @@ export function AccessCodeModal({ open, onSuccess }: AccessCodeModalProps) {
       }
     } catch {
       setError(t('accessCode.error'));
+      setCode('');
+      inputRef.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -56,120 +101,115 @@ export function AccessCodeModal({ open, onSuccess }: AccessCodeModalProps) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden"
+          data-testid="access-code-overlay"
+          className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-background/96 px-4 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.3 } }}
+          exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : 0.2 } }}
+          transition={{ duration: reduceMotion ? 0 : 0.2 }}
         >
-          {/* Background — subtle mesh gradient */}
-          <div className="absolute inset-0 bg-background">
-            <div
-              className="absolute inset-0 opacity-30 dark:opacity-20"
-              style={{
-                backgroundImage: `
-                  radial-gradient(ellipse 80% 60% at 20% 40%, var(--primary) 0%, transparent 60%),
-                  radial-gradient(ellipse 60% 80% at 80% 20%, oklch(0.6 0.15 280) 0%, transparent 50%),
-                  radial-gradient(ellipse 50% 50% at 60% 80%, oklch(0.5 0.12 300) 0%, transparent 50%)
-                `,
-              }}
-            />
-            {/* Subtle noise texture */}
-            <div
-              className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                backgroundSize: '128px 128px',
-              }}
-            />
-          </div>
-
-          {/* Content card */}
           <motion.div
-            className="relative z-10 w-full max-w-sm mx-4"
-            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="access-code-title"
+            aria-describedby="access-code-description"
+            data-testid="access-code-dialog"
+            data-state={visualState}
+            tabIndex={-1}
+            onKeyDown={keepFocusInDialog}
+            className="relative z-10 w-full max-w-sm"
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 12, scale: reduceMotion ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.96 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -8, scale: reduceMotion ? 1 : 0.98 }}
+            transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="rounded-2xl border border-border/50 bg-card/80 p-8 shadow-xl shadow-black/5 backdrop-blur-xl dark:bg-card/60 dark:shadow-black/20">
-              {/* Icon */}
-              <motion.div
-                className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10"
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.15, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <ShieldCheck className="h-7 w-7 text-primary" strokeWidth={1.5} />
-              </motion.div>
+            <div className="rounded-[22px] border border-border bg-card p-7 shadow-[0_18px_54px_rgba(20,32,25,0.10)] dark:shadow-black/30 sm:p-8">
+              <ZhiyuLockup size="sm" className="mb-8 justify-center" />
+
+              <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <ShieldCheck className="size-6" strokeWidth={1.7} aria-hidden="true" />
+              </div>
 
               {/* Title */}
               <motion.h1
+                id="access-code-title"
                 className="mb-1 text-center text-lg font-semibold tracking-tight text-foreground"
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
+                transition={{ delay: reduceMotion ? 0 : 0.12, duration: reduceMotion ? 0 : 0.2 }}
               >
                 {t('accessCode.title')}
               </motion.h1>
 
               <motion.p
+                id="access-code-description"
                 className="mb-6 text-center text-sm text-muted-foreground"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.25, duration: 0.4 }}
+                transition={{ delay: reduceMotion ? 0 : 0.14, duration: reduceMotion ? 0 : 0.2 }}
               >
-                OpenMAIC
+                {t('home.footer')}
               </motion.p>
 
               {/* Form */}
               <motion.form
                 onSubmit={handleSubmit}
                 className="space-y-4"
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.4 }}
+                transition={{ delay: reduceMotion ? 0 : 0.16, duration: reduceMotion ? 0 : 0.2 }}
               >
                 <div className="relative">
                   <input
                     ref={inputRef}
+                    data-testid="access-code-input"
                     type="password"
                     placeholder={t('accessCode.placeholder')}
+                    aria-label={t('accessCode.placeholder')}
                     value={code}
                     onChange={(e) => {
                       setCode(e.target.value);
                       if (error) setError('');
                     }}
                     className={`
-                      w-full rounded-xl border bg-background/60 px-4 py-3 pr-12 text-sm
+                      w-full rounded-xl border bg-background px-4 py-3 pr-12 text-sm
                       outline-none transition-all duration-200
                       placeholder:text-muted-foreground/50
-                      focus:border-primary/40 focus:ring-2 focus:ring-primary/10
+                      focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/20
                       ${error ? 'border-destructive/50 focus:border-destructive/50 focus:ring-destructive/10' : 'border-border/60'}
                     `}
-                    disabled={loading || success}
+                    readOnly={loading || success}
                     autoComplete="off"
                   />
                   <button
                     type="submit"
+                    data-testid="access-code-submit"
+                    aria-label={loading ? t('accessCode.validating') : t('common.confirm')}
                     disabled={!code || loading || success}
                     className={`
                       absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center
                       justify-center rounded-lg transition-all duration-200
-                      ${code && !loading && !success ? 'bg-primary text-primary-foreground hover:opacity-90 cursor-pointer' : 'text-muted-foreground/30 cursor-default'}
+                      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary
+                      ${code && !loading && !success ? 'cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90' : 'cursor-default text-muted-foreground/40'}
                     `}
                   >
                     {loading ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                     ) : success ? (
                       <motion.div
-                        initial={{ scale: 0 }}
+                        initial={{ scale: reduceMotion ? 1 : 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        transition={
+                          reduceMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 300, damping: 20 }
+                        }
                       >
-                        <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                        <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
                       </motion.div>
                     ) : (
-                      <ArrowRight className="h-4 w-4" />
+                      <ArrowRight className="size-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -178,16 +218,22 @@ export function AccessCodeModal({ open, onSuccess }: AccessCodeModalProps) {
                 <AnimatePresence mode="wait">
                   {error && (
                     <motion.p
+                      id="access-code-error"
+                      role="alert"
+                      data-testid="access-code-error"
                       className="text-center text-sm text-destructive"
                       initial={{ opacity: 0, y: -4, height: 0 }}
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
                       exit={{ opacity: 0, y: -4, height: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.2 }}
                     >
                       {error}
                     </motion.p>
                   )}
                 </AnimatePresence>
+                <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {loading ? t('accessCode.validating') : success ? t('accessCode.success') : ''}
+                </p>
               </motion.form>
             </div>
           </motion.div>

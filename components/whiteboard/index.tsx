@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Eraser, History, Minimize2, PencilLine, RotateCcw } from 'lucide-react';
 import { WhiteboardCanvas } from './whiteboard-canvas';
 import type { WhiteboardCanvasHandle } from './whiteboard-canvas';
@@ -24,6 +24,7 @@ interface WhiteboardProps {
  */
 export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
   const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
   const stage = useStageStore.use.stage();
   const isClearing = useCanvasStore.use.whiteboardClearing();
   const clearingRef = useRef(false);
@@ -99,13 +100,14 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 30 }}
+            initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.92, y: reduceMotion ? 0 : 30 }}
             animate={{
               opacity: 1,
               scale: 1,
               y: 0,
               transition: {
-                type: 'spring',
+                type: reduceMotion ? 'tween' : 'spring',
+                duration: reduceMotion ? 0 : undefined,
                 stiffness: 120,
                 damping: 18,
                 mass: 1.2,
@@ -113,16 +115,16 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
             }}
             exit={{
               opacity: 0,
-              scale: 0.95,
-              y: 16,
-              transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+              scale: reduceMotion ? 1 : 0.95,
+              y: reduceMotion ? 0 : 16,
+              transition: { duration: reduceMotion ? 0 : 0.5, ease: [0.4, 0, 0.2, 1] },
             }}
-            className="absolute inset-4 pointer-events-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-2xl rounded-3xl shadow-[0_32px_80px_-20px_rgba(0,0,0,0.25)] border-2 border-purple-200/60 dark:border-purple-700/60 flex flex-col overflow-hidden z-[120] ring-4 ring-purple-100/40 dark:ring-purple-800/40"
+            className="absolute inset-4 pointer-events-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-2xl rounded-3xl shadow-[0_32px_80px_-20px_rgba(0,0,0,0.25)] border-2 border-primary/25 flex flex-col overflow-hidden z-[120] ring-4 ring-primary/10"
           >
             {/* Header */}
             <div className="h-14 px-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between shrink-0 bg-white/50 dark:bg-gray-800/50">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <PencilLine className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-gray-800 dark:text-gray-200 tracking-tight">
@@ -140,8 +142,8 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                       exit={{ opacity: 0, scale: 0.8 }}
                       transition={{ duration: 0.15 }}
                       onClick={() => canvasRef.current?.resetView()}
-                      whileTap={{ scale: 0.9 }}
-                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                      whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                       title={t('whiteboard.resetView')}
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -154,14 +156,22 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                       type="button"
                       onClick={handleClear}
                       disabled={isClearing || elementCount === 0}
-                      whileTap={{ scale: 0.9 }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.9 }}
                       className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
                       title={t('whiteboard.clear')}
                     >
                       <motion.div
-                        animate={isClearing ? { rotate: [0, -15, 15, -10, 10, 0] } : { rotate: 0 }}
+                        animate={
+                          isClearing && !reduceMotion
+                            ? { rotate: [0, -15, 15, -10, 10, 0] }
+                            : { rotate: 0 }
+                        }
                         transition={
-                          isClearing ? { duration: 0.5, ease: 'easeInOut' } : { duration: 0.2 }
+                          reduceMotion
+                            ? { duration: 0 }
+                            : isClearing
+                              ? { duration: 0.5, ease: 'easeInOut' }
+                              : { duration: 0.2 }
                         }
                       >
                         <Eraser className="w-4 h-4" />
@@ -171,13 +181,13 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                       <motion.button
                         type="button"
                         onClick={() => setHistoryOpen(!historyOpen)}
-                        whileTap={{ scale: 0.9 }}
-                        className="relative p-2 text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                        whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+                        className="relative p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                         title={t('whiteboard.history')}
                       >
                         <History className="w-4 h-4" />
                         {snapshotCount > 0 && (
-                          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center">
+                          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                             {snapshotCount}
                           </span>
                         )}

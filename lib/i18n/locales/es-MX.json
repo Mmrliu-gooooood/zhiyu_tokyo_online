@@ -1785,6 +1785,7 @@
     "clearCacheBlockedByOtherTabs": "Cierra las otras pestañas de la app y vuelve a intentarlo.",
     "persistUnavailable": "Tus cambios no se están guardando porque la aplicación no puede acceder a sus datos almacenados. Si recargar no ayuda, borra la caché local en Configuración.",
     "persistChangesLost": "El almacenamiento vuelve a funcionar, pero los cambios que hiciste mientras no estaba disponible no se pudieron guardar y se reemplazaron por la última versión guardada.",
+    "persistRecovered": "El almacenamiento local vuelve a estar disponible. Los cambios nuevos seguirán guardándose.",
     "webSearchSettings": "Búsqueda web",
     "webSearchApiKey": "Clave API de búsqueda",
     "webSearchApiKeyPlaceholder": "Ingresa tu clave API de búsqueda",
@@ -2012,7 +2013,9 @@
   "accessCode": {
     "title": "Ingresa el código de acceso",
     "placeholder": "Código de acceso",
-    "error": "Código de acceso no válido. Inténtalo de nuevo."
+    "error": "Código de acceso no válido. Inténtalo de nuevo.",
+    "validating": "Verificando…",
+    "success": "Acceso concedido"
   },
   "proMode": {
     "attach": "Adjuntar material",

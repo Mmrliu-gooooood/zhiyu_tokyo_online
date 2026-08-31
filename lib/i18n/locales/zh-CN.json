@@ -1797,6 +1797,7 @@
     "clearCacheBlockedByOtherTabs": "请关闭其他打开此应用的标签页，然后重试。",
     "persistUnavailable": "更改未被保存：应用无法访问已存储的数据。如果刷新后仍未恢复，请在设置中清除本地缓存。",
     "persistChangesLost": "存储已恢复，但在其不可用期间所做的更改未能保存，已被上次保存的版本覆盖。",
+    "persistRecovered": "本地存储已恢复，后续更改会继续保存。",
     "webSearchSettings": "网络搜索",
     "webSearchApiKey": "搜索 API Key",
     "webSearchApiKeyPlaceholder": "输入你的搜索 API Key",
@@ -2024,7 +2025,9 @@
   "accessCode": {
     "title": "请输入访问码",
     "placeholder": "访问码",
-    "error": "访问码错误，请重试。"
+    "error": "访问码错误，请重试。",
+    "validating": "正在验证…",
+    "success": "验证通过"
   },
   "proMode": {
     "attach": "添加材料",

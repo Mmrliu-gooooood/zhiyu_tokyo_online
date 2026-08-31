@@ -85,7 +85,7 @@ describe('reference-fidelity stage access', () => {
     const stageId = 'stage-agent-browser-regression';
     await ownerStore(pool, `anon:${ownerCookie}`).saveDocument(courseDocument(stageId));
 
-    const { handlePersistenceRequest } = await import('@/app/api/persistence/[...path]/route');
+    const { handlePersistenceRequest } = await import('@/app/api/persistence/[...path]/handler');
     const response = await handlePersistenceRequest(
       new Request(`http://localhost/api/persistence/documents/${stageId}`, {
         headers: { cookie: `anonymous_id=${ownerCookie}` },
@@ -111,7 +111,7 @@ describe('reference-fidelity stage access', () => {
     await expect(
       visitor.saveDocument(courseDocument(stageId, 'Foreign edit')),
     ).rejects.toBeInstanceOf(StageAccessError);
-    const { handlePersistenceRequest } = await import('@/app/api/persistence/[...path]/route');
+    const { handlePersistenceRequest } = await import('@/app/api/persistence/[...path]/handler');
     const visitorRead = await handlePersistenceRequest(
       new Request(`http://localhost/api/persistence/documents/${stageId}`, {
         headers: { cookie: `anonymous_id=${visitorCookie}` },

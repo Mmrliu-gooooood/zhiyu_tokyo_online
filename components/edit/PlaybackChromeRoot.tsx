@@ -171,6 +171,64 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const setChatAreaCollapsed = useSettingsStore((s) => s.setChatAreaCollapsed);
     const setTTSMuted = useSettingsStore((s) => s.setTTSMuted);
     const setTTSVolume = useSettingsStore((s) => s.setTTSVolume);
+    const [compactViewport, setCompactViewport] = useState(false);
+    const [narrowViewport, setNarrowViewport] = useState(false);
+    const [compactInteractionOpen, setCompactInteractionOpen] = useState(false);
+    const [narrowSceneRailOpen, setNarrowSceneRailOpen] = useState(false);
+
+    useEffect(() => {
+      if (typeof window.matchMedia !== 'function') return;
+      const compactQuery = window.matchMedia('(max-width: 1279px)');
+      const narrowQuery = window.matchMedia('(max-width: 899px)');
+      const updateViewport = () => {
+        setCompactViewport(compactQuery.matches);
+        setNarrowViewport(narrowQuery.matches);
+        if (!compactQuery.matches) setCompactInteractionOpen(false);
+        if (!narrowQuery.matches) setNarrowSceneRailOpen(false);
+      };
+      updateViewport();
+      compactQuery.addEventListener('change', updateViewport);
+      narrowQuery.addEventListener('change', updateViewport);
+      return () => {
+        compactQuery.removeEventListener('change', updateViewport);
+        narrowQuery.removeEventListener('change', updateViewport);
+      };
+    }, []);
+
+    const presentedSidebarCollapsed = narrowViewport ? !narrowSceneRailOpen : sidebarCollapsed;
+    const presentedChatCollapsed = compactViewport ? !compactInteractionOpen : chatAreaCollapsed;
+
+    const handleSceneRailPresentationChange = useCallback(
+      (collapsed: boolean) => {
+        if (narrowViewport) {
+          setNarrowSceneRailOpen(!collapsed);
+          if (!collapsed) setCompactInteractionOpen(false);
+          return;
+        }
+        setSidebarCollapsed(collapsed);
+      },
+      [narrowViewport, setSidebarCollapsed],
+    );
+
+    const handleInteractionPresentationChange = useCallback(
+      (collapsed: boolean) => {
+        if (compactViewport) {
+          setCompactInteractionOpen(!collapsed);
+          if (!collapsed && narrowViewport) setNarrowSceneRailOpen(false);
+          return;
+        }
+        setChatAreaCollapsed(collapsed);
+      },
+      [compactViewport, narrowViewport, setChatAreaCollapsed],
+    );
+
+    const toggleSceneRailPresentation = useCallback(() => {
+      handleSceneRailPresentationChange(!presentedSidebarCollapsed);
+    }, [handleSceneRailPresentationChange, presentedSidebarCollapsed]);
+
+    const toggleInteractionPresentation = useCallback(() => {
+      handleInteractionPresentationChange(!presentedChatCollapsed);
+    }, [handleInteractionPresentationChange, presentedChatCollapsed]);
 
     // PlaybackEngine state
     const [engineMode, setEngineMode] = useState<EngineMode>('idle');
@@ -1372,12 +1430,12 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           case 's':
           case 'S':
             event.preventDefault();
-            setSidebarCollapsed(!sidebarCollapsed);
+            toggleSceneRailPresentation();
             break;
           case 'c':
           case 'C':
             event.preventDefault();
-            setChatAreaCollapsed(!chatAreaCollapsed);
+            toggleInteractionPresentation();
             break;
           default:
             break;
@@ -1388,7 +1446,6 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       return () => window.removeEventListener('keydown', onKeyDown);
     }, [
       chatSessionType,
-      chatAreaCollapsed,
       handleNextScene,
       handlePlayPause,
       handlePreviousScene,
@@ -1396,11 +1453,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       isPresentationInteractionActive,
       isPresentationShortcutTarget,
       resetPresentationIdleTimer,
-      setChatAreaCollapsed,
-      setSidebarCollapsed,
       setTTSMuted,
       setTTSVolume,
-      sidebarCollapsed,
+      toggleInteractionPresentation,
+      toggleSceneRailPresentation,
       togglePresentation,
       ttsMuted,
       ttsVolume,
@@ -1470,8 +1526,18 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       >
         <ZhiyuClassroomShell
           presenting={isPresenting}
-          sceneRailCollapsed={sidebarCollapsed}
-          interactionCollapsed={chatAreaCollapsed}
+          sceneRailCollapsed={presentedSidebarCollapsed}
+          interactionCollapsed={presentedChatCollapsed}
+          sceneRailDrawer={narrowViewport}
+          interactionDrawer={compactViewport}
+          onSceneRailDismiss={
+            narrowViewport ? () => handleSceneRailPresentationChange(true) : undefined
+          }
+          onInteractionDismiss={
+            compactViewport ? () => handleInteractionPresentationChange(true) : undefined
+          }
+          sceneRailDismissLabel={t('classroomWorkspace.collapseSceneRail')}
+          interactionDismissLabel={t('classroomWorkspace.collapseInteraction')}
           header={
             !isPresenting && !hideHeader ? (
             <Header
@@ -1493,8 +1559,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           }
           sceneRail={
             <SceneSidebar
-              collapsed={sidebarCollapsed}
-              onCollapseChange={setSidebarCollapsed}
+              collapsed={presentedSidebarCollapsed}
+              onCollapseChange={handleSceneRailPresentationChange}
               onSceneSelect={gatedSceneSwitch}
               onRetryOutline={onRetryOutline}
               isCourseComplete={isCourseComplete}
@@ -1523,10 +1589,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               isSoftClosing={chatIsSoftClosing}
               softCloseDeadline={softCloseDeadline}
               whiteboardOpen={whiteboardOpen}
-              sidebarCollapsed={sidebarCollapsed}
-              chatCollapsed={chatAreaCollapsed}
-              onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-              onToggleChat={() => setChatAreaCollapsed(!chatAreaCollapsed)}
+              sidebarCollapsed={presentedSidebarCollapsed}
+              chatCollapsed={presentedChatCollapsed}
+              onToggleSidebar={toggleSceneRailPresentation}
+              onToggleChat={toggleInteractionPresentation}
               onPrevSlide={handlePreviousScene}
               onNextSlide={handleNextScene}
               onPlayPause={handlePlayPause}
@@ -1704,10 +1770,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                 currentSceneIndex={currentSceneIndex}
                 scenesCount={totalScenesCount}
                 whiteboardOpen={whiteboardOpen}
-                sidebarCollapsed={sidebarCollapsed}
-                chatCollapsed={chatAreaCollapsed}
-                onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-                onToggleChat={() => setChatAreaCollapsed(!chatAreaCollapsed)}
+                sidebarCollapsed={presentedSidebarCollapsed}
+                chatCollapsed={presentedChatCollapsed}
+                onToggleSidebar={toggleSceneRailPresentation}
+                onToggleChat={toggleInteractionPresentation}
                 onPrevSlide={handlePreviousScene}
                 onNextSlide={handleNextScene}
                 onWhiteboardClose={handleWhiteboardToggle}
@@ -1740,8 +1806,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           }
           interaction={
             <ZhiyuInteractionPanel
-              collapsed={chatAreaCollapsed || isPresenting}
-              onCollapsedChange={setChatAreaCollapsed}
+              collapsed={presentedChatCollapsed || isPresenting}
+              onCollapsedChange={handleInteractionPresentationChange}
               liveStatus={classroomLiveStatus}
               onTabChange={(tab) => {
                 if (tab === 'lecture') chatAreaRef.current?.switchToTab('lecture');
@@ -1795,7 +1861,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             width={chatAreaWidth}
             onWidthChange={setChatAreaWidth}
             collapsed={false}
-            onCollapseChange={setChatAreaCollapsed}
+            onCollapseChange={handleInteractionPresentationChange}
             activeBubbleId={activeBubbleId}
             onActiveBubble={(id) => setActiveBubbleId(id)}
             currentSceneId={currentSceneId}
@@ -1876,10 +1942,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               isSoftClosing={chatIsSoftClosing}
               softCloseDeadline={softCloseDeadline}
               whiteboardOpen={whiteboardOpen}
-              sidebarCollapsed={sidebarCollapsed}
-              chatCollapsed={chatAreaCollapsed}
-              onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-              onToggleChat={() => setChatAreaCollapsed(!chatAreaCollapsed)}
+              sidebarCollapsed={presentedSidebarCollapsed}
+              chatCollapsed={presentedChatCollapsed}
+              onToggleSidebar={toggleSceneRailPresentation}
+              onToggleChat={toggleInteractionPresentation}
               onPrevSlide={handlePreviousScene}
               onNextSlide={handleNextScene}
               onPlayPause={handlePlayPause}

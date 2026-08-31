@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Play, Pause, Repeat, Loader2, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { AvatarDisplay } from '@/components/ui/avatar-display';
@@ -130,14 +130,18 @@ function CollapsedBubblePill({
   readonly onPlayPause?: () => void;
   readonly isPaused?: boolean;
 }) {
+  const { t } = useI18n();
   return (
-    <div className="flex items-center gap-2" onClick={onExpand}>
-      <div
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label={t('classroomWorkspace.toggleInteraction')}
+        onClick={onExpand}
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-xl shadow-md cursor-pointer transition-all duration-200',
-          'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
+          'hover:shadow-lg motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]',
           bubble.role === 'user'
-            ? 'bg-violet-50/80 dark:bg-violet-950/70 border-violet-200/70 dark:border-violet-800/60'
+            ? 'bg-teal-50/80 dark:bg-teal-950/70 border-teal-200/70 dark:border-teal-800/60'
             : bubble.role === 'agent'
               ? 'bg-blue-50/80 dark:bg-blue-950/70 border-blue-200/70 dark:border-blue-800/60'
               : 'bg-white/80 dark:bg-gray-900/85 border-gray-200/70 dark:border-gray-700/70',
@@ -147,10 +151,10 @@ function CollapsedBubblePill({
           className={cn(
             'w-6 h-6 rounded-full overflow-hidden border shrink-0',
             bubble.role === 'user'
-              ? 'border-violet-300 dark:border-violet-600'
+              ? 'border-teal-300 dark:border-teal-600'
               : bubble.role === 'agent'
                 ? 'border-blue-300 dark:border-blue-600'
-                : 'border-purple-200 dark:border-purple-700',
+                : 'border-emerald-200 dark:border-emerald-700',
           )}
         >
           <AvatarDisplay src={bubble.avatar} alt={bubble.name} />
@@ -159,18 +163,22 @@ function CollapsedBubblePill({
           {bubble.name}
         </span>
         <ChevronUp className="w-3 h-3 text-gray-400 dark:text-gray-500 shrink-0" />
-      </div>
+      </button>
       {onPlayPause && (
-        <div
+        <button
+          type="button"
+          aria-label={
+            isPaused ? t('classroomWorkspace.play') : t('classroomWorkspace.pause')
+          }
           onClick={(e) => {
             e.stopPropagation();
             onPlayPause();
           }}
           className={cn(
             'p-2 rounded-full border backdrop-blur-xl shadow-md cursor-pointer transition-all duration-200',
-            'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
+            'hover:shadow-lg motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]',
             bubble.role === 'user'
-              ? 'bg-violet-50/80 dark:bg-violet-950/70 border-violet-200/70 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/70'
+              ? 'bg-teal-50/80 dark:bg-teal-950/70 border-teal-200/70 dark:border-teal-800/60 hover:bg-teal-100 dark:hover:bg-teal-900/70'
               : bubble.role === 'agent'
                 ? 'bg-blue-50/80 dark:bg-blue-950/70 border-blue-200/70 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/70'
                 : 'bg-white/80 dark:bg-gray-900/85 border-gray-200/70 dark:border-gray-700/70 hover:bg-gray-100 dark:hover:bg-gray-800/70',
@@ -181,7 +189,7 @@ function CollapsedBubblePill({
           ) : (
             <Pause className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
           )}
-        </div>
+        </button>
       )}
     </div>
   );
@@ -204,15 +212,29 @@ export function PresentationBubbleCard({
   readonly isPaused?: boolean;
 }) {
   const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
   return (
     <div
       aria-live="polite"
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `${bubble.name}: ${t('classroomWorkspace.play')}` : undefined}
+      onKeyDown={(event) => {
+        if (
+          event.currentTarget !== event.target ||
+          !onClick ||
+          (event.key !== 'Enter' && event.key !== ' ')
+        )
+          return;
+        event.preventDefault();
+        onClick();
+      }}
       className={cn(
         'relative w-full min-w-0 rounded-3xl border backdrop-blur-xl shadow-[0_18px_50px_-20px_rgba(0,0,0,0.45)] overflow-hidden group/bubble',
         onClick && 'cursor-pointer',
         bubble.role === 'user'
-          ? 'bg-violet-50/60 dark:bg-violet-950/55 border-violet-200/70 dark:border-violet-800/60'
+          ? 'bg-teal-50/60 dark:bg-teal-950/55 border-teal-200/70 dark:border-teal-800/60'
           : bubble.role === 'agent'
             ? 'bg-blue-50/60 dark:bg-blue-950/55 border-blue-200/70 dark:border-blue-800/60'
             : 'bg-white/62 dark:bg-gray-900/82 border-gray-200/70 dark:border-gray-700/70',
@@ -223,10 +245,10 @@ export function PresentationBubbleCard({
           className={cn(
             'w-10 h-10 rounded-full overflow-hidden border-2 shadow-sm shrink-0',
             bubble.role === 'user'
-              ? 'border-violet-300 dark:border-violet-600'
+              ? 'border-teal-300 dark:border-teal-600'
               : bubble.role === 'agent'
                 ? 'border-blue-300 dark:border-blue-600'
-                : 'border-purple-200 dark:border-purple-700',
+                : 'border-emerald-200 dark:border-emerald-700',
           )}
         >
           <AvatarDisplay src={bubble.avatar} alt={bubble.name} />
@@ -236,10 +258,10 @@ export function PresentationBubbleCard({
             className={cn(
               'text-[11px] font-semibold uppercase tracking-[0.16em]',
               bubble.role === 'user'
-                ? 'text-violet-500 dark:text-violet-300'
+                ? 'text-teal-500 dark:text-teal-300'
                 : bubble.role === 'agent'
                   ? 'text-blue-500 dark:text-blue-300'
-                  : 'text-purple-500 dark:text-purple-300',
+                  : 'text-emerald-500 dark:text-emerald-300',
             )}
           >
             {bubble.role === 'user'
@@ -253,7 +275,7 @@ export function PresentationBubbleCard({
               {bubble.name}
             </div>
             {audioIndicatorState === 'generating' && (
-              <Loader2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 animate-spin motion-reduce:animate-none" />
             )}
             {audioIndicatorState === 'playing' && (
               <Volume2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
@@ -261,7 +283,9 @@ export function PresentationBubbleCard({
           </div>
         </div>
         {onCollapse && (
-          <div
+          <button
+            type="button"
+            aria-label={t('classroomWorkspace.collapseInteraction')}
             onClick={(e) => {
               e.stopPropagation();
               onCollapse();
@@ -269,7 +293,7 @@ export function PresentationBubbleCard({
             className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors duration-200 cursor-pointer z-10"
           >
             <ChevronDown className="w-4 h-4" />
-          </div>
+          </button>
         )}
       </div>
 
@@ -280,14 +304,14 @@ export function PresentationBubbleCard({
               <motion.div
                 key={delay}
                 animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ repeat: Infinity, duration: 1, delay }}
+                transition={{ repeat: reduceMotion ? 0 : Infinity, duration: 1, delay }}
                 className={cn(
                   'w-1.5 h-1.5 rounded-full',
                   bubble.role === 'user'
-                    ? 'bg-violet-400 dark:bg-violet-500'
+                    ? 'bg-teal-400 dark:bg-teal-500'
                     : bubble.role === 'agent'
                       ? 'bg-blue-400 dark:bg-blue-500'
-                      : 'bg-purple-400 dark:bg-purple-500',
+                      : 'bg-emerald-400 dark:bg-emerald-500',
                 )}
               />
             ))}
@@ -307,47 +331,55 @@ export function PresentationBubbleCard({
         buttonState &&
         buttonState !== 'none' &&
         (() => {
-          const barsColor = bubble.role === 'agent' ? '#3b82f6' : '#a855f7';
+          const barsColor = bubble.role === 'agent' ? '#3b82f6' : '#7569B7';
 
           if (buttonState === 'play') {
             return (
-              <div
+              <button
+                type="button"
+                aria-label={t('classroomWorkspace.play')}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClick?.();
                 }}
-                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-purple-100 dark:group-hover/bubble:bg-purple-900/50 transition-all duration-300 cursor-pointer"
+                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-emerald-100 dark:group-hover/bubble:bg-emerald-900/50 transition-all duration-300 cursor-pointer"
               >
-                <Play className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover/bubble:text-purple-600 dark:group-hover/bubble:text-purple-400 ml-0.5" />
-              </div>
+                <Play className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover/bubble:text-emerald-600 dark:group-hover/bubble:text-emerald-400 ml-0.5" />
+              </button>
             );
           }
 
           if (buttonState === 'restart') {
             return (
-              <div
+              <button
+                type="button"
+                aria-label={t('classroomWorkspace.play')}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClick?.();
                 }}
-                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-purple-100 dark:group-hover/bubble:bg-purple-900/50 transition-all duration-300 cursor-pointer"
+                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-emerald-100 dark:group-hover/bubble:bg-emerald-900/50 transition-all duration-300 cursor-pointer"
               >
-                <Repeat className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover/bubble:text-purple-600 dark:group-hover/bubble:text-purple-400" />
-              </div>
+                <Repeat className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover/bubble:text-emerald-600 dark:group-hover/bubble:text-emerald-400" />
+              </button>
             );
           }
 
           // buttonState === 'bars'
           return (
-            <div
+            <button
+              type="button"
+              aria-label={
+                isPaused ? t('classroomWorkspace.play') : t('classroomWorkspace.pause')
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onClick?.();
               }}
-              className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-purple-100 dark:group-hover/bubble:bg-purple-900/50 transition-all duration-300 cursor-pointer"
+              className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-emerald-100 dark:group-hover/bubble:bg-emerald-900/50 transition-all duration-300 cursor-pointer"
             >
               {isPaused ? (
-                <Play className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 group-hover/bubble:text-purple-600 dark:group-hover/bubble:text-purple-400 ml-0.5" />
+                <Play className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 group-hover/bubble:text-emerald-600 dark:group-hover/bubble:text-emerald-400 ml-0.5" />
               ) : (
                 <>
                   {/* Breathing bars — visible by default, hidden on hover */}
@@ -356,29 +388,35 @@ export function PresentationBubbleCard({
                       className="w-1 rounded-full"
                       style={{
                         backgroundColor: barsColor,
-                        animation: 'breathing-bar-1 0.6s ease-in-out infinite',
+                        animation: reduceMotion
+                          ? 'none'
+                          : 'breathing-bar-1 0.6s ease-in-out infinite',
                       }}
                     />
                     <div
                       className="w-1 rounded-full"
                       style={{
                         backgroundColor: barsColor,
-                        animation: 'breathing-bar-2 0.4s ease-in-out infinite',
+                        animation: reduceMotion
+                          ? 'none'
+                          : 'breathing-bar-2 0.4s ease-in-out infinite',
                       }}
                     />
                     <div
                       className="w-1 rounded-full"
                       style={{
                         backgroundColor: barsColor,
-                        animation: 'breathing-bar-3 0.5s ease-in-out infinite',
+                        animation: reduceMotion
+                          ? 'none'
+                          : 'breathing-bar-3 0.5s ease-in-out infinite',
                       }}
                     />
                   </div>
                   {/* Pause icon on hover */}
-                  <Pause className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 hidden group-hover/bubble:block" />
+                  <Pause className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hidden group-hover/bubble:block" />
                 </>
               )}
-            </div>
+            </button>
           );
         })()}
     </div>
@@ -398,6 +436,7 @@ export function PresentationSpeechOverlay({
   isPaused,
 }: PresentationSpeechOverlayProps) {
   const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
 
   const bubble = buildPresentationBubbleModel({
     playbackView,
@@ -422,10 +461,10 @@ export function PresentationSpeechOverlay({
       {isCollapsed ? (
         <motion.div
           key="collapsed"
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.18 }}
+          exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.9 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
         >
           <CollapsedBubblePill
             bubble={b}
@@ -437,10 +476,10 @@ export function PresentationSpeechOverlay({
       ) : (
         <motion.div
           key="expanded"
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.18 }}
+          exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.95 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
           className={PRESENTATION_BUBBLE_WIDTH}
         >
           <PresentationBubbleCard

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -31,6 +31,19 @@ import '@fontsource-variable/inter';
 export const metadata: Metadata = {
   title: '智域 · AI 互动课堂',
   description: '一句话，生成一堂互动课。多智能体教师与同学，实时讲授与讨论。',
+  applicationName: '智域',
+  icons: {
+    icon: '/zhiyu-mark.svg',
+    shortcut: '/zhiyu-mark.svg',
+    apple: '/zhiyu-mark.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#356B59' },
+    { media: '(prefers-color-scheme: dark)', color: '#121816' },
+  ],
 };
 
 export default function RootLayout({

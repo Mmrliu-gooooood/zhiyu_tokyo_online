@@ -1797,6 +1797,7 @@
     "clearCacheBlockedByOtherTabs": "Close other app tabs and retry.",
     "persistUnavailable": "Your changes aren't being saved because the app can't access its stored data. If reloading doesn't help, clear the local cache in Settings.",
     "persistChangesLost": "Storage is working again, but changes you made while it was unavailable could not be saved and have been replaced by the last saved version.",
+    "persistRecovered": "Local storage is available again. New changes will continue to be saved.",
     "webSearchSettings": "Web Search",
     "webSearchApiKey": "Search API Key",
     "webSearchApiKeyPlaceholder": "Enter your search API key",
@@ -2042,7 +2043,9 @@
   "accessCode": {
     "title": "Enter Access Code",
     "placeholder": "Access code",
-    "error": "Invalid access code. Please try again."
+    "error": "Invalid access code. Please try again.",
+    "validating": "Verifying…",
+    "success": "Access granted"
   },
   "workbench": {
     "tool": {

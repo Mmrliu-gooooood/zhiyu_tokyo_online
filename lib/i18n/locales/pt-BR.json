@@ -1785,6 +1785,7 @@
     "clearCacheBlockedByOtherTabs": "Feche as outras abas do app e tente novamente.",
     "persistUnavailable": "Suas alterações não estão sendo salvas porque o aplicativo não consegue acessar os dados armazenados. Se recarregar não resolver, limpe o cache local nas Configurações.",
     "persistChangesLost": "O armazenamento voltou a funcionar, mas as alterações feitas enquanto ele estava indisponível não puderam ser salvas e foram substituídas pela última versão salva.",
+    "persistRecovered": "O armazenamento local está disponível novamente. As novas alterações continuarão sendo salvas.",
     "webSearchSettings": "Busca na Web",
     "webSearchApiKey": "Chave de API de Busca",
     "webSearchApiKeyPlaceholder": "Digite sua chave de API de busca",
@@ -2012,7 +2013,9 @@
   "accessCode": {
     "title": "Digite o Código de Acesso",
     "placeholder": "Código de acesso",
-    "error": "Código inválido. Tente novamente."
+    "error": "Código inválido. Tente novamente.",
+    "validating": "Verificando…",
+    "success": "Acesso concedido"
   },
   "proMode": {
     "attach": "Anexar material",

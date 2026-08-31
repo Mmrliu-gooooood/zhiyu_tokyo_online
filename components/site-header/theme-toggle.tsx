@@ -36,7 +36,8 @@ export function ThemeToggle() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="h-8 w-8 inline-flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all"
-        aria-label="Theme"
+        aria-label={t('settings.theme')}
+        aria-expanded={open}
       >
         <ActiveIcon className="w-4 h-4" />
       </button>
@@ -52,7 +53,7 @@ export function ThemeToggle() {
               className={cn(
                 'w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2',
                 theme === value &&
-                  'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+                  'bg-primary/10 text-primary dark:bg-primary/15',
               )}
             >
               <Icon className="w-4 h-4" />

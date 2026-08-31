@@ -1785,6 +1785,7 @@
     "clearCacheBlockedByOtherTabs": "Fermez les autres onglets de l'application, puis réessayez.",
     "persistUnavailable": "Vos modifications ne sont pas enregistrées car l’application n’accède pas à ses données stockées. Si un rechargement ne suffit pas, videz le cache local dans les paramètres.",
     "persistChangesLost": "Le stockage fonctionne à nouveau, mais les modifications faites pendant l’indisponibilité n’ont pas pu être enregistrées et ont été remplacées par la dernière version sauvegardée.",
+    "persistRecovered": "Le stockage local est de nouveau disponible. Les nouvelles modifications continueront d’être enregistrées.",
     "webSearchSettings": "Recherche web",
     "webSearchApiKey": "Clé d’API de recherche",
     "webSearchApiKeyPlaceholder": "Saisissez votre clé d’API de recherche",
@@ -2012,7 +2013,9 @@
   "accessCode": {
     "title": "Saisissez le code d’accès",
     "placeholder": "Code d’accès",
-    "error": "Code d’accès invalide. Veuillez réessayer."
+    "error": "Code d’accès invalide. Veuillez réessayer.",
+    "validating": "Vérification…",
+    "success": "Accès autorisé"
   },
   "proMode": {
     "attach": "Joindre un support",

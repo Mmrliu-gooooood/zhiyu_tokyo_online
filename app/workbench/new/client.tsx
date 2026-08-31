@@ -8,7 +8,6 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   createWorkbenchSession,
@@ -18,6 +17,8 @@ import {
 import type { CourseRef } from '@/lib/workbench/course-refs';
 import { workspaceHref } from '@/lib/workbench/workspace-panes';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
+import { ZhiyuRouteLoading } from '@/components/brand/ZhiyuRouteLoading';
 
 // Older deployed home composers may still write this key during a rolling deploy.
 const LEGACY_LAUNCH_HANDOFF_KEY = 'workbench.launchPrompt';
@@ -109,31 +110,38 @@ export function WorkbenchLaunchBridge() {
 
   if (error) {
     return (
-      <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <button
-          type="button"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-          onClick={() => {
-            setError(null);
-            setAttempt((current) => current + 1);
-          }}
-        >
-          {t('common.retry')}
-        </button>
-        <a className="text-sm font-medium text-primary underline" href="/workspace">
-          {t('workbench.common.backToWorkspace')}
-        </a>
+      <main
+        role="alert"
+        data-testid="workbench-bridge-error"
+        className="flex min-h-screen w-full items-center justify-center bg-background px-6 text-center"
+      >
+        <div className="w-full max-w-md rounded-[22px] border border-border bg-card p-8 shadow-[0_16px_48px_rgba(20,32,25,0.08)] dark:shadow-black/25">
+          <ZhiyuLockup size="sm" className="mb-8 justify-center" />
+          <h1 className="text-lg font-semibold text-foreground">{t('workspace.loadFailed')}</h1>
+          <p className="mt-2 break-words text-sm text-destructive">{error}</p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              data-testid="workbench-bridge-retry"
+              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              onClick={() => {
+                setError(null);
+                setAttempt((current) => current + 1);
+              }}
+            >
+              {t('common.retry')}
+            </button>
+            <a
+              className="rounded-xl px-4 py-2.5 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              href="/workspace"
+            >
+              {t('workspace.backToWorkspace')}
+            </a>
+          </div>
+        </div>
       </main>
     );
   }
 
-  return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-background">
-      <Loader2
-        className="size-6 animate-spin text-muted-foreground motion-reduce:animate-none"
-        aria-label={t('workbench.common.loading')}
-      />
-    </main>
-  );
+  return <ZhiyuRouteLoading labelKey="workspace.loading" testId="workbench-bridge-forwarding" />;
 }
