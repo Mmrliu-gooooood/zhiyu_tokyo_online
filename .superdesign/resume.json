@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/classroom/[id]": {
+      "targetKind": "new-target",
+      "projectId": "b590551f-3844-43b9-b0c8-bd4087107b6b",
+      "activeDraftId": "ad1199c4-d4ec-4e2a-94a6-1f40b1093c4d",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [
+        "9f26c102-c1ac-4ea9-9a99-0659c74c533d",
+        "public-qingjin-lockup.svg",
+        "public-qingjin-mark.svg"
+      ],
+      "brandAssets": {
+        "logo": {
+          "assetKey": "public-qingjin-lockup.svg",
+          "url": "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/b590551f-3844-43b9-b0c8-bd4087107b6b/brand-assets/public-qingjin-lockup.svg/qingjin-lockup.svg",
+          "sourcePath": "public/qingjin-lockup.svg"
+        }
+      },
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md",
+        "app/page.tsx:723:816"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "73dc40c060bd1c04c732e24f96eb8e4cbfd78548e6d67967fcd870a22ee3d42e",
+        ".superdesign/init/theme.md": "f1f40d488616256e1d75c7cb2fbffef22c5d0673de3131461d49799062b2568c",
+        "app/page.tsx": "fc5f9f98719bb27497640a5dd3ae6f5677031098ab6cd0439ab8978fa1ec86a1"
+      },
+      "components": [
+        {
+          "name": "QingjinAppShell",
+          "id": "943e593a-3058-4eb0-86a2-8328028861f4",
+          "sourcePath": "app/page.tsx",
+          "logoAssetKey": "public-qingjin-lockup.svg"
+        }
+      ],
+      "drafts": {
+        "ad1199c4-d4ec-4e2a-94a6-1f40b1093c4d": {
+          "title": "Qingjin Classroom Workbench",
+          "visualDirection": "three-column Qingjin classroom: scene rail, paper canvas, 课堂互动, 48px playback bar",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-08-31T00:00:00.000Z"
+    },
+    "/generation-preview": {
+      "targetKind": "new-target",
+      "projectId": "b590551f-3844-43b9-b0c8-bd4087107b6b",
+      "activeDraftId": "29502882-c01d-48bc-9214-5821dfd5345d",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [
+        "9f26c102-c1ac-4ea9-9a99-0659c74c533d",
+        "public-qingjin-lockup.svg",
+        "public-qingjin-mark.svg"
+      ],
+      "brandAssets": {
+        "logo": {
+          "assetKey": "public-qingjin-lockup.svg",
+          "url": "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/b590551f-3844-43b9-b0c8-bd4087107b6b/brand-assets/public-qingjin-lockup.svg/qingjin-lockup.svg",
+          "sourcePath": "public/qingjin-lockup.svg"
+        }
+      },
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md",
+        "app/page.tsx:723:816"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "73dc40c060bd1c04c732e24f96eb8e4cbfd78548e6d67967fcd870a22ee3d42e",
+        ".superdesign/init/theme.md": "f1f40d488616256e1d75c7cb2fbffef22c5d0673de3131461d49799062b2568c",
+        "app/page.tsx": "fc5f9f98719bb27497640a5dd3ae6f5677031098ab6cd0439ab8978fa1ec86a1"
+      },
+      "components": [
+        {
+          "name": "QingjinAppShell",
+          "id": "943e593a-3058-4eb0-86a2-8328028861f4",
+          "sourcePath": "app/page.tsx",
+          "logoAssetKey": "public-qingjin-lockup.svg"
+        }
+      ],
+      "drafts": {
+        "29502882-c01d-48bc-9214-5821dfd5345d": {
+          "title": "Qingjin Generation Console",
+          "visualDirection": "split generation console: timeline left, scene preview right",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-08-31T00:00:00.000Z"
+    },
+    "settings-dialog": {
+      "targetKind": "new-target",
+      "projectId": "b590551f-3844-43b9-b0c8-bd4087107b6b",
+      "activeDraftId": "38192254-5376-48f7-b103-b5b646e6b6f5",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [
+        "9f26c102-c1ac-4ea9-9a99-0659c74c533d",
+        "public-qingjin-lockup.svg",
+        "public-qingjin-mark.svg"
+      ],
+      "brandAssets": {
+        "logo": {
+          "assetKey": "public-qingjin-lockup.svg",
+          "url": "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/b590551f-3844-43b9-b0c8-bd4087107b6b/brand-assets/public-qingjin-lockup.svg/qingjin-lockup.svg",
+          "sourcePath": "public/qingjin-lockup.svg"
+        }
+      },
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md",
+        "app/page.tsx:723:816"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "73dc40c060bd1c04c732e24f96eb8e4cbfd78548e6d67967fcd870a22ee3d42e",
+        ".superdesign/init/theme.md": "f1f40d488616256e1d75c7cb2fbffef22c5d0673de3131461d49799062b2568c",
+        "app/page.tsx": "fc5f9f98719bb27497640a5dd3ae6f5677031098ab6cd0439ab8978fa1ec86a1"
+      },
+      "components": [
+        {
+          "name": "QingjinAppShell",
+          "id": "943e593a-3058-4eb0-86a2-8328028861f4",
+          "sourcePath": "app/page.tsx",
+          "logoAssetKey": "public-qingjin-lockup.svg"
+        }
+      ],
+      "drafts": {
+        "38192254-5376-48f7-b103-b5b646e6b6f5": {
+          "title": "Qingjin Settings Dialog",
+          "visualDirection": "product settings center: left nav + right content over dimmed Home",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-08-31T00:00:00.000Z"
+    },
+    "classroom-loading": {
+      "targetKind": "new-target",
+      "projectId": "b590551f-3844-43b9-b0c8-bd4087107b6b",
+      "activeDraftId": "472c1a03-c7a0-4d80-8959-4eafa9de9ce0",
+      "designSystemPath": ".superdesign/design-system.md",
+      "referenceIds": [
+        "9f26c102-c1ac-4ea9-9a99-0659c74c533d",
+        "public-qingjin-lockup.svg",
+        "public-qingjin-mark.svg"
+      ],
+      "brandAssets": {
+        "logo": {
+          "assetKey": "public-qingjin-lockup.svg",
+          "url": "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/b590551f-3844-43b9-b0c8-bd4087107b6b/brand-assets/public-qingjin-lockup.svg/qingjin-lockup.svg",
+          "sourcePath": "public/qingjin-lockup.svg"
+        }
+      },
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "73dc40c060bd1c04c732e24f96eb8e4cbfd78548e6d67967fcd870a22ee3d42e",
+        ".superdesign/init/theme.md": "f1f40d488616256e1d75c7cb2fbffef22c5d0673de3131461d49799062b2568c"
+      },
+      "components": [
+        {
+          "name": "QingjinAppShell",
+          "id": "943e593a-3058-4eb0-86a2-8328028861f4",
+          "sourcePath": "app/page.tsx",
+          "logoAssetKey": "public-qingjin-lockup.svg"
+        }
+      ],
+      "drafts": {
+        "472c1a03-c7a0-4d80-8959-4eafa9de9ce0": {
+          "title": "Qingjin Loading & Error States",
+          "visualDirection": "loading seal + 课程不在这里 empty state",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-08-31T00:00:00.000Z"
+    }
+  }
+}
