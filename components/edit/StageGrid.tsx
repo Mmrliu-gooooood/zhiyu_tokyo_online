@@ -62,7 +62,11 @@ export function StageGrid({
   className,
 }: StageGridProps) {
   return (
-    <div className={cn('h-full w-full', className)} style={GRID_STYLE}>
+    <div
+      data-testid="zhiyu-editor-shell"
+      className={cn('h-full w-full', className)}
+      style={GRID_STYLE}
+    >
       {topSlot ? <div style={{ gridArea: 'top' }}>{topSlot}</div> : null}
       {leftSlot ? <div style={{ gridArea: 'left' }}>{leftSlot}</div> : null}
       <div style={{ gridArea: 'center', minHeight: 0, minWidth: 0, position: 'relative' }}>

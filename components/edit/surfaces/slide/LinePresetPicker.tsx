@@ -27,7 +27,7 @@ export function LinePresetPicker({ onPick }: LinePresetPickerProps) {
             key={`${preset.path}-${index}`}
             type="button"
             aria-label={label}
-            className="flex aspect-square items-center justify-center rounded-md border border-transparent p-2 text-zinc-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:text-zinc-300 dark:hover:border-violet-500/50 dark:hover:bg-violet-500/10"
+            className="flex aspect-square items-center justify-center rounded-md border border-transparent p-2 text-muted-foreground hover:border-primary/35 hover:bg-secondary hover:text-primary"
             onClick={() => onPick(preset)}
           >
             <svg viewBox="0 0 20 20" className="h-7 w-7" aria-hidden="true">

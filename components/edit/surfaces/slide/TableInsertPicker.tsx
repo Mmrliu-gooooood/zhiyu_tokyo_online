@@ -36,8 +36,8 @@ export function TableInsertPicker({ onPick, getLabel }: TableInsertPickerProps) 
                 onClick={() => onPick(rows, columns)}
                 className={
                   active
-                    ? 'aspect-square rounded-sm border border-violet-500 bg-violet-500'
-                    : 'aspect-square rounded-sm border border-zinc-300 bg-white hover:border-violet-400 hover:bg-violet-100 dark:border-zinc-600 dark:bg-zinc-800 dark:hover:border-violet-400 dark:hover:bg-violet-500/20'
+                    ? 'aspect-square rounded-sm border border-primary bg-primary'
+                    : 'aspect-square rounded-sm border border-border bg-background hover:border-primary/60 hover:bg-secondary'
                 }
               />
             );

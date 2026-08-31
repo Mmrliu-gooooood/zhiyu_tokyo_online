@@ -32,7 +32,7 @@ export function InsertButton({ item, iconOnly = false, popoverSide = 'bottom' }:
         'group flex h-9 items-center rounded-xl transition-colors disabled:pointer-events-none disabled:opacity-40',
         iconOnly ? 'w-9 justify-center px-0' : 'gap-1.5 px-3',
         item.active
-          ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300'
+          ? 'bg-secondary text-primary'
           : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
       )}
     >

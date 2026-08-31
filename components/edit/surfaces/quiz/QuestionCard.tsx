@@ -54,8 +54,8 @@ const TYPE_ACCENT: Record<QuizQuestionType, { badge: string; rail: string }> = {
   },
 };
 
-/** Brand-violet focus treatment shared by every text input in the form. */
-const FOCUS = 'focus-visible:border-violet-400 focus-visible:ring-violet-400/25';
+/** ZHIYU focus treatment shared by every text input in the form. */
+const FOCUS = 'focus-visible:border-primary/60 focus-visible:ring-primary/20';
 
 /** Stop a pointer event from reaching the Reorder.Item drag listener. */
 const stopDrag = (e: React.PointerEvent) => e.stopPropagation();
@@ -86,7 +86,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
       className={cn(
         'group/card relative overflow-hidden rounded-2xl border bg-white transition-shadow dark:bg-zinc-900',
         expanded
-          ? 'border-violet-200/80 shadow-[0_12px_32px_-16px_rgba(114,46,209,0.35)] dark:border-violet-500/25'
+          ? 'border-primary/25 shadow-[0_12px_32px_-16px_rgba(53,107,89,0.24)]'
           : 'border-zinc-200/80 hover:border-zinc-300 hover:shadow-[0_8px_24px_-16px_rgba(24,24,27,0.25)] dark:border-zinc-800 dark:hover:border-zinc-700',
       )}
     >
@@ -104,8 +104,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
       <div
         className={cn(
           'flex items-center gap-2 py-2 pr-2.5 pl-3 transition-colors',
-          expanded &&
-            'bg-gradient-to-r from-violet-50/60 to-transparent dark:from-violet-500/[0.06]',
+          expanded && 'bg-secondary/55',
         )}
       >
         <button
@@ -125,7 +124,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
           <ChevronRight
             className={cn(
               'h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200',
-              expanded && 'rotate-90 text-violet-500',
+              expanded && 'rotate-90 text-primary',
             )}
           />
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-zinc-100 font-mono text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
@@ -299,7 +298,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
                   disabled={(q.options?.length ?? 0) >= MAX_OPTIONS}
                   onPointerDown={stopDrag}
                   onClick={() => addQuizOption(q.id)}
-                  className="mt-0.5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-200 py-2 text-xs font-medium text-zinc-500 transition-colors hover:border-violet-300 hover:bg-violet-50/60 hover:text-violet-600 disabled:pointer-events-none disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-violet-500/40 dark:hover:bg-violet-500/10 dark:hover:text-violet-300"
+                  className="mt-0.5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-secondary hover:text-primary disabled:pointer-events-none disabled:opacity-40"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {t('edit.quiz.addOption')}
@@ -314,7 +313,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
               scoring model instead. */}
           {!choice && (
             <>
-              <div className="flex items-start gap-2.5 rounded-xl border border-violet-200/70 bg-violet-50/50 px-3 py-2.5 text-xs leading-relaxed text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/[0.07] dark:text-violet-300">
+              <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-secondary/55 px-3 py-2.5 text-xs leading-relaxed text-primary">
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
                 <span>{t('edit.quiz.shortAnswerGradingNote')}</span>
               </div>

@@ -102,7 +102,7 @@ describe('ElementPickLayer renderer DOM integration', () => {
 
     const clickCatcher = document.querySelector('.cursor-crosshair') as HTMLElement;
     // Pick mode leaves the slide alone until the pointer names an element.
-    expect(document.querySelector('.ring-violet-500')).toBeNull();
+    expect(document.querySelector('[data-testid="element-pick-ring"]')).toBeNull();
     await act(async () => {
       clickCatcher.dispatchEvent(
         new MouseEvent('mousemove', { bubbles: true, clientX: 60, clientY: 50 }),
@@ -110,7 +110,7 @@ describe('ElementPickLayer renderer DOM integration', () => {
     });
 
     // The ring is measured off the renderer's paint node, 2px outside it.
-    const ring = document.querySelector('.ring-violet-500') as HTMLElement;
+    const ring = document.querySelector('[data-testid="element-pick-ring"]') as HTMLElement;
     expect(ring.style.left).toBe('38px');
     expect(ring.style.top).toBe('28px');
     expect(ring.style.width).toBe('124px');

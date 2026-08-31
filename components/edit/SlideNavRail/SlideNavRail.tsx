@@ -43,7 +43,7 @@ const RAIL_MAX_PX = 360;
  * get a type-icon stub but stay clickable, draggable, and right-clickable
  * so page-level management is uniform across the deck.
  *
- * Visuals: low-chroma zinc surface + single violet brand accent, no
+ * Visuals: low-chroma neutral surface + ZHIYU green active accent, no
  * per-row chrome (rejected `EditModeSidebar` pattern). Drag uses an
  * explicit grip handle on the thumb so the whole tile remains
  * click-to-switch.
@@ -320,9 +320,9 @@ export function SlideNavRail() {
       // arrive too late.
       className={cn(
         'relative flex h-full shrink-0 flex-col overflow-hidden',
-        'border-r border-gray-100 dark:border-gray-800',
-        'bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl',
-        'shadow-[2px_0_24px_rgba(0,0,0,0.02)]',
+        'border-r border-border/70',
+        'bg-background/92 backdrop-blur-xl',
+        'shadow-[2px_0_20px_rgba(20,30,25,0.025)]',
       )}
       style={{
         width: collapsed ? RAIL_HANDLE_PX : persistedWidth,
@@ -341,9 +341,9 @@ export function SlideNavRail() {
           onPointerMove={handleResizeMove}
           onPointerUp={handleResizeEnd}
           onPointerCancel={handleResizeEnd}
-          className="group absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize touch-none hover:bg-violet-400/30 dark:hover:bg-violet-500/30 active:bg-violet-500/50 transition-colors"
+          className="group absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize touch-none transition-colors hover:bg-primary/15 active:bg-primary/25"
         >
-          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-gray-300 dark:bg-gray-600 group-hover:bg-violet-400 dark:group-hover:bg-violet-500 transition-colors" />
+          <div className="absolute right-0.5 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-border transition-colors group-hover:bg-primary/60" />
         </div>
       )}
       {/* Collapse / expand control. Two forms of one toggle (stable testid):
@@ -363,7 +363,7 @@ export function SlideNavRail() {
             'absolute inset-0 z-10 flex items-center justify-center',
             'text-zinc-400/70 dark:text-zinc-500/70',
             'hover:bg-gray-100/80 hover:text-zinc-600 dark:hover:bg-gray-800/80 dark:hover:text-zinc-300',
-            'focus-visible:outline-none focus-visible:bg-gray-100/80 focus-visible:text-zinc-600 focus-visible:ring-1 focus-visible:ring-violet-400/50 dark:focus-visible:bg-gray-800/80 dark:focus-visible:text-zinc-300',
+            'focus-visible:outline-none focus-visible:bg-secondary focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-primary/30',
             'active:bg-gray-200/90 active:text-zinc-700 dark:active:bg-gray-700/90 dark:active:text-zinc-200',
             'transition-colors duration-150',
           )}
@@ -381,7 +381,7 @@ export function SlideNavRail() {
             'absolute right-0 top-1/2 z-10 flex h-8 w-6 -translate-y-1/2 items-center justify-center rounded-l-md',
             'text-zinc-400/70 dark:text-zinc-500/70',
             'hover:bg-gray-100/80 hover:text-zinc-600 dark:hover:bg-gray-800/80 dark:hover:text-zinc-300',
-            'focus-visible:outline-none focus-visible:bg-gray-100/80 focus-visible:text-zinc-600 focus-visible:ring-1 focus-visible:ring-violet-400/50 dark:focus-visible:bg-gray-800/80 dark:focus-visible:text-zinc-300',
+            'focus-visible:outline-none focus-visible:bg-secondary focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-primary/30',
             'active:bg-gray-200/90 active:text-zinc-700 dark:active:bg-gray-700/90 dark:active:text-zinc-200',
             'transition-colors duration-150',
           )}

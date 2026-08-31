@@ -70,26 +70,28 @@ function OptionRow<T extends string | number>({
   disabled?: boolean;
 }) {
   return (
-    <div>
-      <div className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">{label}</div>
-      <div className="flex gap-1.5">
+    <fieldset className="space-y-1.5">
+      <legend className="text-[11px] font-medium text-muted-foreground">{label}</legend>
+      <div className="grid grid-flow-col auto-cols-fr gap-1.5 rounded-xl bg-muted/55 p-1">
         {options.map((opt) => (
           <button
+            type="button"
             key={String(opt)}
             onClick={() => onChange(opt)}
             disabled={disabled}
+            aria-pressed={opt === value}
             className={cn(
-              'flex-1 px-2 py-1.5 text-xs rounded-md border transition-colors disabled:opacity-50',
+              'min-h-8 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50',
               opt === value
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700',
+                ? 'border-primary/30 bg-secondary text-primary shadow-sm'
+                : 'border-transparent text-muted-foreground hover:bg-background hover:text-foreground',
             )}
           >
             {format ? format(opt) : String(opt)}
           </button>
         ))}
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -130,10 +132,12 @@ export function VideoExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md gap-5 rounded-2xl border-border/80 bg-background p-6 shadow-[0_24px_70px_rgba(20,30,25,0.16)]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Film className="w-4 h-4 text-gray-400 shrink-0" />
+            <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--zhiyu-ai-soft)] text-[var(--zhiyu-ai)]">
+              <Film className="size-4" />
+            </span>
             {t('export.video')}
           </DialogTitle>
           <DialogDescription>{t('export.videoDesc')}</DialogDescription>
@@ -170,11 +174,11 @@ export function VideoExportDialog({
           )}
 
           {/* Subtitles */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex flex-col gap-2">
+          <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/25 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm">{t('export.videoBurnSubtitles')}</div>
-                <div className="text-[11px] text-gray-400 dark:text-gray-500">
+                <div className="text-[11px] text-muted-foreground">
                   {t('export.videoBurnSubtitlesDesc')}
                 </div>
               </div>
@@ -185,9 +189,10 @@ export function VideoExportDialog({
               />
             </div>
             <button
+              type="button"
               onClick={() => downloadSubtitles('srt')}
               disabled={busy || downloading}
-              className="w-full px-2 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-[10px] border border-border bg-background px-2 py-1.5 text-xs font-medium transition-colors hover:bg-secondary hover:text-primary disabled:opacity-50"
             >
               {downloading ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -202,7 +207,7 @@ export function VideoExportDialog({
           {rendering && (
             <div>
               <Progress value={percent} />
-              <div className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+              <div className="mt-1.5 text-[11px] text-muted-foreground">
                 {etaMs != null
                   ? t('export.videoProgressWithEta', {
                       percent,
@@ -214,27 +219,29 @@ export function VideoExportDialog({
           )}
 
           {/* Actions */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2 border-t border-border/70 pt-4">
             {serviceEnabled && (
               <button
+                type="button"
                 onClick={() => renderVideo()}
                 disabled={busy}
-                className="w-full px-2 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-primary px-2 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {rendering && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {t('export.videoRenderMp4')}
               </button>
             )}
             <button
+              type="button"
               onClick={() => exportVideo(resolution, burnInSubtitles)}
               disabled={busy}
-              className="w-full px-2 py-2 text-sm rounded-md border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[10px] border border-border bg-background px-2 py-2 text-sm font-medium transition-colors hover:bg-secondary hover:text-primary disabled:opacity-50"
             >
               {isExportingVideo && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {t('export.videoDownloadZip')}
             </button>
             {serviceEnabled === false && (
-              <div className="text-[11px] text-gray-400 dark:text-gray-500">
+              <div className="text-[11px] leading-relaxed text-muted-foreground">
                 {t('export.videoServiceHint')}
               </div>
             )}

@@ -1,0 +1,25 @@
+# ZHIYU Competition Demo Checklist
+
+- [ ] Open Home at desktop demo resolution.
+- [ ] Confirm ZHIYU lockup and no academy/青衿 remnants.
+- [ ] Enter a real course prompt.
+- [ ] Toggle/material controls used in the demo.
+- [ ] Start class.
+- [ ] Observe truthful Generation Preview states.
+- [ ] Open outline review if the demo enables it; close/confirm normally.
+- [ ] Enter Classroom.
+- [ ] Change Scene forward and backward.
+- [ ] Start and pause playback.
+- [ ] Trigger or listen to TTS.
+- [ ] Open Classroom Interaction.
+- [ ] Send one Chat message.
+- [ ] Inspect Roles state.
+- [ ] Collapse and reopen the Interaction Panel.
+- [ ] Expand/collapse Scene Rail.
+- [ ] Enter Edit mode.
+- [ ] Return to Playback.
+- [ ] Open Settings and change/save one safe setting.
+- [ ] Open Share/Export dialog and cancel cleanly.
+- [ ] Return Home.
+- [ ] Reopen the generated course from history.
+- [ ] Confirm no generated slide is recolored by product chrome.

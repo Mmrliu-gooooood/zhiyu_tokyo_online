@@ -40,7 +40,7 @@ export function CommandBar({ title, history, commands, trailing }: CommandBarPro
   const exitLabel = t(classroomExitLabelKey(searchParams));
 
   return (
-    <header className="flex h-20 shrink-0 items-center gap-3 border-b border-zinc-200/60 px-8 dark:border-zinc-800/60">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/70 bg-background/95 px-4 shadow-[0_1px_2px_rgba(20,30,25,0.025)] backdrop-blur-xl sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {/* Classroom exit mirrors playback Header's leftmost button so the
             user has the same global-out affordance across standalone modes. */}
@@ -61,10 +61,7 @@ export function CommandBar({ title, history, commands, trailing }: CommandBarPro
             </IconButton>
           </>
         )}
-        <span
-          className={cn('ml-2 truncate text-sm font-semibold text-zinc-700 dark:text-zinc-200')}
-          title={title}
-        >
+        <span className={cn('ml-1 truncate text-sm font-semibold text-foreground')} title={title}>
           {title}
         </span>
       </div>
@@ -99,9 +96,10 @@ function IconButton({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
+          aria-label={props['aria-label'] ?? title}
           size="icon-sm"
           variant="ghost"
-          className="h-8 w-8 shrink-0 rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          className="h-8 w-8 shrink-0 rounded-[10px] text-muted-foreground hover:bg-secondary hover:text-primary focus-visible:ring-primary/45"
           {...props}
         >
           {children}

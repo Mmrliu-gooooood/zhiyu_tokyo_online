@@ -99,7 +99,7 @@ export function EditDock({
         height:
           (collapsed ? TIMELINE_COLLAPSED_HEIGHT : TIMELINE_DEFAULT_HEIGHT) + DOCK_EDIT_BAR_HEIGHT,
       }}
-      className="relative flex flex-col border-t border-gray-100 bg-white/80 backdrop-blur-xl dark:border-gray-800 dark:bg-slate-900/80"
+      className="relative flex flex-col border-t border-border/70 bg-background/92 shadow-[0_-1px_8px_rgba(20,30,25,0.025)] backdrop-blur-xl"
     >
       <DockEditBar sceneId={sceneId} canPickElements={canPickElements} pager={pager} />
 

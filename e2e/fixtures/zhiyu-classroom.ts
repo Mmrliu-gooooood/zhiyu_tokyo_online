@@ -4,19 +4,22 @@ import { defaultTheme } from './test-data/scene-content';
 
 export const ZHIYU_CLASSROOM_STAGE_ID = 'e2e-zhiyu-classroom';
 
-const SETTINGS_STORAGE = createSettingsStorage({
-  sidebarCollapsed: false,
-  chatAreaCollapsed: false,
-  ttsEnabled: false,
-  autoPlayLecture: false,
-});
-
 /** Seed the same real IndexedDB records consumed by the classroom route. */
-export async function seedClassroomDatabase(page: Page) {
+export async function seedClassroomDatabase(
+  page: Page,
+  settingsOverrides: Record<string, unknown> = {},
+) {
+  const settingsStorage = createSettingsStorage({
+    sidebarCollapsed: false,
+    chatAreaCollapsed: false,
+    ttsEnabled: false,
+    autoPlayLecture: false,
+    ...settingsOverrides,
+  });
   await page.addInitScript((settings) => {
     localStorage.setItem('maic:account:settings-storage', settings);
     localStorage.setItem('locale', 'en-US');
-  }, SETTINGS_STORAGE);
+  }, settingsStorage);
 
   await page.goto('/', { waitUntil: 'networkidle' });
   await page.evaluate(

@@ -591,7 +591,7 @@ function SpeechClip({
   return (
     <div
       className={cn(
-        'group/clip relative flex h-full w-[228px] shrink-0 flex-col overflow-hidden rounded-xl border border-border/85 bg-white/75 shadow-sm transition-colors focus-within:border-violet-400 hover:border-violet-300/70 dark:bg-slate-800/50 dark:hover:border-violet-500/40',
+        'group/clip relative flex h-full w-[228px] shrink-0 flex-col overflow-hidden rounded-xl border border-border/85 bg-white/75 shadow-sm transition-colors focus-within:border-primary/60 hover:border-primary/35 dark:bg-slate-800/50',
         needsText && INCOMPLETE_CLIP,
       )}
     >
@@ -850,9 +850,7 @@ function CueMarker({
       }}
       className={cn(
         'group/cue relative flex h-full w-[108px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200/80 bg-white/65 shadow-sm transition-colors dark:border-gray-700/60 dark:bg-slate-800/40',
-        bound
-          ? 'cursor-pointer hover:border-violet-300/70 dark:hover:border-violet-500/40'
-          : 'cursor-grab active:cursor-grabbing',
+        bound ? 'cursor-pointer hover:border-primary/35' : 'cursor-grab active:cursor-grabbing',
         needsTarget && cn('border-dashed', m.dash),
       )}
       aria-label={label}

@@ -130,7 +130,7 @@ export function ElementRefLassoButton({ sceneId }: { readonly sceneId: string })
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
         armed
-          ? 'border-violet-400 bg-violet-500 text-white hover:bg-violet-600'
+          ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
           : 'border-primary/25 bg-primary/10 text-primary hover:bg-primary/15',
       )}
     >

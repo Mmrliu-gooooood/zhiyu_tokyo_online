@@ -144,9 +144,7 @@ export function FloatingInsertToolbar({ items, x, y, collapsed, onToggleCollapse
           className={cn(
             'flex flex-col items-center gap-1 p-1',
             picking ? 'pointer-events-none' : 'pointer-events-auto',
-            'bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md',
-            'ring-1 ring-zinc-200/80 dark:ring-zinc-700/80',
-            'rounded-xl shadow-md',
+            'rounded-xl bg-background/92 ring-1 ring-border/80 shadow-md shadow-foreground/5 backdrop-blur-md',
           )}
         >
           {/* Grip and fold share one low-profile row, so a folded strip IS the
@@ -164,7 +162,7 @@ export function FloatingInsertToolbar({ items, x, y, collapsed, onToggleCollapse
               }}
               onKeyDown={handleDragKeyDown}
               onBlur={() => setKeyboardDragging(false)}
-              className="flex h-6 flex-1 touch-none cursor-grab items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 focus-visible:outline-2 focus-visible:outline-violet-500 active:cursor-grabbing dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-400"
+              className="flex h-6 flex-1 touch-none cursor-grab items-center justify-center rounded-md text-muted-foreground/55 hover:bg-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-primary active:cursor-grabbing"
             >
               <GripHorizontal className="h-3 w-3" strokeWidth={2} />
             </button>
@@ -177,7 +175,7 @@ export function FloatingInsertToolbar({ items, x, y, collapsed, onToggleCollapse
                 collapsed ? t('edit.insert.expandToolbar') : t('edit.insert.collapseToolbar')
               }
               title={collapsed ? t('edit.insert.expandToolbar') : t('edit.insert.collapseToolbar')}
-              className="grid h-6 w-4 shrink-0 place-items-center rounded-md text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-500 focus-visible:outline-2 focus-visible:outline-violet-500 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-400"
+              className="grid h-6 w-4 shrink-0 place-items-center rounded-md text-muted-foreground/55 transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
             >
               <ChevronDown
                 className={cn('h-3 w-3 transition-transform', !collapsed && 'rotate-180')}

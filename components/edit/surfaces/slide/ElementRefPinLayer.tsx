@@ -135,16 +135,16 @@ export function ElementRefPinLayer() {
                   pickingElementRefs
                     ? 'absolute'
                     : isHovered
-                      ? 'absolute rounded-[4px] bg-violet-500/[0.07] ring-2 ring-violet-500 transition-colors'
-                      : 'absolute rounded-[4px] ring-1 ring-violet-400/55 transition-colors'
+                      ? 'absolute rounded-[4px] bg-primary/[0.07] ring-2 ring-primary transition-colors'
+                      : 'absolute rounded-[4px] ring-1 ring-primary/50 transition-colors'
                 }
                 style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
               >
                 <span
                   className={
                     isHovered
-                      ? 'absolute -left-2 -top-2 grid size-[18px] place-items-center rounded-full bg-violet-500 font-mono text-[10px] font-semibold leading-none tabular-nums text-white shadow-md shadow-violet-500/30 ring-2 ring-white dark:ring-slate-900'
-                      : 'absolute -left-2 -top-2 grid size-4 place-items-center rounded-full bg-violet-500/85 font-mono text-[9px] font-semibold leading-none tabular-nums text-white ring-2 ring-white dark:ring-slate-900'
+                      ? 'absolute -left-2 -top-2 grid size-[18px] place-items-center rounded-full bg-primary font-mono text-[10px] font-semibold leading-none tabular-nums text-primary-foreground shadow-md shadow-primary/25 ring-2 ring-white dark:ring-slate-900'
+                      : 'absolute -left-2 -top-2 grid size-4 place-items-center rounded-full bg-primary/85 font-mono text-[9px] font-semibold leading-none tabular-nums text-primary-foreground ring-2 ring-white dark:ring-slate-900'
                   }
                 >
                   {ref.ordinal}

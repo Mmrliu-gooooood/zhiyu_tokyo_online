@@ -82,7 +82,7 @@ function ToggleButton({ label, active, payload, run, children }: ToggleButtonPro
       onClick={() => run(payload)}
       className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
         active
-          ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300'
+          ? 'bg-secondary text-primary'
           : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
       }`}
     >

@@ -299,7 +299,7 @@ function Frame({
 
   return (
     <StageGrid
-      className="bg-gradient-to-b from-zinc-100 to-zinc-200 dark:from-zinc-950 dark:to-zinc-900"
+      className="bg-[#eef1ef] text-foreground dark:bg-background"
       topSlot={
         hideCommandBar ? null : (
           // `data-maic-edit-chrome`: the workbench's hand-edit signal scope
@@ -345,7 +345,7 @@ function Frame({
         // never overlaps the slide.
         <div
           data-maic-studio-frame="true"
-          className="relative h-full min-h-0 w-full overflow-hidden p-3 sm:p-4"
+          className="relative h-full min-h-0 w-full overflow-hidden p-3 sm:p-4 lg:p-5"
         >
           {/* `data-maic-edit-canvas`: the workbench's hand-edit signal scope
               (typing / pointer gestures on the page itself). See
@@ -353,7 +353,7 @@ function Frame({
           {usesClassroomAspect(sceneType) ? (
             <ContainBox
               fit="contain"
-              className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:ring-zinc-800/80 shadow-[0_10px_40px_-12px_rgba(15,23,42,0.18)] dark:shadow-[0_10px_40px_-12px_rgba(0,0,0,0.6)]"
+              className="overflow-hidden rounded-2xl bg-white ring-1 ring-border/80 shadow-[0_1px_2px_rgba(20,30,25,0.035),0_12px_32px_rgba(20,30,25,0.07)] dark:bg-card dark:shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
             >
               <div
                 data-maic-edit-canvas="true"
@@ -367,7 +367,7 @@ function Frame({
             <div
               data-maic-edit-canvas="true"
               data-maic-stage-card="true"
-              className="relative h-full w-full overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:ring-zinc-800/80 shadow-[0_10px_40px_-12px_rgba(15,23,42,0.18)] dark:shadow-[0_10px_40px_-12px_rgba(0,0,0,0.6)]"
+              className="relative h-full w-full overflow-hidden rounded-2xl bg-white ring-1 ring-border/80 shadow-[0_1px_2px_rgba(20,30,25,0.035),0_12px_32px_rgba(20,30,25,0.07)] dark:bg-card dark:shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
             >
               {children}
             </div>

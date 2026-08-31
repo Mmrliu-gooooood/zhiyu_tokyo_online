@@ -194,7 +194,7 @@ describe('ElementPickLayer purposes', () => {
     // The canvas starts CLEAN — no all-elements outlining. The ring appears on
     // the element under the pointer, measured from its `.element-content` box
     // rather than the zero-size wrapper the ids hang on.
-    expect(document.querySelector('.ring-violet-500')).toBeNull();
+    expect(document.querySelector('[data-testid="element-pick-ring"]')).toBeNull();
     const catcher = document.querySelector('.cursor-crosshair') as HTMLElement;
     await act(async () => {
       catcher.dispatchEvent(
@@ -202,7 +202,7 @@ describe('ElementPickLayer purposes', () => {
       );
     });
 
-    const ring = document.querySelector('.ring-violet-500') as HTMLElement;
+    const ring = document.querySelector('[data-testid="element-pick-ring"]') as HTMLElement;
     // The ring sits 2px outside the measured box on every side.
     expect(ring.style.left).toBe('8px');
     expect(ring.style.width).toBe('124px');
@@ -296,7 +296,7 @@ describe('ElementPickLayer purposes', () => {
       );
     });
     const layer = document.querySelector('[data-testid="element-pick-layer"]') as HTMLElement;
-    const ring = document.querySelector('.ring-violet-500') as HTMLElement;
+    const ring = document.querySelector('[data-testid="element-pick-ring"]') as HTMLElement;
     expect(layer.contains(ring)).toBe(true);
 
     await act(async () => root.unmount());
@@ -322,7 +322,7 @@ describe('ElementPickLayer purposes', () => {
     });
 
     const { root } = await render();
-    expect(document.querySelector('.ring-violet-500')).toBeNull();
+    expect(document.querySelector('[data-testid="element-pick-ring"]')).toBeNull();
 
     const noteRow = Array.from(document.querySelectorAll('button')).find((row) =>
       row.textContent?.includes('入射角'),
@@ -333,7 +333,7 @@ describe('ElementPickLayer purposes', () => {
     });
 
     // `note-1` is the second legacy host, painted at top 90 — ringed 2px outside.
-    const ring = document.querySelector('.ring-violet-500') as HTMLElement;
+    const ring = document.querySelector('[data-testid="element-pick-ring"]') as HTMLElement;
     expect(ring.style.top).toBe('88px');
     expect(ring.style.width).toBe('124px');
 

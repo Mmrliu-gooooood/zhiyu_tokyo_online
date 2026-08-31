@@ -98,7 +98,7 @@ function AddQuestionButton() {
         <button
           type="button"
           data-testid="quiz-add-question"
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-white/70 py-3 text-sm font-medium text-zinc-500 transition-colors hover:border-violet-300 hover:bg-violet-50/70 hover:text-violet-600 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-violet-500/50 dark:hover:bg-violet-500/10 dark:hover:text-violet-300"
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/70 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-secondary hover:text-primary"
         >
           <Plus className="h-4 w-4" strokeWidth={2} />
           {t('edit.quiz.addQuestion')}
