@@ -27,13 +27,10 @@ import { ProSwapWatcher } from '@/components/workbench/ProSwapWatcher';
 // `--font-sans` moves to globals.css since the family no longer comes from
 // next/font's generated class.
 import '@fontsource-variable/inter';
-// Subset only: the full 400.css/700.css entries emit ~200 unicode-range
-// @font-face rules and stall first-page Turbopack compile on Windows.
-import '@fontsource/noto-serif-sc/chinese-simplified-700.css';
 
 export const metadata: Metadata = {
-  title: '青衿',
-  description: '一句话，生成一堂多智能体互动课。',
+  title: '智域 · AI 互动课堂',
+  description: '一句话，生成一堂互动课。多智能体教师与同学，实时讲授与讨论。',
 };
 
 export default function RootLayout({

@@ -90,6 +90,8 @@ import {
 import { useImportPptx } from '@/lib/import/use-import-pptx';
 import { InteractiveModeButton } from '@/components/generation/interactive-mode-button';
 import { ProBadge } from '@/components/workbench/ProBadge';
+import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
+import { ZhiyuLearningVisual } from '@/components/home/ZhiyuLearningVisual';
 import { arrivedByProSwap, startProSwap } from '@/lib/workbench/pro-swap';
 import {
   readLastWorkspaceSessionId,
@@ -703,7 +705,7 @@ function HomePage() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-background text-foreground flex flex-col items-center p-4 pt-20 md:p-8 md:pt-20 overflow-x-hidden">
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden bg-background px-4 pb-4 pt-20 text-foreground md:px-8 md:pb-8">
       <input
         ref={fileInputRef}
         type="file"
@@ -723,22 +725,10 @@ function HomePage() {
       {/* ═══ Product top bar ═══ */}
       <div
         ref={toolbarRef}
-        className="fixed top-0 inset-x-0 z-50 h-14 px-4 md:px-8 flex items-center justify-between bg-card/72 backdrop-blur-md border-b border-border"
+        className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8"
       >
-        <div className="flex items-center gap-2 min-w-0" data-pro-morph="lockup">
-          <span
-            aria-hidden
-            className="inline-flex size-7 items-center justify-center rounded-[3px] bg-[#8A6A3D] text-[11px] font-bold text-[#FBFCFB] ring-1 ring-[#FBFCFB]/70"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            衿
-          </span>
-          <span
-            className="text-[22px] font-semibold tracking-tight text-foreground"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            青衿
-          </span>
+        <div className="flex min-w-0 items-center gap-2" data-pro-morph="lockup">
+          <ZhiyuLockup />
           {workbenchEntryEnabled ? (
             <div className="ml-1" data-pro-morph="badge">
               <ProBadge active={false} onToggle={enterWorkbench} />
@@ -750,6 +740,7 @@ function HomePage() {
 
           <div className="relative">
             <button
+              aria-label={t('settings.theme')}
               onClick={() => {
                 setThemeOpen(!themeOpen);
               }}
@@ -806,6 +797,7 @@ function HomePage() {
 
           <div className="relative">
             <button
+              aria-label={t('settings.title')}
               onClick={() => setSettingsOpen(true)}
               className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-all group"
             >
@@ -823,31 +815,24 @@ function HomePage() {
         initialSection={settingsSection}
       />
 
-      {/* ═══ Hero section: title + input (centered, wider) ═══ */}
-      <motion.div
+      {/* ═══ Learning home: product promise + creation card ═══ */}
+      <motion.main
         initial={heroEnter({ opacity: 0, y: 20 })}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className={cn('relative z-20 w-full max-w-[800px] flex flex-col items-center mt-[10vh]')}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="relative z-20 mx-auto mt-[clamp(2rem,7vh,5rem)] w-full max-w-6xl"
       >
-        <h1
-          className="text-[28px] md:text-[36px] font-semibold tracking-tight text-foreground text-center"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {t('home.headline')}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground mb-8 text-center">{t('home.slogan')}</p>
+        <section className="mb-7 max-w-3xl md:mb-9">
+          <h1 className="text-balance text-[32px] font-semibold leading-[1.15] tracking-[-0.035em] text-foreground md:text-[46px]">
+            {t('home.headline')}
+          </h1>
+        </section>
 
-        {/* ── Unified input area ── */}
-        <motion.div
-          initial={heroEnter({ opacity: 0, scale: 0.97 })}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.35 }}
-          className="w-full"
-        >
+        <section className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
           <div
+            data-testid="zhiyu-home-create-card"
             data-pro-morph="composer"
-            className="w-full rounded-2xl border border-border bg-card/90 backdrop-blur-xl shadow-[0_1px_0_rgba(27,36,32,0.04),0_12px_32px_rgba(27,36,32,0.04)] transition-shadow focus-within:shadow-[0_0_0_1px_var(--primary),0_0_0_6px_color-mix(in_srgb,var(--primary)_6%,transparent)]"
+            className="w-full rounded-[24px] border border-border/90 bg-card shadow-[0_1px_0_rgba(20,32,25,0.03),0_18px_48px_rgba(20,32,25,0.06)] transition-shadow focus-within:shadow-[0_0_0_1px_var(--primary),0_0_0_6px_color-mix(in_srgb,var(--primary)_7%,transparent),0_20px_52px_rgba(20,32,25,0.08)]"
           >
             {/* ── Greeting + Profile + Agents ── */}
             <div className="relative z-20 flex items-start justify-between">
@@ -861,7 +846,7 @@ function HomePage() {
             <textarea
               ref={textareaRef}
               placeholder={t('upload.requirementPlaceholder')}
-              className="w-full resize-none border-0 bg-transparent px-4 pt-1 pb-2 text-[13px] leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none min-h-[140px] max-h-[300px]"
+              className="min-h-[168px] max-h-[320px] w-full resize-none border-0 bg-transparent px-5 pb-4 pt-2 text-[15px] leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
               value={form.requirement}
               onChange={(e) => updateForm('requirement', e.target.value)}
               onKeyDown={handleKeyDown}
@@ -869,7 +854,7 @@ function HomePage() {
             />
 
             {/* Toolbar row */}
-            <div className="px-3 pb-3 flex items-end gap-2">
+            <div className="flex items-end gap-2 border-t border-border/70 px-4 py-3">
               <div className="flex-1 min-w-0">
                 <GenerationToolbar
                   webSearch={form.webSearch}
@@ -917,7 +902,7 @@ function HomePage() {
                 onClick={handleGenerate}
                 disabled={!canGenerate || preparingGenerate}
                 className={cn(
-                  'shrink-0 h-8 rounded-lg flex items-center justify-center gap-1.5 transition-all px-3',
+                  'flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 transition-all',
                   canGenerate && !preparingGenerate
                     ? 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer'
                     : 'bg-muted text-muted-foreground/40 cursor-not-allowed',
@@ -934,7 +919,16 @@ function HomePage() {
               </button>
             </div>
           </div>
-        </motion.div>
+
+          <aside className="relative flex min-h-[310px] flex-col overflow-hidden rounded-[24px] bg-primary p-5 text-primary-foreground shadow-[0_18px_48px_rgba(53,107,89,0.16)] md:p-6">
+            <div className="relative my-auto py-2">
+              <ZhiyuLearningVisual className="mx-auto max-w-[330px] drop-shadow-[0_18px_28px_rgba(18,45,35,0.16)]" />
+            </div>
+            <p className="relative max-w-[30rem] text-sm leading-6 text-white/82">
+              {t('home.slogan')}
+            </p>
+          </aside>
+        </section>
 
         {showVocationalTestUi && (
           <motion.div
@@ -953,8 +947,8 @@ function HomePage() {
                   className={cn(
                     'inline-flex h-7 items-center gap-2 rounded-full border px-2.5 text-[11px] font-medium transition-colors',
                     form.vocationalTestMode
-                      ? 'border-[#8A6A3D]/70 bg-primary/10 text-primary shadow-[0_0_10px_color-mix(in_srgb,var(--primary)_16%,transparent)]'
-                      : 'border-border/70 bg-background/70 text-muted-foreground hover:border-[#8A6A3D]/60 hover:text-primary',
+                      ? 'border-primary/50 bg-primary/10 text-primary shadow-sm'
+                      : 'border-border/70 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-primary',
                   )}
                 >
                   <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-normal text-primary">
@@ -997,7 +991,7 @@ function HomePage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </motion.main>
 
       {/* ═══ Recent classrooms — collapsible ═══ */}
       {/* The library action bar is always present after hydration: it carries
@@ -1009,7 +1003,7 @@ function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="relative z-10 mt-10 w-full max-w-6xl flex flex-col items-center"
+          className="relative z-10 mx-auto mt-10 flex w-full max-w-6xl flex-col items-center"
         >
           {/* Trigger — divider-line with centered text. Fixed height keeps the
               bar geometrically stable when the New-folder action or the folder
@@ -1318,7 +1312,7 @@ function HomePage() {
       />
 
       {/* Footer — flows with content, at the very end */}
-      <div className="mt-auto pt-12 pb-4 text-center text-xs text-muted-foreground/50">
+      <div className="mx-auto pt-12 pb-4 text-center text-xs text-muted-foreground/60">
         {t('home.footer')}
       </div>
     </div>

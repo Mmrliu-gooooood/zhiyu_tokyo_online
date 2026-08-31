@@ -10,9 +10,9 @@
     "close": "关闭"
   },
   "home": {
-    "headline": "一句话，生成一堂课",
+    "headline": "一句话，生成一堂互动课",
     "slogan": "多智能体教师与同学，实时讲授与讨论",
-    "footer": "青衿 · 基于 OpenMAIC 的 AI 教学工作台",
+    "footer": "智域 · 基于 OpenMAIC 构建",
     "greetingWithName": "嗨，{{name}}"
   },
   "toolbar": {

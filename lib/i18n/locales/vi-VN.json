@@ -12,7 +12,7 @@
   "home": {
     "headline": "One prompt. A whole classroom.",
     "slogan": "Học tập sinh tạo trong lớp học tương tác đa tác nhân",
-    "footer": "Qingjin · An AI teaching workspace based on OpenMAIC",
+    "footer": "ZHIYU · Powered by OpenMAIC",
     "greetingWithName": "Chào {{name}}"
   },
   "toolbar": {

@@ -23,12 +23,15 @@ export interface BrandConfig {
   themeColor: string;
 }
 
+/** English companion used by the bilingual product lockup. */
+export const BRAND_ENGLISH_NAME = 'ZHIYU';
+
 /** The default brand: the product itself, with no vendor overrides. */
 export const DEFAULT_BRAND: BrandConfig = {
-  productName: '青衿',
-  shortName: '青衿',
-  logoSrc: '/qingjin-lockup.svg',
+  productName: '智域',
+  shortName: '智域',
+  logoSrc: '/zhiyu-lockup.svg',
   logoHasWordmark: true,
-  markSrc: '/qingjin-mark.svg',
-  themeColor: '#3D6B5A',
+  markSrc: '/zhiyu-mark.svg',
+  themeColor: '#356B59',
 };

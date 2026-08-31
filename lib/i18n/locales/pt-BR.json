@@ -12,7 +12,7 @@
   "home": {
     "headline": "One prompt. A whole classroom.",
     "slogan": "Aprendizagem Generativa em Sala de Aula Interativa Multi-Agente",
-    "footer": "Qingjin · An AI teaching workspace based on OpenMAIC",
+    "footer": "ZHIYU · Powered by OpenMAIC",
     "greetingWithName": "Olá, {{name}}"
   },
   "toolbar": {

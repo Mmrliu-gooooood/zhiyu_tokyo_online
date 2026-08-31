@@ -10,9 +10,9 @@
     "close": "Close"
   },
   "home": {
-    "headline": "One prompt. A whole classroom.",
-    "slogan": "Teachers and classmates, lecturing and discussing in real time",
-    "footer": "Qingjin · An AI teaching workspace based on OpenMAIC",
+    "headline": "Turn one idea into an interactive class",
+    "slogan": "Learn with AI teachers and classmates in real-time lessons and discussion",
+    "footer": "ZHIYU · Powered by OpenMAIC",
     "greetingWithName": "Hi, {{name}}"
   },
   "toolbar": {

@@ -12,7 +12,7 @@
   "home": {
     "headline": "一句話，生成一堂課",
     "slogan": "多智能體教師與同學，即時講授與討論",
-    "footer": "青衿 · 基於 OpenMAIC 的 AI 教學工作臺",
+    "footer": "ZHIYU · Powered by OpenMAIC",
     "greetingWithName": "嗨，{{name}}"
   },
   "toolbar": {
