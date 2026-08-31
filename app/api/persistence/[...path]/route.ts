@@ -264,7 +264,7 @@ interface PersistenceRequestDeps {
   poolFactory?: PersistencePoolFactory;
 }
 
-export async function handlePersistenceRequest(
+async function handlePersistenceRequest(
   request: Request,
   deps: PersistenceRequestDeps = {},
 ): Promise<Response> {

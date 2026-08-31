@@ -30,7 +30,7 @@ import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 export const runtime = 'nodejs';
 
 /** Upper bound on `ids` — see the file header. */
-export const MAX_BATCH_SCENE_IDS = 200;
+const MAX_BATCH_SCENE_IDS = 200;
 
 /**
  * Scene ids travel the same wire as stage ids, so they face the same driver

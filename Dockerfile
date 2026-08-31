@@ -48,6 +48,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 # ---- Stage 3: Builder ----
 FROM base AS builder
 
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
 ARG ALLOWED_FRAME_ANCESTORS
 ARG NEXT_PUBLIC_PERSISTENCE
 ARG NEXT_PUBLIC_PERSISTENCE_TOKEN

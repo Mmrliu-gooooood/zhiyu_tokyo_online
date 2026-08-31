@@ -74,7 +74,7 @@ const DOCUMENT_UPLOAD_LIMIT = Math.min(
 const MEDIA_MIME_SET = new Set<string>(MEDIA_MIME_TYPES);
 
 /** The store's keyset-paging ceiling (default 50, capped at 200). */
-export const MAX_MATERIAL_LIST_LIMIT = 200;
+const MAX_MATERIAL_LIST_LIMIT = 200;
 
 class MaterialPayloadTooLarge extends Error {}
 

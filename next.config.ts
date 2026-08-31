@@ -46,11 +46,21 @@ const nextConfig: NextConfig = {
   // first compile of app/globals.css. Official `next dev` is Turbopack; local
   // `pnpm dev` uses webpack instead. webpack must not bundle Node builtins
   // pulled in by instrumentation → agent-runtime → comfyui-image-adapter.
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
     // instrumentation is also compiled into the client-development-fallback
     // graph. Mark Node builtins as missing there; the file already no-ops when
     // NEXT_RUNTIME !== 'nodejs'.
     if (!isServer) {
+      // webpack rejects the node: scheme before resolve.fallback runs. Strip
+      // the scheme in client graphs so the existing false fallbacks apply.
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(
+          /^node:/,
+          (resource: { request: string }) => {
+            resource.request = resource.request.slice('node:'.length);
+          },
+        ),
+      );
       config.resolve.fallback = {
         ...config.resolve.fallback,
         ...Object.fromEntries(
@@ -64,7 +74,10 @@ const nextConfig: NextConfig = {
     config.externals = [
       ...(Array.isArray(prev) ? prev : prev ? [prev] : []),
       ({ request }: { request?: string }, callback: (error?: Error | null, result?: string) => void) => {
-        if (request && nodeBuiltinSet.has(request)) {
+        // The route/instrumentation graph imports undici's public entry point
+        // directly. Keep it native: bundling that entry point traverses the
+        // optional SQLite cache store and webpack cannot load node:sqlite.
+        if (request === 'undici' || (request && nodeBuiltinSet.has(request))) {
           callback(null, `commonjs ${request}`);
           return;
         }

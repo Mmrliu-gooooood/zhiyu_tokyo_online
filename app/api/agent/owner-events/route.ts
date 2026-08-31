@@ -22,9 +22,9 @@ export const maxDuration = 300;
 
 // LISTEN/NOTIFY supplies low latency. This is deliberately retained as a
 // correctness fallback because NOTIFY is lossy across listener disconnects.
-export const OWNER_EVENT_POLL_INTERVAL_MS = 30_000;
-export const SSE_HEARTBEAT_INTERVAL_MS = 25_000;
-export const OWNER_EVENT_REPLAY_LIMIT = 1_000;
+const OWNER_EVENT_POLL_INTERVAL_MS = 30_000;
+const SSE_HEARTBEAT_INTERVAL_MS = 25_000;
+const OWNER_EVENT_REPLAY_LIMIT = 1_000;
 const BACKLOG_PAGE = 500;
 
 function parseLastEventId(value: string | null): bigint {
