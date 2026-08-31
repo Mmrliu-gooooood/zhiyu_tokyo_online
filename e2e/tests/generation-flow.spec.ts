@@ -52,8 +52,11 @@ test.describe('Generation Flow', () => {
     const preview = new GenerationPreviewPage(page);
     await preview.goto();
 
-    // Generation card with progress dots should be visible
+    // The ZHIYU shell is a projection over the existing generation flow.
     await expect(preview.stepTitle).toBeVisible();
+    await expect(preview.shell).toBeVisible();
+    await expect(preview.timeline).toBeVisible();
+    await expect(preview.preview).toBeVisible();
 
     // Wait for auto-redirect to classroom
     await preview.waitForRedirectToClassroom();
