@@ -644,7 +644,9 @@ describe('workspace home intent', () => {
     expect(mocks.routerReplace).not.toHaveBeenCalled();
     expect(localStorage.getItem(COURSE_TABS_STORAGE_KEY)).toBeNull();
     expect(
-      container?.querySelector('[data-testid="pro-workspace"]')?.getAttribute('data-ws-layout'),
+      container
+        ?.querySelector('[data-testid="zhiyu-workspace-shell"]')
+        ?.getAttribute('data-ws-layout'),
     ).toBe('home');
 
     await render();

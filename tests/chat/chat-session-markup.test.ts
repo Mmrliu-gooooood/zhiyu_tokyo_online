@@ -66,4 +66,44 @@ describe('ChatSessionComponent markup contract', () => {
     expect(html).toContain('chat.softClosing');
     expect(html).not.toContain('animate-ping');
   });
+
+  it('keeps AI identity/content and user authorship explicit in the rendered contract', () => {
+    const session: ChatSession = {
+      id: 'session-identity',
+      type: 'qa',
+      title: 'Q&A',
+      status: 'completed',
+      messages: [
+        {
+          id: 'assistant-message',
+          role: 'assistant',
+          parts: [{ type: 'text', text: 'Chlorophyll captures light energy.' }],
+          metadata: { originalRole: 'teacher', senderName: 'AI Teacher' },
+        },
+        {
+          id: 'user-message',
+          role: 'user',
+          parts: [{ type: 'text', text: 'How is that energy stored?' }],
+          metadata: { originalRole: 'user', senderName: 'You' },
+        },
+      ],
+      config: { agentIds: ['default-1'] },
+      toolCalls: [],
+      pendingToolCalls: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(ChatSessionComponent, { session, isActive: false }),
+    );
+
+    expect(html).toContain('data-message-role="assistant"');
+    expect(html).toContain('data-message-role="user"');
+    expect(html).toContain('data-testid="zhiyu-chat-identity"');
+    expect(html).toContain('data-testid="zhiyu-chat-content"');
+    expect(html).toContain('Chlorophyll captures light energy.');
+    expect(html).toContain('How is that energy stored?');
+    expect(html).toContain('bg-[#E7F1EC]');
+  });
 });

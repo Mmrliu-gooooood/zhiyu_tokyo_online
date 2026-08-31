@@ -223,6 +223,20 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: openmaic
+          POSTGRES_USER: openmaic
+          POSTGRES_PASSWORD: openmaic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openmaic -d openmaic"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -325,9 +339,14 @@ jobs:
         run: pnpm build
         env:
           NEXT_PUBLIC_MAIC_EDITOR_ENABLED: 'true'
+          NEXT_PUBLIC_PRO_WORKBENCH_ENABLED: 'true'
 
       - name: Run e2e tests
         run: pnpm exec playwright test
+        env:
+          NEXT_PUBLIC_PRO_WORKBENCH_ENABLED: 'true'
+          OPENMAIC_AGENT_RUNTIME_ENABLED: 'true'
+          DATABASE_URL: postgresql://openmaic:openmaic@127.0.0.1:5432/openmaic
 
       - uses: actions/upload-artifact@v4
         if: failure()

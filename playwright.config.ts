@@ -32,6 +32,13 @@ export default defineConfig({
     // Enable the MAIC Editor (Pro mode) so editor e2e can reach it. This is a
     // build-time NEXT_PUBLIC_* flag: in CI it must be set on the dedicated
     // `pnpm build` step; locally `pnpm dev` reads it here.
-    env: { PORT: '3002', NEXT_PUBLIC_MAIC_EDITOR_ENABLED: 'true' },
+    env: {
+      PORT: '3002',
+      NEXT_PUBLIC_MAIC_EDITOR_ENABLED: 'true',
+      NEXT_PUBLIC_PRO_WORKBENCH_ENABLED: 'true',
+      OPENMAIC_AGENT_RUNTIME_ENABLED: 'true',
+      DATABASE_URL:
+        process.env.DATABASE_URL ?? 'postgresql://openmaic:openmaic@127.0.0.1:5432/openmaic',
+    },
   },
 });

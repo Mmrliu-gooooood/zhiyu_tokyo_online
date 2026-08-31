@@ -715,11 +715,11 @@ export function Roundtable({
   const referencePill = elementReferencePill ? (
     <div
       data-testid="slide-element-reference-pill"
-      className="pointer-events-auto flex max-w-[min(520px,calc(100vw-3rem))] items-center gap-2 rounded-full border border-violet-200 bg-white/95 px-3 py-1.5 text-xs shadow-lg backdrop-blur dark:border-violet-700 dark:bg-gray-900/95"
+      className="pointer-events-auto flex max-w-[min(520px,calc(100vw-3rem))] items-center gap-2 rounded-full border border-[#C7D5EA] bg-white/95 px-3 py-1.5 text-xs shadow-lg backdrop-blur dark:border-[#5277B6]/60 dark:bg-gray-900/95"
       onClick={(event) => event.stopPropagation()}
     >
-      <Quote className="h-3.5 w-3.5 shrink-0 text-violet-600 dark:text-violet-400" />
-      <span className="shrink-0 font-semibold text-violet-700 dark:text-violet-300">
+      <Quote className="h-3.5 w-3.5 shrink-0 text-[#5277B6] dark:text-[#9BB4DE]" />
+      <span className="shrink-0 font-semibold text-[#45679F] dark:text-[#B8C8E4]">
         {elementReferencePill.sceneLabel} · {elementReferencePill.elementType} ·
       </span>
       <span className="min-w-0 truncate text-gray-600 dark:text-gray-300">
@@ -842,13 +842,16 @@ export function Roundtable({
                     />
                   </div>
                   <button
+                    type="button"
                     onClick={handleSendMessage}
                     disabled={isSendCooldown}
+                    aria-label={t('pbl.v2.chat.send')}
+                    title={t('pbl.v2.chat.send')}
                     className={cn(
                       'w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0',
                       isSendCooldown
                         ? 'bg-gray-500/50 cursor-not-allowed'
-                        : 'bg-purple-600 hover:bg-purple-700 shadow-[0_4px_16px_rgba(147,51,234,0.3)]',
+                        : 'bg-[#356B59] hover:bg-[#2C5A4B] shadow-[0_4px_16px_rgba(53,107,89,0.24)]',
                     )}
                   >
                     {isSendCooldown ? (
@@ -1347,7 +1350,7 @@ export function Roundtable({
                 >
                   <div
                     data-testid="roundtable-non-presentation-input-panel"
-                    className="relative w-fit max-w-[85%] sm:max-w-[65%] min-w-[200px] sm:min-w-[300px] bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-2 pr-2 rounded-2xl rounded-br-none shadow-2xl border border-purple-200 dark:border-purple-700 flex items-end gap-2 ring-1 ring-purple-100/50 dark:ring-purple-800/50"
+                    className="relative w-fit max-w-[85%] sm:max-w-[65%] min-w-[200px] sm:min-w-[300px] bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-2 pr-2 rounded-2xl rounded-br-none shadow-2xl border border-[#C9DED4] dark:border-[#356B59]/60 flex items-end gap-2 ring-1 ring-[#E7F1EC] dark:ring-[#356B59]/30"
                   >
                     <div className="pl-4 flex-1 py-1 min-w-0">
                       <textarea
@@ -1369,13 +1372,16 @@ export function Roundtable({
                       />
                     </div>
                     <button
+                      type="button"
                       onClick={handleSendMessage}
                       disabled={isSendCooldown}
+                      aria-label={t('pbl.v2.chat.send')}
+                      title={t('pbl.v2.chat.send')}
                       className={cn(
                         'p-2.5 text-white rounded-xl transition shadow-md mb-0.5 shrink-0',
                         isSendCooldown
                           ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed shadow-gray-200 dark:shadow-gray-900/50'
-                          : 'bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 shadow-purple-200 dark:shadow-purple-900/50',
+                          : 'bg-[#356B59] hover:bg-[#2C5A4B] dark:bg-[#4F806E] dark:hover:bg-[#62917F] shadow-[#C9DED4] dark:shadow-[#356B59]/30',
                       )}
                     >
                       {isSendCooldown ? (
@@ -1625,6 +1631,7 @@ export function Roundtable({
               {bubbleRole && (
                 <motion.div
                   key={bubbleKey}
+                  data-testid={`zhiyu-roundtable-${bubbleRole}-message`}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{
                     opacity: isInputOpen || isVoiceOpen ? 0.4 : 1,
@@ -1667,7 +1674,7 @@ export function Roundtable({
                         'relative px-4 pt-2 pb-3 rounded-2xl text-[15px] leading-relaxed transition-all border w-[min(420px,calc(100%-3rem))] group/bubble flex flex-col max-h-[110px]',
                         bubbleRole === 'teacher' ? 'pl-4 pr-10' : 'pl-4 pr-10',
                         bubbleRole === 'user'
-                          ? 'bg-purple-600/95 dark:bg-purple-500/95 backdrop-blur-sm border-purple-400/40 dark:border-purple-300/40 text-white rounded-br-sm shadow-md shadow-purple-300/30 dark:shadow-purple-800/30'
+                          ? 'bg-[#E7F1EC]/95 dark:bg-[#356B59]/30 backdrop-blur-sm border-[#C9DED4] dark:border-[#7FA392]/55 text-[#234D40] dark:text-[#D7E8E0] rounded-br-sm shadow-md shadow-[#C9DED4]/35 dark:shadow-[#356B59]/20'
                           : bubbleRole === 'agent'
                             ? cn(
                                 'bg-blue-50/95 dark:bg-blue-950/60 backdrop-blur-sm border-blue-200/60 dark:border-blue-800/60 text-gray-700 dark:text-gray-200 rounded-br-sm shadow-sm',
@@ -1697,10 +1704,10 @@ export function Roundtable({
                                 className={cn(
                                   'w-6 h-6 rounded-full overflow-hidden border-2 shadow-sm',
                                   bubbleRole === 'user'
-                                    ? 'border-purple-400 dark:border-purple-500'
+                                    ? 'border-[#7FA392] dark:border-[#9FC0B0]'
                                     : bubbleRole === 'agent'
                                       ? 'border-blue-300 dark:border-blue-600'
-                                      : 'border-purple-200 dark:border-purple-700',
+                                      : 'border-[#C9DED4] dark:border-[#356B59]',
                                 )}
                               >
                                 <AvatarDisplay src={bubbleAvatar} alt={bubbleName} />
@@ -1713,7 +1720,10 @@ export function Roundtable({
                         {/* Agent name + audio indicator header */}
                         {bubbleRole !== 'user' && bubbleName && (
                           <div className="flex items-center gap-1 mb-0.5">
-                            <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 truncate">
+                            <span
+                              data-testid="zhiyu-roundtable-ai-identity"
+                              className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 truncate"
+                            >
                               {bubbleName}
                             </span>
                             {(() => {
@@ -1779,7 +1789,11 @@ export function Roundtable({
                             />
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap break-words" suppressHydrationWarning>
+                          <p
+                            data-testid="zhiyu-roundtable-message-content"
+                            className="whitespace-pre-wrap break-words"
+                            suppressHydrationWarning
+                          >
                             {sourceText}
                             {isTopicPending && (
                               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 ml-1 align-middle" />

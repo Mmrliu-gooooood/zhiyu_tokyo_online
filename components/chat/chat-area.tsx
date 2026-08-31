@@ -286,9 +286,9 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
         {!collapsed && !embedded && (
           <div
             onMouseDown={handleDragStart}
-            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-50 group hover:bg-purple-400/30 dark:hover:bg-purple-600/30 active:bg-purple-500/40 dark:active:bg-purple-500/40 transition-colors"
+            className="group absolute bottom-0 left-0 top-0 z-50 w-1.5 cursor-col-resize transition-colors hover:bg-[#356B59]/20 active:bg-[#356B59]/30 dark:hover:bg-[#7FA392]/20 dark:active:bg-[#7FA392]/30"
           >
-            <div className="absolute left-0.5 top-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-gray-300 dark:bg-gray-600 group-hover:bg-purple-400 dark:group-hover:bg-purple-500 transition-colors" />
+            <div className="absolute left-0.5 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-gray-300 transition-colors group-hover:bg-[#356B59] dark:bg-gray-600 dark:group-hover:bg-[#7FA392]" />
           </div>
         )}
 
@@ -300,34 +300,36 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
           >
             {/* Tab header row */}
             {!embedded ? (
-            <div className="h-10 flex items-center gap-1 shrink-0 mt-3 mb-1 px-3">
-              <TabsList variant="line" className="h-full flex-1 w-0">
-                <TabsTrigger value="lecture" className="text-xs gap-1 flex-1">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  {t('chat.tabs.lecture')}
-                </TabsTrigger>
-                <TabsTrigger value="chat" className="text-xs gap-1 flex-1 relative">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  {t('chat.tabs.chat')}
-                  {/* Amber pulse dot when there's an active chat session and user is on Notes tab */}
-                  {hasActiveChatSession && activeTab === 'lecture' && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                    </span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+              <div className="h-10 flex items-center gap-1 shrink-0 mt-3 mb-1 px-3">
+                <TabsList variant="line" className="h-full flex-1 w-0">
+                  <TabsTrigger value="lecture" className="text-xs gap-1 flex-1">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    {t('chat.tabs.lecture')}
+                  </TabsTrigger>
+                  <TabsTrigger value="chat" className="text-xs gap-1 flex-1 relative">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {t('chat.tabs.chat')}
+                    {/* Amber pulse dot when there's an active chat session and user is on Notes tab */}
+                    {hasActiveChatSession && activeTab === 'lecture' && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
 
-              {onCollapseChange && (
-                <button
-                  onClick={() => onCollapseChange(true)}
-                  className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center bg-gray-100/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 ring-1 ring-black/[0.04] dark:ring-white/[0.06] hover:bg-gray-200/90 dark:hover:bg-gray-700/90 hover:text-gray-700 dark:hover:text-gray-200 active:scale-90 transition-all duration-200"
-                >
-                  <PanelRightClose className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+                {onCollapseChange && (
+                  <button
+                    type="button"
+                    onClick={() => onCollapseChange(true)}
+                    aria-label={t('common.close')}
+                    className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center bg-gray-100/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 ring-1 ring-black/[0.04] dark:ring-white/[0.06] hover:bg-gray-200/90 dark:hover:bg-gray-700/90 hover:text-gray-700 dark:hover:text-gray-200 active:scale-90 transition-all duration-200"
+                  >
+                    <PanelRightClose className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             ) : null}
 
             {/* Notes Tab */}
@@ -346,7 +348,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 scrollbar-hide">
                 {chatSessions.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-50">
-                    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3 text-gray-300 dark:text-gray-600">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E7F1EC] text-[#356B59]/55 dark:bg-[#356B59]/20 dark:text-[#9FC0B0]">
                       <MessageSquare className="w-6 h-6" />
                     </div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400">

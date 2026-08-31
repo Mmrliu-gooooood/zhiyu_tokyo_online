@@ -920,7 +920,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
   return (
     <div
       ref={rootRef}
-      data-testid="pro-workspace"
+      data-testid="zhiyu-workspace-shell"
       data-ws-layout={
         render.home ? 'home' : `${chatOpen ? 'chat' : ''}${classroomOpen ? 'classroom' : ''}`
       }

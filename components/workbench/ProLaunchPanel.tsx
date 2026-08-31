@@ -314,7 +314,7 @@ export function ProLaunchPanel({
     <div data-testid="pro-launch-panel" className="flex w-full flex-col gap-3 text-left">
       {/* ── The composer. It is the card: one border on this whole surface. ──
           Chrome mirrors the classic face's card so the two sides read as one
-          object; the violet seam is the only Pro tell. */}
+          ZHIYU creation surface. */}
       <div
         // The face the Pro swap turns over (see `lib/workbench/pro-swap.ts` and
         // `components/workbench/pro-swap.css`). Named here rather than on
@@ -330,12 +330,12 @@ export function ProLaunchPanel({
               // by WorkspaceShell) carries the whole treatment: the classic
               // face's chrome — rounded-2xl, hairline border, translucent
               // surface over a blur — with a layered shadow and a focused
-              // state that draws a violet thread and lifts the card 1px.
+              // state that draws the ZHIYU focus thread and lifts the card 1px.
               'ws-composer'
             : [
                 'rounded-2xl border backdrop-blur-xl transition-colors',
-                'bg-white/80 shadow-xl shadow-violet-500/[0.07] dark:bg-slate-900/80',
-                'border-violet-300/50 focus-within:border-violet-400/70 dark:border-violet-400/25',
+                'bg-white/80 shadow-xl shadow-[#356B59]/[0.07] dark:bg-slate-900/80',
+                'border-[#C9DED4] focus-within:border-[#356B59]/70 dark:border-[#356B59]/35',
               ],
         )}
         onDragOver={(event) => {
@@ -498,7 +498,7 @@ function ProLaunchSend({ canSend, onSubmit }: { canSend: boolean; onSubmit: () =
       className={cn(
         'inline-flex size-8 items-center justify-center rounded-lg transition-all duration-200',
         canSend
-          ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/25 hover:opacity-90'
+          ? 'bg-[#356B59] text-white shadow-sm shadow-[#356B59]/25 hover:bg-[#2C5A4B]'
           : 'bg-muted text-muted-foreground/40',
       )}
     >

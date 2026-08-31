@@ -37,11 +37,12 @@
 import { type ReactNode, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { useBrand, useIsDesktop } from '@/lib/brand/brand-context';
+import { useBrand } from '@/lib/brand/brand-context';
 import { arrivedByProSwap } from '@/lib/workbench/pro-swap';
 import { cn } from '@/lib/utils/cn';
 import { ProBadge } from '@/components/workbench/ProBadge';
 import { ProLaunchPanel } from '@/components/workbench/ProLaunchPanel';
+import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
 import type { CourseMentionSource } from '@/lib/workbench/course-mention';
 
 export function WorkspaceHome({
@@ -63,7 +64,6 @@ export function WorkspaceHome({
 }) {
   const { t } = useI18n();
   const brand = useBrand();
-  const isDesktop = useIsDesktop();
 
   // Someone who arrived through the Pro swap has just watched the surfaces
   // crossfade around a fixed lockup and the composer turn over into this face;
@@ -124,35 +124,9 @@ export function WorkspaceHome({
               data-testid="pro-workspace-hero-lockup"
               data-pro-morph="lockup"
             >
-              {isDesktop && !brand.logoHasWordmark ? (
-                // A brand whose mark carries no wordmark gets the product name
-                // beside it, exactly as the classic hero does.
-                <div className="flex items-center gap-3">
-                  <img src={brand.markSrc} alt={brand.productName} className="size-11 md:size-14" />
-                  <span
-                    className="text-xl font-semibold tracking-tight md:text-2xl"
-                    style={{ color: brand.themeColor }}
-                  >
-                    {brand.productName}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 min-w-0" data-testid="pro-workspace-hero-logo">
-                  <span
-                    aria-hidden
-                    className="inline-flex size-7 items-center justify-center rounded-[3px] bg-[#8A6A3D] text-[11px] font-bold text-[#FBFCFB] ring-1 ring-[#FBFCFB]/70"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    衿
-                  </span>
-                  <span
-                    className="text-[22px] font-semibold tracking-tight text-foreground"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    青衿
-                  </span>
-                </div>
-              )}
+              <div data-testid="pro-workspace-hero-logo">
+                <ZhiyuLockup size="lg" />
+              </div>
               {/* At the wordmark's cap height, where a trademark mark goes —
                   offset from the image TOP, not centred on it, and scaled with
                   the 46/56px lockup rather than the classic page's 48/64px. */}

@@ -93,9 +93,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { useBrand } from '@/lib/brand/brand-context';
 import type { HomeDiscoveryState, useHomeDiscovery } from '@/lib/hooks/use-home-discovery';
 import { ProBadge } from '@/components/workbench/ProBadge';
+import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeToggle } from '@/components/site-header/theme-toggle';
 import { SettingsDialog } from '@/components/settings';
@@ -231,7 +231,6 @@ export function WorkspaceRail({
   readonly resizeHandle: ReactNode;
 }) {
   const { t } = useI18n();
-  const brand = useBrand();
   const foldersAvailable = workspaceFoldersAvailable();
 
   const coursesSection = useListSearch();
@@ -832,7 +831,7 @@ export function WorkspaceRail({
 
   return (
     <nav
-      data-testid="pro-nav-rail"
+      data-testid="zhiyu-workspace-rail"
       aria-label={t('workspace.navAria')}
       // `z-10`: the resize handle straddles the rail's right edge, and the
       // panes are later positioned siblings — without a stacking order the
@@ -845,12 +844,7 @@ export function WorkspaceRail({
             that leaves Pro. Two different destinations, so two hit targets —
             never one control wearing both meanings. */}
         <HomeLink testId="pro-nav-home" onGoHome={onGoHome} className="-ml-1.5 px-1.5 py-1">
-          <img
-            src={brand.logoSrc}
-            alt=""
-            aria-hidden="true"
-            className="h-[21px] w-auto max-w-[110px] shrink-0"
-          />
+          <ZhiyuLockup size="sm" className="[&_span:last-child]:hidden" />
         </HomeLink>
         <ProBadge active onToggle={onExitPro} />
         {/* THE rail's header, and therefore where the rail folds — the same

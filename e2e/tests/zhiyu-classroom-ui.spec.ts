@@ -46,6 +46,7 @@ test.describe('ZHIYU classroom workspace', () => {
 
     const panel = page.getByTestId('zhiyu-interaction-panel');
     const chatArea = panel.getByTestId('chat-area');
+    await expect(chatArea).toHaveCount(1);
     await expect(chatArea).toBeAttached();
     await panel.getByRole('tab', { name: /discussion|讨论/i }).click();
     await expect(panel.getByRole('tab', { name: /discussion|讨论/i })).toHaveAttribute(
@@ -64,5 +65,29 @@ test.describe('ZHIYU classroom workspace', () => {
       'true',
     );
     await expect(chatArea).toBeAttached();
+  });
+
+  test('keeps one composer connected to the existing user-message handler', async ({ page }) => {
+    const classroom = new ClassroomPage(page);
+    await classroom.goto(ZHIYU_CLASSROOM_STAGE_ID);
+    await classroom.waitForLoaded();
+
+    await expect(page.getByTestId('chat-area')).toHaveCount(1);
+    await expect(page.getByTestId('zhiyu-roundtable-ai-identity')).toBeVisible();
+    await expect(page.getByTestId('zhiyu-roundtable-message-content')).toContainText(
+      'Foundations classroom explanation.',
+    );
+
+    await page.keyboard.press('T');
+    const composer = page.getByTestId('roundtable-non-presentation-input-panel');
+    await expect(composer).toHaveCount(1);
+    await expect(composer).toBeVisible();
+
+    const prompt = 'How is light energy stored?';
+    await composer.getByPlaceholder('Type your message...', { exact: true }).fill(prompt);
+    await composer.getByRole('button', { name: 'Send', exact: true }).click();
+
+    await expect(page.getByTestId('zhiyu-roundtable-user-message')).toContainText(prompt);
+    await expect(page.getByTestId('chat-area')).toHaveCount(1);
   });
 });
