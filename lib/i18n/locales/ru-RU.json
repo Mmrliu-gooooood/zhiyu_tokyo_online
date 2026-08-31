@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "Взаимодействие в классе", "interactionTabs": "Режимы взаимодействия", "sceneRail": "Сцены",
+    "expandSceneRail": "Развернуть список сцен", "collapseSceneRail": "Свернуть список сцен", "collapseInteraction": "Свернуть панель взаимодействия",
+    "play": "Воспроизвести", "pause": "Пауза", "previousScene": "Предыдущая сцена", "nextScene": "Следующая сцена",
+    "toggleSceneRail": "Переключить список сцен", "toggleInteraction": "Переключить панель взаимодействия", "mute": "Выключить звук", "unmute": "Включить звук", "speed": "Скорость воспроизведения", "autoPlay": "Автовоспроизведение",
+    "tabs": { "lecture": "Объяснение", "discussion": "Обсуждение", "roles": "Роли" },
+    "status": { "idle": "Готово", "teaching": "Идёт объяснение", "thinking": "Размышляет", "discussion": "Идёт обсуждение" },
+    "roleStatus": { "idle": "Ожидает", "teaching": "Объясняет", "thinking": "Размышляет" }
+  },
   "common": {
     "you": "Вы",
     "confirm": "Подтвердить",

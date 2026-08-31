@@ -158,8 +158,9 @@ test.describe('Classroom Interaction', () => {
     // Click second scene
     await classroom.clickScene(1);
 
-    // Verify second scene is now active — heading in the top bar shows the current scene name
-    await expect(page.getByRole('heading', { name: '光反应' })).toBeVisible();
+    // Verify second scene is now active. The standalone header now owns the
+    // course title, so current-scene truth lives on the navigation item.
+    await expect(classroom.sidebarScenes.nth(1)).toHaveAttribute('aria-current', 'page');
   });
 
   test('caps and restores the non-presentation roundtable draft height', async ({ page }) => {

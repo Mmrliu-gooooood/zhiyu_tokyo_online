@@ -1,4 +1,25 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "课堂互动",
+    "interactionTabs": "课堂互动视图",
+    "sceneRail": "课程场景",
+    "expandSceneRail": "展开场景栏",
+    "collapseSceneRail": "收起场景栏",
+    "collapseInteraction": "收起互动面板",
+    "play": "播放",
+    "pause": "暂停",
+    "previousScene": "上一场景",
+    "nextScene": "下一场景",
+    "toggleSceneRail": "切换场景栏",
+    "toggleInteraction": "切换互动面板",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "speed": "播放速度",
+    "autoPlay": "自动播放",
+    "tabs": { "lecture": "讲解", "discussion": "讨论", "roles": "角色" },
+    "status": { "idle": "准备就绪", "teaching": "正在讲解", "thinking": "正在思考", "discussion": "讨论进行中" },
+    "roleStatus": { "idle": "等待", "teaching": "正在讲解", "thinking": "正在思考" }
+  },
   "common": {
     "you": "你",
     "confirm": "确定",
@@ -1008,9 +1029,9 @@
     "deleteFolderAndCourses": "删除文件夹和 {{count}} 门课程",
     "deleteFolderConfirmRemove": "将删除文件夹及其课程（含聊天记录），不可恢复。",
     "deleteFolderAndCourses_other": "删除文件夹和 {{count}} 门课程",
-    "notFound": "找不到这门课程",
-    "notFoundDesc": "课程不存在，或已被删除。",
-    "backToHome": "返回首页"
+    "notFound": "课程不在这里",
+    "notFoundDesc": "它可能已被删除，或链接已经失效。",
+    "backToHome": "返回智域"
   },
   "upload": {
     "pdfSizeLimit": "支持最大50MB的PDF文件",

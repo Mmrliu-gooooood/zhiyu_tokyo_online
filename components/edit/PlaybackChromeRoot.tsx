@@ -13,7 +13,7 @@ import {
 import { useStageStore } from '@/lib/store';
 import { PENDING_SCENE_ID } from '@/lib/store/stage';
 import { useCanvasStore } from '@/lib/store/canvas';
-import { useSettingsStore } from '@/lib/store/settings';
+import { PLAYBACK_SPEEDS, useSettingsStore } from '@/lib/store/settings';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { SceneSidebar } from '@/components/stage/scene-sidebar';
 import { Header } from '@/components/header';
@@ -63,6 +63,12 @@ import {
   getSlideElementTypeLabel,
 } from '@/components/canvas/slide-element-pick-overlay';
 import { shouldClearDraftElementReference } from '@/components/chat/element-reference-receipt';
+import { ZhiyuClassroomShell } from '@/components/classroom/ZhiyuClassroomShell';
+import {
+  ZhiyuInteractionPanel,
+} from '@/components/classroom/ZhiyuInteractionPanel';
+import { ZhiyuPlaybackBar } from '@/components/classroom/ZhiyuPlaybackBar';
+import { projectZhiyuClassroomLiveStatus } from '@/components/classroom/zhiyu-classroom-layout';
 
 type DraftSlideElementReference = {
   reference: SlideElementReference;
@@ -1000,6 +1006,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
 
     // Sync playback speed to audio player (for live-updating current audio)
     const playbackSpeed = useSettingsStore((s) => s.playbackSpeed);
+    const setPlaybackSpeed = useSettingsStore((s) => s.setPlaybackSpeed);
+    const autoPlayLecture = useSettingsStore((s) => s.autoPlayLecture);
+    const setAutoPlayLecture = useSettingsStore((s) => s.setAutoPlayLecture);
     useEffect(() => {
       audioPlayerRef.current.setPlaybackRate(playbackSpeed);
     }, [playbackSpeed]);
@@ -1435,39 +1444,38 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         }
       : null;
 
-    // Scene viewer height — header is 80px when visible, roundtable is
-    // 192px in playback mode (autonomous hides it). Mode is guaranteed
-    // non-'edit' here since the parent Stage unmounts this component
-    // when entering Pro mode.
-    const sceneViewerHeight = (() => {
-      const headerHeight = isPresenting || hideHeader ? 0 : 80;
-      const roundtableHeight = mode === 'playback' && !isPresenting ? 192 : 0;
-      return `calc(100% - ${headerHeight + roundtableHeight}px)`;
-    })();
+    const showStopDiscussion =
+      engineMode === 'live' ||
+      ((chatIsStreaming || chatIsSoftClosing) &&
+        (chatSessionType === 'qa' || chatSessionType === 'discussion'));
+    const classroomLiveStatus = projectZhiyuClassroomLiveStatus({
+      engineMode,
+      chatSessionType,
+      thinking: Boolean(thinkingState),
+    });
+    const handleCyclePlaybackSpeed = () => {
+      const currentIndex = PLAYBACK_SPEEDS.indexOf(
+        playbackSpeed as (typeof PLAYBACK_SPEEDS)[number],
+      );
+      setPlaybackSpeed(PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.length]);
+    };
 
     return (
       <div
         ref={stageRef}
         className={cn(
-          'flex-1 flex overflow-hidden bg-gray-50 dark:bg-gray-900',
+          'flex-1 overflow-hidden bg-[#eef1ef] dark:bg-background',
           isPresenting && !controlsVisible && 'cursor-none',
         )}
       >
-        <SceneSidebar
-          collapsed={sidebarCollapsed}
-          onCollapseChange={setSidebarCollapsed}
-          onSceneSelect={gatedSceneSwitch}
-          onRetryOutline={onRetryOutline}
-          isCourseComplete={isCourseComplete}
-        />
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
-          {/* Header — playback only. The Pro Switch fires `onEnterProMode`
-            (passed by the parent Stage) which awaits our `teardown()`
-            before the parent flips mode to 'edit'. */}
-          {!isPresenting && !hideHeader && (
+        <ZhiyuClassroomShell
+          presenting={isPresenting}
+          sceneRailCollapsed={sidebarCollapsed}
+          interactionCollapsed={chatAreaCollapsed}
+          header={
+            !isPresenting && !hideHeader ? (
             <Header
+              courseTitle={stage?.name}
               currentSceneTitle={
                 currentScene?.title ||
                 (isCourseComplete && isPendingScene ? t('stage.courseComplete') : '')
@@ -1481,16 +1489,22 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               hideGlobalControls={hideHeaderGlobalControls}
               hideCourseActions={hideHeaderCourseActions}
             />
-          )}
-
-          {/* Canvas Area — playback-only renderer. The parent Stage swaps
-            this whole PlaybackChromeRoot out when entering edit mode, so
-            no inline branching is needed here. */}
+            ) : null
+          }
+          sceneRail={
+            <SceneSidebar
+              collapsed={sidebarCollapsed}
+              onCollapseChange={setSidebarCollapsed}
+              onSceneSelect={gatedSceneSwitch}
+              onRetryOutline={onRetryOutline}
+              isCourseComplete={isCourseComplete}
+              hidden={isPresenting}
+            />
+          }
+          stage={
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <div
             className="overflow-hidden relative flex-1 min-h-0 isolate"
-            style={{
-              height: sceneViewerHeight,
-            }}
             suppressHydrationWarning
           >
             <CanvasArea
@@ -1718,20 +1732,69 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                     : undefined
                 }
                 onClearElementReference={() => setDraftElementReference(null)}
+                hideEmbeddedToolbar={!isPresenting}
               />
             </div>
           )}
-        </div>
-
-        {/* Chat Area — playback / autonomous always renders it here; Pro
-          (edit) mode unmounts this whole PlaybackChromeRoot, so the
-          edit branch has no chat. */}
-        <div className="flex shrink-0">
+            </div>
+          }
+          interaction={
+            <ZhiyuInteractionPanel
+              collapsed={chatAreaCollapsed || isPresenting}
+              onCollapsedChange={setChatAreaCollapsed}
+              liveStatus={classroomLiveStatus}
+              onTabChange={(tab) => {
+                if (tab === 'lecture') chatAreaRef.current?.switchToTab('lecture');
+                if (tab === 'discussion') chatAreaRef.current?.switchToTab('chat');
+              }}
+              rolesContent={
+                <div className="space-y-2">
+                  {participants.map((participant) => {
+                    const teaching = participant.id === speakingAgentId && engineMode === 'playing';
+                    const thinking = participant.id === thinkingState?.agentId;
+                    const status = thinking
+                      ? t('classroomWorkspace.roleStatus.thinking')
+                      : teaching
+                        ? t('classroomWorkspace.roleStatus.teaching')
+                        : t('classroomWorkspace.roleStatus.idle');
+                    return (
+                      <div
+                        key={participant.id}
+                        className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3"
+                      >
+                        <img
+                          src={participant.avatar}
+                          alt=""
+                          aria-hidden="true"
+                          className="size-9 rounded-full object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-foreground">
+                            {participant.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{status}</p>
+                        </div>
+                        <span
+                          className={cn(
+                            'size-2 rounded-full',
+                            teaching && 'bg-primary',
+                            thinking && 'bg-[var(--zhiyu-ai)]',
+                            !teaching && !thinking && 'bg-muted-foreground/35',
+                          )}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              }
+              persistentContent={
           <ChatArea
             ref={chatAreaRef}
+            embedded
             width={chatAreaWidth}
             onWidthChange={setChatAreaWidth}
-            collapsed={chatAreaCollapsed}
+            collapsed={false}
             onCollapseChange={setChatAreaCollapsed}
             activeBubbleId={activeBubbleId}
             onActiveBubble={(id) => setActiveBubbleId(id)}
@@ -1795,7 +1858,53 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             onSegmentSealed={discussionTTS.handleSegmentSealed}
             shouldHoldAfterReveal={discussionTTS.shouldHold}
           />
-        </div>
+              }
+            />
+          }
+          playbackBar={
+            <ZhiyuPlaybackBar
+              currentSceneIndex={currentSceneIndex}
+              scenesCount={totalScenesCount}
+              engineState={canvasEngineState}
+              isLiveSession={
+                chatIsStreaming ||
+                chatIsSoftClosing ||
+                isTopicPending ||
+                engineMode === 'live' ||
+                !!chatSessionType
+              }
+              isSoftClosing={chatIsSoftClosing}
+              softCloseDeadline={softCloseDeadline}
+              whiteboardOpen={whiteboardOpen}
+              sidebarCollapsed={sidebarCollapsed}
+              chatCollapsed={chatAreaCollapsed}
+              onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+              onToggleChat={() => setChatAreaCollapsed(!chatAreaCollapsed)}
+              onPrevSlide={handlePreviousScene}
+              onNextSlide={handleNextScene}
+              onPlayPause={handlePlayPause}
+              onWhiteboardClose={handleWhiteboardToggle}
+              showStopDiscussion={showStopDiscussion}
+              onStopDiscussion={handleStopDiscussion}
+              onContinueDiscussion={handleContinueDiscussion}
+              isPresenting={isPresenting}
+              onTogglePresentation={togglePresentation}
+              ttsEnabled={ttsEnabled}
+              ttsMuted={ttsMuted}
+              ttsVolume={ttsVolume}
+              onToggleMute={() => ttsEnabled && setTTSMuted(!ttsMuted)}
+              onVolumeChange={setTTSVolume}
+              autoPlayLecture={autoPlayLecture}
+              onToggleAutoPlay={() => setAutoPlayLecture(!autoPlayLecture)}
+              playbackSpeed={playbackSpeed}
+              onCycleSpeed={handleCyclePlaybackSpeed}
+              showElementReference={showElementReference}
+              canPickSlideElement={canPickSlideElement}
+              elementPickActive={elementPickActive}
+              onToggleElementPick={handleToggleElementPick}
+            />
+          }
+        />
 
         {/* Scene switch confirmation dialog */}
         <AlertDialog

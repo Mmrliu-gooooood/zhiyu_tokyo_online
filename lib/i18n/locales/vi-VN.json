@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "Tương tác lớp học", "interactionTabs": "Chế độ tương tác", "sceneRail": "Cảnh",
+    "expandSceneRail": "Mở rộng danh sách cảnh", "collapseSceneRail": "Thu gọn danh sách cảnh", "collapseInteraction": "Thu gọn bảng tương tác",
+    "play": "Phát", "pause": "Tạm dừng", "previousScene": "Cảnh trước", "nextScene": "Cảnh tiếp theo",
+    "toggleSceneRail": "Bật tắt danh sách cảnh", "toggleInteraction": "Bật tắt bảng tương tác", "mute": "Tắt tiếng", "unmute": "Bật tiếng", "speed": "Tốc độ phát", "autoPlay": "Tự động phát",
+    "tabs": { "lecture": "Giảng bài", "discussion": "Thảo luận", "roles": "Vai trò" },
+    "status": { "idle": "Sẵn sàng", "teaching": "Đang giảng", "thinking": "Đang suy nghĩ", "discussion": "Đang thảo luận" },
+    "roleStatus": { "idle": "Đang chờ", "teaching": "Đang giảng", "thinking": "Đang suy nghĩ" }
+  },
   "common": {
     "you": "Bạn",
     "confirm": "Xác nhận",

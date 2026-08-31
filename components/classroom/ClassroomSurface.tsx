@@ -39,7 +39,6 @@ import { createLogger } from '@/lib/logger';
 import { MediaStageProvider } from '@/lib/contexts/media-stage-context';
 import { generateMediaForOutlines } from '@/lib/media/media-orchestrator';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { FileQuestion, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import {
@@ -51,6 +50,7 @@ import {
   paneAvailabilityRetryDelay,
   shouldResumeClassroomGeneration,
 } from '@/lib/classroom/progressive-load-policy';
+import { ZhiyuClassroomState } from './ZhiyuClassroomState';
 
 const log = createLogger('Classroom');
 
@@ -331,40 +331,31 @@ export function ClassroomSurface({
           }
         >
           {loading || (variant === 'pane' && !error && loadedClassroomId !== classroomId) ? (
-            <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-              <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <p>{t('common.loadingClassroom')}</p>
-              </div>
-            </div>
+            <ZhiyuClassroomState kind="loading" title={t('common.loadingClassroom')} />
           ) : notFound ? (
             // Checked BEFORE `error`, and it renders no retry: the sources have
             // all answered, and running the same lookups again cannot change
             // the answer. One message for "deleted" and for "never existed" —
             // see the state's declaration.
-            <div
-              className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900"
-              data-testid="classroom-not-found"
-            >
-              <div className="flex flex-col items-center gap-3 text-center max-w-md px-6">
-                <FileQuestion className="h-10 w-10 text-muted-foreground" />
-                <p className="text-lg font-medium">{t('classroom.notFound')}</p>
-                <p className="text-sm text-muted-foreground">{t('classroom.notFoundDesc')}</p>
+            <ZhiyuClassroomState
+              kind="notFound"
+              testId="classroom-not-found"
+              title={t('classroom.notFound')}
+              description={t('classroom.notFoundDesc')}
+              action={
                 <Link
                   href="/"
-                  className="mt-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   {t('classroom.backToHome')}
                 </Link>
-              </div>
-            </div>
+              }
+            />
           ) : error ? (
-            <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-              <div className="text-center">
-                <p className="text-destructive mb-4">
-                  {t('common.errorPrefix')}
-                  {error}
-                </p>
+            <ZhiyuClassroomState
+              kind="error"
+              title={`${t('common.errorPrefix')}${error}`}
+              action={
                 <button
                   onClick={() => {
                     setError(null);
@@ -376,12 +367,12 @@ export function ClassroomSurface({
                       }
                     });
                   }}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   {t('common.retry')}
                 </button>
-              </div>
-            </div>
+              }
+            />
           ) : (
             <Stage classroomId={classroomId} onRetryOutline={retrySingleOutline} />
           )}

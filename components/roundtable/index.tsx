@@ -110,6 +110,8 @@ interface RoundtableProps {
     displaySummary: string;
   };
   readonly onClearElementReference?: () => void;
+  /** Hide only the in-flow toolbar when an outer classroom bar owns it. */
+  readonly hideEmbeddedToolbar?: boolean;
 }
 
 // This must stay in sync with the non-presentation textarea's max-h-[100px] class.
@@ -206,6 +208,7 @@ export function Roundtable({
   onToggleElementPick,
   elementReferencePill,
   onClearElementReference,
+  hideEmbeddedToolbar = false,
 }: RoundtableProps) {
   const { t } = useI18n();
   const ttsMuted = useSettingsStore((s) => s.ttsMuted);
@@ -1145,14 +1148,16 @@ export function Roundtable({
       )}
     >
       {/* ── Toolbar strip — merged from CanvasArea ── */}
-      <div
-        className={cn(
-          'transition-opacity duration-300',
-          isPresenting && !controlsVisible && 'opacity-0 pointer-events-none',
-        )}
-      >
-        {toolbar}
-      </div>
+      {!hideEmbeddedToolbar ? (
+        <div
+          className={cn(
+            'transition-opacity duration-300',
+            isPresenting && !controlsVisible && 'opacity-0 pointer-events-none',
+          )}
+        >
+          {toolbar}
+        </div>
+      ) : null}
       {/* ── Interaction area — three-column layout ── */}
       <div className="flex-1 flex items-stretch min-h-0">
         {/* Left: Teacher identity */}

@@ -170,7 +170,7 @@ export function CanvasToolbar({
                 ? 'text-gray-400 dark:text-gray-500'
                 : 'text-gray-600 dark:text-gray-300',
             )}
-            aria-label="Toggle sidebar"
+            aria-label={t('classroomWorkspace.toggleSceneRail')}
           >
             <LayoutList className="w-3.5 h-3.5" />
           </button>
@@ -214,7 +214,9 @@ export function CanvasToolbar({
                       ? 'text-red-500 dark:text-red-400'
                       : 'text-gray-500 dark:text-gray-400',
                 )}
-                aria-label={ttsMuted ? 'Unmute' : 'Mute'}
+                aria-label={
+                  ttsMuted ? t('classroomWorkspace.unmute') : t('classroomWorkspace.mute')
+                }
               >
                 <VolumeIcon muted={!!ttsMuted} volume={ttsVolume} disabled={!ttsEnabled} />
               </button>
@@ -248,10 +250,10 @@ export function CanvasToolbar({
                       'bg-gray-200 dark:bg-gray-600',
                       '[writing-mode:vertical-lr] [direction:rtl]',
                       '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3',
-                      '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-violet-500 [&::-webkit-slider-thumb]:dark:bg-violet-400',
+                      '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary',
                       '[&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer',
                       '[&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3',
-                      '[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-violet-500 [&::-moz-range-thumb]:border-0',
+                      '[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0',
                     )}
                   />
                 </div>
@@ -274,10 +276,10 @@ export function CanvasToolbar({
                       'text-[11px] font-semibold tabular-nums leading-none',
                       'active:scale-90',
                       playbackSpeed !== 1
-                        ? 'text-violet-600 dark:text-violet-400 bg-violet-500/10 dark:bg-violet-400/10'
+                        ? 'bg-primary/10 text-primary'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
                     )}
-                    aria-label="Playback speed"
+                    aria-label={t('classroomWorkspace.speed')}
                   >
                     {playbackSpeed === 1.5 ? '1.5x' : `${playbackSpeed}x`}
                   </button>
@@ -300,7 +302,7 @@ export function CanvasToolbar({
                 ctrlBtn,
                 'w-6 h-6 text-gray-500 dark:text-gray-400 disabled:opacity-20 disabled:pointer-events-none',
               )}
-              aria-label="Previous scene"
+              aria-label={t('classroomWorkspace.previousScene')}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
@@ -331,7 +333,7 @@ export function CanvasToolbar({
                     e.stopPropagation();
                     onContinueDiscussion();
                   }}
-                  className="flex items-center gap-1.5 h-6 px-2.5 rounded-md border border-purple-200 dark:border-purple-700 bg-white/70 dark:bg-gray-800/70 text-purple-600 dark:text-purple-300 text-[11px] font-semibold whitespace-nowrap hover:bg-purple-50 dark:hover:bg-purple-900/20 active:scale-95 transition-all cursor-pointer"
+                  className="flex h-6 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md border border-primary/25 bg-card/70 px-2.5 text-[11px] font-semibold text-primary transition-all hover:bg-secondary active:scale-95"
                   title={t('roundtable.softClosing')}
                 >
                   {t('roundtable.softClosing')}
@@ -350,10 +352,14 @@ export function CanvasToolbar({
                 ctrlBtn,
                 'w-7 h-6',
                 engineState === 'playing'
-                  ? 'text-violet-600 dark:text-violet-400'
+                  ? 'text-primary'
                   : 'text-gray-500 dark:text-gray-400',
               )}
-              aria-label={engineState === 'playing' ? 'Pause' : 'Play'}
+              aria-label={
+                engineState === 'playing'
+                  ? t('classroomWorkspace.pause')
+                  : t('classroomWorkspace.play')
+              }
             >
               {engineState === 'playing' ? (
                 <Pause className="w-3.5 h-3.5" />
@@ -372,7 +378,7 @@ export function CanvasToolbar({
                 ctrlBtn,
                 'w-6 h-6 text-gray-500 dark:text-gray-400 disabled:opacity-20 disabled:pointer-events-none',
               )}
-              aria-label="Next scene"
+              aria-label={t('classroomWorkspace.nextScene')}
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -391,10 +397,10 @@ export function CanvasToolbar({
                       ctrlBtn,
                       'w-8 h-6',
                       autoPlayLecture
-                        ? 'text-violet-600 dark:text-violet-400'
+                        ? 'text-primary'
                         : 'text-gray-500 dark:text-gray-400',
                     )}
-                    aria-label="Auto-play"
+                    aria-label={t('classroomWorkspace.autoPlay')}
                   >
                     <Repeat className="w-3.5 h-3.5" />
                   </button>
@@ -416,14 +422,14 @@ export function CanvasToolbar({
               ctrlBtn,
               'w-6 h-6',
               whiteboardOpen
-                ? 'text-violet-600 dark:text-violet-400'
+                ? 'text-primary'
                 : 'text-gray-500 dark:text-gray-400',
             )}
             title={whiteboardOpen ? t('whiteboard.minimize') : t('whiteboard.open')}
           >
             <PencilLine className="w-3.5 h-3.5" />
             {!whiteboardOpen && whiteboardElementCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-violet-500 dark:bg-violet-400 rounded-full" />
+              <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
             )}
           </button>
 
@@ -438,7 +444,7 @@ export function CanvasToolbar({
               className={cn(
                 'relative flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-all',
                 elementPickActive
-                  ? 'bg-violet-500/15 text-violet-700 ring-1 ring-violet-400/40 dark:text-violet-300'
+                  ? 'bg-primary/15 text-primary ring-1 ring-primary/35'
                   : 'text-gray-500 hover:bg-gray-500/[0.08] dark:text-gray-400',
                 !canPickSlideElement && 'cursor-not-allowed opacity-35',
               )}
@@ -467,7 +473,7 @@ export function CanvasToolbar({
               ctrlBtn,
               'w-6 h-6',
               isPresenting
-                ? 'text-violet-600 dark:text-violet-400'
+                ? 'text-primary'
                 : 'text-gray-500 dark:text-gray-400',
             )}
             aria-label={presentationLabel}
@@ -490,7 +496,7 @@ export function CanvasToolbar({
                 ? 'text-gray-400 dark:text-gray-500'
                 : 'text-gray-600 dark:text-gray-300',
             )}
-            aria-label="Toggle chat"
+            aria-label={t('classroomWorkspace.toggleInteraction')}
           >
             <MessageSquare className="w-3.5 h-3.5" />
           </button>

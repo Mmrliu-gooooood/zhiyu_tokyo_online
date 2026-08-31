@@ -7,8 +7,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { StageMode } from '@/lib/types/stage';
 import { classroomExitLabelKey, exitClassroom } from '@/lib/workbench/classroom-exit';
 import { HeaderControls } from './stage/header-controls';
+import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
 
 interface HeaderProps {
+  readonly courseTitle?: string;
   readonly currentSceneTitle: string;
   readonly mode?: StageMode;
   readonly proModeActive?: boolean;
@@ -32,6 +34,7 @@ interface HeaderProps {
 }
 
 export function Header({
+  courseTitle,
   currentSceneTitle,
   mode,
   proModeActive,
@@ -48,9 +51,10 @@ export function Header({
   const exitLabel = t(classroomExitLabelKey(searchParams));
 
   return (
-    <>
-      <header className="h-20 px-8 flex items-center justify-between z-10 bg-transparent gap-4">
+      <header className="flex h-16 items-center justify-between gap-4 border-b border-border/70 bg-card/95 px-5 shadow-[0_4px_18px_rgba(30,55,45,0.035)] backdrop-blur-xl">
         <div className="flex items-center gap-3 min-w-0 flex-1">
+          <ZhiyuLockup size="sm" className="shrink-0 max-[899px]:[&_span:last-child]:hidden" />
+          <span className="h-5 w-px shrink-0 bg-border" aria-hidden="true" />
           {hideBackControl
             ? null
             : (backControl ?? (
@@ -73,16 +77,18 @@ export function Header({
               briefly stack on top of the incoming EditChromeRoot's
               CommandBar title during the cross-fade. */}
           {mode !== 'edit' && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-500 mb-0.5">
-                {t('stage.currentScene')}
-              </span>
+            <div className="flex min-w-0 flex-col">
               <h1
-                className="text-xl font-bold text-gray-800 dark:text-gray-200 tracking-tight truncate"
+                className="truncate text-sm font-semibold tracking-tight text-foreground"
                 suppressHydrationWarning
               >
-                {currentSceneTitle || t('common.loading')}
+                {courseTitle || currentSceneTitle || t('common.loading')}
               </h1>
+              {courseTitle && currentSceneTitle ? (
+                <span className="truncate text-[11px] text-muted-foreground">
+                  {currentSceneTitle}
+                </span>
+              ) : null}
             </div>
           )}
         </div>
@@ -98,6 +104,5 @@ export function Header({
           showCourseActions={!hideCourseActions}
         />
       </header>
-    </>
   );
 }

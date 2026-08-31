@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "課堂互動", "interactionTabs": "課堂互動檢視", "sceneRail": "課程場景",
+    "expandSceneRail": "展開場景列", "collapseSceneRail": "收合場景列", "collapseInteraction": "收合互動面板",
+    "play": "播放", "pause": "暫停", "previousScene": "上一場景", "nextScene": "下一場景",
+    "toggleSceneRail": "切換場景列", "toggleInteraction": "切換互動面板", "mute": "靜音", "unmute": "取消靜音", "speed": "播放速度", "autoPlay": "自動播放",
+    "tabs": { "lecture": "講解", "discussion": "討論", "roles": "角色" },
+    "status": { "idle": "準備就緒", "teaching": "正在講解", "thinking": "正在思考", "discussion": "討論進行中" },
+    "roleStatus": { "idle": "等待", "teaching": "正在講解", "thinking": "正在思考" }
+  },
   "common": {
     "you": "你",
     "confirm": "確定",
@@ -993,9 +1002,9 @@
     "deleteFolderAndCourses": "刪除資料夾和 {{count}} 門課程",
     "deleteFolderConfirmRemove": "將刪除資料夾及其課程（含聊天記錄），無法復原。",
     "deleteFolderAndCourses_other": "刪除資料夾和 {{count}} 門課程",
-    "notFound": "找不到這門課程",
-    "notFoundDesc": "課程不存在，或已被刪除。",
-    "backToHome": "返回首頁"
+    "notFound": "課程不在這裡",
+    "notFoundDesc": "它可能已被刪除，或連結已經失效。",
+    "backToHome": "返回智域"
   },
   "upload": {
     "pdfSizeLimit": "支援最大50MB的PDF檔案",

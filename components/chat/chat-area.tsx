@@ -30,6 +30,8 @@ import { LectureNotesView } from './lecture-notes-view';
 
 interface ChatAreaProps {
   className?: string;
+  /** Presentation-only embedding inside the ZHIYU interaction panel. */
+  embedded?: boolean;
   width?: number;
   onWidthChange?: (width: number) => void;
   collapsed?: boolean;
@@ -88,6 +90,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
   (
     {
       className,
+      embedded = false,
       width = DEFAULT_WIDTH,
       onWidthChange,
       collapsed = false,
@@ -262,21 +265,25 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       [width, onWidthChange],
     );
 
-    const displayWidth = collapsed ? 0 : width;
+    const displayWidth = embedded ? '100%' : collapsed ? 0 : width;
 
     return (
       <div
+        data-testid="chat-area"
         style={{
           width: displayWidth,
           transition: isDragging ? 'none' : 'width 0.3s ease',
         }}
         className={cn(
-          'bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-l border-gray-100 dark:border-gray-800 shadow-[-2px_0_24px_rgba(0,0,0,0.02)] flex flex-col shrink-0 z-20 relative overflow-visible',
+          'flex flex-col shrink-0 z-20 relative overflow-visible',
+          embedded
+            ? 'h-full min-h-0 bg-transparent'
+            : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-l border-gray-100 dark:border-gray-800 shadow-[-2px_0_24px_rgba(0,0,0,0.02)]',
           className,
         )}
       >
         {/* Drag handle */}
-        {!collapsed && (
+        {!collapsed && !embedded && (
           <div
             onMouseDown={handleDragStart}
             className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-50 group hover:bg-purple-400/30 dark:hover:bg-purple-600/30 active:bg-purple-500/40 dark:active:bg-purple-500/40 transition-colors"
@@ -292,6 +299,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
             className="flex flex-col h-full gap-0"
           >
             {/* Tab header row */}
+            {!embedded ? (
             <div className="h-10 flex items-center gap-1 shrink-0 mt-3 mb-1 px-3">
               <TabsList variant="line" className="h-full flex-1 w-0">
                 <TabsTrigger value="lecture" className="text-xs gap-1 flex-1">
@@ -320,6 +328,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
                 </button>
               )}
             </div>
+            ) : null}
 
             {/* Notes Tab */}
             <TabsContent value="lecture" className="flex-1 overflow-hidden flex flex-col">

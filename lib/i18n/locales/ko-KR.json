@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "교실 상호작용", "interactionTabs": "교실 상호작용 보기", "sceneRail": "장면",
+    "expandSceneRail": "장면 레일 펼치기", "collapseSceneRail": "장면 레일 접기", "collapseInteraction": "상호작용 패널 접기",
+    "play": "재생", "pause": "일시정지", "previousScene": "이전 장면", "nextScene": "다음 장면",
+    "toggleSceneRail": "장면 레일 전환", "toggleInteraction": "상호작용 패널 전환", "mute": "음소거", "unmute": "음소거 해제", "speed": "재생 속도", "autoPlay": "자동 재생",
+    "tabs": { "lecture": "강의", "discussion": "토론", "roles": "역할" },
+    "status": { "idle": "준비됨", "teaching": "강의 중", "thinking": "생각 중", "discussion": "토론 중" },
+    "roleStatus": { "idle": "대기 중", "teaching": "강의 중", "thinking": "생각 중" }
+  },
   "common": {
     "you": "나",
     "confirm": "확인",

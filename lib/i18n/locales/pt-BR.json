@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "Interação em sala", "interactionTabs": "Visualizações de interação", "sceneRail": "Cenas",
+    "expandSceneRail": "Expandir cenas", "collapseSceneRail": "Recolher cenas", "collapseInteraction": "Recolher painel de interação",
+    "play": "Reproduzir", "pause": "Pausar", "previousScene": "Cena anterior", "nextScene": "Próxima cena",
+    "toggleSceneRail": "Alternar cenas", "toggleInteraction": "Alternar painel de interação", "mute": "Silenciar", "unmute": "Ativar som", "speed": "Velocidade de reprodução", "autoPlay": "Reprodução automática",
+    "tabs": { "lecture": "Explicação", "discussion": "Discussão", "roles": "Papéis" },
+    "status": { "idle": "Pronto", "teaching": "Ensinando", "thinking": "Pensando", "discussion": "Discussão em andamento" },
+    "roleStatus": { "idle": "Aguardando", "teaching": "Ensinando", "thinking": "Pensando" }
+  },
   "common": {
     "you": "Você",
     "confirm": "Confirmar",

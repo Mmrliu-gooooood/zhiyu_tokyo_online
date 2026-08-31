@@ -98,9 +98,9 @@ test('playback cursor persists to device KV and survives a fresh page', async ({
   await page.goto(`/classroom/${STAGE_ID}`);
   await expect(page.getByTestId('scene-title').first()).toBeAttached({ timeout: 30_000 });
 
-  // The central play affordance is a non-semantic motion.div overlay
-  // (canvas-area.tsx z-[102]); click it to start the lecture.
-  const overlayPlay = page.locator('div[class*="z-[102]"] div.pointer-events-auto').first();
+  // Start through the semantic ZHIYU play affordance. The handler remains the
+  // existing PlaybackChromeRoot play/pause path.
+  const overlayPlay = page.getByRole('button', { name: /play|播放/i }).first();
   await overlayPlay.waitFor({ state: 'visible', timeout: 15_000 });
   await overlayPlay.click();
 

@@ -2,7 +2,7 @@
 
 import { useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play } from 'lucide-react';
+import { CircleAlert, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SceneRenderer } from '@/components/stage/scene-renderer';
 import { SceneProvider } from '@/lib/contexts/scene-context';
@@ -97,11 +97,11 @@ export function CanvasArea({
   );
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-900 group/canvas">
+    <div className="group/canvas flex h-full w-full flex-col bg-[#eef1ef] dark:bg-background">
       {/* Slide area — takes remaining space */}
       <div
         className={cn(
-          'flex-1 min-h-0 relative overflow-hidden flex items-center justify-center p-2 transition-colors duration-500',
+          'relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-5 transition-colors duration-500 lg:p-6',
           currentScene?.type === 'interactive'
             ? 'bg-blue-50/30 dark:bg-blue-900/10'
             : 'bg-gray-50/30 dark:bg-gray-900/30',
@@ -111,11 +111,11 @@ export function CanvasArea({
           workbench={inWorkbenchPanel}
           interactive={currentScene?.type === 'interactive'}
           className={cn(
-            'bg-white dark:bg-gray-800 shadow-2xl rounded-lg overflow-hidden relative transition-all duration-700',
+            'relative overflow-hidden rounded-2xl bg-white shadow-[0_16px_40px_rgba(32,52,44,0.12)] transition-all duration-500 dark:bg-gray-800 dark:shadow-[0_18px_46px_rgba(0,0,0,0.35)]',
             showControls && !isLiveSession && currentScene?.type === 'slide' && 'cursor-pointer',
             currentScene?.type === 'interactive'
-              ? 'shadow-blue-200/50 dark:shadow-blue-900/50 ring-1 ring-blue-900/5 dark:ring-blue-500/10'
-              : 'shadow-gray-200/50 dark:shadow-gray-800/50 ring-1 ring-gray-950/5 dark:ring-white/5',
+              ? 'ring-1 ring-blue-900/5 dark:ring-blue-500/10'
+              : 'ring-1 ring-black/5 dark:ring-white/5',
           )}
           onClick={handleSlideClick}
         >
@@ -171,20 +171,8 @@ export function CanvasArea({
               >
                 {isGenerationFailed ? (
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-red-400 dark:text-red-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                        />
-                      </svg>
+                    <div className="flex size-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
+                      <CircleAlert className="size-6 text-red-500" />
                     </div>
                     <span className="text-sm text-red-500 dark:text-red-400 font-medium">
                       {t('stage.generationFailed')}
@@ -203,7 +191,7 @@ export function CanvasArea({
                     {/* Spinner */}
                     <div className="relative w-12 h-12">
                       <div className="absolute inset-0 rounded-full border-2 border-gray-100 dark:border-gray-700" />
-                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-purple-500 dark:border-t-purple-400 animate-spin" />
+                      <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
                     </div>
                     {/* Text */}
                     <motion.span
@@ -237,33 +225,20 @@ export function CanvasArea({
                 transition={{ duration: 0.3 }}
                 className="absolute inset-0 z-[102] flex items-center justify-center pointer-events-none"
               >
-                <motion.div
-                  className="opacity-50 group-hover/canvas:opacity-100 transition-opacity duration-300 pointer-events-auto cursor-pointer"
+                <motion.button
+                  type="button"
+                  aria-label={t('classroomWorkspace.play')}
+                  className="pointer-events-auto cursor-pointer rounded-full opacity-70 transition-opacity duration-300 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary group-hover/canvas:opacity-100"
                   exit={{ pointerEvents: 'none' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     onPlayPause();
                   }}
                 >
-                  <motion.div
-                    initial={{ scale: 0.85 }}
-                    animate={{ scale: [1, 1.06] }}
-                    exit={{ scale: 1.15, opacity: 0 }}
-                    transition={{
-                      default: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
-                      scale: {
-                        repeat: Infinity,
-                        repeatType: 'mirror',
-                        duration: 1,
-                        ease: 'easeInOut',
-                      },
-                    }}
-                    className="w-20 h-20 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center shadow-[0_4px_30px_rgba(147,51,234,0.15),inset_0_0_0_1px_rgba(233,213,255,0.5)] dark:shadow-[0_4px_30px_rgba(147,51,234,0.3),inset_0_0_0_1px_rgba(126,34,206,0.3)]"
-                    style={{ willChange: 'transform' }}
-                  >
-                    <Play className="w-7 h-7 text-purple-600 dark:text-purple-400 fill-purple-600/90 dark:fill-purple-400/90 ml-0.5" />
-                  </motion.div>
-                </motion.div>
+                  <span className="flex size-16 items-center justify-center rounded-full bg-white/95 text-primary shadow-[0_10px_30px_rgba(33,72,57,0.16)] ring-1 ring-primary/10 transition-colors hover:bg-secondary dark:bg-card/95">
+                    <Play className="ml-0.5 size-6 fill-current" />
+                  </span>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>

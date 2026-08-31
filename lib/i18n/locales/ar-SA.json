@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "تفاعل الفصل", "interactionTabs": "طرق عرض التفاعل", "sceneRail": "المشاهد",
+    "expandSceneRail": "توسيع قائمة المشاهد", "collapseSceneRail": "طي قائمة المشاهد", "collapseInteraction": "طي لوحة التفاعل",
+    "play": "تشغيل", "pause": "إيقاف مؤقت", "previousScene": "المشهد السابق", "nextScene": "المشهد التالي",
+    "toggleSceneRail": "تبديل قائمة المشاهد", "toggleInteraction": "تبديل لوحة التفاعل", "mute": "كتم الصوت", "unmute": "إلغاء الكتم", "speed": "سرعة التشغيل", "autoPlay": "تشغيل تلقائي",
+    "tabs": { "lecture": "الشرح", "discussion": "النقاش", "roles": "الأدوار" },
+    "status": { "idle": "جاهز", "teaching": "جارٍ الشرح", "thinking": "جارٍ التفكير", "discussion": "النقاش جارٍ" },
+    "roleStatus": { "idle": "في الانتظار", "teaching": "يشرح", "thinking": "يفكر" }
+  },
   "common": {
     "you": "أنت",
     "confirm": "تأكيد",

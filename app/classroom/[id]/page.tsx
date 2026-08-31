@@ -22,10 +22,13 @@ import {
   defaultClassroomLoadDeps,
   runClassroomLoad,
 } from '@/lib/classroom/load-classroom';
+import { useI18n } from '@/lib/hooks/use-i18n';
+import { ZhiyuClassroomState } from '@/components/classroom/ZhiyuClassroomState';
 
 const log = createLogger('Classroom');
 
 export default function ClassroomDetailPage() {
+  const { t } = useI18n();
   const params = useParams();
   const classroomId = params?.id as string;
 
@@ -225,27 +228,24 @@ export default function ClassroomDetailPage() {
       <MediaStageProvider value={classroomId}>
         <div className="h-screen flex flex-col overflow-hidden">
           {loading ? (
-            <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-              <div className="text-center text-muted-foreground">
-                <p>Loading classroom...</p>
-              </div>
-            </div>
+            <ZhiyuClassroomState kind="loading" title={t('common.loadingClassroom')} />
           ) : error ? (
-            <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-              <div className="text-center">
-                <p className="text-destructive mb-4">Error: {error}</p>
+            <ZhiyuClassroomState
+              kind="error"
+              title={`${t('common.errorPrefix')}${error}`}
+              action={
                 <button
                   onClick={() => {
                     setError(null);
                     setLoading(true);
                     loadClassroom();
                   }}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
-                  Retry
+                  {t('common.retry')}
                 </button>
-              </div>
-            </div>
+              }
+            />
           ) : (
             <Stage onRetryOutline={retrySingleOutline} />
           )}

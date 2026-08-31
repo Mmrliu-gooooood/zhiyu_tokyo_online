@@ -1,4 +1,13 @@
 {
+  "classroomWorkspace": {
+    "interactionTitle": "教室インタラクション", "interactionTabs": "教室インタラクション表示", "sceneRail": "シーン",
+    "expandSceneRail": "シーンレールを展開", "collapseSceneRail": "シーンレールを折りたたむ", "collapseInteraction": "インタラクションパネルを折りたたむ",
+    "play": "再生", "pause": "一時停止", "previousScene": "前のシーン", "nextScene": "次のシーン",
+    "toggleSceneRail": "シーンレールを切り替え", "toggleInteraction": "インタラクションパネルを切り替え", "mute": "ミュート", "unmute": "ミュート解除", "speed": "再生速度", "autoPlay": "自動再生",
+    "tabs": { "lecture": "解説", "discussion": "ディスカッション", "roles": "役割" },
+    "status": { "idle": "準備完了", "teaching": "解説中", "thinking": "思考中", "discussion": "ディスカッション中" },
+    "roleStatus": { "idle": "待機中", "teaching": "解説中", "thinking": "思考中" }
+  },
   "common": {
     "you": "あなた",
     "confirm": "確認",
