@@ -29,11 +29,11 @@ vi.mock('@/lib/server/agent-runtime/event-notify-bus', () => ({
   }),
 }));
 
+import { GET } from '@/app/api/agent/sessions/[id]/events/route';
 import {
-  GET,
-  POLL_INTERVAL_MS,
-  TERMINAL_POLL_INTERVAL_MS,
-} from '@/app/api/agent/sessions/[id]/events/route';
+  SESSION_EVENT_POLL_INTERVAL_MS as POLL_INTERVAL_MS,
+  TERMINAL_SESSION_EVENT_POLL_INTERVAL_MS as TERMINAL_POLL_INTERVAL_MS,
+} from '@/lib/server/agent-runtime/route-constants';
 
 const terminalEvent = {
   id: 4,

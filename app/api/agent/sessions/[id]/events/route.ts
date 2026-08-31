@@ -39,6 +39,10 @@ import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { subscribeAgentEventWakeup } from '@/lib/server/agent-runtime/event-notify-bus';
 import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
+import {
+  SESSION_EVENT_POLL_INTERVAL_MS as POLL_INTERVAL_MS,
+  TERMINAL_SESSION_EVENT_POLL_INTERVAL_MS as TERMINAL_POLL_INTERVAL_MS,
+} from '@/lib/server/agent-runtime/route-constants';
 
 export const runtime = 'nodejs';
 // Self-hosted `next start` does not enforce maxDuration; it remains useful to
@@ -49,12 +53,10 @@ export const maxDuration = 300;
 // LISTEN/NOTIFY supplies low latency. Polling remains an explicit correctness
 // fallback for notifications lost during disconnects; terminal streams retain
 // their longer backoff.
-const POLL_INTERVAL_MS = 5_000;
 // Terminal streams poll less often than active ones, but 10s is the ceiling.
 // The worst case is "session already terminal -> user steers": this is exactly
 // the moment the user is waiting for the result. Terminal streams exist only
 // while the user actually has that session open, so the extra cost is small.
-const TERMINAL_POLL_INTERVAL_MS = 10_000;
 const HEARTBEAT_INTERVAL_MS = 25_000;
 /** Same default as `readEventsAfter`. A full page means more backlog remains. */
 const BACKLOG_PAGE = 500;

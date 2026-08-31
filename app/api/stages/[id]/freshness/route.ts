@@ -28,6 +28,7 @@ import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
 import { getOwnerScopedDocumentStore } from '@/lib/server/agent-runtime/owner-scoped-documents';
 import { ownerNotFound } from '@/lib/server/agent-runtime/route-response';
+import { STAGE_FRESHNESS_POLL_INTERVAL_MS } from '@/lib/server/agent-runtime/route-constants';
 
 export const runtime = 'nodejs';
 // Self-hosted `next start` ignores maxDuration; Vercel's adapter can still use
@@ -35,7 +36,6 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 /** How often the stream re-checks the stage's revision. */
-const STAGE_FRESHNESS_POLL_INTERVAL_MS = 5_000;
 /** Same ceiling as the sibling SSE streams. */
 const STAGE_FRESHNESS_HEARTBEAT_MS = 25_000;
 /** Browser reconnect delay, sent as the SSE `retry:` field. */

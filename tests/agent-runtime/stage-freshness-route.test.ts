@@ -20,7 +20,8 @@ vi.mock('@/lib/server/agent-runtime/owner-scoped-documents', () => ({
   getOwnerScopedDocumentStore: async () => mocks.fakeStore!.store,
 }));
 
-import { GET, STAGE_FRESHNESS_POLL_INTERVAL_MS } from '@/app/api/stages/[id]/freshness/route';
+import { GET } from '@/app/api/stages/[id]/freshness/route';
+import { STAGE_FRESHNESS_POLL_INTERVAL_MS } from '@/lib/server/agent-runtime/route-constants';
 
 const STAGE_ID = 'stage-1';
 

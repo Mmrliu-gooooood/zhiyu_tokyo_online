@@ -31,12 +31,12 @@ vi.mock('@/lib/server/agent-runtime/event-notify-bus', () => ({
   }),
 }));
 
+import { GET } from '@/app/api/agent/owner-events/route';
 import {
-  GET,
   OWNER_EVENT_POLL_INTERVAL_MS,
   OWNER_EVENT_REPLAY_LIMIT,
   SSE_HEARTBEAT_INTERVAL_MS,
-} from '@/app/api/agent/owner-events/route';
+} from '@/lib/server/agent-runtime/route-constants';
 
 function call(lastEventId?: { header?: string; query?: string }) {
   const query = lastEventId?.query ? `?lastEventId=${lastEventId.query}` : '';

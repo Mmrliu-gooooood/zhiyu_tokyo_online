@@ -29,8 +29,9 @@ describe('ZHIYU global surface contract', () => {
     const layout = source('app/layout.tsx');
     const routeLoading = source('components/brand/ZhiyuRouteLoading.tsx');
 
-    expect(layout).toContain("icon: '/zhiyu-mark.svg'");
-    expect(layout).toContain("applicationName: '智域'");
+    expect(layout).toContain('icon: DEFAULT_BRAND.markSrc');
+    expect(layout).toContain('applicationName: DEFAULT_BRAND.productName');
+    expect(layout).toContain('<DocumentMetadataSync />');
     expect(routeLoading).toContain('<ZhiyuLockup');
     expect(routeLoading).toContain('role="status"');
   });

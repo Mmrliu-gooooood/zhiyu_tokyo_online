@@ -12,6 +12,8 @@ import { ServerProvidersInit } from '@/components/server-providers-init';
 import { StorageHealthNotice } from '@/components/storage-health-notice';
 import { AccessCodeGuard } from '@/components/access-code-guard';
 import { ProSwapWatcher } from '@/components/workbench/ProSwapWatcher';
+import { DocumentMetadataSync } from '@/components/document-metadata-sync';
+import { BRAND_ENGLISH_NAME, DEFAULT_BRAND } from '@/lib/brand/brand-config';
 
 // The UI font is loaded from @fontsource's stylesheet rather than next/font,
 // because only the stylesheet carries the per-subset `unicode-range`
@@ -29,19 +31,18 @@ import { ProSwapWatcher } from '@/components/workbench/ProSwapWatcher';
 import '@fontsource-variable/inter';
 
 export const metadata: Metadata = {
-  title: '智域 · AI 互动课堂',
-  description: '一句话，生成一堂互动课。多智能体教师与同学，实时讲授与讨论。',
-  applicationName: '智域',
+  title: `${DEFAULT_BRAND.productName} · ${BRAND_ENGLISH_NAME}`,
+  applicationName: DEFAULT_BRAND.productName,
   icons: {
-    icon: '/zhiyu-mark.svg',
-    shortcut: '/zhiyu-mark.svg',
-    apple: '/zhiyu-mark.svg',
+    icon: DEFAULT_BRAND.markSrc,
+    shortcut: DEFAULT_BRAND.markSrc,
+    apple: DEFAULT_BRAND.markSrc,
   },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#356B59' },
+    { media: '(prefers-color-scheme: light)', color: DEFAULT_BRAND.themeColor },
     { media: '(prefers-color-scheme: dark)', color: '#121816' },
   ],
 };
@@ -59,6 +60,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <I18nProvider>
+            <DocumentMetadataSync />
             <ServerProvidersInit />
             <ProSwapWatcher />
             <AccessCodeGuard>{children}</AccessCodeGuard>

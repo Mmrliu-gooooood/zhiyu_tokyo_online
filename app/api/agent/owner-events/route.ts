@@ -14,6 +14,11 @@ import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { subscribeAgentEventWakeup } from '@/lib/server/agent-runtime/event-notify-bus';
 import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
+import {
+  OWNER_EVENT_POLL_INTERVAL_MS,
+  OWNER_EVENT_REPLAY_LIMIT,
+  SSE_HEARTBEAT_INTERVAL_MS,
+} from '@/lib/server/agent-runtime/route-constants';
 
 export const runtime = 'nodejs';
 // Self-hosted `next start` ignores maxDuration; Vercel's adapter can still use
@@ -22,9 +27,6 @@ export const maxDuration = 300;
 
 // LISTEN/NOTIFY supplies low latency. This is deliberately retained as a
 // correctness fallback because NOTIFY is lossy across listener disconnects.
-const OWNER_EVENT_POLL_INTERVAL_MS = 30_000;
-const SSE_HEARTBEAT_INTERVAL_MS = 25_000;
-const OWNER_EVENT_REPLAY_LIMIT = 1_000;
 const BACKLOG_PAGE = 500;
 
 function parseLastEventId(value: string | null): bigint {

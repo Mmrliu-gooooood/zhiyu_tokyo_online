@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useRef,
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { projectZhiyuClassroomLayout } from './zhiyu-classroom-layout';
 
@@ -24,6 +18,8 @@ export type ZhiyuClassroomShellProps = {
   readonly onInteractionDismiss?: () => void;
   readonly sceneRailDismissLabel?: string;
   readonly interactionDismissLabel?: string;
+  readonly sceneRailLabel?: string;
+  readonly interactionLabel?: string;
   readonly sceneRailDrawer?: boolean;
   readonly interactionDrawer?: boolean;
 };
@@ -46,6 +42,8 @@ export function ZhiyuClassroomShell({
   onInteractionDismiss,
   sceneRailDismissLabel,
   interactionDismissLabel,
+  sceneRailLabel,
+  interactionLabel,
   sceneRailDrawer = false,
   interactionDrawer = false,
 }: ZhiyuClassroomShellProps) {
@@ -58,12 +56,7 @@ export function ZhiyuClassroomShell({
   const interactionRef = useRef<HTMLElement>(null);
   const sceneDrawerOpen = !presenting && sceneRailDrawer && !sceneRailCollapsed;
   const interactionDrawerOpen = !presenting && interactionDrawer && !interactionCollapsed;
-  const activeDrawer =
-    interactionDrawerOpen
-      ? 'interaction'
-      : sceneDrawerOpen
-        ? 'scene'
-        : null;
+  const activeDrawer = interactionDrawerOpen ? 'interaction' : sceneDrawerOpen ? 'scene' : null;
 
   useEffect(() => {
     if (!activeDrawer) return;
@@ -140,7 +133,7 @@ export function ZhiyuClassroomShell({
           ref={sceneRailRef}
           role={sceneDrawerOpen ? 'dialog' : undefined}
           aria-modal={sceneDrawerOpen ? 'true' : undefined}
-          aria-label={sceneDrawerOpen ? sceneRailDismissLabel : undefined}
+          aria-label={sceneDrawerOpen ? sceneRailLabel : undefined}
           tabIndex={sceneDrawerOpen ? -1 : undefined}
           data-presentation={sceneRailDrawer ? 'drawer' : 'rail'}
           inert={activeDrawer === 'interaction' ? true : undefined}
@@ -191,7 +184,7 @@ export function ZhiyuClassroomShell({
           ref={interactionRef}
           role={interactionDrawerOpen ? 'dialog' : undefined}
           aria-modal={interactionDrawerOpen ? 'true' : undefined}
-          aria-label={interactionDrawerOpen ? interactionDismissLabel : undefined}
+          aria-label={interactionDrawerOpen ? interactionLabel : undefined}
           tabIndex={interactionDrawerOpen ? -1 : undefined}
           data-presentation={interactionDrawer ? 'drawer' : 'panel'}
           inert={activeDrawer === 'scene' ? true : undefined}
