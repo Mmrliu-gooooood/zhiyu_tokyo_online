@@ -44,8 +44,8 @@ The final production-image Home DOM review confirmed the ZHIYU lockup, language/
 | Final Plan 06 frozen gate | 61/61 targeted tests; i18n 12/12 locales; ESLint 0 errors; production build 52 pages |
 | Route regression contracts found in final review | Fixed by sharing constants outside Next route modules; 47/47 targeted tests passed in the Builder image |
 | Exact mirror-argument Docker build before final review fixes | Passed |
-| Final mirror-argument Docker build after review fixes | Pending final rerun |
-| In-app Browser production-image Home review | Passed on host port 3001 (container port 3000) |
+| Final mirror-argument Docker build after review fixes | Passed; production build generated 52 pages and tagged `openmaic:local` |
+| In-app Browser final production-image Home review | Passed on host port 3001 (container port 3000); final image returned HTTP 200 |
 
 ## Explicit limitations and blocked checks
 
@@ -56,4 +56,4 @@ The final production-image Home DOM review confirmed the ZHIYU lockup, language/
 
 ## Final disposition
 
-Home, Generation, Classroom, Workspace, both chat presentations, Settings, Editor, global overlays, fallbacks, responsive drawers, dark-mode tokens, and accessibility-critical states have explicit implementation and test owners. Final release status becomes **passed** when the exact post-review Docker rebuild completes successfully.
+Home, Generation, Classroom, Workspace, both chat presentations, Settings, Editor, global overlays, fallbacks, responsive drawers, dark-mode tokens, and accessibility-critical states have explicit implementation and test owners. The post-review Docker build, targeted regression, lint, i18n, and final in-app Browser Home review passed. The committed Docker Playwright state/viewport screenshot matrix remains a CI-only evidence gate and is not represented as locally executed.
