@@ -57,3 +57,49 @@ The final production-image Home DOM review confirmed the ZHIYU lockup, language/
 ## Final disposition
 
 Home, Generation, Classroom, Workspace, both chat presentations, Settings, Editor, global overlays, fallbacks, responsive drawers, dark-mode tokens, and accessibility-critical states have explicit implementation and test owners. The post-review Docker build, targeted regression, lint, i18n, and final in-app Browser Home review passed. The committed Docker Playwright state/viewport screenshot matrix remains a CI-only evidence gate and is not represented as locally executed.
+
+---
+
+# ZHIYU Brand Mark QA — 2026-09-01
+
+## Comparison target
+
+- Source visual truth: `C:\Users\Lenovo\.codex\generated_images\01a05b16-b17c-7cf3-829e-89f433d7e362\exec-cacf975d-b7e2-4064-9627-79468488e6bb.png` (the production-asset extraction of selected ideation option 1).
+- Browser-rendered implementation: `C:\Users\Lenovo\.codex\visualizations\2026\09\01\01a05b16-b17c-7cf3-829e-89f433d7e362\zhiyu-brand-implementation.png`.
+- Focused comparison: `C:\Users\Lenovo\.codex\visualizations\2026\09\01\01a05b16-b17c-7cf3-829e-89f433d7e362\zhiyu-brand-comparison.png`.
+- Browser viewport: 1280 × 720 CSS px at density 1.
+- Source pixels: 1254 × 1254, normalized by trimming the white presentation margin and resizing to 512 × 512.
+- Implementation pixels: 512 × 512 RGBA production asset, rendered at 24, 28, and 36 CSS px in the component preview.
+- State: light and dark lockups plus small-size mark samples.
+
+## Findings
+
+- No actionable P0, P1, or P2 differences remain.
+- Fonts and typography: the existing 智域 / ZHIYU type treatment, weight, tracking, and hierarchy are unchanged; the generated mark is isolated from editable lockup text in the React component.
+- Spacing and layout rhythm: the square mark keeps the existing component dimensions and gaps, so header and rail geometry do not shift.
+- Colors and visual tokens: the production asset is flattened to the established `#356B59`, white, and `#F7EFCF` palette, with sufficient contrast in both themes.
+- Image quality and asset fidelity: the 512 × 512 transparent PNG preserves the selected opposing-plane silhouette and centered warm dot; all tested small sizes remain legible without a background halo.
+- Copy and content: 智域 and ZHIYU are unchanged.
+
+## Browser verification
+
+- The asset loaded successfully from the project's public path in all five preview instances.
+- Natural asset size was 512 × 512; rendered dimensions were verified at 24 × 24, 28 × 28, and 36 × 36 CSS px.
+- The component-preview origin reported no console errors.
+- No primary interaction applies to this static brand component.
+- The full Home route currently exposes an unrelated existing `fileURLToPath` development-runtime error; the isolated browser-rendered brand component was therefore used as the scoped implementation evidence for this asset-only change.
+
+## Comparison history
+
+- Initial production comparison found no P0/P1/P2 mismatch. The deliberate differences from the generated concept are production refinements: exact flat brand colors, transparent outer corners, and removal of generated texture/lighting.
+- No post-QA fix iteration was required.
+
+## Implementation checklist
+
+- [x] Add the production square mark.
+- [x] Add the production horizontal lockup.
+- [x] Route brand configuration, favicon metadata, and existing consumers to the new assets.
+- [x] Update the brand contract test.
+- [x] Verify formatting, focused tests, light/dark rendering, and small-size legibility.
+
+final result: passed

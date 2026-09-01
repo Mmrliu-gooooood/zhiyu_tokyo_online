@@ -1310,11 +1310,6 @@ function HomePage() {
         folders={folders}
         onCreate={handleCreateFolder}
       />
-
-      {/* Footer — flows with content, at the very end */}
-      <div className="mx-auto pt-12 pb-4 text-center text-xs text-muted-foreground/60">
-        {t('home.footer')}
-      </div>
     </div>
   );
 }

@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/*': [
       'lib/server/agent-runtime/import-pptx-worker.mjs',
+      // Prompt loaders read Markdown at request time, so webpack cannot infer these assets.
+      'lib/prompts/**',
+      'packages/@openmaic/generation/templates/**',
+      'packages/@openmaic/generation/snippets/**',
+      'packages/@openmaic/generation/prompts-pbl/**',
       'skills/openmaic/**',
       'skills/agent-runtime/**',
     ],

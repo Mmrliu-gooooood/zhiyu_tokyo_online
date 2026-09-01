@@ -30,8 +30,8 @@ export const BRAND_ENGLISH_NAME = 'ZHIYU';
 export const DEFAULT_BRAND: BrandConfig = {
   productName: '智域',
   shortName: '智域',
-  logoSrc: '/zhiyu-lockup.svg',
+  logoSrc: '/zhiyu-lockup.png',
   logoHasWordmark: true,
-  markSrc: '/zhiyu-mark.svg',
+  markSrc: '/zhiyu-mark.png',
   themeColor: '#356B59',
 };
