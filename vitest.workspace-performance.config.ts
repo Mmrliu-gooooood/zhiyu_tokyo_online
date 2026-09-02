@@ -12,7 +12,7 @@ export default defineConfig({
       'tests/performance/zhiyu-playback-profiler-baseline.test.ts',
       'tests/performance/zhiyu-workspace-profiler-baseline.test.ts',
     ],
-    setupFiles: ['tests/setup-env.ts'],
+    setupFiles: ['tests/setup-env.ts', 'tests/setup-performance-env.ts'],
     pool: 'forks',
     fileParallelism: false,
     maxWorkers: 1,

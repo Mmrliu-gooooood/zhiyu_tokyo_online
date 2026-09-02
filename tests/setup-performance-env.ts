@@ -1,0 +1,1 @@
+process.env.ZHIYU_DEDICATED_PERFORMANCE = '1';

@@ -73,7 +73,10 @@ describe('Phase 0 verification contract', () => {
     };
 
     expect(vitestConfig).toContain(
-      "exclude: [\n      'tests/performance/zhiyu-playback-profiler-baseline.test.ts',\n      'tests/performance/zhiyu-workspace-profiler-baseline.test.ts',\n    ]",
+      "exclude: ['tests/performance/zhiyu-workspace-profiler-baseline.test.ts']",
+    );
+    expect(vitestConfig).not.toContain(
+      "exclude: ['tests/performance/zhiyu-playback-profiler-baseline.test.ts'",
     );
     expect(packageJson.scripts?.['test:performance:zhiyu']).toBe(
       'vitest run --config vitest.workspace-performance.config.ts tests/performance/zhiyu-playback-profiler-baseline.test.ts && vitest run --config vitest.workspace-performance.config.ts tests/performance/zhiyu-workspace-profiler-baseline.test.ts',
@@ -86,6 +89,10 @@ describe('Phase 0 verification contract', () => {
     );
     expect(performanceConfig).toContain('fileParallelism: false');
     expect(performanceConfig).toContain('maxWorkers: 1');
+    expect(performanceConfig).toContain("'tests/setup-performance-env.ts'");
+    expect(read('tests/performance/zhiyu-playback-profiler-baseline.test.ts')).toContain(
+      "const performanceIt = process.env.ZHIYU_DEDICATED_PERFORMANCE === '1' ? it : it.skip;",
+    );
   });
 
   it('fingerprints dirty file content instead of only its porcelain status', () => {

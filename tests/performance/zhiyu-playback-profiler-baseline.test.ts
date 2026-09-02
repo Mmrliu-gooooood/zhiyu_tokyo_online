@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createReactProfilerRecorder } from './react-profiler-recorder';
 
+const performanceIt = process.env.ZHIYU_DEDICATED_PERFORMANCE === '1' ? it : it.skip;
 const EVENT_COUNT = 100;
 const PHASE0_ROOT_P95_MS = {
   speech: 5.643,
@@ -430,102 +431,105 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     vi.unstubAllGlobals();
   });
 
-  it('records 100 speech-progress and 100 thinking updates at synthetic component seams', async () => {
-    const recorder = createReactProfilerRecorder();
-    mocks.onRender = recorder.onRender;
-    await act(async () => {
-      root.render(
-        createElement(
-          Profiler,
-          { id: 'PlaybackChromeRoot', onRender: recorder.onRender },
-          createElement(PlaybackChromeRoot),
-        ),
+  performanceIt(
+    'records 100 speech-progress and 100 thinking updates at synthetic component seams',
+    async () => {
+      const recorder = createReactProfilerRecorder();
+      mocks.onRender = recorder.onRender;
+      await act(async () => {
+        root.render(
+          createElement(
+            Profiler,
+            { id: 'PlaybackChromeRoot', onRender: recorder.onRender },
+            createElement(PlaybackChromeRoot),
+          ),
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      const chatAreaProps = mocks.captureChatAreaProps.mock.lastCall?.[0] as
+        | Record<string, unknown>
+        | undefined;
+      const speechProgress = chatAreaProps?.onSpeechProgress as SpeechProgress | undefined;
+      const thinkingUpdate = chatAreaProps?.onThinking as ThinkingUpdate | undefined;
+      expect(speechProgress).toBeTypeOf('function');
+      expect(thinkingUpdate).toBeTypeOf('function');
+
+      await publish(() => speechProgress?.(0, mocks.activeSessionId!));
+      recorder.reset();
+      mocks.captureShellRender.mockClear();
+      for (let index = 1; index <= EVENT_COUNT; index += 1) {
+        await publish(() => speechProgress?.(index / EVENT_COUNT, mocks.activeSessionId!));
+      }
+      const speech = recorder.report('speech-progress-100', EVENT_COUNT, PROFILER_IDS);
+      const speechShellRenders = mocks.captureShellRender.mock.calls.length;
+
+      await publish(() => thinkingUpdate?.({ stage: 'director' }, mocks.activeSessionId!));
+      recorder.reset();
+      mocks.captureShellRender.mockClear();
+      for (let index = 0; index < EVENT_COUNT; index += 1) {
+        await publish(() =>
+          thinkingUpdate?.(
+            {
+              stage: index % 2 === 0 ? 'director' : 'agent_loading',
+              ...(index % 2 === 0 ? {} : { agentId: `agent-${index % 3}` }),
+            },
+            mocks.activeSessionId!,
+          ),
+        );
+      }
+      const thinking = recorder.report('thinking-100', EVENT_COUNT, PROFILER_IDS);
+      const thinkingShellRenders = mocks.captureShellRender.mock.calls.length;
+
+      for (const scenario of [speech, thinking]) {
+        expect(scenario.islands.Header?.commits).toBeLessThanOrEqual(5);
+        expect(scenario.islands.SceneRail?.commits).toBeLessThanOrEqual(5);
+      }
+      expect(speechShellRenders).toBeLessThanOrEqual(5);
+      expect(thinkingShellRenders).toBeLessThanOrEqual(5);
+      expect(speech.islands.ClassroomShellSubtree?.commits).toBe(EVENT_COUNT);
+      expect(thinking.islands.ClassroomShellSubtree?.commits).toBe(EVENT_COUNT);
+      expect(speech.islands.SceneRail?.commits).toBe(0);
+      expect(speech.islands.StageRuntime?.commits).toBe(EVENT_COUNT);
+      expect(speech.islands.InteractionPanel?.commits).toBe(0);
+      expect(speech.islands.PlaybackBar?.commits).toBe(0);
+      expect(thinking.islands.StageRuntime?.commits).toBe(EVENT_COUNT);
+      expect(thinking.islands.InteractionPanel?.commits).toBe(EVENT_COUNT);
+      expect(thinking.islands.PlaybackBar?.commits).toBe(0);
+      expect(speech.islands.PlaybackChromeRoot?.p95Ms).toBeLessThanOrEqual(
+        PHASE0_ROOT_P95_MS.speech * 0.7,
       );
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const chatAreaProps = mocks.captureChatAreaProps.mock.lastCall?.[0] as
-      | Record<string, unknown>
-      | undefined;
-    const speechProgress = chatAreaProps?.onSpeechProgress as SpeechProgress | undefined;
-    const thinkingUpdate = chatAreaProps?.onThinking as ThinkingUpdate | undefined;
-    expect(speechProgress).toBeTypeOf('function');
-    expect(thinkingUpdate).toBeTypeOf('function');
-
-    await publish(() => speechProgress?.(0, mocks.activeSessionId!));
-    recorder.reset();
-    mocks.captureShellRender.mockClear();
-    for (let index = 1; index <= EVENT_COUNT; index += 1) {
-      await publish(() => speechProgress?.(index / EVENT_COUNT, mocks.activeSessionId!));
-    }
-    const speech = recorder.report('speech-progress-100', EVENT_COUNT, PROFILER_IDS);
-    const speechShellRenders = mocks.captureShellRender.mock.calls.length;
-
-    await publish(() => thinkingUpdate?.({ stage: 'director' }, mocks.activeSessionId!));
-    recorder.reset();
-    mocks.captureShellRender.mockClear();
-    for (let index = 0; index < EVENT_COUNT; index += 1) {
-      await publish(() =>
-        thinkingUpdate?.(
-          {
-            stage: index % 2 === 0 ? 'director' : 'agent_loading',
-            ...(index % 2 === 0 ? {} : { agentId: `agent-${index % 3}` }),
-          },
-          mocks.activeSessionId!,
-        ),
+      expect(thinking.islands.PlaybackChromeRoot?.p95Ms).toBeLessThanOrEqual(
+        PHASE0_ROOT_P95_MS.thinking * 0.7,
       );
-    }
-    const thinking = recorder.report('thinking-100', EVENT_COUNT, PROFILER_IDS);
-    const thinkingShellRenders = mocks.captureShellRender.mock.calls.length;
 
-    for (const scenario of [speech, thinking]) {
-      expect(scenario.islands.Header?.commits).toBeLessThanOrEqual(5);
-      expect(scenario.islands.SceneRail?.commits).toBeLessThanOrEqual(5);
-    }
-    expect(speechShellRenders).toBeLessThanOrEqual(5);
-    expect(thinkingShellRenders).toBeLessThanOrEqual(5);
-    expect(speech.islands.ClassroomShellSubtree?.commits).toBe(EVENT_COUNT);
-    expect(thinking.islands.ClassroomShellSubtree?.commits).toBe(EVENT_COUNT);
-    expect(speech.islands.SceneRail?.commits).toBe(0);
-    expect(speech.islands.StageRuntime?.commits).toBe(EVENT_COUNT);
-    expect(speech.islands.InteractionPanel?.commits).toBe(0);
-    expect(speech.islands.PlaybackBar?.commits).toBe(0);
-    expect(thinking.islands.StageRuntime?.commits).toBe(EVENT_COUNT);
-    expect(thinking.islands.InteractionPanel?.commits).toBe(EVENT_COUNT);
-    expect(thinking.islands.PlaybackBar?.commits).toBe(0);
-    expect(speech.islands.PlaybackChromeRoot?.p95Ms).toBeLessThanOrEqual(
-      PHASE0_ROOT_P95_MS.speech * 0.7,
-    );
-    expect(thinking.islands.PlaybackChromeRoot?.p95Ms).toBeLessThanOrEqual(
-      PHASE0_ROOT_P95_MS.thinking * 0.7,
-    );
-
-    if (process.env.PHASE0_PROFILER_REPORT === '1') {
-      process.stdout.write(
-        `ZHIYU_PHASE0_PROFILER ${JSON.stringify({
-          schemaVersion: 1,
-          baselineKind: 'synthetic-component-seam',
-          durationScope: 'profiled-components-excluding-listed-mocked-child-subtrees',
-          comparisonConstraint: 'relative-only-with-identical-harness',
-          profiledSeams: PROFILER_IDS,
-          excludedChildSubtrees: EXCLUDED_CHILD_SUBTREES,
-          runtime: {
-            node: process.version,
-            react: reactVersion,
-            reactDom: reactDomVersion,
-            platform: process.platform,
-            arch: process.arch,
-          },
-          mode: 'vitest-jsdom-development-react',
-          strictMode: false,
-          syntheticViewport: 1366,
-          eventSequenceVersion: 1,
-          scenarios: [speech, thinking],
-        })}\n`,
-      );
-    }
-  });
+      if (process.env.PHASE0_PROFILER_REPORT === '1') {
+        process.stdout.write(
+          `ZHIYU_PHASE0_PROFILER ${JSON.stringify({
+            schemaVersion: 1,
+            baselineKind: 'synthetic-component-seam',
+            durationScope: 'profiled-components-excluding-listed-mocked-child-subtrees',
+            comparisonConstraint: 'relative-only-with-identical-harness',
+            profiledSeams: PROFILER_IDS,
+            excludedChildSubtrees: EXCLUDED_CHILD_SUBTREES,
+            runtime: {
+              node: process.version,
+              react: reactVersion,
+              reactDom: reactDomVersion,
+              platform: process.platform,
+              arch: process.arch,
+            },
+            mode: 'vitest-jsdom-development-react',
+            strictMode: false,
+            syntheticViewport: 1366,
+            eventSequenceVersion: 1,
+            scenarios: [speech, thinking],
+          })}\n`,
+        );
+      }
+    },
+  );
 
   it('keeps low-frequency playback control callbacks stable during speech updates', async () => {
     await act(async () => {
