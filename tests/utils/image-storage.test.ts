@@ -13,6 +13,7 @@ vi.mock('@/lib/utils/database', () => ({
 }));
 
 import {
+  deleteStoredImages,
   extractOriginalImageId,
   loadImageMapping,
   loadPdfBlob,
@@ -57,6 +58,40 @@ beforeEach(() => {
 });
 
 describe('image file persistence', () => {
+  it('rolls back a bundle when its generation signal aborts during a write', async () => {
+    let finishWrite!: () => void;
+    imageFilesMock.put.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishWrite = resolve;
+        }),
+    );
+    imageFilesMock.delete.mockResolvedValue(undefined);
+    const controller = new AbortController();
+    const storing = storeImages(
+      [{ id: 'img_1', src: 'data:image/png;base64,AQ==' }],
+      controller.signal,
+    );
+
+    controller.abort();
+    finishWrite();
+
+    await expect(storing).rejects.toMatchObject({ name: 'AbortError' });
+    const storedId = imageFilesMock.put.mock.calls[0][0].id;
+    expect(imageFilesMock.delete).toHaveBeenCalledWith(storedId);
+  });
+
+  it('deletes exactly the image ids owned by a retired generation candidate', async () => {
+    imageFilesMock.delete.mockResolvedValue(undefined);
+
+    await deleteStoredImages(['session_run_img_1', 'session_run_img_2']);
+
+    expect(imageFilesMock.delete.mock.calls.map(([id]) => id)).toEqual([
+      'session_run_img_1',
+      'session_run_img_2',
+    ]);
+  });
+
   it('stores a PDF as an ArrayBuffer with its exact metadata', async () => {
     const bytes = [0x25, 0x50, 0x44, 0x46, 0x01, 0xff];
     const file = new File([Uint8Array.from(bytes)], 'lesson.pdf', {

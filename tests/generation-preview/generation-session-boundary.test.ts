@@ -20,7 +20,8 @@ describe('Generation Preview route/session boundary', () => {
     const controller = read('app/generation-preview/GenerationSessionController.tsx');
 
     expect(controller).toMatch(/export function GenerationSessionController\(\)/);
-    expect(controller).toContain('new GenerationSessionRuntime()');
+    expect(controller).toContain('new GenerationSessionRuntime({ onPhase: setCanonicalPhase })');
+    expect(controller).toContain("canonicalPhase === 'scene-generation'");
     expect(controller).toContain('generationRuntimeRef.current?.stop()');
   });
 });

@@ -23,6 +23,12 @@ type GenerationSessionRuntimeOptions = {
   onPhase?: (phase: GenerationCanonicalPhase) => void;
 };
 
+type GenerationCandidateTransaction = {
+  persist: () => Promise<void>;
+  discard: () => Promise<void>;
+  publish: () => void;
+};
+
 const HAPPY_PATH_TRANSITIONS: Readonly<
   Record<GenerationCanonicalPhase, ReadonlySet<GenerationCanonicalPhase>>
 > = {
@@ -40,9 +46,9 @@ const HAPPY_PATH_TRANSITIONS: Readonly<
 const TERMINAL_PHASES = new Set<GenerationCanonicalPhase>(['completed', 'failed', 'cancelled']);
 
 /**
- * Mount-scoped authority for generation epochs and canonical transitions.
- * It deliberately owns no application data: callers may commit data only
- * through the epoch fence exposed here.
+ * Mount-scoped authority for generation epochs, canonical transitions, and
+ * the persist-before-publish boundary. Application data stays in the caller's
+ * candidate until this owner admits it through the current epoch.
  */
 export class GenerationSessionRuntime {
   private epoch = 0;
@@ -74,6 +80,7 @@ export class GenerationSessionRuntime {
         : HAPPY_PATH_TRANSITIONS[this.currentPhase].has(next);
     if (!allowed) return false;
     this.setPhase(next);
+    if (next === 'failed' || next === 'cancelled') this.controller?.abort();
     if (TERMINAL_PHASES.has(next)) this.controller = null;
     return true;
   }
@@ -82,6 +89,30 @@ export class GenerationSessionRuntime {
     if (!this.isCurrent(epoch) || TERMINAL_PHASES.has(this.currentPhase)) return false;
     effect();
     return true;
+  }
+
+  async publishAfterPersist(
+    epoch: number,
+    transaction: GenerationCandidateTransaction,
+  ): Promise<boolean> {
+    if (!this.isCurrent(epoch)) return false;
+    try {
+      await transaction.persist();
+    } catch (error) {
+      await transaction.discard();
+      if (this.isCurrent(epoch)) throw error;
+      return false;
+    }
+    if (!this.isCurrent(epoch)) {
+      await transaction.discard();
+      return false;
+    }
+    try {
+      return this.commit(epoch, transaction.publish);
+    } catch (error) {
+      await transaction.discard();
+      throw error;
+    }
   }
 
   isCurrent(epoch: number): boolean {

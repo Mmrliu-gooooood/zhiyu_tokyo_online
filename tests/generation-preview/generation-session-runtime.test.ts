@@ -40,6 +40,7 @@ describe('GenerationSessionRuntime public seam', () => {
     const noReview = runtime.start();
     expect(runtime.transition(noReview.epoch, 'agent-generation')).toBe(true);
     expect(runtime.transition(noReview.epoch, 'failed')).toBe(true);
+    expect(noReview.signal.aborted).toBe(true);
 
     const restarted = runtime.restart('agent-generation');
     expect(restarted.epoch).toBeGreaterThan(noReview.epoch);
@@ -80,6 +81,21 @@ describe('GenerationSessionRuntime public seam', () => {
     expect(second.isCurrent(secondRun.epoch)).toBe(true);
   });
 
+  it('aborts every owned signal across 20 mount cleanup cycles', () => {
+    const signals: AbortSignal[] = [];
+
+    for (let cycle = 0; cycle < 20; cycle += 1) {
+      const runtime = new GenerationSessionRuntime();
+      signals.push(runtime.start().signal);
+      runtime.stop();
+      runtime.stop();
+      expect(runtime.phase).toBe('cancelled');
+    }
+
+    expect(signals).toHaveLength(20);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+
   it('keeps stale scene, timeline, and session persistence out of cancel-restart state', async () => {
     const late = deferred();
     const projection = {
@@ -112,5 +128,50 @@ describe('GenerationSessionRuntime public seam', () => {
       timeline: ['fresh-scene-generation'],
       sessionStorage: 'fresh-session',
     });
+  });
+
+  it('persists a candidate before publish and discards it when its epoch retires', async () => {
+    const retiredPersistence = deferred();
+    const events: string[] = [];
+    const runtime = new GenerationSessionRuntime();
+    const retired = runtime.start('media-actions');
+    const retiredFinish = runtime.publishAfterPersist(retired.epoch, {
+      persist: async () => {
+        events.push('retired:persist:start');
+        await retiredPersistence.promise;
+        events.push('retired:persist:end');
+      },
+      discard: async () => {
+        events.push('retired:discard');
+      },
+      publish: () => {
+        events.push('retired:publish');
+      },
+    });
+
+    const current = runtime.restart('media-actions');
+    await expect(
+      runtime.publishAfterPersist(current.epoch, {
+        persist: async () => {
+          events.push('current:persist');
+        },
+        discard: async () => {
+          events.push('current:discard');
+        },
+        publish: () => {
+          events.push('current:publish');
+        },
+      }),
+    ).resolves.toBe(true);
+
+    retiredPersistence.resolve();
+    await expect(retiredFinish).resolves.toBe(false);
+    expect(events).toEqual([
+      'retired:persist:start',
+      'current:persist',
+      'current:publish',
+      'retired:persist:end',
+      'retired:discard',
+    ]);
   });
 });

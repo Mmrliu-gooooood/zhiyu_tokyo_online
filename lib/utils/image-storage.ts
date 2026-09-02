@@ -63,6 +63,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
  */
 export async function storeImages(
   images: Array<{ id: string; src: string; pageNumber?: number }>,
+  signal?: AbortSignal,
 ): Promise<string[]> {
   const sessionId = nanoid(SESSION_ID_LENGTH);
   const storedIds: string[] = [];
@@ -70,6 +71,7 @@ export async function storeImages(
 
   try {
     for (const img of images) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       currentImageId = img.id;
       const { buffer, mimeType } = decodeBase64DataUrl(img.src);
 
@@ -87,9 +89,11 @@ export async function storeImages(
 
       await db.imageFiles.put(record);
       storedIds.push(storageId);
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     }
   } catch (error) {
     await Promise.allSettled(storedIds.map((id) => db.imageFiles.delete(id)));
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const message = `Failed to store image bundle${
       currentImageId ? ` at image ${currentImageId}` : ''
     }`;
@@ -98,6 +102,11 @@ export async function storeImages(
   }
 
   return storedIds;
+}
+
+/** Remove the exact image records owned by a discarded generation candidate. */
+export async function deleteStoredImages(imageIds: readonly string[]): Promise<void> {
+  await Promise.all([...new Set(imageIds)].map((id) => db.imageFiles.delete(id)));
 }
 
 /**

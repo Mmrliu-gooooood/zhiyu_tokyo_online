@@ -13,7 +13,10 @@ import { OutlinesEditor } from '@/components/generation/outlines-editor';
 import { cn } from '@/lib/utils';
 import { useStageStore } from '@/lib/store/stage';
 import { useSettingsStore } from '@/lib/store/settings';
-import { useAgentRegistry } from '@/lib/orchestration/registry/store';
+import {
+  applyGeneratedAgentsToRegistry,
+  useAgentRegistry,
+} from '@/lib/orchestration/registry/store';
 import {
   getEnabledProvidersWithVoices,
   resolveNarratorVoiceForGeneration,
@@ -33,8 +36,11 @@ import {
   loadImageMapping,
   loadDocumentBlob,
   cleanupOldImages,
+  deleteStoredImages,
   storeImages,
 } from '@/lib/utils/image-storage';
+import { deleteStageData, saveStageData } from '@/lib/utils/stage-storage';
+import { stageDeletionEpoch } from '@/lib/utils/deleted-stages';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { resolveSessionDocumentSources } from '@/lib/document/session-sources';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
@@ -46,7 +52,7 @@ import {
 } from '@/lib/document/bundle';
 import { buildVideoManifestFromOutlines } from '@/lib/media/video-manifest';
 import { nanoid } from 'nanoid';
-import type { GeneratedAgentConfig, Stage } from '@/lib/types/stage';
+import type { GeneratedAgentConfig, Scene, Stage } from '@/lib/types/stage';
 import type {
   SceneOutline,
   PdfImage,
@@ -65,7 +71,10 @@ import {
 import { ZhiyuGenerationShell } from './components/ZhiyuGenerationShell';
 import { projectZhiyuGenerationSteps } from './components/zhiyu-generation-state';
 import { resolveTaskEngineModeFromOutlineDoneEvent } from './vocational-mode';
-import { GenerationSessionRuntime } from './generation-session-runtime';
+import {
+  GenerationSessionRuntime,
+  type GenerationCanonicalPhase,
+} from './generation-session-runtime';
 
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
@@ -107,10 +116,6 @@ function GenerationPreviewContent() {
   const router = useRouter();
   const { t } = useI18n();
   const hasStartedRef = useRef(false);
-  const generationRuntimeRef = useRef<GenerationSessionRuntime | null>(null);
-  if (!generationRuntimeRef.current) {
-    generationRuntimeRef.current = new GenerationSessionRuntime();
-  }
   const outlineReviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const outlineReviewResolveRef = useRef<((outlines: SceneOutline[]) => void) | null>(null);
   // Sticky flag: true once the user signals review intent (either by clicking the
@@ -120,6 +125,11 @@ function GenerationPreviewContent() {
   const { profiles: voiceProfiles } = useAllVoiceProfiles();
 
   const [session, setSession] = useState<GenerationSessionState | null>(null);
+  const [canonicalPhase, setCanonicalPhase] = useState<GenerationCanonicalPhase>('idle');
+  const generationRuntimeRef = useRef<GenerationSessionRuntime | null>(null);
+  if (!generationRuntimeRef.current) {
+    generationRuntimeRef.current = new GenerationSessionRuntime({ onPhase: setCanonicalPhase });
+  }
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -129,6 +139,8 @@ function GenerationPreviewContent() {
   const [truncationWarnings, setTruncationWarnings] = useState<string[]>([]);
   const [showAgentReveal, setShowAgentReveal] = useState(false);
   const [isConfirmingOutlines, setIsConfirmingOutlines] = useState(false);
+  const [generatedSceneCount, setGeneratedSceneCount] = useState(0);
+  const [generatedScene, setGeneratedScene] = useState<Scene | undefined>(undefined);
   const [generatedAgents, setGeneratedAgents] = useState<
     Array<{
       id: string;
@@ -143,9 +155,6 @@ function GenerationPreviewContent() {
   const agentRevealResolveRef = useRef<(() => void) | null>(null);
   const reviewOutlineEnabled = useSettingsStore((s) => s.reviewOutlineEnabled);
   const setReviewOutlineEnabled = useSettingsStore((s) => s.setReviewOutlineEnabled);
-  const generatedSceneCount = useStageStore((state) => state.scenes.length);
-  const firstGeneratedScene = useStageStore((state) => state.scenes[0]);
-
   // Compute active steps based on session state
   const activeSteps = getActiveSteps(session);
   const isReviewingOutlines = session?.previewPhase === 'review';
@@ -327,10 +336,13 @@ function GenerationPreviewContent() {
 
     // Use a local mutable copy so we can update it after document extraction
     let currentSession = generationSession;
+    let ownedImageStorageIds: string[] = [];
 
     commit(() => {
       setError(null);
       setCurrentStepIndex(0);
+      setGeneratedSceneCount(0);
+      setGeneratedScene(undefined);
     });
 
     try {
@@ -432,7 +444,8 @@ function GenerationPreviewContent() {
         if (!runtime.isCurrent(epoch)) return;
 
         const bundle = buildDocumentBundle(parsedParts);
-        const imageStorageIds = await storeImages(bundle.images);
+        const imageStorageIds = await storeImages(bundle.images, signal);
+        ownedImageStorageIds = imageStorageIds;
         if (!runtime.isCurrent(epoch)) return;
 
         const pdfImages: PdfImage[] = bundle.images.map((img, i) => ({
@@ -711,7 +724,7 @@ function GenerationPreviewContent() {
           taskEngineMode: effectiveTaskEngineMode,
           previewPhase: shouldReviewOutlines ? 'review' : 'outline-ready',
         };
-        runtime.transition(epoch, 'outline-review');
+        if (!runtime.transition(epoch, 'outline-review')) return;
         persistSession(updatedSession, epoch);
         currentSession = updatedSession;
         setStreamingOutlines(outlines);
@@ -727,7 +740,7 @@ function GenerationPreviewContent() {
           taskEngineMode: effectiveTaskEngineMode,
           previewPhase: 'generating-content',
         };
-        runtime.transition(epoch, 'agent-generation');
+        if (!runtime.transition(epoch, 'agent-generation')) return;
         persistSession(currentSession, epoch);
 
         // User has committed to course generation (either by confirming the
@@ -899,13 +912,7 @@ function GenerationPreviewContent() {
           // live TTS call.
           const generatedConfigs = agentData.agents as GeneratedAgentConfig[];
           stage.generatedAgentConfigs = generatedConfigs;
-          const { applyGeneratedAgentsToRegistry } =
-            await import('@/lib/orchestration/registry/store');
-          if (!runtime.isCurrent(epoch)) return;
-          const savedIds = applyGeneratedAgentsToRegistry(stage.id, generatedConfigs);
-          settings.setSelectedAgentIds(savedIds);
-          // Stage-derived, not a user choice — must not carry across classrooms.
-          settings.setAgentSelectionIsUserSet(false);
+          const savedIds = generatedConfigs.map((agent) => agent.id);
           stage.agentIds = savedIds;
 
           // Show card-reveal modal, continue generation once all cards are revealed
@@ -924,15 +931,12 @@ function GenerationPreviewContent() {
           });
           if (!runtime.isCurrent(epoch)) return;
 
-          agents = savedIds
-            .map((id) => useAgentRegistry.getState().getAgent(id))
-            .filter(Boolean)
-            .map((a) => ({
-              id: a!.id,
-              name: a!.name,
-              role: a!.role,
-              persona: a!.persona,
-            }));
+          agents = generatedConfigs.map((agent) => ({
+            id: agent.id,
+            name: agent.name,
+            role: agent.role,
+            persona: agent.persona,
+          }));
         } catch (err: unknown) {
           if (!runtime.isCurrent(epoch)) return;
           log.warn('[Generation] Agent generation failed, falling back to presets:', err);
@@ -981,7 +985,7 @@ function GenerationPreviewContent() {
       // Store stage and outlines
       const store = useStageStore.getState();
       stage.videoManifest = buildVideoManifestFromOutlines(outlines);
-      runtime.transition(epoch, 'scene-generation');
+      if (!runtime.transition(epoch, 'scene-generation')) return;
 
       // Advance to slide-content step
       const contentStepIdx = activeSteps.findIndex((s) => s.id === 'slide-content');
@@ -1028,7 +1032,7 @@ function GenerationPreviewContent() {
       }
 
       // Generate actions (activate actions step indicator)
-      runtime.transition(epoch, 'media-actions');
+      if (!runtime.transition(epoch, 'media-actions')) return;
       const actionsStepIdx = activeSteps.findIndex((s) => s.id === 'actions');
       setCurrentStepIndex(actionsStepIdx >= 0 ? actionsStepIdx : currentStepIndex + 1);
 
@@ -1072,35 +1076,62 @@ function GenerationPreviewContent() {
         if (!ttsResult.success) throw new Error(t('generation.speechFailed'));
       }
 
-      // Add scene to store and navigate
-      commit(() => {
-        store.setStage(stage);
-        store.setOutlines(outlines);
-        store.setGeneratingOutlines(outlines);
-        store.addScene(firstScene);
-        store.setCurrentSceneId(firstScene.id);
-        setCurrentStepIndex(activeSteps.length);
+      const remaining = outlines.filter((o) => o.order !== firstScene.order);
+      const persistedAt = Date.now();
+      const published = await runtime.publishAfterPersist(epoch, {
+        persist: async () => {
+          await saveStageData(
+            stage.id,
+            {
+              stage,
+              scenes: [firstScene],
+              currentSceneId: firstScene.id,
+              chats: [],
+              outline: {
+                outlines,
+                generationComplete: false,
+                createdAt: persistedAt,
+                updatedAt: persistedAt,
+              },
+            },
+            stageDeletionEpoch(stage.id),
+          );
+        },
+        discard: async () => {
+          await deleteStageData(stage.id);
+        },
+        publish: () => {
+          if (stage.generatedAgentConfigs) {
+            const savedIds = applyGeneratedAgentsToRegistry(stage.id, stage.generatedAgentConfigs);
+            settings.setSelectedAgentIds(savedIds);
+            // Stage-derived, not a user choice — must not carry across classrooms.
+            settings.setAgentSelectionIsUserSet(false);
+          }
+          store.setStage(stage);
+          store.setOutlines(outlines);
+          store.setGeneratingOutlines(outlines);
+          store.addScene(firstScene);
+          store.setCurrentSceneId(firstScene.id);
+          setGeneratedScene(firstScene);
+          setGeneratedSceneCount(1);
+          setCurrentStepIndex(activeSteps.length);
+          store.setGeneratingOutlines(remaining);
 
-        // Set remaining outlines as skeleton placeholders
-        const remaining = outlines.filter((o) => o.order !== firstScene.order);
-        store.setGeneratingOutlines(remaining);
-
-        // Store generation params for classroom to continue generation
-        sessionStorage.setItem(
-          'generationParams',
-          JSON.stringify({
-            pdfImages: currentSession.pdfImages,
-            agents,
-            userProfile,
-            languageDirective,
-          }),
-        );
-
-        sessionStorage.removeItem('generationSession');
+          sessionStorage.setItem(
+            'generationParams',
+            JSON.stringify({
+              pdfImages: currentSession.pdfImages,
+              agents,
+              userProfile,
+              languageDirective,
+            }),
+          );
+          sessionStorage.removeItem('generationSession');
+        },
       });
-      await store.saveToStorage();
-      if (!runtime.isCurrent(epoch)) return;
-      runtime.transition(epoch, 'completed');
+      if (!published) return;
+      ownedImageStorageIds = [];
+      if (!runtime.transition(epoch, 'completed')) return;
       router.push(`/classroom/${stage.id}`);
     } catch (err) {
       if (!runtime.isCurrent(epoch)) return;
@@ -1114,7 +1145,13 @@ function GenerationPreviewContent() {
         sessionStorage.removeItem('generationSession');
         setError(err instanceof Error ? err.message : String(err));
       });
-      runtime.transition(epoch, 'failed');
+      if (!runtime.transition(epoch, 'failed')) return;
+    } finally {
+      if (ownedImageStorageIds.length > 0) {
+        await deleteStoredImages(ownedImageStorageIds).catch((cleanupError) => {
+          log.warn('[GenerationPreview] Failed to discard retired image records:', cleanupError);
+        });
+      }
     }
   };
 
@@ -1381,20 +1418,23 @@ function GenerationPreviewContent() {
           ? 'media'
           : 'outline'
     : null;
-  const actionsStepIndex = activeSteps.findIndex((step) => step.id === 'actions');
   const contentStepIndex = activeSteps.findIndex((step) => step.id === 'slide-content');
   const currentGenerationSceneCount =
     contentStepIndex >= 0 && currentStepIndex >= contentStepIndex ? generatedSceneCount : 0;
   const currentGeneratedScene =
-    contentStepIndex >= 0 && currentStepIndex >= contentStepIndex ? firstGeneratedScene : undefined;
+    contentStepIndex >= 0 && currentStepIndex >= contentStepIndex ? generatedScene : undefined;
   const previewOutlines = session.sceneOutlines ?? streamingOutlines ?? [];
+  const scenesStarted =
+    canonicalPhase === 'scene-generation' ||
+    canonicalPhase === 'media-actions' ||
+    canonicalPhase === 'completed';
   const zhiyuSteps = projectZhiyuGenerationSteps({
     outlineReady,
     agentsReady,
     generatedSceneCount: currentGenerationSceneCount,
     totalSceneCount: session.sceneOutlines?.length ?? streamingOutlines?.length ?? 0,
-    scenesStarted: contentStepIndex >= 0 && currentStepIndex >= contentStepIndex,
-    mediaPending: actionsStepIndex >= 0 && currentStepIndex <= actionsStepIndex,
+    scenesStarted,
+    mediaPending: canonicalPhase === 'scene-generation' || canonicalPhase === 'media-actions',
     errorStage,
   });
   const courseTitle =
