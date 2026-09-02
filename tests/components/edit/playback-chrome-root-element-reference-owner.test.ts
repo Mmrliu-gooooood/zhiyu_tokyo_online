@@ -4,6 +4,13 @@ import { act, createElement, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+type MockAudioPlayer = {
+  destroy: ReturnType<typeof vi.fn>;
+  setMuted: ReturnType<typeof vi.fn>;
+  setVolume: ReturnType<typeof vi.fn>;
+  setPlaybackRate: ReturnType<typeof vi.fn>;
+};
+
 const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   endActiveSession: vi.fn(),
@@ -27,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   canJumpWithin: vi.fn(),
   canJumpToAction: vi.fn(),
   jumpToAction: vi.fn(),
+  retainedAudioPlayers: [] as MockAudioPlayer[],
 }));
 
 const textElement = {
@@ -265,6 +273,7 @@ vi.mock('@/lib/playback', () => ({
       },
     ) {
       mocks.engineOptions = options;
+      mocks.retainedAudioPlayers.push(_audioPlayer as MockAudioPlayer);
       options.onModeChange?.(mocks.engineMode);
     }
     stop() {}
@@ -313,12 +322,15 @@ vi.mock('@/lib/playback/cursor', () => ({
 }));
 vi.mock('@/lib/action/engine', () => ({ ActionEngine: class {} }));
 vi.mock('@/lib/utils/audio-player', () => ({
-  createAudioPlayer: () => ({
-    destroy: vi.fn(),
-    setMuted: vi.fn(),
-    setVolume: vi.fn(),
-    setPlaybackRate: vi.fn(),
-  }),
+  createAudioPlayer: () => {
+    const player = {
+      destroy: vi.fn(),
+      setMuted: vi.fn(),
+      setVolume: vi.fn(),
+      setPlaybackRate: vi.fn(),
+    };
+    return player;
+  },
 }));
 vi.mock('@/lib/hooks/use-discussion-tts', () => ({
   useDiscussionTTS: () => ({
@@ -374,6 +386,7 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     mocks.canJumpToAction.mockReturnValue(false);
     mocks.jumpToAction.mockReset();
     mocks.jumpToAction.mockResolvedValue(false);
+    mocks.retainedAudioPlayers.length = 0;
     stageState.currentSceneId = scene.id;
     stageState.setCurrentSceneId.mockClear();
     settingsState.autoPlayLecture = false;
@@ -417,6 +430,155 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
       await Promise.resolve();
     });
   }
+
+  it('releases owned global listeners and the retained audio player across 20 mount cycles', async () => {
+    unmountOwner();
+    container.remove();
+
+    const mediaQueries: Array<{
+      liveListeners: Set<EventListenerOrEventListenerObject>;
+      addEventListener: ReturnType<typeof vi.fn>;
+      removeEventListener: ReturnType<typeof vi.fn>;
+    }> = [];
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((media: string) => {
+        const liveListeners = new Set<EventListenerOrEventListenerObject>();
+        const query = {
+          matches: false,
+          media,
+          onchange: null,
+          addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+            if (type === 'change') liveListeners.add(listener);
+          }),
+          removeEventListener: vi.fn(
+            (type: string, listener: EventListenerOrEventListenerObject) => {
+              if (type === 'change') liveListeners.delete(listener);
+            },
+          ),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(() => true),
+          liveListeners,
+        };
+        mediaQueries.push(query);
+        return query;
+      }),
+    );
+
+    const windowAddListenerSpy = vi.spyOn(window, 'addEventListener');
+    const windowRemoveListenerSpy = vi.spyOn(window, 'removeEventListener');
+    const documentAddListenerSpy = vi.spyOn(document, 'addEventListener');
+    const documentRemoveListenerSpy = vi.spyOn(document, 'removeEventListener');
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(
+      document,
+      'fullscreenElement',
+    );
+    let fullscreenElement: Element | null = null;
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+    const listenerBalance = (
+      addSpy: typeof windowAddListenerSpy,
+      removeSpy: typeof windowRemoveListenerSpy,
+      type: string,
+    ) =>
+      addSpy.mock.calls.filter(([eventType]) => eventType === type).length -
+      removeSpy.mock.calls.filter(([eventType]) => eventType === type).length;
+
+    const activeListenerCounts: Array<[number, number, number, number, number, number]> = [];
+    const postUnmountListenerCounts: Array<[number, number, number, number, number, number]> = [];
+    let lifecycleRoot: Root | null = null;
+    let lifecycleContainer: HTMLDivElement | null = null;
+    try {
+      for (let cycle = 0; cycle < 20; cycle += 1) {
+        const retainedBeforeMount = mocks.retainedAudioPlayers.length;
+        const mediaQueriesBeforeMount = mediaQueries.length;
+        lifecycleContainer = document.createElement('div');
+        document.body.appendChild(lifecycleContainer);
+        const cycleRoot = createRoot(lifecycleContainer);
+        lifecycleRoot = cycleRoot;
+        await act(async () => {
+          cycleRoot.render(createElement(PlaybackChromeRoot));
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+        fullscreenElement = lifecycleContainer.firstElementChild;
+        await act(async () => {
+          document.dispatchEvent(new Event('fullscreenchange'));
+          await Promise.resolve();
+        });
+
+        const retainedPlayers = mocks.retainedAudioPlayers.slice(retainedBeforeMount);
+        const cycleMediaQueries = mediaQueries.slice(mediaQueriesBeforeMount);
+        expect(retainedPlayers).toHaveLength(1);
+        expect(retainedPlayers[0]?.destroy).not.toHaveBeenCalled();
+        expect(cycleMediaQueries).toHaveLength(2);
+        expect(cycleMediaQueries.map((query) => query.liveListeners.size)).toEqual([1, 1]);
+        activeListenerCounts.push([
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'keydown'),
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'mousemove'),
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'mousedown'),
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'touchstart'),
+          listenerBalance(documentAddListenerSpy, documentRemoveListenerSpy, 'fullscreenchange'),
+          cycleMediaQueries.reduce((count, query) => count + query.liveListeners.size, 0),
+        ]);
+
+        act(() => cycleRoot.unmount());
+        lifecycleRoot = null;
+        lifecycleContainer.remove();
+        lifecycleContainer = null;
+        fullscreenElement = null;
+        expect(retainedPlayers[0]?.destroy).toHaveBeenCalledTimes(1);
+        expect(cycleMediaQueries.map((query) => query.liveListeners.size)).toEqual([0, 0]);
+        postUnmountListenerCounts.push([
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'keydown'),
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'mousemove'),
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'mousedown'),
+          listenerBalance(windowAddListenerSpy, windowRemoveListenerSpy, 'touchstart'),
+          listenerBalance(documentAddListenerSpy, documentRemoveListenerSpy, 'fullscreenchange'),
+          cycleMediaQueries.reduce((count, query) => count + query.liveListeners.size, 0),
+        ]);
+      }
+
+      expect(activeListenerCounts).toEqual(Array(20).fill([2, 1, 1, 1, 1, 2]));
+      expect(postUnmountListenerCounts).toEqual(Array(20).fill([0, 0, 0, 0, 0, 0]));
+      expect(mocks.retainedAudioPlayers).toHaveLength(20);
+      expect(
+        mocks.retainedAudioPlayers.filter((player) => player.destroy.mock.calls.length === 1),
+      ).toHaveLength(20);
+      for (const eventType of ['keydown', 'mousemove', 'mousedown', 'touchstart']) {
+        const added = windowAddListenerSpy.mock.calls
+          .filter(([type]) => type === eventType)
+          .map(([, listener]) => listener);
+        const removed = windowRemoveListenerSpy.mock.calls
+          .filter(([type]) => type === eventType)
+          .map(([, listener]) => listener);
+        expect(new Set(removed)).toEqual(new Set(added));
+      }
+      const addedFullscreenListeners = documentAddListenerSpy.mock.calls
+        .filter(([type]) => type === 'fullscreenchange')
+        .map(([, listener]) => listener);
+      const removedFullscreenListeners = documentRemoveListenerSpy.mock.calls
+        .filter(([type]) => type === 'fullscreenchange')
+        .map(([, listener]) => listener);
+      expect(new Set(removedFullscreenListeners)).toEqual(new Set(addedFullscreenListeners));
+    } finally {
+      if (lifecycleRoot) act(() => lifecycleRoot?.unmount());
+      lifecycleContainer?.remove();
+      fullscreenElement = null;
+      if (originalFullscreenElement) {
+        Object.defineProperty(document, 'fullscreenElement', originalFullscreenElement);
+      } else {
+        Reflect.deleteProperty(document, 'fullscreenElement');
+      }
+      windowAddListenerSpy.mockRestore();
+      windowRemoveListenerSpy.mockRestore();
+      documentAddListenerSpy.mockRestore();
+      documentRemoveListenerSpy.mockRestore();
+    }
+  });
 
   it('releases repeated discussion end-flash timers across 20 mount cycles', async () => {
     vi.useFakeTimers();
