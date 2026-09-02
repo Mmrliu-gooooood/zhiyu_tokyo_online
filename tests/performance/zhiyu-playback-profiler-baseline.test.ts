@@ -4,6 +4,7 @@ import {
   act,
   createElement,
   Profiler,
+  StrictMode,
   useSyncExternalStore,
   version as reactVersion,
   type ProfilerOnRenderCallback,
@@ -20,6 +21,7 @@ const PROFILER_IDS = [
   'ClassroomShell',
   'Header',
   'SceneRail',
+  'StageRuntime',
   'InteractionPanel',
   'PlaybackBar',
 ] as const;
@@ -40,6 +42,7 @@ const mocks = vi.hoisted(() => ({
   onRender: undefined as ProfilerOnRenderCallback | undefined,
   captureChatAreaProps: vi.fn(),
   capturePlaybackBarProps: vi.fn(),
+  captureRoundtableProps: vi.fn(),
   setWhiteboardOpenManually: vi.fn(),
   engineOptions: undefined as Record<string, unknown> | undefined,
   loadCursor: vi.fn(),
@@ -161,8 +164,12 @@ vi.mock('@/components/classroom/ZhiyuClassroomShell', async (importOriginal) => 
     ...actual,
     ZhiyuClassroomShell: (props: Parameters<typeof actual.ZhiyuClassroomShell>[0]) =>
       React.createElement(
-        React.Profiler,
-        { id: 'ClassroomShell', onRender: (...args) => mocks.onRender?.(...args) },
+        React.Fragment,
+        null,
+        React.createElement(React.Profiler, {
+          id: 'ClassroomShell',
+          onRender: (...args) => mocks.onRender?.(...args),
+        }),
         React.createElement(actual.ZhiyuClassroomShell, props),
       ),
   };
@@ -228,7 +235,15 @@ vi.mock('@/components/classroom/ZhiyuPlaybackBar', async (importOriginal) => {
 });
 
 vi.mock('@/components/canvas/canvas-area', () => ({ CanvasArea: () => null }));
-vi.mock('@/components/roundtable', () => ({ Roundtable: () => null }));
+vi.mock('@/components/roundtable', () => ({
+  Roundtable: (props: Record<string, unknown>) => {
+    mocks.captureRoundtableProps(props);
+    return createElement(Profiler, {
+      id: 'StageRuntime',
+      onRender: (...args) => mocks.onRender?.(...args),
+    });
+  },
+}));
 
 vi.mock('@/components/chat/chat-area', async () => {
   const React = await import('react');
@@ -373,6 +388,7 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     }));
     mocks.captureChatAreaProps.mockClear();
     mocks.capturePlaybackBarProps.mockClear();
+    mocks.captureRoundtableProps.mockClear();
     mocks.engineOptions = undefined;
     mocks.loadCursor.mockReset();
     mocks.loadCursor.mockResolvedValue(null);
@@ -435,12 +451,17 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     const thinking = recorder.report('thinking-100', EVENT_COUNT, PROFILER_IDS);
 
     for (const scenario of [speech, thinking]) {
-      expect(scenario.islands.PlaybackChromeRoot?.commits).toBeGreaterThan(0);
-      expect(scenario.islands.PlaybackChromeRoot?.commits).toBeLessThanOrEqual(EVENT_COUNT);
-      for (const id of PROFILER_IDS) {
-        expect(scenario.islands[id]?.p95Ms).not.toBeNull();
-      }
+      expect(scenario.islands.ClassroomShell?.commits).toBeLessThanOrEqual(5);
+      expect(scenario.islands.Header?.commits).toBeLessThanOrEqual(5);
+      expect(scenario.islands.SceneRail?.commits).toBeLessThanOrEqual(5);
     }
+    expect(speech.islands.SceneRail?.commits).toBe(0);
+    expect(speech.islands.StageRuntime?.commits).toBe(EVENT_COUNT);
+    expect(speech.islands.InteractionPanel?.commits).toBe(0);
+    expect(speech.islands.PlaybackBar?.commits).toBe(0);
+    expect(thinking.islands.StageRuntime?.commits).toBe(EVENT_COUNT);
+    expect(thinking.islands.InteractionPanel?.commits).toBe(EVENT_COUNT);
+    expect(thinking.islands.PlaybackBar?.commits).toBe(0);
 
     if (process.env.PHASE0_PROFILER_REPORT === '1') {
       process.stdout.write(
@@ -493,6 +514,26 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     expect(updatedBarProps?.onToggleMute).toBe(initialBarProps?.onToggleMute);
     expect(updatedBarProps?.onToggleAutoPlay).toBe(initialBarProps?.onToggleAutoPlay);
     expect(updatedBarProps?.onCycleSpeed).toBe(initialBarProps?.onCycleSpeed);
+  });
+
+  it('keeps the mount-scoped runtime active after Strict Mode effect replay', async () => {
+    await act(async () => {
+      root.render(createElement(StrictMode, null, createElement(PlaybackChromeRoot)));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const chatAreaProps = mocks.captureChatAreaProps.mock.lastCall?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    const thinkingUpdate = chatAreaProps?.onThinking as ThinkingUpdate | undefined;
+    expect(thinkingUpdate).toBeTypeOf('function');
+
+    await publish(() => thinkingUpdate?.({ stage: 'director' }));
+
+    expect(mocks.captureRoundtableProps.mock.lastCall?.[0]).toMatchObject({
+      thinkingState: { stage: 'director' },
+    });
   });
 
   it('does not commit PlaybackChromeRoot for unrelated StageStore updates', async () => {

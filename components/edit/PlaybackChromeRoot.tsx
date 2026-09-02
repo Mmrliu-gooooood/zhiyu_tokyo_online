@@ -6,12 +6,20 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { useStageStore } from '@/lib/store';
 import { usePlaybackChromeStageProjection } from '@/lib/classroom/playback-chrome-stage-projection';
+import {
+  createClassroomLiveRuntime,
+  createInitialClassroomRuntimeState,
+  reduceClassroomRuntime,
+  type ClassroomLiveRuntimeState,
+  type ClassroomThinkingState,
+} from '@/lib/classroom/classroom-runtime';
 import { PENDING_SCENE_ID } from '@/lib/store/stage';
 import { useCanvasStore } from '@/lib/store/canvas';
 import { PLAYBACK_SPEEDS, useSettingsStore } from '@/lib/store/settings';
@@ -19,7 +27,6 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { SceneSidebar } from '@/components/stage/scene-sidebar';
 import { Header } from '@/components/header';
 import { CanvasArea } from '@/components/canvas/canvas-area';
-import { Roundtable } from '@/components/roundtable';
 import { PlaybackEngine, computePlaybackView, shouldAutoResumeLecture } from '@/lib/playback';
 import type { EngineMode, TriggerEvent, Effect } from '@/lib/playback';
 import {
@@ -65,7 +72,10 @@ import {
 } from '@/components/canvas/slide-element-pick-overlay';
 import { shouldClearDraftElementReference } from '@/components/chat/element-reference-receipt';
 import { ZhiyuClassroomShell } from '@/components/classroom/ZhiyuClassroomShell';
-import { ZhiyuInteractionPanel } from '@/components/classroom/ZhiyuInteractionPanel';
+import {
+  ClassroomInteractionIsland,
+  ClassroomRoundtableIsland,
+} from '@/components/classroom/ClassroomRuntimeIslands';
 import { ZhiyuPlaybackBar } from '@/components/classroom/ZhiyuPlaybackBar';
 import {
   projectZhiyuClassroomControls,
@@ -147,6 +157,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       generationComplete,
     } = usePlaybackChromeStageProjection();
     const piChatEnabled = isPiChatEnabled();
+    const [classroomLiveRuntime] = useState(createClassroomLiveRuntime);
+    const setLiveSpeech = classroomLiveRuntime.setLiveSpeech;
+    const setSpeechProgress = classroomLiveRuntime.setSpeechProgress;
+    const setThinkingState = classroomLiveRuntime.setThinkingState;
     const [elementPickActive, setElementPickActive] = useState(false);
     const [draftElementReference, setDraftElementReferenceState] =
       useState<DraftSlideElementReference | null>(null);
@@ -171,20 +185,30 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const setChatAreaCollapsed = useSettingsStore((s) => s.setChatAreaCollapsed);
     const setTTSMuted = useSettingsStore((s) => s.setTTSMuted);
     const setTTSVolume = useSettingsStore((s) => s.setTTSVolume);
-    const [compactViewport, setCompactViewport] = useState(false);
-    const [narrowViewport, setNarrowViewport] = useState(false);
-    const [compactInteractionOpen, setCompactInteractionOpen] = useState(false);
-    const [narrowSceneRailOpen, setNarrowSceneRailOpen] = useState(false);
+    const [classroomRuntime, dispatchClassroomRuntime] = useReducer(
+      reduceClassroomRuntime,
+      undefined,
+      createInitialClassroomRuntimeState,
+    );
+    const {
+      compactViewport,
+      narrowViewport,
+      compactInteractionOpen,
+      narrowSceneRailOpen,
+      isPresenting,
+      isDiscussionPaused,
+    } = classroomRuntime;
 
     useEffect(() => {
       if (typeof window.matchMedia !== 'function') return;
       const compactQuery = window.matchMedia('(max-width: 1279px)');
       const narrowQuery = window.matchMedia('(max-width: 899px)');
       const updateViewport = () => {
-        setCompactViewport(compactQuery.matches);
-        setNarrowViewport(narrowQuery.matches);
-        if (!compactQuery.matches) setCompactInteractionOpen(false);
-        if (!narrowQuery.matches) setNarrowSceneRailOpen(false);
+        dispatchClassroomRuntime({
+          type: 'viewport.changed',
+          compact: compactQuery.matches,
+          narrow: narrowQuery.matches,
+        });
       };
       updateViewport();
       compactQuery.addEventListener('change', updateViewport);
@@ -201,8 +225,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const handleSceneRailPresentationChange = useCallback(
       (collapsed: boolean) => {
         if (narrowViewport) {
-          setNarrowSceneRailOpen(!collapsed);
-          if (!collapsed) setCompactInteractionOpen(false);
+          dispatchClassroomRuntime({
+            type: 'sceneRail.presentationChanged',
+            collapsed,
+          });
           return;
         }
         setSidebarCollapsed(collapsed);
@@ -213,13 +239,15 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const handleInteractionPresentationChange = useCallback(
       (collapsed: boolean) => {
         if (compactViewport) {
-          setCompactInteractionOpen(!collapsed);
-          if (!collapsed && narrowViewport) setNarrowSceneRailOpen(false);
+          dispatchClassroomRuntime({
+            type: 'interaction.presentationChanged',
+            collapsed,
+          });
           return;
         }
         setChatAreaCollapsed(collapsed);
       },
-      [compactViewport, narrowViewport, setChatAreaCollapsed],
+      [compactViewport, setChatAreaCollapsed],
     );
 
     const toggleSceneRailPresentation = useCallback(() => {
@@ -235,19 +263,12 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const [playbackCompleted, setPlaybackCompleted] = useState(false); // Distinguishes "never played" idle from "finished" idle
     const [lectureSpeech, setLectureSpeech] = useState<string | null>(null); // From PlaybackEngine (lecture)
     const [currentPlaybackActionIndex, setCurrentPlaybackActionIndex] = useState<number | null>(0);
-    const [liveSpeech, setLiveSpeech] = useState<string | null>(null); // From buffer (discussion/QA)
-    const [speechProgress, setSpeechProgress] = useState<number | null>(null); // StreamBuffer reveal progress (0–1)
     const [discussionTrigger, setDiscussionTrigger] = useState<TriggerEvent | null>(null);
 
     // Speaking agent tracking (Issue 2)
     const [speakingAgentId, setSpeakingAgentId] = useState<string | null>(null);
 
     // Thinking state (Issue 5)
-    const [thinkingState, setThinkingState] = useState<{
-      stage: string;
-      agentId?: string;
-    } | null>(null);
-
     // Cue user state (Issue 7)
     const [isCueUser, setIsCueUser] = useState(false);
 
@@ -273,7 +294,6 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
     const sceneSwitchRequestRef = useRef(0);
     const sceneSwitchConfirmingRef = useRef(false);
-    const [isPresenting, setIsPresenting] = useState(false);
     const [controlsVisible, setControlsVisible] = useState(true);
     const [isPresentationInteractionActive, setIsPresentationInteractionActive] = useState(false);
 
@@ -452,12 +472,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       },
       [actionResumeStorageKey],
     );
-    // Monotonic counter incremented on each scene switch — used to discard stale SSE callbacks
-    const sceneEpochRef = useRef(0);
     // When true, the next engine init will auto-start playback (for auto-play scene advance)
     const autoStartRef = useRef(false);
     // Discussion buffer-level pause state (distinct from soft-pause which aborts SSE)
-    const [isDiscussionPaused, setIsDiscussionPaused] = useState(false);
 
     /**
      * Resume a soft-paused topic: re-call /chat with existing session messages.
@@ -475,21 +492,22 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       engineRef.current?.resume();
       // Fire new chat round — SSE events will drive thinking → agent_start → speech
       await chatAreaRef.current?.resumeActiveSession();
-    }, []);
+    }, [setLiveSpeech, setThinkingState]);
 
     /** Reset all live/discussion state (shared by doSessionCleanup & onDiscussionEnd) */
     const resetLiveState = useCallback(() => {
-      setLiveSpeech(null);
+      classroomLiveRuntime.reset();
       setSpeakingAgentId(null);
-      setSpeechProgress(null);
-      setThinkingState(null);
       setIsCueUser(false);
       setIsTopicPending(false);
       setChatIsStreaming(false);
       setChatIsSoftClosing(false);
       setChatSessionType(null);
-      setIsDiscussionPaused(false);
-    }, []);
+      dispatchClassroomRuntime({
+        type: 'discussion.pauseChanged',
+        paused: false,
+      });
+    }, [classroomLiveRuntime]);
 
     const showSessionEndFlash = useCallback((sessionType: 'qa' | 'discussion') => {
       setEndFlashSessionType(sessionType);
@@ -510,6 +528,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const resetSceneState = useCallback(
       (initial?: { actionIndex?: number | null; lectureSpeech?: string | null }) => {
         resetLiveState();
+        dispatchClassroomRuntime({ type: 'scene.switched' });
         setPlaybackCompleted(false);
         setLectureSpeech(initial?.lectureSpeech ?? null);
         updateCurrentPlaybackActionIndex(initial?.actionIndex ?? 0);
@@ -518,15 +537,16 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         setActiveBubbleId(null);
         setDiscussionTrigger(null);
       },
-      [resetLiveState, updateCurrentPlaybackActionIndex],
+      [resetLiveState, setSpeechProgress, updateCurrentPlaybackActionIndex],
     );
 
     /** Request failure should exit live discussion UI without hard-closing the session. */
     const handleLiveSessionError = useCallback(() => {
+      classroomLiveRuntime.advanceSession();
       engineRef.current?.handleDiscussionError();
       resetLiveState();
       setActiveBubbleId(null);
-    }, [resetLiveState]);
+    }, [classroomLiveRuntime, resetLiveState]);
 
     /**
      * Unified session cleanup — called by both roundtable stop button and chat area end button.
@@ -534,6 +554,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
      */
     const doSessionCleanup = useCallback(() => {
       const activeType = chatSessionType;
+      classroomLiveRuntime.advanceSession();
 
       // Engine cleanup — guard to avoid double flash from onDiscussionEnd
       manualStopRef.current = true;
@@ -549,7 +570,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       discussionTTS.cleanup();
 
       resetLiveState();
-    }, [chatSessionType, resetLiveState, discussionTTS, showSessionEndFlash]);
+    }, [chatSessionType, classroomLiveRuntime, resetLiveState, discussionTTS, showSessionEndFlash]);
 
     // Shared stop-discussion handler (used by both Roundtable and Canvas toolbar)
     const handleStopDiscussion = useCallback(async () => {
@@ -624,6 +645,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       ref,
       () => ({
         teardown: async () => {
+          classroomLiveRuntime.advanceSession();
           cancelAutoAdvanceTimer();
           await chatAreaRef.current?.endActiveSession();
           if (discussionAbortRef.current) {
@@ -633,9 +655,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           engineRef.current?.stop();
           discussionTTS.cleanup();
           resetSceneState();
+          dispatchClassroomRuntime({ type: 'session.cleaned' });
         },
       }),
-      [cancelAutoAdvanceTimer, discussionTTS, resetSceneState],
+      [cancelAutoAdvanceTimer, classroomLiveRuntime, discussionTTS, resetSceneState],
     );
 
     const clearPresentationIdleTimer = useCallback(() => {
@@ -685,7 +708,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     useEffect(() => {
       const onFullscreenChange = () => {
         const active = document.fullscreenElement === stageRef.current;
-        setIsPresenting(active);
+        dispatchClassroomRuntime({ type: 'presentation.changed', active });
 
         if (!active) {
           // Ensure keyboard unlock on any fullscreen exit
@@ -745,8 +768,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           saveSceneResumePosition(previousSceneId, currentPlaybackActionIndexRef.current);
         }
 
-        // Bump epoch so any stale SSE callbacks from the previous scene are discarded
-        sceneEpochRef.current++;
+        // Invalidate both scene- and session-scoped live callbacks before async teardown.
+        classroomLiveRuntime.advanceScene();
 
         // Wait for an in-flight presentation action before initializing the next
         // scene against shared whiteboard state.
@@ -924,6 +947,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             handleDiscussionSSE(topic, prompt, agentId);
           },
           onDiscussionEnd: () => {
+            classroomLiveRuntime.advanceSession();
             // Abort any active SSE
             if (discussionAbortRef.current) {
               discussionAbortRef.current.abort();
@@ -1090,7 +1114,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     useEffect(() => {
       const audioPlayer = audioPlayerRef.current;
       const chatArea = chatAreaRef.current;
+      classroomLiveRuntime.activate();
       return () => {
+        classroomLiveRuntime.deactivate();
         cancelAutoAdvanceTimer();
         if (endFlashTimerRef.current) clearTimeout(endFlashTimerRef.current);
         endFlashTimerRef.current = null;
@@ -1158,7 +1184,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         // Optimistic thinking: show thinking dots immediately (same as onMessageSend)
         setThinkingState({ stage: 'director' });
       },
-      [],
+      [setThinkingState],
     );
 
     // First speech text for idle display (extracted here for playbackView)
@@ -1175,15 +1201,15 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       return agent?.role !== 'teacher';
     }, [speakingAgentId]);
 
-    // Centralised derived playback view
-    const playbackView = useMemo(
-      () =>
+    // Stage island projection reads the route-scoped live runtime directly.
+    const projectPlaybackView = useCallback(
+      (live: ClassroomLiveRuntimeState) =>
         computePlaybackView({
           engineMode,
           lectureSpeech,
-          liveSpeech,
+          liveSpeech: live.liveSpeech,
           speakingAgentId,
-          thinkingState,
+          thinkingState: live.thinkingState,
           isCueUser,
           isTopicPending,
           chatIsStreaming,
@@ -1196,9 +1222,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       [
         engineMode,
         lectureSpeech,
-        liveSpeech,
         speakingAgentId,
-        thinkingState,
         isCueUser,
         isTopicPending,
         chatIsStreaming,
@@ -1209,8 +1233,6 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         chatSessionType,
       ],
     );
-
-    const isTopicActive = playbackView.isTopicActive;
 
     /**
      * Gated scene switch — if a topic is active, show AlertDialog before switching.
@@ -1224,7 +1246,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           return false;
         }
         cancelAutoAdvanceTimer();
-        if (isTopicActive) {
+        if (projectPlaybackView(classroomLiveRuntime.getState()).isTopicActive) {
           setPendingSceneId(targetSceneId);
           return false;
         }
@@ -1233,7 +1255,13 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         setCurrentSceneId(targetSceneId);
         return true;
       },
-      [cancelAutoAdvanceTimer, currentSceneId, isTopicActive, setCurrentSceneId],
+      [
+        cancelAutoAdvanceTimer,
+        classroomLiveRuntime,
+        currentSceneId,
+        projectPlaybackView,
+        setCurrentSceneId,
+      ],
     );
 
     /** User confirmed scene switch via AlertDialog */
@@ -1583,11 +1611,59 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         }
       : null;
 
-    const classroomLiveStatus = projectZhiyuClassroomLiveStatus({
-      engineMode,
-      chatSessionType,
-      thinking: Boolean(thinkingState),
-    });
+    const projectClassroomLiveStatus = useCallback(
+      (thinking: boolean) =>
+        projectZhiyuClassroomLiveStatus({
+          engineMode,
+          chatSessionType,
+          thinking,
+        }),
+      [chatSessionType, engineMode],
+    );
+    const renderClassroomRoles = useCallback(
+      (thinkingState: ClassroomThinkingState) => (
+        <div className="space-y-2">
+          {participants.map((participant) => {
+            const teaching = participant.id === speakingAgentId && engineMode === 'playing';
+            const thinking = participant.id === thinkingState?.agentId;
+            const status = thinking
+              ? t('classroomWorkspace.roleStatus.thinking')
+              : teaching
+                ? t('classroomWorkspace.roleStatus.teaching')
+                : t('classroomWorkspace.roleStatus.idle');
+            return (
+              <div
+                key={participant.id}
+                className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3"
+              >
+                <img
+                  src={participant.avatar}
+                  alt=""
+                  aria-hidden="true"
+                  className="size-9 rounded-full object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-foreground">
+                    {participant.name}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{status}</p>
+                </div>
+                <span
+                  className={cn(
+                    'size-2 rounded-full',
+                    teaching && 'bg-primary',
+                    thinking && 'bg-[var(--zhiyu-ai)]',
+                    !teaching && !thinking && 'bg-muted-foreground/35',
+                  )}
+                  aria-hidden="true"
+                />
+              </div>
+            );
+          })}
+        </div>
+      ),
+      [engineMode, participants, speakingAgentId, t],
+    );
     const handleToggleMute = useCallback(() => {
       if (ttsEnabled) setTTSMuted(!ttsMuted);
     }, [setTTSMuted, ttsEnabled, ttsMuted]);
@@ -1722,11 +1798,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                     isPresenting && 'absolute inset-x-0 bottom-0 z-20',
                   )}
                 >
-                  <Roundtable
+                  <ClassroomRoundtableIsland
+                    runtime={classroomLiveRuntime}
+                    projectPlaybackView={projectPlaybackView}
                     mode={mode}
                     initialParticipants={participants}
-                    playbackView={playbackView}
-                    currentSpeech={liveSpeech}
                     lectureSpeech={lectureSpeech}
                     idleText={firstSpeechText}
                     playbackCompleted={playbackCompleted}
@@ -1743,10 +1819,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                           : undefined
                     }
                     speakingAgentId={speakingAgentId}
-                    speechProgress={speechProgress}
                     showEndFlash={showEndFlash}
                     endFlashSessionType={endFlashSessionType}
-                    thinkingState={thinkingState}
                     isCueUser={isCueUser}
                     isSoftClosing={chatIsSoftClosing}
                     softCloseDeadline={softCloseDeadline}
@@ -1763,7 +1837,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                       // Always clear Level-1 pause state — the closure may hold a stale
                       // isDiscussionPaused value (e.g. voice input's onTranscription callback
                       // captures onMessageSend before React re-renders with the updated state).
-                      setIsDiscussionPaused(false);
+                      dispatchClassroomRuntime({
+                        type: 'discussion.pauseChanged',
+                        paused: false,
+                      });
                       // Clear the sticky livePausedRef so the next agent-loop buffer
                       // starts unpaused. (pauseActiveLiveBuffer sets a ref that new
                       // buffers inherit — must be cleared before sendMessage creates one.)
@@ -1832,7 +1909,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                         const paused = chatAreaRef.current?.pauseActiveLiveBuffer();
                         if (paused) {
                           discussionTTS.pause();
-                          setIsDiscussionPaused(true);
+                          dispatchClassroomRuntime({
+                            type: 'discussion.pauseChanged',
+                            paused: true,
+                          });
                         }
                       }
                       // Also pause playback engine
@@ -1850,13 +1930,19 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                       const paused = chatAreaRef.current?.pauseActiveLiveBuffer();
                       if (paused) {
                         discussionTTS.pause();
-                        setIsDiscussionPaused(true);
+                        dispatchClassroomRuntime({
+                          type: 'discussion.pauseChanged',
+                          paused: true,
+                        });
                       }
                     }}
                     onDiscussionResume={() => {
                       chatAreaRef.current?.resumeActiveLiveBuffer();
                       discussionTTS.resume();
-                      setIsDiscussionPaused(false);
+                      dispatchClassroomRuntime({
+                        type: 'discussion.pauseChanged',
+                        paused: false,
+                      });
                     }}
                     totalActions={totalActions}
                     currentActionIndex={currentPlaybackActionIndex ?? 0}
@@ -1901,55 +1987,16 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             </div>
           }
           interaction={
-            <ZhiyuInteractionPanel
+            <ClassroomInteractionIsland
+              runtime={classroomLiveRuntime}
               collapsed={presentedChatCollapsed || isPresenting}
               onCollapsedChange={handleInteractionPresentationChange}
-              liveStatus={classroomLiveStatus}
+              projectLiveStatus={projectClassroomLiveStatus}
+              renderRolesContent={renderClassroomRoles}
               onTabChange={(tab) => {
                 if (tab === 'lecture') chatAreaRef.current?.switchToTab('lecture');
                 if (tab === 'discussion') chatAreaRef.current?.switchToTab('chat');
               }}
-              rolesContent={
-                <div className="space-y-2">
-                  {participants.map((participant) => {
-                    const teaching = participant.id === speakingAgentId && engineMode === 'playing';
-                    const thinking = participant.id === thinkingState?.agentId;
-                    const status = thinking
-                      ? t('classroomWorkspace.roleStatus.thinking')
-                      : teaching
-                        ? t('classroomWorkspace.roleStatus.teaching')
-                        : t('classroomWorkspace.roleStatus.idle');
-                    return (
-                      <div
-                        key={participant.id}
-                        className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3"
-                      >
-                        <img
-                          src={participant.avatar}
-                          alt=""
-                          aria-hidden="true"
-                          className="size-9 rounded-full object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-foreground">
-                            {participant.name}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">{status}</p>
-                        </div>
-                        <span
-                          className={cn(
-                            'size-2 rounded-full',
-                            teaching && 'bg-primary',
-                            thinking && 'bg-[var(--zhiyu-ai)]',
-                            !teaching && !thinking && 'bg-muted-foreground/35',
-                          )}
-                          aria-hidden="true"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              }
               persistentContent={
                 <ChatArea
                   ref={chatAreaRef}
@@ -1968,10 +2015,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                   }}
                   onLiveSpeech={(text, agentId) => {
                     // Capture epoch at call time — discard if scene has changed since
-                    const epoch = sceneEpochRef.current;
+                    const epoch = classroomLiveRuntime.captureEpoch();
                     // Use queueMicrotask to let any pending scene-switch reset settle first
                     queueMicrotask(() => {
-                      if (sceneEpochRef.current !== epoch) return; // stale — scene changed
+                      if (!classroomLiveRuntime.isCurrentEpoch(epoch)) return;
                       setLiveSpeech(text);
                       if (agentId !== undefined) {
                         setSpeakingAgentId(agentId);
@@ -1989,16 +2036,16 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                     });
                   }}
                   onSpeechProgress={(ratio) => {
-                    const epoch = sceneEpochRef.current;
+                    const epoch = classroomLiveRuntime.captureEpoch();
                     queueMicrotask(() => {
-                      if (sceneEpochRef.current !== epoch) return;
+                      if (!classroomLiveRuntime.isCurrentEpoch(epoch)) return;
                       setSpeechProgress(ratio);
                     });
                   }}
                   onThinking={(state) => {
-                    const epoch = sceneEpochRef.current;
+                    const epoch = classroomLiveRuntime.captureEpoch();
                     queueMicrotask(() => {
-                      if (sceneEpochRef.current !== epoch) return;
+                      if (!classroomLiveRuntime.isCurrentEpoch(epoch)) return;
                       setThinkingState(state);
                     });
                   }}
