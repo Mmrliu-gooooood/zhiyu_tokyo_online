@@ -73,12 +73,13 @@ async function openCombinedWorkspace(page: Page, matrix: MatrixCase) {
   const shell = page.getByTestId('zhiyu-workspace-shell');
   await expect(shell).toBeVisible();
   await expect(page.getByTestId('workspace-classroom-pane')).toBeAttached();
-  await expect(page.getByTestId('zhiyu-classroom-shell')).toBeVisible();
+  await expect(page.getByTestId('zhiyu-editor-shell')).toBeVisible();
   await expect(page.getByTestId('workspace-chat-pane')).toBeAttached();
   await expect(page.getByTestId('workbench-chat')).toBeAttached();
-  // The hosted ClassroomSurface retains the classic classroom chat while the
-  // independent WorkbenchChat owns the conversation column beside it.
-  await expect(page.getByTestId('chat-area')).toBeAttached();
+  // The workspace pins its hosted course in editor mode. The independent
+  // WorkbenchChat owns the one conversation column; classic classroom chat is
+  // intentionally absent from the editor surface.
+  await expect(page.getByTestId('chat-area')).toHaveCount(0);
   return shell;
 }
 
@@ -172,18 +173,19 @@ test.describe('ZHIYU Tier B responsive and theme matrix', () => {
       await captureMatrixEvidence(page, testInfo, 'editor', matrix);
     });
 
-    test(`Both chats and hosted classroom ${matrix.width} ${matrix.theme}`, async ({
+    test(`Conversation and hosted editor ${matrix.width} ${matrix.theme}`, async ({
       page,
     }, testInfo) => {
       await openCombinedWorkspace(page, matrix);
       await expect(page.getByTestId('workspace-classroom-pane')).toBeVisible();
-      await expect(page.getByTestId('chat-area')).toBeAttached();
+      await expect(page.getByTestId('zhiyu-editor-shell')).toBeVisible();
+      await expect(page.getByTestId('chat-area')).toHaveCount(0);
 
       const reopenChat = page.getByTestId('workspace-chat-reopen');
       if (await reopenChat.isVisible()) await reopenChat.click();
       await expect(page.getByTestId('workbench-chat')).toBeVisible();
       await expect(page.getByTestId('workbench-chat-empty')).toBeVisible();
-      await captureMatrixEvidence(page, testInfo, 'both-chats-hosted-classroom', matrix);
+      await captureMatrixEvidence(page, testInfo, 'conversation-hosted-editor', matrix);
     });
   }
 });
