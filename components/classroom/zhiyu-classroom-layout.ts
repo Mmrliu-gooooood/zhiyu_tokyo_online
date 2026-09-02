@@ -9,6 +9,30 @@ export type ZhiyuClassroomLayout = {
 
 export type ZhiyuClassroomLiveStatus = 'idle' | 'teaching' | 'thinking' | 'discussion';
 
+const PRESENTATION_LAYOUT: ZhiyuClassroomLayout = Object.freeze({
+  sceneRailWidth: 0,
+  interactionPanelWidth: 0,
+});
+
+const CLASSROOM_LAYOUTS = {
+  expandedExpanded: Object.freeze({
+    sceneRailWidth: ZHIYU_SCENE_RAIL_EXPANDED_WIDTH,
+    interactionPanelWidth: ZHIYU_INTERACTION_PANEL_WIDTH,
+  }),
+  expandedCollapsed: Object.freeze({
+    sceneRailWidth: ZHIYU_SCENE_RAIL_EXPANDED_WIDTH,
+    interactionPanelWidth: 0,
+  }),
+  collapsedExpanded: Object.freeze({
+    sceneRailWidth: ZHIYU_SCENE_RAIL_COLLAPSED_WIDTH,
+    interactionPanelWidth: ZHIYU_INTERACTION_PANEL_WIDTH,
+  }),
+  collapsedCollapsed: Object.freeze({
+    sceneRailWidth: ZHIYU_SCENE_RAIL_COLLAPSED_WIDTH,
+    interactionPanelWidth: 0,
+  }),
+} satisfies Record<string, ZhiyuClassroomLayout>;
+
 export function projectZhiyuClassroomLiveStatus({
   engineMode,
   chatSessionType,
@@ -38,13 +62,13 @@ export function projectZhiyuClassroomLayout({
   readonly interactionCollapsed: boolean;
   readonly presenting?: boolean;
 }): ZhiyuClassroomLayout {
-  if (presenting) {
-    return { sceneRailWidth: 0, interactionPanelWidth: 0 };
+  if (presenting) return PRESENTATION_LAYOUT;
+  if (sceneRailCollapsed) {
+    return interactionCollapsed
+      ? CLASSROOM_LAYOUTS.collapsedCollapsed
+      : CLASSROOM_LAYOUTS.collapsedExpanded;
   }
-  return {
-    sceneRailWidth: sceneRailCollapsed
-      ? ZHIYU_SCENE_RAIL_COLLAPSED_WIDTH
-      : ZHIYU_SCENE_RAIL_EXPANDED_WIDTH,
-    interactionPanelWidth: interactionCollapsed ? 0 : ZHIYU_INTERACTION_PANEL_WIDTH,
-  };
+  return interactionCollapsed
+    ? CLASSROOM_LAYOUTS.expandedCollapsed
+    : CLASSROOM_LAYOUTS.expandedExpanded;
 }

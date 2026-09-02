@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useStageStore } from '@/lib/store';
+import { usePlaybackChromeStageProjection } from '@/lib/classroom/playback-chrome-stage-projection';
 import { PENDING_SCENE_ID } from '@/lib/store/stage';
 import { useCanvasStore } from '@/lib/store/canvas';
 import { PLAYBACK_SPEEDS, useSettingsStore } from '@/lib/store/settings';
@@ -133,17 +134,15 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const {
       mode,
       stage,
-      getCurrentScene,
       scenes,
       currentSceneId,
+      currentScene,
       setCurrentSceneId,
       generatingOutlines,
       outlines,
-    } = useStageStore();
-    const failedOutlines = useStageStore.use.failedOutlines();
-    const generationComplete = useStageStore.use.generationComplete();
-
-    const currentScene = getCurrentScene();
+      failedOutlines,
+      generationComplete,
+    } = usePlaybackChromeStageProjection();
     const piChatEnabled = isPiChatEnabled();
     const [elementPickActive, setElementPickActive] = useState(false);
     const [draftElementReference, setDraftElementReferenceState] =
@@ -1429,10 +1428,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     );
 
     // whiteboard toggle
-    const handleWhiteboardToggle = () => {
+    const handleWhiteboardToggle = useCallback(() => {
       if (!whiteboardOpen) setElementPickActive(false);
       setWhiteboardOpenManually(!whiteboardOpen);
-    };
+    }, [setWhiteboardOpenManually, whiteboardOpen]);
 
     const isPresentationShortcutTarget = useCallback((target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return false;
@@ -1585,12 +1584,18 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       chatSessionType,
       thinking: Boolean(thinkingState),
     });
-    const handleCyclePlaybackSpeed = () => {
+    const handleToggleMute = useCallback(() => {
+      if (ttsEnabled) setTTSMuted(!ttsMuted);
+    }, [setTTSMuted, ttsEnabled, ttsMuted]);
+    const handleToggleAutoPlay = useCallback(() => {
+      setAutoPlayLecture(!autoPlayLecture);
+    }, [autoPlayLecture, setAutoPlayLecture]);
+    const handleCyclePlaybackSpeed = useCallback(() => {
       const currentIndex = PLAYBACK_SPEEDS.indexOf(
         playbackSpeed as (typeof PLAYBACK_SPEEDS)[number],
       );
       setPlaybackSpeed(PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.length]);
-    };
+    }, [playbackSpeed, setPlaybackSpeed]);
 
     return (
       <div
@@ -2045,10 +2050,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               ttsEnabled={ttsEnabled}
               ttsMuted={ttsMuted}
               ttsVolume={ttsVolume}
-              onToggleMute={() => ttsEnabled && setTTSMuted(!ttsMuted)}
+              onToggleMute={handleToggleMute}
               onVolumeChange={setTTSVolume}
               autoPlayLecture={autoPlayLecture}
-              onToggleAutoPlay={() => setAutoPlayLecture(!autoPlayLecture)}
+              onToggleAutoPlay={handleToggleAutoPlay}
               playbackSpeed={playbackSpeed}
               onCycleSpeed={handleCyclePlaybackSpeed}
               showElementReference={showElementReference}

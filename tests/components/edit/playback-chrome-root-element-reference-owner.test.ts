@@ -98,13 +98,17 @@ const stageState = {
 };
 
 vi.mock('@/lib/store', () => {
-  const useStageStore = Object.assign(() => stageState, {
-    use: {
-      failedOutlines: () => [],
-      generationComplete: () => true,
+  const useStageStore = Object.assign(
+    (selector?: (state: typeof stageState) => unknown) =>
+      selector ? selector(stageState) : stageState,
+    {
+      use: {
+        failedOutlines: () => [],
+        generationComplete: () => true,
+      },
+      getState: () => stageState,
     },
-    getState: () => stageState,
-  });
+  );
   return { useStageStore };
 });
 

@@ -41,6 +41,19 @@ describe('projectZhiyuClassroomLayout', () => {
       }),
     ).toEqual({ sceneRailWidth: 0, interactionPanelWidth: 0 });
   });
+
+  it('keeps the low-frequency layout projection referentially stable', () => {
+    const first = projectZhiyuClassroomLayout({
+      sceneRailCollapsed: false,
+      interactionCollapsed: true,
+    });
+    const second = projectZhiyuClassroomLayout({
+      sceneRailCollapsed: false,
+      interactionCollapsed: true,
+    });
+
+    expect(second).toBe(first);
+  });
 });
 
 describe('projectZhiyuClassroomLiveStatus', () => {

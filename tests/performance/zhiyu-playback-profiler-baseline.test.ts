@@ -38,6 +38,8 @@ const EXCLUDED_CHILD_SUBTREES = [
 const mocks = vi.hoisted(() => ({
   onRender: undefined as ProfilerOnRenderCallback | undefined,
   captureChatAreaProps: vi.fn(),
+  capturePlaybackBarProps: vi.fn(),
+  setWhiteboardOpenManually: vi.fn(),
   engineOptions: undefined as Record<string, unknown> | undefined,
   loadCursor: vi.fn(),
 }));
@@ -89,7 +91,7 @@ vi.mock('@/lib/store/canvas', () => ({
   useCanvasStore: {
     use: {
       whiteboardOpen: () => false,
-      setWhiteboardOpenManually: () => vi.fn(),
+      setWhiteboardOpenManually: () => mocks.setWhiteboardOpenManually,
     },
     getState: () => ({ whiteboardOpen: false }),
   },
@@ -199,12 +201,14 @@ vi.mock('@/components/classroom/ZhiyuPlaybackBar', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/classroom/ZhiyuPlaybackBar')>();
   return {
     ...actual,
-    ZhiyuPlaybackBar: (props: Parameters<typeof actual.ZhiyuPlaybackBar>[0]) =>
-      React.createElement(
+    ZhiyuPlaybackBar: (props: Parameters<typeof actual.ZhiyuPlaybackBar>[0]) => {
+      mocks.capturePlaybackBarProps(props);
+      return React.createElement(
         React.Profiler,
         { id: 'PlaybackBar', onRender: (...args) => mocks.onRender?.(...args) },
         React.createElement(actual.ZhiyuPlaybackBar, props),
-      ),
+      );
+    },
   };
 });
 
@@ -352,6 +356,7 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
       removeEventListener: vi.fn(),
     }));
     mocks.captureChatAreaProps.mockClear();
+    mocks.capturePlaybackBarProps.mockClear();
     mocks.engineOptions = undefined;
     mocks.loadCursor.mockReset();
     mocks.loadCursor.mockResolvedValue(null);
@@ -442,5 +447,32 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
         })}\n`,
       );
     }
+  });
+
+  it('keeps low-frequency playback control callbacks stable during speech updates', async () => {
+    await act(async () => {
+      root.render(createElement(PlaybackChromeRoot));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const initialChatProps = mocks.captureChatAreaProps.mock.lastCall?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    const initialBarProps = mocks.capturePlaybackBarProps.mock.lastCall?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    const speechProgress = initialChatProps?.onSpeechProgress as SpeechProgress | undefined;
+    expect(speechProgress).toBeTypeOf('function');
+
+    await publish(() => speechProgress?.(0.5));
+
+    const updatedBarProps = mocks.capturePlaybackBarProps.mock.lastCall?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    expect(updatedBarProps?.onWhiteboardClose).toBe(initialBarProps?.onWhiteboardClose);
+    expect(updatedBarProps?.onToggleMute).toBe(initialBarProps?.onToggleMute);
+    expect(updatedBarProps?.onToggleAutoPlay).toBe(initialBarProps?.onToggleAutoPlay);
+    expect(updatedBarProps?.onCycleSpeed).toBe(initialBarProps?.onCycleSpeed);
   });
 });
