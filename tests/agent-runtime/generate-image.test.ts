@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Check } from 'typebox/value';
+import { basename, dirname, join } from 'node:path';
 
 import { MAX_REMOTE_IMAGE_BYTES } from '@/lib/server/bounded-download';
+import { CLASSROOMS_DIR } from '@/lib/server/classroom-storage';
 
 const mocks = vi.hoisted(() => ({
   recordGenerationUsage: vi.fn().mockResolvedValue(undefined),
@@ -180,10 +182,10 @@ describe('generate_image tool', () => {
         signal: expect.any(AbortSignal),
       }),
     );
-    expect(mocks.writeFile).toHaveBeenCalledWith(
-      expect.stringMatching(/stage-owner\/media\/generated-[a-f0-9]{64}\.png$/),
-      Buffer.from('real-image-bytes'),
-    );
+    const [writtenPath, writtenBytes] = mocks.writeFile.mock.calls[0]!;
+    expect(dirname(writtenPath)).toBe(join(CLASSROOMS_DIR, 'stage-owner', 'media'));
+    expect(basename(writtenPath)).toMatch(/^generated-[a-f0-9]{64}\.png$/);
+    expect(writtenBytes).toEqual(Buffer.from('real-image-bytes'));
     // Success details are provider-neutral: no provider id leaks into the
     // transcript. The vendor choice stays in the server-side log, correlated
     // by the tool-call id. The persisted src is an origin-independent RELATIVE
