@@ -241,53 +241,64 @@ describe('Pi call_agent JSON action output', () => {
     expect(mocks.childPrompts[1]).toContain('Selected element packet');
   }, 15_000);
 
-  it('keeps a failed grounded Legacy turn in the ordinary result lifecycle', async () => {
-    let handler: ((event: unknown) => unknown) | null = null;
-    mocks.buildAgent.mockReturnValue({
-      subscribe: (next: (event: unknown) => unknown) => {
-        handler = next;
-        return () => {};
-      },
-      prompt: async () => {},
-      waitForIdle: async () => {
-        await handler?.({
-          type: 'message_update',
-          assistantMessageEvent: { type: 'text_delta', delta: 'partial answer' },
-        });
-        throw new Error('provider failed');
-      },
-      state: { messages: [] },
+  it('keeps concurrent failed grounded Legacy turns isolated in the ordinary result lifecycle', async () => {
+    mocks.buildAgent.mockImplementation(() => {
+      let handler: ((event: unknown) => unknown) | null = null;
+      return {
+        subscribe: (next: (event: unknown) => unknown) => {
+          handler = next;
+          return () => {};
+        },
+        prompt: async () => {},
+        waitForIdle: async () => {
+          await handler?.({
+            type: 'message_update',
+            assistantMessageEvent: { type: 'text_delta', delta: 'partial answer' },
+          });
+          throw new Error('provider failed');
+        },
+        state: { messages: [] },
+      };
     });
     const { buildCallAgentTool } = await import('@/lib/chat/pi/tools/call-agent');
-    const tool = buildCallAgentTool({
-      ...baseToolOpts([]),
-      elementReferenceEvidence: {
-        content: 'Selected element packet',
-        metadata: {
-          kind: 'slide_element',
-          source: 'request_start_snapshot',
-          sceneId: 'scene-1',
-          elementId: 'element-1',
-          elementType: 'text',
-          geometry: { left: 0, top: 0, width: 100, height: 40, rotate: 0 },
-          truncatedFields: [],
-          omittedItems: {},
-          content: { text: 'Evidence' },
-        },
+    const elementReferenceEvidence = {
+      content: 'Selected element packet',
+      metadata: {
+        kind: 'slide_element' as const,
+        source: 'request_start_snapshot' as const,
+        sceneId: 'scene-1',
+        elementId: 'element-1',
+        elementType: 'text' as const,
+        geometry: { left: 0, top: 0, width: 100, height: 40, rotate: 0 },
+        truncatedFields: [],
+        omittedItems: {},
+        content: { text: 'Evidence' },
       },
-    });
+    };
+    const firstTool = buildCallAgentTool({ ...baseToolOpts([]), elementReferenceEvidence });
+    const secondTool = buildCallAgentTool({ ...baseToolOpts([]), elementReferenceEvidence });
 
-    const result = await tool.execute('call-grounded-failure', {
+    const firstResult = firstTool.execute('call-grounded-failure-1', {
       agentId: teacher.id,
       instruction: 'Explain the selected element.',
     });
-
-    expect(result).not.toHaveProperty('isError');
-    expect(result.details).toMatchObject({
-      text: 'partial answer',
-      elementReferenceEvidence: expect.objectContaining({ elementId: 'element-1' }),
+    const secondResult = secondTool.execute('call-grounded-failure-2', {
+      agentId: teacher.id,
+      instruction: 'Explain the selected element.',
     });
-    expect(result.details).not.toHaveProperty('groundedChildSucceeded');
+    const results = await Promise.all([firstResult, secondResult]);
+
+    expect(results.map((result) => result.details.text)).toEqual([
+      'partial answer',
+      'partial answer',
+    ]);
+    for (const result of results) {
+      expect(result).not.toHaveProperty('isError');
+      expect(result.details).toMatchObject({
+        elementReferenceEvidence: expect.objectContaining({ elementId: 'element-1' }),
+      });
+      expect(result.details).not.toHaveProperty('groundedChildSucceeded');
+    }
   });
 
   it('parses child JSON actions, executes all action events, and does not leak raw JSON speech', async () => {
