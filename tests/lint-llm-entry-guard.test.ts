@@ -60,6 +60,17 @@ const EXEMPT_PATHS = ['lib/ai/llm', 'eval/probe', 'tests/probe'] as const;
 const EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'] as const;
 
 const eslint = new ESLint({ cwd: process.cwd() });
+const warmupFilePath = 'lib/server/lint-entry-guard-warmup.ts';
+const warmupConfig = await eslint.calculateConfigForFile(warmupFilePath);
+if (!warmupConfig) throw new Error(`ESLint warm-up path is not configured: ${warmupFilePath}`);
+const [warmupResult] = await eslint.lintText('export const lintEntryGuardWarmup = true;\n', {
+  filePath: warmupFilePath,
+  warnIgnored: false,
+});
+const warmupErrors = (warmupResult?.messages ?? []).filter((message) => message.severity === 2);
+if (!warmupResult || warmupErrors.length > 0) {
+  throw new Error(`ESLint warm-up failed: ${JSON.stringify(warmupErrors)}`);
+}
 
 async function errorsFor(filePath: string, code: string): Promise<string[]> {
   // A path ESLint would ignore (build output, vendored trees) returns no result;
