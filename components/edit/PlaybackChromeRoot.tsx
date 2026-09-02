@@ -342,6 +342,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const discussionAbortRef = useRef<AbortController | null>(null);
     const presentationIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const endFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cursorSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingCursorRef = useRef<{ stageId: string; cursor: PlaybackCursor } | null>(null);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -498,6 +499,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       }, 1800);
     }, []);
 
+    const cancelAutoAdvanceTimer = useCallback(() => {
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }, []);
+
     /** Full scene reset (scene switch) — resetLiveState + lecture/visual state */
     const resetSceneState = useCallback(
       (initial?: { actionIndex?: number | null; lectureSpeech?: string | null }) => {
@@ -616,6 +622,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       ref,
       () => ({
         teardown: async () => {
+          cancelAutoAdvanceTimer();
           await chatAreaRef.current?.endActiveSession();
           if (discussionAbortRef.current) {
             discussionAbortRef.current.abort();
@@ -626,7 +633,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           resetSceneState();
         },
       }),
-      [discussionTTS, resetSceneState],
+      [cancelAutoAdvanceTimer, discussionTTS, resetSceneState],
     );
 
     const clearPresentationIdleTimer = useCallback(() => {
@@ -962,8 +969,12 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             // Auto-play: advance to next scene after a short pause
             const { autoPlayLecture } = useSettingsStore.getState();
             if (autoPlayLecture) {
-              setTimeout(() => {
+              cancelAutoAdvanceTimer();
+              const scheduledSceneId = currentScene.id;
+              autoAdvanceTimerRef.current = setTimeout(() => {
+                autoAdvanceTimerRef.current = null;
                 const stageState = useStageStore.getState();
+                if (stageState.currentSceneId !== scheduledSceneId) return;
                 if (!useSettingsStore.getState().autoPlayLecture) return;
                 const allScenes = stageState.scenes;
                 const curId = stageState.currentSceneId;
@@ -1064,6 +1075,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       void initializeScene();
       return () => {
         cancelled = true;
+        cancelAutoAdvanceTimer();
         if (playbackInitializationEpochRef.current === initializationEpoch) {
           playbackInitializationEpochRef.current += 1;
           readyPlaybackSceneIdRef.current = null;
@@ -1077,6 +1089,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       const audioPlayer = audioPlayerRef.current;
       const chatArea = chatAreaRef.current;
       return () => {
+        cancelAutoAdvanceTimer();
         if (endFlashTimerRef.current) clearTimeout(endFlashTimerRef.current);
         endFlashTimerRef.current = null;
         if (cursorSaveTimerRef.current) clearTimeout(cursorSaveTimerRef.current);
@@ -1208,6 +1221,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           setPendingSceneId(null);
           return false;
         }
+        cancelAutoAdvanceTimer();
         if (isTopicActive) {
           setPendingSceneId(targetSceneId);
           return false;
@@ -1217,7 +1231,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         setCurrentSceneId(targetSceneId);
         return true;
       },
-      [currentSceneId, isTopicActive, setCurrentSceneId],
+      [cancelAutoAdvanceTimer, currentSceneId, isTopicActive, setCurrentSceneId],
     );
 
     /** User confirmed scene switch via AlertDialog */

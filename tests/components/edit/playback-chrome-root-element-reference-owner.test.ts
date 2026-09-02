@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from 'react';
+import { act, createElement, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
+  endActiveSession: vi.fn(),
   roundtableProps: undefined as Record<string, unknown> | undefined,
   canvasProps: undefined as Record<string, unknown> | undefined,
   piEnabled: true,
@@ -74,7 +75,6 @@ const secondScene = {
   title: 'Second slide',
   order: 1,
 };
-
 const stageState = {
   mode: 'playback',
   stage: { id: 'stage-1', whiteboard: [] },
@@ -230,7 +230,7 @@ vi.mock('@/components/chat/chat-area', async () => {
     ChatArea: React.forwardRef(function MockChatArea(_props, ref) {
       React.useImperativeHandle(ref, () => ({
         sendMessage: mocks.sendMessage,
-        endActiveSession: vi.fn().mockResolvedValue(undefined),
+        endActiveSession: mocks.endActiveSession,
         endSession: vi.fn().mockResolvedValue(undefined),
         startLecture: mocks.startLecture,
         addLectureMessage: vi.fn(),
@@ -341,7 +341,10 @@ vi.mock('@/lib/orchestration/registry/store', () => ({
 }));
 vi.mock('@/lib/config/feature-flags', () => ({ isPiChatEnabled: () => mocks.piEnabled }));
 
-import { PlaybackChromeRoot } from '@/components/edit/PlaybackChromeRoot';
+import {
+  PlaybackChromeRoot,
+  type PlaybackChromeRootHandle,
+} from '@/components/edit/PlaybackChromeRoot';
 
 describe('PlaybackChromeRoot element-reference ownership', () => {
   let container: HTMLDivElement;
@@ -351,6 +354,8 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     mocks.sendMessage.mockReset();
     mocks.sendMessage.mockResolvedValue(undefined);
+    mocks.endActiveSession.mockReset();
+    mocks.endActiveSession.mockResolvedValue(undefined);
     mocks.roundtableProps = undefined;
     mocks.canvasProps = undefined;
     mocks.piEnabled = true;
@@ -448,6 +453,132 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
       if (lifecycleRoot) act(() => lifecycleRoot?.unmount());
       lifecycleRoot = null;
       lifecycleContainer?.remove();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels auto-advance timers and stale stage writes across 20 mount cycles', async () => {
+    vi.useFakeTimers();
+    settingsState.autoPlayLecture = true;
+    unmountOwner();
+    container.remove();
+    const timerBaseline = vi.getTimerCount();
+    const activeTimerDeltas: number[] = [];
+    const postUnmountTimerDeltas: number[] = [];
+    let lifecycleRoot: Root | null = null;
+    let lifecycleContainer: HTMLDivElement | null = null;
+    try {
+      stageState.setCurrentSceneId.mockClear();
+      for (let cycle = 0; cycle < 20; cycle += 1) {
+        lifecycleContainer = document.createElement('div');
+        document.body.appendChild(lifecycleContainer);
+        const cycleRoot = createRoot(lifecycleContainer);
+        lifecycleRoot = cycleRoot;
+        await act(async () => {
+          cycleRoot.render(createElement(PlaybackChromeRoot));
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        act(() => mocks.engineOptions?.onComplete?.());
+        activeTimerDeltas.push(vi.getTimerCount() - timerBaseline);
+
+        act(() => cycleRoot.unmount());
+        lifecycleRoot = null;
+        lifecycleContainer.remove();
+        lifecycleContainer = null;
+        postUnmountTimerDeltas.push(vi.getTimerCount() - timerBaseline);
+      }
+
+      await act(async () => vi.advanceTimersByTimeAsync(1500));
+      expect.soft(activeTimerDeltas).toEqual(Array(20).fill(1));
+      expect.soft(postUnmountTimerDeltas).toEqual(Array(20).fill(0));
+      expect(stageState.setCurrentSceneId).not.toHaveBeenCalled();
+    } finally {
+      if (lifecycleRoot) act(() => lifecycleRoot?.unmount());
+      lifecycleRoot = null;
+      lifecycleContainer?.remove();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels auto-advance before imperative teardown waits for session shutdown', async () => {
+    vi.useFakeTimers();
+    settingsState.autoPlayLecture = true;
+    const playbackRef = createRef<PlaybackChromeRootHandle>();
+    let resolveSessionEnd: (() => void) | undefined;
+    let teardownPromise: Promise<void> | null = null;
+    try {
+      await act(async () => {
+        root!.render(createElement(PlaybackChromeRoot, { ref: playbackRef }));
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      mocks.endActiveSession.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSessionEnd = resolve;
+          }),
+      );
+      const timerBaseline = vi.getTimerCount();
+      act(() => mocks.engineOptions?.onComplete?.());
+      expect(vi.getTimerCount()).toBe(timerBaseline + 1);
+
+      stageState.setCurrentSceneId.mockClear();
+      act(() => {
+        teardownPromise = playbackRef.current!.teardown();
+      });
+      const timerCountWhileSessionEndIsPending = vi.getTimerCount();
+
+      await act(async () => vi.advanceTimersByTimeAsync(1500));
+      expect.soft(timerCountWhileSessionEndIsPending).toBe(timerBaseline);
+      expect(stageState.setCurrentSceneId).not.toHaveBeenCalled();
+    } finally {
+      if (teardownPromise) {
+        await act(async () => {
+          resolveSessionEnd?.();
+          await teardownPromise;
+        });
+      }
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels a completed scene auto-advance across public scene navigation ABA', async () => {
+    vi.useFakeTimers();
+    settingsState.autoPlayLecture = true;
+    try {
+      await renderOwner();
+      act(() => mocks.engineOptions?.onComplete?.());
+
+      act(() => {
+        (mocks.roundtableProps?.onNextSlide as (() => void) | undefined)?.();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(stageState.currentSceneId).toBe(secondScene.id);
+      await rerenderOwner();
+
+      act(() => {
+        (mocks.roundtableProps?.onPrevSlide as (() => void) | undefined)?.();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(stageState.currentSceneId).toBe(scene.id);
+      await rerenderOwner();
+      stageState.setCurrentSceneId.mockClear();
+
+      await act(async () => vi.advanceTimersByTimeAsync(1500));
+      expect(stageState.setCurrentSceneId).not.toHaveBeenCalled();
+      expect(stageState.currentSceneId).toBe(scene.id);
+    } finally {
       vi.clearAllTimers();
       vi.useRealTimers();
     }
