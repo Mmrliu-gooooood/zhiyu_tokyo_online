@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, Fragment, useEffect } from 'react';
+import { useState, useCallback, useMemo, Fragment, useEffect, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Image as ImageIcon,
@@ -36,7 +36,7 @@ import { isCustomASRProvider } from '@/lib/audio/types';
 import type { SettingsSection } from '@/lib/types/settings';
 
 interface MediaPopoverProps {
-  onSettingsOpen: (section: SettingsSection) => void;
+  onSettingsOpen: (section: SettingsSection, returnFocusTarget?: HTMLElement | null) => void;
 }
 
 // ─── Provider icon maps ───
@@ -76,6 +76,7 @@ function providerModels<T extends { id: string; name: string }>(
 }
 
 export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('image');
@@ -238,6 +239,7 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
+          ref={triggerRef}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer select-none whitespace-nowrap border',
             enabledCount > 0
@@ -357,7 +359,7 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
           <button
             onClick={() => {
               setOpen(false);
-              onSettingsOpen(activeTab);
+              onSettingsOpen(activeTab, triggerRef.current);
             }}
             className="w-full flex items-center justify-between px-3.5 py-2.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
           >

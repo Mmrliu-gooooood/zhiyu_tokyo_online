@@ -199,11 +199,17 @@ interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialSection?: SettingsSection;
+  returnFocusTargetRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsDialogProps) {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  initialSection,
+  returnFocusTargetRef,
+}: SettingsDialogProps) {
   const { t } = useI18n();
-  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const capturedReturnFocusRef = useRef<HTMLElement | null>(null);
 
   // Get settings from store
   const providerId = useSettingsStore((state) => state.providerId);
@@ -739,12 +745,20 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
         className="block h-[min(85vh,760px)] w-[min(960px,calc(100vw-32px))] max-w-[960px] gap-0 overflow-hidden rounded-2xl border-border/70 bg-background p-0 shadow-2xl sm:max-w-[960px]"
         showCloseButton={false}
         onOpenAutoFocus={() => {
+          const explicitTarget = returnFocusTargetRef?.current;
+          if (explicitTarget?.isConnected) {
+            capturedReturnFocusRef.current = explicitTarget;
+            return;
+          }
           const activeElement = document.activeElement;
-          if (activeElement instanceof HTMLElement) returnFocusRef.current = activeElement;
+          if (activeElement instanceof HTMLElement) {
+            capturedReturnFocusRef.current = activeElement;
+          }
         }}
         onCloseAutoFocus={(event) => {
-          const returnTarget = returnFocusRef.current;
-          returnFocusRef.current = null;
+          const returnTarget = returnFocusTargetRef?.current ?? capturedReturnFocusRef.current;
+          capturedReturnFocusRef.current = null;
+          if (returnFocusTargetRef) returnFocusTargetRef.current = null;
           if (!returnTarget?.isConnected) return;
           event.preventDefault();
           returnTarget.focus();

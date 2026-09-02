@@ -57,7 +57,7 @@ const MAX_COURSE_MATERIAL_SIZE_BYTES = MAX_COURSE_MATERIAL_SIZE_MB * 1024 * 1024
 export interface GenerationToolbarProps {
   webSearch: boolean;
   onWebSearchChange: (v: boolean) => void;
-  onSettingsOpen: (section?: SettingsSection) => void;
+  onSettingsOpen: (section?: SettingsSection, returnFocusTarget?: HTMLElement | null) => void;
   // PDF
   courseMaterials: SelectedCourseMaterial[];
   onCourseMaterialsAdd: (files: File[]) => void;
@@ -248,7 +248,7 @@ export function GenerationToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={() => onSettingsOpen('providers')}
+              onClick={(event) => onSettingsOpen('providers', event.currentTarget)}
               className={cn(
                 pillCls,
                 'text-amber-600 dark:text-amber-400 animate-pulse',
@@ -1017,9 +1017,7 @@ function ModelSettingsPopover({
                           t={t}
                         />
                       )}
-                      {isSelected && (
-                        <Check className="size-3.5 shrink-0 text-primary" />
-                      )}
+                      {isSelected && <Check className="size-3.5 shrink-0 text-primary" />}
                     </div>
                   );
                 })

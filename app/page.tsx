@@ -170,6 +170,7 @@ function HomePage() {
   const [settingsSection, setSettingsSection] = useState<
     import('@/lib/types/settings').SettingsSection | undefined
   >(undefined);
+  const settingsReturnFocusTargetRef = useRef<HTMLElement | null>(null);
 
   // Draft cache for requirement text
   const { cachedValue: cachedRequirement, updateCache: updateRequirementCache } =
@@ -798,7 +799,10 @@ function HomePage() {
           <div className="relative">
             <button
               aria-label={t('settings.title')}
-              onClick={() => setSettingsOpen(true)}
+              onClick={(event) => {
+                settingsReturnFocusTargetRef.current = event.currentTarget;
+                setSettingsOpen(true);
+              }}
               className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-all group"
             >
               <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
@@ -813,6 +817,7 @@ function HomePage() {
           if (!open) setSettingsSection(undefined);
         }}
         initialSection={settingsSection}
+        returnFocusTargetRef={settingsReturnFocusTargetRef}
       />
 
       {/* ═══ Learning home: product promise + creation card ═══ */}
@@ -859,7 +864,8 @@ function HomePage() {
                 <GenerationToolbar
                   webSearch={form.webSearch}
                   onWebSearchChange={(v) => updateForm('webSearch', v)}
-                  onSettingsOpen={(section) => {
+                  onSettingsOpen={(section, returnFocusTarget) => {
+                    settingsReturnFocusTargetRef.current = returnFocusTarget ?? null;
                     setSettingsSection(section);
                     setSettingsOpen(true);
                   }}

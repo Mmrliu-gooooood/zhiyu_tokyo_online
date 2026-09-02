@@ -32,6 +32,18 @@ test.describe('ZHIYU settings information architecture', () => {
     await expect(trigger).toBeFocused();
   });
 
+  test('returns focus to the media trigger after its popover opens Settings', async ({ page }) => {
+    await page.goto('/');
+    const mediaTrigger = page.locator('button:has(.lucide-sliders-horizontal)').first();
+    await mediaTrigger.click();
+    await page.getByRole('button', { name: 'Advanced Settings' }).click();
+
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeHidden();
+    await expect(mediaTrigger).toBeFocused();
+  });
+
   test('keeps the structural regions and non-secret provider preference persistence', async ({
     page,
   }) => {
