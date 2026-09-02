@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { containPBLGenerationError, generateClassroom } from '@/lib/server/classroom-generation';
 
 const mocks = vi.hoisted(() => ({
   resolveModel: vi.fn(),
@@ -81,7 +82,6 @@ const slideContent = {
 
 async function generateWithProgress() {
   const progress: Array<{ message: string }> = [];
-  const { generateClassroom } = await import('@/lib/server/classroom-generation');
   const result = await generateClassroom(
     { requirement: 'Teach retry basics' },
     {
@@ -144,15 +144,22 @@ describe('classroom scene generation retries', () => {
   });
 
   it('retries an empty scene content result before skipping the scene', async () => {
-    mocks.generateSceneContent.mockResolvedValueOnce(null).mockResolvedValueOnce(slideContent);
+    vi.useFakeTimers();
+    try {
+      mocks.generateSceneContent.mockResolvedValueOnce(null).mockResolvedValueOnce(slideContent);
 
-    const { result, progress } = await generateWithProgress();
+      const generation = generateWithProgress();
+      await vi.runAllTimersAsync();
+      const { result, progress } = await generation;
 
-    expect(result.scenesCount).toBe(1);
-    expect(mocks.generateSceneContent).toHaveBeenCalledTimes(2);
-    expect(progress.some((event) => event.message.includes('Retrying scene 1/1 content'))).toBe(
-      true,
-    );
+      expect(result.scenesCount).toBe(1);
+      expect(mocks.generateSceneContent).toHaveBeenCalledTimes(2);
+      expect(progress.some((event) => event.message.includes('Retrying scene 1/1 content'))).toBe(
+        true,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('forwards classroom thinking config to scene retry LLM calls', async () => {
@@ -206,8 +213,6 @@ describe('classroom scene generation retries', () => {
   });
 
   it('converts only PBLGenerationError to a null scene result', async () => {
-    const { containPBLGenerationError } = await import('@/lib/server/classroom-generation');
-
     expect(
       containPBLGenerationError(
         new PBLGenerationErrorMock('both planners failed'),
