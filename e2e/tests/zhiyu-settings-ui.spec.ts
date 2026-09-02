@@ -18,6 +18,20 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('ZHIYU settings information architecture', () => {
+  test('returns keyboard focus to the settings trigger after Escape closes the dialog', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const trigger = page.getByRole('button', { name: 'Settings', exact: true });
+    await trigger.focus();
+    await trigger.click();
+
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
   test('keeps the structural regions and non-secret provider preference persistence', async ({
     page,
   }) => {

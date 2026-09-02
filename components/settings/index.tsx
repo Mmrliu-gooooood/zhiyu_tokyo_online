@@ -203,6 +203,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsDialogProps) {
   const { t } = useI18n();
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   // Get settings from store
   const providerId = useSettingsStore((state) => state.providerId);
@@ -737,6 +738,17 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
         data-testid="zhiyu-settings-shell"
         className="block h-[min(85vh,760px)] w-[min(960px,calc(100vw-32px))] max-w-[960px] gap-0 overflow-hidden rounded-2xl border-border/70 bg-background p-0 shadow-2xl sm:max-w-[960px]"
         showCloseButton={false}
+        onOpenAutoFocus={() => {
+          const activeElement = document.activeElement;
+          if (activeElement instanceof HTMLElement) returnFocusRef.current = activeElement;
+        }}
+        onCloseAutoFocus={(event) => {
+          const returnTarget = returnFocusRef.current;
+          returnFocusRef.current = null;
+          if (!returnTarget?.isConnected) return;
+          event.preventDefault();
+          returnTarget.focus();
+        }}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('settings.description')}</DialogDescription>
