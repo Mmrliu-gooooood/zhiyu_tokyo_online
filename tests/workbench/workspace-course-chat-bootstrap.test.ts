@@ -58,6 +58,8 @@ const mocks = vi.hoisted(() => ({
   } | null,
   courses: null as Record<string, unknown> | null,
   railProps: null as Record<string, unknown> | null,
+  paneTabProps: {} as Record<string, Record<string, unknown>>,
+  translate: vi.fn((key: string) => key),
   store: {
     playbackOn: false,
     sessionId: null as string | null,
@@ -91,7 +93,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => mocks.router,
   useSearchParams: () => mocks.searchParams,
 }));
-vi.mock('@/lib/hooks/use-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock('@/lib/hooks/use-i18n', () => ({ useI18n: () => ({ t: mocks.translate }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/lib/hooks/use-home-discovery', () => ({
   useHomeDiscovery: () => mocks.courses,
@@ -212,7 +214,12 @@ vi.mock('@/components/workbench/workspace/WorkspaceClassroomPane', async () => {
     },
   };
 });
-vi.mock('@/components/workbench/workspace/PaneTab', () => ({ PaneTab: () => null }));
+vi.mock('@/components/workbench/workspace/PaneTab', () => ({
+  PaneTab: (props: Record<string, unknown>) => {
+    mocks.paneTabProps[String(props.testId)] = props;
+    return null;
+  },
+}));
 vi.mock('@/components/workbench/workspace/ResizeHandle', () => ({ ResizeHandle: () => null }));
 
 import { WorkspaceShell } from '@/components/workbench/workspace/WorkspaceShell';
@@ -288,6 +295,7 @@ beforeEach(() => {
   mocks.classroomRenders = 0;
   mocks.chatPaneProps = null;
   mocks.railProps = null;
+  mocks.paneTabProps = {};
   mocks.searchParams = new URLSearchParams('course=stage-1');
   mocks.sessionRows = [];
   mocks.sessionListState = 'ready';
@@ -792,6 +800,41 @@ describe('a new conversation is a live composer, not a loading pane', () => {
 
     expect(draft() ?? null).toBeNull();
   });
+
+  it('does not let a late first-message result replace newer navigation', async () => {
+    const pending = deferred<{
+      sessionId: string;
+      elementRefsAccepted: boolean;
+      courseRefsAccepted: boolean;
+    }>();
+    mocks.startFirstMessage.mockReturnValueOnce(pending.promise);
+    mocks.sessionRows = [];
+    await render();
+    const start = draft()?.start;
+    expect(start).toBeTypeOf('function');
+    mocks.requestFullFetch.mockClear();
+
+    let starting!: Promise<unknown>;
+    await act(async () => {
+      starting = start!({ text: 'Build it', materials: [], elementRefs: [], courseRefs: [] });
+      await Promise.resolve();
+    });
+    await act(async () =>
+      (mocks.railProps?.onOpenSession as (sessionId: string) => void)('session-2'),
+    );
+
+    pending.resolve({
+      sessionId: 'session-late',
+      elementRefsAccepted: true,
+      courseRefsAccepted: true,
+    });
+    await act(async () => starting);
+
+    expect(mocks.routerReplace).not.toHaveBeenCalledWith(
+      '/workspace?session=session-late&course=stage-1',
+    );
+    expect(mocks.requestFullFetch).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -1006,5 +1049,38 @@ describe('workspace render islands', () => {
     ).toEqual([]);
     expect(mocks.chatRenders).toBe(before.chat);
     expect(mocks.classroomRenders).toBe(before.classroom);
+  });
+
+  it('keeps Rail out of a narrow-screen chat focus transition', async () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    mocks.searchParams = new URLSearchParams('session=session-1&course=stage-1');
+    mocks.store.sessionId = 'session-1';
+    mocks.sessionRows = [
+      {
+        id: 'session-1',
+        stageId: 'stage-1',
+        prompt: 'Attached',
+        title: 'Attached',
+        status: 'running',
+        createdAt: 1,
+        updatedAt: 10,
+      },
+    ];
+    await render();
+    await act(async () => {});
+
+    const beforeRail = mocks.railRenders;
+    const reopenChat = mocks.paneTabProps['workspace-chat-reopen']?.onClick as
+      | (() => void)
+      | undefined;
+    expect(reopenChat).toBeTypeOf('function');
+
+    await act(async () => reopenChat?.());
+
+    expect(mocks.railRenders).toBe(beforeRail);
   });
 });

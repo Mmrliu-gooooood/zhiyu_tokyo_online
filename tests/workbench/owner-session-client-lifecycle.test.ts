@@ -3,10 +3,15 @@
 import { act, createElement, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  OwnerSessionClient,
-  type OwnerEventSource,
-} from '@/lib/workbench/owner-session-client';
+import { OwnerSessionClient, type OwnerEventSource } from '@/lib/workbench/owner-session-client';
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 class CountingEventSource implements OwnerEventSource {
   static created = 0;
@@ -58,6 +63,39 @@ afterEach(() => {
 });
 
 describe('OwnerSessionClient lifecycle baseline', () => {
+  it('starts a fresh fetch immediately after stop/start and ignores the retired fetch', async () => {
+    const first = deferred<[]>();
+    const second = deferred<[]>();
+    const fetchSessions = vi
+      .fn<() => Promise<[]>>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const onSessions = vi.fn();
+    const client = new OwnerSessionClient({
+      fetchSessions,
+      createEventSource: () => new CountingEventSource(),
+      onSessions,
+      onState: vi.fn(),
+    });
+
+    client.start();
+    expect(fetchSessions).toHaveBeenCalledTimes(1);
+    client.stop();
+    client.start();
+    expect(fetchSessions).toHaveBeenCalledTimes(2);
+
+    second.resolve([]);
+    await second.promise;
+    await Promise.resolve();
+    expect(onSessions).toHaveBeenCalledTimes(1);
+
+    first.resolve([]);
+    await first.promise;
+    await Promise.resolve();
+    expect(onSessions).toHaveBeenCalledTimes(1);
+    client.stop();
+  });
+
   it('releases EventSource, health interval, and reconcile timeout across 20 mounts', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

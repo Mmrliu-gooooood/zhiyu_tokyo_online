@@ -471,6 +471,34 @@ describe('Phase 0 Workspace integration Profiler evidence', () => {
     ).toBe(true);
     expect(useStageStore.getState().scenes[0]?.actions?.[0]?.id).toBe('speech-100');
 
+    recorder.reset();
+    for (let index = 1; index <= EVENT_COUNT; index += 1) {
+      await publish(() =>
+        session.emit('message_update', {
+          id: 1_000 + index,
+          ts: 1_700_000_003_000 + index,
+          attempt: 1,
+          type: 'message_update',
+          data: {
+            message: {
+              role: 'assistant',
+              content: [
+                { type: 'thinking', thinking: `Deterministic reasoning ${index}` },
+                { type: 'text', text: `Deterministic answer ${EVENT_COUNT}` },
+              ],
+            },
+          },
+        }),
+      );
+    }
+    const sessionIsolationScenario = recorder.report(
+      'session-thinking-isolation-v1',
+      EVENT_COUNT,
+      PROFILER_IDS,
+    );
+    expect(sessionIsolationScenario.islands.WorkspaceChatPane?.commits).toBeGreaterThan(0);
+    expect(sessionIsolationScenario.islands.WorkspaceRail?.commits).toBe(0);
+
     if (process.env.PHASE0_PROFILER_REPORT === '1') {
       process.stdout.write(
         `ZHIYU_PHASE0_WORKSPACE_PROFILER ${JSON.stringify({
@@ -508,6 +536,7 @@ describe('Phase 0 Workspace integration Profiler evidence', () => {
             ],
           },
           scenario,
+          sessionIsolationScenario,
         })}\n`,
       );
     }

@@ -24,7 +24,7 @@
  * leaves the feed slot empty, exactly as the reference does outside live mode.
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { createLogger } from '@/lib/logger';
@@ -168,19 +168,18 @@ export function useHomeDiscovery({
   // ZIP import. This build has no folder navigation (courses live in the
   // workspace's nav tree), so an import lands unfiled; the list refresh below
   // is the whole follow-up.
+  const handleImportSuccess = useCallback(async () => {
+    // The import hook already toasts success; refresh the authoritative list
+    // so the new course appears in every shell reading it.
+    await loadClassrooms();
+  }, [loadClassrooms]);
   const {
     importing: isImporting,
     fileInputRef: importFileInputRef,
     triggerFileSelect,
     handleFileChange: handleImportFileChange,
-  } = useImportClassroom(async () => {
-    // The import hook already toasts success; refresh the authoritative list
-    // so the new course appears in every shell reading it.
-    await loadClassrooms();
-  });
-  const triggerImport = () => {
-    triggerFileSelect();
-  };
+  } = useImportClassroom(handleImportSuccess);
+  const triggerImport = useCallback(() => triggerFileSelect(), [triggerFileSelect]);
 
   useEffect(() => {
     // Clear stale media store to prevent cross-course thumbnail contamination.
@@ -219,50 +218,62 @@ export function useHomeDiscovery({
   );
 
   // ─── Folder handlers ────────────────────────────────────────────────
-  const handleMoveCourse = async (stageId: string, folderId: string | undefined) => {
-    // Optimistic update for snappy UI; the persistence call follows.
-    setClassrooms((prev) => prev.map((c) => (c.id === stageId ? { ...c, folderId } : c)));
-    try {
-      await setStageFolder(stageId, folderId);
-      // A generation-boundary refresh may still be in flight. Queue a newer
-      // authoritative read so its pre-move snapshot cannot win afterwards.
-      await loadClassrooms();
-    } catch (err) {
-      log.error('Failed to move course:', err);
-      toast.error(t('classroom.moveFailed'));
-      // Revert on failure.
-      await loadClassrooms();
-    }
-  };
+  const handleMoveCourse = useCallback(
+    async (stageId: string, folderId: string | undefined) => {
+      // Optimistic update for snappy UI; the persistence call follows.
+      setClassrooms((prev) => prev.map((c) => (c.id === stageId ? { ...c, folderId } : c)));
+      try {
+        await setStageFolder(stageId, folderId);
+        // A generation-boundary refresh may still be in flight. Queue a newer
+        // authoritative read so its pre-move snapshot cannot win afterwards.
+        await loadClassrooms();
+      } catch (err) {
+        log.error('Failed to move course:', err);
+        toast.error(t('classroom.moveFailed'));
+        // Revert on failure.
+        await loadClassrooms();
+      }
+    },
+    [loadClassrooms, t],
+  );
 
-  const handleCreateFolder = async (name: string) => {
-    const folder = await createFolder(name);
-    setFolders((prev) => [...prev, folder]);
-    // If this create came from the move-menu's "new folder" entry, move the
-    // requesting course into the freshly created folder.
-    if (createAndMoveTarget) {
-      await handleMoveCourse(createAndMoveTarget, folder.id);
-      setCreateAndMoveTarget(null);
-    }
-  };
+  const handleCreateFolder = useCallback(
+    async (name: string) => {
+      const folder = await createFolder(name);
+      setFolders((prev) => [...prev, folder]);
+      // If this create came from the move-menu's "new folder" entry, move the
+      // requesting course into the freshly created folder.
+      if (createAndMoveTarget) {
+        await handleMoveCourse(createAndMoveTarget, folder.id);
+        setCreateAndMoveTarget(null);
+      }
+    },
+    [createAndMoveTarget, handleMoveCourse],
+  );
 
   // From the move-menu's "new folder" entry: remember the course, then open the
   // folder dialog. The actual create+move happens in handleCreateFolder once the
   // name is confirmed. (A Radix DropdownMenu is modal, so the name input cannot
   // live inside it; the dialog is the focus surface.)
-  const handleCreateAndMove = (stageId: string) => () => {
-    setCreateAndMoveTarget(stageId);
-    setNewFolderOpen(true);
-  };
+  const handleCreateAndMove = useCallback(
+    (stageId: string) => () => {
+      setCreateAndMoveTarget(stageId);
+      setNewFolderOpen(true);
+    },
+    [],
+  );
 
-  const importInput = (
-    <input
-      ref={importFileInputRef}
-      type="file"
-      accept=".zip"
-      className="hidden"
-      onChange={handleImportFileChange}
-    />
+  const importInput = useMemo(
+    () => (
+      <input
+        ref={importFileInputRef}
+        type="file"
+        accept=".zip"
+        className="hidden"
+        onChange={handleImportFileChange}
+      />
+    ),
+    [handleImportFileChange, importFileInputRef],
   );
 
   // One discovery tree per shell. This workspace has no Discover feed (there
@@ -271,32 +282,53 @@ export function useHomeDiscovery({
   // even while the course list is empty, and Radix portals it to the body
   // anyway, so its position in the tree is irrelevant as long as it is mounted
   // exactly once.
-  const discoveryContent = (
-    <>
-      <NewFolderDialog
-        open={newFolderOpen}
-        onOpenChange={(open) => {
-          setNewFolderOpen(open);
-          if (!open) setCreateAndMoveTarget(null);
-        }}
-        folders={folders}
-        onCreate={handleCreateFolder}
-      />
-    </>
+  const handleNewFolderOpenChange = useCallback((open: boolean) => {
+    setNewFolderOpen(open);
+    if (!open) setCreateAndMoveTarget(null);
+  }, []);
+  const openNewFolder = useCallback(() => setNewFolderOpen(true), []);
+  const discoveryContent = useMemo(
+    () => (
+      <>
+        <NewFolderDialog
+          open={newFolderOpen}
+          onOpenChange={handleNewFolderOpenChange}
+          folders={folders}
+          onCreate={handleCreateFolder}
+        />
+      </>
+    ),
+    [folders, handleCreateFolder, handleNewFolderOpenChange, newFolderOpen],
   );
 
-  return {
-    classrooms,
-    state,
-    reload,
-    importInput,
-    triggerImport,
-    importing: isImporting,
-    discoveryContent,
-    folders,
-    openNewFolder: () => setNewFolderOpen(true),
-    moveCourse: handleMoveCourse,
-    createAndMove: handleCreateAndMove,
-    deleteCourse,
-  };
+  return useMemo(
+    () => ({
+      classrooms,
+      state,
+      reload,
+      importInput,
+      triggerImport,
+      importing: isImporting,
+      discoveryContent,
+      folders,
+      openNewFolder,
+      moveCourse: handleMoveCourse,
+      createAndMove: handleCreateAndMove,
+      deleteCourse,
+    }),
+    [
+      classrooms,
+      deleteCourse,
+      discoveryContent,
+      folders,
+      handleCreateAndMove,
+      handleMoveCourse,
+      importInput,
+      isImporting,
+      openNewFolder,
+      reload,
+      state,
+      triggerImport,
+    ],
+  );
 }

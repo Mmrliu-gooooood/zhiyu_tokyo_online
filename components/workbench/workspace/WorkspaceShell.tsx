@@ -205,6 +205,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
 
   const panes = navigation.panes;
   const transitionNavigation = navigation.transition;
+  const captureNavigationOwnership = navigation.captureOwnershipFence;
   const courseTabs = navigation.courseTabs;
   const narrowFocus = navigation.narrowFocus;
   const newConversationRequested = navigation.newConversationRequested;
@@ -486,19 +487,20 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * was the last tab. A background tab just disappears; a course that was not
    * open at all never touches the pane.
    */
+  const deleteCourse = courses.deleteCourse;
   const handleCourseDeleted = useCallback(
     async (courseId: string) => {
-      const deleted = await courses.deleteCourse(courseId);
+      const deleted = await deleteCourse(courseId);
       if (deleted) closeCourse(courseId);
     },
-    [closeCourse, courses],
+    [closeCourse, deleteCourse],
   );
 
   // Leaving Pro is a state change: the two surfaces crossfade while the
   // lockup stays fixed. `startProSwap` falls back to a plain push where the
   // browser has no View Transitions or the user asked for less motion, and
   // swallows a second click while one swap is already running.
-  const exitPro = () => startProSwap('/', (href) => router.push(href));
+  const exitPro = useCallback(() => startProSwap('/', (href) => router.push(href)), [router]);
   /**
    * Back to the bare workspace: both panes dropped, the composer refocused.
    *
@@ -507,10 +509,10 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * the two columns are independent, and a new chat is not a reason to put the
    * course away. That is `startNewConversation` below.
    */
-  const goHome = () => {
+  const goHome = useCallback(() => {
     transitionNavigation({ type: 'go_home' });
     setComposerReset((value) => value + 1);
-  };
+  }, [transitionNavigation]);
 
   /**
    * A new conversation in the middle column. THE CLASSROOM PANE IS LEFT ALONE.
@@ -525,11 +527,11 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * first message. With no classroom open this is the home surface, which is where
    * the empty composer already lives.
    */
-  const startNewConversation = () => {
+  const startNewConversation = useCallback(() => {
     expandChat();
     transitionNavigation({ type: 'new_conversation' });
     setComposerReset((value) => value + 1);
-  };
+  }, [expandChat, transitionNavigation]);
 
   // ── The session wires ─────────────────────────────────────────────────
   //
@@ -663,17 +665,20 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
               readonly elementRefs: readonly ElementRef[];
               readonly courseRefs: readonly CourseRef[];
             }) => {
+              const ownsDraft = captureNavigationOwnership();
               const started = await startConversationWithFirstMessage({
                 stageId: draftCourseId,
                 ...message,
               });
               // The rail should show the conversation that just came into being,
               // and the URL is what attaches it.
-              loadSessions();
-              transitionNavigation(
-                { type: 'open_session', sessionId: started.sessionId },
-                'replace',
-              );
+              if (ownsDraft()) {
+                loadSessions();
+                transitionNavigation(
+                  { type: 'open_session', sessionId: started.sessionId },
+                  'replace',
+                );
+              }
               return {
                 accepted: true,
                 elementRefsAccepted: started.elementRefsAccepted,
@@ -682,7 +687,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
             },
           }
         : null,
-    [draftCourseId, loadSessions, transitionNavigation],
+    [captureNavigationOwnership, draftCourseId, loadSessions, transitionNavigation],
   );
 
   // The owner list stream and attached conversation stream have independent
@@ -858,6 +863,26 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
       resetChatWidth,
     ],
   );
+  const reloadSessionsWithLoading = useCallback(() => loadSessions(true), [loadSessions]);
+  const railCurrentWidth = railWidth.current;
+  const previewRailWidth = railWidth.preview;
+  const commitRailWidth = railWidth.commit;
+  const resetRailWidth = railWidth.reset;
+  const railResizeHandle = useMemo(
+    () => (
+      <ResizeHandle
+        testId="pro-rail-resize-handle"
+        label={t('workspace.resizeAria')}
+        edge="right"
+        current={railCurrentWidth}
+        clamp={clampRailWidth}
+        onPreview={previewRailWidth}
+        onCommit={commitRailWidth}
+        onReset={resetRailWidth}
+      />
+    ),
+    [commitRailWidth, previewRailWidth, railCurrentWidth, resetRailWidth, t],
+  );
 
   return (
     <div
@@ -878,9 +903,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
           courses={courses}
           sessions={visibleSessions}
           sessionState={sessionState}
-          onReloadSessions={() => {
-            loadSessions(true);
-          }}
+          onReloadSessions={reloadSessionsWithLoading}
           activeCourseId={panes.courseId}
           activeSessionId={panes.sessionId}
           collapsed={collapse.value.nav}
@@ -893,18 +916,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
           onSessionDeleted={handleSessionDeleted}
           onRenameSession={renameSession}
           onDeleteCourse={handleCourseDeleted}
-          resizeHandle={
-            <ResizeHandle
-              testId="pro-rail-resize-handle"
-              label={t('workspace.resizeAria')}
-              edge="right"
-              current={railWidth.current}
-              clamp={clampRailWidth}
-              onPreview={railWidth.preview}
-              onCommit={railWidth.commit}
-              onReset={railWidth.reset}
-            />
-          }
+          resizeHandle={railResizeHandle}
         />
       )}
 

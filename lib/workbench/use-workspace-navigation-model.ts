@@ -17,6 +17,8 @@ export interface WorkspaceNavigationController extends WorkspaceNavigationModel 
     intent: WorkspaceNavigationIntent,
     write?: WorkspaceNavigationWrite,
   ) => WorkspaceNavigationModel;
+  /** Captures the current pane/draft owner; false after navigation or unmount. */
+  readonly captureOwnershipFence: () => () => boolean;
 }
 
 /** One mounted writer for URL panes, course-tab memory and narrow-view focus. */
@@ -25,12 +27,19 @@ export function useWorkspaceNavigationModel(
 ): WorkspaceNavigationController {
   const [model, setModel] = useState(() => initialWorkspaceNavigationModel(initialPanes));
   const modelRef = useRef(model);
+  const ownershipEpochRef = useRef(0);
 
   const transition = useCallback(
     (intent: WorkspaceNavigationIntent, write: WorkspaceNavigationWrite = 'push') => {
       const current = modelRef.current;
       const next = reduceWorkspaceNavigation(current, intent);
       if (next === current) return current;
+      if (
+        next.panes !== current.panes ||
+        next.newConversationRequested !== current.newConversationRequested
+      ) {
+        ownershipEpochRef.current += 1;
+      }
       modelRef.current = next;
       setModel(next);
 
@@ -41,6 +50,18 @@ export function useWorkspaceNavigationModel(
         else window.history.pushState(null, '', href);
       }
       return next;
+    },
+    [],
+  );
+
+  const captureOwnershipFence = useCallback(() => {
+    const epoch = ownershipEpochRef.current;
+    return () => ownershipEpochRef.current === epoch;
+  }, []);
+
+  useEffect(
+    () => () => {
+      ownershipEpochRef.current += 1;
     },
     [],
   );
@@ -64,5 +85,8 @@ export function useWorkspaceNavigationModel(
     return () => window.removeEventListener('popstate', restoreFromHistory);
   }, [transition]);
 
-  return useMemo(() => ({ ...model, transition }), [model, transition]);
+  return useMemo(
+    () => ({ ...model, transition, captureOwnershipFence }),
+    [captureOwnershipFence, model, transition],
+  );
 }

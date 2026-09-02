@@ -157,4 +157,56 @@ describe('WorkspaceOwnerRuntime public seam', () => {
     expect(runtime.getSnapshot().sessions[0]?.title).toBe('Title C');
     runtime.stop();
   });
+
+  it('keeps a remounted writer behind the previous mount so the newest title wins', async () => {
+    const firstSave = deferred<string | null>();
+    let storedTitle: string | null = 'Old title';
+    const saveSessionTitle = vi.fn((_sessionId: string, title: string | null) => {
+      if (saveSessionTitle.mock.calls.length === 1) {
+        return firstSave.promise.then((stored) => {
+          storedTitle = stored;
+          return stored;
+        });
+      }
+      storedTitle = title;
+      return Promise.resolve(title);
+    });
+    let lockTail = Promise.resolve();
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: <T>(_name: string, task: () => Promise<T>) => {
+          const run = lockTail.then(task);
+          lockTail = run.then(
+            () => undefined,
+            () => undefined,
+          );
+          return run;
+        },
+      },
+    });
+
+    const first = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    first.start();
+    await flushPromises();
+    const renameA = first.renameSession('session-1', 'Title A');
+    await flushPromises();
+    expect(saveSessionTitle).toHaveBeenCalledTimes(1);
+    first.stop();
+
+    const second = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    second.start();
+    await flushPromises();
+    const renameB = second.renameSession('session-1', 'Title B');
+    await flushPromises();
+    expect(saveSessionTitle).toHaveBeenCalledTimes(1);
+
+    firstSave.resolve('Title A');
+    await renameA;
+    await renameB;
+
+    expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Title B']);
+    expect(storedTitle).toBe('Title B');
+    second.stop();
+    vi.unstubAllGlobals();
+  });
 });

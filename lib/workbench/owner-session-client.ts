@@ -126,7 +126,7 @@ export class OwnerSessionClient {
   private source: OwnerEventSource | null = null;
   private epoch = 0;
   private stopped = true;
-  private requestInFlight = false;
+  private requestInFlightEpoch: number | null = null;
   private requestPending = false;
   private lastFullFetchFailed = false;
   private malformedEventCount = 0;
@@ -154,6 +154,8 @@ export class OwnerSessionClient {
     if (this.stopped) return;
     this.stopped = true;
     this.epoch += 1;
+    this.requestInFlightEpoch = null;
+    this.requestPending = false;
     this.source?.close();
     this.source = null;
     if (this.reconcileTimer) clearTimeout(this.reconcileTimer);
@@ -173,7 +175,7 @@ export class OwnerSessionClient {
   requestFullFetch(showLoading = false): void {
     if (this.stopped) return;
     if (showLoading) this.options.onState('loading');
-    if (this.requestInFlight) {
+    if (this.requestInFlightEpoch === this.epoch) {
       this.requestPending = true;
       return;
     }
@@ -339,8 +341,8 @@ export class OwnerSessionClient {
   }
 
   private runFullFetch(): void {
-    this.requestInFlight = true;
     const epoch = this.epoch;
+    this.requestInFlightEpoch = epoch;
     const snapshotCursor = this.cursor;
     const settledTitleRevisions = new Map(
       [...this.titleMutations]
@@ -394,7 +396,8 @@ export class OwnerSessionClient {
         }
       })
       .finally(() => {
-        this.requestInFlight = false;
+        if (this.requestInFlightEpoch !== epoch) return;
+        this.requestInFlightEpoch = null;
         if (!this.stopped && this.requestPending) {
           this.requestPending = false;
           this.runFullFetch();
