@@ -34,6 +34,9 @@ const mocks = vi.hoisted(() => ({
   requestFullFetch: vi.fn(),
   updateSessionTitle: vi.fn(),
   renameWorkbenchSession: vi.fn(),
+  railRenders: 0,
+  chatRenders: 0,
+  classroomRenders: 0,
   classroomMounts: 0,
   classroomProps: null as Record<string, unknown> | null,
   chatPaneProps: null as Record<string, unknown> | null,
@@ -183,6 +186,7 @@ vi.mock('@/lib/workbench/owner-session-client', () => ({
 vi.mock('@/lib/workbench/pro-swap', () => ({ startProSwap: vi.fn() }));
 vi.mock('@/components/workbench/workspace/WorkspaceRail', () => ({
   WorkspaceRail: (props: Record<string, unknown>) => {
+    mocks.railRenders += 1;
     mocks.railProps = props;
     return null;
   },
@@ -190,6 +194,7 @@ vi.mock('@/components/workbench/workspace/WorkspaceRail', () => ({
 vi.mock('@/components/workbench/workspace/WorkspaceHome', () => ({ WorkspaceHome: () => null }));
 vi.mock('@/components/workbench/workspace/WorkspaceChatPane', () => ({
   WorkspaceChatPane: (props: Record<string, unknown>) => {
+    mocks.chatRenders += 1;
     mocks.chatPaneProps = props;
     return createElement('div', { 'data-testid': 'chat-pane' });
   },
@@ -198,6 +203,7 @@ vi.mock('@/components/workbench/workspace/WorkspaceClassroomPane', async () => {
   const { useEffect } = await vi.importActual<typeof import('react')>('react');
   return {
     WorkspaceClassroomPane: (props: Record<string, unknown>) => {
+      mocks.classroomRenders += 1;
       useEffect(() => {
         mocks.classroomMounts += 1;
       }, []);
@@ -277,6 +283,9 @@ beforeEach(() => {
   };
   mocks.classroomProps = null;
   mocks.classroomMounts = 0;
+  mocks.railRenders = 0;
+  mocks.chatRenders = 0;
+  mocks.classroomRenders = 0;
   mocks.chatPaneProps = null;
   mocks.railProps = null;
   mocks.searchParams = new URLSearchParams('course=stage-1');
@@ -947,5 +956,55 @@ describe('workspace session-title ownership', () => {
     mocks.setSessionTitle.mockClear();
     await act(async () => mocks.ownerClient?.reconcileSessions([session('Snapshot title')]));
     expect(mocks.setSessionTitle).toHaveBeenLastCalledWith('Snapshot title');
+  });
+});
+
+describe('workspace render islands', () => {
+  it('keeps Chat and Classroom out of an unrelated owner-row publication', async () => {
+    mocks.searchParams = new URLSearchParams('session=session-1&course=stage-1');
+    mocks.store.sessionId = 'session-1';
+    mocks.sessionRows = [
+      {
+        id: 'session-1',
+        stageId: 'stage-1',
+        prompt: 'Attached',
+        title: 'Attached',
+        status: 'succeeded',
+        createdAt: 1,
+        updatedAt: 10,
+      },
+      {
+        id: 'background',
+        stageId: 'stage-background',
+        prompt: 'Background',
+        title: 'Before',
+        status: 'running',
+        createdAt: 1,
+        updatedAt: 9,
+      },
+    ];
+    await render();
+    const before = {
+      rail: mocks.railRenders,
+      chat: mocks.chatRenders,
+      classroom: mocks.classroomRenders,
+    };
+    const beforeChatProps = mocks.chatPaneProps;
+
+    await act(async () =>
+      mocks.ownerClient?.reconcileSessions([
+        mocks.sessionRows[0]!,
+        { ...mocks.sessionRows[1]!, title: 'After', updatedAt: 20 },
+      ]),
+    );
+
+    expect(mocks.railRenders).toBeGreaterThan(before.rail);
+    expect(
+      Object.keys(mocks.chatPaneProps ?? {}).filter(
+        (key) => beforeChatProps?.[key] !== mocks.chatPaneProps?.[key],
+      ),
+    ).toEqual([]);
+    expect(mocks.chatRenders).toBe(before.chat);
+    expect(mocks.classroomRenders).toBe(before.classroom);
   });
 });

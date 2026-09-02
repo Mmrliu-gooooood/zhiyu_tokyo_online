@@ -47,19 +47,26 @@
  * under `.ws-root` and imported from this file so it never reaches `/`.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 // The workspace's visual layer. Imported HERE rather than from `globals.css`
 // so it lands in this route's CSS chunk only — `/` must not receive it.
 import '../workspace-shell.css';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { useHomeDiscovery, type HomeDiscoveryState } from '@/lib/hooks/use-home-discovery';
+import { useHomeDiscovery } from '@/lib/hooks/use-home-discovery';
 import {
   reconcileAttachedSessionStatus,
   type ProHomeSessionItem,
 } from '@/lib/workbench/pro-home-data';
-import { OwnerSessionClient } from '@/lib/workbench/owner-session-client';
 import { resolveCourseChatBootstrap } from '@/lib/workbench/course-chat-bootstrap';
 import { startConversationWithFirstMessage } from '@/lib/workbench/first-message-session';
 import { startProSwap } from '@/lib/workbench/pro-swap';
@@ -71,29 +78,19 @@ import {
   RAIL_WIDTH_STORAGE_KEY,
 } from '@/lib/workbench/workspace-navigation';
 import {
-  activateCourseTab,
   CHAT_COLLAPSED_STORAGE_KEY,
   CHAT_WIDTH_DEFAULT,
   CHAT_WIDTH_STORAGE_KEY,
   CLASSROOM_COLLAPSED_STORAGE_KEY,
   clampChatWidth,
-  closeCourseTab,
   NAV_COLLAPSED_STORAGE_KEY,
-  NO_COURSE_TABS,
-  openCourseTab,
-  openCourseTabs,
   parseChatWidth,
   parseCollapsed,
   readWorkspacePanes,
   resolveWorkspaceRender,
-  restoreCourseTabs,
-  samePanes,
-  withCourse,
-  withSession,
   type WorkspacePanes,
 } from '@/lib/workbench/workspace-panes';
-import { useWorkspacePaneNavigation } from '@/lib/workbench/use-workspace-pane-navigation';
-import { readCourseTabsMemory, writeCourseTabsMemory } from '@/lib/workbench/workspace-course-tabs';
+import { useWorkspaceNavigationModel } from '@/lib/workbench/use-workspace-navigation-model';
 import {
   forgetWorkspaceSession,
   readLastWorkspaceSessionId,
@@ -104,20 +101,20 @@ import {
 import type { WorkbenchCourseSummary } from '@/lib/workbench/panel-context';
 import { useWorkbenchStore, type WorkbenchMaterial } from '@/lib/workbench/session-store';
 import { renameWorkbenchSession } from '@/lib/workbench/session-store';
-import { commitSessionRename, createSessionRenameQueue } from '@/lib/workbench/session-title';
+import { WorkspaceOwnerRuntime } from '@/lib/workbench/workspace-owner-runtime';
 import type { ElementRef } from '@/lib/workbench/element-refs';
 import type { CourseRef } from '@/lib/workbench/course-refs';
 import { useStageFreshnessSync, useWorkbenchStream } from '@/lib/workbench/use-workbench-session';
 import { useGeneratedCourseDiscoverySync } from '@/lib/workbench/course-discovery-sync';
 import { useStageStore } from '@/lib/store/stage';
-import { WorkspaceRail } from './WorkspaceRail';
 import { WorkspaceHome } from './WorkspaceHome';
-import { WorkspaceChatPane } from './WorkspaceChatPane';
-import { WorkspaceClassroomPane } from './WorkspaceClassroomPane';
+import {
+  WorkspaceChatIsland as WorkspaceChatPane,
+  WorkspaceClassroomIsland as WorkspaceClassroomPane,
+  WorkspaceRailIsland as WorkspaceRail,
+} from './WorkspaceRuntimeIslands';
 import { PaneTab } from './PaneTab';
 import { ResizeHandle } from './ResizeHandle';
-
-const EMPTY_SESSIONS: ProHomeSessionItem[] = [];
 
 /**
  * Below this width the conversation and the classroom no longer both fit at
@@ -128,10 +125,6 @@ const EMPTY_SESSIONS: ProHomeSessionItem[] = [];
  */
 const BOTH_PANES_MIN_PX = 1024;
 const SESSION_LIST_TIMEOUT_MS = 15_000;
-// Request-ordering seam only: tails are removed on settlement and own no UI,
-// EventSource, storage, or page state.
-const sessionRenameQueue = createSessionRenameQueue();
-
 async function fetchSessions(): Promise<ProHomeSessionItem[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SESSION_LIST_TIMEOUT_MS);
@@ -169,14 +162,33 @@ export function WorkspaceShell() {
 function WorkspaceShellController({ initialPanes }: { readonly initialPanes: WorkspacePanes }) {
   const { t } = useI18n();
   const router = useRouter();
-  const navigation = useWorkspacePaneNavigation(initialPanes);
+  const navigation = useWorkspaceNavigationModel(initialPanes);
 
   // Discover-only: course management lives in the navigation tree.
   const courses = useHomeDiscovery({ mode: 'discover-only' });
-  const [sessions, setSessions] = useState<ProHomeSessionItem[]>(EMPTY_SESSIONS);
-  /** The latest owner publication, synchronously visible to queued callbacks. */
-  const sessionsRef = useRef(sessions);
-  const [sessionState, setSessionState] = useState<HomeDiscoveryState>('loading');
+  const [ownerRuntime] = useState(
+    () =>
+      new WorkspaceOwnerRuntime({
+        fetchSessions,
+        createEventSource: (url) => new EventSource(url),
+        getAttachedSession: () => {
+          const store = useWorkbenchStore.getState();
+          return store.sessionId
+            ? { id: store.sessionId, title: store.sessionTitle, prompt: store.sessionPrompt }
+            : null;
+        },
+        syncAttachedTitle: syncAttachedSessionTitle,
+        saveSessionTitle: renameWorkbenchSession,
+      }),
+  );
+  const ownerSnapshot = useSyncExternalStore(
+    ownerRuntime.subscribe,
+    ownerRuntime.getSnapshot,
+    ownerRuntime.getServerSnapshot,
+  );
+  const sessions = ownerSnapshot.sessions;
+  const sessionState = ownerSnapshot.state;
+  const renameSessionFailedMessage = t('workspace.renameSessionFailed');
   const [composerReset, setComposerReset] = useState(0);
   /**
    * The user asked for a NEW conversation and a classroom is open beside it.
@@ -187,15 +199,15 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * by the new-chat action, cleared by anything that explicitly puts a
    * conversation back in the column.
    */
-  const [newConversationRequested, setNewConversationRequested] = useState(false);
-  const ownerSessionClient = useRef<OwnerSessionClient | null>(null);
-  const shellGeneration = useRef(0);
-
   const rootRef = useRef<HTMLDivElement>(null);
   const railWidth = useRailWidth(rootRef);
   const chatWidth = useChatWidth();
 
   const panes = navigation.panes;
+  const transitionNavigation = navigation.transition;
+  const courseTabs = navigation.courseTabs;
+  const narrowFocus = navigation.narrowFocus;
+  const newConversationRequested = navigation.newConversationRequested;
   const [rememberedResumeSessionId] = useState(() => {
     const remembered = readLastWorkspaceSessionId();
     return initialPanes.courseId === null && initialPanes.sessionId === remembered
@@ -210,11 +222,9 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     }
   }, [panes.courseId, panes.sessionId]);
   const collapse = usePaneCollapse();
-  const [courseTabs, setCourseTabs] = useState(() => restoreCourseTabs(null, panes.courseId));
+  const expandChat = collapse.expandChat;
+  const expandClassroom = collapse.expandClassroom;
   const narrow = useNarrowViewport();
-  // Which of the two content panes has the column, on a window too narrow for
-  // both. Not persisted: it is a consequence of the window, not a preference.
-  const [narrowFocus, setNarrowFocus] = useState<'chat' | 'classroom'>('classroom');
 
   const playbackOn = useWorkbenchStore((s) => s.playbackOn);
   // Read here rather than beside the other session wires below: what the store is
@@ -308,12 +318,12 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     // The strip is the folded conversation's ONE way back, and it must work
     // whichever reason folded it: a narrow window's exclusivity, or the user's
     // own fold on the seam.
-    collapse.expandChat();
-    setNarrowFocus('chat');
+    expandChat();
+    transitionNavigation({ type: 'focus_chat' }, 'none');
   };
   const focusClassroom = () => {
-    setNarrowFocus('classroom');
-    collapse.expandClassroom();
+    transitionNavigation({ type: 'focus_classroom' }, 'none');
+    expandClassroom();
   };
 
   /**
@@ -330,39 +340,17 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
   // owns the main column; there is no synthetic empty right-hand surface.
   const chatFills = !classroomOpen;
 
-  const loadSessions = useCallback((showLoading = false) => {
-    ownerSessionClient.current?.requestFullFetch(showLoading);
-  }, []);
-
-  const publishOwnerSessions = useCallback(
-    (next: readonly ProHomeSessionItem[], source?: 'incremental' | 'snapshot') => {
-      const snapshot = [...next];
-      sessionsRef.current = snapshot;
-      setSessions(snapshot);
-      if (source !== 'snapshot') return;
-      const attachedId = useWorkbenchStore.getState().sessionId;
-      const attached = snapshot.find((session) => session.id === attachedId);
-      if (attached) syncAttachedSessionTitle(attached.id, attached.title ?? null);
+  const loadSessions = useCallback(
+    (showLoading = false) => {
+      ownerRuntime.requestFullFetch(showLoading);
     },
-    [],
+    [ownerRuntime],
   );
 
   useEffect(() => {
-    const client = new OwnerSessionClient({
-      fetchSessions,
-      createEventSource: (url) => new EventSource(url),
-      onSessions: publishOwnerSessions,
-      onSessionTitle: syncAttachedSessionTitle,
-      onState: setSessionState,
-    });
-    ownerSessionClient.current = client;
-    client.start();
-    return () => {
-      shellGeneration.current += 1;
-      ownerSessionClient.current = null;
-      client.stop();
-    };
-  }, [publishOwnerSessions]);
+    ownerRuntime.start();
+    return () => ownerRuntime.stop();
+  }, [ownerRuntime]);
 
   useEffect(() => {
     if (
@@ -380,81 +368,17 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     ) {
       return;
     }
-    navigation.replace({ sessionId: null, courseId: null });
-  }, [navigation, panes.sessionId, rememberedResumeSessionId, sessions, sessionState]);
+    transitionNavigation({ type: 'go_home' }, 'replace');
+  }, [panes.sessionId, rememberedResumeSessionId, sessions, sessionState, transitionNavigation]);
 
   // ── Navigation ────────────────────────────────────────────────────────
-  const goTo = useCallback(
-    (next: WorkspacePanes) => {
-      if (samePanes(next, panes)) return;
-      navigation.push(next);
-    },
-    [navigation, panes],
-  );
-
-  const persistCourseTabs = useCallback((next: typeof courseTabs) => {
-    writeCourseTabsMemory(next);
-  }, []);
-
-  /**
-   * Reconcile the arrival URL's active course with local browser memory.
-   * A pasted `?course=` always wins as active and joins the remembered set.
-   * No `?course=` means the classroom is CLOSED, including on first arrival:
-   * a remembered tab must never turn a session-only entry back into both panes.
-   * After arrival, a missing course is an explicit close/home/history snapshot
-   * and must never be overwritten by storage.
-   * Session changes are irrelevant: every chat sees the same right-hand tab set.
-   * The global minimise flag is intentionally untouched, so a remembered set
-   * restores behind its reopen tab when that flag is set.
-   */
-  const courseTabsHydrated = useRef(false);
-  useLayoutEffect(() => {
-    // Storage restoration is an arrival concern, not a standing instruction.
-    // Once mounted, a URL with no course means "the classroom is closed" — in
-    // particular after Logo/home and browser Back. Re-reading storage on every
-    // param change used to reopen the course and start a URL write-back loop.
-    if (courseTabsHydrated.current) {
-      const reconciled = panes.courseId
-        ? restoreCourseTabs(courseTabs, panes.courseId)
-        : courseTabs.activeCourseId === null
-          ? courseTabs
-          : NO_COURSE_TABS;
-      if (reconciled !== courseTabs) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- browser history is an external system being reconciled into the local tab model
-        setCourseTabs(reconciled);
-        writeCourseTabsMemory(reconciled);
-      }
-      return;
-    }
-
-    // Pane presence comes from the URL, not storage. In particular the classic
-    // homepage enters Pro with `?session=<last-opened>`; restoring an unrelated
-    // remembered classroom here would immediately violate that explicit intent.
-    if (!panes.courseId) {
-      courseTabsHydrated.current = true;
-      return;
-    }
-
-    // An explicit URL course opens even when it is absent from the rail; memory
-    // only contributes the rest of the tab set around that explicit active id.
-    const restored = restoreCourseTabs(readCourseTabsMemory(), panes.courseId);
-    courseTabsHydrated.current = true;
-    setCourseTabs(restored);
-    writeCourseTabsMemory(restored);
-    if (restored.activeCourseId !== panes.courseId) {
-      navigation.replace(withCourse(panes, restored.activeCourseId));
-    }
-  }, [courseTabs, navigation, panes]);
 
   const openCourse = useCallback(
     (courseId: string) => {
-      const next = openCourseTab(courseTabs, courseId);
-      setCourseTabs(next);
-      persistCourseTabs(next);
-      collapse.expandClassroom();
-      goTo(withCourse(panes, next.activeCourseId));
+      transitionNavigation({ type: 'open_course', courseId });
+      expandClassroom();
     },
-    [collapse, courseTabs, goTo, panes, persistCourseTabs],
+    [expandClassroom, transitionNavigation],
   );
 
   /**
@@ -467,28 +391,20 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    */
   const openCourses = useCallback(
     (courseIds: readonly string[]) => {
-      const opened = openCourseTabs(courseTabs, courseIds);
-      const next = courseTabs.activeCourseId
-        ? activateCourseTab(opened, courseTabs.activeCourseId)
-        : opened;
-      if (next === courseTabs) return;
-      setCourseTabs(next);
-      persistCourseTabs(next);
       if (!courseTabs.activeCourseId) {
-        collapse.expandClassroom();
-        goTo(withCourse(panes, next.activeCourseId));
+        expandClassroom();
       }
+      transitionNavigation({ type: 'open_courses', courseIds });
     },
-    [collapse, courseTabs, goTo, panes, persistCourseTabs],
+    [courseTabs.activeCourseId, expandClassroom, transitionNavigation],
   );
 
   const openSession = useCallback(
     (sessionId: string) => {
-      setNewConversationRequested(false);
-      collapse.expandChat();
-      goTo(withSession(panes, sessionId));
+      expandChat();
+      transitionNavigation({ type: 'open_session', sessionId });
     },
-    [collapse, goTo, panes],
+    [expandChat, transitionNavigation],
   );
 
   const openCreatedSession = useCallback(
@@ -503,24 +419,16 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
 
   const activateCourse = useCallback(
     (courseId: string) => {
-      const next = activateCourseTab(courseTabs, courseId);
-      if (next === courseTabs) return;
-      setCourseTabs(next);
-      persistCourseTabs(next);
-      goTo(withCourse(panes, next.activeCourseId));
+      transitionNavigation({ type: 'activate_course', courseId });
     },
-    [courseTabs, goTo, panes, persistCourseTabs],
+    [transitionNavigation],
   );
 
   const closeCourse = useCallback(
     (courseId: string) => {
-      const next = closeCourseTab(courseTabs, courseId);
-      if (next === courseTabs) return;
-      setCourseTabs(next);
-      persistCourseTabs(next);
-      goTo(withCourse(panes, next.activeCourseId));
+      transitionNavigation({ type: 'close_course', courseId });
     },
-    [courseTabs, goTo, panes, persistCourseTabs],
+    [transitionNavigation],
   );
 
   /**
@@ -535,10 +443,9 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     (sessionId: string) => {
       forgetWorkspaceSession(sessionId);
       if (sessionId !== panes.sessionId) return;
-      setNewConversationRequested(false);
-      goTo(withSession(panes, null));
+      transitionNavigation({ type: 'close_session' });
     },
-    [goTo, panes],
+    [panes.sessionId, transitionNavigation],
   );
 
   /**
@@ -546,16 +453,6 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * rail row and — when this is the attached conversation — the pane header,
    * which reads its own copy out of the session store.
    */
-  const applySessionTitle = useCallback(
-    (sessionId: string, title: string | null, settled: boolean) => {
-      syncAttachedSessionTitle(sessionId, title);
-      const client = ownerSessionClient.current;
-      const revision = client?.updateSessionTitle(sessionId, title, settled) ?? null;
-      return { client, revision };
-    },
-    [],
-  );
-
   /**
    * Rename a conversation. ONE writer for both surfaces that offer it — the
    * rail row's menu and the pane header — because two would be two chances for
@@ -569,44 +466,16 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * renames use.
    */
   const renameSession = useCallback(
-    (sessionId: string, raw: string): Promise<string | null> => {
-      const generation = shellGeneration.current;
-      const isOriginCurrent = () => shellGeneration.current === generation;
-      return sessionRenameQueue.run(sessionId, async (queued) => {
-        const row = sessionsRef.current.find((session) => session.id === sessionId);
-        const store = useWorkbenchStore.getState();
-        const attached = store.sessionId === sessionId;
-        let decision: ReturnType<typeof applySessionTitle> | null = null;
-        const outcome = await commitSessionRename({
-          current: {
-            title: row?.title ?? (attached ? store.sessionTitle : null),
-            prompt: row?.prompt ?? (attached ? store.sessionPrompt : null),
-          },
-          raw,
-          apply: (title, settled) => {
-            if (!isOriginCurrent()) return;
-            decision = applySessionTitle(sessionId, title, settled);
-          },
-          save: (title) => renameWorkbenchSession(sessionId, title),
-          isCurrent: () => {
-            if (!isOriginCurrent() || !decision?.client || decision.revision === null) return false;
-            return (
-              ownerSessionClient.current === decision.client &&
-              decision.client.isSessionTitleRevisionCurrent(sessionId, decision.revision)
-            );
-          },
-          forceSave: queued,
-        });
-        if (isOriginCurrent() && outcome !== 'unchanged') {
-          ownerSessionClient.current?.requestFullFetch();
-        }
-        if (outcome !== 'failed') return null;
-        const message = t('workspace.renameSessionFailed');
-        if (isOriginCurrent()) toast.error(message);
-        return message;
-      });
+    async (sessionId: string, raw: string): Promise<string | null> => {
+      const outcome = await ownerRuntime.renameSession(sessionId, raw);
+      if (outcome !== 'failed') return null;
+      if (ownerRuntime.isActive()) {
+        toast.error(renameSessionFailedMessage);
+        return renameSessionFailedMessage;
+      }
+      return null;
     },
-    [applySessionTitle, t],
+    [ownerRuntime, renameSessionFailedMessage],
   );
 
   /**
@@ -639,10 +508,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * course away. That is `startNewConversation` below.
    */
   const goHome = () => {
-    if (panes.sessionId || panes.courseId) navigation.push({ sessionId: null, courseId: null });
-    setCourseTabs(NO_COURSE_TABS);
-    persistCourseTabs(NO_COURSE_TABS);
-    setNewConversationRequested(false);
+    transitionNavigation({ type: 'go_home' });
     setComposerReset((value) => value + 1);
   };
 
@@ -660,15 +526,8 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
    * the empty composer already lives.
    */
   const startNewConversation = () => {
-    setNewConversationRequested(true);
-    collapse.expandChat();
-    if (panes.courseId) {
-      if (panes.sessionId) navigation.push({ sessionId: null, courseId: panes.courseId });
-    } else {
-      if (panes.sessionId) navigation.push({ sessionId: null, courseId: null });
-      setCourseTabs(NO_COURSE_TABS);
-      persistCourseTabs(NO_COURSE_TABS);
-    }
+    expandChat();
+    transitionNavigation({ type: 'new_conversation' });
     setComposerReset((value) => value + 1);
   };
 
@@ -722,7 +581,6 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
       closedCourseIds: courseTabs.closedCourseIds ?? [],
       replaying: attachedSessionReplaying,
     });
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a durable library write is the external event being synchronized into URL/tab state
     if (open.length > 0) openCourses(open);
   }, [
     attachedSessionId,
@@ -754,14 +612,14 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     // the meta fetch otherwise — a `?session=` deep link has neither yet, and
     // the chat needs neither.
     attach(panes.sessionId, paneSessionStageId);
-    const mutation = ownerSessionClient.current?.getUnconfirmedSessionTitle(panes.sessionId);
-    const attached = sessionsRef.current.find((session) => session.id === panes.sessionId);
+    const mutation = ownerRuntime.getUnconfirmedSessionTitle(panes.sessionId);
+    const attached = ownerRuntime.getSession(panes.sessionId);
     if (mutation) {
       syncAttachedSessionTitle(panes.sessionId, mutation.title);
     } else if (attached) {
       syncAttachedSessionTitle(attached.id, attached.title ?? null);
     }
-  }, [panes.sessionId, paneSessionStageId, attach, detach]);
+  }, [panes.sessionId, paneSessionStageId, attach, detach, ownerRuntime]);
 
   // Attachment is workspace-scoped view state. Clear it when the shell leaves
   // the tree so a subsequent standalone `/classroom/:id` route cannot inherit
@@ -779,11 +637,11 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     if (courseChatBootstrap.kind !== 'adopt') return;
     // Carrying an existing conversation over is pure navigation: no request, and
     // idempotent by construction — the URL it writes makes this branch settle.
-    navigation.replace({
-      sessionId: courseChatBootstrap.sessionId,
-      courseId: courseChatBootstrap.courseId,
-    });
-  }, [courseChatBootstrap, navigation]);
+    transitionNavigation(
+      { type: 'open_session', sessionId: courseChatBootstrap.sessionId },
+      'replace',
+    );
+  }, [courseChatBootstrap, transitionNavigation]);
 
   /**
    * The empty conversation: a composer with no session behind it yet.
@@ -812,7 +670,10 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
               // The rail should show the conversation that just came into being,
               // and the URL is what attaches it.
               loadSessions();
-              navigation.replace({ sessionId: started.sessionId, courseId: draftCourseId });
+              transitionNavigation(
+                { type: 'open_session', sessionId: started.sessionId },
+                'replace',
+              );
               return {
                 accepted: true,
                 elementRefsAccepted: started.elementRefsAccepted,
@@ -821,7 +682,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
             },
           }
         : null,
-    [draftCourseId, loadSessions, navigation],
+    [draftCourseId, loadSessions, transitionNavigation],
   );
 
   // The owner list stream and attached conversation stream have independent
@@ -851,7 +712,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
   // Keep an observed status after the user leaves this chat. The owner event
   // may still be in flight on its independent stream.
   useEffect(() => {
-    ownerSessionClient.current?.updateSessions((current) => {
+    ownerRuntime.updateSessions((current) => {
       const reconciled = reconcileAttachedSessionStatus(current, {
         paneId: panes.sessionId,
         attachedId: attachedSessionId,
@@ -866,6 +727,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     attachedSessionId,
     attachedSessionPendingWork,
     attachedSessionStatus,
+    ownerRuntime,
     panes.sessionId,
   ]);
 
@@ -962,6 +824,41 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
     [courseOptions, lookupCourse, openCourse, panes.courseId],
   );
 
+  const renameAttachedSession = useCallback(
+    (title: string) =>
+      attachedSessionId ? renameSession(attachedSessionId, title) : Promise.resolve(null),
+    [attachedSessionId, renameSession],
+  );
+  const chatResizeLabel = t('workspace.resizeChatAria');
+  const chatCurrentWidth = chatWidth.current;
+  const previewChatWidth = chatWidth.preview;
+  const commitChatWidth = chatWidth.commit;
+  const resetChatWidth = chatWidth.reset;
+
+  const chatResizeHandle = useMemo(
+    () =>
+      bothPanesOnScreen ? (
+        <ResizeHandle
+          testId="workspace-chat-resize-handle"
+          label={chatResizeLabel}
+          edge="right"
+          current={chatCurrentWidth}
+          clamp={clampChatWidth}
+          onPreview={previewChatWidth}
+          onCommit={commitChatWidth}
+          onReset={resetChatWidth}
+        />
+      ) : undefined,
+    [
+      bothPanesOnScreen,
+      chatCurrentWidth,
+      commitChatWidth,
+      chatResizeLabel,
+      previewChatWidth,
+      resetChatWidth,
+    ],
+  );
+
   return (
     <div
       ref={rootRef}
@@ -1026,32 +923,12 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
           width={chatWidth.value}
           navigation={courseNavigation}
           draftConversation={draftConversation}
-          onRename={
-            // Only a conversation that exists can be named. A draft one has no
-            // id to PATCH — its first message mints the session, and the title
-            // it derives from that message is nameable from then on.
-            attachedSessionId
-              ? (title: string) => renameSession(attachedSessionId, title)
-              : undefined
-          }
+          onRename={attachedSessionId ? renameAttachedSession : undefined}
           // Folding is offered only while the classroom is there to take the
           // column: see `resolveWorkspaceRender`, which refuses to fold the last
           // visible pane anyway.
           onCollapse={bothPanesOnScreen ? collapse.collapseChat : undefined}
-          resizeHandle={
-            bothPanesOnScreen ? (
-              <ResizeHandle
-                testId="workspace-chat-resize-handle"
-                label={t('workspace.resizeChatAria')}
-                edge="right"
-                current={chatWidth.current}
-                clamp={clampChatWidth}
-                onPreview={chatWidth.preview}
-                onCommit={chatWidth.commit}
-                onReset={chatWidth.reset}
-              />
-            ) : undefined
-          }
+          resizeHandle={chatResizeHandle}
         />
       ) : null}
 
