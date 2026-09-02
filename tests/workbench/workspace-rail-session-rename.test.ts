@@ -14,6 +14,7 @@
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { WorkspaceRail } from '@/components/workbench/workspace/WorkspaceRail';
 import { RAIL_TAB_STORAGE_KEY } from '@/lib/workbench/workspace-rail-tab';
 
 vi.mock('@/lib/hooks/use-i18n', () => ({
@@ -65,7 +66,6 @@ const NAMED = 'session-named';
 const UNNAMED = 'session-unnamed';
 
 async function renderRail(): Promise<{ onRenameSession: ReturnType<typeof vi.fn> }> {
-  const { WorkspaceRail } = await import('@/components/workbench/workspace/WorkspaceRail');
   const onRenameSession = vi.fn(async () => null);
   window.localStorage.setItem(RAIL_TAB_STORAGE_KEY, 'sessions');
 
