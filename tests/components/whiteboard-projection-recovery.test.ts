@@ -14,6 +14,7 @@ vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) =>
     createElement(Fragment, null, children),
   motion: { div: 'div', button: 'button' },
+  useReducedMotion: () => false,
 }));
 vi.mock('lucide-react', () => ({
   Eraser: () => null,
