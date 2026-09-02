@@ -51,9 +51,15 @@ interface StoredSessionTitleLock {
   readonly expiresAt: number;
 }
 
+interface StoredSessionTitleDecision {
+  readonly title: string | null;
+  readonly expiresAt: number;
+}
+
 const SESSION_TITLE_LOCK_LEASE_MS = 30_000;
 const SESSION_TITLE_LOCK_REFRESH_MS = 10_000;
 const SESSION_TITLE_LOCK_RETRY_MS = 10;
+const SESSION_TITLE_DECISION_TTL_MS = 5 * 60_000;
 
 function sessionTitleLockManager(): SessionTitleLockManager | null {
   if (typeof navigator === 'undefined') return null;
@@ -84,6 +90,53 @@ function readStoredSessionTitleLock(storage: Storage, key: string): StoredSessio
       : null;
   } catch {
     return null;
+  }
+}
+
+function recentSessionTitleDecision(sessionId: string): StoredSessionTitleDecision | null {
+  const storage = sessionTitleLockStorage();
+  if (!storage) return null;
+  const key = `openmaic:session-title-decision:${sessionId}`;
+  try {
+    const parsed = JSON.parse(
+      storage.getItem(key) ?? 'null',
+    ) as Partial<StoredSessionTitleDecision>;
+    if (
+      (parsed.title === null || typeof parsed.title === 'string') &&
+      typeof parsed.expiresAt === 'number' &&
+      parsed.expiresAt > Date.now()
+    ) {
+      return { title: parsed.title, expiresAt: parsed.expiresAt };
+    }
+    storage.removeItem(key);
+  } catch {
+    // A corrupt/denied compatibility marker is not a title decision.
+  }
+  return null;
+}
+
+function rememberSessionTitleDecision(sessionId: string, title: string | null): void {
+  const storage = sessionTitleLockStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(
+      `openmaic:session-title-decision:${sessionId}`,
+      JSON.stringify({ title, expiresAt: Date.now() + SESSION_TITLE_DECISION_TTL_MS }),
+    );
+  } catch {
+    // The server write already succeeded; losing only the remount hint must not
+    // convert success into a user-visible failure.
+  }
+}
+
+function clearConfirmedSessionTitleDecision(sessionId: string, title: string | null): void {
+  const decision = recentSessionTitleDecision(sessionId);
+  if (!decision || decision.title !== title) return;
+  const storage = sessionTitleLockStorage();
+  try {
+    storage?.removeItem(`openmaic:session-title-decision:${sessionId}`);
+  } catch {
+    // TTL expiry remains the cleanup fallback.
   }
 }
 
@@ -143,7 +196,12 @@ async function runStorageSessionTitleWrite<T>(
     return await task();
   } finally {
     clearInterval(refresh);
-    if (readStoredSessionTitleLock(storage, key)?.owner === owner) storage.removeItem(key);
+    try {
+      if (readStoredSessionTitleLock(storage, key)?.owner === owner) storage.removeItem(key);
+    } catch {
+      // The successful server result is authoritative; lease expiry remains
+      // the cleanup fallback when browser storage becomes unwritable.
+    }
   }
 }
 
@@ -242,7 +300,10 @@ export class WorkspaceOwnerRuntime {
           const row = this.snapshot.sessions.find((session) => session.id === sessionId);
           const attached = this.options.getAttachedSession();
           const attachedNaming = attached?.id === sessionId ? attached : null;
+          const projectedTitle = row?.title?.trim() || attachedNaming?.title?.trim() || null;
+          const recentDecision = recentSessionTitleDecision(sessionId);
           let revision: number | null = null;
+          let storedDecision: string | null | undefined;
           const outcome = await commitSessionRename({
             current: {
               title: row?.title ?? attachedNaming?.title ?? null,
@@ -254,16 +315,23 @@ export class WorkspaceOwnerRuntime {
               this.options.syncAttachedTitle(sessionId, title);
               revision = this.client.updateSessionTitle(sessionId, title, settled);
             },
-            save: (title) => this.options.saveSessionTitle(sessionId, title),
+            save: async (title) => {
+              const stored = await this.options.saveSessionTitle(sessionId, title);
+              storedDecision = stored;
+              return stored;
+            },
             isCurrent: () =>
               isOriginCurrent() &&
               revision !== null &&
               this.client.isSessionTitleRevisionCurrent(sessionId, revision),
-            // The mounted snapshot may lag a write from a previous mount, so
-            // every explicit submission is authoritative even when it looks
-            // unchanged locally.
-            forceSave: true,
+            // Preserve fresh unchanged = zero requests. A recent completed
+            // decision that differs from this projection is concrete evidence
+            // that a previous mount wrote past the snapshot now on screen.
+            forceSave: recentDecision !== null && recentDecision.title !== projectedTitle,
           });
+          if (outcome === 'renamed' && storedDecision !== undefined) {
+            rememberSessionTitleDecision(sessionId, storedDecision);
+          }
           if (isOriginCurrent() && outcome !== 'unchanged') this.client.requestFullFetch();
           return outcome;
         }),
@@ -280,6 +348,9 @@ export class WorkspaceOwnerRuntime {
     const next = [...sessions];
     this.publish({ sessions: next, state: this.snapshot.state });
     if (source !== 'snapshot') return;
+    for (const session of next) {
+      clearConfirmedSessionTitleDecision(session.id, session.title?.trim() || null);
+    }
     const attached = this.options.getAttachedSession();
     if (!attached) return;
     const row = next.find((session) => session.id === attached.id);

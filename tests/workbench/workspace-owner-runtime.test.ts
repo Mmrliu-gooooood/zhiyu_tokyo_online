@@ -246,6 +246,17 @@ describe('WorkspaceOwnerRuntime public seam', () => {
     runtime.stop();
   });
 
+  it('keeps a fresh unchanged title as a zero-request decision', async () => {
+    const saveSessionTitle = vi.fn(async (_sessionId: string, title: string | null) => title);
+    const runtime = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    runtime.start();
+    await flushPromises();
+
+    await expect(runtime.renameSession('session-1', 'Old title')).resolves.toBe('unchanged');
+    expect(saveSessionTitle).not.toHaveBeenCalled();
+    runtime.stop();
+  });
+
   it('keeps a remounted writer behind the previous mount so the newest title wins', async () => {
     const firstSave = deferred<string | null>();
     let storedTitle: string | null = 'Old title';
@@ -397,6 +408,27 @@ describe('WorkspaceOwnerRuntime public seam', () => {
     expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Title B']);
     expect(storedTitle).toBe('Title B');
     second.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('does not turn a successful PATCH into failure when lock cleanup is denied', async () => {
+    vi.stubGlobal('navigator', {});
+    const storage = new MemoryStorage();
+    const removeItem = vi.spyOn(storage, 'removeItem').mockImplementation((key) => {
+      if (key.includes('session-title-lock:openmaic:session-title:')) {
+        throw new DOMException('Denied', 'SecurityError');
+      }
+      MemoryStorage.prototype.removeItem.call(storage, key);
+    });
+    vi.stubGlobal('localStorage', storage);
+    const saveSessionTitle = vi.fn(async (_sessionId: string, title: string | null) => title);
+    const runtime = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    runtime.start();
+    await flushPromises();
+
+    await expect(runtime.renameSession('session-1', 'Title A')).resolves.toBe('renamed');
+    expect(removeItem).toHaveBeenCalled();
+    runtime.stop();
     vi.unstubAllGlobals();
   });
 
