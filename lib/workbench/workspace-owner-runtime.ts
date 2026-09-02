@@ -129,17 +129,6 @@ function rememberSessionTitleDecision(sessionId: string, title: string | null): 
   }
 }
 
-function clearConfirmedSessionTitleDecision(sessionId: string, title: string | null): void {
-  const decision = recentSessionTitleDecision(sessionId);
-  if (!decision || decision.title !== title) return;
-  const storage = sessionTitleLockStorage();
-  try {
-    storage?.removeItem(`openmaic:session-title-decision:${sessionId}`);
-  } catch {
-    // TTL expiry remains the cleanup fallback.
-  }
-}
-
 function waitForSessionTitleLock(signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -348,9 +337,6 @@ export class WorkspaceOwnerRuntime {
     const next = [...sessions];
     this.publish({ sessions: next, state: this.snapshot.state });
     if (source !== 'snapshot') return;
-    for (const session of next) {
-      clearConfirmedSessionTitleDecision(session.id, session.title?.trim() || null);
-    }
     const attached = this.options.getAttachedSession();
     if (!attached) return;
     const row = next.find((session) => session.id === attached.id);

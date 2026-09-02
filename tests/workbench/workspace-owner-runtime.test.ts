@@ -337,6 +337,44 @@ describe('WorkspaceOwnerRuntime public seam', () => {
     vi.unstubAllGlobals();
   });
 
+  it('retains recency evidence until an already-queued remount consumes it', async () => {
+    const firstSave = deferred<string | null>();
+    let storedTitle: string | null = 'Old title';
+    const saveSessionTitle = vi.fn((_sessionId: string, title: string | null) => {
+      if (saveSessionTitle.mock.calls.length === 1) {
+        return firstSave.promise.then((stored) => {
+          storedTitle = stored;
+          return stored;
+        });
+      }
+      storedTitle = title;
+      return Promise.resolve(title);
+    });
+    const fetchSessions = vi.fn(async () => [row(storedTitle)]);
+    const first = new WorkspaceOwnerRuntime(options({ fetchSessions, saveSessionTitle }));
+    first.start();
+    await flushPromises();
+    const renameA = first.renameSession('session-1', 'Title A');
+    await flushPromises();
+
+    const second = new WorkspaceOwnerRuntime(options({ fetchSessions, saveSessionTitle }));
+    second.start();
+    await flushPromises();
+    const renameBack = second.renameSession('session-1', 'Old title');
+    await flushPromises();
+    expect(saveSessionTitle).toHaveBeenCalledTimes(1);
+
+    firstSave.resolve('Title A');
+    await renameA;
+    await renameBack;
+
+    expect(fetchSessions.mock.calls.length).toBeGreaterThan(2);
+    expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Old title']);
+    expect(storedTitle).toBe('Old title');
+    first.stop();
+    second.stop();
+  });
+
   it('persists a stale-projection decision after the previous lock was already released', async () => {
     let storedTitle: string | null = 'Old title';
     const saveSessionTitle = vi.fn(async (_sessionId: string, title: string | null) => {
