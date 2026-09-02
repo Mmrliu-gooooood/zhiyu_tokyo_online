@@ -146,7 +146,8 @@ function harness() {
     backing,
     kv,
     /** A fresh adapter over the same KV backend — what a page reload builds. */
-    storage: (scope: KVScope = 'account') => createKVPersistStorage<Prefs>(scope, { kv }),
+    storage: (scope: KVScope = 'account') =>
+      createKVPersistStorage<Prefs>(scope, { kv, recoveryBackoffMs: [0] }),
   };
 }
 
@@ -335,7 +336,10 @@ describe('createKVPersistStorage — write ordering', () => {
     await persist.setItem(NAME, { state: { nickname: 'doomed' } });
     await flushTasks();
 
-    expect(problems()).toEqual([NAME]);
+    expect(health).toEqual([
+      { name: NAME, status: 'unavailable' },
+      { name: NAME, status: 'changes-lost' },
+    ]);
     h.kv.failSet = false;
     await persist.setItem(NAME, { state: { nickname: 'Ada' }, version: 4 });
     expect(await h.kv.get(NAME, 'account')).toBeNull();
@@ -489,6 +493,7 @@ describe('createKVPersistStorage — refused writes ask for recovery, then say s
 
     const persist = createKVPersistStorage<Prefs>('account', {
       kv: h.kv,
+      recoveryBackoffMs: [0],
       onWriteRefused: async () => {
         h.kv.failGet = false;
         await persist.getItem(NAME);
@@ -526,6 +531,7 @@ describe('createKVPersistStorage — refused writes ask for recovery, then say s
 
     const persist = createKVPersistStorage<Prefs>('account', {
       kv: h.kv,
+      recoveryBackoffMs: [0],
       onWriteRefused: async () => {
         // The backend is still down, so the retry changes nothing.
         await persist.getItem(NAME);
@@ -536,7 +542,10 @@ describe('createKVPersistStorage — refused writes ask for recovery, then say s
     await persist.setItem(NAME, { state: { nickname: 'a' } });
     await flushTasks();
 
-    expect(problems()).toEqual([NAME]);
+    expect(health).toEqual([
+      { name: NAME, status: 'unavailable' },
+      { name: NAME, status: 'changes-lost' },
+    ]);
   });
 
   it('raises the notice when the recovery attempt itself throws', async () => {
@@ -545,6 +554,7 @@ describe('createKVPersistStorage — refused writes ask for recovery, then say s
 
     const persist = createKVPersistStorage<Prefs>('account', {
       kv: h.kv,
+      recoveryBackoffMs: [0],
       onWriteRefused: () => Promise.reject(new Error('rehydrate failed')),
     });
 
@@ -552,7 +562,10 @@ describe('createKVPersistStorage — refused writes ask for recovery, then say s
     await persist.setItem(NAME, { state: { nickname: 'a' } });
     await flushTasks();
 
-    expect(problems()).toEqual([NAME]);
+    expect(health).toEqual([
+      { name: NAME, status: 'unavailable' },
+      { name: NAME, status: 'changes-lost' },
+    ]);
   });
 });
 
@@ -624,6 +637,7 @@ describe('createKVPersistStorage — a lost edit is reported, not swallowed', ()
 
     const persist = createKVPersistStorage<Prefs>('account', {
       kv: h.kv,
+      recoveryBackoffMs: [0],
       onWriteRefused: async () => {
         h.kv.failGet = false;
         await persist.getItem(NAME);
@@ -659,7 +673,7 @@ describe('createKVPersistStorage — unreachable browser storage is a failure, n
   it('signals instead of hydrating an empty store in silence', async () => {
     const restore = withHostileLocalStorage();
     try {
-      const persist = createKVPersistStorage<Prefs>('account');
+      const persist = createKVPersistStorage<Prefs>('account', { recoveryBackoffMs: [] });
 
       expect(await persist.getItem(NAME)).toBeNull();
       await persist.setItem(NAME, { state: { nickname: 'lost' } });
@@ -674,7 +688,7 @@ describe('createKVPersistStorage — unreachable browser storage is a failure, n
   it('reports a clear it could not perform', async () => {
     const restore = withHostileLocalStorage();
     try {
-      const persist = createKVPersistStorage<Prefs>('account');
+      const persist = createKVPersistStorage<Prefs>('account', { recoveryBackoffMs: [] });
       await expect(persist.removeItem(NAME)).rejects.toThrow(/unreachable/);
     } finally {
       restore();
