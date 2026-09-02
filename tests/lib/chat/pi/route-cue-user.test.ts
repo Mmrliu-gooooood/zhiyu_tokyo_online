@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
 import { convertToLlm } from '@earendil-works/pi-agent-core';
+import { POST } from '@/app/api/chat/pi/route';
 
 const PI_CHAT_FLAG = 'NEXT_PUBLIC_PI_CHAT_ENABLED';
 let originalPiChatFlag: string | undefined;
@@ -449,7 +450,6 @@ describe('POST /api/chat/pi cue_user', () => {
   beforeEach(() => {
     originalPiChatFlag = process.env[PI_CHAT_FLAG];
     process.env[PI_CHAT_FLAG] = 'true';
-    vi.resetModules();
     mocks.resolveModel.mockReset();
     mocks.buildAgent.mockReset();
     mocks.createCallLlmStreamFn.mockReset();
@@ -476,7 +476,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('wires Pi standard message conversion only into the Director agent', async () => {
     mockDirectorWithAgentTurn({ explicitlyCueUser: false });
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     await readSseEvents(response);
 
@@ -495,7 +494,6 @@ describe('POST /api/chat/pi cue_user', () => {
 
   it('keeps web_search out of the Director inventory', async () => {
     mockDirectorWithAgentTurn({ explicitlyCueUser: false });
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     await readSseEvents(response);
 
@@ -516,7 +514,6 @@ describe('POST /api/chat/pi cue_user', () => {
     };
     mockDirectorReadSceneDelegation(captured);
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
     const doneEvent = events.find((event) => event.type === 'done');
@@ -546,7 +543,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('does not duplicate cue_user when coordinator explicitly cues before fallback', async () => {
     mockDirectorWithAgentTurn({ explicitlyCueUser: true });
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
 
@@ -570,7 +566,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('keeps the session open when close_session follows cue_user in the same director turn', async () => {
     mockDirectorWithAgentTurn({ explicitlyCueUser: true, closeAfterCue: true });
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
     const doneEvent = events.find((event) => event.type === 'done');
@@ -585,7 +580,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('falls back to cue_user before done when coordinator forgets to cue', async () => {
     mockDirectorWithAgentTurn({ explicitlyCueUser: false });
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
 
@@ -614,7 +608,6 @@ describe('POST /api/chat/pi cue_user', () => {
     });
 
     const body = makeBody();
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(
       makeRequest({
         ...body,
@@ -654,7 +647,6 @@ describe('POST /api/chat/pi cue_user', () => {
       cuePrompt: 'Any follow-up?',
     });
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
 
@@ -680,7 +672,6 @@ describe('POST /api/chat/pi cue_user', () => {
     });
 
     const body = makeBody();
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(
       makeRequest({
         ...body,
@@ -719,7 +710,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('rejects close_session when the current turn has no visible agent response', async () => {
     mockDirectorCloseSessionWithoutTeacherTurn();
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
 
@@ -738,7 +728,6 @@ describe('POST /api/chat/pi cue_user', () => {
     mockDirectorWithRejectedCalls(counter);
 
     const body = makeBody();
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(
       makeRequest({
         ...body,
@@ -757,7 +746,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('marks failed evidence tools as native tool errors and exposes an audit trace', async () => {
     mockDirectorWithFailedSceneRead();
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(makeRequest(makeBody()));
     const events = await readSseEvents(response);
     const doneEvent = events.find((event) => event.type === 'done');
@@ -780,7 +768,6 @@ describe('POST /api/chat/pi cue_user', () => {
   it('uses only this loop turn count for the classroom agent turn cap', async () => {
     mockDirectorWithTwoTeacherTurns();
 
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(
       makeRequest({
         ...makeBody(),
@@ -846,7 +833,6 @@ describe('POST /api/chat/pi cue_user', () => {
     );
 
     const body = makeBody();
-    const { POST } = await import('@/app/api/chat/pi/route');
     const response = await POST(
       makeRequest({
         ...body,
