@@ -334,6 +334,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const chatAreaRef = useRef<ChatAreaRef>(null);
     const lectureSessionIdRef = useRef<string | null>(null);
     const lectureActionCounterRef = useRef(0);
+    const pendingPlaySceneIdRef = useRef<string | null>(null);
+    const readyPlaybackSceneIdRef = useRef<string | null>(null);
+    const playbackInitializationEpochRef = useRef(0);
     const currentPlaybackActionIndexRef = useRef<number | null>(currentPlaybackActionIndex);
     const activeSceneIdRef = useRef<string | null>(currentSceneId);
     const discussionAbortRef = useRef<AbortController | null>(null);
@@ -716,6 +719,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     // Initialize playback engine when scene changes
     useEffect(() => {
       let cancelled = false;
+      const initializationEpoch = ++playbackInitializationEpochRef.current;
+      readyPlaybackSceneIdRef.current = null;
       const initializeScene = async () => {
         const previousSceneId = activeSceneIdRef.current;
         if (previousSceneId && previousSceneId !== currentScene?.id) {
@@ -728,7 +733,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         // Wait for an in-flight presentation action before initializing the next
         // scene against shared whiteboard state.
         await chatAreaRef.current?.endActiveSession({ source: 'scene_switch' });
-        if (cancelled) return;
+        if (cancelled || playbackInitializationEpochRef.current !== initializationEpoch) {
+          return;
+        }
 
         // Also abort the engine-level discussion controller
         if (discussionAbortRef.current) {
@@ -764,7 +771,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           }
         }
 
-        if (cancelled) return;
+        if (cancelled || playbackInitializationEpochRef.current !== initializationEpoch) {
+          return;
+        }
 
         const savedResumeAction = currentScene?.actions?.[savedResumeActionIndex];
 
@@ -986,6 +995,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
 
         engineRef.current = engine;
         activeSceneIdRef.current = currentScene.id;
+        const initializationIsCurrent = () =>
+          !cancelled &&
+          playbackInitializationEpochRef.current === initializationEpoch &&
+          engineRef.current === engine &&
+          useStageStore.getState().currentSceneId === currentScene.id;
 
         // Auto-start if triggered by auto-play scene advance
         if (autoStartRef.current) {
@@ -993,31 +1007,60 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           (async () => {
             if (currentScene && chatAreaRef.current) {
               const sessionId = await chatAreaRef.current.startLecture(currentScene.id);
+              if (!initializationIsCurrent()) return;
               lectureSessionIdRef.current = sessionId;
               lectureActionCounterRef.current = 0;
             }
+            if (!initializationIsCurrent()) return;
+            pendingPlaySceneIdRef.current = null;
+            readyPlaybackSceneIdRef.current = currentScene.id;
             engine.start();
           })();
         } else {
-          // Load saved playback state and restore position (but never auto-play).
-          if (savedResumeActionIndex > 0 && engine.canJumpToAction(savedResumeActionIndex)) {
-            void engine
-              .jumpToAction(savedResumeActionIndex, { autoplay: false })
-              .then((restored) => {
-                if (!restored || engineRef.current !== engine) return;
+          void (async () => {
+            // Load saved playback state and restore position before consuming
+            // an early Play click, so the click resumes the saved action rather
+            // than racing a later jump back to it.
+            if (savedResumeActionIndex > 0 && engine.canJumpToAction(savedResumeActionIndex)) {
+              const restored = await engine.jumpToAction(savedResumeActionIndex, {
+                autoplay: false,
+              });
+              if (!initializationIsCurrent()) return;
+              if (restored) {
                 updateCurrentPlaybackActionIndex(savedResumeActionIndex);
                 const action = currentScene.actions?.[savedResumeActionIndex];
                 if (action?.type === 'speech') {
                   setLectureSpeech(action.text);
                 }
-              });
-          }
+              }
+            }
+
+            if (!initializationIsCurrent()) return;
+            const consumePendingPlay = pendingPlaySceneIdRef.current === currentScene.id;
+            if (consumePendingPlay && chatAreaRef.current) {
+              const sessionId = await chatAreaRef.current.startLecture(currentScene.id);
+              if (!initializationIsCurrent()) return;
+              lectureSessionIdRef.current = sessionId;
+            }
+            if (!initializationIsCurrent()) return;
+            if (pendingPlaySceneIdRef.current !== null) {
+              pendingPlaySceneIdRef.current = null;
+            }
+            readyPlaybackSceneIdRef.current = currentScene.id;
+            if (consumePendingPlay) {
+              engine.continuePlayback();
+            }
+          })();
         }
       };
 
       void initializeScene();
       return () => {
         cancelled = true;
+        if (playbackInitializationEpochRef.current === initializationEpoch) {
+          playbackInitializationEpochRef.current += 1;
+          readyPlaybackSceneIdRef.current = null;
+        }
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run when scene changes, functions are stable refs
     }, [currentScene]);
@@ -1028,6 +1071,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       const chatArea = chatAreaRef.current;
       return () => {
         if (cursorSaveTimerRef.current) clearTimeout(cursorSaveTimerRef.current);
+        pendingPlaySceneIdRef.current = null;
+        readyPlaybackSceneIdRef.current = null;
+        playbackInitializationEpochRef.current += 1;
         cursorSaveTimerRef.current = null;
         const pendingCursor = pendingCursorRef.current;
         pendingCursorRef.current = null;
@@ -1191,7 +1237,16 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     // play/pause toggle
     const handlePlayPause = useCallback(async () => {
       const engine = engineRef.current;
-      if (!engine) return;
+      const currentPlaybackSceneId = currentScene?.id ?? null;
+      if (
+        !engine ||
+        !currentPlaybackSceneId ||
+        readyPlaybackSceneIdRef.current !== currentPlaybackSceneId ||
+        activeSceneIdRef.current !== currentPlaybackSceneId
+      ) {
+        pendingPlaySceneIdRef.current = currentPlaybackSceneId;
+        return;
+      }
 
       const mode = engine.getMode();
       if (mode === 'playing' || mode === 'live') {

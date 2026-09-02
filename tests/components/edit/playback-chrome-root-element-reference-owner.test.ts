@@ -19,6 +19,12 @@ const mocks = vi.hoisted(() => ({
       }
     | undefined,
   handleUserInterrupt: vi.fn(),
+  loadCursor: vi.fn(),
+  startLecture: vi.fn(),
+  continuePlayback: vi.fn(),
+  canJumpWithin: vi.fn(),
+  canJumpToAction: vi.fn(),
+  jumpToAction: vi.fn(),
 }));
 
 const textElement = {
@@ -52,7 +58,10 @@ const scene = {
   title: 'Slide',
   order: 0,
   type: 'slide',
-  actions: [],
+  actions: [
+    { id: 'speech-1', type: 'speech', text: 'First.' },
+    { id: 'speech-2', type: 'speech', text: 'Second.' },
+  ],
   content: {
     type: 'slide',
     canvas: { elements: [textElement, shapeElement] },
@@ -222,7 +231,7 @@ vi.mock('@/components/chat/chat-area', async () => {
         sendMessage: mocks.sendMessage,
         endActiveSession: vi.fn().mockResolvedValue(undefined),
         endSession: vi.fn().mockResolvedValue(undefined),
-        startLecture: vi.fn().mockResolvedValue('lecture-1'),
+        startLecture: mocks.startLecture,
         addLectureMessage: vi.fn(),
         getLectureMessageId: vi.fn(),
         startDiscussion: vi.fn(),
@@ -264,17 +273,19 @@ vi.mock('@/lib/playback', () => ({
       return false;
     }
     canJumpToAction() {
-      return false;
+      return mocks.canJumpToAction();
     }
     jumpToAction() {
-      return Promise.resolve(false);
+      return mocks.jumpToAction();
     }
     handleUserInterrupt(text: string) {
       mocks.handleUserInterrupt(text);
       mocks.engineOptions?.onUserInterrupt?.(text);
     }
     start() {}
-    continuePlayback() {}
+    continuePlayback() {
+      mocks.continuePlayback();
+    }
     pause() {}
     confirmDiscussion() {}
     skipDiscussion() {}
@@ -283,7 +294,7 @@ vi.mock('@/lib/playback', () => ({
   shouldAutoResumeLecture: () => false,
 }));
 vi.mock('@/lib/playback/action-navigation', () => ({
-  canJumpWithinReconstructablePrefix: () => false,
+  canJumpWithinReconstructablePrefix: mocks.canJumpWithin,
   isUnsafePlaybackNavigationAction: () => false,
 }));
 vi.mock('@/lib/playback/action-resume', () => ({
@@ -295,7 +306,7 @@ vi.mock('@/lib/playback/action-resume', () => ({
   saveActionResumePosition: vi.fn(),
 }));
 vi.mock('@/lib/playback/cursor', () => ({
-  loadCursor: vi.fn().mockResolvedValue(null),
+  loadCursor: mocks.loadCursor,
   saveCursor: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/action/engine', () => ({ ActionEngine: class {} }));
@@ -345,6 +356,17 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     mocks.engineMode = 'idle';
     mocks.engineOptions = undefined;
     mocks.handleUserInterrupt.mockReset();
+    mocks.loadCursor.mockReset();
+    mocks.loadCursor.mockResolvedValue(null);
+    mocks.startLecture.mockReset();
+    mocks.startLecture.mockResolvedValue('lecture-1');
+    mocks.continuePlayback.mockReset();
+    mocks.canJumpWithin.mockReset();
+    mocks.canJumpWithin.mockReturnValue(false);
+    mocks.canJumpToAction.mockReset();
+    mocks.canJumpToAction.mockReturnValue(false);
+    mocks.jumpToAction.mockReset();
+    mocks.jumpToAction.mockResolvedValue(false);
     stageState.currentSceneId = scene.id;
     stageState.setCurrentSceneId.mockClear();
     settingsState.autoPlayLecture = false;
@@ -410,6 +432,192 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
       ),
     );
     expect(container.querySelector('[data-testid="owner-pill"]')).toBeNull();
+  });
+
+  it('consumes one Play intent after deferred cursor restore installs the engine', async () => {
+    let resolveCursor!: (value: null) => void;
+    mocks.loadCursor.mockImplementationOnce(
+      () =>
+        new Promise<null>((resolve) => {
+          resolveCursor = resolve;
+        }),
+    );
+
+    await renderOwner();
+    act(() => {
+      (mocks.canvasProps?.onPlayPause as (() => void) | undefined)?.();
+    });
+    expect(mocks.startLecture).not.toHaveBeenCalled();
+    expect(mocks.continuePlayback).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCursor(null);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.continuePlayback).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])(
+    'queues Play while an installed engine restores its cursor with result %s',
+    async (restoreResult) => {
+      let resolveJump!: (value: boolean) => void;
+      mocks.loadCursor.mockResolvedValueOnce({
+        sceneId: scene.id,
+        actionIndex: 1,
+        updatedAt: '2026-09-02T00:00:00.000Z',
+      });
+      mocks.canJumpWithin.mockReturnValue(true);
+      mocks.canJumpToAction.mockReturnValue(true);
+      mocks.jumpToAction.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveJump = resolve;
+          }),
+      );
+
+      await renderOwner();
+      expect(mocks.jumpToAction).toHaveBeenCalledOnce();
+      act(() => {
+        (mocks.canvasProps?.onPlayPause as (() => void) | undefined)?.();
+      });
+      expect(mocks.startLecture).not.toHaveBeenCalled();
+      expect(mocks.continuePlayback).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveJump(restoreResult);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(mocks.continuePlayback).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('drops a stale queued Play when auto-start takes over the next scene', async () => {
+    vi.useFakeTimers();
+    settingsState.autoPlayLecture = true;
+    let resolveJump!: (value: false) => void;
+    mocks.loadCursor.mockResolvedValueOnce({
+      sceneId: scene.id,
+      actionIndex: 1,
+      updatedAt: '2026-09-02T00:00:00.000Z',
+    });
+    mocks.canJumpWithin.mockReturnValue(true);
+    mocks.canJumpToAction.mockReturnValue(true);
+    mocks.jumpToAction.mockImplementationOnce(
+      () =>
+        new Promise<false>((resolve) => {
+          resolveJump = resolve;
+        }),
+    );
+
+    try {
+      await renderOwner();
+      act(() => {
+        (mocks.canvasProps?.onPlayPause as (() => void) | undefined)?.();
+        mocks.engineOptions?.onComplete?.();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1500);
+      });
+      expect(stageState.currentSceneId).toBe(secondScene.id);
+
+      await rerenderOwner();
+      mocks.continuePlayback.mockClear();
+      settingsState.autoPlayLecture = false;
+      stageState.currentSceneId = scene.id;
+      await rerenderOwner();
+
+      expect(mocks.continuePlayback).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => {
+        resolveJump(false);
+        await Promise.resolve();
+      });
+      vi.useRealTimers();
+    }
+  });
+
+  it('queues Play for the new scene instead of operating the previous engine', async () => {
+    await renderOwner();
+    mocks.startLecture.mockClear();
+    mocks.continuePlayback.mockClear();
+
+    let resolveCursor!: (value: null) => void;
+    mocks.loadCursor.mockImplementationOnce(
+      () =>
+        new Promise<null>((resolve) => {
+          resolveCursor = resolve;
+        }),
+    );
+    stageState.currentSceneId = secondScene.id;
+    await rerenderOwner();
+
+    act(() => {
+      (mocks.canvasProps?.onPlayPause as (() => void) | undefined)?.();
+    });
+    expect(mocks.startLecture).not.toHaveBeenCalled();
+    expect(mocks.continuePlayback).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCursor(null);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.startLecture).toHaveBeenCalledOnce();
+    expect(mocks.continuePlayback).toHaveBeenCalledOnce();
+  });
+
+  it('does not let a cancelled scene initialization start its old engine', async () => {
+    let resolveFirstCursor!: (value: null) => void;
+    let resolveSecondCursor!: (value: null) => void;
+    let resolveLecture!: (value: string) => void;
+    mocks.loadCursor
+      .mockImplementationOnce(
+        () =>
+          new Promise<null>((resolve) => {
+            resolveFirstCursor = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<null>((resolve) => {
+            resolveSecondCursor = resolve;
+          }),
+      );
+    mocks.startLecture.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveLecture = resolve;
+        }),
+    );
+
+    await renderOwner();
+    act(() => {
+      (mocks.canvasProps?.onPlayPause as (() => void) | undefined)?.();
+    });
+    await act(async () => {
+      resolveFirstCursor(null);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.startLecture).toHaveBeenCalledOnce();
+
+    stageState.currentSceneId = secondScene.id;
+    await rerenderOwner();
+    await act(async () => {
+      resolveLecture('lecture-old');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.continuePlayback).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveSecondCursor(null);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
   });
 
   it('keeps a newer owner draft when an older request receipt arrives', async () => {
