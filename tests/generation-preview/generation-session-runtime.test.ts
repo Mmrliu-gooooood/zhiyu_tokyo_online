@@ -191,4 +191,38 @@ describe('GenerationSessionRuntime public seam', () => {
     expect(discard).toHaveBeenCalledOnce();
     expect(discard).toHaveBeenCalledWith(['image-3']);
   });
+
+  it('revokes a failed session and aborts its signal before awaiting resource cleanup', async () => {
+    let releaseCleanup!: () => void;
+    const cleanup = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const events: string[] = [];
+    const runtime = new GenerationSessionRuntime({
+      onPhase: (phase) => events.push(`phase:${phase}`),
+    });
+    const { epoch, signal } = runtime.start('agent-generation');
+
+    const failure = runtime.failAfterRevoking(epoch, {
+      revoke: () => events.push('session:revoked'),
+      discard: async () => {
+        events.push(`discard:started:${signal.aborted}`);
+        await cleanup;
+        events.push('discard:finished');
+      },
+    });
+
+    await Promise.resolve();
+    expect(signal.aborted).toBe(true);
+    expect(events).toEqual([
+      'phase:agent-generation',
+      'session:revoked',
+      'phase:failed',
+      'discard:started:true',
+    ]);
+
+    releaseCleanup();
+    await expect(failure).resolves.toBe(true);
+    expect(events.at(-1)).toBe('discard:finished');
+  });
 });

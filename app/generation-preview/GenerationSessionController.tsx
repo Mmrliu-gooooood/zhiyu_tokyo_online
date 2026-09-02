@@ -1141,14 +1141,19 @@ function GenerationPreviewContent() {
         log.info('[GenerationPreview] Generation aborted');
         return;
       }
-      await deleteStoredImages(currentSession.imageStorageIds ?? []).catch((cleanupError) => {
-        log.warn('[GenerationPreview] Failed to discard session image records:', cleanupError);
+      const imageStorageIds = currentSession.imageStorageIds ?? [];
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      await runtime.failAfterRevoking(epoch, {
+        revoke: () => {
+          sessionStorage.removeItem('generationSession');
+          setError(errorMessage);
+        },
+        discard: async () => {
+          await deleteStoredImages(imageStorageIds).catch((cleanupError) => {
+            log.warn('[GenerationPreview] Failed to discard session image records:', cleanupError);
+          });
+        },
       });
-      commit(() => {
-        sessionStorage.removeItem('generationSession');
-        setError(err instanceof Error ? err.message : String(err));
-      });
-      if (!runtime.transition(epoch, 'failed')) return;
     } finally {
       await imageLease.discard().catch((cleanupError) => {
         log.warn('[GenerationPreview] Failed to discard retired image records:', cleanupError);

@@ -29,6 +29,11 @@ type GenerationCandidateTransaction = {
   publish: () => void;
 };
 
+type GenerationFailureTransaction = {
+  revoke: () => void;
+  discard: () => Promise<void>;
+};
+
 /** Run-local ownership token for resources that may be transferred to a recoverable session. */
 export class GenerationResourceLease<T> {
   private resources: T[] = [];
@@ -137,6 +142,18 @@ export class GenerationSessionRuntime {
       await transaction.discard();
       throw error;
     }
+  }
+
+  /** Revoke recoverable session ownership and enter failed before async cleanup can yield. */
+  async failAfterRevoking(
+    epoch: number,
+    transaction: GenerationFailureTransaction,
+  ): Promise<boolean> {
+    if (!this.isCurrent(epoch)) return false;
+    transaction.revoke();
+    if (!this.transition(epoch, 'failed')) return false;
+    await transaction.discard();
+    return true;
   }
 
   isCurrent(epoch: number): boolean {
