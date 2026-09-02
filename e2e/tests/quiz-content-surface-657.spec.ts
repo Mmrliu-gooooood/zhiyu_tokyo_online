@@ -12,10 +12,10 @@ const SETTINGS_STORAGE = createSettingsStorage({ sidebarCollapsed: false });
  * Two tests:
  *  A. Authoring — in Pro mode, add a question of every type, edit fields, and
  *     delete, asserting the editor reflects each op.
- *  B. Round trip — seed a quiz, edit it in Pro mode, then leave Pro mode and
- *     TAKE the quiz as a learner (answer single / multiple / short-answer,
- *     submit, grade). Asserts the Pro-mode edit actually reaches playback and
- *     that the produced quiz is playable and gradable end to end.
+ *  B. Round trip — seed a quiz, edit it in Pro mode, then start learning in
+ *     the hosted workspace and TAKE the quiz (answer single / multiple /
+ *     short-answer, submit, grade). Asserts the Pro-mode edit actually reaches
+ *     playback and that the produced quiz is playable and gradable end to end.
  *
  * The quiz scene is seeded straight into IndexedDB (the editor + generation
  * pipeline don't emit quiz scenes through the mock generator), mirroring how
@@ -139,7 +139,7 @@ test.describe('Quiz content surface (#657)', () => {
     await expect(cards).toHaveCount(3);
   });
 
-  test('round trip: edit in Pro mode, then take the quiz and grade it', async ({
+  test('round trip: edit in hosted Pro mode, then take the quiz and grade it', async ({
     page,
   }, testInfo) => {
     const STAGE = 'e2e-quiz-roundtrip';
@@ -190,36 +190,13 @@ test.describe('Quiz content surface (#657)', () => {
     await classroom.goto(STAGE);
     await classroom.waitForLoaded();
 
-    // Pro mode has two Pro toggles (the playback header's and the edit chrome's,
-    // morphed via layoutId) and only one is the live control at a time. Click
-    // switches until the editor surface reaches the desired state, polling with
-    // a web-first assertion after each click (no fixed sleeps) and bailing as
-    // soon as it flips so a no-op click on the morph ghost can't over-toggle.
     const surface = page.getByTestId('quiz-surface');
-    const atTarget = async (on: boolean) => {
-      try {
-        await expect(surface)[on ? 'toBeVisible' : 'toBeHidden']({ timeout: 1500 });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    const setProMode = async (on: boolean) => {
-      if (await atTarget(on)) return;
-      const switches = page.getByRole('switch');
-      const n = await switches.count();
-      for (let i = 0; i < n; i++) {
-        await switches
-          .nth(i)
-          .click()
-          .catch(() => {});
-        if (await atTarget(on)) return;
-      }
-      await expect(surface)[on ? 'toBeVisible' : 'toBeHidden']();
-    };
 
     // --- Author: edit the single-choice question text in Pro mode.
-    await setProMode(true);
+    await page.getByRole('switch', { name: /edit course|编辑课程/i }).click();
+    await page.waitForURL(new RegExp(`/workspace\\?course=${STAGE}`));
+    await expect(page.getByTestId('zhiyu-editor-shell')).toBeVisible();
+    await expect(surface).toBeVisible();
     const cards = page.getByTestId('quiz-question');
     await expect(cards).toHaveCount(3, { timeout: 10_000 });
     await cards
@@ -229,9 +206,9 @@ test.describe('Quiz content surface (#657)', () => {
     await cards.first().locator('textarea').first().fill('Capital of France (edited)?');
     await expect(cards.first()).toContainText('Capital of France (edited)?');
 
-    // --- Leave Pro mode and take the quiz as a learner.
-    await setProMode(false);
-    await expect(page.getByTestId('quiz-surface')).toBeHidden();
+    // --- Start learning in the hosted pane and take the quiz as a learner.
+    await page.getByTestId('workbench-start-learning').click();
+    await expect(surface).toBeHidden();
     await page.getByRole('button', { name: 'Start Quiz' }).click();
 
     // The edited question text reaches playback — proves the edit round-trips.
