@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   WorkspaceOwnerRuntime,
   type WorkspaceOwnerRuntimeOptions,
@@ -54,6 +54,65 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+
+class TestSessionTitleLocks {
+  readonly signals: AbortSignal[] = [];
+  private active = false;
+  private readonly waiters: Array<() => void> = [];
+
+  request<T>(
+    _name: string,
+    optionsOrTask:
+      | { readonly ifAvailable?: boolean; readonly signal?: AbortSignal }
+      | ((lock: object | null) => Promise<T> | T),
+    maybeTask?: (lock: object | null) => Promise<T> | T,
+  ): Promise<T> {
+    const options = typeof optionsOrTask === 'function' ? {} : optionsOrTask;
+    const task = typeof optionsOrTask === 'function' ? optionsOrTask : maybeTask!;
+    if (options.signal) this.signals.push(options.signal);
+    if (options.ifAvailable && this.active) return Promise.resolve(task(null));
+    return new Promise<T>((resolve, reject) => {
+      let waiting = true;
+      const run = () => {
+        if (!waiting) return;
+        waiting = false;
+        if (options.signal?.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'));
+          this.release();
+          return;
+        }
+        this.active = true;
+        void Promise.resolve(task({}))
+          .then(resolve, reject)
+          .finally(() => this.release());
+      };
+      const onAbort = () => {
+        if (!waiting) return;
+        waiting = false;
+        const waiterIndex = this.waiters.indexOf(run);
+        if (waiterIndex >= 0) this.waiters.splice(waiterIndex, 1);
+        reject(new DOMException('Aborted', 'AbortError'));
+      };
+      options.signal?.addEventListener('abort', onAbort, { once: true });
+      if (this.active) this.waiters.push(run);
+      else run();
+    });
+  }
+
+  private release(): void {
+    const next = this.waiters.shift();
+    if (next) next();
+    else this.active = false;
+  }
+}
+
+beforeEach(() => {
+  vi.stubGlobal('navigator', { locks: new TestSessionTitleLocks() });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 async function flushPromises(): Promise<void> {
   await Promise.resolve();
@@ -171,19 +230,8 @@ describe('WorkspaceOwnerRuntime public seam', () => {
       storedTitle = title;
       return Promise.resolve(title);
     });
-    let lockTail = Promise.resolve();
-    vi.stubGlobal('navigator', {
-      locks: {
-        request: <T>(_name: string, task: () => Promise<T>) => {
-          const run = lockTail.then(task);
-          lockTail = run.then(
-            () => undefined,
-            () => undefined,
-          );
-          return run;
-        },
-      },
-    });
+    const locks = new TestSessionTitleLocks();
+    vi.stubGlobal('navigator', { locks });
 
     const first = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
     first.start();
@@ -207,6 +255,86 @@ describe('WorkspaceOwnerRuntime public seam', () => {
     expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Title B']);
     expect(storedTitle).toBe('Title B');
     second.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('persists an explicit return to the stale snapshot after a remount', async () => {
+    const firstSave = deferred<string | null>();
+    let storedTitle: string | null = 'Old title';
+    const saveSessionTitle = vi.fn((_sessionId: string, title: string | null) => {
+      if (saveSessionTitle.mock.calls.length === 1) {
+        return firstSave.promise.then((stored) => {
+          storedTitle = stored;
+          return stored;
+        });
+      }
+      storedTitle = title;
+      return Promise.resolve(title);
+    });
+    vi.stubGlobal('navigator', { locks: new TestSessionTitleLocks() });
+
+    const first = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    first.start();
+    await flushPromises();
+    const renameA = first.renameSession('session-1', 'Title A');
+    await flushPromises();
+    first.stop();
+
+    const second = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    second.start();
+    await flushPromises();
+    const renameBack = second.renameSession('session-1', 'Old title');
+    await flushPromises();
+    expect(saveSessionTitle).toHaveBeenCalledTimes(1);
+
+    firstSave.resolve('Title A');
+    await renameA;
+    await renameBack;
+
+    expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Old title']);
+    expect(storedTitle).toBe('Old title');
+    second.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('refuses an unsafe cross-mount title write when Web Locks are unavailable', async () => {
+    vi.stubGlobal('navigator', {});
+    const saveSessionTitle = vi.fn(async (_sessionId: string, title: string | null) => title);
+    const runtime = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    runtime.start();
+    await flushPromises();
+
+    await expect(runtime.renameSession('session-1', 'Title A')).resolves.toBe('failed');
+    expect(saveSessionTitle).not.toHaveBeenCalled();
+    runtime.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('aborts a stale remount waiter before it acquires the browser lock', async () => {
+    const firstSave = deferred<string | null>();
+    const saveSessionTitle = vi
+      .fn<(_sessionId: string, title: string | null) => Promise<string | null>>()
+      .mockReturnValueOnce(firstSave.promise)
+      .mockResolvedValue('Title B');
+    const locks = new TestSessionTitleLocks();
+    vi.stubGlobal('navigator', { locks });
+    const first = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    const stale = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    first.start();
+    stale.start();
+    await flushPromises();
+    const renameA = first.renameSession('session-1', 'Title A');
+    await flushPromises();
+    const renameB = stale.renameSession('session-1', 'Title B');
+    await flushPromises();
+
+    stale.stop();
+    expect(locks.signals.some((signal) => signal.aborted)).toBe(true);
+    firstSave.resolve('Title A');
+    await renameA;
+    await expect(renameB).resolves.toBe('unchanged');
+    expect(saveSessionTitle).toHaveBeenCalledTimes(1);
+    first.stop();
     vi.unstubAllGlobals();
   });
 });

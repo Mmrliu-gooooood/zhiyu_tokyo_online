@@ -19,6 +19,8 @@ export interface WorkspaceNavigationController extends WorkspaceNavigationModel 
   ) => WorkspaceNavigationModel;
   /** Captures the current pane/draft owner; false after navigation or unmount. */
   readonly captureOwnershipFence: () => () => boolean;
+  /** Invalidates asynchronous work before navigation leaves this controller. */
+  readonly invalidateOwnership: () => void;
 }
 
 /** One mounted writer for URL panes, course-tab memory and narrow-view focus. */
@@ -58,6 +60,9 @@ export function useWorkspaceNavigationModel(
     const epoch = ownershipEpochRef.current;
     return () => ownershipEpochRef.current === epoch;
   }, []);
+  const invalidateOwnership = useCallback(() => {
+    ownershipEpochRef.current += 1;
+  }, []);
 
   useEffect(
     () => () => {
@@ -86,7 +91,7 @@ export function useWorkspaceNavigationModel(
   }, [transition]);
 
   return useMemo(
-    () => ({ ...model, transition, captureOwnershipFence }),
-    [captureOwnershipFence, model, transition],
+    () => ({ ...model, transition, captureOwnershipFence, invalidateOwnership }),
+    [captureOwnershipFence, invalidateOwnership, model, transition],
   );
 }

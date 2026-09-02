@@ -325,6 +325,15 @@ beforeEach(() => {
     elementRefsAccepted: true,
     courseRefsAccepted: true,
   });
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: async <T>(
+        _name: string,
+        _options: { readonly ifAvailable?: boolean; readonly signal: AbortSignal },
+        task: (lock: object | null) => Promise<T> | T,
+      ) => task({}),
+    },
+  });
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => ({ ok: true, json: async () => [] })),
@@ -823,6 +832,38 @@ describe('a new conversation is a live composer, not a loading pane', () => {
       (mocks.railProps?.onOpenSession as (sessionId: string) => void)('session-2'),
     );
 
+    pending.resolve({
+      sessionId: 'session-late',
+      elementRefsAccepted: true,
+      courseRefsAccepted: true,
+    });
+    await act(async () => starting);
+
+    expect(mocks.routerReplace).not.toHaveBeenCalledWith(
+      '/workspace?session=session-late&course=stage-1',
+    );
+    expect(mocks.requestFullFetch).not.toHaveBeenCalled();
+  });
+
+  it('invalidates a pending first message before Exit Pro starts routing away', async () => {
+    const pending = deferred<{
+      sessionId: string;
+      elementRefsAccepted: boolean;
+      courseRefsAccepted: boolean;
+    }>();
+    mocks.startFirstMessage.mockReturnValueOnce(pending.promise);
+    mocks.sessionRows = [];
+    await render();
+    const start = draft()?.start;
+    expect(start).toBeTypeOf('function');
+    mocks.requestFullFetch.mockClear();
+
+    let starting!: Promise<unknown>;
+    await act(async () => {
+      starting = start!({ text: 'Build it', materials: [], elementRefs: [], courseRefs: [] });
+      await Promise.resolve();
+    });
+    await act(async () => (mocks.railProps?.onExitPro as () => void)());
     pending.resolve({
       sessionId: 'session-late',
       elementRefsAccepted: true,

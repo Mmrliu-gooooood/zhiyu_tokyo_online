@@ -206,6 +206,7 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
   const panes = navigation.panes;
   const transitionNavigation = navigation.transition;
   const captureNavigationOwnership = navigation.captureOwnershipFence;
+  const invalidateNavigationOwnership = navigation.invalidateOwnership;
   const courseTabs = navigation.courseTabs;
   const narrowFocus = navigation.narrowFocus;
   const newConversationRequested = navigation.newConversationRequested;
@@ -500,7 +501,10 @@ function WorkspaceShellController({ initialPanes }: { readonly initialPanes: Wor
   // lockup stays fixed. `startProSwap` falls back to a plain push where the
   // browser has no View Transitions or the user asked for less motion, and
   // swallows a second click while one swap is already running.
-  const exitPro = useCallback(() => startProSwap('/', (href) => router.push(href)), [router]);
+  const exitPro = useCallback(() => {
+    invalidateNavigationOwnership();
+    return startProSwap('/', (href) => router.push(href));
+  }, [invalidateNavigationOwnership, router]);
   /**
    * Back to the bare workspace: both panes dropped, the composer refocused.
    *

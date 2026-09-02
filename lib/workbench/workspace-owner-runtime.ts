@@ -39,7 +39,11 @@ const INITIAL_SNAPSHOT: WorkspaceOwnerSnapshot = Object.freeze({
 });
 
 interface SessionTitleLockManager {
-  request<T>(name: string, task: () => Promise<T>): Promise<T>;
+  request<T>(
+    name: string,
+    options: { readonly ifAvailable?: boolean; readonly signal: AbortSignal },
+    task: (lock: object | null) => Promise<T> | T,
+  ): Promise<T>;
 }
 
 function sessionTitleLockManager(): SessionTitleLockManager | null {
@@ -48,9 +52,22 @@ function sessionTitleLockManager(): SessionTitleLockManager | null {
 }
 
 /** Browser-owned exclusion survives a React/Shell remount without a module runtime. */
-function runSessionTitleWrite<T>(sessionId: string, task: () => Promise<T>): Promise<T> {
+async function runSessionTitleWrite<T>(
+  sessionId: string,
+  signal: AbortSignal,
+  task: (waitedForAnotherMount: boolean) => Promise<T>,
+): Promise<T> {
   const locks = sessionTitleLockManager();
-  return locks ? locks.request(`openmaic:session-title:${sessionId}`, task) : task();
+  if (!locks) throw new Error('Web Locks are required for session title writes');
+  const name = `openmaic:session-title:${sessionId}`;
+  const immediate = await locks.request(name, { ifAvailable: true, signal }, async (lock) =>
+    lock ? { acquired: true as const, value: await task(false) } : { acquired: false as const },
+  );
+  if (immediate.acquired) return immediate.value;
+  return locks.request(name, { signal }, async (lock) => {
+    if (!lock) throw new Error('Session title lock was not acquired');
+    return task(true);
+  });
 }
 
 /**
@@ -65,6 +82,7 @@ export class WorkspaceOwnerRuntime {
   private snapshot: WorkspaceOwnerSnapshot = INITIAL_SNAPSHOT;
   private generation = 0;
   private started = false;
+  private titleLockAbortController = new AbortController();
 
   constructor(private readonly options: WorkspaceOwnerRuntimeOptions) {
     this.client = new OwnerSessionClient({
@@ -87,6 +105,9 @@ export class WorkspaceOwnerRuntime {
 
   start(): void {
     if (this.started) return;
+    if (this.titleLockAbortController.signal.aborted) {
+      this.titleLockAbortController = new AbortController();
+    }
     this.started = true;
     this.client.start();
   }
@@ -95,6 +116,7 @@ export class WorkspaceOwnerRuntime {
     if (!this.started) return;
     this.started = false;
     this.generation += 1;
+    this.titleLockAbortController.abort();
     this.client.stop();
   }
 
@@ -120,38 +142,43 @@ export class WorkspaceOwnerRuntime {
     return this.client.getUnconfirmedSessionTitle(sessionId);
   }
 
-  renameSession(sessionId: string, raw: string): Promise<SessionRenameOutcome> {
+  async renameSession(sessionId: string, raw: string): Promise<SessionRenameOutcome> {
     const generation = this.generation;
     const isOriginCurrent = () => this.started && this.generation === generation;
-    return this.renameQueue.run(sessionId, (queued) =>
-      runSessionTitleWrite(sessionId, async () => {
-        if (!isOriginCurrent()) return 'unchanged';
-        const row = this.snapshot.sessions.find((session) => session.id === sessionId);
-        const attached = this.options.getAttachedSession();
-        const attachedNaming = attached?.id === sessionId ? attached : null;
-        let revision: number | null = null;
-        const outcome = await commitSessionRename({
-          current: {
-            title: row?.title ?? attachedNaming?.title ?? null,
-            prompt: row?.prompt ?? attachedNaming?.prompt ?? null,
-          },
-          raw,
-          apply: (title, settled) => {
-            if (!isOriginCurrent()) return;
-            this.options.syncAttachedTitle(sessionId, title);
-            revision = this.client.updateSessionTitle(sessionId, title, settled);
-          },
-          save: (title) => this.options.saveSessionTitle(sessionId, title),
-          isCurrent: () =>
-            isOriginCurrent() &&
-            revision !== null &&
-            this.client.isSessionTitleRevisionCurrent(sessionId, revision),
-          forceSave: queued,
-        });
-        if (isOriginCurrent() && outcome !== 'unchanged') this.client.requestFullFetch();
-        return outcome;
-      }),
-    );
+    const signal = this.titleLockAbortController.signal;
+    try {
+      return await this.renameQueue.run(sessionId, (queued) =>
+        runSessionTitleWrite(sessionId, signal, async (waitedForAnotherMount) => {
+          if (!isOriginCurrent()) return 'unchanged';
+          const row = this.snapshot.sessions.find((session) => session.id === sessionId);
+          const attached = this.options.getAttachedSession();
+          const attachedNaming = attached?.id === sessionId ? attached : null;
+          let revision: number | null = null;
+          const outcome = await commitSessionRename({
+            current: {
+              title: row?.title ?? attachedNaming?.title ?? null,
+              prompt: row?.prompt ?? attachedNaming?.prompt ?? null,
+            },
+            raw,
+            apply: (title, settled) => {
+              if (!isOriginCurrent()) return;
+              this.options.syncAttachedTitle(sessionId, title);
+              revision = this.client.updateSessionTitle(sessionId, title, settled);
+            },
+            save: (title) => this.options.saveSessionTitle(sessionId, title),
+            isCurrent: () =>
+              isOriginCurrent() &&
+              revision !== null &&
+              this.client.isSessionTitleRevisionCurrent(sessionId, revision),
+            forceSave: queued || waitedForAnotherMount,
+          });
+          if (isOriginCurrent() && outcome !== 'unchanged') this.client.requestFullFetch();
+          return outcome;
+        }),
+      );
+    } catch {
+      return isOriginCurrent() ? 'failed' : 'unchanged';
+    }
   }
 
   private publishSessions(
