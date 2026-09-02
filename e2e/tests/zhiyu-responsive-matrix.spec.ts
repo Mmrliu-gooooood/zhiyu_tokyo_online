@@ -41,6 +41,23 @@ const GENERATION_SESSION = JSON.stringify({
 });
 
 const GOLDEN_ERROR_STAGE_ID = 'e2e-zhiyu-golden-error';
+const CONTAMINATING_SESSION_ID = 'e2e-golden-backend-contamination';
+
+const CONTAMINATING_SESSION = {
+  id: CONTAMINATING_SESSION_ID,
+  stageId: 'e2e-unrelated-course',
+  prompt: 'This backend session must not enter the visual fixture',
+  status: 'succeeded',
+  createdAt: 1_788_192_000_000,
+  updatedAt: 1_788_192_000_000,
+} as const;
+
+const EMPTY_OWNER_EVENT_STREAM = [
+  'event: caught_up',
+  'data: {"type":"caught_up","replayed":0,"fromEventId":"0"}',
+  '',
+  '',
+].join('\n');
 
 async function configureMatrixCase(page: Page, matrix: MatrixCase) {
   await page.setViewportSize({ width: matrix.width, height: 900 });
@@ -118,8 +135,31 @@ async function seedFutureVersionClassroom(page: Page) {
   }, GOLDEN_ERROR_STAGE_ID);
 }
 
+async function installDeterministicWorkspaceOwnerFixture(page: Page) {
+  await page.route('**/api/agent/sessions', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({ json: [] });
+  });
+  await page.route('**/api/agent/owner-events', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      headers: { 'cache-control': 'no-cache' },
+      body: EMPTY_OWNER_EVENT_STREAM,
+    });
+  });
+}
+
 async function openCombinedWorkspace(page: Page, matrix: MatrixCase) {
   await configureMatrixCase(page, matrix);
+  await installDeterministicWorkspaceOwnerFixture(page);
   await seedClassroomDatabase(page);
   await page.goto(`/workspace?course=${ZHIYU_CLASSROOM_STAGE_ID}`);
 
@@ -253,6 +293,35 @@ test.describe('ZHIYU Tier B responsive and theme matrix', () => {
       await captureMatrixEvidence(page, testInfo, 'conversation-hosted-editor', matrix);
     });
   }
+});
+
+test('Workspace golden fixture ignores sessions already present in the backend', async ({
+  page,
+}) => {
+  let backendOwnerStreamReached = false;
+  await page.route('**/api/agent/sessions', async (route) => {
+    await route.fulfill({ json: [CONTAMINATING_SESSION] });
+  });
+  await page.route('**/api/agent/owner-events', async (route) => {
+    backendOwnerStreamReached = true;
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: EMPTY_OWNER_EVENT_STREAM,
+    });
+  });
+
+  const ownerStreamResponse = page.waitForResponse('**/api/agent/owner-events');
+  await openCombinedWorkspace(page, { width: 1366, theme: 'light' });
+  await ownerStreamResponse;
+  await page.getByTestId('pro-nav-tab-sessions').click();
+
+  await expect(
+    page.getByTestId('pro-nav-section-sessions').getByText('No chats yet'),
+  ).toBeVisible();
+  expect(backendOwnerStreamReached).toBe(false);
+  await expect(page.getByTestId(`pro-nav-session-${CONTAMINATING_SESSION_ID}`)).toHaveCount(0);
+  await expect(page.getByTestId('workbench-chat-empty')).toBeVisible();
 });
 
 test('captures the Generation missing-session recovery state', async ({ page }, testInfo) => {
