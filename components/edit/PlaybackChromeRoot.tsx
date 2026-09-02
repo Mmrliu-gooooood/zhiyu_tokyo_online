@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -354,8 +355,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const engineRef = useRef<PlaybackEngine | null>(null);
     const audioPlayerRef = useRef(createAudioPlayer());
     const chatAreaRef = useRef<ChatAreaRef>(null);
-    const isCurrentChatProducer = useCallback((producerSessionId?: string) => {
-      if (!producerSessionId) return true;
+    const isCurrentChatProducer = useCallback((producerSessionId: string) => {
       return chatAreaRef.current?.getActiveSessionId() === producerSessionId;
     }, []);
     const lectureSessionIdRef = useRef<string | null>(null);
@@ -546,7 +546,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
 
     /** Request failure should exit live discussion UI without hard-closing the session. */
     const handleLiveSessionError = useCallback(
-      (producerSessionId?: string) => {
+      (producerSessionId: string) => {
         if (!isCurrentChatProducer(producerSessionId)) return;
         classroomLiveRuntime.advanceSession();
         engineRef.current?.handleDiscussionError();
@@ -602,6 +602,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
      */
     const handleSessionStop = useCallback(
       async (payload: SessionCleanupPayload) => {
+        if (!isCurrentChatProducer(payload.sessionId)) return;
         const engine = engineRef.current;
         const hadLectureInterruption = engine?.hasLectureInterruption() ?? false;
 
@@ -642,7 +643,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         lectureSessionIdRef.current = sessionId;
         engine.continuePlayback();
       },
-      [doSessionCleanup, playbackCompleted],
+      [doSessionCleanup, isCurrentChatProducer, playbackCompleted],
     );
 
     // Imperative teardown so the parent can `await` SSE / engine / TTS
@@ -1243,9 +1244,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       ],
     );
     const projectPlaybackViewRef = useRef(projectPlaybackView);
-    projectPlaybackViewRef.current = projectPlaybackView;
     const projectedCurrentSceneIdRef = useRef(currentSceneId);
-    projectedCurrentSceneIdRef.current = currentSceneId;
+    useLayoutEffect(() => {
+      projectPlaybackViewRef.current = projectPlaybackView;
+      projectedCurrentSceneIdRef.current = currentSceneId;
+    }, [currentSceneId, projectPlaybackView]);
 
     /**
      * Gated scene switch — if a topic is active, show AlertDialog before switching.
@@ -2118,7 +2121,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                     setSoftCloseDeadline(deadline);
                   }}
                   onStopSession={handleSessionStop}
-                  onSegmentSealed={discussionTTS.handleSegmentSealed}
+                  onSegmentSealed={(messageId, partId, text, agentId, producerSessionId) => {
+                    if (!isCurrentChatProducer(producerSessionId)) return;
+                    discussionTTS.handleSegmentSealed(messageId, partId, text, agentId);
+                  }}
                   shouldHoldAfterReveal={discussionTTS.shouldHold}
                 />
               }

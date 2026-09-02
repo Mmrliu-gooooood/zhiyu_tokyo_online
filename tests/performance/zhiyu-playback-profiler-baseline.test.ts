@@ -52,6 +52,9 @@ const mocks = vi.hoisted(() => ({
   engineOptions: undefined as Record<string, unknown> | undefined,
   loadCursor: vi.fn(),
   activeSessionId: 'session-current' as string | null,
+  discussionCleanup: vi.fn(),
+  segmentSealed: vi.fn(),
+  handleEndDiscussion: vi.fn(),
 }));
 
 const scene = {
@@ -303,6 +306,12 @@ vi.mock('@/lib/playback', () => ({
       return false;
     }
     handleUserInterrupt() {}
+    handleEndDiscussion() {
+      mocks.handleEndDiscussion();
+    }
+    hasLectureInterruption() {
+      return false;
+    }
     start() {}
     continuePlayback() {}
     pause() {}
@@ -340,10 +349,10 @@ vi.mock('@/lib/utils/audio-player', () => ({
 }));
 vi.mock('@/lib/hooks/use-discussion-tts', () => ({
   useDiscussionTTS: () => ({
-    cleanup: vi.fn(),
+    cleanup: mocks.discussionCleanup,
     pause: vi.fn(),
     resume: vi.fn(),
-    handleSegmentSealed: vi.fn(),
+    handleSegmentSealed: mocks.segmentSealed,
     shouldHold: vi.fn(() => false),
   }),
 }));
@@ -362,8 +371,11 @@ vi.mock('@/lib/config/feature-flags', () => ({ isPiChatEnabled: () => true }));
 import { PlaybackChromeRoot } from '@/components/edit/PlaybackChromeRoot';
 import { useStageStore } from '@/lib/store';
 
-type SpeechProgress = (ratio: number | null) => void;
-type ThinkingUpdate = (state: { stage: string; agentId?: string } | null) => void;
+type SpeechProgress = (ratio: number | null, producerSessionId: string) => void;
+type ThinkingUpdate = (
+  state: { stage: string; agentId?: string } | null,
+  producerSessionId: string,
+) => void;
 
 async function publish(update: () => void): Promise<void> {
   await act(async () => {
@@ -399,6 +411,9 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     mocks.loadCursor.mockReset();
     mocks.loadCursor.mockResolvedValue(null);
     mocks.activeSessionId = 'session-current';
+    mocks.discussionCleanup.mockClear();
+    mocks.segmentSealed.mockClear();
+    mocks.handleEndDiscussion.mockClear();
     stageListeners.clear();
     stageState.currentSceneId = scene.id;
     stageState.toolbarState = 'design';
@@ -438,24 +453,27 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     expect(speechProgress).toBeTypeOf('function');
     expect(thinkingUpdate).toBeTypeOf('function');
 
-    await publish(() => speechProgress?.(0));
+    await publish(() => speechProgress?.(0, mocks.activeSessionId!));
     recorder.reset();
     mocks.captureShellRender.mockClear();
     for (let index = 1; index <= EVENT_COUNT; index += 1) {
-      await publish(() => speechProgress?.(index / EVENT_COUNT));
+      await publish(() => speechProgress?.(index / EVENT_COUNT, mocks.activeSessionId!));
     }
     const speech = recorder.report('speech-progress-100', EVENT_COUNT, PROFILER_IDS);
     const speechShellRenders = mocks.captureShellRender.mock.calls.length;
 
-    await publish(() => thinkingUpdate?.({ stage: 'director' }));
+    await publish(() => thinkingUpdate?.({ stage: 'director' }, mocks.activeSessionId!));
     recorder.reset();
     mocks.captureShellRender.mockClear();
     for (let index = 0; index < EVENT_COUNT; index += 1) {
       await publish(() =>
-        thinkingUpdate?.({
-          stage: index % 2 === 0 ? 'director' : 'agent_loading',
-          ...(index % 2 === 0 ? {} : { agentId: `agent-${index % 3}` }),
-        }),
+        thinkingUpdate?.(
+          {
+            stage: index % 2 === 0 ? 'director' : 'agent_loading',
+            ...(index % 2 === 0 ? {} : { agentId: `agent-${index % 3}` }),
+          },
+          mocks.activeSessionId!,
+        ),
       );
     }
     const thinking = recorder.report('thinking-100', EVENT_COUNT, PROFILER_IDS);
@@ -525,7 +543,7 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     const speechProgress = initialChatProps?.onSpeechProgress as SpeechProgress | undefined;
     expect(speechProgress).toBeTypeOf('function');
 
-    await publish(() => speechProgress?.(0.5));
+    await publish(() => speechProgress?.(0.5, mocks.activeSessionId!));
 
     const updatedBarProps = mocks.capturePlaybackBarProps.mock.lastCall?.[0] as
       | Record<string, unknown>
@@ -569,7 +587,7 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     const thinkingUpdate = chatAreaProps?.onThinking as ThinkingUpdate | undefined;
     expect(thinkingUpdate).toBeTypeOf('function');
 
-    await publish(() => thinkingUpdate?.({ stage: 'director' }));
+    await publish(() => thinkingUpdate?.({ stage: 'director' }, mocks.activeSessionId!));
 
     expect(mocks.captureRoundtableProps.mock.lastCall?.[0]).toMatchObject({
       thinkingState: { stage: 'director' },
@@ -596,6 +614,42 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     expect(mocks.captureRoundtableProps.mock.lastCall?.[0]).toMatchObject({
       thinkingState: null,
     });
+  });
+
+  it('rejects stop and sealed-audio callbacks from a superseded session producer', async () => {
+    await act(async () => {
+      root.render(createElement(PlaybackChromeRoot));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    mocks.discussionCleanup.mockClear();
+    mocks.segmentSealed.mockClear();
+    mocks.handleEndDiscussion.mockClear();
+
+    const chatAreaProps = mocks.captureChatAreaProps.mock.lastCall?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    const onStopSession = chatAreaProps?.onStopSession as
+      | ((payload: { sessionId: string; source: 'error' }) => Promise<void>)
+      | undefined;
+    const onSegmentSealed = chatAreaProps?.onSegmentSealed as
+      | ((
+          messageId: string,
+          partId: string,
+          text: string,
+          agentId: string,
+          producerSessionId: string,
+        ) => void)
+      | undefined;
+
+    await act(async () => {
+      await onStopSession?.({ sessionId: 'session-old', source: 'error' });
+      onSegmentSealed?.('message-old', 'part-old', 'stale audio', 'agent-old', 'session-old');
+    });
+
+    expect(mocks.handleEndDiscussion).not.toHaveBeenCalled();
+    expect(mocks.discussionCleanup).not.toHaveBeenCalled();
+    expect(mocks.segmentSealed).not.toHaveBeenCalled();
   });
 
   it('does not commit PlaybackChromeRoot for unrelated StageStore updates', async () => {

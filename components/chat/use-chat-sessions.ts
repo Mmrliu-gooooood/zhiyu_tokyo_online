@@ -150,6 +150,7 @@ interface UseChatSessionsOptions {
     partId: string,
     fullText: string,
     agentId: string | null,
+    producerSessionId: string,
   ) => void;
   /** When provided and returns true, StreamBuffer holds on the current text item after reveal. */
   shouldHoldAfterReveal?: () => { holding: boolean; segmentDone: number } | boolean;
@@ -1105,7 +1106,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             fullText: string,
             agentId: string | null,
           ) {
-            onSegmentSealedRef.current?.(messageId, partId, fullText, agentId);
+            onSegmentSealedRef.current?.(messageId, partId, fullText, agentId, sessionId);
           },
 
           shouldHoldAfterReveal() {
