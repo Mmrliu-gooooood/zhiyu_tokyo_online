@@ -41,6 +41,8 @@ describe('ZhiyuClassroomShell responsive drawers', () => {
           onInteractionDismiss,
           sceneRailDismissLabel: 'Close scenes',
           interactionDismissLabel: 'Close interaction',
+          sceneRailLabel: 'Scenes',
+          interactionLabel: 'Interaction',
           ...overrides,
         }),
       );
@@ -52,17 +54,24 @@ describe('ZhiyuClassroomShell responsive drawers', () => {
     const { onSceneRailDismiss } = renderShell();
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]');
     const stage = container.querySelector<HTMLElement>('[data-testid="zhiyu-learning-stage"]');
-    const otherPanel = container.querySelector<HTMLElement>('[data-presentation="drawer"]:last-of-type');
+    const otherPanel = container.querySelector<HTMLElement>(
+      '[data-presentation="drawer"]:last-of-type',
+    );
 
     expect(dialog?.getAttribute('aria-modal')).toBe('true');
-    expect(dialog?.getAttribute('aria-label')).toBe('Close scenes');
+    expect(dialog?.getAttribute('aria-label')).toBe('Scenes');
+    expect(
+      container
+        .querySelector('[data-testid="zhiyu-scene-drawer-backdrop"]')
+        ?.getAttribute('aria-label'),
+    ).toBe('Close scenes');
     expect(stage?.hasAttribute('inert')).toBe(true);
     expect(otherPanel?.hasAttribute('inert')).toBe(true);
     expect(container.querySelector('button')?.closest('[inert]')).not.toBeNull();
     expect(
-      Array.from(container.querySelectorAll('button')).find(
-        (button) => button.textContent === 'playback action',
-      )?.closest('[inert]'),
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent === 'playback action')
+        ?.closest('[inert]'),
     ).not.toBeNull();
     expect(document.activeElement?.textContent).toBe('scene action');
 
