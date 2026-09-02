@@ -25,7 +25,7 @@
 import { createHash } from 'node:crypto';
 import { constants, readFileSync, existsSync } from 'node:fs';
 import { access, readFile, realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   loadSkills,
   formatSkillInvocation,
@@ -98,6 +98,49 @@ let builtinCache: LoadedSkill[] | null = null;
 
 const USER_SKILL_VIRTUAL_ROOT = '/__openmaic_user_skills__';
 
+const toSkillLoaderPath = (path: string): string =>
+  sep === '\\' ? path.replaceAll('\\', '/') : path;
+
+/**
+ * pi's skill walker compares paths with POSIX separators before applying
+ * ignore rules. Keep its public path values portable while NodeExecutionEnv
+ * continues to perform the actual filesystem work with native paths.
+ */
+class SkillLoaderExecutionEnv extends NodeExecutionEnv {
+  override async fileInfo(path: string) {
+    const result = await super.fileInfo(path);
+    return result.ok
+      ? {
+          ...result,
+          value: {
+            ...result.value,
+            name: basename(result.value.path),
+            path: toSkillLoaderPath(result.value.path),
+          },
+        }
+      : result;
+  }
+
+  override async listDir(path: string, abortSignal?: AbortSignal) {
+    const result = await super.listDir(path, abortSignal);
+    return result.ok
+      ? {
+          ...result,
+          value: result.value.map((entry) => ({
+            ...entry,
+            name: basename(entry.path),
+            path: toSkillLoaderPath(entry.path),
+          })),
+        }
+      : result;
+  }
+
+  override async canonicalPath(path: string) {
+    const result = await super.canonicalPath(path);
+    return result.ok ? { ...result, value: toSkillLoaderPath(result.value) } : result;
+  }
+}
+
 /**
  * The de-prioritisation preamble user-authored skill text is wrapped in.
  *
@@ -139,8 +182,8 @@ async function listBuiltinSkills(): Promise<LoadedSkill[]> {
   if (builtinCache) return builtinCache;
   if (!existsSync(skillsDir)) return (builtinCache = []);
 
-  const env = new NodeExecutionEnv({ cwd: skillsDir });
-  const { skills, diagnostics } = await loadSkills(env, skillsDir);
+  const env = new SkillLoaderExecutionEnv({ cwd: skillsDir });
+  const { skills, diagnostics } = await loadSkills(env, toSkillLoaderPath(skillsDir));
   for (const d of diagnostics) {
     log.warn(`${d.code}: ${d.message} (${d.path})`);
   }
