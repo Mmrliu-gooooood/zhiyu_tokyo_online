@@ -100,9 +100,13 @@ test('playback cursor persists to device KV and survives a fresh page', async ({
 
   // Start through the semantic ZHIYU play affordance. The handler remains the
   // existing PlaybackChromeRoot play/pause path.
-  const overlayPlay = page.getByRole('button', { name: /play|播放/i }).first();
-  await overlayPlay.waitFor({ state: 'visible', timeout: 15_000 });
-  await overlayPlay.click();
+  const playbackBar = page.getByTestId('zhiyu-playback-bar');
+  const play = playbackBar.getByRole('button', { name: /^(play|播放)$/i });
+  await play.waitFor({ state: 'visible', timeout: 15_000 });
+  await play.click();
+  await expect(playbackBar.getByRole('button', { name: /^(pause|暂停)$/i })).toBeVisible({
+    timeout: 15_000,
+  });
 
   // Speech actions advance on reading-time timers; the cursor save is
   // debounced 1s behind progress.
