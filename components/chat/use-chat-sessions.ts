@@ -124,12 +124,23 @@ export function consumePiSessionBoundaryContext(
 }
 
 interface UseChatSessionsOptions {
-  onLiveSpeech?: (text: string | null, agentId?: string | null) => void;
-  onSpeechProgress?: (ratio: number | null) => void;
-  onThinking?: (state: { stage: string; agentId?: string } | null) => void;
-  onCueUser?: (fromAgentId?: string, prompt?: string) => void;
+  onLiveSpeech?: (
+    text: string | null,
+    agentId: string | null | undefined,
+    producerSessionId: string,
+  ) => void;
+  onSpeechProgress?: (ratio: number | null, producerSessionId: string) => void;
+  onThinking?: (
+    state: { stage: string; agentId?: string } | null,
+    producerSessionId: string,
+  ) => void;
+  onCueUser?: (
+    fromAgentId: string | undefined,
+    prompt: string | undefined,
+    producerSessionId: string,
+  ) => void;
   onActiveBubble?: (messageId: string | null) => void;
-  onLiveSessionError?: () => void;
+  onLiveSessionError?: (producerSessionId: string) => void;
   /** Called immediately when the server semantically closes a QA/Discussion session. */
   onSoftCloseSession?: (payload: SessionCleanupPayload) => void;
   /** Called when a QA/Discussion session completes naturally (director end). */
@@ -862,11 +873,11 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
 
       onActiveBubbleRef.current?.(null);
       if (onLiveSessionErrorRef.current) {
-        onLiveSessionErrorRef.current();
+        onLiveSessionErrorRef.current(sessionId);
       } else {
-        onSpeechProgressRef.current?.(null);
-        onThinkingRef.current?.(null);
-        onLiveSpeechRef.current?.(null, null);
+        onSpeechProgressRef.current?.(null, sessionId);
+        onThinkingRef.current?.(null, sessionId);
+        onLiveSpeechRef.current?.(null, null, sessionId);
       }
     },
     [retireActiveLiveRequest],
@@ -1037,15 +1048,15 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             // Lecture sessions: roundtable text is managed by PlaybackEngine → setLectureSpeech
             // in stage.tsx. Buffer only drives chat area pacing for lectures.
             if (type === 'lecture') return;
-            onLiveSpeechRef.current?.(text, agentId);
+            onLiveSpeechRef.current?.(text, agentId, sessionId);
           },
 
           onSpeechProgress(ratio: number | null) {
-            onSpeechProgressRef.current?.(ratio);
+            onSpeechProgressRef.current?.(ratio, sessionId);
           },
 
           onThinking(data: { stage: string; agentId?: string } | null) {
-            onThinkingRef.current?.(data);
+            onThinkingRef.current?.(data, sessionId);
           },
 
           onCueUser(fromAgentId?: string, prompt?: string) {
@@ -1058,7 +1069,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
                 cueUserReceived: true,
               };
             }
-            onCueUserRef.current?.(fromAgentId, prompt);
+            onCueUserRef.current?.(fromAgentId, prompt, sessionId);
           },
 
           onDone(data: {
@@ -1481,8 +1492,8 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
           }),
         );
         // Clear roundtable state via callbacks
-        onLiveSpeechRef.current?.(null, null);
-        onThinkingRef.current?.(null);
+        onLiveSpeechRef.current?.(null, null, sessionId);
+        onThinkingRef.current?.(null, sessionId);
       } else {
         setSessions((prev) =>
           prev.map((s) =>

@@ -52,7 +52,7 @@ describe('Classroom runtime transitions', () => {
 
     expect(active).toMatchObject({
       isPresenting: true,
-      compactInteractionOpen: false,
+      compactInteractionOpen: true,
       narrowSceneRailOpen: false,
       isDiscussionPaused: true,
     });
@@ -66,6 +66,26 @@ describe('Classroom runtime transitions', () => {
       narrowViewport: true,
     });
     expect(reduceClassroomRuntime(cleaned, { type: 'session.cleaned' })).toBe(cleaned);
+  });
+
+  it('preserves responsive drawer intent across presentation enter and exit', () => {
+    const open = {
+      ...createInitialClassroomRuntimeState(),
+      compactViewport: true,
+      narrowViewport: true,
+      compactInteractionOpen: true,
+    };
+    const presenting = reduceClassroomRuntime(open, {
+      type: 'presentation.changed',
+      active: true,
+    });
+    const restored = reduceClassroomRuntime(presenting, {
+      type: 'presentation.changed',
+      active: false,
+    });
+
+    expect(presenting.compactInteractionOpen).toBe(true);
+    expect(restored.compactInteractionOpen).toBe(true);
   });
 
   it('isolates mount-scoped runtimes and rejects stale epochs after idempotent cleanup', () => {

@@ -354,6 +354,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const engineRef = useRef<PlaybackEngine | null>(null);
     const audioPlayerRef = useRef(createAudioPlayer());
     const chatAreaRef = useRef<ChatAreaRef>(null);
+    const isCurrentChatProducer = useCallback((producerSessionId?: string) => {
+      if (!producerSessionId) return true;
+      return chatAreaRef.current?.getActiveSessionId() === producerSessionId;
+    }, []);
     const lectureSessionIdRef = useRef<string | null>(null);
     const lectureActionCounterRef = useRef(0);
     const pendingPlaySceneIdRef = useRef<string | null>(null);
@@ -541,12 +545,16 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     );
 
     /** Request failure should exit live discussion UI without hard-closing the session. */
-    const handleLiveSessionError = useCallback(() => {
-      classroomLiveRuntime.advanceSession();
-      engineRef.current?.handleDiscussionError();
-      resetLiveState();
-      setActiveBubbleId(null);
-    }, [classroomLiveRuntime, resetLiveState]);
+    const handleLiveSessionError = useCallback(
+      (producerSessionId?: string) => {
+        if (!isCurrentChatProducer(producerSessionId)) return;
+        classroomLiveRuntime.advanceSession();
+        engineRef.current?.handleDiscussionError();
+        resetLiveState();
+        setActiveBubbleId(null);
+      },
+      [classroomLiveRuntime, isCurrentChatProducer, resetLiveState],
+    );
 
     /**
      * Unified session cleanup — called by both roundtable stop button and chat area end button.
@@ -838,6 +846,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           !!currentScene?.actions &&
           (currentScene.actions.length > 0 || currentScene.type === 'slide');
         if (!currentScene || !hasPlayableActions) {
+          engineRef.current?.stop();
           engineRef.current = null;
           setEngineMode('idle');
           activeSceneIdRef.current = currentSceneId;
@@ -1233,6 +1242,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         chatSessionType,
       ],
     );
+    const projectPlaybackViewRef = useRef(projectPlaybackView);
+    projectPlaybackViewRef.current = projectPlaybackView;
+    const projectedCurrentSceneIdRef = useRef(currentSceneId);
+    projectedCurrentSceneIdRef.current = currentSceneId;
 
     /**
      * Gated scene switch — if a topic is active, show AlertDialog before switching.
@@ -1241,12 +1254,12 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const gatedSceneSwitch = useCallback(
       async (targetSceneId: string): Promise<boolean> => {
         const requestId = ++sceneSwitchRequestRef.current;
-        if (targetSceneId === currentSceneId) {
+        if (targetSceneId === projectedCurrentSceneIdRef.current) {
           setPendingSceneId(null);
           return false;
         }
         cancelAutoAdvanceTimer();
-        if (projectPlaybackView(classroomLiveRuntime.getState()).isTopicActive) {
+        if (projectPlaybackViewRef.current(classroomLiveRuntime.getState()).isTopicActive) {
           setPendingSceneId(targetSceneId);
           return false;
         }
@@ -1255,13 +1268,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         setCurrentSceneId(targetSceneId);
         return true;
       },
-      [
-        cancelAutoAdvanceTimer,
-        classroomLiveRuntime,
-        currentSceneId,
-        projectPlaybackView,
-        setCurrentSceneId,
-      ],
+      [cancelAutoAdvanceTimer, classroomLiveRuntime, setCurrentSceneId],
     );
 
     /** User confirmed scene switch via AlertDialog */
@@ -1677,6 +1684,60 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       setPlaybackSpeed(PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.length]);
     }, [playbackSpeed, setPlaybackSpeed]);
 
+    const classroomCurrentSceneTitle =
+      currentScene?.title || (isCourseComplete && isPendingScene ? t('stage.courseComplete') : '');
+    const classroomHeader = useMemo(
+      () =>
+        !isPresenting && !hideHeader ? (
+          <Header
+            courseTitle={stage?.name}
+            currentSceneTitle={classroomCurrentSceneTitle}
+            mode={mode}
+            proModeActive={proModeActive}
+            canEdit={!!canEnterProMode}
+            onToggleEditMode={onEnterProMode}
+            backControl={headerBackControl}
+            hideBackControl={hideHeaderBackControl}
+            hideGlobalControls={hideHeaderGlobalControls}
+            hideCourseActions={hideHeaderCourseActions}
+          />
+        ) : null,
+      [
+        canEnterProMode,
+        classroomCurrentSceneTitle,
+        headerBackControl,
+        hideHeader,
+        hideHeaderBackControl,
+        hideHeaderCourseActions,
+        hideHeaderGlobalControls,
+        isPresenting,
+        mode,
+        onEnterProMode,
+        proModeActive,
+        stage?.name,
+      ],
+    );
+    const classroomSceneRail = useMemo(
+      () => (
+        <SceneSidebar
+          collapsed={presentedSidebarCollapsed}
+          onCollapseChange={handleSceneRailPresentationChange}
+          onSceneSelect={gatedSceneSwitch}
+          onRetryOutline={onRetryOutline}
+          isCourseComplete={isCourseComplete}
+          hidden={isPresenting}
+        />
+      ),
+      [
+        gatedSceneSwitch,
+        handleSceneRailPresentationChange,
+        isCourseComplete,
+        isPresenting,
+        onRetryOutline,
+        presentedSidebarCollapsed,
+      ],
+    );
+
     return (
       <div
         ref={stageRef}
@@ -1701,35 +1762,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           interactionDismissLabel={t('classroomWorkspace.collapseInteraction')}
           sceneRailLabel={t('classroomWorkspace.sceneRail')}
           interactionLabel={t('classroomWorkspace.interactionTitle')}
-          header={
-            !isPresenting && !hideHeader ? (
-              <Header
-                courseTitle={stage?.name}
-                currentSceneTitle={
-                  currentScene?.title ||
-                  (isCourseComplete && isPendingScene ? t('stage.courseComplete') : '')
-                }
-                mode={mode}
-                proModeActive={proModeActive}
-                canEdit={!!canEnterProMode}
-                onToggleEditMode={onEnterProMode}
-                backControl={headerBackControl}
-                hideBackControl={hideHeaderBackControl}
-                hideGlobalControls={hideHeaderGlobalControls}
-                hideCourseActions={hideHeaderCourseActions}
-              />
-            ) : null
-          }
-          sceneRail={
-            <SceneSidebar
-              collapsed={presentedSidebarCollapsed}
-              onCollapseChange={handleSceneRailPresentationChange}
-              onSceneSelect={gatedSceneSwitch}
-              onRetryOutline={onRetryOutline}
-              isCourseComplete={isCourseComplete}
-              hidden={isPresenting}
-            />
-          }
+          header={classroomHeader}
+          sceneRail={classroomSceneRail}
           stage={
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
               <div
@@ -2013,12 +2047,18 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                   onJumpToAction={(sceneId, actionIndex) => {
                     void handleJumpToAction(sceneId, actionIndex);
                   }}
-                  onLiveSpeech={(text, agentId) => {
+                  onLiveSpeech={(text, agentId, producerSessionId) => {
+                    if (!isCurrentChatProducer(producerSessionId)) return;
                     // Capture epoch at call time — discard if scene has changed since
                     const epoch = classroomLiveRuntime.captureEpoch();
                     // Use queueMicrotask to let any pending scene-switch reset settle first
                     queueMicrotask(() => {
-                      if (!classroomLiveRuntime.isCurrentEpoch(epoch)) return;
+                      if (
+                        !isCurrentChatProducer(producerSessionId) ||
+                        !classroomLiveRuntime.isCurrentEpoch(epoch)
+                      ) {
+                        return;
+                      }
                       setLiveSpeech(text);
                       if (agentId !== undefined) {
                         setSpeakingAgentId(agentId);
@@ -2035,25 +2075,39 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                       }
                     });
                   }}
-                  onSpeechProgress={(ratio) => {
+                  onSpeechProgress={(ratio, producerSessionId) => {
+                    if (!isCurrentChatProducer(producerSessionId)) return;
                     const epoch = classroomLiveRuntime.captureEpoch();
                     queueMicrotask(() => {
-                      if (!classroomLiveRuntime.isCurrentEpoch(epoch)) return;
+                      if (
+                        !isCurrentChatProducer(producerSessionId) ||
+                        !classroomLiveRuntime.isCurrentEpoch(epoch)
+                      ) {
+                        return;
+                      }
                       setSpeechProgress(ratio);
                     });
                   }}
-                  onThinking={(state) => {
+                  onThinking={(state, producerSessionId) => {
+                    if (!isCurrentChatProducer(producerSessionId)) return;
                     const epoch = classroomLiveRuntime.captureEpoch();
                     queueMicrotask(() => {
-                      if (!classroomLiveRuntime.isCurrentEpoch(epoch)) return;
+                      if (
+                        !isCurrentChatProducer(producerSessionId) ||
+                        !classroomLiveRuntime.isCurrentEpoch(epoch)
+                      ) {
+                        return;
+                      }
                       setThinkingState(state);
                     });
                   }}
-                  onCueUser={(_fromAgentId, _prompt) => {
+                  onCueUser={(_fromAgentId, _prompt, producerSessionId) => {
+                    if (!isCurrentChatProducer(producerSessionId)) return;
                     setIsCueUser(true);
                   }}
                   onLiveSessionError={handleLiveSessionError}
-                  onSoftCloseSession={() => {
+                  onSoftCloseSession={(payload) => {
+                    if (!isCurrentChatProducer(payload.sessionId)) return;
                     setThinkingState(null);
                     setSpeechProgress(null);
                     setIsCueUser(false);

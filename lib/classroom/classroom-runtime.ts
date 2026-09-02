@@ -196,8 +196,6 @@ export function reduceClassroomRuntime(
       return {
         ...state,
         isPresenting: event.active,
-        compactInteractionOpen: event.active ? false : state.compactInteractionOpen,
-        narrowSceneRailOpen: event.active ? false : state.narrowSceneRailOpen,
       };
     case 'discussion.pauseChanged':
       return state.isDiscussionPaused === event.paused

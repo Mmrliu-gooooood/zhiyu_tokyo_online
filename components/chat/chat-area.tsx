@@ -38,11 +38,22 @@ interface ChatAreaProps {
   onCollapseChange?: (collapsed: boolean) => void;
   activeBubbleId?: string | null;
   onActiveBubble?: (messageId: string | null) => void;
-  onLiveSpeech?: (text: string | null, agentId?: string | null) => void;
-  onSpeechProgress?: (ratio: number | null) => void;
-  onThinking?: (state: { stage: string; agentId?: string } | null) => void;
-  onCueUser?: (fromAgentId?: string, prompt?: string) => void;
-  onLiveSessionError?: () => void;
+  onLiveSpeech?: (
+    text: string | null,
+    agentId: string | null | undefined,
+    producerSessionId: string,
+  ) => void;
+  onSpeechProgress?: (ratio: number | null, producerSessionId: string) => void;
+  onThinking?: (
+    state: { stage: string; agentId?: string } | null,
+    producerSessionId: string,
+  ) => void;
+  onCueUser?: (
+    fromAgentId: string | undefined,
+    prompt: string | undefined,
+    producerSessionId: string,
+  ) => void;
+  onLiveSessionError?: (producerSessionId: string) => void;
   onSoftCloseSession?: (payload: SessionCleanupPayload) => void;
   onSoftClosingChange?: (softClosing: boolean, deadline?: number) => void;
   onStopSession?: (payload: SessionCleanupPayload) => void;
@@ -74,6 +85,7 @@ export interface ChatAreaRef {
   addLectureMessage: (sessionId: string, action: Action, actionIndex: number) => void;
   getIsStreaming: () => boolean;
   getActiveSessionType: () => string | null;
+  getActiveSessionId: () => string | null;
   getLectureMessageId: (sessionId: string) => string | null;
   pauseBuffer: (sessionId: string) => void;
   resumeBuffer: (sessionId: string) => void;
@@ -118,6 +130,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
     const scenes = useStageStore((s) => s.scenes);
     const {
       sessions,
+      activeSessionId,
       activeSessionType,
       expandedSessionIds,
       isStreaming,
@@ -225,6 +238,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       addLectureMessage,
       getIsStreaming: () => isStreaming,
       getActiveSessionType: () => activeSessionType,
+      getActiveSessionId: () => activeSessionId,
       getLectureMessageId,
       pauseBuffer,
       resumeBuffer,

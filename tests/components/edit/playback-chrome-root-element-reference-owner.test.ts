@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   canJumpToAction: vi.fn(),
   jumpToAction: vi.fn(),
   retainedAudioPlayers: [] as MockAudioPlayer[],
+  engineStops: vi.fn(),
 }));
 
 const textElement = {
@@ -82,6 +83,13 @@ const secondScene = {
   id: 'scene-2',
   title: 'Second slide',
   order: 1,
+};
+const nonPlayableScene = {
+  ...scene,
+  id: 'scene-non-playable',
+  title: 'Quiz without timeline actions',
+  type: 'quiz',
+  actions: [],
 };
 const stageState = {
   mode: 'playback',
@@ -280,7 +288,9 @@ vi.mock('@/lib/playback', () => ({
       mocks.retainedAudioPlayers.push(_audioPlayer as MockAudioPlayer);
       options.onModeChange?.(mocks.engineMode);
     }
-    stop() {}
+    stop() {
+      mocks.engineStops();
+    }
     getMode() {
       return mocks.engineMode;
     }
@@ -378,6 +388,7 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     mocks.topicActive = false;
     mocks.engineMode = 'idle';
     mocks.engineOptions = undefined;
+    mocks.engineStops.mockClear();
     mocks.handleUserInterrupt.mockReset();
     mocks.loadCursor.mockReset();
     mocks.loadCursor.mockResolvedValue(null);
@@ -391,6 +402,7 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     mocks.jumpToAction.mockReset();
     mocks.jumpToAction.mockResolvedValue(false);
     mocks.retainedAudioPlayers.length = 0;
+    stageState.scenes = [scene, secondScene];
     stageState.currentSceneId = scene.id;
     stageState.setCurrentSceneId.mockClear();
     settingsState.autoPlayLecture = false;
@@ -912,6 +924,21 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     });
     expect(mocks.startLecture).toHaveBeenCalledOnce();
     expect(mocks.continuePlayback).toHaveBeenCalledOnce();
+  });
+
+  it('stops the previous engine before a non-playable scene early return', async () => {
+    await renderOwner();
+    mocks.engineStops.mockClear();
+    stageState.scenes = [scene, nonPlayableScene, secondScene];
+    stageState.currentSceneId = nonPlayableScene.id;
+
+    await rerenderOwner();
+
+    expect(mocks.engineStops).toHaveBeenCalledOnce();
+
+    stageState.currentSceneId = secondScene.id;
+    await rerenderOwner();
+    expect(mocks.engineOptions).toBeDefined();
   });
 
   it('does not let a cancelled scene initialization start its old engine', async () => {
