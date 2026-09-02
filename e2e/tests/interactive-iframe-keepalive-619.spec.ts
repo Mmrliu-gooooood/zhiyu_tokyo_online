@@ -8,8 +8,8 @@ import { defaultTheme } from '../fixtures/test-data/scene-content';
  *
  * The keep-alive iframe is identified by its title `Interactive Scene <id>`.
  * A MutationObserver on the top document records every add/remove of *that*
- * iframe element. The proof of keep-alive: after each remount trigger (Pro mode
- * toggle, scene switch and back) the element is neither removed nor recreated
+ * iframe element. The proof of keep-alive inside one hosted editor lifecycle:
+ * after a scene switch and back the element is neither removed nor recreated
  * (zero recorded mutations), and the click-counter state it holds is preserved.
  *
  * Note: the slide nav rail also renders a separate, stateless `Interactive
@@ -185,7 +185,7 @@ test.describe('#619 interactive iframe keep-alive', () => {
     expect(restored!.y).toBeCloseTo(moved!.y, 0);
   });
 
-  test('iframe survives Pro-mode toggle and scene switch without reloading', async ({ page }) => {
+  test('iframe survives hosted scene switches without reloading', async ({ page }) => {
     // Record add/remove of the keep-alive iframe (by title) in the top document.
     await page.addInitScript((title) => {
       if (window.top !== window.self) return;
@@ -209,6 +209,9 @@ test.describe('#619 interactive iframe keep-alive', () => {
     const classroom = new ClassroomPage(page);
     await classroom.goto(TEST_STAGE_ID);
     await classroom.waitForLoaded();
+    await page.getByRole('switch', { name: /edit course|编辑课程/i }).click();
+    await page.waitForURL(new RegExp(`/workspace\\?course=${TEST_STAGE_ID}`));
+    await expect(page.getByTestId('zhiyu-editor-shell')).toBeVisible();
 
     const iframeEl = page.locator(`iframe[title="${IFRAME_TITLE}"]`);
     const frame = page.frameLocator(`iframe[title="${IFRAME_TITLE}"]`);
@@ -227,41 +230,19 @@ test.describe('#619 interactive iframe keep-alive', () => {
     // keep-alive iframe must not be added or removed again.
     await resetMutations(page);
 
-    // `.first()` because the ~280ms mode cross-fade briefly mounts both chrome
-    // layers (each with its own Pro switch).
-    // --- Trigger A: Pro mode toggle (edit chrome remounts the placeholder) ---
-    await page.getByRole('switch').first().click();
-    // Since #777 the interactive iframe stays VISIBLE in edit mode — the editor
-    // agent ("Edit with AI") fixes interactive HTML, so the teacher must see the
-    // live page while editing. The keep-alive proof is that it is neither
-    // unmounted nor reloaded: the in-iframe counter state survives the toggle.
-    await expect(iframeEl).toBeVisible();
-    await expect(count).toHaveText('3'); // state preserved across the mode toggle
-    await page.screenshot({ path: `${SHOTS}/02-pro-mode.png`, fullPage: true });
-
-    await page.getByRole('switch').first().click();
-    await expect(iframeEl).toBeVisible(); // back to playback
-    await expect(count).toHaveText('3'); // state preserved → no reload
-    // Let the ~280ms mode cross-fade fully settle: the outgoing chrome's
-    // placeholder cleanup fires late, and a non-owner-checked release would hide
-    // the iframe here (the blank-on-return regression). It must stay visible.
-    await page.waitForTimeout(600);
-    await expect(iframeEl).toBeVisible();
-    await expect(count).toHaveText('3');
-    await page.screenshot({ path: `${SHOTS}/03-back-from-pro.png`, fullPage: true });
-
-    // --- Trigger B: scene switch away and back (placeholder unmount/remount) ---
+    // Scene switch away and back inside the same hosted editor lifecycle.
     await classroom.clickScene(1); // slide
-    await expect(page.getByRole('heading', { name: 'A slide' })).toBeVisible();
+    await expect(classroom.sidebarScenes.nth(1)).toHaveAttribute('aria-current', 'page');
     await expect(iframeEl).toBeHidden();
 
     await classroom.clickScene(0); // back to interactive
+    await expect(classroom.sidebarScenes.nth(0)).toHaveAttribute('aria-current', 'page');
     await expect(iframeEl).toBeVisible();
     await expect(count).toHaveText('3'); // state preserved → no reload
-    await page.screenshot({ path: `${SHOTS}/04-back-from-scene-switch.png`, fullPage: true });
+    await page.screenshot({ path: `${SHOTS}/02-back-from-hosted-scene-switch.png`, fullPage: true });
 
-    // The keep-alive iframe element was never removed or recreated across either
-    // remount trigger — the document (and its in-iframe state) was preserved.
+    // The keep-alive iframe element was never removed or recreated across the
+    // hosted scene remount — the document (and its in-iframe state) survived.
     expect(await keepAliveMutations(page)).toEqual([]);
   });
 });
