@@ -22,11 +22,28 @@ test('uses the ZHIYU course-construction shell', async ({ page, mockApi }) => {
   );
   await mockApi.setupGenerationMocks();
 
-  const generation = new GenerationPreviewPage(page);
-  await generation.goto();
+  // Keep the page in its generating state until the shell contract has been
+  // observed. The default SSE mock completes synchronously, so without this
+  // gate a fast browser can reach the classroom before the active step is read.
+  let releaseOutlines!: () => void;
+  const outlinesGate = new Promise<void>((resolve) => {
+    releaseOutlines = resolve;
+  });
+  await page.route('**/api/generate/scene-outlines-stream', async (route) => {
+    await outlinesGate;
+    await route.fallback();
+  });
 
-  await expect(generation.shell).toBeVisible();
-  await expect(generation.timeline).toBeVisible();
-  await expect(generation.preview).toBeVisible();
-  await expect(generation.timeline.locator('[data-status="active"]')).toHaveCount(1);
+  const generation = new GenerationPreviewPage(page);
+  try {
+    await generation.goto();
+
+    await expect(generation.shell).toBeVisible();
+    await expect(generation.timeline).toBeVisible();
+    await expect(generation.preview).toBeVisible();
+    await expect(generation.timeline.locator('[data-status="active"]')).toHaveCount(1);
+  } finally {
+    releaseOutlines();
+  }
+  await generation.waitForRedirectToClassroom();
 });
