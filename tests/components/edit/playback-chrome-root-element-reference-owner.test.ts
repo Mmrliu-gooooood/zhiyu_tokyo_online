@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     | {
         onModeChange?: (mode: 'idle' | 'playing' | 'paused') => void;
         onUserInterrupt?: (text: string) => void;
+        onDiscussionEnd?: () => void;
         onComplete?: () => void;
       }
     | undefined,
@@ -259,6 +260,7 @@ vi.mock('@/lib/playback', () => ({
       options: {
         onModeChange?: (mode: 'idle' | 'playing' | 'paused') => void;
         onUserInterrupt?: (text: string) => void;
+        onDiscussionEnd?: () => void;
         onComplete?: () => void;
       },
     ) {
@@ -343,7 +345,7 @@ import { PlaybackChromeRoot } from '@/components/edit/PlaybackChromeRoot';
 
 describe('PlaybackChromeRoot element-reference ownership', () => {
   let container: HTMLDivElement;
-  let root: Root;
+  let root: Root | null;
 
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -375,8 +377,14 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
     root = createRoot(container);
   });
 
+  function unmountOwner() {
+    const mountedRoot = root;
+    root = null;
+    if (mountedRoot) act(() => mountedRoot.unmount());
+  }
+
   afterEach(() => {
-    act(() => root.unmount());
+    unmountOwner();
     container.remove();
     vi.unstubAllGlobals();
   });
@@ -391,7 +399,7 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
 
   async function renderOwner() {
     await act(async () => {
-      root.render(createElement(PlaybackChromeRoot));
+      root!.render(createElement(PlaybackChromeRoot));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -399,11 +407,51 @@ describe('PlaybackChromeRoot element-reference ownership', () => {
 
   async function rerenderOwner() {
     await act(async () => {
-      root.render(createElement(PlaybackChromeRoot));
+      root!.render(createElement(PlaybackChromeRoot));
       await Promise.resolve();
       await Promise.resolve();
     });
   }
+
+  it('releases repeated discussion end-flash timers across 20 mount cycles', async () => {
+    vi.useFakeTimers();
+    unmountOwner();
+    container.remove();
+    const timerBaseline = vi.getTimerCount();
+    let lifecycleRoot: Root | null = null;
+    let lifecycleContainer: HTMLDivElement | null = null;
+    try {
+      for (let cycle = 0; cycle < 20; cycle += 1) {
+        lifecycleContainer = document.createElement('div');
+        document.body.appendChild(lifecycleContainer);
+        const cycleRoot = createRoot(lifecycleContainer);
+        lifecycleRoot = cycleRoot;
+        await act(async () => {
+          cycleRoot.render(createElement(PlaybackChromeRoot));
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        act(() => {
+          mocks.engineOptions?.onDiscussionEnd?.();
+          mocks.engineOptions?.onDiscussionEnd?.();
+        });
+        expect(vi.getTimerCount()).toBe(timerBaseline + 1);
+
+        act(() => cycleRoot.unmount());
+        lifecycleRoot = null;
+        lifecycleContainer.remove();
+        lifecycleContainer = null;
+        expect(vi.getTimerCount()).toBe(timerBaseline);
+      }
+    } finally {
+      if (lifecycleRoot) act(() => lifecycleRoot?.unmount());
+      lifecycleRoot = null;
+      lifecycleContainer?.remove();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
 
   it('owns pick state, freezes one request snapshot, and clears only on an accepted receipt', async () => {
     await renderOwner();

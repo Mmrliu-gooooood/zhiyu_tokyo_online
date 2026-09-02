@@ -341,6 +341,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const activeSceneIdRef = useRef<string | null>(currentSceneId);
     const discussionAbortRef = useRef<AbortController | null>(null);
     const presentationIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const endFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cursorSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingCursorRef = useRef<{ stageId: string; cursor: PlaybackCursor } | null>(null);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -487,6 +488,16 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       setIsDiscussionPaused(false);
     }, []);
 
+    const showSessionEndFlash = useCallback((sessionType: 'qa' | 'discussion') => {
+      setEndFlashSessionType(sessionType);
+      setShowEndFlash(true);
+      if (endFlashTimerRef.current) clearTimeout(endFlashTimerRef.current);
+      endFlashTimerRef.current = setTimeout(() => {
+        endFlashTimerRef.current = null;
+        setShowEndFlash(false);
+      }, 1800);
+    }, []);
+
     /** Full scene reset (scene switch) — resetLiveState + lecture/visual state */
     const resetSceneState = useCallback(
       (initial?: { actionIndex?: number | null; lectureSpeech?: string | null }) => {
@@ -523,16 +534,14 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
 
       // Show end flash with correct session type
       if (activeType === 'qa' || activeType === 'discussion') {
-        setEndFlashSessionType(activeType);
-        setShowEndFlash(true);
-        setTimeout(() => setShowEndFlash(false), 1800);
+        showSessionEndFlash(activeType);
       }
 
       // Stop any in-flight discussion TTS audio
       discussionTTS.cleanup();
 
       resetLiveState();
-    }, [chatSessionType, resetLiveState, discussionTTS]);
+    }, [chatSessionType, resetLiveState, discussionTTS, showSessionEndFlash]);
 
     // Shared stop-discussion handler (used by both Roundtable and Canvas toolbar)
     const handleStopDiscussion = useCallback(async () => {
@@ -918,9 +927,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             resetLiveState();
             // Only show flash for engine-initiated ends (not manual stop — that's handled by doSessionCleanup)
             if (!manualStopRef.current) {
-              setEndFlashSessionType('discussion');
-              setShowEndFlash(true);
-              setTimeout(() => setShowEndFlash(false), 1800);
+              showSessionEndFlash('discussion');
             }
             // If all actions are exhausted (discussion was the last action), mark
             // playback as completed so the bubble shows reset instead of play.
@@ -1070,6 +1077,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       const audioPlayer = audioPlayerRef.current;
       const chatArea = chatAreaRef.current;
       return () => {
+        if (endFlashTimerRef.current) clearTimeout(endFlashTimerRef.current);
+        endFlashTimerRef.current = null;
         if (cursorSaveTimerRef.current) clearTimeout(cursorSaveTimerRef.current);
         pendingPlaySceneIdRef.current = null;
         readyPlaybackSceneIdRef.current = null;
