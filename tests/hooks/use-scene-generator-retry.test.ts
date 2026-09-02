@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { SceneOutline } from '@/lib/types/generation';
+import {
+  fetchSceneActions,
+  fetchSceneContent,
+  generateAndStoreTTS,
+  generateTTSForScene,
+} from '@/lib/hooks/use-scene-generator';
 
 const mocks = vi.hoisted(() => ({
   getCurrentModelConfig: vi.fn(),
@@ -122,7 +128,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('retries transient scene content HTTP failures before returning success', async () => {
-    const { fetchSceneContent } = await import('@/lib/hooks/use-scene-generator');
     mockFetch
       .mockResolvedValueOnce(jsonResponse(429, { error: 'rate limited' }))
       .mockResolvedValueOnce(jsonResponse(200, { success: true, content: { elements: [] } }));
@@ -140,10 +145,9 @@ describe('browser scene generation retry wrappers', () => {
 
     expect(result).toMatchObject({ success: true, content: { elements: [] } });
     expect(mockFetch).toHaveBeenCalledTimes(2);
-  });
+  }, 2_000);
 
   it('does not retry permanent scene action HTTP failures', async () => {
-    const { fetchSceneActions } = await import('@/lib/hooks/use-scene-generator');
     mockFetch.mockResolvedValue(jsonResponse(401, { error: 'unauthorized' }));
 
     const result = await fetchSceneActions(
@@ -162,7 +166,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('preserves scene content error metadata for localized UI messages', async () => {
-    const { fetchSceneContent } = await import('@/lib/hooks/use-scene-generator');
     mockFetch.mockResolvedValue(
       jsonResponse(429, {
         success: false,
@@ -190,7 +193,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('preserves internal scene content errors for localized fallback messages', async () => {
-    const { fetchSceneContent } = await import('@/lib/hooks/use-scene-generator');
     mockFetch.mockResolvedValue(
       jsonResponse(500, {
         success: false,
@@ -218,7 +220,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('rethrows an aborted scene content request', async () => {
-    const { fetchSceneContent } = await import('@/lib/hooks/use-scene-generator');
     const abort = Object.assign(new Error('Aborted'), { name: 'AbortError' });
     mockFetch.mockRejectedValueOnce(abort);
 
@@ -239,7 +240,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('rethrows an aborted scene actions request', async () => {
-    const { fetchSceneActions } = await import('@/lib/hooks/use-scene-generator');
     const abort = Object.assign(new Error('Aborted'), { name: 'AbortError' });
     mockFetch.mockRejectedValueOnce(abort);
 
@@ -260,7 +260,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('retries transient TTS failures before storing audio', async () => {
-    const { generateAndStoreTTS } = await import('@/lib/hooks/use-scene-generator');
     mockFetch
       .mockResolvedValueOnce(jsonResponse(503, { error: 'provider overloaded' }))
       .mockResolvedValueOnce(
@@ -291,7 +290,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('falls back once from a missing narrator clone to the global voice', async () => {
-    const { generateAndStoreTTS } = await import('@/lib/hooks/use-scene-generator');
     mocks.settingsState.mockReturnValue({
       ...mocks.settingsState(),
       ttsProviderId: 'qwen-tts',
@@ -334,7 +332,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('stores directly in Dexie without consulting the asset pool', async () => {
-    const { generateAndStoreTTS } = await import('@/lib/hooks/use-scene-generator');
     mockFetch.mockResolvedValue(
       jsonResponse(200, {
         success: true,
@@ -350,7 +347,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('does not report an allocated id when the compatibility write fails', async () => {
-    const { generateAndStoreTTS } = await import('@/lib/hooks/use-scene-generator');
     mockFetch.mockResolvedValue(
       jsonResponse(200, {
         success: true,
@@ -368,7 +364,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('reclaims earlier allocations when partial scene synthesis fails', async () => {
-    const { generateTTSForScene } = await import('@/lib/hooks/use-scene-generator');
     mocks.poolPut.mockResolvedValueOnce('ast_first_audio');
     mockFetch
       .mockResolvedValueOnce(
@@ -404,7 +399,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('waits for parallel TTS workers before rolling back an abandoned scene', async () => {
-    const { generateTTSForScene } = await import('@/lib/hooks/use-scene-generator');
     mocks.settingsState.mockReturnValue({
       ...mocks.settingsState(),
       parallelSceneConcurrency: 2,
@@ -449,7 +443,6 @@ describe('browser scene generation retry wrappers', () => {
   });
 
   it('replaces allocated audio under the stable id and refreshes its compatibility row', async () => {
-    const { generateAndStoreTTS } = await import('@/lib/hooks/use-scene-generator');
     mockFetch.mockResolvedValue(
       jsonResponse(200, {
         success: true,
