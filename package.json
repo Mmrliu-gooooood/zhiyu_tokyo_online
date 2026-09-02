@@ -21,6 +21,7 @@
     "check": "prettier . --check",
     "format": "prettier . --write",
     "test": "vitest run",
+    "test:performance:zhiyu": "vitest run --config vitest.workspace-performance.config.ts tests/performance/zhiyu-playback-profiler-baseline.test.ts && vitest run --config vitest.workspace-performance.config.ts tests/performance/zhiyu-workspace-profiler-baseline.test.ts",
     "test:package-tarballs": "node scripts/smoke-test-package-tarballs.mjs",
     "test:e2e": "playwright test",
     "test:e2e:docker": "playwright test --config=playwright.docker.config.ts",

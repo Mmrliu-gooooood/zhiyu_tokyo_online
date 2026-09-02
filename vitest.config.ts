@@ -9,7 +9,10 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/performance/zhiyu-workspace-profiler-baseline.test.ts'],
+    exclude: [
+      'tests/performance/zhiyu-playback-profiler-baseline.test.ts',
+      'tests/performance/zhiyu-workspace-profiler-baseline.test.ts',
+    ],
     setupFiles: ['tests/setup-env.ts'],
   },
 });

@@ -65,6 +65,29 @@ describe('Phase 0 verification contract', () => {
     });
   });
 
+  it('keeps timing-sensitive ZHIYU profiler gates out of the parallel unit pool', () => {
+    const vitestConfig = read('vitest.config.ts');
+    const performanceConfig = read('vitest.workspace-performance.config.ts');
+    const packageJson = JSON.parse(read('package.json')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(vitestConfig).toContain(
+      "exclude: [\n      'tests/performance/zhiyu-playback-profiler-baseline.test.ts',\n      'tests/performance/zhiyu-workspace-profiler-baseline.test.ts',\n    ]",
+    );
+    expect(packageJson.scripts?.['test:performance:zhiyu']).toBe(
+      'vitest run --config vitest.workspace-performance.config.ts tests/performance/zhiyu-playback-profiler-baseline.test.ts && vitest run --config vitest.workspace-performance.config.ts tests/performance/zhiyu-workspace-profiler-baseline.test.ts',
+    );
+    expect(performanceConfig).toContain(
+      "'tests/performance/zhiyu-playback-profiler-baseline.test.ts'",
+    );
+    expect(performanceConfig).toContain(
+      "'tests/performance/zhiyu-workspace-profiler-baseline.test.ts'",
+    );
+    expect(performanceConfig).toContain('fileParallelism: false');
+    expect(performanceConfig).toContain('maxWorkers: 1');
+  });
+
   it('fingerprints dirty file content instead of only its porcelain status', () => {
     const fixture = mkdtempSync(join(tmpdir(), 'openmaic-phase0-worktree-'));
     try {

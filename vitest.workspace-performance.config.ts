@@ -8,7 +8,10 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['tests/performance/zhiyu-workspace-profiler-baseline.test.ts'],
+    include: [
+      'tests/performance/zhiyu-playback-profiler-baseline.test.ts',
+      'tests/performance/zhiyu-workspace-profiler-baseline.test.ts',
+    ],
     setupFiles: ['tests/setup-env.ts'],
     pool: 'forks',
     fileParallelism: false,
