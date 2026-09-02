@@ -3,6 +3,7 @@ import type { Page, TestInfo } from '@playwright/test';
 import { test, expect } from '../fixtures/base';
 import { seedClassroomDatabase, ZHIYU_CLASSROOM_STAGE_ID } from '../fixtures/zhiyu-classroom';
 import { createSettingsStorage } from '../fixtures/test-data/settings';
+import { mockOutlines } from '../fixtures/test-data/scene-outlines';
 import { ClassroomPage } from '../pages/classroom.page';
 import { GenerationPreviewPage } from '../pages/generation-preview.page';
 import { HomePage } from '../pages/home.page';
@@ -33,9 +34,13 @@ const GENERATION_SESSION = JSON.stringify({
   pdfText: '',
   pdfImages: [],
   imageStorageIds: [],
-  sceneOutlines: null,
+  sceneOutlines: mockOutlines,
+  languageDirective: 'Use English for the generated course.',
   currentStep: 'generating',
+  previewPhase: 'review',
 });
+
+const GOLDEN_ERROR_STAGE_ID = 'e2e-zhiyu-golden-error';
 
 async function configureMatrixCase(page: Page, matrix: MatrixCase) {
   await page.setViewportSize({ width: matrix.width, height: 900 });
@@ -53,6 +58,9 @@ async function captureMatrixEvidence(
   matrix: MatrixCase,
 ) {
   await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(matrix.width);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
   const { clientWidth, scrollWidth } = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -62,7 +70,52 @@ async function captureMatrixEvidence(
     path: testInfo.outputPath(`zhiyu-matrix-${surface}-${matrix.width}-${matrix.theme}.png`),
     fullPage: true,
     animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
   });
+  await expect(page).toHaveScreenshot(
+    `zhiyu-matrix-${surface}-${matrix.width}-${matrix.theme}.png`,
+    {
+      fullPage: true,
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    },
+  );
+}
+
+async function seedFutureVersionClassroom(page: Page) {
+  await page.goto('/classroom/golden-error-warmup');
+  await page.evaluate((stageId) => {
+    return new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('maic-documents', 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        database.createObjectStore('stages', { keyPath: 'id' });
+        const scenes = database.createObjectStore('scenes', { keyPath: ['stageId', 'id'] });
+        scenes.createIndex('by-stage', 'stageId');
+        database.createObjectStore('outlines', { keyPath: 'stageId' });
+      };
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction('stages', 'readwrite');
+        const now = Date.now();
+        transaction.objectStore('stages').put({
+          id: stageId,
+          name: 'Future classroom document',
+          createdAt: now,
+          updatedAt: now,
+          dslVersion: '99.0.0',
+        });
+        transaction.oncomplete = () => {
+          database.close();
+          resolve();
+        };
+        transaction.onerror = () => reject(transaction.error);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }, GOLDEN_ERROR_STAGE_ID);
 }
 
 async function openCombinedWorkspace(page: Page, matrix: MatrixCase) {
@@ -106,12 +159,15 @@ test.describe('ZHIYU Tier A responsive and theme matrix', () => {
           localStorage.setItem('maic:account:settings-storage', settings);
           sessionStorage.setItem('generationSession', session);
         },
-        { settings: createSettingsStorage(), session: GENERATION_SESSION },
+        {
+          settings: createSettingsStorage({ reviewOutlineEnabled: true }),
+          session: GENERATION_SESSION,
+        },
       );
       await mockApi.setupGenerationMocks();
       const generation = new GenerationPreviewPage(page);
       await generation.goto();
-      await expect(generation.shell).toBeVisible();
+      await generation.waitForEditor();
       await captureMatrixEvidence(page, testInfo, 'generation', matrix);
     });
 
@@ -137,6 +193,15 @@ test.describe('ZHIYU Tier A responsive and theme matrix', () => {
         await expect(page.getByTestId('workbench-chat')).toBeVisible();
         await captureMatrixEvidence(page, testInfo, 'workspace-combined-chat-focus', matrix);
       }
+    });
+
+    test(`Hosted Classroom ${matrix.width} ${matrix.theme}`, async ({ page }, testInfo) => {
+      await openCombinedWorkspace(page, matrix);
+      await page.getByTestId('workbench-start-learning').click();
+      await expect(page.getByTestId('zhiyu-editor-shell')).toBeHidden();
+      await expect(page.getByTestId('zhiyu-classroom-shell')).toBeVisible();
+      await expect(page.getByTestId('zhiyu-playback-bar')).toBeVisible();
+      await captureMatrixEvidence(page, testInfo, 'hosted-classroom', matrix);
     });
   }
 });
@@ -199,4 +264,35 @@ test('captures the Generation missing-session recovery state', async ({ page }, 
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /back to home|返回首页/i })).toBeVisible();
   await captureMatrixEvidence(page, testInfo, 'generation-missing-session', matrix);
+});
+
+test('captures the Classroom loading state', async ({ page }, testInfo) => {
+  const matrix = { width: 1366, theme: 'light' } as const;
+  await configureMatrixCase(page, matrix);
+
+  let releaseClassroomRequest!: () => void;
+  const classroomRequestReleased = new Promise<void>((resolve) => {
+    releaseClassroomRequest = resolve;
+  });
+  await page.route('**/api/classroom?id=e2e-zhiyu-golden-loading', async (route) => {
+    await classroomRequestReleased;
+    await route.fulfill({ status: 404, body: '{}' });
+  });
+
+  try {
+    await page.goto('/classroom/e2e-zhiyu-golden-loading');
+    await expect(page.getByText('Loading classroom...')).toBeVisible();
+    await captureMatrixEvidence(page, testInfo, 'classroom-loading', matrix);
+  } finally {
+    releaseClassroomRequest();
+  }
+});
+
+test('captures the Classroom storage error state', async ({ page }, testInfo) => {
+  const matrix = { width: 1366, theme: 'light' } as const;
+  await configureMatrixCase(page, matrix);
+  await seedFutureVersionClassroom(page);
+  await page.goto(`/classroom/${GOLDEN_ERROR_STAGE_ID}`);
+  await expect(page.getByRole('button', { name: /^retry$/i })).toBeVisible();
+  await captureMatrixEvidence(page, testInfo, 'classroom-error', matrix);
 });
