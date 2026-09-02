@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
+import { POST } from '@/app/api/extract-document/route';
 
 const mocks = vi.hoisted(() => ({
   isServerConfiguredProvider: vi.fn(() => false),
@@ -38,7 +39,6 @@ async function postExtractDocument(input: {
   apiKey?: string;
   baseUrl?: string;
 }) {
-  const { POST } = await import('@/app/api/extract-document/route');
   const formData = new FormData();
   formData.append('file', input.file);
   if (input.providerId) formData.append('providerId', input.providerId);
@@ -54,7 +54,6 @@ async function postExtractDocument(input: {
 
 describe('POST /api/extract-document', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.unstubAllEnvs();
     mocks.isServerConfiguredProvider.mockReturnValue(false);
     mocks.resolvePDFApiKey.mockImplementation(
@@ -265,7 +264,6 @@ describe('POST /api/extract-document', () => {
 });
 
 async function postExtractDocumentByAssetId(input: Record<string, unknown>) {
-  const { POST } = await import('@/app/api/extract-document/route');
   const request = new Request('http://localhost/api/extract-document', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -276,7 +274,6 @@ async function postExtractDocumentByAssetId(input: Record<string, unknown>) {
 
 describe('POST /api/extract-document (asset-id form)', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.unstubAllEnvs();
     mocks.isServerConfiguredProvider.mockReturnValue(false);
     mocks.resolvePDFApiKey.mockImplementation(
@@ -726,7 +723,6 @@ describe('POST /api/extract-document (asset-id form)', () => {
   });
 
   it('returns 400 for a malformed JSON body', async () => {
-    const { POST } = await import('@/app/api/extract-document/route');
     const request = new Request('http://localhost/api/extract-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -744,7 +740,6 @@ describe('POST /api/extract-document (asset-id form)', () => {
   });
 
   it('returns 400 for a JSON null body instead of 500 with raw internal text', async () => {
-    const { POST } = await import('@/app/api/extract-document/route');
     const request = new Request('http://localhost/api/extract-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -765,7 +760,6 @@ describe('POST /api/extract-document (asset-id form)', () => {
   });
 
   it('returns 400 for a JSON array body instead of 500', async () => {
-    const { POST } = await import('@/app/api/extract-document/route');
     const request = new Request('http://localhost/api/extract-document', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
