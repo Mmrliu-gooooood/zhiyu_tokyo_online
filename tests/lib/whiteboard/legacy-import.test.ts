@@ -84,18 +84,25 @@ describe('dormant Legacy whiteboard import seam', () => {
     const files = (await Promise.all(roots.map(productionSourceFiles))).flat();
     const callers: string[] = [];
 
-    for (const file of files) {
-      if (file === `${target}.ts`) continue;
-      const source = await readFile(file, 'utf8');
-      const specifiers = source.matchAll(
-        /(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)['"]([^'"]+)['"]/gu,
+    for (let offset = 0; offset < files.length; offset += 32) {
+      const batchCallers = await Promise.all(
+        files.slice(offset, offset + 32).map(async (file) => {
+          if (file === `${target}.ts`) return [];
+          const source = await readFile(file, 'utf8');
+          const specifiers = source.matchAll(
+            /(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)['"]([^'"]+)['"]/gu,
+          );
+          const fileCallers: string[] = [];
+          for (const match of specifiers) {
+            const resolved = resolveLocalImport(repoRoot, file, match[1]!);
+            if (resolved?.replace(/\.[cm]?[jt]sx?$/u, '') === target) {
+              fileCallers.push(path.relative(repoRoot, file));
+            }
+          }
+          return fileCallers;
+        }),
       );
-      for (const match of specifiers) {
-        const resolved = resolveLocalImport(repoRoot, file, match[1]!);
-        if (resolved?.replace(/\.[cm]?[jt]sx?$/u, '') === target) {
-          callers.push(path.relative(repoRoot, file));
-        }
-      }
+      callers.push(...batchCallers.flat());
     }
 
     expect(callers).toEqual([]);
