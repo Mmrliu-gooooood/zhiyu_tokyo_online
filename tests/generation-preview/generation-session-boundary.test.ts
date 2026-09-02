@@ -24,6 +24,7 @@ describe('Generation Preview route/session boundary', () => {
     expect(controller).toContain("canonicalPhase === 'scene-generation'");
     expect(controller).toContain('persistStageCandidate');
     expect(controller).not.toContain('saveStageData(');
+    expect(controller).toContain('if (!generationRuntimeRef.current?.canAcceptIntent) return;');
     expect(controller).toContain('generationRuntimeRef.current?.stop()');
   });
 });

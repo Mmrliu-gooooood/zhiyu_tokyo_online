@@ -214,6 +214,7 @@ describe('GenerationSessionRuntime public seam', () => {
 
     await Promise.resolve();
     expect(signal.aborted).toBe(true);
+    expect(runtime.canAcceptIntent).toBe(false);
     expect(events).toEqual([
       'phase:agent-generation',
       'session:revoked',

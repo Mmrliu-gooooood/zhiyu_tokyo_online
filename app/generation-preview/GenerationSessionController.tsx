@@ -1183,6 +1183,7 @@ function GenerationPreviewContent() {
   // Triggered when the user clicks the streaming outline card mid-stream.
   // SSE keeps running; only the surface morph + intent flag change.
   const handleExpandStreamingOutline = () => {
+    if (!generationRuntimeRef.current?.canAcceptIntent) return;
     if (!session) return;
     clearOutlineReviewTimer();
     setStatusMessage('');
@@ -1199,6 +1200,7 @@ function GenerationPreviewContent() {
   // pacing as the no-review path so the user has a beat to see the card before
   // the page advances. Jumping straight to content gen feels too abrupt.
   const handleCollapseEditor = () => {
+    if (!generationRuntimeRef.current?.canAcceptIntent) return;
     if (!session) return;
     if (isOutlineStreaming) {
       // Intentionally drop the review-intent flag: collapsing mid-stream is the
@@ -1228,6 +1230,7 @@ function GenerationPreviewContent() {
     clearOutlineReviewTimer();
     outlineReviewTimerRef.current = setTimeout(() => {
       outlineReviewTimerRef.current = null;
+      if (!generationRuntimeRef.current?.canAcceptIntent) return;
       const resolve = outlineReviewResolveRef.current;
       outlineReviewResolveRef.current = null;
       if (resolve) {
@@ -1248,6 +1251,7 @@ function GenerationPreviewContent() {
   };
 
   const handleOutlinesChange = (outlines: SceneOutline[]) => {
+    if (!generationRuntimeRef.current?.canAcceptIntent) return;
     if (!session) return;
     // Streaming SSE owns `streamingOutlines` while it's running; ignore editor
     // changes until the stream completes (the editor is read-only in that state
@@ -1261,6 +1265,7 @@ function GenerationPreviewContent() {
   };
 
   const handleConfirmOutlines = () => {
+    if (!generationRuntimeRef.current?.canAcceptIntent) return;
     const finalOutlines = session?.sceneOutlines ?? streamingOutlines;
     if (!finalOutlines || finalOutlines.length === 0) return;
     setIsConfirmingOutlines(true);

@@ -90,6 +90,10 @@ export class GenerationSessionRuntime {
     return this.currentPhase;
   }
 
+  get canAcceptIntent(): boolean {
+    return !TERMINAL_PHASES.has(this.currentPhase);
+  }
+
   start(initialPhase: GenerationRunStartPhase = 'outline-streaming'): GenerationRun {
     this.invalidate();
     this.controller = new AbortController();
