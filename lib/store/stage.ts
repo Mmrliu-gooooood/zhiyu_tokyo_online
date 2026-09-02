@@ -22,7 +22,7 @@ import { preparePBLScenesForDocumentPersistence } from '@/lib/pbl/v2/runtime/doc
 import { hydratePBLScenesFromRuntime } from '@/lib/pbl/v2/runtime/hydration';
 import type { ChatStorageSnapshot } from '@/lib/utils/chat-storage';
 import type { DocumentProducer } from '@/lib/document-store/persistence-types';
-import type { PendingChange, StaleDroppedSave } from '@/lib/utils/stage-storage';
+import type { PendingChange, StageStoreData, StaleDroppedSave } from '@/lib/utils/stage-storage';
 import { collectStageAssetRefs } from '@/lib/media/collect-stage-asset-refs';
 import {
   isStageDeleted,
@@ -258,6 +258,17 @@ export function claimStageSceneLoadToken(): StageSceneLoadToken {
 
 export function isCurrentStageSceneLoadToken(token: StageSceneLoadToken): boolean {
   return token === latestStageSceneLoadToken;
+}
+
+/** Persist an unpublished generation candidate with the same PBL preparation as the live store. */
+export async function persistStageCandidate(data: StageStoreData): Promise<void> {
+  const capturedEpoch = stageDeletionEpoch(data.stage.id);
+  const scenes = await preparePBLScenesForDocumentPersistence(data.stage.id, data.scenes);
+  const { saveStageData } = await import('@/lib/utils/stage-storage');
+  const result = await saveStageData(data.stage.id, { ...data, scenes }, capturedEpoch);
+  if (result === 'stale-dropped') {
+    throw new Error(`Generation candidate save was fenced for stage ${data.stage.id}`);
+  }
 }
 
 type ToolbarState = 'design' | 'ai';

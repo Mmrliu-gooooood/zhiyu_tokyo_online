@@ -29,6 +29,30 @@ type GenerationCandidateTransaction = {
   publish: () => void;
 };
 
+/** Run-local ownership token for resources that may be transferred to a recoverable session. */
+export class GenerationResourceLease<T> {
+  private resources: T[] = [];
+
+  constructor(private readonly discardResources: (resources: readonly T[]) => Promise<void>) {}
+
+  own(resources: readonly T[]): void {
+    this.resources = [...resources];
+  }
+
+  transfer(): T[] {
+    const transferred = this.resources;
+    this.resources = [];
+    return transferred;
+  }
+
+  async discard(): Promise<void> {
+    if (this.resources.length === 0) return;
+    const resources = this.resources;
+    this.resources = [];
+    await this.discardResources(resources);
+  }
+}
+
 const HAPPY_PATH_TRANSITIONS: Readonly<
   Record<GenerationCanonicalPhase, ReadonlySet<GenerationCanonicalPhase>>
 > = {

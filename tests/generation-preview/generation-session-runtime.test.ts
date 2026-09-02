@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  GenerationResourceLease,
   GenerationSessionRuntime,
   type GenerationCanonicalPhase,
 } from '@/app/generation-preview/generation-session-runtime';
@@ -173,5 +174,21 @@ describe('GenerationSessionRuntime public seam', () => {
       'retired:persist:end',
       'retired:discard',
     ]);
+  });
+
+  it('transfers recoverable resources across refresh but discards abandoned run resources', async () => {
+    const discard = vi.fn(async (_ids: readonly string[]) => undefined);
+    const lease = new GenerationResourceLease(discard);
+
+    lease.own(['image-1', 'image-2']);
+    lease.transfer();
+    await lease.discard();
+    expect(discard).not.toHaveBeenCalled();
+
+    lease.own(['image-3']);
+    await lease.discard();
+    await lease.discard();
+    expect(discard).toHaveBeenCalledOnce();
+    expect(discard).toHaveBeenCalledWith(['image-3']);
   });
 });

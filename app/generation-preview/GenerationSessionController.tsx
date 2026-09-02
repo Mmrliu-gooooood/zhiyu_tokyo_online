@@ -11,7 +11,7 @@ import { ZhiyuLearningVisual } from '@/components/home/ZhiyuLearningVisual';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { OutlinesEditor } from '@/components/generation/outlines-editor';
 import { cn } from '@/lib/utils';
-import { useStageStore } from '@/lib/store/stage';
+import { persistStageCandidate, useStageStore } from '@/lib/store/stage';
 import { useSettingsStore } from '@/lib/store/settings';
 import {
   applyGeneratedAgentsToRegistry,
@@ -39,8 +39,7 @@ import {
   deleteStoredImages,
   storeImages,
 } from '@/lib/utils/image-storage';
-import { deleteStageData, saveStageData } from '@/lib/utils/stage-storage';
-import { stageDeletionEpoch } from '@/lib/utils/deleted-stages';
+import { deleteStageData } from '@/lib/utils/stage-storage';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { resolveSessionDocumentSources } from '@/lib/document/session-sources';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
@@ -72,6 +71,7 @@ import { ZhiyuGenerationShell } from './components/ZhiyuGenerationShell';
 import { projectZhiyuGenerationSteps } from './components/zhiyu-generation-state';
 import { resolveTaskEngineModeFromOutlineDoneEvent } from './vocational-mode';
 import {
+  GenerationResourceLease,
   GenerationSessionRuntime,
   type GenerationCanonicalPhase,
 } from './generation-session-runtime';
@@ -336,7 +336,7 @@ function GenerationPreviewContent() {
 
     // Use a local mutable copy so we can update it after document extraction
     let currentSession = generationSession;
-    let ownedImageStorageIds: string[] = [];
+    const imageLease = new GenerationResourceLease<string>(deleteStoredImages);
 
     commit(() => {
       setError(null);
@@ -445,7 +445,7 @@ function GenerationPreviewContent() {
 
         const bundle = buildDocumentBundle(parsedParts);
         const imageStorageIds = await storeImages(bundle.images, signal);
-        ownedImageStorageIds = imageStorageIds;
+        imageLease.own(imageStorageIds);
         if (!runtime.isCurrent(epoch)) return;
 
         const pdfImages: PdfImage[] = bundle.images.map((img, i) => ({
@@ -472,10 +472,15 @@ function GenerationPreviewContent() {
           imageStorageIds,
           pdfStorageKey: undefined, // Clear so we don't re-parse
         };
-        commit(() => {
-          setSession(updatedSession);
-          sessionStorage.setItem('generationSession', JSON.stringify(updatedSession));
-        });
+        if (
+          !commit(() => {
+            setSession(updatedSession);
+            sessionStorage.setItem('generationSession', JSON.stringify(updatedSession));
+          })
+        ) {
+          return;
+        }
+        imageLease.transfer();
 
         // Truncation warnings
         const warnings: string[] = [];
@@ -1080,22 +1085,18 @@ function GenerationPreviewContent() {
       const persistedAt = Date.now();
       const published = await runtime.publishAfterPersist(epoch, {
         persist: async () => {
-          await saveStageData(
-            stage.id,
-            {
-              stage,
-              scenes: [firstScene],
-              currentSceneId: firstScene.id,
-              chats: [],
-              outline: {
-                outlines,
-                generationComplete: false,
-                createdAt: persistedAt,
-                updatedAt: persistedAt,
-              },
+          await persistStageCandidate({
+            stage,
+            scenes: [firstScene],
+            currentSceneId: firstScene.id,
+            chats: [],
+            outline: {
+              outlines,
+              generationComplete: false,
+              createdAt: persistedAt,
+              updatedAt: persistedAt,
             },
-            stageDeletionEpoch(stage.id),
-          );
+          });
         },
         discard: async () => {
           await deleteStageData(stage.id);
@@ -1130,7 +1131,6 @@ function GenerationPreviewContent() {
         },
       });
       if (!published) return;
-      ownedImageStorageIds = [];
       if (!runtime.transition(epoch, 'completed')) return;
       router.push(`/classroom/${stage.id}`);
     } catch (err) {
@@ -1141,17 +1141,18 @@ function GenerationPreviewContent() {
         log.info('[GenerationPreview] Generation aborted');
         return;
       }
+      await deleteStoredImages(currentSession.imageStorageIds ?? []).catch((cleanupError) => {
+        log.warn('[GenerationPreview] Failed to discard session image records:', cleanupError);
+      });
       commit(() => {
         sessionStorage.removeItem('generationSession');
         setError(err instanceof Error ? err.message : String(err));
       });
       if (!runtime.transition(epoch, 'failed')) return;
     } finally {
-      if (ownedImageStorageIds.length > 0) {
-        await deleteStoredImages(ownedImageStorageIds).catch((cleanupError) => {
-          log.warn('[GenerationPreview] Failed to discard retired image records:', cleanupError);
-        });
-      }
+      await imageLease.discard().catch((cleanupError) => {
+        log.warn('[GenerationPreview] Failed to discard retired image records:', cleanupError);
+      });
     }
   };
 
@@ -1167,6 +1168,9 @@ function GenerationPreviewContent() {
     generationRuntimeRef.current?.cancel();
     clearOutlineReviewTimer();
     outlineReviewIntentRef.current = false;
+    void deleteStoredImages(session?.imageStorageIds ?? []).catch((cleanupError) => {
+      log.warn('[GenerationPreview] Failed to discard abandoned image records:', cleanupError);
+    });
     sessionStorage.removeItem('generationSession');
     router.push('/');
   };
