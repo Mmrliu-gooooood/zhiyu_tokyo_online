@@ -37,7 +37,7 @@ interface ChatAreaProps {
   collapsed?: boolean;
   onCollapseChange?: (collapsed: boolean) => void;
   activeBubbleId?: string | null;
-  onActiveBubble?: (messageId: string | null) => void;
+  onActiveBubble?: (messageId: string | null, producerSessionId: string) => void;
   onLiveSpeech?: (
     text: string | null,
     agentId: string | null | undefined,

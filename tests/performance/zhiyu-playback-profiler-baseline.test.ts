@@ -616,6 +616,32 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     });
   });
 
+  it('rejects an active-bubble update emitted by a superseded session producer', async () => {
+    await act(async () => {
+      root.render(createElement(PlaybackChromeRoot));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const initialChatAreaProps = mocks.captureChatAreaProps.mock.lastCall?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    const onActiveBubble = initialChatAreaProps?.onActiveBubble as
+      | ((messageId: string | null, producerSessionId: string) => void)
+      | undefined;
+    expect(onActiveBubble).toBeTypeOf('function');
+
+    await act(async () => onActiveBubble?.('message-current', mocks.activeSessionId!));
+    expect(mocks.captureChatAreaProps.mock.lastCall?.[0]).toMatchObject({
+      activeBubbleId: 'message-current',
+    });
+
+    await act(async () => onActiveBubble?.('message-stale', 'session-old'));
+    expect(mocks.captureChatAreaProps.mock.lastCall?.[0]).toMatchObject({
+      activeBubbleId: 'message-current',
+    });
+  });
+
   it('rejects stop and sealed-audio callbacks from a superseded session producer', async () => {
     await act(async () => {
       root.render(createElement(PlaybackChromeRoot));

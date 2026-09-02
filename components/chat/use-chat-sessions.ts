@@ -139,7 +139,7 @@ interface UseChatSessionsOptions {
     prompt: string | undefined,
     producerSessionId: string,
   ) => void;
-  onActiveBubble?: (messageId: string | null) => void;
+  onActiveBubble?: (messageId: string | null, producerSessionId: string) => void;
   onLiveSessionError?: (producerSessionId: string) => void;
   /** Called immediately when the server semantically closes a QA/Discussion session. */
   onSoftCloseSession?: (payload: SessionCleanupPayload) => void;
@@ -872,7 +872,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
         ),
       );
 
-      onActiveBubbleRef.current?.(null);
+      onActiveBubbleRef.current?.(null, sessionId);
       if (onLiveSessionErrorRef.current) {
         onLiveSessionErrorRef.current(sessionId);
       } else {
@@ -945,7 +945,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
                   : s,
               ),
             );
-            onActiveBubbleRef.current?.(data.messageId);
+            onActiveBubbleRef.current?.(data.messageId, sessionId);
           },
 
           onAgentEnd() {

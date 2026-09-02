@@ -2043,7 +2043,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                   collapsed={false}
                   onCollapseChange={handleInteractionPresentationChange}
                   activeBubbleId={activeBubbleId}
-                  onActiveBubble={(id) => setActiveBubbleId(id)}
+                  onActiveBubble={(id, producerSessionId) => {
+                    if (!isCurrentChatProducer(producerSessionId)) return;
+                    setActiveBubbleId(id);
+                  }}
                   currentSceneId={currentSceneId}
                   currentActionIndex={currentPlaybackActionIndex}
                   canJumpToAction={canJumpToAction}
