@@ -16,12 +16,14 @@ export class GenerationPreviewPage {
     this.page = page;
     this.stepTitle = page.locator('h2');
     this.backButton = page.getByRole('button', { name: /back|返回/i });
-    // The dedicated "Review outline" button was removed in favour of the streaming
-    // preview card itself being the entry into the editor. Match its aria-label
-    // (`generation.outlineExpandHint`) across all supported locales.
-    this.reviewOutlineButton = page.getByRole('button', {
-      name: /tap to review|点击审阅|點擊審閱|クリックでレビュー|нажмите, чтобы проверить|اضغط للمراجعة/i,
-    });
+    // The ZHIYU preview projects each ready outline as an enabled button; all
+    // other preview actions are disabled or absent in this phase. Enter review
+    // through that public control instead of an aria-label from the retired
+    // sticky-note visualizer.
+    this.reviewOutlineButton = page
+      .getByTestId('zhiyu-generation-preview')
+      .locator('button:not(:disabled)')
+      .first();
     this.editorTitle = page.getByRole('heading', {
       name: /scene outline|场景大纲|場景大綱|シーンアウトライン|план сцен|مخطط المشاهد/i,
     });

@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/base';
+import type { Page } from '@playwright/test';
 import { GenerationPreviewPage } from '../pages/generation-preview.page';
 import { createSettingsStorage, SETTINGS_KV_KEY } from '../fixtures/test-data/settings';
 import { mockOutlines } from '../fixtures/test-data/scene-outlines';
@@ -34,18 +35,34 @@ const PERSISTED_REVIEW_SESSION = JSON.stringify({
   previewPhase: 'review',
 });
 
-test.describe('Generation Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(
-      ({ settings, session }) => {
-        localStorage.setItem('maic:account:settings-storage', settings);
-        sessionStorage.setItem('generationSession', session);
-      },
-      { settings: SETTINGS_STORAGE, session: GENERATION_SESSION },
-    );
-  });
+const PERSISTED_OUTLINE_READY_SESSION = JSON.stringify({
+  sessionId: 'e2e-outline-ready-session',
+  requirements: {
+    requirement: '讲解光合作用',
+    language: 'zh-CN',
+  },
+  pdfText: '',
+  pdfImages: [],
+  imageStorageIds: [],
+  sceneOutlines: mockOutlines,
+  languageDirective: 'Use Chinese for the generated course.',
+  currentStep: 'generating',
+  previewPhase: 'outline-ready',
+});
 
+async function seedGenerationSession(page: Page, settings: string, session: string): Promise<void> {
+  await page.addInitScript(
+    ({ seededSettings, seededSession }) => {
+      localStorage.setItem('maic:account:settings-storage', seededSettings);
+      sessionStorage.setItem('generationSession', seededSession);
+    },
+    { seededSettings: settings, seededSession: session },
+  );
+}
+
+test.describe('Generation Flow', () => {
   test('completes generation pipeline and redirects to classroom', async ({ page, mockApi }) => {
+    await seedGenerationSession(page, SETTINGS_STORAGE, GENERATION_SESSION);
     // Set up all API mocks
     await mockApi.setupGenerationMocks();
 
@@ -67,6 +84,7 @@ test.describe('Generation Flow', () => {
     page,
     mockApi,
   }) => {
+    await seedGenerationSession(page, SETTINGS_STORAGE, PERSISTED_OUTLINE_READY_SESSION);
     await mockApi.setupGenerationMocks();
 
     const preview = new GenerationPreviewPage(page);
@@ -82,6 +100,7 @@ test.describe('Generation Flow', () => {
   });
 
   test('persists always review preference from the outline editor', async ({ page, mockApi }) => {
+    await seedGenerationSession(page, SETTINGS_STORAGE, PERSISTED_OUTLINE_READY_SESSION);
     await mockApi.setupGenerationMocks();
 
     const preview = new GenerationPreviewPage(page);
@@ -110,13 +129,7 @@ test.describe('Generation Flow', () => {
     page,
     mockApi,
   }) => {
-    await page.addInitScript(
-      ({ settings, session }) => {
-        localStorage.setItem('maic:account:settings-storage', settings);
-        sessionStorage.setItem('generationSession', session);
-      },
-      { settings: REVIEW_SETTINGS_STORAGE, session: GENERATION_SESSION },
-    );
+    await seedGenerationSession(page, REVIEW_SETTINGS_STORAGE, GENERATION_SESSION);
 
     await mockApi.setupGenerationMocks();
 
@@ -132,13 +145,7 @@ test.describe('Generation Flow', () => {
 });
 
 test('resumes generation from a persisted outline review session', async ({ page, mockApi }) => {
-  await page.addInitScript(
-    ({ settings, session }) => {
-      localStorage.setItem('maic:account:settings-storage', settings);
-      sessionStorage.setItem('generationSession', session);
-    },
-    { settings: SETTINGS_STORAGE, session: PERSISTED_REVIEW_SESSION },
-  );
+  await seedGenerationSession(page, SETTINGS_STORAGE, PERSISTED_REVIEW_SESSION);
 
   await mockApi.setupGenerationMocks();
 
