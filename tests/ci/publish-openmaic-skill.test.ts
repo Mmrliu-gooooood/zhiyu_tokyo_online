@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -98,7 +106,7 @@ function expectFailure(result: ReturnType<typeof runPublish>['result'], message:
   expect(result.stderr).toBe(`::error::${message}\n`);
 }
 
-describe('publish-openmaic-skill shell contract', () => {
+describe.skipIf(!existsSync('/bin/bash'))('publish-openmaic-skill shell contract', () => {
   it('performs a real publish with no positional argument under macOS Bash 3.2', () => {
     const { calls, result } = runPublish();
 
