@@ -31,10 +31,10 @@ test.describe('ZHIYU classroom workspace', () => {
     await expect(page.getByTestId('scene-item').nth(1)).toHaveAttribute('aria-current', 'page');
 
     const bar = page.getByTestId('zhiyu-playback-bar');
-    const play = bar.getByRole('button', { name: /play|播放/i });
+    const play = bar.getByRole('button', { name: /^(play|播放)$/i });
     await expect(play).toBeVisible();
     await play.click();
-    await expect(bar.getByRole('button', { name: /pause|暂停/i })).toBeVisible();
+    await expect(bar.getByRole('button', { name: /^(pause|暂停)$/i })).toBeVisible();
     await expect(page.getByTestId('zhiyu-interaction-panel')).toBeVisible();
     await expect(page.getByRole('switch', { name: /edit course|编辑课程/i })).toBeVisible();
   });
