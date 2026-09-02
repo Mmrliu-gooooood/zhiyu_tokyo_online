@@ -36,6 +36,14 @@ function sourceFiles(directory: string): string[] {
   return files;
 }
 
+const repoRoot = process.cwd();
+const SOURCE_CORPUS = SOURCE_ROOTS.flatMap((root) => sourceFiles(join(repoRoot, root))).map(
+  (path) => ({
+    path: relative(repoRoot, path).split(sep).join('/'),
+    source: readFileSync(path, 'utf8'),
+  }),
+);
+
 describe('asset URL ownership boundary', () => {
   it('recognizes aliased and namespace imports of the pool module', () => {
     expect(
@@ -49,17 +57,12 @@ describe('asset URL ownership boundary', () => {
   });
 
   it('keeps pool URL resolution and release inside the shared owner module', () => {
-    const cwd = process.cwd();
-    const sources = SOURCE_ROOTS.flatMap((root) => sourceFiles(join(cwd, root))).map((path) => ({
-      path: relative(cwd, path).split(sep).join('/'),
-      source: readFileSync(path, 'utf8'),
-    }));
     // Best-effort static guard: dynamic import(), require aliases, and computed
     // property access can still bypass a regex and remain review responsibilities.
     const violations = FORBIDDEN.flatMap(({ pattern, allowed }) =>
-      sources
-        .filter(({ path, source }) => !allowed.has(path) && pattern.test(source))
-        .map(({ path }) => path),
+      SOURCE_CORPUS.filter(({ path, source }) => !allowed.has(path) && pattern.test(source)).map(
+        ({ path }) => path,
+      ),
     );
 
     expect(violations).toEqual([]);
