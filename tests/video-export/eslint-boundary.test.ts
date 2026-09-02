@@ -2,12 +2,25 @@ import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
 const BOUNDARY_RULE = 'no-restricted-syntax';
+const PROBE_FILE_PATH = 'lib/video-export/emit-hyperframes/probe.ts';
 const eslint = new ESLint({ cwd: process.cwd() });
+const warmupConfig = await eslint.calculateConfigForFile(PROBE_FILE_PATH);
+if (!warmupConfig) throw new Error(`ESLint warm-up path is not configured: ${PROBE_FILE_PATH}`);
+const [warmupResult] = await eslint.lintText('export const lintBoundaryWarmup = true;\n', {
+  filePath: PROBE_FILE_PATH,
+  warnIgnored: false,
+});
+const warmupErrors = (warmupResult?.messages ?? []).filter((message) => message.severity === 2);
+if (!warmupResult || warmupErrors.length > 0) {
+  throw new Error(`ESLint warm-up failed: ${JSON.stringify(warmupErrors)}`);
+}
 
 async function boundaryErrors(code: string): Promise<string[]> {
-  const filePath = 'lib/video-export/emit-hyperframes/probe.ts';
-  if (await eslint.isPathIgnored(filePath)) return ['<path is eslint-ignored>'];
-  const [result] = await eslint.lintText(code, { filePath, warnIgnored: false });
+  if (await eslint.isPathIgnored(PROBE_FILE_PATH)) return ['<path is eslint-ignored>'];
+  const [result] = await eslint.lintText(code, {
+    filePath: PROBE_FILE_PATH,
+    warnIgnored: false,
+  });
   return (result?.messages ?? [])
     .filter((message) => message.severity === 2 && message.ruleId === BOUNDARY_RULE)
     .map((message) => message.ruleId ?? 'unknown');
