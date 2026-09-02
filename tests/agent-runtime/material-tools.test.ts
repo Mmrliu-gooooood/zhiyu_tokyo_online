@@ -492,21 +492,30 @@ describe('material agent tools', () => {
   });
 
   it('stops at the per-execution character budget and reports truncation', async () => {
-    const search = tool(
-      buildMaterialTools({
-        sessionId: 'ses_1',
-        listMaterials: vi.fn().mockResolvedValue([material()]),
-        readTextAsset: singleAsset(Buffer.from('a'.repeat(1_100_000))),
-      }),
-      'search_material',
-    );
-    const result = await search.execute('call_1', { query: 'not-present' } as never);
-    expect(result.details).toMatchObject({
-      mode: 'literal',
-      scannedChars: 1_000_000,
-      truncated: true,
-      hits: [],
-    });
+    const contents = Buffer.from('a'.repeat(1_100_000));
+    const performanceNow = vi.spyOn(performance, 'now').mockReturnValue(0);
+    try {
+      const search = tool(
+        buildMaterialTools({
+          sessionId: 'ses_1',
+          listMaterials: vi.fn().mockResolvedValue([material()]),
+          readTextAsset: vi.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 110));
+            return contents;
+          }),
+        }),
+        'search_material',
+      );
+      const result = await search.execute('call_1', { query: 'not-present' } as never);
+      expect(result.details).toMatchObject({
+        mode: 'literal',
+        scannedChars: 1_000_000,
+        truncated: true,
+        hits: [],
+      });
+    } finally {
+      performanceNow.mockRestore();
+    }
   });
 
   it('uses the same session-scoped lookup gate when materialId is provided', async () => {
