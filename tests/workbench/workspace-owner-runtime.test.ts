@@ -69,6 +69,11 @@ class TestSessionTitleLocks {
   ): Promise<T> {
     const options = typeof optionsOrTask === 'function' ? {} : optionsOrTask;
     const task = typeof optionsOrTask === 'function' ? optionsOrTask : maybeTask!;
+    if (options.ifAvailable && options.signal) {
+      return Promise.reject(
+        new DOMException('Unsupported option combination', 'NotSupportedError'),
+      );
+    }
     if (options.signal) this.signals.push(options.signal);
     if (options.ifAvailable && this.active) return Promise.resolve(task(null));
     return new Promise<T>((resolve, reject) => {
@@ -106,8 +111,32 @@ class TestSessionTitleLocks {
   }
 }
 
+class MemoryStorage implements Storage {
+  private readonly values = new Map<string, string>();
+  get length(): number {
+    return this.values.size;
+  }
+  clear(): void {
+    this.values.clear();
+  }
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+  key(index: number): string | null {
+    return [...this.values.keys()][index] ?? null;
+  }
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+}
+
 beforeEach(() => {
   vi.stubGlobal('navigator', { locks: new TestSessionTitleLocks() });
+  vi.stubGlobal('localStorage', new MemoryStorage());
+  vi.stubGlobal('sessionStorage', new MemoryStorage());
 });
 
 afterEach(() => {
@@ -297,16 +326,77 @@ describe('WorkspaceOwnerRuntime public seam', () => {
     vi.unstubAllGlobals();
   });
 
-  it('refuses an unsafe cross-mount title write when Web Locks are unavailable', async () => {
+  it('persists a stale-projection decision after the previous lock was already released', async () => {
+    let storedTitle: string | null = 'Old title';
+    const saveSessionTitle = vi.fn(async (_sessionId: string, title: string | null) => {
+      storedTitle = title;
+      return title;
+    });
+    const first = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    first.start();
+    await flushPromises();
+    await first.renameSession('session-1', 'Title A');
+    first.stop();
+    expect(storedTitle).toBe('Title A');
+
+    // The new mount has not reconciled A yet and still projects Old title.
+    const second = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    second.start();
+    await flushPromises();
+    await second.renameSession('session-1', 'Old title');
+
+    expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Old title']);
+    expect(storedTitle).toBe('Old title');
+    second.stop();
+  });
+
+  it('preserves an ordinary title write when Web Locks are unavailable', async () => {
     vi.stubGlobal('navigator', {});
     const saveSessionTitle = vi.fn(async (_sessionId: string, title: string | null) => title);
     const runtime = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
     runtime.start();
     await flushPromises();
 
-    await expect(runtime.renameSession('session-1', 'Title A')).resolves.toBe('failed');
-    expect(saveSessionTitle).not.toHaveBeenCalled();
+    await expect(runtime.renameSession('session-1', 'Title A')).resolves.toBe('renamed');
+    expect(saveSessionTitle).toHaveBeenCalledOnce();
     runtime.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('serializes remounted writers through the storage lease without Web Locks', async () => {
+    vi.stubGlobal('navigator', {});
+    const firstSave = deferred<string | null>();
+    let storedTitle: string | null = 'Old title';
+    const saveSessionTitle = vi.fn((_sessionId: string, title: string | null) => {
+      if (saveSessionTitle.mock.calls.length === 1) {
+        return firstSave.promise.then((stored) => {
+          storedTitle = stored;
+          return stored;
+        });
+      }
+      storedTitle = title;
+      return Promise.resolve(title);
+    });
+    const first = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    first.start();
+    await flushPromises();
+    const renameA = first.renameSession('session-1', 'Title A');
+    await flushPromises();
+    first.stop();
+
+    const second = new WorkspaceOwnerRuntime(options({ saveSessionTitle }));
+    second.start();
+    await flushPromises();
+    const renameB = second.renameSession('session-1', 'Title B');
+    await flushPromises();
+    expect(saveSessionTitle).toHaveBeenCalledTimes(1);
+
+    firstSave.resolve('Title A');
+    await renameA;
+    await renameB;
+    expect(saveSessionTitle.mock.calls.map((call) => call[1])).toEqual(['Title A', 'Title B']);
+    expect(storedTitle).toBe('Title B');
+    second.stop();
     vi.unstubAllGlobals();
   });
 

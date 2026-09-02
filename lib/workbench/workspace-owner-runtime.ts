@@ -41,33 +41,122 @@ const INITIAL_SNAPSHOT: WorkspaceOwnerSnapshot = Object.freeze({
 interface SessionTitleLockManager {
   request<T>(
     name: string,
-    options: { readonly ifAvailable?: boolean; readonly signal: AbortSignal },
+    options: { readonly signal: AbortSignal },
     task: (lock: object | null) => Promise<T> | T,
   ): Promise<T>;
 }
+
+interface StoredSessionTitleLock {
+  readonly owner: string;
+  readonly expiresAt: number;
+}
+
+const SESSION_TITLE_LOCK_LEASE_MS = 30_000;
+const SESSION_TITLE_LOCK_REFRESH_MS = 10_000;
+const SESSION_TITLE_LOCK_RETRY_MS = 10;
 
 function sessionTitleLockManager(): SessionTitleLockManager | null {
   if (typeof navigator === 'undefined') return null;
   return (navigator as Navigator & { readonly locks?: SessionTitleLockManager }).locks ?? null;
 }
 
+function sessionTitleLockStorage(): Storage | null {
+  for (const name of ['localStorage', 'sessionStorage'] as const) {
+    try {
+      const storage = globalThis[name];
+      const probe = 'openmaic:session-title-lock:probe';
+      storage.setItem(probe, '1');
+      storage.removeItem(probe);
+      return storage;
+    } catch {
+      // Try the next browser-owned store. An embedded/insecure context may
+      // expose Storage while denying access to it.
+    }
+  }
+  return null;
+}
+
+function readStoredSessionTitleLock(storage: Storage, key: string): StoredSessionTitleLock | null {
+  try {
+    const parsed = JSON.parse(storage.getItem(key) ?? 'null') as Partial<StoredSessionTitleLock>;
+    return typeof parsed.owner === 'string' && typeof parsed.expiresAt === 'number'
+      ? { owner: parsed.owner, expiresAt: parsed.expiresAt }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function waitForSessionTitleLock(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, SESSION_TITLE_LOCK_RETRY_MS);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function runStorageSessionTitleWrite<T>(
+  name: string,
+  signal: AbortSignal,
+  task: () => Promise<T>,
+): Promise<T> {
+  const storage = sessionTitleLockStorage();
+  // Storage-denied embeds have no browser-wide primitive left. Preserve the
+  // ordinary single-mount rename path; persistent contexts are serialized by
+  // Web Locks or the lease below.
+  if (!storage) return task();
+  const key = `openmaic:session-title-lock:${name}`;
+  const owner = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  while (true) {
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    const now = Date.now();
+    const current = readStoredSessionTitleLock(storage, key);
+    if (!current || current.expiresAt <= now) {
+      storage.setItem(key, JSON.stringify({ owner, expiresAt: now + SESSION_TITLE_LOCK_LEASE_MS }));
+      if (readStoredSessionTitleLock(storage, key)?.owner === owner) break;
+    }
+    await waitForSessionTitleLock(signal);
+  }
+
+  const refresh = setInterval(() => {
+    try {
+      if (readStoredSessionTitleLock(storage, key)?.owner !== owner) return;
+      storage.setItem(
+        key,
+        JSON.stringify({ owner, expiresAt: Date.now() + SESSION_TITLE_LOCK_LEASE_MS }),
+      );
+    } catch {
+      clearInterval(refresh);
+    }
+  }, SESSION_TITLE_LOCK_REFRESH_MS);
+  try {
+    return await task();
+  } finally {
+    clearInterval(refresh);
+    if (readStoredSessionTitleLock(storage, key)?.owner === owner) storage.removeItem(key);
+  }
+}
+
 /** Browser-owned exclusion survives a React/Shell remount without a module runtime. */
-async function runSessionTitleWrite<T>(
+function runSessionTitleWrite<T>(
   sessionId: string,
   signal: AbortSignal,
-  task: (waitedForAnotherMount: boolean) => Promise<T>,
+  task: () => Promise<T>,
 ): Promise<T> {
   const locks = sessionTitleLockManager();
-  if (!locks) throw new Error('Web Locks are required for session title writes');
   const name = `openmaic:session-title:${sessionId}`;
-  const immediate = await locks.request(name, { ifAvailable: true, signal }, async (lock) =>
-    lock ? { acquired: true as const, value: await task(false) } : { acquired: false as const },
-  );
-  if (immediate.acquired) return immediate.value;
-  return locks.request(name, { signal }, async (lock) => {
-    if (!lock) throw new Error('Session title lock was not acquired');
-    return task(true);
-  });
+  if (!locks) return runStorageSessionTitleWrite(name, signal, task);
+  return locks.request(name, { signal }, async () => task());
 }
 
 /**
@@ -147,8 +236,8 @@ export class WorkspaceOwnerRuntime {
     const isOriginCurrent = () => this.started && this.generation === generation;
     const signal = this.titleLockAbortController.signal;
     try {
-      return await this.renameQueue.run(sessionId, (queued) =>
-        runSessionTitleWrite(sessionId, signal, async (waitedForAnotherMount) => {
+      return await this.renameQueue.run(sessionId, () =>
+        runSessionTitleWrite(sessionId, signal, async () => {
           if (!isOriginCurrent()) return 'unchanged';
           const row = this.snapshot.sessions.find((session) => session.id === sessionId);
           const attached = this.options.getAttachedSession();
@@ -170,7 +259,10 @@ export class WorkspaceOwnerRuntime {
               isOriginCurrent() &&
               revision !== null &&
               this.client.isSessionTitleRevisionCurrent(sessionId, revision),
-            forceSave: queued || waitedForAnotherMount,
+            // The mounted snapshot may lag a write from a previous mount, so
+            // every explicit submission is authoritative even when it looks
+            // unchanged locally.
+            forceSave: true,
           });
           if (isOriginCurrent() && outcome !== 'unchanged') this.client.requestFullFetch();
           return outcome;
