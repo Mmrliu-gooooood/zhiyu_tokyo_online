@@ -18,6 +18,17 @@ function sourceFiles(directory: string): string[] {
   return files;
 }
 
+const repoRoot = process.cwd();
+const VIDEO_SOURCE_CORPUS = [
+  ...sourceFiles(join(repoRoot, 'components')),
+  ...sourceFiles(join(repoRoot, 'lib/action')),
+  ...sourceFiles(join(repoRoot, 'lib/playback')),
+  join(repoRoot, 'lib/utils/stage-storage.ts'),
+].map((path) => ({
+  path: relative(repoRoot, path),
+  source: readFileSync(path, 'utf8'),
+}));
+
 describe('video media resolution boundary', () => {
   it('recognizes direct task lookup and local src/mediaRef choice syntax', () => {
     expect(DIRECT_TASK_LOOKUP.test('const task = tasks[element.id];')).toBe(true);
@@ -45,18 +56,8 @@ describe('video media resolution boundary', () => {
   });
 
   it('keeps video source and task decisions inside media-task-resolution', () => {
-    const cwd = process.cwd();
-    const paths = [
-      ...sourceFiles(join(cwd, 'components')),
-      ...sourceFiles(join(cwd, 'lib/action')),
-      ...sourceFiles(join(cwd, 'lib/playback')),
-      join(cwd, 'lib/utils/stage-storage.ts'),
-    ];
-    const violations = paths.flatMap((path) => {
-      const source = readFileSync(path, 'utf8');
-      return DIRECT_TASK_LOOKUP.test(source) || VIDEO_SOURCE_CHOICE.test(source)
-        ? [relative(cwd, path)]
-        : [];
+    const violations = VIDEO_SOURCE_CORPUS.flatMap(({ path, source }) => {
+      return DIRECT_TASK_LOOKUP.test(source) || VIDEO_SOURCE_CHOICE.test(source) ? [path] : [];
     });
 
     // Best-effort static guard: aliases, computed property access, helper
