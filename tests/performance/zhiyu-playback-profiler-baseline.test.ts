@@ -4,6 +4,7 @@ import {
   act,
   createElement,
   Profiler,
+  useSyncExternalStore,
   version as reactVersion,
   type ProfilerOnRenderCallback,
 } from 'react';
@@ -53,29 +54,43 @@ const scene = {
   actions: [{ id: 'speech-1', type: 'speech', text: 'Baseline speech.' }],
   content: { type: 'slide', canvas: { elements: [] } },
 };
+const secondScene = { ...scene, id: 'scene-2', title: 'Second profiler scene', order: 1 };
 
 const stageState = {
   mode: 'playback',
   stage: { id: 'stage-1', name: 'Profiler course', whiteboard: [] },
   getCurrentScene: () => scene,
-  scenes: [scene],
+  scenes: [scene, secondScene],
   currentSceneId: scene.id,
+  toolbarState: 'design',
   setCurrentSceneId: vi.fn(),
   generatingOutlines: [],
   outlines: [],
   generationStatus: 'idle',
 };
+const stageListeners = new Set<() => void>();
 
 vi.mock('@/lib/store', () => {
   const useStageStore = Object.assign(
-    (selector?: (state: typeof stageState) => unknown) =>
-      selector ? selector(stageState) : stageState,
+    (selector: (state: typeof stageState) => unknown = (state) => state) =>
+      useSyncExternalStore(
+        (listener) => {
+          stageListeners.add(listener);
+          return () => stageListeners.delete(listener);
+        },
+        () => selector(stageState),
+        () => selector(stageState),
+      ),
     {
       use: {
         failedOutlines: () => [],
         generationComplete: () => true,
       },
       getState: () => stageState,
+      setState: (partial: Partial<typeof stageState>) => {
+        Object.assign(stageState, partial);
+        for (const listener of stageListeners) listener();
+      },
     },
   );
   const useCanvasStore = {
@@ -325,6 +340,7 @@ vi.mock('@/lib/orchestration/registry/store', () => ({
 vi.mock('@/lib/config/feature-flags', () => ({ isPiChatEnabled: () => true }));
 
 import { PlaybackChromeRoot } from '@/components/edit/PlaybackChromeRoot';
+import { useStageStore } from '@/lib/store';
 
 type SpeechProgress = (ratio: number | null) => void;
 type ThinkingUpdate = (state: { stage: string; agentId?: string } | null) => void;
@@ -360,6 +376,9 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     mocks.engineOptions = undefined;
     mocks.loadCursor.mockReset();
     mocks.loadCursor.mockResolvedValue(null);
+    stageListeners.clear();
+    stageState.currentSceneId = scene.id;
+    stageState.toolbarState = 'design';
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -474,5 +493,27 @@ describe('Phase 0 PlaybackChromeRoot synthetic component-seam Profiler evidence'
     expect(updatedBarProps?.onToggleMute).toBe(initialBarProps?.onToggleMute);
     expect(updatedBarProps?.onToggleAutoPlay).toBe(initialBarProps?.onToggleAutoPlay);
     expect(updatedBarProps?.onCycleSpeed).toBe(initialBarProps?.onCycleSpeed);
+  });
+
+  it('does not commit PlaybackChromeRoot for unrelated StageStore updates', async () => {
+    const onRootRender = vi.fn();
+    await act(async () => {
+      root.render(
+        createElement(
+          Profiler,
+          { id: 'PlaybackChromeRoot', onRender: onRootRender },
+          createElement(PlaybackChromeRoot),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const settledCommits = onRootRender.mock.calls.length;
+
+    await act(async () => useStageStore.setState({ toolbarState: 'ai' }));
+    expect(onRootRender).toHaveBeenCalledTimes(settledCommits);
+
+    await act(async () => useStageStore.setState({ currentSceneId: secondScene.id }));
+    expect(onRootRender.mock.calls.length).toBeGreaterThan(settledCommits);
   });
 });

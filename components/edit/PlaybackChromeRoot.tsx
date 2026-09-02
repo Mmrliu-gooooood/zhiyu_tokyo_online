@@ -67,7 +67,10 @@ import { shouldClearDraftElementReference } from '@/components/chat/element-refe
 import { ZhiyuClassroomShell } from '@/components/classroom/ZhiyuClassroomShell';
 import { ZhiyuInteractionPanel } from '@/components/classroom/ZhiyuInteractionPanel';
 import { ZhiyuPlaybackBar } from '@/components/classroom/ZhiyuPlaybackBar';
-import { projectZhiyuClassroomLiveStatus } from '@/components/classroom/zhiyu-classroom-layout';
+import {
+  projectZhiyuClassroomControls,
+  projectZhiyuClassroomLiveStatus,
+} from '@/components/classroom/zhiyu-classroom-layout';
 
 type DraftSlideElementReference = {
   reference: SlideElementReference;
@@ -1350,14 +1353,32 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       ? scenes.length
       : scenes.findIndex((s) => s.id === currentSceneId);
     const totalScenesCount = scenes.length + (canAdvanceToPendingSlot ? 1 : 0);
-    const showElementReference = piChatEnabled && mode === 'playback';
-    const canPickSlideElement = Boolean(
-      showElementReference &&
-      !whiteboardOpen &&
-      currentScene?.type === 'slide' &&
-      currentScene.content.type === 'slide',
-    );
-
+    const { canvasEngineState, showStopDiscussion, showElementReference, canPickSlideElement } =
+      useMemo(
+        () =>
+          projectZhiyuClassroomControls({
+            engineMode,
+            chatIsStreaming,
+            chatIsSoftClosing,
+            chatSessionType,
+            piChatEnabled,
+            mode,
+            whiteboardOpen,
+            currentSceneType: currentScene?.type ?? null,
+            currentSceneContentType: currentScene?.content.type ?? null,
+          }),
+        [
+          chatIsSoftClosing,
+          chatIsStreaming,
+          chatSessionType,
+          currentScene?.content.type,
+          currentScene?.type,
+          engineMode,
+          mode,
+          piChatEnabled,
+          whiteboardOpen,
+        ],
+      );
     const handlePickElement = useCallback(
       (element: PPTElement) => {
         if (currentScene?.type !== 'slide' || currentScene.content.type !== 'slide') return;
@@ -1551,19 +1572,6 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       return () => window.removeEventListener('keydown', onF11);
     }, [togglePresentation]);
 
-    // Map engine mode to the CanvasArea's expected engine state
-    const canvasEngineState = (() => {
-      switch (engineMode) {
-        case 'playing':
-        case 'live':
-          return 'playing';
-        case 'paused':
-          return 'paused';
-        default:
-          return 'idle';
-      }
-    })();
-
     // Build discussion request for Roundtable ProactiveCard from trigger
     const discussionRequest: DiscussionAction | null = discussionTrigger
       ? {
@@ -1575,10 +1583,6 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         }
       : null;
 
-    const showStopDiscussion =
-      engineMode === 'live' ||
-      ((chatIsStreaming || chatIsSoftClosing) &&
-        (chatSessionType === 'qa' || chatSessionType === 'discussion'));
     const classroomLiveStatus = projectZhiyuClassroomLiveStatus({
       engineMode,
       chatSessionType,

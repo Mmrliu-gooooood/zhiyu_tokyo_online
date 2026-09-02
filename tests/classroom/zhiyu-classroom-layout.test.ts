@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  projectZhiyuClassroomControls,
   projectZhiyuClassroomLayout,
   projectZhiyuClassroomLiveStatus,
   ZHIYU_INTERACTION_PANEL_WIDTH,
@@ -79,5 +80,47 @@ describe('projectZhiyuClassroomLiveStatus', () => {
         thinking: true,
       }),
     ).toBe('thinking');
+  });
+});
+
+describe('projectZhiyuClassroomControls', () => {
+  it('projects playback, discussion, and slide reference availability together', () => {
+    expect(
+      projectZhiyuClassroomControls({
+        engineMode: 'live',
+        chatIsStreaming: false,
+        chatIsSoftClosing: false,
+        chatSessionType: 'discussion',
+        piChatEnabled: true,
+        mode: 'playback',
+        whiteboardOpen: false,
+        currentSceneType: 'slide',
+        currentSceneContentType: 'slide',
+      }),
+    ).toEqual({
+      canvasEngineState: 'playing',
+      showStopDiscussion: true,
+      showElementReference: true,
+      canPickSlideElement: true,
+    });
+
+    expect(
+      projectZhiyuClassroomControls({
+        engineMode: 'paused',
+        chatIsStreaming: false,
+        chatIsSoftClosing: false,
+        chatSessionType: null,
+        piChatEnabled: true,
+        mode: 'playback',
+        whiteboardOpen: true,
+        currentSceneType: 'slide',
+        currentSceneContentType: 'slide',
+      }),
+    ).toEqual({
+      canvasEngineState: 'paused',
+      showStopDiscussion: false,
+      showElementReference: true,
+      canPickSlideElement: false,
+    });
   });
 });

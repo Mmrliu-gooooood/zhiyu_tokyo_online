@@ -15,19 +15,19 @@ const PRESENTATION_LAYOUT: ZhiyuClassroomLayout = Object.freeze({
 });
 
 const CLASSROOM_LAYOUTS = {
-  expandedExpanded: Object.freeze({
+  sceneRailExpandedInteractionExpanded: Object.freeze({
     sceneRailWidth: ZHIYU_SCENE_RAIL_EXPANDED_WIDTH,
     interactionPanelWidth: ZHIYU_INTERACTION_PANEL_WIDTH,
   }),
-  expandedCollapsed: Object.freeze({
+  sceneRailExpandedInteractionCollapsed: Object.freeze({
     sceneRailWidth: ZHIYU_SCENE_RAIL_EXPANDED_WIDTH,
     interactionPanelWidth: 0,
   }),
-  collapsedExpanded: Object.freeze({
+  sceneRailCollapsedInteractionExpanded: Object.freeze({
     sceneRailWidth: ZHIYU_SCENE_RAIL_COLLAPSED_WIDTH,
     interactionPanelWidth: ZHIYU_INTERACTION_PANEL_WIDTH,
   }),
-  collapsedCollapsed: Object.freeze({
+  sceneRailCollapsedInteractionCollapsed: Object.freeze({
     sceneRailWidth: ZHIYU_SCENE_RAIL_COLLAPSED_WIDTH,
     interactionPanelWidth: 0,
   }),
@@ -49,6 +49,48 @@ export function projectZhiyuClassroomLiveStatus({
   return engineMode === 'playing' ? 'teaching' : 'idle';
 }
 
+export function projectZhiyuClassroomControls({
+  engineMode,
+  chatIsStreaming,
+  chatIsSoftClosing,
+  chatSessionType,
+  piChatEnabled,
+  mode,
+  whiteboardOpen,
+  currentSceneType,
+  currentSceneContentType,
+}: {
+  readonly engineMode: 'idle' | 'playing' | 'paused' | 'live';
+  readonly chatIsStreaming: boolean;
+  readonly chatIsSoftClosing: boolean;
+  readonly chatSessionType: string | null;
+  readonly piChatEnabled: boolean;
+  readonly mode: string;
+  readonly whiteboardOpen: boolean;
+  readonly currentSceneType: string | null;
+  readonly currentSceneContentType: string | null;
+}) {
+  const showElementReference = piChatEnabled && mode === 'playback';
+  return {
+    canvasEngineState:
+      engineMode === 'playing' || engineMode === 'live'
+        ? ('playing' as const)
+        : engineMode === 'paused'
+          ? ('paused' as const)
+          : ('idle' as const),
+    showStopDiscussion:
+      engineMode === 'live' ||
+      ((chatIsStreaming || chatIsSoftClosing) &&
+        (chatSessionType === 'qa' || chatSessionType === 'discussion')),
+    showElementReference,
+    canPickSlideElement:
+      showElementReference &&
+      !whiteboardOpen &&
+      currentSceneType === 'slide' &&
+      currentSceneContentType === 'slide',
+  };
+}
+
 /**
  * Pure projection for the two persisted classroom chrome toggles. The values
  * are presentation-only; ownership of the toggles stays in SettingsStore.
@@ -65,10 +107,10 @@ export function projectZhiyuClassroomLayout({
   if (presenting) return PRESENTATION_LAYOUT;
   if (sceneRailCollapsed) {
     return interactionCollapsed
-      ? CLASSROOM_LAYOUTS.collapsedCollapsed
-      : CLASSROOM_LAYOUTS.collapsedExpanded;
+      ? CLASSROOM_LAYOUTS.sceneRailCollapsedInteractionCollapsed
+      : CLASSROOM_LAYOUTS.sceneRailCollapsedInteractionExpanded;
   }
   return interactionCollapsed
-    ? CLASSROOM_LAYOUTS.expandedCollapsed
-    : CLASSROOM_LAYOUTS.expandedExpanded;
+    ? CLASSROOM_LAYOUTS.sceneRailExpandedInteractionCollapsed
+    : CLASSROOM_LAYOUTS.sceneRailExpandedInteractionExpanded;
 }
