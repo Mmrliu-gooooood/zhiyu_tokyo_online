@@ -470,8 +470,8 @@ Get-Content -LiteralPath 'zhiyu-implementation-plans\2026-09-01-07-zhiyu-fronten
 
 | Phase | Commit | Tests | Docker | Visual | Performance | Notes |
 |---|---|---|---|---|---|---|
-| Phase 0 |  |  |  |  |  |  |
-| Phase 1 |  |  |  |  |  |  |
+| Phase 0 | `b2c66c8` (closure HEAD; full ledger in Phase 0-R results) | Default Vitest 7160 passed / 44 skipped; dedicated Workspace 1/1 | Production build 52/52 pages; E2E 80/80; port 3000 healthy | Win32 41/41; Noble update + no-update 41/41 | Classroom and real Workspace profiler plus production-browser baselines recorded | Status: READY FOR PHASE 1; see `2026-09-02-zhiyu-frontend-phase0-r-results.md` |
+| Phase 1 | `bf5d1e8`, `02466f7` | Focused selector/projection/profiler/cleanup 33/33; lint pass; production build 52/52 pages | `openmaic:phase1` `sha256:662f9b84...`; E2E 80/80; port 3000 healthy; topology unchanged | No-update responsive/golden 41/41 | Unrelated StageStore update: root commits 0; speech p95 5.643→3.855 ms (-31.7%); thinking p95 2.165→1.123 ms (-48.1%); browser long task 1/149 ms, TaskDuration 0.492702 s | 20-cycle listener/timer/audio/EventSource cleanup passed; final Standards/Spec review: no findings; PlaybackEngine, ChatArea and SSE ownership unchanged |
 | Phase 2 |  |  |  |  |  |  |
 | Phase 3 |  |  |  |  |  |  |
 | Phase 4 |  |  |  |  |  |  |
