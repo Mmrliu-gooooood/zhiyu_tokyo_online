@@ -1,20 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const mocks = vi.hoisted(() => ({ getSession: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  runtimeEnabled: true,
+  getSession: vi.fn(),
+  setManualSessionTitle: vi.fn(),
+}));
 
 vi.mock('@/lib/config/feature-flags', () => ({
-  isAgentRuntimeEnabled: () => true,
-  isAgentRuntimeConfigured: () => true,
+  isAgentRuntimeEnabled: () => mocks.runtimeEnabled,
+  isAgentRuntimeConfigured: () => mocks.runtimeEnabled,
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: () => 'owner-1',
 }));
 vi.mock('@/lib/server/agent-runtime/store', () => ({
-  getAgentSessionStore: async () => ({ getSession: mocks.getSession }),
+  getAgentSessionStore: async () => ({
+    getSession: mocks.getSession,
+    setManualSessionTitle: mocks.setManualSessionTitle,
+  }),
 }));
 
-import { GET } from '@/app/api/agent/sessions/[id]/route';
+import { GET, PATCH } from '@/app/api/agent/sessions/[id]/route';
 
 function call() {
   return GET(new NextRequest('http://localhost/api/agent/sessions/session-1'), {
@@ -22,9 +29,24 @@ function call() {
   });
 }
 
+function patch(body: BodyInit, id = 'session-1') {
+  return PATCH(
+    new NextRequest(`http://localhost/api/agent/sessions/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body,
+    }),
+    { params: Promise.resolve({ id }) },
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.runtimeEnabled = true;
   mocks.getSession.mockResolvedValue({ id: 'session-1', ownerId: 'owner-1', status: 'running' });
+  mocks.setManualSessionTitle.mockImplementation(
+    async (id: string, ownerId: string, title: string | null) => ({ id, ownerId, title }),
+  );
 });
 
 describe('GET one agent session', () => {
@@ -52,4 +74,35 @@ describe('GET one agent session', () => {
       expect(response.status).toBe(404);
     },
   );
+});
+
+describe('PATCH agent session title', () => {
+  it.each([
+    ['trim', '  Focused question  ', 'Focused question'],
+    ['explicit clear', null, null],
+    ['surrogate-pair boundary', `${'x'.repeat(119)}😀tail`, 'x'.repeat(119)],
+    ['NUL', `Safe\u0000 title`, 'Safe� title'],
+  ])('normalizes %s before persisting', async (_name, title, expected) => {
+    const response = await patch(JSON.stringify({ title }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.setManualSessionTitle).toHaveBeenCalledWith('session-1', 'owner-1', expected);
+    await expect(response.json()).resolves.toEqual({ title: expected });
+  });
+
+  it.each([
+    ['malformed JSON', '{'],
+    ['a missing title', JSON.stringify({})],
+    ['a numeric title', JSON.stringify({ title: 42 })],
+  ])('rejects %s', async (_name, body) => {
+    expect((await patch(body)).status).toBe(400);
+  });
+
+  it('stays behind the runtime feature gate and owner scope', async () => {
+    mocks.runtimeEnabled = false;
+    expect((await patch(JSON.stringify({ title: 'Hidden' }))).status).toBe(404);
+    mocks.runtimeEnabled = true;
+    mocks.setManualSessionTitle.mockResolvedValue(null);
+    expect((await patch(JSON.stringify({ title: 'Hidden' }))).status).toBe(404);
+  });
 });

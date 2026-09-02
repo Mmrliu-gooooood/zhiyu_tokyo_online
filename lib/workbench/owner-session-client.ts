@@ -16,6 +16,7 @@ export const OWNER_SESSION_EVENT_TYPES = [
   'session_deleted',
   'session_active_stage',
   'session_cancel_requested',
+  'session_title',
 ] as const;
 
 export const SESSION_RECONCILE_MIN_MS = 60_000;
@@ -51,7 +52,11 @@ export interface OwnerEventSourceInit {
 interface OwnerSessionClientOptions {
   readonly fetchSessions: () => Promise<ProHomeSessionItem[]>;
   readonly createEventSource: (url: string, init?: OwnerEventSourceInit) => OwnerEventSource;
-  readonly onSessions: (sessions: readonly ProHomeSessionItem[]) => void;
+  readonly onSessions: (
+    sessions: readonly ProHomeSessionItem[],
+    source?: 'incremental' | 'snapshot',
+  ) => void;
+  readonly onSessionTitle?: (sessionId: string, title: string | null) => void;
   readonly onState: (state: SessionListState) => void;
   readonly onInitialized?: () => void;
   /**
@@ -93,14 +98,15 @@ function parseData(event: Event): unknown {
 
 function isOwnerSessionEvent(value: unknown): value is OwnerSessionEvent {
   if (!value || typeof value !== 'object') return false;
-  const event = value as Partial<OwnerSessionEvent>;
-  return (
+  const event = value as Record<string, unknown>;
+  const validBase =
     typeof event.type === 'string' &&
     (OWNER_SESSION_EVENT_TYPES as readonly string[]).includes(event.type) &&
     isDecimalCursor(event.id) &&
     typeof event.sessionId === 'string' &&
-    typeof event.ts === 'number'
-  );
+    typeof event.ts === 'number';
+  if (!validBase) return false;
+  return event.type !== 'session_title' || event.title === null || typeof event.title === 'string';
 }
 
 /**
@@ -126,6 +132,11 @@ export class OwnerSessionClient {
   private malformedEventCount = 0;
   private connectingSamples = 0;
   private streamDegraded = false;
+  private titleMutationRevision = 0;
+  private titleMutations = new Map<
+    string,
+    { readonly revision: number; readonly title: string | null; readonly settled: boolean }
+  >();
   private reconcileTimer: ReturnType<typeof setTimeout> | null = null;
   private streamHealthTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -155,6 +166,8 @@ export class OwnerSessionClient {
     this.malformedEventCount = 0;
     this.connectingSamples = 0;
     this.streamDegraded = false;
+    this.titleMutationRevision = 0;
+    this.titleMutations.clear();
   }
 
   requestFullFetch(showLoading = false): void {
@@ -174,6 +187,25 @@ export class OwnerSessionClient {
     if (next === this.sessions) return;
     this.sessions = next;
     this.options.onSessions(next);
+  }
+
+  /** A local title decision retained until a post-settlement snapshot confirms it. */
+  updateSessionTitle(sessionId: string, title: string | null, settled: boolean): number {
+    const revision = (this.titleMutationRevision += 1);
+    this.titleMutations.set(sessionId, { revision, title, settled });
+    this.updateSessions((sessions) =>
+      sessions.map((session) => (session.id === sessionId ? { ...session, title } : session)),
+    );
+    return revision;
+  }
+
+  isSessionTitleRevisionCurrent(sessionId: string, revision: number): boolean {
+    return this.titleMutations.get(sessionId)?.revision === revision;
+  }
+
+  getUnconfirmedSessionTitle(sessionId: string): { readonly title: string | null } | null {
+    const mutation = this.titleMutations.get(sessionId);
+    return mutation ? { title: mutation.title } : null;
   }
 
   private openStream(): void {
@@ -200,14 +232,28 @@ export class OwnerSessionClient {
       }
       this.malformedEventCount = 0;
       this.cursor = event.id;
-      this.journal.push(event);
-      if (this.journal.length > OWNER_SESSION_JOURNAL_LIMIT) {
-        this.journal.splice(0, this.journal.length - OWNER_SESSION_JOURNAL_LIMIT);
-        this.requestFullFetch();
-      }
       const reduced = reduceOwnerSessionEvent(this.sessions, event);
-      if (reduced.sessions !== this.sessions) {
-        this.sessions = reduced.sessions;
+      const unconfirmedTitleMutation =
+        event.type === 'session_title' && this.titleMutations.has(event.sessionId);
+      const timestampStaleTitle =
+        event.type === 'session_title' &&
+        !reduced.needsFullFetch &&
+        reduced.sessions === this.sessions;
+      if (timestampStaleTitle || unconfirmedTitleMutation) this.requestFullFetch();
+      if (!timestampStaleTitle) {
+        this.journal.push(event);
+        if (this.journal.length > OWNER_SESSION_JOURNAL_LIMIT) {
+          this.journal.splice(0, this.journal.length - OWNER_SESSION_JOURNAL_LIMIT);
+          this.requestFullFetch();
+        }
+        if (event.type === 'session_title' && !unconfirmedTitleMutation) {
+          this.titleMutations.delete(event.sessionId);
+          this.options.onSessionTitle?.(event.sessionId, event.title);
+        }
+      }
+      const nextSessions = this.overlaySessionTitleMutations(reduced.sessions);
+      if (nextSessions !== this.sessions) {
+        this.sessions = nextSessions;
         this.options.onSessions(this.sessions);
       }
       if (reduced.needsFullFetch) this.requestFullFetch();
@@ -296,22 +342,44 @@ export class OwnerSessionClient {
     this.requestInFlight = true;
     const epoch = this.epoch;
     const snapshotCursor = this.cursor;
+    const settledTitleRevisions = new Map(
+      [...this.titleMutations]
+        .filter(([, mutation]) => mutation.settled)
+        .map(([sessionId, mutation]) => [sessionId, mutation.revision]),
+    );
     void this.options
       .fetchSessions()
       .then((snapshot) => {
         if (this.stopped || epoch !== this.epoch) return;
-        let merged: readonly ProHomeSessionItem[] = newestFirst(snapshot);
+        const snapshotSessionIds = new Set(snapshot.map((session) => session.id));
+        let merged: readonly ProHomeSessionItem[] = newestFirst(snapshot).map((session) => {
+          const mutation = this.titleMutations.get(session.id);
+          if (!mutation) return session;
+          if (!mutation.settled || mutation.revision !== settledTitleRevisions.get(session.id)) {
+            return { ...session, title: mutation.title };
+          }
+          this.titleMutations.delete(session.id);
+          return session;
+        });
+        for (const [sessionId, revision] of settledTitleRevisions) {
+          if (snapshotSessionIds.has(sessionId)) continue;
+          const mutation = this.titleMutations.get(sessionId);
+          if (!mutation?.settled || mutation.revision !== revision) continue;
+          this.titleMutations.delete(sessionId);
+        }
         let needsFullFetch = false;
         for (const event of this.journal) {
           if (compareDecimalCursor(event.id, snapshotCursor) <= 0) continue;
           const reduced = reduceOwnerSessionEvent(merged, event);
+          const titleOrderAmbiguous = event.type === 'session_title' && reduced.sessions === merged;
           merged = reduced.sessions;
-          needsFullFetch ||= reduced.needsFullFetch;
+          needsFullFetch ||= reduced.needsFullFetch || titleOrderAmbiguous;
         }
+        merged = this.overlaySessionTitleMutations(merged);
         this.sessions = merged;
         this.journal = [];
         this.lastFullFetchFailed = false;
-        this.options.onSessions(merged);
+        this.options.onSessions(merged, 'snapshot');
         // Unconditionally authoritative: this snapshot is a full read of the
         // list, so it is correct even while the push channel is down. Gating
         // 'ready' on stream health left a dead stream + healthy REST stuck in
@@ -332,6 +400,19 @@ export class OwnerSessionClient {
           this.runFullFetch();
         }
       });
+  }
+
+  private overlaySessionTitleMutations(
+    sessions: readonly ProHomeSessionItem[],
+  ): readonly ProHomeSessionItem[] {
+    let changed = false;
+    const next = sessions.map((session) => {
+      const mutation = this.titleMutations.get(session.id);
+      if (!mutation || mutation.title === session.title) return session;
+      changed = true;
+      return { ...session, title: mutation.title };
+    });
+    return changed ? next : sessions;
   }
 
   private scheduleReconciliation(): void {

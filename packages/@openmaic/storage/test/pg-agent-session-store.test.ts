@@ -54,6 +54,26 @@ describe('PgAgentSessionStore with PGlite', () => {
     );
   });
 
+  test('persists a manual session title and projects rename and clear events atomically', async () => {
+    await store.createSession(makeAgentSessionInput());
+
+    await expect(
+      store.setManualSessionTitle('session-1', 'owner-a', 'Focused title'),
+    ).resolves.toMatchObject({ id: 'session-1', title: 'Focused title' });
+    await expect(store.getSession('session-1')).resolves.toMatchObject({
+      title: 'Focused title',
+    });
+
+    await expect(store.setManualSessionTitle('session-1', 'owner-a', null)).resolves.toMatchObject({
+      id: 'session-1',
+    });
+    expect((await store.getSession('session-1'))?.title).toBeUndefined();
+    expect((await store.readAfter('owner-a', BigInt(0))).slice(-2)).toMatchObject([
+      { type: 'session_title', title: 'Focused title' },
+      { type: 'session_title', title: null },
+    ]);
+  });
+
   test('requires a correctly pinned transaction hook', () => {
     expect(() => new PgAgentSessionStore(db, {} as PgAgentSessionStoreOptions)).toThrow(
       /withTransaction.*fresh.*connection.*transaction/i,

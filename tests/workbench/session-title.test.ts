@@ -10,8 +10,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   commitSessionRename,
+  createSessionRenameQueue,
   isDerivedSessionTitle,
   normalizeSessionTitleInput,
+  normalizeSessionTitleOverride,
   SESSION_TITLE_MAX_LENGTH,
   workbenchSessionTitle,
 } from '@/lib/workbench/session-title';
@@ -45,6 +47,16 @@ describe('what a rename sends', () => {
     expect(normalizeSessionTitleInput(session, 'x'.repeat(400))).toHaveLength(
       SESSION_TITLE_MAX_LENGTH,
     );
+  });
+
+  it('uses the input maxLength budget without splitting a surrogate pair', () => {
+    expect(normalizeSessionTitleOverride(`${'x'.repeat(118)}😀`)).toBe(`${'x'.repeat(118)}😀`);
+    expect(normalizeSessionTitleOverride(`${'x'.repeat(119)}😀tail`)).toBe('x'.repeat(119));
+  });
+
+  it('makes PostgreSQL-invalid API text safe for storage and projection', () => {
+    expect(normalizeSessionTitleOverride(`Safe\ud83d title`)).toBe('Safe� title');
+    expect(normalizeSessionTitleOverride(`Safe\u0000 title`)).toBe('Safe� title');
   });
 
   it('reads an empty box as "clear the name", not as a blank title', () => {
@@ -116,6 +128,53 @@ describe('committing a rename', () => {
     expect(outcome).toBe('unchanged');
     expect(save).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { settlement: 'success', save: async () => '服务端名字', outcome: 'renamed' },
+    {
+      settlement: 'failure',
+      save: async () => {
+        throw new Error('500');
+      },
+      outcome: 'failed',
+    },
+  ])('does not apply a stale $settlement settlement', async ({ save, outcome: expected }) => {
+    const applied: (string | null)[] = [];
+    let current = true;
+    const outcome = await commitSessionRename({
+      current: { title: '旧名字', prompt: '帮我做一节课' },
+      raw: '本地名字',
+      apply: (title) => {
+        applied.push(title);
+        current = false;
+      },
+      save,
+      isCurrent: () => current,
+    });
+
+    expect(outcome).toBe(expected);
+    expect(applied).toEqual(['本地名字']);
+  });
+
+  it('serializes renames per session while leaving other sessions independent', async () => {
+    const queue = createSessionRenameQueue();
+    const releaseFirst = deferred<void>();
+    const order: string[] = [];
+
+    const first = queue.run('session-a', async (queued) => {
+      order.push(`a1:${queued}`);
+      await releaseFirst.promise;
+      order.push('a1:done');
+    });
+    const second = queue.run('session-a', async (queued) => order.push(`a2:${queued}`));
+    const other = queue.run('session-b', async (queued) => order.push(`b1:${queued}`));
+
+    await other;
+    expect(order).toEqual(['a1:false', 'b1:false']);
+    releaseFirst.resolve();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['a1:false', 'b1:false', 'a1:done', 'a2:true']);
+  });
 });
 
 describe('the fold leaves the name alone', () => {
@@ -173,3 +232,11 @@ const BLANK: WorkbenchFold = {
   waitingArmed: false,
   stageId: null,
 };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
