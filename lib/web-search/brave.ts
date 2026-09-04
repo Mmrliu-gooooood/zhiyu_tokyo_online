@@ -30,6 +30,10 @@ function buildBraveSearchUrl(query: string, baseUrl?: string): string {
   return url.toString();
 }
 
+function describeBraveFailure(response: Response): string {
+  return response.statusText || 'Request failed';
+}
+
 function decodeHtml(value: string): string {
   return value
     .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
@@ -131,8 +135,7 @@ async function searchWithBraveApi(
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    throw new Error(`Brave API error (${res.status}): ${errorText || res.statusText}`);
+    throw new Error(`Brave API error (${res.status}): ${describeBraveFailure(res)}`);
   }
 
   const data = (await res.json()) as {
@@ -172,8 +175,7 @@ async function searchWithBraveScrape(
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    throw new Error(`Brave Search error (${res.status}): ${errorText || res.statusText}`);
+    throw new Error(`Brave Search error (${res.status}): ${describeBraveFailure(res)}`);
   }
 
   const html = await res.text();

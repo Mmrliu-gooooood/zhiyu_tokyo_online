@@ -6,12 +6,30 @@ import { mockOutlines } from '../fixtures/test-data/scene-outlines';
 
 const SETTINGS_STORAGE = createSettingsStorage();
 const REVIEW_SETTINGS_STORAGE = createSettingsStorage({ reviewOutlineEnabled: true });
+const WEB_SEARCH_SETTINGS_STORAGE = createSettingsStorage({
+  webSearchProviderId: 'brave',
+  webSearchProvidersConfig: { brave: {} },
+});
 
 const GENERATION_SESSION = JSON.stringify({
   sessionId: 'e2e-test-session',
   requirements: {
     requirement: '讲解光合作用',
     language: 'zh-CN',
+  },
+  pdfText: '',
+  pdfImages: [],
+  imageStorageIds: [],
+  sceneOutlines: null,
+  currentStep: 'generating',
+});
+
+const WEB_SEARCH_GENERATION_SESSION = JSON.stringify({
+  sessionId: 'e2e-web-search-fallback-session',
+  requirements: {
+    requirement: '讲解布迪厄的思想',
+    language: 'zh-CN',
+    webSearch: true,
   },
   pdfText: '',
   pdfImages: [],
@@ -77,6 +95,37 @@ test.describe('Generation Flow', () => {
 
     // Wait for auto-redirect to classroom
     await preview.waitForRedirectToClassroom();
+    expect(page.url()).toMatch(/\/classroom\//);
+  });
+
+  test('continues outline generation when optional web search is rate limited', async ({
+    page,
+    mockApi,
+  }) => {
+    await seedGenerationSession(
+      page,
+      WEB_SEARCH_SETTINGS_STORAGE,
+      WEB_SEARCH_GENERATION_SESSION,
+    );
+    let webSearchRequests = 0;
+    await page.route('**/api/web-search', (route) => {
+      webSearchRequests += 1;
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Brave Search error (429): <!doctype html><html>challenge</html>',
+        }),
+      });
+    });
+    await mockApi.setupGenerationMocks();
+
+    const preview = new GenerationPreviewPage(page);
+    await preview.goto();
+
+    await expect.poll(() => webSearchRequests).toBe(1);
+    await preview.waitForRedirectToClassroom();
+    expect(webSearchRequests).toBe(1);
     expect(page.url()).toMatch(/\/classroom\//);
   });
 

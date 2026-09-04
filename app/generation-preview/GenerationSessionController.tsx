@@ -75,6 +75,7 @@ import {
   GenerationSessionRuntime,
   type GenerationCanonicalPhase,
 } from './generation-session-runtime';
+import { resolveOptionalWebSearch } from './optional-web-search';
 
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
@@ -512,40 +513,37 @@ function GenerationPreviewContent() {
         const wsSettings = useSettingsStore.getState();
         const wsProviderId = wsSettings.webSearchProviderId;
         const wsConfig = wsSettings.webSearchProvidersConfig?.[wsProviderId];
-        const res = await fetch('/api/web-search', {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify(
-            withThinkingConfig({
-              query: currentSession.requirements.requirement,
-              pdfText: currentSession.pdfText || undefined,
-              providerId: wsProviderId,
-              apiKey: wsConfig?.apiKey || undefined,
-              baseUrl: wsProviderId === 'searxng' ? undefined : wsConfig?.baseUrl || undefined,
-              baiduSubSources: wsProviderId === 'baidu' ? wsSettings.baiduSubSources : undefined,
-              claudeModelId: wsProviderId === 'claude' ? wsConfig?.modelId || undefined : undefined,
-            }),
-          ),
-          signal,
-        });
+        const searchResult = await resolveOptionalWebSearch(() =>
+          fetch('/api/web-search', {
+            method: 'POST',
+            headers: getApiHeaders(),
+            body: JSON.stringify(
+              withThinkingConfig({
+                query: currentSession.requirements.requirement,
+                pdfText: currentSession.pdfText || undefined,
+                providerId: wsProviderId,
+                apiKey: wsConfig?.apiKey || undefined,
+                baseUrl:
+                  wsProviderId === 'searxng' ? undefined : wsConfig?.baseUrl || undefined,
+                baiduSubSources:
+                  wsProviderId === 'baidu' ? wsSettings.baiduSubSources : undefined,
+                claudeModelId:
+                  wsProviderId === 'claude' ? wsConfig?.modelId || undefined : undefined,
+              }),
+            ),
+            signal,
+          }),
+        );
         if (!runtime.isCurrent(epoch)) return;
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({ error: 'Web search failed' }));
-          throw new Error(data.error || t('generation.webSearchFailed'));
+        if (searchResult.warning) {
+          log.warn(`${searchResult.warning}; continuing without search context`);
         }
-
-        const searchData = await res.json();
-        if (!runtime.isCurrent(epoch)) return;
-        const sources = (searchData.sources || []).map((s: { title: string; url: string }) => ({
-          title: s.title,
-          url: s.url,
-        }));
 
         const updatedSessionWithSearch = {
           ...currentSession,
-          researchContext: searchData.context || '',
-          researchSources: sources,
+          researchContext: searchResult.researchContext,
+          researchSources: searchResult.researchSources,
         };
         commit(() => {
           setSession(updatedSessionWithSearch);

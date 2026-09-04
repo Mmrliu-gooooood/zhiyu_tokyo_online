@@ -95,4 +95,22 @@ describe('searchWithBrave', () => {
     expect(result.sources).toHaveLength(1);
     expect(result.query).toHaveLength(400);
   });
+
+  it('does not expose an upstream HTML challenge page when public search is rate limited', async () => {
+    proxyFetchMock.mockResolvedValueOnce(
+      new Response('<!doctype html><html><body>rate limit challenge</body></html>', {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+
+    const failure = await searchWithBrave({ query: 'rate limited query' }).catch(
+      (error: unknown) => error,
+    );
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe('Brave Search error (429): Too Many Requests');
+    expect((failure as Error).message).not.toContain('<html>');
+  });
 });
