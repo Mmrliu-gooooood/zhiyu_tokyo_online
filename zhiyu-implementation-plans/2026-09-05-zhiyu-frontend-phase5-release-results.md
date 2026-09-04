@@ -4,7 +4,7 @@ Date: 2026-09-05
 
 Baseline: `b2c66c8dbfa826ce5f536cfaddc0209ce6039ab8`
 
-Release candidate: `ccfc26e725cddffb999fe5e2ae88f23b45807357`
+Release candidate: `ccfc26e7e226e541af355c067b2a9117211434f7`
 
 Docker image: `openmaic:phase5` / `sha256:39c85bc46ca54080a13a4f68d5b1e95edee93a863eeaa779cdc75e661c0e2e62`
 
