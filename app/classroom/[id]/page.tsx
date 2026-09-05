@@ -1,6 +1,8 @@
 'use client';
 
 import { Stage } from '@/components/stage';
+import { canGenerateLocally } from '@/lib/generation/ownership';
+import { useClassroomGenerationJob } from '@/lib/hooks/use-generation-job';
 import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { useStageStore } from '@/lib/store';
 import { useSettingsStore } from '@/lib/store/settings';
@@ -36,15 +38,28 @@ export default function ClassroomDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryBackgroundJob = useClassroomGenerationJob(classroomId, !loading && !error);
 
   const generationStartedRef = useRef(false);
   const isVisitCurrentRef = useRef<() => boolean>(() => false);
 
-  const { generateRemaining, retrySingleOutline, stop } = useSceneGenerator({
+  const {
+    generateRemaining,
+    retrySingleOutline: retryLocalOutline,
+    stop,
+  } = useSceneGenerator({
     onComplete: () => {
       log.info('[Classroom] All scenes generated');
     },
   });
+  const retrySingleOutline = async (outlineId: string) => {
+    try {
+      if (retryBackgroundJob) await retryBackgroundJob();
+      else await retryLocalOutline(outlineId);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
+    }
+  };
 
   const loadClassroom = useCallback(
     async (isEffectCurrent: () => boolean = isVisitCurrentRef.current) => {
@@ -158,6 +173,10 @@ export default function ClassroomDetailPage() {
     if (loading || error || generationStartedRef.current) return;
 
     const state = useStageStore.getState();
+    if (!canGenerateLocally(state)) {
+      generationStartedRef.current = true;
+      return;
+    }
     const { outlines, scenes, stage, generationComplete } = state;
 
     // Check if there are pending outlines. A finished deck is frozen for

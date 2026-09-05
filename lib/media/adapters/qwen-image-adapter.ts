@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Qwen Image (Alibaba Cloud / DashScope) Image Generation Adapter
  *
@@ -96,7 +97,10 @@ export async function generateWithQwenImage(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Qwen Image generation failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Qwen Image generation failed (${response.status}): ${text}`,
+    );
   }
 
   const data = await response.json();

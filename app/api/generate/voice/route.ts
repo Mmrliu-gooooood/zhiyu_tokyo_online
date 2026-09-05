@@ -1,3 +1,4 @@
+import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
 /**
  * Auto-voice registration API (provider-neutral).
  *
@@ -62,6 +63,8 @@ function childSignal(
 }
 
 export async function POST(req: NextRequest) {
+  const generationGuard = await guardClientGeneration(req);
+  if (generationGuard) return generationGuard;
   let providerId: string | undefined;
   let voiceId: string | undefined;
   const deadline = new AbortController();

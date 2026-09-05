@@ -22,6 +22,7 @@ import { preparePBLScenesForDocumentPersistence } from '@/lib/pbl/v2/runtime/doc
 import { hydratePBLScenesFromRuntime } from '@/lib/pbl/v2/runtime/hydration';
 import type { ChatStorageSnapshot } from '@/lib/utils/chat-storage';
 import type { DocumentProducer } from '@/lib/document-store/persistence-types';
+import { canGenerateLocally } from '@/lib/generation/ownership';
 import type { PendingChange, StageStoreData, StaleDroppedSave } from '@/lib/utils/stage-storage';
 import { collectStageAssetRefs } from '@/lib/media/collect-stage-asset-refs';
 import {
@@ -216,6 +217,9 @@ function clearedStageState(state: Pick<StageState, 'generationEpoch'>) {
     chatSnapshot: { sessions: [], restoreMarker: null },
     outlines: [],
     generationComplete: false,
+    outlineProducer: null,
+    outlineProducerRef: null,
+    outlineProducerKind: null,
     generationEpoch: state.generationEpoch + 1,
     generationStatus: 'idle' as const,
     currentGeneratingOrder: -1,
@@ -334,6 +338,8 @@ interface StageState {
    * course can be told apart from a client-authored one.
    */
   outlineProducer: DocumentProducer | null;
+  outlineProducerRef: string | null;
+  outlineProducerKind: 'course-worker' | 'agent-runtime' | null;
 
   // Transient generation tracking (not persisted)
   generationEpoch: number;
@@ -413,12 +419,36 @@ type StagePersistenceSnapshot = Pick<
   | 'chatSnapshot'
   | 'outlines'
   | 'generationComplete'
+  | 'outlineProducer'
+  | 'outlineProducerRef'
+  | 'outlineProducerKind'
 >;
 
 function persistenceSnapshot(state: StageState): StagePersistenceSnapshot {
-  const { stage, scenes, currentSceneId, chats, chatSnapshot, outlines, generationComplete } =
-    state;
-  return { stage, scenes, currentSceneId, chats, chatSnapshot, outlines, generationComplete };
+  const {
+    stage,
+    scenes,
+    currentSceneId,
+    chats,
+    chatSnapshot,
+    outlines,
+    generationComplete,
+    outlineProducer,
+    outlineProducerRef,
+    outlineProducerKind,
+  } = state;
+  return {
+    stage,
+    scenes,
+    currentSceneId,
+    chats,
+    chatSnapshot,
+    outlines,
+    generationComplete,
+    outlineProducer,
+    outlineProducerRef,
+    outlineProducerKind,
+  };
 }
 
 function delay(ms: number): Promise<void> {
@@ -453,6 +483,9 @@ async function persistDirtySnapshot(
       outline: {
         outlines: snapshot.outlines,
         generationComplete: snapshot.generationComplete,
+        producer: snapshot.outlineProducer ?? undefined,
+        producerRef: snapshot.outlineProducerRef ?? undefined,
+        producerKind: snapshot.outlineProducerKind ?? undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       },
@@ -489,6 +522,8 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
   outlines: [],
   generationComplete: false,
   outlineProducer: null,
+  outlineProducerRef: null,
+  outlineProducerKind: null,
   isOwner: true,
   readOnly: false,
   generationEpoch: 0,
@@ -564,6 +599,9 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
       chats: [],
       chatSnapshot: { sessions: [], restoreMarker: null },
       generationComplete: false,
+      outlineProducer: 'client',
+      outlineProducerRef: null,
+      outlineProducerKind: null,
       generationEpoch: s.generationEpoch + 1,
     }));
     markPendingChanges(stage.id, { kind: 'structure' }, { kind: 'stage' });
@@ -787,6 +825,7 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
   },
 
   markGenerationCompleteIfDone: () => {
+    if (!canGenerateLocally(get())) return;
     const { outlines, scenes, failedOutlines, generationComplete } = get();
     if (generationComplete) return;
     if (isDeckComplete({ outlines, scenes, failedOutlines })) get().setGenerationComplete(true);
@@ -835,8 +874,18 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
   // durability (e.g. setGenerationComplete) can avoid recording state that
   // outruns the scene data.
   saveToStorage: async () => {
-    const { stage, scenes, currentSceneId, chats, chatSnapshot, outlines, generationComplete } =
-      get();
+    const {
+      stage,
+      scenes,
+      currentSceneId,
+      chats,
+      chatSnapshot,
+      outlines,
+      generationComplete,
+      outlineProducer,
+      outlineProducerRef,
+      outlineProducerKind,
+    } = get();
     if (!stage?.id) {
       log.warn('Cannot save: stage.id is required');
       return false;
@@ -860,6 +909,9 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
           outline: {
             outlines,
             generationComplete,
+            producer: outlineProducer ?? undefined,
+            producerRef: outlineProducerRef ?? undefined,
+            producerKind: outlineProducerKind ?? undefined,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           },
@@ -1056,11 +1108,12 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
           inMemoryState.stage?.id === stageId ? inMemoryState.failedOutlines : [];
         const generationComplete =
           persistedComplete ||
-          isDeckComplete({
-            outlines,
-            scenes: migrated,
-            failedOutlines,
-          });
+          (outlinesRecord?.producer !== 'server-job' &&
+            isDeckComplete({
+              outlines,
+              scenes: migrated,
+              failedOutlines,
+            }));
         set({
           stage: data.stage,
           scenes: migrated,
@@ -1069,6 +1122,9 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
           chatSnapshot: data.chatSnapshot ?? { sessions: [], restoreMarker: undefined },
           outlines,
           generationComplete,
+          outlineProducer: outlinesRecord?.producer ?? 'client',
+          outlineProducerRef: outlinesRecord?.producerRef ?? null,
+          outlineProducerKind: outlinesRecord?.producerKind ?? null,
           // Compute generatingOutlines from persisted outlines minus completed
           // scenes. Once generation is complete the deck is frozen for editing,
           // so an orphaned outline (e.g. from a deleted slide) must NOT surface
@@ -1085,7 +1141,9 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
           mode: 'playback',
         });
         resetPendingChanges(stageId);
-        if (generationComplete && !persistedComplete) void get().saveToStorage();
+        if (generationComplete && !persistedComplete && canGenerateLocally(get())) {
+          void get().saveToStorage();
+        }
         log.info('Loaded from storage:', stageId);
       } else {
         log.warn('No data found for stage:', stageId);

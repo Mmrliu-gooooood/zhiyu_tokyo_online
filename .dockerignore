@@ -7,6 +7,10 @@ node_modules
 out
 build
 dist
+dist-worker
+.scratch
+optimization_docs
+debug.log
 
 # git
 .git
@@ -24,6 +28,10 @@ server-providers*.yml
 # misc
 assets
 *.md
+!lib/prompts/**/*.md
+!packages/@openmaic/generation/templates/**/*.md
+!packages/@openmaic/generation/snippets/**/*.md
+!packages/@openmaic/generation/prompts-pbl/**/*.md
 *.pdf
 *.pem
 .DS_Store

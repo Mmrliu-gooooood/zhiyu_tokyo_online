@@ -10,6 +10,10 @@ import {
 } from '@/lib/server/provider-config';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
+import {
+  backgroundGenerationEnabled,
+  generationReadiness,
+} from '@/lib/server/generation-jobs/runtime';
 
 const log = createLogger('ServerProviders');
 
@@ -25,6 +29,13 @@ export async function GET() {
       webSearch: getServerWebSearchProviders(),
       generation: {
         parallelSceneConcurrency: getParallelSceneConcurrency(),
+        background: backgroundGenerationEnabled()
+          ? {
+              enabled: true,
+              available: (await generationReadiness()).accepting,
+              pipelineVersion: '1',
+            }
+          : { enabled: false, available: false, pipelineVersion: '1' },
       },
     });
   } catch (error) {

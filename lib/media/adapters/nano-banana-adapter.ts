@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Nano Banana / Gemini Native Image Generation Adapter
  *
@@ -126,7 +127,10 @@ export async function generateWithNanoBanana(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Gemini image generation failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Gemini image generation failed (${response.status}): ${text}`,
+    );
   }
 
   const data: GeminiResponse = await response.json();

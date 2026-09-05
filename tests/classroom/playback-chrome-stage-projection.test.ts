@@ -6,16 +6,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usePlaybackChromeStageProjection } from '@/lib/classroom/playback-chrome-stage-projection';
 import { useStageStore } from '@/lib/store/stage';
+import type { Scene } from '@/lib/types/stage';
 
-const firstScene = {
+const firstScene: Scene = {
   id: 'scene-1',
   stageId: 'stage-1',
   title: 'First scene',
   order: 0,
   type: 'slide',
-  content: { type: 'slide', canvas: { elements: [] } },
+  content: {
+    type: 'slide',
+    canvas: {
+      id: 'slide-1',
+      viewportSize: 1000,
+      viewportRatio: 9 / 16,
+      theme: { backgroundColor: '#fff', themeColors: [], fontColor: '#000', fontName: 'Arial' },
+      elements: [],
+    },
+  },
   actions: [],
-} as const;
+};
 
 describe('Playback chrome StageStore projection', () => {
   let container: HTMLDivElement;
@@ -25,7 +35,7 @@ describe('Playback chrome StageStore projection', () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     useStageStore.setState({
       mode: 'playback',
-      stage: { id: 'stage-1', name: 'Course' },
+      stage: { id: 'stage-1', name: 'Course', createdAt: 1, updatedAt: 1 },
       scenes: [firstScene],
       currentSceneId: firstScene.id,
       generatingOutlines: [],

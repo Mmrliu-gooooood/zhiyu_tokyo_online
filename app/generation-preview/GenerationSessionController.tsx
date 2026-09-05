@@ -77,6 +77,16 @@ import {
   type GenerationCanonicalPhase,
 } from './generation-session-runtime';
 import { resolveOptionalWebSearch } from './optional-web-search';
+import { useGenerationJob } from '@/lib/hooks/use-generation-job';
+import { buildGenerationJobInput } from '@/lib/generation/session-input';
+import {
+  createGenerationJob,
+  generationJobRequest,
+  readBackgroundGenerationCapability,
+  retryGenerationJob,
+  type GenerationJobSnapshot,
+} from '@/lib/generation/job-client';
+import { getDocumentStore } from '@/lib/document-store';
 
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
@@ -116,7 +126,7 @@ type SceneGenerationFailure = {
 
 function GenerationPreviewContent() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const hasStartedRef = useRef(false);
   const outlineReviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const outlineReviewResolveRef = useRef<((outlines: SceneOutline[]) => void) | null>(null);
@@ -127,6 +137,14 @@ function GenerationPreviewContent() {
   const { profiles: voiceProfiles } = useAllVoiceProfiles();
 
   const [session, setSession] = useState<GenerationSessionState | null>(null);
+  const sessionRef = useRef<GenerationSessionState | null>(null);
+  const backgroundJobRef = useRef<GenerationJobSnapshot | null>(null);
+  const outlineDraftRef = useRef<SceneOutline[] | null>(null);
+  const backgroundCommandRef = useRef<Promise<void>>(Promise.resolve());
+  const backgroundRetryRef = useRef<Promise<void> | null>(null);
+  const backgroundObservationEpoch = useRef(0);
+  const backgroundAgentRevealRef = useRef<'unseen' | 'revealing' | 'revealed'>('unseen');
+  const backgroundReadyStageRef = useRef<string | null>(null);
   const [canonicalPhase, setCanonicalPhase] = useState<GenerationCanonicalPhase>('idle');
   const generationRuntimeRef = useRef<GenerationSessionRuntime | null>(null);
   if (!generationRuntimeRef.current) {
@@ -161,6 +179,131 @@ function GenerationPreviewContent() {
   const activeSteps = getActiveSteps(session);
   const isReviewingOutlines = session?.previewPhase === 'review';
 
+  const applyBackgroundSnapshot = (job: GenerationJobSnapshot) => {
+    const current = sessionRef.current;
+    if (!current || current.generationJobId !== job.jobId) return;
+    const previous = backgroundJobRef.current;
+    if (previous?.jobId === job.jobId && previous.stateVersion > job.stateVersion) return;
+    backgroundJobRef.current = job;
+    const runningPhase =
+      job.activeSteps?.find((step) => ['actions', 'tts', 'media'].includes(step.kind))?.kind ??
+      job.activeSteps?.[0]?.kind ??
+      job.phase;
+    const awaiting = job.status === 'awaiting_confirmation';
+    const reviewing = awaiting && (job.reviewHold || !job.autoContinueAt);
+    const next = {
+      ...current,
+      sceneOutlines: outlineDraftRef.current ?? job.outlines ?? current.sceneOutlines,
+      previewPhase: reviewing
+        ? ('review' as const)
+        : awaiting
+          ? ('outline-ready' as const)
+          : ('generating-content' as const),
+    };
+    persistSession(next);
+    setIsOutlineStreaming(
+      !job.outlines?.length &&
+        ['preparing', 'outline', 'outlines', 'research'].includes(runningPhase),
+    );
+    setGeneratedSceneCount(job.readyScenes);
+    const phase: GenerationCanonicalPhase =
+      job.status === 'succeeded'
+        ? 'completed'
+        : ['failed', 'needs_attention'].includes(job.status)
+          ? 'failed'
+          : job.status === 'cancelled'
+            ? 'cancelled'
+            : awaiting
+              ? 'outline-review'
+              : runningPhase === 'agents'
+                ? 'agent-generation'
+                : ['content', 'scenes'].includes(runningPhase)
+                  ? 'scene-generation'
+                  : ['actions', 'tts', 'media'].includes(runningPhase)
+                    ? 'media-actions'
+                    : 'outline-streaming';
+    setCanonicalPhase(phase);
+    const stepId =
+      phase === 'agent-generation'
+        ? 'agent-generation'
+        : phase === 'scene-generation'
+          ? 'slide-content'
+          : phase === 'media-actions' || phase === 'completed'
+            ? 'actions'
+            : runningPhase === 'research'
+              ? 'web-search'
+              : 'outline';
+    setCurrentStepIndex(
+      Math.max(
+        0,
+        getActiveSteps(next).findIndex((step) => step.id === stepId),
+      ),
+    );
+    setStatusMessage(awaiting && !reviewing ? t('generation.reviewOutlineAutoContinue') : '');
+    setError(
+      ['failed', 'needs_attention', 'cancelled'].includes(job.status)
+        ? job.lastErrorCode || t('generation.sceneGenerateFailed')
+        : null,
+    );
+    if (job.readyScenes > 0 || (!awaiting && job.totalScenes > 0)) {
+      const epoch = ++backgroundObservationEpoch.current;
+      void getDocumentStore()
+        .loadDocument(job.stageId)
+        .then((document) => {
+          if (
+            !document ||
+            epoch !== backgroundObservationEpoch.current ||
+            sessionRef.current?.generationJobId !== job.jobId
+          )
+            return;
+          setGeneratedScene(document.scenes[0]);
+          if (document.stage.generatedAgentConfigs?.length) {
+            setGeneratedAgents(
+              document.stage.generatedAgentConfigs.map((agent) => ({
+                id: agent.id,
+                name: agent.name,
+                role: agent.role,
+                persona: agent.persona,
+                avatar: agent.avatar,
+                color: agent.color,
+                priority: agent.priority,
+              })),
+            );
+            if (
+              current.backgroundInput?.agents?.mode === 'generate' &&
+              backgroundAgentRevealRef.current === 'unseen'
+            ) {
+              backgroundAgentRevealRef.current = 'revealing';
+              setShowAgentReveal(true);
+              agentRevealResolveRef.current = () => {
+                backgroundAgentRevealRef.current = 'revealed';
+                const readyStage = backgroundReadyStageRef.current;
+                if (readyStage) router.push(`/classroom/${encodeURIComponent(readyStage)}`);
+              };
+            }
+          }
+          // The first scene is already published transactionally. The classroom becomes an observer.
+          if (job.readyScenes > 0) {
+            backgroundReadyStageRef.current = job.stageId;
+            if (backgroundAgentRevealRef.current !== 'revealing')
+              router.push(`/classroom/${encodeURIComponent(job.stageId)}`);
+          }
+        })
+        .catch((failure) =>
+          setError(
+            failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'),
+          ),
+        );
+    }
+  };
+  const backgroundObservation = useGenerationJob(
+    session?.generationJobId ?? null,
+    applyBackgroundSnapshot,
+  );
+  useEffect(() => {
+    if (backgroundObservation.error) setError(backgroundObservation.error.message);
+  }, [backgroundObservation.error]);
+
   const sceneGenerationErrorMessage = (failure: SceneGenerationFailure): string => {
     if (
       failure.errorCode === 'MISSING_API_KEY' ||
@@ -191,6 +334,7 @@ function GenerationPreviewContent() {
 
   const persistSession = (nextSession: GenerationSessionState, epoch?: number) => {
     const persist = () => {
+      sessionRef.current = nextSession;
       setSession(nextSession);
       sessionStorage.setItem('generationSession', JSON.stringify(nextSession));
     };
@@ -241,9 +385,11 @@ function GenerationPreviewContent() {
 
   // Load session from sessionStorage
   useEffect(() => {
+    let active = true;
     cleanupOldImages(24).catch((e) => log.error(e));
 
-    const saved = sessionStorage.getItem('generationSession');
+    const requestedJob = new URL(window.location.href).searchParams.get('jobId');
+    const saved = requestedJob ? null : sessionStorage.getItem('generationSession');
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as GenerationSessionState;
@@ -257,18 +403,68 @@ function GenerationPreviewContent() {
           outlineReviewIntentRef.current = true;
         }
         parsed.taskEngineMode = parsed.taskEngineMode === true;
+        sessionRef.current = parsed;
         setSession(parsed);
       } catch (e) {
         log.error('Failed to parse generation session:', e);
       }
+    } else {
+      // A new browser session recovers durable work by owner, without recreating it.
+      void (async () => {
+        try {
+          const capability = await readBackgroundGenerationCapability();
+          if (!capability.enabled && !requestedJob) return;
+          const jobs = requestedJob
+            ? [
+                await generationJobRequest<GenerationJobSnapshot>(
+                  `/${encodeURIComponent(requestedJob)}`,
+                ),
+              ]
+            : (await generationJobRequest<{ jobs: GenerationJobSnapshot[] }>('?active=1')).jobs;
+          const job = jobs[0];
+          if (!active || !job) return;
+          const document = await getDocumentStore().loadDocument(job.stageId);
+          if (!active) return;
+          const recovered: GenerationSessionState = {
+            sessionId: job.jobId,
+            generationBackend: 'server-job',
+            generationJobId: job.jobId,
+            requirements: {
+              requirement: document?.stage.description || document?.stage.name || '',
+            },
+            pdfText: '',
+            currentStep: 'generating',
+            previewPhase: 'preparing',
+            courseTitle: document?.stage.name,
+          };
+          persistSession(recovered);
+        } catch (failure) {
+          if (active)
+            setError(
+              failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'),
+            );
+        } finally {
+          if (active) setSessionLoaded(true);
+        }
+      })();
+      return () => {
+        active = false;
+      };
     }
     setSessionLoaded(true);
+    return () => {
+      active = false;
+    };
+    // Session recovery runs once per mount; changing locale must not resubmit or replace it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Abort all in-flight requests on unmount
   useEffect(() => {
     return () => {
       generationRuntimeRef.current?.stop();
+      backgroundObservationEpoch.current += 1;
+      backgroundReadyStageRef.current = null;
       clearOutlineReviewTimer();
     };
   }, []);
@@ -309,6 +505,10 @@ function GenerationPreviewContent() {
   // Auto-start generation when session is loaded
   useEffect(() => {
     if (!session || hasStartedRef.current) return;
+    if (session.generationJobId) {
+      hasStartedRef.current = true;
+      return;
+    }
     const needsOutlines = !session.sceneOutlines || session.sceneOutlines.length === 0;
     const phase = session.previewPhase;
     const shouldAutoStart =
@@ -329,6 +529,52 @@ function GenerationPreviewContent() {
   const startGeneration = async (sessionOverride?: GenerationSessionState) => {
     const generationSession = sessionOverride ?? session;
     if (!generationSession) return;
+
+    // Resolve execution ownership before any document/model/media call. Once selected,
+    // server ownership is sticky even when submission fails or its response is lost.
+    const ownershipRun = generationRuntimeRef.current!.restart('outline-streaming');
+    try {
+      const capability =
+        generationSession.generationBackend === 'server-job'
+          ? { enabled: true, available: true }
+          : await readBackgroundGenerationCapability(ownershipRun.signal);
+      if (!generationRuntimeRef.current?.isCurrent(ownershipRun.epoch)) return;
+      if (capability.enabled) {
+        let backgroundSession: GenerationSessionState = {
+          ...generationSession,
+          generationBackend: 'server-job',
+        };
+        persistSession(backgroundSession);
+        if (!capability.available) throw new Error('BACKGROUND_GENERATION_UNAVAILABLE');
+        const run = generationRuntimeRef.current!.restart('outline-streaming');
+        const input =
+          backgroundSession.backgroundInput ??
+          (await buildGenerationJobInput(backgroundSession, locale, run.signal, (key, asset) => {
+            if (!generationRuntimeRef.current?.isCurrent(run.epoch)) return;
+            backgroundSession = {
+              ...backgroundSession,
+              backgroundAssets: { ...backgroundSession.backgroundAssets, [key]: asset },
+            };
+            persistSession(backgroundSession);
+          }));
+        if (!generationRuntimeRef.current?.isCurrent(run.epoch)) return;
+        backgroundSession = { ...backgroundSession, backgroundInput: input };
+        persistSession(backgroundSession);
+        const job = await createGenerationJob(
+          input,
+          `generation:${backgroundSession.sessionId}`,
+          run.signal,
+        );
+        if (!generationRuntimeRef.current?.isCurrent(run.epoch)) return;
+        persistSession({ ...backgroundSession, generationJobId: job.jobId });
+        applyBackgroundSnapshot(job);
+        return;
+      }
+    } catch (failure) {
+      if (!isAbortError(failure))
+        setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
+      return;
+    }
 
     const runtime = generationRuntimeRef.current as GenerationSessionRuntime;
     const needsOutlines = !generationSession.sceneOutlines?.length;
@@ -1166,7 +1412,81 @@ function GenerationPreviewContent() {
     return trimmed.substring(0, 500).trim() + '...';
   };
 
+  const queueBackgroundOutlineCommand = (command: {
+    reviewHold?: boolean;
+    outlines?: SceneOutline[];
+    confirm?: boolean;
+  }): Promise<void> => {
+    const requestedJobId = sessionRef.current?.generationJobId;
+    const execute = async () => {
+      let job = backgroundJobRef.current;
+      if (
+        !requestedJobId ||
+        !job ||
+        job.jobId !== requestedJobId ||
+        sessionRef.current?.generationJobId !== requestedJobId
+      )
+        return;
+      if (command.confirm && outlineDraftRef.current) {
+        // A failed/lost edit command must never confirm a stale server plan.
+        const draft = outlineDraftRef.current;
+        const saveKey = nanoid();
+        const saved = await generationJobRequest<GenerationJobSnapshot>(
+          `/${encodeURIComponent(requestedJobId)}/outline`,
+          {
+            method: 'PATCH',
+            key: saveKey,
+            body: {
+              commandKey: saveKey,
+              expectedVersion: job.stateVersion,
+              planRevision: job.planRevision,
+              outlines: draft,
+              reviewHold: true,
+            },
+          },
+        );
+        if (sessionRef.current?.generationJobId !== requestedJobId) return;
+        if (outlineDraftRef.current === draft) outlineDraftRef.current = null;
+        job = { ...job, ...saved };
+        applyBackgroundSnapshot(job);
+      }
+      const commandKey = nanoid();
+      const path = command.confirm ? 'confirm' : 'outline';
+      const updated = await generationJobRequest<GenerationJobSnapshot>(
+        `/${encodeURIComponent(requestedJobId)}/${path}`,
+        {
+          method: command.confirm ? 'POST' : 'PATCH',
+          key: commandKey,
+          body: {
+            commandKey,
+            expectedVersion: job.stateVersion,
+            planRevision: job.planRevision,
+            ...(command.reviewHold === undefined ? {} : { reviewHold: command.reviewHold }),
+            ...(command.outlines ? { outlines: command.outlines } : {}),
+          },
+        },
+      );
+      if (sessionRef.current?.generationJobId !== requestedJobId) return;
+      if (command.outlines && outlineDraftRef.current === command.outlines)
+        outlineDraftRef.current = null;
+      job = { ...job, ...updated };
+      applyBackgroundSnapshot(job);
+    };
+    const pending = backgroundCommandRef.current.then(execute);
+    // A rejected command never gets an automatic new idempotency key or a local fallback.
+    backgroundCommandRef.current = pending.catch((failure) => {
+      setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
+    });
+    return backgroundCommandRef.current;
+  };
+
   const goBackToHome = () => {
+    if (sessionRef.current?.generationBackend === 'server-job') {
+      generationRuntimeRef.current?.stop();
+      backgroundObservationEpoch.current += 1;
+      router.push('/');
+      return;
+    }
     generationRuntimeRef.current?.cancel();
     clearOutlineReviewTimer();
     outlineReviewIntentRef.current = false;
@@ -1177,9 +1497,48 @@ function GenerationPreviewContent() {
     router.push('/');
   };
 
+  const handleGoBackAndRetry = () => {
+    const current = sessionRef.current;
+    if (current?.generationBackend !== 'server-job') {
+      goBackToHome();
+      return;
+    }
+    if (backgroundRetryRef.current) return;
+    const job = backgroundJobRef.current;
+    const pending = (async () => {
+      try {
+        if (!current.generationJobId) {
+          // A lost submission response retries the same frozen input and create key.
+          setError(null);
+          await startGeneration(current);
+          return;
+        }
+        if (!job || job.jobId !== current.generationJobId) return;
+        if (!['failed', 'needs_attention'].includes(job.status)) {
+          goBackToHome();
+          return;
+        }
+        const updated = await retryGenerationJob(job);
+        if (!updated || sessionRef.current?.generationJobId !== updated.jobId) return;
+        backgroundJobRef.current = updated;
+        setError(null);
+        router.push('/');
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
+      }
+    })().finally(() => {
+      backgroundRetryRef.current = null;
+    });
+    backgroundRetryRef.current = pending;
+  };
+
   // Triggered when the user clicks the streaming outline card mid-stream.
   // SSE keeps running; only the surface morph + intent flag change.
   const handleExpandStreamingOutline = () => {
+    if (sessionRef.current?.generationBackend === 'server-job') {
+      void queueBackgroundOutlineCommand({ reviewHold: true });
+      return;
+    }
     if (!generationRuntimeRef.current?.canAcceptIntent) return;
     if (!session) return;
     clearOutlineReviewTimer();
@@ -1197,6 +1556,10 @@ function GenerationPreviewContent() {
   // pacing as the no-review path so the user has a beat to see the card before
   // the page advances. Jumping straight to content gen feels too abrupt.
   const handleCollapseEditor = () => {
+    if (sessionRef.current?.generationBackend === 'server-job') {
+      void queueBackgroundOutlineCommand({ reviewHold: false });
+      return;
+    }
     if (!generationRuntimeRef.current?.canAcceptIntent) return;
     if (!session) return;
     if (isOutlineStreaming) {
@@ -1248,6 +1611,12 @@ function GenerationPreviewContent() {
   };
 
   const handleOutlinesChange = (outlines: SceneOutline[]) => {
+    if (sessionRef.current?.generationBackend === 'server-job') {
+      outlineDraftRef.current = outlines;
+      persistSession({ ...sessionRef.current, sceneOutlines: outlines, previewPhase: 'review' });
+      void queueBackgroundOutlineCommand({ reviewHold: true, outlines });
+      return;
+    }
     if (!generationRuntimeRef.current?.canAcceptIntent) return;
     if (!session) return;
     // Streaming SSE owns `streamingOutlines` while it's running; ignore editor
@@ -1262,6 +1631,13 @@ function GenerationPreviewContent() {
   };
 
   const handleConfirmOutlines = () => {
+    if (sessionRef.current?.generationBackend === 'server-job') {
+      setIsConfirmingOutlines(true);
+      void queueBackgroundOutlineCommand({ confirm: true }).finally(() =>
+        setIsConfirmingOutlines(false),
+      );
+      return;
+    }
     if (!generationRuntimeRef.current?.canAcceptIntent) return;
     const finalOutlines = session?.sceneOutlines ?? streamingOutlines;
     if (!finalOutlines || finalOutlines.length === 0) return;
@@ -1582,7 +1958,7 @@ function GenerationPreviewContent() {
                   ) : null}
 
                   {error ? (
-                    <Button size="sm" variant="outline" onClick={goBackToHome}>
+                    <Button size="sm" variant="outline" onClick={handleGoBackAndRetry}>
                       {t('generation.goBackAndRetry')}
                     </Button>
                   ) : null}

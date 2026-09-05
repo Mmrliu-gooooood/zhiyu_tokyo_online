@@ -1308,6 +1308,9 @@ describe('cross-owner isolation (owner-scoped store)', () => {
         ownerId,
         validateScene: validateAppScene,
         validateStage: validateAppStage,
+        // Lease behavior is covered separately; this fixture represents an
+        // authenticated Agent runner rather than an ordinary browser writer.
+        mutationFence: async () => {},
       }),
     ) as unknown as CourseStore;
   }

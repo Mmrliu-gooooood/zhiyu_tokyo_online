@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
+import { canGenerateLocally } from '@/lib/generation/ownership';
 import { useStageStore } from '@/lib/store/stage';
 import { isSceneEditLocked } from '@/lib/edit/regen-lock';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
@@ -626,6 +627,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
 
   const generateRemaining = useCallback(
     async (params: GenerationParams) => {
+      if (!canGenerateLocally(store.getState())) return;
       lastParamsRef.current = params;
       if (generatingRef.current) return;
       generatingRef.current = true;
@@ -914,6 +916,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
   const retrySingleOutline = useCallback(
     async (outlineId: string) => {
       const state = store.getState();
+      if (!canGenerateLocally(state)) return;
       const outline = state.failedOutlines.find((o) => o.id === outlineId);
       const params = lastParamsRef.current;
       if (!outline || !state.stage || !params) return;

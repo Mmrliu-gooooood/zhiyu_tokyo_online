@@ -1,5 +1,7 @@
 import { ScanLine, Search, Bot, FileText, LayoutPanelLeft, Clapperboard } from 'lucide-react';
 import { useSettingsStore } from '@/lib/store/settings';
+import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
+import type { GenerationUploadedAsset } from '@/lib/generation/session-input';
 import type {
   SceneOutline,
   UserRequirements,
@@ -11,6 +13,11 @@ import type {
 // Session state stored in sessionStorage
 export interface GenerationSessionState {
   sessionId: string;
+  /** Sticky ownership and immutable input survive lost HTTP responses; the queue owns execution. */
+  generationBackend?: 'server-job';
+  generationJobId?: string;
+  backgroundInput?: GenerationInput;
+  backgroundAssets?: Record<string, GenerationUploadedAsset>;
   requirements: UserRequirements;
   pdfText: string;
   documentSources?: SessionDocumentSource[];

@@ -1,3 +1,4 @@
+import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
 /**
  * Scene Actions Generation API
  *
@@ -35,6 +36,8 @@ const log = createLogger('Scene Actions API');
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const generationGuard = await guardClientGeneration(req);
+  if (generationGuard) return generationGuard;
   let outlineTitle: string | undefined;
   let resolvedModelString: string | undefined;
   try {

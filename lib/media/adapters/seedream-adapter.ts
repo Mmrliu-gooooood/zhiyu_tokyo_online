@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Seedream (ByteDance / Doubao / Ark) Image Generation Adapter
  *
@@ -106,7 +107,10 @@ export async function generateWithSeedream(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Seedream generation failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Seedream generation failed (${response.status}): ${text}`,
+    );
   }
 
   const data = await response.json();

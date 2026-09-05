@@ -13,6 +13,7 @@ const boundary = vi.hoisted(() => ({
   generateRemaining: vi.fn(),
   retrySingleOutline: vi.fn(),
   classroomId: 'preset-course',
+  router: { replace: vi.fn() },
 }));
 
 vi.mock('@/components/stage', () => ({ Stage: () => null }));
@@ -22,7 +23,10 @@ vi.mock('@/lib/hooks/use-theme', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/lib/hooks/use-scene-generator', () => ({ useSceneGenerator: () => boundary }));
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: boundary.classroomId }) }));
+vi.mock('next/navigation', () => ({
+  useParams: () => ({ id: boundary.classroomId }),
+  useRouter: () => boundary.router,
+}));
 vi.mock('@/lib/classroom/stage-meta-client', () => ({
   fetchStageMeta: vi.fn().mockResolvedValue({ outcome: 'absent' }),
 }));
@@ -61,6 +65,7 @@ describe.each([
   const initialSettings = useSettingsStore.getState();
 
   beforeEach(() => {
+    boundary.router.replace.mockClear();
     container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
@@ -85,6 +90,8 @@ describe.each([
     container.remove();
     useSettingsStore.setState(initialSettings);
     useStageStore.setState(useStageStore.getInitialState());
+    // Legacy/local courses never enter the new server-job review route.
+    expect(boundary.router.replace).not.toHaveBeenCalled();
   });
 
   it('restores the explicit auto choice after a preset classroom temporarily selects its roster', async () => {

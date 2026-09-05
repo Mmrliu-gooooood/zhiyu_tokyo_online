@@ -1,3 +1,4 @@
+import { ConfirmedMediaFailure } from '../generation-errors';
 /**
  * ComfyUI Image Generation Adapter
  *
@@ -608,7 +609,8 @@ export async function generateWithComfyuiImage(
     if (entry?.status?.status_str === 'error') {
       const detail = extractExecutionError(entry);
       log.error(`Workflow execution error [prompt_id: ${promptId}]${detail ? `: ${detail}` : ''}`);
-      throw new Error(
+      throw new ConfirmedMediaFailure(
+        'failed',
         `ComfyUI workflow execution failed (prompt_id: ${promptId})` +
           (detail ? `: ${detail}` : '. Check the ComfyUI server logs for details.'),
       );

@@ -127,6 +127,47 @@ function applyFallbackToStageStore(stageId: string, token: StageSceneLoadToken, 
   });
 }
 
+describe('server-owned document hydration', () => {
+  it('preserves producer identity and does not infer or save server completion', async () => {
+    loadStageDataMock.mockResolvedValue({
+      ...makeStoredLoad('stage-1', 'scene-1'),
+      outline: {
+        outlines: [makeOutline(1)],
+        generationComplete: false,
+        producer: 'server-job',
+        producerRef: 'job-1',
+        producerKind: 'course-worker',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    await useStageStore.getState().loadFromStorage('stage-1');
+    useStageStore.getState().markGenerationCompleteIfDone();
+    expect(useStageStore.getState()).toMatchObject({
+      outlineProducer: 'server-job',
+      outlineProducerRef: 'job-1',
+      outlineProducerKind: 'course-worker',
+      generationComplete: false,
+    });
+    expect(saveStageDataMock).not.toHaveBeenCalled();
+    expect(stageOutlinesPut).not.toHaveBeenCalled();
+  });
+
+  it('clears producer metadata when navigating to a fresh client course', () => {
+    useStageStore.setState({
+      outlineProducer: 'server-job',
+      outlineProducerRef: 'job-1',
+      outlineProducerKind: 'course-worker',
+    });
+    useStageStore.getState().setStage(makeStage('new-client-stage'));
+    expect(useStageStore.getState()).toMatchObject({
+      outlineProducer: 'client',
+      outlineProducerRef: null,
+      outlineProducerKind: null,
+    });
+  });
+});
+
 beforeEach(() => {
   useStageStore.getState().clearStore();
   hydratePBLScenesFromRuntimeMock.mockReset();

@@ -16,6 +16,7 @@ import type { IncomingMessage } from 'node:http';
 
 import type { AssetPrincipal } from '@openmaic/storage';
 import type { RuntimeHttpPrincipal } from '@openmaic/storage/server';
+import { resolveGenerationOwner } from '@/lib/server/generation-jobs/auth';
 
 type PersistencePrincipal = RuntimeHttpPrincipal & Partial<Pick<AssetPrincipal, 'key'>>;
 
@@ -54,17 +55,36 @@ function authenticatePersistenceCredentials(
 }
 
 export function authenticatePersistenceHeaders(headers: Headers): PersistencePrincipal | undefined {
-  return authenticatePersistenceCredentials(
+  const principal = authenticatePersistenceCredentials(
     headers.get('authorization') ?? undefined,
     headers.get('x-learner-key') ?? undefined,
   );
+  if (!principal) return undefined;
+  if (
+    process.env.GENERATION_BACKGROUND_ENABLED === '1' &&
+    headers.get('cookie')?.includes('generation_owner=')
+  ) {
+    try {
+      const origin =
+        process.env.GENERATION_ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'http://localhost:3000';
+      return {
+        ...principal,
+        key: resolveGenerationOwner(new Request(origin, { headers }), new Headers()),
+      };
+    } catch {
+      return undefined;
+    }
+  }
+  return principal;
 }
 
 export async function authenticatePersistenceRequest(
   req: IncomingMessage,
 ): Promise<PersistencePrincipal | undefined> {
-  return authenticatePersistenceCredentials(
-    singleHeader(req.headers.authorization),
-    singleHeader(req.headers['x-learner-key']),
-  );
+  const headers = new Headers();
+  for (const key of ['authorization', 'x-learner-key', 'cookie']) {
+    const value = singleHeader(req.headers[key]);
+    if (value) headers.set(key, value);
+  }
+  return authenticatePersistenceHeaders(headers);
 }

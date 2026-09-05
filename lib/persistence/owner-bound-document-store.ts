@@ -16,6 +16,11 @@ import type {
 } from '@openmaic/storage';
 
 import { claimStageMeta, StageAccessError, tombstoneStageMeta } from './stage-meta';
+import {
+  assertGenerationMutationAllowed,
+  preserveGenerationProducer,
+  readGenerationOwnership,
+} from '@/lib/server/generation-jobs/ownership';
 
 export interface PoolClientLike {
   query(text: string, params?: unknown[]): Promise<{ rows: unknown[] }>;
@@ -183,7 +188,22 @@ export function createOwnerBoundDocumentStore<
       try {
         const queryable = queryableFor(client);
         const operation = pending.operation;
+        if (operation?.stageId && operation.mode === 'read') {
+          const ownership = await readGenerationOwnership(queryable, operation.stageId);
+          if (
+            ownership?.producer_kind === 'course-worker' &&
+            ownership.owner_id !== options.ownerId
+          ) {
+            throw new StageAccessError(operation.stageId, options.ownerId, 'foreign');
+          }
+        }
         if (operation && operation.mode !== 'read') await options.mutationFence?.(queryable);
+        if (operation?.stageId && operation.mode !== 'read') {
+          await assertGenerationMutationAllowed(queryable, operation.stageId, options.ownerId, {
+            internalProducer: !!options.mutationFence,
+            delete: operation.mode === 'delete',
+          });
+        }
         if (operation?.stageId) {
           const lock = operation.mode === 'read' ? 'FOR SHARE' : 'FOR UPDATE';
           const result = await queryable.query<RawOwnershipRow>(
@@ -212,6 +232,9 @@ export function createOwnerBoundDocumentStore<
         }
 
         const result = await body(queryable);
+        if (operation?.stageId && operation.mode !== 'read' && operation.mode !== 'delete') {
+          await preserveGenerationProducer(queryable, operation.stageId, !!options.mutationFence);
+        }
         if (operation?.mode === 'create') {
           await claimStageMeta(queryable, operation.stageId!, options.ownerId);
         }

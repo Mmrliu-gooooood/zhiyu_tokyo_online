@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { resolveGenerationOwner } from '@/lib/server/generation-jobs/auth';
 
 const ANONYMOUS_COOKIE = 'anonymous_id';
 const ANONYMOUS_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
@@ -55,6 +56,16 @@ export function resolveRequestOwnerId(
   authenticatedOwnerId?: string,
 ): string {
   if (authenticatedOwnerId) return authenticatedOwnerId;
+
+  if (process.env.GENERATION_BACKGROUND_ENABLED === '1') {
+    const origin =
+      process.env.GENERATION_ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'http://localhost:3000';
+    return resolveGenerationOwner(
+      new Request(origin, { headers: req.headers }),
+      responseHeaders,
+      true,
+    );
+  }
 
   const existingId = readCookie(req.headers, ANONYMOUS_COOKIE);
   if (existingId && UUID_V4.test(existingId)) return `anon:${existingId}`;

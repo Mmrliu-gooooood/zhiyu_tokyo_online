@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Grok (xAI) Video Generation Adapter
  *
@@ -125,7 +126,10 @@ async function submitVideoGeneration(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Grok video submit failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Grok video submit failed (${response.status}): ${text}`,
+    );
   }
 
   const data = (await response.json()) as GrokVideoSubmitResponse;

@@ -1,0 +1,8 @@
+# Included automatically by generation-compose.ps1 only when the private file exists.
+services:
+  openmaic:
+    volumes:
+      - ./server-providers.yml:/app/server-providers.yml:ro
+  generation-worker:
+    volumes:
+      - ./server-providers.yml:/app/server-providers.yml:ro

@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Veo (Google) Video Generation Adapter
  *
@@ -144,7 +145,7 @@ async function submitVideoGeneration(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Veo submit failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(response.status, `Veo submit failed (${response.status}): ${text}`);
   }
 
   return response.json() as Promise<VeoOperation>;

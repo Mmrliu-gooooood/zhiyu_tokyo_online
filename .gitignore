@@ -33,6 +33,7 @@ CLAUDE.local.md
 # production
 /build
 /dist
+/dist-worker
 
 # generated: synced from packages/@openmaic/importer/dist for runtime URL import
 /public/vendor/maic-importer

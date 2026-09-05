@@ -1,3 +1,4 @@
+import { ConfirmedMediaFailure, mediaSubmissionError } from '../generation-errors';
 /**
  * Seedance (ByteDance / Doubao / Ark) Video Generation Adapter
  *
@@ -171,7 +172,10 @@ export async function submitSeedanceTask(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Seedance task submission failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Seedance task submission failed (${response.status}): ${text}`,
+    );
   }
 
   const data = (await response.json()) as SeedanceSubmitResponse;
@@ -221,7 +225,10 @@ export async function pollSeedanceTask(
   }
 
   if (data.status === 'failed') {
-    throw new Error(`Seedance video generation failed: ${data.error?.message || 'Unknown error'}`);
+    throw new ConfirmedMediaFailure(
+      'failed',
+      `Seedance video generation failed: ${data.error?.message || 'Unknown error'}`,
+    );
   }
 
   // queued or running

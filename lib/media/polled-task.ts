@@ -1,3 +1,5 @@
+import { ConfirmedMediaFailure } from './generation-errors';
+
 export type TerminalResult<T> =
   | { status: 'done'; result: T }
   | { status: 'failed'; message: string };
@@ -38,7 +40,7 @@ export async function runPolledTask<T>({
 }: RunPolledTaskOptions<T>): Promise<T> {
   const submitted = await submit();
   if (submitted.status === 'done') return submitted.result;
-  if (submitted.status === 'failed') throw new Error(submitted.message);
+  if (submitted.status === 'failed') throw new ConfirmedMediaFailure('failed', submitted.message);
 
   let attempts = 0;
   let lastPendingDetail: string | undefined;
@@ -49,7 +51,7 @@ export async function runPolledTask<T>({
     attempts++;
 
     if (result.status === 'done') return result.result;
-    if (result.status === 'failed') throw new Error(result.message);
+    if (result.status === 'failed') throw new ConfirmedMediaFailure('failed', result.message);
     lastPendingDetail = result.detail;
   }
 

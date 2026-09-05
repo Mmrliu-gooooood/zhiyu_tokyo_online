@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * MiniMax Video Generation Adapter
  * Supports: text-to-video with camera control commands
@@ -84,7 +85,7 @@ async function submitTask(
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
-    throw new Error(`MiniMax Video submit error: ${errText}`);
+    throw mediaSubmissionError(response.status, `MiniMax Video submit error: ${errText}`);
   }
 
   const data: MiniMaxSubmitResponse = await response.json();

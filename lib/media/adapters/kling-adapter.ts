@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Kling (Kuaishou) Video Generation Adapter
  *
@@ -175,7 +176,10 @@ async function submitTask(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Kling submit failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Kling submit failed (${response.status}): ${text}`,
+    );
   }
 
   const data = (await response.json()) as KlingSubmitResponse;

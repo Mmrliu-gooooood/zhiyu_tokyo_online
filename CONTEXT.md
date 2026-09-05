@@ -143,3 +143,19 @@ _Avoid_: Updated timestamp, assessment retry
 **Pending grade**:
 A submitted Assessment attempt whose AI-graded answer has not received a durable grade. It may expose a provisional score but cannot contribute to final latest or best scores until grading succeeds.
 _Avoid_: Incorrect answer, automatic partial credit
+
+## Pro model-configuration fix (revised scope, 2026-09-05; implementation pending)
+
+**Pro learning consultation**:
+The Workspace conversation through which the learner can express goals, prior knowledge, and intended scope before generating a Course. Deeper questioning can be requested through skills; the current bugfix adds no fixed consultation rounds or new global proposal-confirmation workflow.
+_Avoid_: mandatory questionnaire, required one-to-three-round interview
+
+**Shared Home model configuration**:
+The default model connection selected in Home and reused by Pro when no explicit administrator stage route overrides it. Unsupported tool-use capability and administrator overrides must be explained; this bugfix does not require new advanced model-selection screens.
+_Avoid_: automatic use of an unrelated server model, separate mandatory Pro credentials
+
+**Saved Pro connection**:
+A server-encrypted model connection isolated to its current owner, removable from settings and referenced by version from background tasks. This is accepted product intent, not an already implemented credential service.
+_Avoid_: plaintext session credentials, shared administrator key
+
+The Learning and assessment terminology above records the wider project direction. New diagnostics, Lesson plans, checkpoints, dynamic question sets, assessment attempts, reports, and advice loops are deferred and are not requirements or evidence of implementation for this Pro bugfix.

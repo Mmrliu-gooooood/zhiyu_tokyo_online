@@ -1,3 +1,4 @@
+import { ConfirmedMediaFailure, mediaSubmissionError } from '../generation-errors';
 /**
  * HappyHorse (Alibaba Cloud Model Studio / DashScope) Video Generation Adapter
  *
@@ -117,7 +118,10 @@ export async function submitHappyHorseTask(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`HappyHorse task submission failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `HappyHorse task submission failed (${response.status}): ${text}`,
+    );
   }
 
   const data = (await response.json()) as HappyHorseSubmitResponse;
@@ -162,7 +166,13 @@ export async function pollHappyHorseTask(
     };
   }
 
-  if (status === 'FAILED' || status === 'CANCELED' || status === 'UNKNOWN') {
+  if (status === 'FAILED' || status === 'CANCELED') {
+    throw new ConfirmedMediaFailure(
+      'failed',
+      `HappyHorse video generation failed: ${getErrorMessage(data)}`,
+    );
+  }
+  if (status === 'UNKNOWN') {
     throw new Error(`HappyHorse video generation failed: ${getErrorMessage(data)}`);
   }
 

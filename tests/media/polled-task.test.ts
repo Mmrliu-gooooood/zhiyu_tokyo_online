@@ -1,8 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runPolledTask } from '@/lib/media/polled-task';
+import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
 
 describe('runPolledTask', () => {
+  it.each(['failed', 'network', 'timeout'] as const)(
+    'only marks a confirmed terminal poll failure safe: %s',
+    async (outcome) => {
+      vi.useFakeTimers();
+      const result = runPolledTask({
+        submit: async () => ({ status: 'submitted', taskId: 'accepted-task' }),
+        poll: async () => {
+          if (outcome === 'network') throw new Error('Poll HTTP 404');
+          return outcome === 'failed'
+            ? { status: 'failed', message: 'Confirmed task failure' }
+            : { status: 'pending' };
+        },
+        intervalMs: 10,
+        maxAttempts: 1,
+        label: 'Test',
+      }).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(10);
+      expect((await result) instanceof ConfirmedMediaFailure).toBe(outcome === 'failed');
+    },
+  );
   afterEach(() => {
     vi.useRealTimers();
   });

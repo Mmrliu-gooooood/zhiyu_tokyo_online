@@ -9,6 +9,7 @@ import type { GenerateTextResult, JSONValue, LanguageModel, StreamTextResult } f
 import { createLogger } from '@/lib/logger';
 import { PROVIDERS } from './providers';
 import { thinkingContext } from './thinking-context';
+import { withGenerationModelQuota } from '@/lib/server/generation-jobs/model-quota';
 import { getModelMetadataKey } from './model-metadata';
 import { getCanonicalModelId } from './model-aliases';
 import type { ThinkingCapability, ThinkingConfig } from '@/lib/types/provider';
@@ -329,7 +330,8 @@ export async function callLLM<T extends GenerateTextParams>(
   thinking?: ThinkingConfig,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<GenerateTextResult<any, any>> {
-  const maxAttempts = (retryOptions?.retries ?? 0) + 1;
+  const maxAttempts =
+    process.env.GENERATION_BACKGROUND_ENABLED === '1' ? 1 : (retryOptions?.retries ?? 0) + 1;
   const validate = retryOptions?.validate ?? (maxAttempts > 1 ? DEFAULT_VALIDATE : undefined);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -346,7 +348,11 @@ export async function callLLM<T extends GenerateTextParams>(
       // can read the config and inject vendor-specific body params for
       // OpenAI-compatible providers.
       const result = await thinkingContext.run(effectiveThinking, () =>
-        generateText(injectedParams),
+        generateText({
+          ...injectedParams,
+          model: withGenerationModelQuota(injectedParams.model),
+          ...(process.env.GENERATION_BACKGROUND_ENABLED === '1' ? { maxRetries: 0 } : {}),
+        }),
       );
 
       // Record before validating: every attempt that got this far was billed,
@@ -418,7 +424,13 @@ export function streamLLM<T extends StreamTextParams>(
   } as T;
 
   const injectedParams = injectProviderOptions(wrappedParams, effectiveThinking);
-  const result = thinkingContext.run(effectiveThinking, () => streamText(injectedParams));
+  const result = thinkingContext.run(effectiveThinking, () =>
+    streamText({
+      ...injectedParams,
+      model: withGenerationModelQuota(injectedParams.model),
+      ...(process.env.GENERATION_BACKGROUND_ENABLED === '1' ? { maxRetries: 0 } : {}),
+    }),
+  );
 
   return result;
 }

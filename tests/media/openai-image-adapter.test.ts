@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
 import {
   generateWithOpenAIImage,
   testOpenAIImageConnectivity,
@@ -11,6 +12,17 @@ describe('openai-image-adapter', () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
+  it.each([401, 422, 429, 408, 500])(
+    'distinguishes confirmed submission rejection from ambiguous HTTP %i',
+    async (status) => {
+      mockFetch.mockResolvedValueOnce({ ok: false, status, text: async () => 'Provider error' });
+      const error = await generateWithOpenAIImage(
+        { providerId: 'openai-image', apiKey: 'test', model: 'gpt-image-2' },
+        { prompt: 'Test' },
+      ).catch((error: unknown) => error);
+      expect(error instanceof ConfirmedMediaFailure).toBe([401, 422, 429].includes(status));
+    },
+  );
 
   it('posts image generation requests to the configured OpenAI Images endpoint', async () => {
     mockFetch.mockResolvedValueOnce({

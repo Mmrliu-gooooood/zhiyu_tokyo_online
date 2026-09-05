@@ -1,3 +1,4 @@
+import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
 /**
  * Single TTS Generation API
  *
@@ -32,6 +33,8 @@ const log = createLogger('TTS API');
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
+  const generationGuard = await guardClientGeneration(req);
+  if (generationGuard) return generationGuard;
   let ttsProviderId: string | undefined;
   let ttsVoice: string | undefined;
   let audioId: string | undefined;

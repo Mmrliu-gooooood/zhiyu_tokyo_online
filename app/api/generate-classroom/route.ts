@@ -1,73 +1,60 @@
-import { after, type NextRequest } from 'next/server';
-import { nanoid } from 'nanoid';
-import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { type GenerateClassroomInput } from '@/lib/server/classroom-generation';
-import { runClassroomGenerationJob } from '@/lib/server/classroom-job-runner';
-import { createClassroomGenerationJob } from '@/lib/server/classroom-job-store';
-import { buildRequestOrigin } from '@/lib/server/classroom-storage';
-import { createLogger } from '@/lib/logger';
+import {
+  commandKey,
+  generationResponse,
+  parseCommand,
+  readGenerationJson,
+  withGenerationRequest,
+} from '@/lib/server/generation-jobs/http';
+import { parseGenerationInput } from '@/lib/server/generation-jobs/contracts';
+import { validateBackgroundProviders } from '@/lib/server/generation-jobs/preflight';
+import {
+  generationProviderConfigVersion,
+  generationRequestHash,
+} from '@/lib/server/generation-jobs/config-snapshot';
+import { getGenerationPool } from '@/lib/server/generation-jobs/runtime';
+import { GenerationJobError } from '@/lib/server/generation-jobs/contracts';
 
-const log = createLogger('GenerateClassroom API');
-
+export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
-
-export async function POST(req: NextRequest) {
-  let requirementSnippet: string | undefined;
-  try {
-    const rawBody = (await req.json()) as Partial<GenerateClassroomInput>;
-    requirementSnippet = rawBody.requirement?.substring(0, 60);
-    const body: GenerateClassroomInput = {
-      requirement: rawBody.requirement || '',
-      ...(rawBody.pdfContent ? { pdfContent: rawBody.pdfContent } : {}),
-
-      ...(rawBody.enableWebSearch != null ? { enableWebSearch: rawBody.enableWebSearch } : {}),
-      ...(rawBody.webSearchProviderId ? { webSearchProviderId: rawBody.webSearchProviderId } : {}),
-      ...(rawBody.webSearchApiKey ? { webSearchApiKey: rawBody.webSearchApiKey } : {}),
-      ...(rawBody.webSearchModelId ? { webSearchModelId: rawBody.webSearchModelId } : {}),
-      ...(rawBody.baiduSubSources ? { baiduSubSources: rawBody.baiduSubSources } : {}),
-      ...(rawBody.enableImageGeneration != null
-        ? { enableImageGeneration: rawBody.enableImageGeneration }
-        : {}),
-      ...(rawBody.enableVideoGeneration != null
-        ? { enableVideoGeneration: rawBody.enableVideoGeneration }
-        : {}),
-      ...(rawBody.enableTTS != null ? { enableTTS: rawBody.enableTTS } : {}),
-      ...(rawBody.agentMode ? { agentMode: rawBody.agentMode } : {}),
-    };
-    const { requirement } = body;
-
-    if (!requirement) {
-      return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: requirement');
-    }
-
-    const baseUrl = buildRequestOrigin(req);
-    const jobId = nanoid(10);
-    const job = await createClassroomGenerationJob(jobId, body);
-    const pollUrl = `${baseUrl}/api/generate-classroom/${jobId}`;
-
-    after(() => runClassroomGenerationJob(jobId, body, baseUrl));
-
-    return apiSuccess(
-      {
-        jobId,
-        status: job.status,
-        step: job.step,
-        message: job.message,
-        pollUrl,
-        pollIntervalMs: 5000,
-      },
-      202,
-    );
-  } catch (error) {
-    log.error(
-      `Classroom generation job creation failed [requirement="${requirementSnippet ?? 'unknown'}..."]:`,
-      error,
-    );
-    return apiError(
-      'INTERNAL_ERROR',
-      500,
-      'Failed to create classroom generation job',
-      error instanceof Error ? error.message : 'Unknown error',
-    );
-  }
+export async function POST(req: Request) {
+  return withGenerationRequest(
+    req,
+    async ({ ownerId, headers, repository }) => {
+      const key = parseCommand(commandKey, req.headers.get('Idempotency-Key'));
+      const input = parseGenerationInput(await readGenerationJson(req));
+      const found = await getGenerationPool().query(
+        'SELECT id,request_hash FROM generation_jobs WHERE owner_id=$1 AND idempotency_key=$2',
+        [ownerId, key],
+      );
+      if (found.rows[0]) {
+        if (found.rows[0].request_hash !== generationRequestHash(input))
+          throw new GenerationJobError('IDEMPOTENCY_CONFLICT', 409);
+        const previous = await repository.getJob(ownerId, found.rows[0].id);
+        if (!previous) throw new GenerationJobError('JOB_NOT_FOUND', 404);
+        headers.set('Location', previous.pollUrl);
+        return generationResponse({ success: true, ...previous }, headers, 202);
+      }
+      await validateBackgroundProviders(input);
+      input.model = { ...input.model, configVersion: generationProviderConfigVersion() };
+      const job = await repository.createJob(ownerId, key, input);
+      headers.set('Location', job.pollUrl);
+      return generationResponse({ success: true, ...job }, headers, 202);
+    },
+    { createSession: true, submitting: true },
+  );
+}
+export async function GET(req: Request) {
+  return withGenerationRequest(
+    req,
+    async ({ ownerId, headers, repository }) => {
+      const params = new URL(req.url).searchParams;
+      const result = await repository.listJobs(ownerId, {
+        active: params.get('active') === '1',
+        limit: 30,
+        cursor: params.get('cursor') ?? undefined,
+      });
+      return generationResponse({ success: true, ...result }, headers);
+    },
+    { createSession: true },
+  );
 }

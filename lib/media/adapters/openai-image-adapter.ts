@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * OpenAI Image Generation Adapter
  *
@@ -84,7 +85,10 @@ export async function generateWithOpenAIImage(
 
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);
-    throw new Error(`OpenAI image generation failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `OpenAI image generation failed (${response.status}): ${text}`,
+    );
   }
 
   const data = await response.json();

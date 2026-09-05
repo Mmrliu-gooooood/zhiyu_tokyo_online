@@ -443,6 +443,9 @@ describe('folder tool cross-owner isolation through the bound PostgreSQL store',
         ownerId,
         validateScene: validateAppScene,
         validateStage: validateAppStage,
+        // These fixtures exercise the trusted Agent runner context, whose
+        // production store always carries a transaction-level lease fence.
+        mutationFence: async () => {},
       }),
     ) as unknown as CourseStore;
     const stageAccess = (stageId: string) => probeStageAccess(ownerId, stageId, db);

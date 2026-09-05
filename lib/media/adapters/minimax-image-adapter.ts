@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * MiniMax Image Generation Adapter
  * Supports: text-to-image with aspect ratio control
@@ -42,7 +43,7 @@ export async function generateWithMiniMaxImage(
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
-    throw new Error(`MiniMax Image API error: ${errText}`);
+    throw mediaSubmissionError(response.status, `MiniMax Image API error: ${errText}`);
   }
 
   const data = await response.json();

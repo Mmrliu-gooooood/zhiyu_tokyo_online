@@ -9,6 +9,7 @@ import { Pool } from 'pg';
 
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
+import { withLegacySharedAssetReads } from '@/lib/persistence/legacy-readable-assets';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
 import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators';
@@ -40,11 +41,13 @@ async function createServerPersistenceProvider(
   const pool = poolFactory(connectionString);
   const queryable = pool as unknown as ConnectableQueryable;
   try {
-    await ensureSchema(queryable);
-    await ensureDocumentSchema(queryable);
-    await ensureStageMetaSchema(queryable);
-    await ensureOwnerMaterialSchema(queryable);
-    await ensureAssetSchema(queryable);
+    if (process.env.GENERATION_BACKGROUND_ENABLED !== '1') {
+      await ensureSchema(queryable);
+      await ensureDocumentSchema(queryable);
+      await ensureStageMetaSchema(queryable);
+      await ensureOwnerMaterialSchema(queryable);
+      await ensureAssetSchema(queryable);
+    }
     const withTransaction = nodePostgresTransaction(queryable);
     const byteStore = lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable);
     return {
@@ -58,7 +61,9 @@ async function createServerPersistenceProvider(
         validateScene: validateAppScene,
         validateStage: validateAppStage,
       }),
-      assetStore: new PgAssetStore(queryable, { withTransaction, byteStore }),
+      assetStore: withLegacySharedAssetReads(
+        new PgAssetStore(queryable, { withTransaction, byteStore }),
+      ),
     };
   } catch (error) {
     await pool.end().catch(() => {});

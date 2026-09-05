@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Lemonade Image Generation Adapter
  *
@@ -73,7 +74,10 @@ export async function generateWithLemonadeImage(
 
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);
-    throw new Error(`Lemonade image generation failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Lemonade image generation failed (${response.status}): ${text}`,
+    );
   }
 
   const data = await response.json();

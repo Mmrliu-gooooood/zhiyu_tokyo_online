@@ -1,54 +1,15 @@
-import { type NextRequest } from 'next/server';
-import { apiError, apiSuccess } from '@/lib/server/api-response';
-import {
-  isValidClassroomJobId,
-  readClassroomGenerationJob,
-} from '@/lib/server/classroom-job-store';
-import { buildRequestOrigin } from '@/lib/server/classroom-storage';
-import { createLogger } from '@/lib/logger';
-
-const log = createLogger('ClassroomJob API');
-
+import { GenerationJobError } from '@/lib/server/generation-jobs/contracts';
+import { generationResponse, withGenerationRequest } from '@/lib/server/generation-jobs/http';
 export const dynamic = 'force-dynamic';
-
-export async function GET(req: NextRequest, context: { params: Promise<{ jobId: string }> }) {
-  let resolvedJobId: string | undefined;
-  try {
+export async function GET(req: Request, context: { params: Promise<{ jobId: string }> }) {
+  return withGenerationRequest(req, async ({ ownerId, headers, repository }) => {
     const { jobId } = await context.params;
-    resolvedJobId = jobId;
-
-    if (!isValidClassroomJobId(jobId)) {
-      return apiError('INVALID_REQUEST', 400, 'Invalid classroom generation job id');
-    }
-
-    const job = await readClassroomGenerationJob(jobId);
-    if (!job) {
-      return apiError('INVALID_REQUEST', 404, 'Classroom generation job not found');
-    }
-
-    const pollUrl = `${buildRequestOrigin(req)}/api/generate-classroom/${jobId}`;
-
-    return apiSuccess({
-      jobId: job.id,
-      status: job.status,
-      step: job.step,
-      progress: job.progress,
-      message: job.message,
-      pollUrl,
-      pollIntervalMs: 5000,
-      scenesGenerated: job.scenesGenerated,
-      totalScenes: job.totalScenes,
-      result: job.result,
-      error: job.error,
-      done: job.status === 'succeeded' || job.status === 'failed',
-    });
-  } catch (error) {
-    log.error(`Classroom job retrieval failed [jobId=${resolvedJobId ?? 'unknown'}]:`, error);
-    return apiError(
-      'INTERNAL_ERROR',
-      500,
-      'Failed to retrieve classroom generation job',
-      error instanceof Error ? error.message : String(error),
-    );
-  }
+    if (!/^[0-9a-f-]{36}$/i.test(jobId)) throw new GenerationJobError('JOB_NOT_FOUND', 404);
+    const cursor = Number(new URL(req.url).searchParams.get('cursor') ?? 0);
+    if (!Number.isSafeInteger(cursor) || cursor < 0)
+      throw new GenerationJobError('INVALID_CURSOR', 400);
+    const job = await repository.getJobDetail(ownerId, jobId, cursor);
+    if (!job) throw new GenerationJobError('JOB_NOT_FOUND', 404);
+    return generationResponse({ success: true, ...job }, headers);
+  });
 }

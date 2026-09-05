@@ -39,6 +39,8 @@ export interface AppDocumentOutline {
   producer?: DocumentProducer;
   /** Opaque handle of the producing job, when one owns the course. */
   producerRef?: string;
+  /** Distinguishes course generation from Agent runtime server-owned documents. */
+  producerKind?: 'course-worker' | 'agent-runtime';
   /**
    * Receipts of completed `import_pptx` calls, keyed by the same
    * `import_pptx:<key>` string that rides `requirement`. A material whose

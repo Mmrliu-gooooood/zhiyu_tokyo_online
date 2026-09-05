@@ -1,3 +1,4 @@
+import { mediaSubmissionError } from '../generation-errors';
 /**
  * Grok (xAI) Image Generation Adapter
  *
@@ -73,7 +74,10 @@ export async function generateWithGrokImage(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Grok image generation failed (${response.status}): ${text}`);
+    throw mediaSubmissionError(
+      response.status,
+      `Grok image generation failed (${response.status}): ${text}`,
+    );
   }
 
   const data = await response.json();

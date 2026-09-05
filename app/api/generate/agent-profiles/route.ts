@@ -1,3 +1,4 @@
+import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
 /**
  * Agent Profiles Generation API
  *
@@ -128,6 +129,8 @@ function stripCodeFences(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const generationGuard = await guardClientGeneration(req);
+  if (generationGuard) return generationGuard;
   let stageName: string | undefined;
   let modelString: string | undefined;
   try {

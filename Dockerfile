@@ -45,6 +45,24 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     fi && \
     pnpm install --frozen-lockfile
 
+# ---- Independent worker: no Next server or browser required ----
+FROM base AS worker-builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+COPY --from=deps /app/packages ./packages
+RUN node scripts/build-generation-worker.mjs
+
+FROM base AS generation-worker
+ENV NODE_ENV=production
+RUN apk add --no-cache cairo pango jpeg giflib librsvg
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 worker
+COPY --from=worker-builder /app/dist-worker ./dist-worker
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY --from=worker-builder /app/lib/prompts ./lib/prompts
+USER worker
+CMD ["node", "dist-worker/generation.mjs"]
+
 # ---- Stage 3: Builder ----
 FROM base AS builder
 

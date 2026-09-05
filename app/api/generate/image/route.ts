@@ -1,3 +1,4 @@
+import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
 /**
  * Image Generation API
  *
@@ -45,6 +46,8 @@ const log = createLogger('ImageGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const generationGuard = await guardClientGeneration(request);
+  if (generationGuard) return generationGuard;
   try {
     const body = (await request.json()) as ImageGenerationOptions;
 

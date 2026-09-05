@@ -1,5 +1,8 @@
 'use client';
 
+import { canGenerateLocally } from '@/lib/generation/ownership';
+import { useClassroomGenerationJob } from '@/lib/hooks/use-generation-job';
+
 /**
  * ClassroomSurface — the classroom hosted by Workspace.
  *
@@ -78,6 +81,7 @@ export function ClassroomSurface({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryBackgroundJob = useClassroomGenerationJob(classroomId, !loading && !error);
   /**
    * The load resolved and no source has this course. A TERMINAL state, kept
    * separate from `error`: an error offers a retry, and there is nothing here
@@ -91,11 +95,23 @@ export function ClassroomSurface({
   const generationStartedRef = useRef(false);
   const isVisitCurrentRef = useRef<() => boolean>(() => false);
 
-  const { generateRemaining, retrySingleOutline, stop } = useSceneGenerator({
+  const {
+    generateRemaining,
+    retrySingleOutline: retryLocalOutline,
+    stop,
+  } = useSceneGenerator({
     onComplete: () => {
       log.info('[Classroom] All scenes generated');
     },
   });
+  const retrySingleOutline = async (outlineId: string) => {
+    try {
+      if (retryBackgroundJob) await retryBackgroundJob();
+      else await retryLocalOutline(outlineId);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
+    }
+  };
 
   const loadClassroom = useCallback(
     async (
@@ -250,7 +266,7 @@ export function ClassroomSurface({
     // Producer ownership is document data, not conversation status. A
     // server-job course never starts a second browser-side generator no matter
     // which chat is open (or whether any chat is open).
-    if (state.outlineProducer === 'server-job') {
+    if (!canGenerateLocally(state)) {
       generationStartedRef.current = true;
       log.info('[Classroom] A server-side job owns this course; the browser will not generate.');
       return;

@@ -15,15 +15,20 @@ import { DEFAULT_ASSET_COLLECTION_GRACE_MS } from '@openmaic/storage';
  * failing: the retention window has to be correct with no operator action.
  */
 export function resolveAssetCollectionGraceMs(): number {
+  // Queue inputs and staged outputs can outlive a browser session. Registry FK
+  // pins prevent their removal; the additional grace protects orphan byte writes.
+  const queueEnabled = process.env.GENERATION_BACKGROUND_ENABLED === '1';
+  const minimum = queueEnabled ? 24 * 60 * 60 * 1000 : 0;
+  const fallback = Math.max(minimum, DEFAULT_ASSET_COLLECTION_GRACE_MS);
   const raw = process.env.ASSET_COLLECTION_GRACE_MS?.trim();
-  if (!raw) return DEFAULT_ASSET_COLLECTION_GRACE_MS;
+  if (!raw) return fallback;
   const parsed = Number(raw);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     console.warn(
       `ASSET_COLLECTION_GRACE_MS=${raw} is not an integer of at least 0 milliseconds; ` +
         `using ${DEFAULT_ASSET_COLLECTION_GRACE_MS}`,
     );
-    return DEFAULT_ASSET_COLLECTION_GRACE_MS;
+    return fallback;
   }
-  return parsed;
+  return Math.max(minimum, parsed);
 }
