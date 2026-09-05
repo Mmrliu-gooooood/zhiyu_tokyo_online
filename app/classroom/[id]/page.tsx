@@ -38,6 +38,7 @@ export default function ClassroomDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const generationStartedRef = useRef(false);
+  const isVisitCurrentRef = useRef<() => boolean>(() => false);
 
   const { generateRemaining, retrySingleOutline, stop } = useSceneGenerator({
     onComplete: () => {
@@ -46,7 +47,7 @@ export default function ClassroomDetailPage() {
   });
 
   const loadClassroom = useCallback(
-    async (isEffectCurrent: () => boolean = () => true) => {
+    async (isEffectCurrent: () => boolean = isVisitCurrentRef.current) => {
       const loadToken = claimStageSceneLoadToken();
       const isCurrent = () => isEffectCurrent() && isCurrentStageSceneLoadToken(loadToken);
 
@@ -113,12 +114,19 @@ export default function ClassroomDetailPage() {
   );
 
   useEffect(() => {
+    // Roster hydration uses the shared selection for this classroom's
+    // playback. Restore the Home creation preference when this visit ends.
+    const settingsBeforeVisit = useSettingsStore.getState();
+    const homeAgentSelection = {
+      agentMode: settingsBeforeVisit.agentMode,
+      selectedAgentIds: settingsBeforeVisit.selectedAgentIds,
+      agentSelectionIsUserSet: settingsBeforeVisit.agentSelectionIsUserSet,
+    };
+
     // Reset loading state on course switch to unmount Stage during transition,
     // preventing stale data from syncing back to the new course
-    /* eslint-disable react-hooks/set-state-in-effect -- Course switch must hide stale Stage before async load */
     setLoading(true);
     setError(null);
-    /* eslint-enable react-hooks/set-state-in-effect */
     generationStartedRef.current = false;
 
     // Clear previous classroom's media tasks to prevent cross-classroom contamination.
@@ -132,12 +140,16 @@ export default function ClassroomDetailPage() {
     useWhiteboardHistoryStore.getState().clearHistory();
 
     let cancelled = false;
+    // Manual retries capture this visit's check at start, so a late result
+    // cannot overwrite the restored preference after leaving the classroom.
+    isVisitCurrentRef.current = () => !cancelled;
     loadClassroom(() => !cancelled);
 
     // Cancel ongoing generation when classroomId changes or component unmounts
     return () => {
       cancelled = true;
       stop();
+      useSettingsStore.setState(homeAgentSelection);
     };
   }, [classroomId, loadClassroom, stop]);
 

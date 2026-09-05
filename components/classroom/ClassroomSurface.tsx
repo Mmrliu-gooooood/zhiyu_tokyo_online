@@ -1,14 +1,13 @@
 'use client';
 
 /**
- * ClassroomSurface — the classroom, wherever it is mounted.
+ * ClassroomSurface — the classroom hosted by Workspace.
  *
- * This is the body `/classroom/[id]` has always had: the load pipeline, the
- * generation-resume policy and the `Stage` dispatch under `ThemeProvider` /
- * `MediaStageProvider`. It moved out of the route file for exactly one reason
- * — the Pro workspace's third pane hosts the REAL classroom, not a preview and
- * not an iframe, so both surfaces must run the same code rather than two
- * copies that drift.
+ * Owns the hosted load lifecycle, generation-resume policy and `Stage`
+ * dispatch under `ThemeProvider` / `MediaStageProvider`. The standalone
+ * `/classroom/[id]` page retains its own load effect and ownership sidecar;
+ * both entries use `runClassroomLoad`, but mounting this component is not
+ * part of the standalone route. Keep lifecycle fixes covered at both entries.
  *
  * `variant` is only layout/load-context: `page` fills the viewport and treats
  * a course that cannot be found as terminal; `pane` fills its column and runs
@@ -90,6 +89,7 @@ export function ClassroomSurface({
   const [notFound, setNotFound] = useState(false);
 
   const generationStartedRef = useRef(false);
+  const isVisitCurrentRef = useRef<() => boolean>(() => false);
 
   const { generateRemaining, retrySingleOutline, stop } = useSceneGenerator({
     onComplete: () => {
@@ -98,7 +98,9 @@ export function ClassroomSurface({
   });
 
   const loadClassroom = useCallback(
-    async (isEffectCurrent: () => boolean = () => true): Promise<ClassroomLoadOutcome> => {
+    async (
+      isEffectCurrent: () => boolean = isVisitCurrentRef.current,
+    ): Promise<ClassroomLoadOutcome> => {
       const loadToken = claimStageSceneLoadToken();
       const isCurrent = () => isEffectCurrent() && isCurrentStageSceneLoadToken(loadToken);
       let outcome: ClassroomLoadOutcome = 'loaded';
@@ -159,13 +161,21 @@ export function ClassroomSurface({
   );
 
   useEffect(() => {
+    // Classroom roster hydration temporarily uses the shared selection for
+    // playback. Keep the Home creation choice scoped to this visit so a
+    // stage-derived fallback cannot replace it after returning to Home.
+    const settingsBeforeVisit = useSettingsStore.getState();
+    const homeAgentSelection = {
+      agentMode: settingsBeforeVisit.agentMode,
+      selectedAgentIds: settingsBeforeVisit.selectedAgentIds,
+      agentSelectionIsUserSet: settingsBeforeVisit.agentSelectionIsUserSet,
+    };
+
     // Reset loading state on course switch to unmount Stage during transition,
     // preventing stale data from syncing back to the new course
-    /* eslint-disable react-hooks/set-state-in-effect -- Course switch must hide stale Stage before async load */
     setLoading(true);
     setError(null);
     setNotFound(false);
-    /* eslint-enable react-hooks/set-state-in-effect */
     generationStartedRef.current = false;
 
     // Clear previous classroom's media tasks to prevent cross-classroom contamination.
@@ -184,6 +194,9 @@ export function ClassroomSurface({
     useCanvasStore.getState().resetCanvasState();
 
     let cancelled = false;
+    // Manual retries capture this same visit's cancellation check. Reading
+    // the ref only when starting avoids reviving an old retry on a new visit.
+    isVisitCurrentRef.current = () => !cancelled;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let availabilityAttempt = 0;
     const loadUntilAvailable = async () => {
@@ -211,6 +224,7 @@ export function ClassroomSurface({
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
       stop();
+      useSettingsStore.setState(homeAgentSelection);
     };
   }, [classroomId, loadClassroom, stop, variant]);
 
