@@ -68,6 +68,7 @@ import {
   getGenerationStepText,
 } from './types';
 import { ZhiyuGenerationShell } from './components/ZhiyuGenerationShell';
+import { ZhiyuGenerationTopicCards } from './components/ZhiyuGenerationTopicCards';
 import { projectZhiyuGenerationSteps } from './components/zhiyu-generation-state';
 import { resolveTaskEngineModeFromOutlineDoneEvent } from './vocational-mode';
 import {
@@ -523,10 +524,8 @@ function GenerationPreviewContent() {
                 pdfText: currentSession.pdfText || undefined,
                 providerId: wsProviderId,
                 apiKey: wsConfig?.apiKey || undefined,
-                baseUrl:
-                  wsProviderId === 'searxng' ? undefined : wsConfig?.baseUrl || undefined,
-                baiduSubSources:
-                  wsProviderId === 'baidu' ? wsSettings.baiduSubSources : undefined,
+                baseUrl: wsProviderId === 'searxng' ? undefined : wsConfig?.baseUrl || undefined,
+                baiduSubSources: wsProviderId === 'baidu' ? wsSettings.baiduSubSources : undefined,
                 claudeModelId:
                   wsProviderId === 'claude' ? wsConfig?.modelId || undefined : undefined,
               }),
@@ -1441,6 +1440,7 @@ function GenerationPreviewContent() {
     canonicalPhase === 'media-actions' ||
     canonicalPhase === 'completed';
   const zhiyuSteps = projectZhiyuGenerationSteps({
+    phase: canonicalPhase,
     outlineReady,
     agentsReady,
     generatedSceneCount: currentGenerationSceneCount,
@@ -1514,29 +1514,18 @@ function GenerationPreviewContent() {
                       <h3 className="text-xl font-semibold">{currentGeneratedScene.title}</h3>
                     </motion.div>
                   ) : previewOutlines.length > 0 ? (
-                    <motion.div
+                    <ZhiyuGenerationTopicCards
                       key="outline-preview"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.22 }}
-                      className="grid w-full max-w-2xl gap-3 sm:grid-cols-2"
-                    >
-                      {previewOutlines.slice(0, 4).map((outline) => (
-                        <button
-                          key={outline.id}
-                          type="button"
-                          disabled={activeStep.id !== 'outline'}
-                          onClick={
-                            activeStep.id === 'outline' ? handleExpandStreamingOutline : undefined
-                          }
-                          className="rounded-xl border border-border/70 bg-card p-4 text-left disabled:cursor-default"
-                        >
-                          <span className="block line-clamp-2 text-sm font-semibold">
-                            {outline.title}
-                          </span>
-                        </button>
-                      ))}
-                    </motion.div>
+                      outlines={previewOutlines}
+                      rotating={
+                        canonicalPhase === 'agent-generation' ||
+                        canonicalPhase === 'scene-generation' ||
+                        canonicalPhase === 'media-actions'
+                      }
+                      onExpand={
+                        activeStep.id === 'outline' ? handleExpandStreamingOutline : undefined
+                      }
+                    />
                   ) : (
                     <motion.div
                       key="preparing"
