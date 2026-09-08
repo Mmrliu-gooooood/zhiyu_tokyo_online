@@ -39,6 +39,7 @@ assets
 .DS_Store
 .vercel
 coverage
+tests
 logs
 data
 docs

@@ -45,7 +45,11 @@ describe('background media snapshot preflight', () => {
     mocks.disabled.clear();
     mocks.modelInputs.length = 0;
     db = new PGlite();
-    await db.exec(`${GENERATION_MIGRATION_2}\n${GENERATION_MIGRATION_3}`);
+    await db.exec(`
+      CREATE TABLE generation_jobs(owner_id TEXT, status TEXT, input_snapshot JSONB);
+      ${GENERATION_MIGRATION_2}
+      ${GENERATION_MIGRATION_3}
+    `);
     queryable = { query: (sql, values) => db.query(sql, values ? [...values] : []) };
     store = new MediaConfigSnapshotStore(queryable);
   });

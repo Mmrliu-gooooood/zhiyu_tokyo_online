@@ -60,7 +60,9 @@ describe('PRO Home model complete generation chain', () => {
     const store = {
       loadDocument: async () => doc,
       putScene: vi.fn(async (_id: string, scene: Scene) => {
-        doc.scenes.push(scene);
+        const index = doc.scenes.findIndex((candidate) => candidate.id === scene.id);
+        if (index >= 0) doc.scenes[index] = scene;
+        else doc.scenes.push(scene);
       }),
       saveDocument: vi.fn(async (next: CourseDocument) => {
         Object.assign(doc, next);
