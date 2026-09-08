@@ -1874,7 +1874,7 @@
       "download": "Скачать",
       "detailFailed": "Не удалось загрузить сведения о навыке",
       "contentLabel": "Содержимое",
-      "builtinDetailNote": "Этот навык поставляется с OpenMAIC. Скачайте его, чтобы импортировать в другое рабочее пространство агента.",
+      "builtinDetailNote": "Этот навык поставляется с zhiyu. Скачайте его, чтобы импортировать в другое рабочее пространство агента.",
       "upload": "Загрузить",
       "uploading": "Загрузка…",
       "uploadFailed": "Не удалось загрузить навык. Проверьте файл и повторите попытку.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "Встроенный в браузер TTS не поддерживает функции аудио на таймлайне редактора (прослушивание, повторная генерация и массовая озвучка). Переключитесь на управляемый TTS-провайдер, чтобы генерировать и управлять аудио для каждой строки.",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "Добавить свою платформу",
+    "mediaProtocol": "Протокол API",
+    "mediaProtocolHint": "Выберите поддерживаемый формат API. Для совместимых шлюзов можно указать свой базовый URL.",
+    "customMediaProviderHint": "Добавьте платформу, затем введите ключ API и ID модели.",
+    "mediaProviderEnabled": "Включить платформу",
+    "mediaConfigurationChecked": "Настройка заполнена. Запрос на генерацию не отправлен; ключ API и доступность модели ещё не проверены.",
+    "checkMediaConfiguration": "Проверить настройки"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
   inferSkillIdFromPrompt: vi.fn(),
 }));
 
+vi.mock('@/lib/server/agent-runtime/session-model-binding', () => ({
+  validateSessionModelBinding: async (_owner: string, ref: unknown) => ref,
+}));
+
 vi.mock('@/lib/config/feature-flags', () => ({
   isAgentRuntimeEnabled: () => mocks.runtimeEnabled,
   isAgentRuntimeConfigured: () => mocks.runtimeEnabled,
@@ -48,9 +52,9 @@ import { MAX_SESSION_TEXT_LENGTH } from '@/lib/server/agent-runtime/limits';
 
 function post(body: unknown, headers?: HeadersInit) {
   return POST(
-    new NextRequest('http://localhost/api/agent/sessions', {
+    new NextRequest('http://localhost:3000/api/agent/sessions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { origin: 'http://localhost:3000', 'content-type': 'application/json', ...headers },
       body: JSON.stringify(body),
     }),
   );
@@ -88,6 +92,33 @@ beforeEach(() => {
 });
 
 describe('agent session collection route', () => {
+  it('persists only the validated model reference with a newly queued session', async () => {
+    const modelRef = { id: 'connection-a', revision: 2 };
+    const response = await post({ prompt: 'Build a course', modelRef });
+    expect(response.status).toBe(202);
+    expect(mocks.createSession).toHaveBeenCalledWith(expect.objectContaining({ modelRef }));
+    expect(JSON.stringify(mocks.createSession.mock.calls)).not.toContain('apiKey');
+  });
+
+  it('binds a strict media snapshot ref to the authenticated owner', async () => {
+    const mediaConfigRef = { id: '11111111-1111-4111-8111-111111111111', revision: 2 };
+    const response = await post({ prompt: 'Build', ownerId: 'owner-forged', mediaConfigRef });
+    expect(response.status).toBe(202);
+    expect(mocks.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: 'anon:test', mediaConfigRef }),
+    );
+    expect(JSON.stringify(mocks.createSession.mock.calls)).not.toContain('owner-forged');
+  });
+
+  it('rejects malformed or credential-bearing media snapshot refs', async () => {
+    const response = await post({
+      prompt: 'Build',
+      mediaConfigRef: { id: 'not-a-uuid', revision: 0, apiKey: 'secret' },
+    });
+    expect(response.status).toBe(400);
+    expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
   it('creates a queued session and propagates a newly minted owner cookie', async () => {
     const response = await post({ prompt: ' Build a course ', skill: 'custom-skill' });
 
@@ -99,7 +130,7 @@ describe('agent session collection route', () => {
         prompt: 'Build a course',
         skillId: 'custom-skill',
         existingCourse: false,
-        origin: 'http://localhost',
+        origin: 'http://localhost:3000',
       }),
     );
   });
@@ -255,7 +286,7 @@ describe('agent session collection route', () => {
 
   it('lists only sessions for the resolved owner', async () => {
     mocks.listSessionsByOwner.mockResolvedValue([{ id: 'session-1', status: 'running' }]);
-    const response = await GET(new NextRequest('http://localhost/api/agent/sessions'));
+    const response = await GET(new NextRequest('http://localhost:3000/api/agent/sessions'));
 
     expect(response.status).toBe(200);
     expect(mocks.listSessionsByOwner).toHaveBeenCalledWith('anon:test');
@@ -266,7 +297,9 @@ describe('agent session collection route', () => {
     mocks.runtimeEnabled = false;
 
     expect((await post({ prompt: 'Build' })).status).toBe(404);
-    expect((await GET(new NextRequest('http://localhost/api/agent/sessions'))).status).toBe(404);
+    expect((await GET(new NextRequest('http://localhost:3000/api/agent/sessions'))).status).toBe(
+      404,
+    );
     expect(mocks.resolveRequestOwnerId).not.toHaveBeenCalled();
   });
 });

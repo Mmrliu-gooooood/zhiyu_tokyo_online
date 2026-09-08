@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runPolledTask } from '@/lib/media/polled-task';
+import { runPolledTask, withPolledTaskPersistence } from '@/lib/media/polled-task';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
 
 describe('runPolledTask', () => {
@@ -93,6 +93,42 @@ describe('runPolledTask', () => {
     await expect(promise).resolves.toBe('video-url');
     expect(submit).toHaveBeenCalledTimes(1);
     expect(poll).toHaveBeenNthCalledWith(2, 'task-123');
+  });
+
+  it('persists an accepted task before polling and resumes it without another paid submit', async () => {
+    const persisted: string[] = [];
+    const submit = vi.fn().mockResolvedValue({ status: 'submitted', taskId: 'paid-123' });
+    const poll = vi.fn().mockResolvedValue({ status: 'done', result: 'video-url' });
+    await withPolledTaskPersistence(
+      { persistTaskId: async (taskId) => void persisted.push(taskId) },
+      () => runPolledTask({ submit, poll, intervalMs: 0, maxAttempts: 1, label: 'paid' }),
+    );
+    expect(persisted).toEqual(['paid-123']);
+    expect(poll).toHaveBeenCalledWith('paid-123');
+
+    const resumedSubmit = vi.fn();
+    await withPolledTaskPersistence(
+      { resumeTaskId: 'paid-123', persistTaskId: vi.fn() },
+      () => runPolledTask({ submit: resumedSubmit, poll, intervalMs: 0, maxAttempts: 1, label: 'paid' }),
+    );
+    expect(resumedSubmit).not.toHaveBeenCalled();
+  });
+
+  it('fails before polling when the durable task-id receipt cannot be written', async () => {
+    const poll = vi.fn();
+    await expect(
+      withPolledTaskPersistence(
+        { persistTaskId: async () => { throw new Error('receipt unavailable'); } },
+        () => runPolledTask({
+          submit: async () => ({ status: 'submitted', taskId: 'accepted-but-unknown' }),
+          poll,
+          intervalMs: 0,
+          maxAttempts: 1,
+          label: 'paid',
+        }),
+      ),
+    ).rejects.toThrow('receipt unavailable');
+    expect(poll).not.toHaveBeenCalled();
   });
 
   it('rejects a terminal poll failure without scheduling another attempt', async () => {

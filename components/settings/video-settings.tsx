@@ -9,6 +9,12 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { useSettingsStore } from '@/lib/store/settings';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
 import {
+  findVideoProvider,
+  isCustomVideoProviderId,
+  isVideoProtocol,
+} from '@/lib/media/provider-catalog';
+import { CustomMediaProviderFields } from './custom-media-provider-fields';
+import {
   Loader2,
   CheckCircle2,
   XCircle,
@@ -30,6 +36,8 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
   const { t } = useI18n();
 
   const videoModelId = useSettingsStore((state) => state.videoModelId);
+  const activeProviderId = useSettingsStore((state) => state.videoProviderId);
+  const removeCustomProvider = useSettingsStore((state) => state.removeCustomVideoProvider);
   const videoProvidersConfig = useSettingsStore((state) => state.videoProvidersConfig);
   const setVideoProviderConfig = useSettingsStore((state) => state.setVideoProviderConfig);
 
@@ -52,13 +60,25 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
   }
 
   const currentConfig = videoProvidersConfig[selectedProviderId];
-  const currentProvider = VIDEO_PROVIDERS[selectedProviderId];
-  const builtInModels = currentProvider?.models || [];
+  const isCustom = isCustomVideoProviderId(selectedProviderId);
+  const currentProvider = findVideoProvider(
+    selectedProviderId,
+    VIDEO_PROVIDERS,
+    videoProvidersConfig,
+  );
+  const builtInModels =
+    isCustom || currentConfig?.replaceBuiltInModels ? [] : currentProvider?.models || [];
   const customModels = useMemo(
     () => currentConfig?.customModels || [],
     [currentConfig?.customModels],
   );
   const isServerConfigured = !!currentConfig?.isServerConfigured;
+  const testModelId =
+    activeProviderId === selectedProviderId && videoModelId
+      ? videoModelId
+      : customModels[0]?.id || builtInModels[0]?.id || '';
+
+  const requiresApiKey = currentProvider?.requiresApiKey ?? true;
 
   const handleApiKeyChange = (apiKey: string) => {
     setVideoProviderConfig(selectedProviderId, { apiKey });
@@ -77,18 +97,39 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
         method: 'POST',
         headers: {
           'x-video-provider': selectedProviderId,
-          'x-video-model': videoModelId || '',
+          'x-video-model': testModelId,
+          'Content-Type': 'application/json',
           'x-api-key': currentConfig?.apiKey || '',
           'x-base-url': currentConfig?.baseUrl || '',
         },
+        ...(isCustom
+          ? {
+              body: JSON.stringify({
+                providerConfig: {
+                  id: selectedProviderId,
+                  protocol: currentConfig?.protocol,
+                  apiKey: currentConfig?.apiKey || '',
+                  baseUrl: currentConfig?.baseUrl || '',
+                  requiresApiKey,
+                  enabled: currentConfig?.enabled ?? true,
+                },
+              }),
+            }
+          : {}),
       });
       const data = await response.json();
       if (data.success) {
         setTestStatus('success');
-        setTestMessage(t('settings.videoConnectivitySuccess'));
+        setTestMessage(
+          data.verification === 'configuration'
+            ? t('settings.mediaConfigurationChecked')
+            : t('settings.videoConnectivitySuccess'),
+        );
       } else {
         setTestStatus('error');
-        setTestMessage(`${t('settings.videoConnectivityFailed')}: ${data.message}`);
+        setTestMessage(
+          `${t('settings.videoConnectivityFailed')}: ${data.error || data.message || response.statusText}`,
+        );
       }
     } catch (err) {
       setTestStatus('error');
@@ -140,6 +181,24 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {isCustom && currentConfig && isVideoProtocol(currentConfig.protocol) && (
+        <CustomMediaProviderFields
+          kind="video"
+          name={currentConfig.customName || selectedProviderId}
+          protocol={currentConfig.protocol}
+          requiresApiKey={requiresApiKey}
+          enabled={currentConfig.enabled !== false}
+          onNameChange={(customName) => setVideoProviderConfig(selectedProviderId, { customName })}
+          onProtocolChange={(protocol) => {
+            if (isVideoProtocol(protocol)) setVideoProviderConfig(selectedProviderId, { protocol });
+          }}
+          onRequiresKeyChange={(requiresApiKey) =>
+            setVideoProviderConfig(selectedProviderId, { requiresApiKey })
+          }
+          onEnabledChange={(enabled) => setVideoProviderConfig(selectedProviderId, { enabled })}
+          onDelete={() => removeCustomProvider(selectedProviderId)}
+        />
+      )}
       {/* Server-configured notice */}
       {isServerConfigured && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300">
@@ -153,10 +212,11 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
         <>
           {/* API Key + Test inline */}
           <div className="space-y-2">
-            <Label>API Key</Label>
+            <Label htmlFor={`video-api-key-${selectedProviderId}`}>API Key</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
+                  id={`video-api-key-${selectedProviderId}`}
                   name={`video-api-key-${selectedProviderId}`}
                   type={showApiKey ? 'text' : 'password'}
                   autoComplete="new-password"
@@ -184,7 +244,14 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleTest}
-                disabled={testLoading || !currentConfig?.apiKey}
+                disabled={
+                  testLoading ||
+                  (requiresApiKey && !currentConfig?.apiKey) ||
+                  (isCustom &&
+                    (!testModelId ||
+                      !currentConfig?.baseUrl?.trim() ||
+                      currentConfig.enabled === false))
+                }
                 className="gap-1.5"
               >
                 {testLoading ? (
@@ -192,7 +259,7 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
                 ) : (
                   <>
                     <Zap className="h-3.5 w-3.5" />
-                    {t('settings.testConnection')}
+                    {t(isCustom ? 'settings.checkMediaConfiguration' : 'settings.testConnection')}
                   </>
                 )}
               </Button>
@@ -218,8 +285,9 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
 
           {/* Base URL */}
           <div className="space-y-2">
-            <Label>Base URL</Label>
+            <Label htmlFor={`video-base-url-${selectedProviderId}`}>Base URL</Label>
             <Input
+              id={`video-base-url-${selectedProviderId}`}
               name={`video-base-url-${selectedProviderId}`}
               type="url"
               autoComplete="off"
@@ -315,8 +383,9 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
           </DialogDescription>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label>{t('settings.modelId')}</Label>
+              <Label htmlFor="video-model-id">{t('settings.modelId')}</Label>
               <Input
+                id="video-model-id"
                 value={modelForm.id}
                 onChange={(e) => setModelForm((prev) => ({ ...prev, id: e.target.value }))}
                 placeholder="e.g. my-custom-model-v1"
@@ -324,8 +393,9 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('settings.modelName')}</Label>
+              <Label htmlFor="video-model-name">{t('settings.modelName')}</Label>
               <Input
+                id="video-model-name"
                 value={modelForm.name}
                 onChange={(e) => setModelForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g. My Custom Model"

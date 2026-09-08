@@ -171,7 +171,7 @@ async function generateSingleMedia(
         stageId,
         type: 'image',
         blob,
-        mimeType: 'image/png',
+        mimeType: blob.type || result.mimeType || 'image/png',
         size: blob.size,
         prompt: req.prompt,
         params: paramsJson,
@@ -215,7 +215,7 @@ async function generateSingleMedia(
         stageId,
         type: 'video',
         blob,
-        mimeType: 'video/mp4',
+        mimeType: blob.type || result.mimeType || 'video/mp4',
         size: blob.size,
         poster: posterBlob,
         prompt: req.prompt,
@@ -269,7 +269,7 @@ async function callImageApi(
   req: MediaGenerationRequest,
   stageId: string,
   abortSignal?: AbortSignal,
-): Promise<{ url: string; ossUrl?: string }> {
+): Promise<{ url: string; ossUrl?: string; mimeType?: string }> {
   const settings = useSettingsStore.getState();
   const providerConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
 
@@ -279,14 +279,31 @@ async function callImageApi(
       'Content-Type': 'application/json',
       'x-image-provider': settings.imageProviderId || '',
       'x-image-model': settings.imageModelId || '',
-      'x-api-key': providerConfig?.apiKey || '',
-      'x-base-url': providerConfig?.baseUrl || '',
+      'x-api-key': settings.imageProviderId.startsWith('custom-image-')
+        ? ''
+        : providerConfig?.apiKey || '',
+      'x-base-url': settings.imageProviderId.startsWith('custom-image-')
+        ? ''
+        : providerConfig?.baseUrl || '',
     },
     body: JSON.stringify({
       prompt: req.prompt,
       aspectRatio: req.aspectRatio,
       style: req.style,
       stageId,
+      ...(String(settings.imageProviderId).startsWith('custom-image-')
+        ? {
+            providerConfig: {
+              id: settings.imageProviderId,
+              protocol: providerConfig?.protocol,
+              apiKey: providerConfig?.apiKey || '',
+              baseUrl: providerConfig?.baseUrl || '',
+              enabled: providerConfig?.enabled ?? false,
+              requiresApiKey: providerConfig?.requiresApiKey ?? true,
+              modelId: settings.imageModelId || '',
+            },
+          }
+        : {}),
     }),
     signal: abortSignal,
   });
@@ -303,9 +320,12 @@ async function callImageApi(
   // Result may have ossUrl (CDN direct), url, or base64
   const ossUrl = data.result?.ossUrl as string | undefined;
   const url =
-    data.result?.url || (data.result?.base64 ? `data:image/png;base64,${data.result.base64}` : '');
+    data.result?.url ||
+    (data.result?.base64
+      ? `data:${data.result?.mimeType || 'image/png'};base64,${data.result.base64}`
+      : '');
   if (!ossUrl && !url) throw new Error('No image URL in response');
-  return { url, ossUrl };
+  return { url, ossUrl, mimeType: data.result?.mimeType };
 }
 
 async function callVideoApi(
@@ -319,6 +339,7 @@ async function callVideoApi(
   width?: number;
   height?: number;
   duration?: number;
+  mimeType?: string;
 }> {
   const settings = useSettingsStore.getState();
   const providerConfig = settings.videoProvidersConfig?.[settings.videoProviderId];
@@ -329,12 +350,29 @@ async function callVideoApi(
       'Content-Type': 'application/json',
       'x-video-provider': settings.videoProviderId || '',
       'x-video-model': settings.videoModelId || '',
-      'x-api-key': providerConfig?.apiKey || '',
-      'x-base-url': providerConfig?.baseUrl || '',
+      'x-api-key': settings.videoProviderId.startsWith('custom-video-')
+        ? ''
+        : providerConfig?.apiKey || '',
+      'x-base-url': settings.videoProviderId.startsWith('custom-video-')
+        ? ''
+        : providerConfig?.baseUrl || '',
     },
     body: JSON.stringify({
       prompt: req.prompt,
       aspectRatio: req.aspectRatio,
+      ...(String(settings.videoProviderId).startsWith('custom-video-')
+        ? {
+            providerConfig: {
+              id: settings.videoProviderId,
+              protocol: providerConfig?.protocol,
+              apiKey: providerConfig?.apiKey || '',
+              baseUrl: providerConfig?.baseUrl || '',
+              enabled: providerConfig?.enabled ?? false,
+              requiresApiKey: providerConfig?.requiresApiKey ?? true,
+              modelId: settings.videoModelId || '',
+            },
+          }
+        : {}),
     }),
     signal: abortSignal,
   });
@@ -348,7 +386,11 @@ async function callVideoApi(
   if (!data.success)
     throw new MediaApiError(data.error || 'Video generation failed', data.errorCode);
 
-  const url = data.result?.url;
+  const url =
+    data.result?.url ||
+    (data.result?.base64
+      ? `data:${data.result?.mimeType || 'video/mp4'};base64,${data.result.base64}`
+      : '');
   if (!url) throw new Error('No video URL in response');
   return {
     url,
@@ -358,6 +400,7 @@ async function callVideoApi(
     width: data.result?.width,
     height: data.result?.height,
     duration: data.result?.duration,
+    mimeType: data.result?.mimeType,
   };
 }
 

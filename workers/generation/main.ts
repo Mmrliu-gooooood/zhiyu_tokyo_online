@@ -10,6 +10,11 @@ import { prepareMaterials } from '@/lib/server/generation-pipeline/materials';
 import { runGenerationPipeline } from '@/lib/server/generation-pipeline/pipeline';
 import { runWorker } from './runner';
 import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/config-snapshot';
+import { loadMediaConfigSnapshot } from '@/lib/server/media-config-snapshots';
+import {
+  cleanupGenerationModelSnapshots,
+  loadGenerationModelSnapshot,
+} from '@/lib/server/generation-model-snapshots';
 
 async function main() {
   const config = generationConfig();
@@ -43,6 +48,7 @@ async function main() {
       heartbeatMs: config.heartbeatMs,
       signal: controller.signal,
       report: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
+      maintenance: () => cleanupGenerationModelSnapshots(7 * 24 * 60 * 60 * 1000),
       execute: async (lease, signal) => {
         const budgetSignal = AbortSignal.any([
           signal,
@@ -58,8 +64,17 @@ async function main() {
           assertGenerationConfigSnapshot(lease.input);
           const materials = await prepareMaterials(lease.input, execution, assets);
           const input = { ...lease.input, materials };
-          const services = new GenerationServices(execution, input, assets);
-          const media = new GenerationMediaServices(execution, input, assets);
+          const mediaConfig = input.mediaConfigRef
+            ? await loadMediaConfigSnapshot(lease.ownerId, input.mediaConfigRef)
+            : undefined;
+          const storedModel = input.modelConfigRef
+            ? await loadGenerationModelSnapshot(lease.ownerId, input.modelConfigRef)
+            : undefined;
+          const modelContext = storedModel
+            ? (({ version: _version, ...context }) => context)(storedModel)
+            : undefined;
+          const services = new GenerationServices(execution, input, assets, modelContext);
+          const media = new GenerationMediaServices(execution, input, assets, mediaConfig);
           await runGenerationPipeline(
             repository,
             execution,

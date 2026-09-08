@@ -45,6 +45,11 @@ vi.mock('@/lib/server/agent-runtime/entry-tree-storage', async (importActual) =>
   };
 });
 
+// This harness exercises runner lifecycle; model readiness has its own integration suite.
+vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
+  preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
+}));
+
 vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
   resolveAgentDriverModel: vi.fn(async () => {
     throw new Error('driver setup unavailable');
@@ -72,11 +77,16 @@ describe('runSession durable event ordering', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('persists a lifecycle frame before any other runner event', async () => {
+    const loadMediaConfigSnapshot = vi.fn(async () => ({ version: 1 as const }));
     await runSession(
-      { running: new Map(), shuttingDown: false },
+      { running: new Map(), shuttingDown: false, loadMediaConfigSnapshot },
       {
         id: 'session-order',
         ownerId: 'owner-1',
+        activeMediaConfigRef: {
+          id: '11111111-1111-4111-8111-111111111111',
+          revision: 2,
+        },
         prompt: 'Build a lesson',
         stageId: 'stage-1',
         existingCourse: false,
@@ -89,6 +99,11 @@ describe('runSession durable event ordering', () => {
         deliveredUserMessageSeq: 0,
       },
     );
+
+    expect(loadMediaConfigSnapshot).toHaveBeenCalledWith('owner-1', {
+      id: '11111111-1111-4111-8111-111111111111',
+      revision: 2,
+    });
 
     expect(mocks.appendRunEvent).toHaveBeenCalled();
     expect(mocks.appendRunEvent.mock.calls[0]?.[2]).toMatchObject({

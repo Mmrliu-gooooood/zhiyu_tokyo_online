@@ -1,7 +1,7 @@
 ---
 name: k12-core-literacy-planning
 title: "核心素养教学设计"
-description: "Chinese K-12 core-literacy course design for a single OpenMAIC classroom. Use when a teacher asks for 中小学课程、核心素养、素养导向、2022 课标、真实情境、任务群、表现性评价, or wants a grade-and-subject lesson designed around authentic tasks rather than content delivery. Covers Chinese, mathematics, languages, science, humanities, technology, arts, PE and labor education across primary, junior-high and senior-high stages."
+description: "Design one zhiyu classroom around Chinese K-12 core literacy and authentic performance tasks. Use for 中小学课程、核心素养、素养导向、2022 课标、真实情境、任务群、表现性评价 across primary, junior-high, and senior-high subjects, rather than a content-delivery-only lesson."
 ---
 
 # K-12 core-literacy classroom design

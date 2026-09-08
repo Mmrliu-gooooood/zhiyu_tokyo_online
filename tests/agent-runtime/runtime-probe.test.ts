@@ -42,7 +42,11 @@ describe('agent runtime probe', () => {
       // actually serve a request. `runtimeEnabled` is the raw intent flag, so
       // "off by choice" (false/false) is distinguishable from "on but
       // unusable" (false/true).
-      await expect((await GET()).json()).resolves.toEqual({ enabled, runtimeEnabled });
+      await expect((await GET()).json()).resolves.toEqual({
+        enabled,
+        runtimeEnabled,
+        modelConfigurationChecked: false,
+      });
     },
   );
 });

@@ -51,7 +51,7 @@ const authOnlyCases: AuthOnlyCase[] = [
     assertRequest: () => {
       expect(fetchMock).toHaveBeenCalledWith(
         'https://seedream.example.com/api/plan/v3/images/generations',
-        {
+        expect.objectContaining({
           method: 'POST',
           redirect: 'manual',
           headers: {
@@ -59,7 +59,7 @@ const authOnlyCases: AuthOnlyCase[] = [
             Authorization: 'Bearer seedream-key',
           },
           body: JSON.stringify({ model: 'seedream-test', prompt: '', size: '1x1' }),
-        },
+        }),
       );
     },
   },
@@ -278,7 +278,7 @@ const strictProbeCases: StrictProbeCase[] = [
     assertRequest: () => {
       expect(fetchMock).toHaveBeenCalledWith(
         'https://minimax-image.example.com/v1/image_generation',
-        {
+        expect.objectContaining({
           method: 'POST',
           redirect: 'manual',
           headers: {
@@ -286,12 +286,13 @@ const strictProbeCases: StrictProbeCase[] = [
             'Content-Type': 'application/json; charset=utf-8',
           },
           body: JSON.stringify({
-            model: 'image-01',
+            model: 'custom-image-model',
             prompt: 'test',
             aspect_ratio: '1:1',
             n: 1,
           }),
-        },
+          signal: expect.any(AbortSignal),
+        }),
       );
     },
   },
@@ -313,7 +314,7 @@ const strictProbeCases: StrictProbeCase[] = [
     assertRequest: () => {
       expect(fetchMock).toHaveBeenCalledWith(
         'https://minimax-video.example.com/v1/video_generation',
-        {
+        expect.objectContaining({
           method: 'POST',
           redirect: 'manual',
           headers: {
@@ -321,12 +322,13 @@ const strictProbeCases: StrictProbeCase[] = [
             'Content-Type': 'application/json; charset=utf-8',
           },
           body: JSON.stringify({
-            model: 'MiniMax-Hailuo-2.3',
+            model: 'custom-video-model',
             prompt: 'test connectivity',
             duration: 6,
             resolution: '768P',
           }),
-        },
+          signal: expect.any(AbortSignal),
+        }),
       );
     },
   },
@@ -362,15 +364,30 @@ afterEach(() => {
 
 describe('auth-only connectivity probe characterization', () => {
   it.each(authOnlyCases)(
-    '$name preserves its request and treats a non-auth HTTP error as connected',
+    '$name accepts only its provider-defined non-auth sentinel',
+    async ({ name, providerName, probe, assertRequest }) => {
+      const status = ['Seedance', 'Kling', 'HappyHorse'].includes(name) ? 404 : 400;
+      fetchMock.mockResolvedValueOnce(new Response('expected sentinel', { status }));
+
+      await expect(probe()).resolves.toEqual({
+        success: true,
+        message: `Connected to ${providerName}`,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      assertRequest();
+    },
+  );
+
+  it.each(authOnlyCases)(
+    '$name preserves its request and reports an upstream HTTP error',
     async ({ providerName, probe, assertRequest }) => {
       fetchMock.mockResolvedValueOnce(
         new Response('server error', { status: 500, statusText: 'Internal Server Error' }),
       );
 
       await expect(probe()).resolves.toEqual({
-        success: true,
-        message: `Connected to ${providerName}`,
+        success: false,
+        message: `${providerName} connectivity failed (500): server error`,
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       assertRequest();
@@ -431,6 +448,46 @@ describe('strict connectivity probe redirect handling', () => {
 });
 
 describe('non-matching connectivity probe sentinels', () => {
+  it('rejects MiniMax Image HTTP 200 business errors and empty results', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        Response.json({ base_resp: { status_code: 1004, status_msg: 'invalid key' } }),
+      )
+      .mockResolvedValueOnce(Response.json({ base_resp: { status_code: 0 }, data: {} }));
+
+    await expect(
+      testMiniMaxImageConnectivity({
+        providerId: 'minimax-image',
+        apiKey: 'minimax-key',
+        model: 'image-01-live',
+      }),
+    ).resolves.toEqual({ success: false, message: 'API error 1004: invalid key' });
+    await expect(
+      testMiniMaxImageConnectivity({ providerId: 'minimax-image', apiKey: 'minimax-key' }),
+    ).resolves.toEqual({ success: false, message: 'API error: no image result returned' });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).model).toBe('image-01-live');
+  });
+
+  it('rejects MiniMax Video HTTP 200 business errors and missing task ids', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        Response.json({ base_resp: { status_code: 1004, status_msg: 'invalid key' } }),
+      )
+      .mockResolvedValueOnce(Response.json({ base_resp: { status_code: 0 } }));
+
+    await expect(
+      testMiniMaxVideoConnectivity({
+        providerId: 'minimax-video',
+        apiKey: 'minimax-key',
+        model: 'video-live',
+      }),
+    ).resolves.toEqual({ success: false, message: 'API error 1004: invalid key' });
+    await expect(
+      testMiniMaxVideoConnectivity({ providerId: 'minimax-video', apiKey: 'minimax-key' }),
+    ).resolves.toEqual({ success: false, message: 'API error: no task_id returned' });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).model).toBe('video-live');
+  });
+
   it('keeps MiniMax Image strict for non-2xx responses', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ base_resp: { status_msg: 'image unavailable' } }), {

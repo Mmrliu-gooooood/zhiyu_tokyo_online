@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest } from '@/tests/helpers/signed-owner-request';
 
 import { createFakeDocumentStore } from './_fake-document-store';
 import { makeDocument, makeSlideScene } from './_stage-fixtures';

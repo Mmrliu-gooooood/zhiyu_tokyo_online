@@ -52,6 +52,30 @@ describe('resolveModel — per-stage resolution order', () => {
     );
   });
 
+  it('passes the saved dialect to its own provider and replaces it with routed dialect', async () => {
+    process.env.MODEL_ROUTES = JSON.stringify({
+      'scene-actions': { model: 'openai:routed', api: 'openai-completions' },
+    });
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    const personal = {
+      modelString: 'openai:home',
+      apiKey: 'home-key',
+      api: 'openai-responses' as const,
+    };
+    await resolveModel({ ...personal, stage: 'scene-content' });
+    await resolveModel({ ...personal, stage: 'scene-actions' });
+    expect(mocks.getModelCalls[0]).toMatchObject({
+      modelId: 'home',
+      apiKey: 'home-key',
+      api: 'openai-responses',
+    });
+    expect(mocks.getModelCalls[1]).toMatchObject({
+      modelId: 'routed',
+      apiKey: 'server-key',
+      api: 'openai-completions',
+    });
+  });
+
   it('uses DEFAULT_MODEL when no stage route matches', async () => {
     process.env.DEFAULT_MODEL = 'openai:gpt-5.4-mini';
     const { resolveModel } = await import('@/lib/server/resolve-model');

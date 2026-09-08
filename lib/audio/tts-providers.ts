@@ -279,10 +279,11 @@ async function generateOpenAITTS(
   const baseUrl = config.baseUrl || TTS_PROVIDERS['openai-tts'].defaultBaseUrl;
 
   // Use gpt-4o-mini-tts for best quality and intelligent realtime applications
-  const response = await fetch(`${baseUrl}/audio/speech`, {
+  const response = await (config.fetcher ?? fetch)(`${baseUrl}/audio/speech`, {
     method: 'POST',
+    redirect: 'manual',
     headers: {
-      Authorization: `Bearer ${config.apiKey}`,
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       'Content-Type': 'application/json; charset=utf-8',
     },
     body: JSON.stringify({
@@ -290,6 +291,7 @@ async function generateOpenAITTS(
       input: text,
       voice: config.voice,
       speed: config.speed || 1.0,
+      ...(config.format ? { response_format: config.format } : {}),
     }),
     signal,
   });
@@ -324,7 +326,7 @@ async function generateLemonadeTTS(
   const modelId = config.modelId || TTS_PROVIDERS['lemonade-tts'].defaultModelId;
   const voice = config.voice || 'af_heart';
 
-  const response = await fetch(`${baseUrl}/audio/speech`, {
+  const response = await (config.fetcher ?? fetch)(`${baseUrl}/audio/speech`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
@@ -407,9 +409,9 @@ async function generateVoxCPMTTS(
 
   const response =
     backend === 'nano-vllm'
-      ? await postVoxCPMNanoVLLM(baseUrl, request, config.apiKey, signal)
+      ? await postVoxCPMNanoVLLM(baseUrl, request, config.apiKey, signal, config.fetcher)
       : backend === 'python-api'
-        ? await postVoxCPMPythonAPI(baseUrl, request, config.apiKey, signal)
+        ? await postVoxCPMPythonAPI(baseUrl, request, config.apiKey, signal, config.fetcher)
         : await postVoxCPMVLLMOmni(baseUrl, request, config, signal);
 
   if (!response.ok) {
@@ -510,7 +512,7 @@ async function postVoxCPMVLLMOmni(
     }
   }
 
-  return fetch(getVLLMOmniSpeechUrl(baseUrl), {
+  return (config.fetcher ?? fetch)(getVLLMOmniSpeechUrl(baseUrl), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
@@ -561,6 +563,7 @@ async function postVoxCPMPythonAPI(
   },
   apiKey?: string,
   signal?: AbortSignal,
+  fetcher: typeof fetch = fetch,
 ): Promise<Response> {
   const formData = new FormData();
   formData.set('text', params.targetText);
@@ -579,7 +582,7 @@ async function postVoxCPMPythonAPI(
     }
   }
 
-  return fetch(`${baseUrl}/tts/upload`, {
+  return fetcher(`${baseUrl}/tts/upload`, {
     method: 'POST',
     headers: getBackendAuthHeaders(apiKey),
     body: formData,
@@ -599,6 +602,7 @@ async function postVoxCPMNanoVLLM(
   },
   apiKey?: string,
   signal?: AbortSignal,
+  fetcher: typeof fetch = fetch,
 ): Promise<Response> {
   const payload: Record<string, unknown> = {
     target_text: params.targetText,
@@ -616,7 +620,7 @@ async function postVoxCPMNanoVLLM(
     }
   }
 
-  return fetch(`${baseUrl}/generate`, {
+  return fetcher(`${baseUrl}/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json; charset=utf-8',

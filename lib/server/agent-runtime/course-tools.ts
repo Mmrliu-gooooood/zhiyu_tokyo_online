@@ -32,6 +32,14 @@ import type { DocumentFolderStore, DocumentStore, MaicDocument } from '@openmaic
 import type { Stage } from '@openmaic/dsl';
 
 import type { Scene } from '@/lib/types/stage';
+import type { ProModelContext } from '@/types/pro-model';
+import type { TTSProviderId } from '@/lib/audio/types';
+import type {
+  ImageProtocol,
+  ImageProviderId,
+  VideoProtocol,
+  VideoProviderId,
+} from '@/lib/media/types';
 import { STAGE_WRITER_TOOL_NAMES } from '@/lib/agent-runtime/stage-writer-tools';
 import { buildDslCourseTools, DSL_COURSE_TOOL_NAMES } from './dsl-tools';
 import { CURRICULUM_ALLOWLIST } from './curriculum-tools';
@@ -51,7 +59,7 @@ import {
   hasConfiguredVideoGeneration,
   type GenerateVideoToolDeps,
 } from './generate-video';
-import type { SceneTtsInput, SceneTtsSummary } from './scene-tts';
+import { synthesizeSceneNarration, type SceneTtsInput, type SceneTtsSummary } from './scene-tts';
 import type { LoadedSkill } from './skills';
 
 export type CourseDocument = MaicDocument<Scene, Stage>;
@@ -68,13 +76,67 @@ export interface CheckpointInfo {
   order?: number;
   title?: string;
   sceneType?: string;
+  /** Real phase transition; intentionally not represented as a guessed percent. */
+  phase?: 'content_completed' | 'persisted';
+  /** Wall-clock time since this tool invocation began. */
+  elapsedMs?: number;
   /** Active skill whose persisted constraints were checked after this write. */
   skill?: string;
   /** Non-blocking structural diagnostics for the persisted stage. */
   skillViolations?: string[];
 }
 
+export interface AgentSessionImageMediaConfig {
+  providerId: ImageProviderId;
+  protocol?: ImageProtocol;
+  apiKey: string;
+  baseUrl: string;
+  requiresApiKey: boolean;
+  enabled: boolean;
+  modelId: string;
+}
+
+export interface AgentSessionVideoMediaConfig {
+  providerId: VideoProviderId;
+  protocol?: VideoProtocol;
+  apiKey: string;
+  baseUrl: string;
+  requiresApiKey: boolean;
+  enabled: boolean;
+  modelId: string;
+}
+
+export interface AgentSessionTtsMediaConfig {
+  providerId: TTSProviderId;
+  protocol?: 'openai-speech';
+  apiKey: string;
+  baseUrl: string;
+  requiresApiKey: boolean;
+  enabled: boolean;
+  modelId: string;
+  voice: string;
+  default?: boolean;
+  speed?: number;
+  format?: string;
+  providerOptions?: Record<string, unknown>;
+}
+
+/** Decrypted once per claimed run and kept outside model-visible arguments. */
+export interface AgentSessionMediaConfig {
+  version: 1;
+  imageEnabled?: boolean;
+  videoEnabled?: boolean;
+  ttsEnabled?: boolean;
+  image?: AgentSessionImageMediaConfig;
+  video?: AgentSessionVideoMediaConfig;
+  tts?: readonly AgentSessionTtsMediaConfig[];
+}
+
 export interface CourseToolDeps {
+  /** Fixed run connection; never included in model-visible tool arguments. */
+  modelContext?: ProModelContext;
+  /** Fixed media snapshot for this claim; never included in model-visible arguments. */
+  mediaConfig?: AgentSessionMediaConfig;
   /** The owner-bound document store of the run's session owner. */
   store: CourseStore;
   /**
@@ -207,16 +269,28 @@ export function buildDslCourseToolset(
     Partial<GenerateImageToolDeps> &
     Partial<GenerateVideoToolDeps>,
 ): AgentTool<never, never>[] {
+  const toolDeps =
+    (deps.mediaConfig?.tts || deps.mediaConfig?.ttsEnabled !== undefined) && !deps.synthesizeTts
+      ? {
+          ...deps,
+          synthesizeTts: (input: SceneTtsInput) =>
+            synthesizeSceneNarration({
+              ...input,
+              providerConfigs:
+                deps.mediaConfig!.ttsEnabled === false ? [] : (deps.mediaConfig!.tts ?? []),
+            }),
+        }
+      : deps;
   const tools = [
-    ...buildGenerationTools(deps),
-    buildImportPptxTool(deps),
-    buildGenerateImageTool(deps),
-    ...(hasConfiguredVideoGeneration(deps) ? [buildGenerateVideoTool(deps)] : []),
-    ...buildCourseAudioAndDeckTools(deps),
-    ...(deps.sessionId ? [buildMaterialMediaTool({ sessionId: deps.sessionId })] : []),
-    ...buildDslCourseTools(deps),
+    ...buildGenerationTools(toolDeps),
+    buildImportPptxTool(toolDeps),
+    buildGenerateImageTool(toolDeps),
+    ...(hasConfiguredVideoGeneration(toolDeps) ? [buildGenerateVideoTool(toolDeps)] : []),
+    ...buildCourseAudioAndDeckTools(toolDeps),
+    ...(toolDeps.sessionId ? [buildMaterialMediaTool({ sessionId: toolDeps.sessionId })] : []),
+    ...buildDslCourseTools(toolDeps),
   ] as unknown as AgentTool<never, never>[];
-  return markDocumentWritersSequential(withOwnerStageAuthorization(tools, deps));
+  return markDocumentWritersSequential(withOwnerStageAuthorization(tools, toolDeps));
 }
 
 /** The exact registered tool names of this slice's toolset. */
@@ -237,7 +311,7 @@ export function buildCourseAllowlist(
 }
 
 export const DSL_TOOLS_PROMPT = [
-  'Some installed skills and older transcripts were written for earlier tool names. Translate on sight: read_scene → read_stage (path=/scenes/<order|id>); edit_slide / edit_quiz / edit_widget / edit_actions / edit_pbl → patch_stage (same JSON-pointer ops, target the scene); read_course → read_stage; patch_course → patch_stage; grep_course → grep_stage; generate_outline → (plan in conversation, then create_stage + one generate_scene per page with an explicit brief); generate_roster → set_roster. Never call the legacy names.',
+  'Some installed skills and older transcripts were written for earlier tool names. Translate on sight: read_scene → read_stage (path=/scenes/<order|id>); edit_slide / edit_quiz / edit_widget / edit_actions / edit_pbl → patch_stage (same JSON-pointer ops, target the scene); read_course → read_stage; patch_course → patch_stage; grep_course → grep_stage; generate_outline → submit_course_generation; generate_roster → set_roster. Never call the legacy names.',
   'The generic DSL tools replace read_scene and the per-type edit tools.',
   'Every read_stage, patch_stage and grep_stage call requires an explicit stageId obtained from create_stage.',
   'Example: read_stage {"stageId":"stage-...","path":"/scenes/1","detail":"source"}. Use paths "", /outline, /scenes/<1-based order|sceneId>, and /scenes/<...>/actions.',
@@ -247,6 +321,7 @@ export const DSL_TOOLS_PROMPT = [
   'Use grep_stage for literal stage-wide text/source search.',
   'Start with detail:"tree" to see structure; read source only for the subtree you will edit; for long content, prefer grep_stage over paging with offset.',
   'Use generate_scene once per page: each successful call is a durable checkpoint. Use list_scenes to inspect persisted pages and generate_actions to rebuild playback actions for one page.',
+  'For a complete new course or complete planned outline, call submit_course_generation once and return its job progress; do not synchronously call create_stage or generate_scene for every page. Later use get_course_generation_status (jobId optional for this session), and expose the classroom link only after success. Keep generate_scene for targeted single-page work.',
   'Use duplicate_scene to copy a layout, edit_deck for retitle/insert/delete/reorder, and generate_tts after narration edits. Page-list writers keep the saved outline numbering aligned with the real pages.',
   'To fill an uploaded .pptx into an existing stage as appended pages with its original slides kept, read the `pptx-import` skill first (it carries the import-and-repair sequence) and use `import_pptx` after `create_stage` — never extract_material + generate_scene for a layout-preserving import. The stage keeps its own title; the PPT is content, not the classroom identity.',
   'When the page needs a new visual rather than an existing URL, call `generate_image` first, then apply its returned `src` with `patch_stage` set or add an image element; generate_image never edits the page.',

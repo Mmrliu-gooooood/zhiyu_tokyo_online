@@ -93,23 +93,37 @@ export async function testMiniMaxImageConnectivity(
     const response = await fetch(`${baseUrl}/v1/image_generation`, {
       method: 'POST',
       redirect: 'manual',
+      signal: AbortSignal.timeout(20_000),
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify({
-        model: 'image-01',
+        model: config.model || 'image-01',
         prompt: 'test',
         aspect_ratio: '1:1',
         n: 1,
       }),
     });
 
+    const errData = await response.json().catch(() => undefined);
+    if (!errData) return { success: false, message: 'API error: invalid JSON response' };
+    const businessCode = errData?.base_resp?.status_code;
+    const businessMessage = errData?.base_resp?.status_msg;
+    if (businessCode !== undefined && businessCode !== 0) {
+      return {
+        success: false,
+        message: `API error ${businessCode}: ${businessMessage || 'unknown error'}`,
+      };
+    }
     if (response.ok) {
-      return { success: true, message: 'MiniMax Image API connected' };
+      const urls = errData?.data?.image_urls;
+      if (!Array.isArray(urls) || !urls.some((url: unknown) => typeof url === 'string' && url)) {
+        return { success: false, message: 'API error: no image result returned' };
+      }
+      return { success: true, message: 'MiniMax Image sample generated' };
     }
 
-    const errData = await response.json().catch(() => ({}));
     const msg = errData?.base_resp?.status_msg || response.statusText;
     return { success: false, message: `API error: ${msg}` };
   } catch (err) {

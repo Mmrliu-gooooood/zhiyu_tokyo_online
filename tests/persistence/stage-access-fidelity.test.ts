@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { PGlite } from '@electric-sql/pglite';
-import { NextRequest } from 'next/server';
+import { Request, NextRequest, signedOwnerCookie } from '@/tests/helpers/signed-owner-request';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
@@ -88,7 +88,7 @@ describe('reference-fidelity stage access', () => {
     const { handlePersistenceRequest } = await import('@/app/api/persistence/[...path]/handler');
     const response = await handlePersistenceRequest(
       new Request(`http://localhost/api/persistence/documents/${stageId}`, {
-        headers: { cookie: `anonymous_id=${ownerCookie}` },
+        headers: { cookie: signedOwnerCookie(ownerCookie) },
       }),
       { poolFactory: () => pool as never },
     );
@@ -114,7 +114,7 @@ describe('reference-fidelity stage access', () => {
     const { handlePersistenceRequest } = await import('@/app/api/persistence/[...path]/handler');
     const visitorRead = await handlePersistenceRequest(
       new Request(`http://localhost/api/persistence/documents/${stageId}`, {
-        headers: { cookie: `anonymous_id=${visitorCookie}` },
+        headers: { cookie: signedOwnerCookie(visitorCookie) },
       }),
       { poolFactory: () => pool as never },
     );
@@ -125,7 +125,7 @@ describe('reference-fidelity stage access', () => {
       new Request(`http://localhost/api/persistence/documents/${stageId}`, {
         method: 'PUT',
         headers: {
-          cookie: `anonymous_id=${visitorCookie}`,
+          cookie: signedOwnerCookie(visitorCookie),
           'content-type': 'application/json',
         },
         body: JSON.stringify(courseDocument(stageId, 'Foreign edit')),
@@ -140,12 +140,12 @@ describe('reference-fidelity stage access', () => {
     const { GET: listStages } = await import('@/app/api/stages/route');
     const ownerList = await listStages(
       new NextRequest('http://localhost/api/stages', {
-        headers: { cookie: `anonymous_id=${ownerCookie}` },
+        headers: { cookie: signedOwnerCookie(ownerCookie) },
       }),
     );
     const visitorList = await listStages(
       new NextRequest('http://localhost/api/stages', {
-        headers: { cookie: `anonymous_id=${visitorCookie}` },
+        headers: { cookie: signedOwnerCookie(visitorCookie) },
       }),
     );
     await expect(ownerList.json()).resolves.toMatchObject({

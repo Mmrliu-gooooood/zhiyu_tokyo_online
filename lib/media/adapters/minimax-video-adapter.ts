@@ -213,23 +213,36 @@ export async function testMiniMaxVideoConnectivity(
     const response = await fetch(`${baseUrl}/v1/video_generation`, {
       method: 'POST',
       redirect: 'manual',
+      signal: AbortSignal.timeout(20_000),
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify({
-        model: 'MiniMax-Hailuo-2.3',
+        model: config.model || 'MiniMax-Hailuo-2.3',
         prompt: 'test connectivity',
         duration: 6,
         resolution: '768P',
       }),
     });
 
+    const errData = await response.json().catch(() => undefined);
+    if (!errData) return { success: false, message: 'API error: invalid JSON response' };
+    const businessCode = errData?.base_resp?.status_code;
+    const businessMessage = errData?.base_resp?.status_msg;
+    if (businessCode !== undefined && businessCode !== 0) {
+      return {
+        success: false,
+        message: `API error ${businessCode}: ${businessMessage || 'unknown error'}`,
+      };
+    }
     if (response.ok) {
-      return { success: true, message: 'MiniMax Video API connected' };
+      if (typeof errData?.task_id !== 'string' || !errData.task_id.trim()) {
+        return { success: false, message: 'API error: no task_id returned' };
+      }
+      return { success: true, message: 'MiniMax Video task accepted' };
     }
 
-    const errData = await response.json().catch(() => ({}));
     const msg = errData?.base_resp?.status_msg || response.statusText;
     return { success: false, message: `API error: ${msg}` };
   } catch (err) {

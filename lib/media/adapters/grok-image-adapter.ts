@@ -35,6 +35,7 @@ export async function testGrokImageConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   return probeAuth({
     providerName: 'Grok Image',
+    acceptedStatuses: [400],
     request: () =>
       fetch(`${baseUrl}/images/generations`, {
         method: 'POST',

@@ -68,6 +68,7 @@ export async function testSeedreamConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   return probeAuth({
     providerName: 'Seedream',
+    acceptedStatuses: [400],
     request: () =>
       fetch(`${resolveArkRoot(baseUrl)}/images/generations`, {
         method: 'POST',

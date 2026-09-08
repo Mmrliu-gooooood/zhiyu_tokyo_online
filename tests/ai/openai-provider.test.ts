@@ -22,6 +22,7 @@ vi.mock('@ai-sdk/azure', () => ({
 import { getModel, getModelInfo, getProvider } from '@/lib/ai/providers';
 import { normalizeAzureBaseUrl } from '@/lib/ai/azure';
 import type { ProviderId } from '@/lib/types/provider';
+import { thinkingContext } from '@/lib/ai/thinking-context';
 
 async function captureInjectedRequestBody(
   providerId: ProviderId,
@@ -92,6 +93,33 @@ describe('OpenAI provider defaults', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it('injects disabled/enabled thinking independently at the mock upstream boundary', async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (_url, init) => {
+      await Promise.resolve();
+      captured.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      getModel({ providerId: 'grok', modelId: 'grok-4.3', apiKey: 'test' });
+      const compatFetch = (openAiMock.createOpenAI.mock.calls.at(-1)?.[0] as { fetch: typeof fetch }).fetch;
+      const request = (marker: string) =>
+        compatFetch('https://example.test/v1/chat/completions', {
+          method: 'POST',
+          body: JSON.stringify({ model: 'grok-4.3', marker }),
+        });
+      await Promise.all([
+        thinkingContext.run({ mode: 'disabled', effort: 'none' }, () => request('disabled')),
+        thinkingContext.run({ mode: 'enabled', effort: 'high' }, () => request('enabled')),
+      ]);
+      expect(captured.find((body) => body.marker === 'disabled')).toMatchObject({ reasoning_effort: 'none' });
+      expect(captured.find((body) => body.marker === 'enabled')).toMatchObject({ reasoning_effort: 'high' });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it.each([

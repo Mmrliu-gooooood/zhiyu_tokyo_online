@@ -6,7 +6,14 @@
  */
 
 import type { NextRequest } from 'next/server';
-import { getModel, getProvider, parseModelString, type ModelWithInfo } from '@/lib/ai/providers';
+import {
+  getModel,
+  getProvider,
+  parseModelString,
+  normalizeModelApi,
+  type ModelWithInfo,
+} from '@/lib/ai/providers';
+import type { ModelConfig } from '@/lib/types/provider';
 import type { ProviderType, ThinkingConfig } from '@/lib/types/provider';
 import {
   isServerConfiguredProvider,
@@ -38,6 +45,7 @@ export interface ResolvedModel extends ModelWithInfo {
  * Use this when model config comes from the request body.
  */
 export async function resolveModel(params: {
+  api?: ModelConfig['api'];
   modelString?: string;
   /**
    * Optional generation stage (a `callLLM` source label, e.g. 'scene-content').
@@ -112,12 +120,21 @@ export async function resolveModel(params: {
   const baseUrl = resolveBaseUrl(providerId, clientBaseUrl);
   const proxy = resolveProxy(providerId);
   const { model, modelInfo } = getModel({
+    api: normalizeModelApi(routed ? stageRoute?.api : params.api),
     providerId,
     modelId,
     apiKey,
     baseUrl,
     proxy,
     providerType: clientProviderType as ProviderType | undefined,
+    ...(clientBaseUrl
+      ? {
+          validateRequestUrl: async (url: string) => {
+            const unsafe = await validateUrlForSSRF(url);
+            if (unsafe) throw new Error('PRO_MODEL_UNSAFE_ENDPOINT');
+          },
+        }
+      : {}),
   });
 
   // Thinking arbitration mirrors model routing — the route carries a full

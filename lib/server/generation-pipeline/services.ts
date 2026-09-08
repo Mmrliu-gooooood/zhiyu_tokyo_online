@@ -22,6 +22,7 @@ import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config'
 import { searchWeb, formatSearchResultsAsContext } from '@/lib/web-search';
 import { validatePlan } from '@/lib/server/generation-jobs/contracts';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
+import type { ProModelContext } from '@/types/pro-model';
 import type { SceneOutline, PdfImage } from '@/lib/types/generation';
 import type { Action } from '@/lib/types/action';
 import type { Scene } from '@/lib/types/stage';
@@ -52,13 +53,15 @@ export class GenerationServices {
     readonly execution: PipelineExecution,
     readonly input: GenerationInput,
     readonly assets: PipelineAssets,
+    readonly modelContext?: ProModelContext,
   ) {}
 
   async modelCall(
     stage: LlmStage,
     key: string,
   ): Promise<{ aiCall: AICallFn; resolved: Awaited<ReturnType<typeof resolveModel>> }> {
-    const resolved = await resolveModel({ stage, ...this.input.model });
+    await this.modelContext?.assertActive?.();
+    const resolved = await resolveModel({ ...this.input.model, ...this.modelContext, stage });
     if (isProviderKeyRequired(resolved.providerId) && !resolved.apiKey)
       throw new Error('PROVIDER_NOT_CONFIGURED');
     let callIndex = 0;

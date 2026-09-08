@@ -14,6 +14,7 @@ vi.mock('@/lib/media/resolve-stored-bytes', () => ({ resolveStoredBytes: mocks.l
 vi.mock('@/lib/orchestration/registry/store', () => ({
   useAgentRegistry: {
     getState: () => ({
+      listAgents: () => [],
       getAgent: () => ({
         id: 'teacher',
         name: 'Teacher',
@@ -62,18 +63,20 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('background session input', () => {
   it('transfers source bytes into the signed owner scope before submitting generation', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (url: string) =>
-        url.endsWith('/assets')
-          ? Response.json({
-              success: true,
-              assetId: 'owned-source',
-              revision: 1,
-              digest: 'a'.repeat(64),
-            })
-          : Response.json({ jobs: [] }),
-      );
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith('/assets')) {
+        return Response.json({
+          success: true,
+          assetId: 'owned-source',
+          revision: 1,
+          digest: 'a'.repeat(64),
+        });
+      }
+      if (url === '/api/agent/media-config-snapshots') {
+        return Response.json({ id: 'ignored', ref: { id: crypto.randomUUID(), revision: 1 } });
+      }
+      return Response.json({ jobs: [] });
+    });
     vi.stubGlobal('fetch', fetchMock);
     mocks.loadAsset.mockResolvedValue(new Blob(['lesson material'], { type: 'text/plain' }));
     const onAsset = vi.fn();
@@ -99,6 +102,7 @@ describe('background session input', () => {
     expect(GenerationInputSchema.safeParse(input).success).toBe(true);
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
       '/api/generate-classroom',
+      '/api/agent/media-config-snapshots',
       '/api/generate-classroom/assets',
     ]);
     expect(input.materials?.sources?.[0]).toEqual({
@@ -112,21 +116,46 @@ describe('background session input', () => {
     expect(input.tts?.providerId).toBe('browser-native-tts');
     expect(onAsset).toHaveBeenCalledTimes(1);
   });
-  it('rejects client credentials without putting them in any request or queue input', async () => {
-    const fetchMock = vi.fn();
+  it('binds client model credentials through an opaque worker snapshot reference', async () => {
+    const ref = { id: '123e4567-e89b-42d3-a456-426614174099', revision: 1 };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/generate-classroom') return Response.json({ jobs: [] });
+      if (url === '/api/generate-classroom/model-snapshots') {
+        const body = JSON.parse(String(init?.body));
+        expect(body).toMatchObject({
+          modelString: 'openai:gpt-4.1',
+          apiKey: 'test-client-credential',
+        });
+        return Response.json({ ref });
+      }
+      if (url === '/api/agent/media-config-snapshots') {
+        return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+      }
+      throw new Error(`unexpected request: ${url}`);
+    });
     vi.stubGlobal('fetch', fetchMock);
     mocks.model.mockReturnValue({
       modelString: 'openai:gpt-4.1',
       apiKey: 'test-client-credential',
       baseUrl: '',
     });
-    await expect(
-      buildGenerationJobInput(session, 'zh-CN', new AbortController().signal, vi.fn()),
-    ).rejects.toThrow('BACKGROUND_CLIENT_PROVIDER_UNSUPPORTED');
-    expect(fetchMock).not.toHaveBeenCalled();
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+    expect(input.modelConfigRef).toEqual(ref);
+    expect(JSON.stringify(input)).not.toContain('test-client-credential');
   });
   it('reuses already-uploaded owner assets after a lost create response', async () => {
-    const fetchMock = vi.fn().mockImplementation(async () => Response.json({ jobs: [] }));
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string) =>
+        url === '/api/agent/media-config-snapshots'
+          ? Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } })
+          : Response.json({ jobs: [] }),
+      );
     vi.stubGlobal('fetch', fetchMock);
     const input = await buildGenerationJobInput(
       {
@@ -143,8 +172,93 @@ describe('background session input', () => {
       vi.fn(),
     );
     expect(input.materials?.sources?.[0].assetId).toBe('owned-source');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(mocks.loadBlob).not.toHaveBeenCalled();
     expect(mocks.loadAsset).not.toHaveBeenCalled();
+  });
+
+  it('binds custom media through an opaque encrypted snapshot reference', async () => {
+    mocks.settings.mockReturnValue({
+      ...settings,
+      imageGenerationEnabled: true,
+      imageProviderId: 'custom-image-team',
+      imageModelId: 'image-v1',
+      imageProvidersConfig: {
+        'custom-image-team': {
+          apiKey: 'client-secret',
+          baseUrl: 'https://media.example.test/v1',
+          enabled: true,
+          protocol: 'openai-images',
+          requiresApiKey: true,
+        },
+      },
+    });
+    const ref = { id: '123e4567-e89b-42d3-a456-426614174000', revision: 1 };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/generate-classroom') return Response.json({ jobs: [] });
+      if (url === '/api/agent/media-config-snapshots') {
+        const request = JSON.parse(String(init?.body));
+        expect(request.snapshot.image).toMatchObject({
+          providerId: 'custom-image-team',
+          protocol: 'openai-images',
+          apiKey: 'client-secret',
+          modelId: 'image-v1',
+        });
+        return Response.json({ ref });
+      }
+      throw new Error(`unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(input.mediaConfigRef).toEqual(ref);
+    expect(JSON.stringify(input)).not.toContain('client-secret');
+  });
+
+  it('binds built-in media credentials through the same opaque snapshot', async () => {
+    mocks.settings.mockReturnValue({
+      ...settings,
+      ttsProviderId: 'minimax-tts',
+      ttsVoice: 'male-qn-qingse',
+      ttsProvidersConfig: {
+        'minimax-tts': {
+          apiKey: 'built-in-secret',
+          baseUrl: '',
+          enabled: true,
+          modelId: 'speech-2.8-hd',
+        },
+      },
+    });
+    const ref = { id: '123e4567-e89b-42d3-a456-426614174001', revision: 1 };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/generate-classroom') return Response.json({ jobs: [] });
+      if (url === '/api/agent/media-config-snapshots') {
+        const request = JSON.parse(String(init?.body));
+        expect(request.snapshot.tts[0]).toMatchObject({
+          providerId: 'minimax-tts',
+          apiKey: 'built-in-secret',
+          modelId: 'speech-2.8-hd',
+        });
+        return Response.json({ ref });
+      }
+      throw new Error(`unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(input.mediaConfigRef).toEqual(ref);
+    expect(JSON.stringify(input)).not.toContain('built-in-secret');
   });
 });

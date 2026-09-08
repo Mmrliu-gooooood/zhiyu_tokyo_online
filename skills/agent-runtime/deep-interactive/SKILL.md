@@ -1,7 +1,7 @@
 ---
 name: deep-interactive
 title: "深度交互"
-description: Deep Interactive courses. Plans the course so the learner manipulates something on most pages — simulations, diagrams they explore, code they run, games, 3D scenes — with slides reserved for the opening frame and the closing consolidation. Use when the topic has a mechanism, a variable to vary, a process to trace, or a structure to inspect.
+description: "Shape a zhiyu course around active exploration on most pages: simulations, inspectable diagrams, runnable code, games, or 3D scenes. Use when learners should vary a mechanism, trace a process, or inspect a structure; reserve ordinary slides mainly for framing and consolidation."
 ---
 
 # Deep Interactive course design

@@ -18,6 +18,9 @@ const courseRef: CourseRef = { kind: 'course', stageId: 'stage-1', title: '光�
 function captureFetch(responseBody?: unknown) {
   const calls: Array<{ url: string; init: RequestInit }> = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/api/agent/media-config-snapshots') {
+      return Response.json({ ref: { id: 'media-ref', revision: 1 } });
+    }
     calls.push({ url: String(input), init: init ?? {} });
     return responseBody === undefined
       ? new Response(null, { status: 202 })
@@ -41,14 +44,18 @@ describe('postWorkbenchMessage course refs', () => {
   it('sends a body identical to the pre-mention shape when nothing is named', async () => {
     const calls = captureFetch();
     await postWorkbenchMessage('sess-1', '第三页换个例子');
-    expect(calls[0].init.body).toBe(JSON.stringify({ text: '第三页换个例子' }));
+    expect(calls[0].init.body).toBe(
+      JSON.stringify({ text: '第三页换个例子', mediaConfigRef: { id: 'media-ref', revision: 1 } }),
+    );
     expect(String(calls[0].init.body)).not.toContain('courseRefs');
   });
 
   it('omits the field for an explicitly empty list, alongside empty element refs', async () => {
     const calls = captureFetch();
     await postWorkbenchMessage('sess-1', 'hi', [], [], []);
-    expect(calls[0].init.body).toBe(JSON.stringify({ text: 'hi' }));
+    expect(calls[0].init.body).toBe(
+      JSON.stringify({ text: 'hi', mediaConfigRef: { id: 'media-ref', revision: 1 } }),
+    );
   });
 
   it('carries the named courses verbatim, after materialIds and elementRefs', async () => {
@@ -57,6 +64,7 @@ describe('postWorkbenchMessage course refs', () => {
     expect(calls[0].init.body).toBe(
       JSON.stringify({
         text: '改第三页',
+        mediaConfigRef: { id: 'media-ref', revision: 1 },
         materialIds: [material.materialId],
         courseRefs: [courseRef],
       }),

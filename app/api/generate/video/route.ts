@@ -32,6 +32,11 @@ import type { VideoProviderId, VideoGenerationOptions } from '@/lib/media/types'
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import {
+  MediaProviderConfigError,
+  parseCustomVideoProviderConfig,
+} from '@/lib/server/media-provider-config';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 
 const log = createLogger('VideoGeneration API');
 
@@ -41,7 +46,10 @@ export async function POST(request: NextRequest) {
   const generationGuard = await guardClientGeneration(request);
   if (generationGuard) return generationGuard;
   try {
-    const body = (await request.json()) as VideoGenerationOptions;
+    const requestBody = (await request.json()) as VideoGenerationOptions & {
+      providerConfig?: unknown;
+    };
+    const { providerConfig, ...body } = requestBody;
 
     if (!body.prompt) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing prompt');
@@ -58,6 +66,42 @@ export async function POST(request: NextRequest) {
     // regardless of any client key/selection — mirror the TTS contract (#665).
     if (isServerProviderDisabled('video', providerId)) {
       return apiError('PROVIDER_DISABLED', 403, 'This video provider is disabled by the server');
+    }
+    if (String(providerId).startsWith('custom-video-')) {
+      const runtimeConfig = parseCustomVideoProviderConfig(
+        providerId,
+        providerConfig,
+        request.headers.get('x-video-model')?.trim() || undefined,
+      );
+      if (process.env.NODE_ENV === 'production') {
+        const ssrfError = await validateUrlForSSRF(runtimeConfig.baseUrl || '');
+        if (ssrfError) return apiError('INVALID_URL', 403, ssrfError);
+      }
+      const options = normalizeVideoOptions(providerId, body);
+      const generated = await withMediaProviderFetch(runtimeConfig.baseUrl!, (fetcher) =>
+        generateVideo({ ...runtimeConfig, fetcher }, options),
+      );
+      const { bytes, ...plainResult } = generated as typeof generated & {
+        bytes?: Uint8Array;
+        mimeType?: string;
+      };
+      // Authenticated content URLs are consumed server-side by the adapter.
+      // The browser receives bytes, never the protected upstream URL or key.
+      const result = bytes
+        ? {
+            ...plainResult,
+            base64: Buffer.from(bytes).toString('base64'),
+            mimeType: plainResult.mimeType || 'video/mp4',
+          }
+        : plainResult;
+      void recordGenerationUsage({
+        kind: 'video',
+        unit: 'second',
+        providerId,
+        modelId: runtimeConfig.model,
+        quantity: generated.duration,
+      });
+      return apiSuccess({ result });
     }
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
     const managed = isServerConfiguredProvider('video', providerId);
@@ -121,6 +165,9 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ result });
   } catch (error) {
+    if (error instanceof MediaProviderConfigError) {
+      return apiError(error.code, error.status, error.message);
+    }
     const message = error instanceof Error ? error.message : String(error);
     // Detect content safety filter rejections (e.g. Seedance SensitiveContent errors)
     if (message.includes('SensitiveContent') || message.includes('sensitive information')) {

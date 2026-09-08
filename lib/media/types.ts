@@ -70,7 +70,7 @@
  * Add new image providers here as union members.
  * Keep in sync with IMAGE_PROVIDERS registry in constants.ts
  */
-export type ImageProviderId =
+export type BuiltInImageProviderId =
   | 'seedream'
   | 'openai-image'
   | 'qwen-image'
@@ -79,6 +79,9 @@ export type ImageProviderId =
   | 'grok-image'
   | 'comfyui-image'
   | 'lemonade';
+export type ImageProviderId = BuiltInImageProviderId | `custom-image-${string}`;
+
+export type ImageProtocol = 'openai-images' | 'siliconflow-images' | 'openrouter-images';
 // Add new image providers below (uncomment and modify):
 // | 'dall-e'
 // | 'midjourney'
@@ -105,6 +108,12 @@ export interface ImageProviderConfig {
   name: string;
   /** Whether the provider requires an API key for authentication */
   requiresApiKey: boolean;
+  /** Protocol adapter used by a user-defined provider instance. */
+  protocol?: ImageProtocol;
+  /** Whether this entry comes from the process-wide built-in catalog. */
+  isBuiltIn?: boolean;
+  /** User-facing name for a custom provider instance. */
+  customName?: string;
   /** Default API base URL (can be overridden in user settings) */
   defaultBaseUrl?: string;
   /** Path to provider icon asset */
@@ -122,6 +131,21 @@ export interface ImageProviderConfig {
   };
 }
 
+/** Persisted settings for one image provider instance. */
+export interface ImageProviderSettings {
+  apiKey: string;
+  baseUrl: string;
+  enabled: boolean;
+  isServerConfigured?: boolean;
+  serverDisabled?: boolean;
+  customModels?: ImageModelInfo[];
+  replaceBuiltInModels?: boolean;
+  isBuiltIn?: boolean;
+  customName?: string;
+  protocol?: ImageProtocol;
+  requiresApiKey?: boolean;
+}
+
 /**
  * Image Generation Configuration
  *
@@ -137,6 +161,12 @@ export interface ImageGenerationConfig {
   baseUrl?: string;
   /** Optional model ID override (uses provider default if omitted) */
   model?: string;
+  /** Required for custom providers; optional only for legacy built-in callers. */
+  protocol?: ImageProtocol;
+  /** Required for custom providers; optional only for legacy built-in callers. */
+  requiresApiKey?: boolean;
+  /** Server-only restricted transport for user-configured endpoints. */
+  fetcher?: typeof fetch;
 }
 
 /**
@@ -175,6 +205,10 @@ export interface ImageGenerationResult {
   url?: string;
   /** Base64-encoded image data (if returned inline) */
   base64?: string;
+  /** Raw image bytes for server-side persistence without exposing protected URLs. */
+  bytes?: Uint8Array;
+  /** MIME type for inline or raw image data. */
+  mimeType?: string;
   /** Width of the generated image in pixels */
   width: number;
   /** Height of the generated image in pixels */
@@ -191,13 +225,16 @@ export interface ImageGenerationResult {
  * Add new video providers here as union members.
  * Keep in sync with VIDEO_PROVIDERS registry in constants.ts
  */
-export type VideoProviderId =
+export type BuiltInVideoProviderId =
   | 'seedance'
   | 'kling'
   | 'veo'
   | 'minimax-video'
   | 'grok-video'
   | 'happyhorse';
+export type VideoProviderId = BuiltInVideoProviderId | `custom-video-${string}`;
+
+export type VideoProtocol = 'siliconflow-video' | 'openrouter-video';
 // Add new video providers below (uncomment and modify):
 // | 'runway'
 // | 'pika'
@@ -218,6 +255,12 @@ export interface VideoProviderConfig {
   name: string;
   /** Whether the provider requires an API key for authentication */
   requiresApiKey: boolean;
+  /** Protocol adapter used by a user-defined provider instance. */
+  protocol?: VideoProtocol;
+  /** Whether this entry comes from the process-wide built-in catalog. */
+  isBuiltIn?: boolean;
+  /** User-facing name for a custom provider instance. */
+  customName?: string;
   /** Default API base URL (can be overridden in user settings) */
   defaultBaseUrl?: string;
   /** Path to provider icon asset */
@@ -232,6 +275,21 @@ export interface VideoProviderConfig {
   supportedResolutions?: Array<'480p' | '720p' | '1080p'>;
   /** Maximum video duration in seconds */
   maxDuration?: number;
+}
+
+/** Persisted settings for one video provider instance. */
+export interface VideoProviderSettings {
+  apiKey: string;
+  baseUrl: string;
+  enabled: boolean;
+  isServerConfigured?: boolean;
+  serverDisabled?: boolean;
+  customModels?: VideoModelInfo[];
+  replaceBuiltInModels?: boolean;
+  isBuiltIn?: boolean;
+  customName?: string;
+  protocol?: VideoProtocol;
+  requiresApiKey?: boolean;
 }
 
 /**
@@ -249,6 +307,12 @@ export interface VideoGenerationConfig {
   baseUrl?: string;
   /** Optional model ID override (uses provider default if omitted) */
   model?: string;
+  /** Required for custom providers; optional only for legacy built-in callers. */
+  protocol?: VideoProtocol;
+  /** Required for custom providers; optional only for legacy built-in callers. */
+  requiresApiKey?: boolean;
+  /** Server-only restricted transport for user-configured endpoints. */
+  fetcher?: typeof fetch;
 }
 
 /**
@@ -280,7 +344,13 @@ export interface VideoGenerationOptions {
  */
 export interface VideoGenerationResult {
   /** URL to the generated video */
-  url: string;
+  url?: string;
+  /** Base64-encoded video data when returned inline. */
+  base64?: string;
+  /** Raw video bytes for server-side persistence without exposing protected URLs. */
+  bytes?: Uint8Array;
+  /** MIME type for inline or raw video data. */
+  mimeType?: string;
   /** Duration of the generated video in seconds */
   duration: number;
   /** Width of the generated video in pixels */

@@ -252,6 +252,8 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
           // Managed providers resolve their base URL server-side; only send the
           // client's own base URL (custom providers).
           ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
+          ttsProtocol: providerConfig?.protocol,
+          ttsRequiresApiKey: providerConfig?.requiresApiKey,
           ttsProviderOptions: providerOptions,
         }),
         signal: controller.signal,

@@ -22,6 +22,11 @@
  *    `lastEventId` instead of replaying the whole run.
  */
 import { create } from 'zustand';
+import { getProModelRef } from '@/lib/utils/model-config';
+import { proModelConfigurationMessage } from './pro-model-connection-client';
+import { syncCurrentMediaConfigSnapshot } from './media-config-snapshot-client';
+import { useSettingsStore } from '@/lib/store/settings';
+import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { isSkillLoadTool, skillLoadId } from './skill-load';
 import { defaultWorkbenchTranslator, type WorkbenchCopyKey } from '@/lib/i18n/workbench';
 import { parseElementRefs, type ElementRef } from './element-refs';
@@ -1660,6 +1665,10 @@ export function foldEvent(state: WorkbenchFold, event: WorkbenchEvent): Workbenc
         // sentence, which read as a log line and — because every auto-retry
         // appends its own marker — stacked N identical copies of it.
         const cause = data.error ? String(data.error).trim() : '';
+        const configurationError =
+          /^PRO_MODEL_(AUTH|MISSING|PROTOCOL|TOOLS|THINKING|REVOKED|ENCRYPTION|CONFIGURATION_REQUIRED)\b/.test(
+            cause,
+          );
         next.chat = [
           ...settled,
           {
@@ -1668,8 +1677,15 @@ export function foldEvent(state: WorkbenchFold, event: WorkbenchEvent): Workbenc
             tone: 'error',
             text: defaultWorkbenchTranslator('workbench.system.runFailed'),
             copyKey: 'workbench.system.runFailed',
-            hint: defaultWorkbenchTranslator('workbench.system.retryHint'),
-            hintCopyKey: 'workbench.system.retryHint',
+            ...(configurationError
+              ? {
+                  hint: defaultWorkbenchTranslator('workbench.system.modelSettingsHint'),
+                  hintCopyKey: 'workbench.system.modelSettingsHint' as const,
+                }
+              : {
+                  hint: defaultWorkbenchTranslator('workbench.system.retryHint'),
+                  hintCopyKey: 'workbench.system.retryHint' as const,
+                }),
             ...(cause ? { detail: cause } : {}),
           },
         ];
@@ -1913,6 +1929,22 @@ export interface WorkbenchSessionMeta {
   courseRefsAccepted?: boolean;
 }
 
+function currentSessionRoleVoices(stageId?: string) {
+  const settings = useSettingsStore.getState();
+  return useAgentRegistry
+    .getState()
+    .listAgents()
+    .filter(
+      (agent) =>
+        settings.selectedAgentIds.includes(agent.id) ||
+        (!!stageId && agent.isGenerated && agent.boundStageId === stageId),
+    )
+    .flatMap((agent) => {
+      const voice = settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig;
+      return voice ? [voice] : [];
+    });
+}
+
 /** A control-plane failure that keeps the HTTP status / error code. */
 export class WorkbenchApiError extends Error {
   constructor(
@@ -1921,7 +1953,7 @@ export class WorkbenchApiError extends Error {
     readonly errorCode?: string,
     readonly terminalStatus?: SessionStatus,
   ) {
-    super(message);
+    super(/^PRO_MODEL_[A-Z_]+$/.test(message) ? proModelConfigurationMessage(message) : message);
     this.name = 'WorkbenchApiError';
   }
 }
@@ -1940,11 +1972,17 @@ export async function createWorkbenchSession(input: {
   stageId?: string;
   existingCourse?: boolean;
 }): Promise<WorkbenchSessionMeta> {
+  const modelRef = input.existingCourse ? undefined : await getProModelRef();
+  const mediaConfigRef = await syncCurrentMediaConfigSnapshot(
+    currentSessionRoleVoices(input.stageId),
+  );
   const res = await fetch('/api/agent/sessions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: input.prompt,
+      ...(modelRef ? { modelRef } : {}),
+      ...(mediaConfigRef ? { mediaConfigRef } : {}),
       ...(input.skill ? { skill: input.skill } : {}),
       ...(input.courseRefs?.length ? { courseRefs: input.courseRefs } : {}),
       ...(input.stageId ? { stageId: input.stageId } : {}),
@@ -2083,11 +2121,15 @@ export async function postWorkbenchMessage(
   elementRefs: readonly ElementRef[] = [],
   courseRefs: readonly CourseRef[] = [],
 ): Promise<{ elementRefsAccepted: boolean; courseRefsAccepted: boolean }> {
+  const modelRef = await getProModelRef();
+  const mediaConfigRef = await syncCurrentMediaConfigSnapshot(currentSessionRoleVoices());
   const res = await fetch(`/api/agent/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       text,
+      ...(modelRef ? { modelRef } : {}),
+      ...(mediaConfigRef ? { mediaConfigRef } : {}),
       ...(materials.length
         ? { materialIds: materials.map((material) => material.materialId) }
         : {}),
@@ -2096,8 +2138,16 @@ export async function postWorkbenchMessage(
     }),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-    throw new Error(body.message ?? body.error ?? `POST messages -> ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+      errorCode?: string;
+    };
+    throw new WorkbenchApiError(
+      body.message ?? body.error ?? `POST messages -> ${res.status}`,
+      res.status,
+      body.errorCode,
+    );
   }
   const body = (await res.json().catch(() => ({}))) as {
     elementRefsAccepted?: unknown;

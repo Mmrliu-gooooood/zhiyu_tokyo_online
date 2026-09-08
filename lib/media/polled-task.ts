@@ -1,4 +1,23 @@
 import { ConfirmedMediaFailure } from './generation-errors';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+export interface PolledTaskPersistence {
+  resumeTaskId?: string;
+  persistTaskId(taskId: string): Promise<void>;
+}
+
+const globalState = globalThis as typeof globalThis & {
+  __openmaicPolledTaskPersistence?: AsyncLocalStorage<PolledTaskPersistence>;
+};
+const persistenceContext =
+  (globalState.__openmaicPolledTaskPersistence ??= new AsyncLocalStorage<PolledTaskPersistence>());
+
+export function withPolledTaskPersistence<T>(
+  persistence: PolledTaskPersistence,
+  work: () => Promise<T>,
+): Promise<T> {
+  return persistenceContext.run(persistence, work);
+}
 
 export type TerminalResult<T> =
   | { status: 'done'; result: T }
@@ -23,11 +42,34 @@ export interface RunPolledTaskOptions<T> {
   intervalMs: number;
   maxAttempts: number;
   label: string;
+  signal?: AbortSignal;
   formatTimeout?: (context: PolledTaskTimeoutContext) => string;
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
+  if (signal.aborted) return Promise.reject(abortReason(signal));
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(abortReason(signal));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export async function runPolledTask<T>({
@@ -36,18 +78,27 @@ export async function runPolledTask<T>({
   intervalMs,
   maxAttempts,
   label,
+  signal,
   formatTimeout,
 }: RunPolledTaskOptions<T>): Promise<T> {
-  const submitted = await submit();
+  throwIfAborted(signal);
+  const persistence = persistenceContext.getStore();
+  const submitted: SubmitResult<T> = persistence?.resumeTaskId
+    ? { status: 'submitted', taskId: persistence.resumeTaskId }
+    : await submit();
+  throwIfAborted(signal);
   if (submitted.status === 'done') return submitted.result;
   if (submitted.status === 'failed') throw new ConfirmedMediaFailure('failed', submitted.message);
+  if (!persistence?.resumeTaskId) await persistence?.persistTaskId(submitted.taskId);
 
   let attempts = 0;
   let lastPendingDetail: string | undefined;
 
   while (attempts < maxAttempts) {
-    await delay(intervalMs);
+    await delay(intervalMs, signal);
+    throwIfAborted(signal);
     const result = await poll(submitted.taskId);
+    throwIfAborted(signal);
     attempts++;
 
     if (result.status === 'done') return result.result;

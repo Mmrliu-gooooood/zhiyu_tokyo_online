@@ -1,7 +1,7 @@
 ---
 name: fact-check
 title: "事实核查"
-description: "Improve factual reliability while creating or reviewing a course or supplied content. Use when the user asks to fact-check, verify accuracy, reduce hallucinations, make a reliable course, or mentions 事实性错误、知识性错误、专业知识准确性、可靠性. During creation, checks the completed pages before delivery; on existing content, returns a short evidence-backed report and lets the user choose what to fix. Not for grammar, style, or layout. Combine with deep-research when current evidence is the course's main subject."
+description: "A zhiyu accuracy pass for use while creating or reviewing course content. Trigger it for fact-checking, hallucination reduction, or 事实性错误、知识性错误、专业知识准确性、可靠性; it checks finished pages or produces a concise evidence-backed report and lets the user choose what to fix. It does not cover grammar, style, or layout, and pairs with deep-research when fresh evidence is central."
 ---
 
 # Fact check

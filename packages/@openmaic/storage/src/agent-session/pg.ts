@@ -115,6 +115,11 @@ ALTER TABLE agent_sessions
 ALTER TABLE agent_sessions
   ADD COLUMN IF NOT EXISTS title TEXT;
 
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS model_ref JSONB;
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS active_model_ref JSONB;
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS media_config_ref JSONB;
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS active_media_config_ref JSONB;
+
 CREATE INDEX IF NOT EXISTS agent_sessions_status_live_idx
   ON agent_sessions (status, created_at) WHERE deleted_at IS NULL;
 
@@ -320,6 +325,10 @@ export async function ensureAgentSessionSchema(
 interface SessionRow extends Record<string, unknown> {
   id: string;
   owner_id: string;
+  model_ref: AgentSessionMeta['modelRef'] | null;
+  active_model_ref: AgentSessionMeta['activeModelRef'] | null;
+  media_config_ref: AgentSessionMeta['mediaConfigRef'] | null;
+  active_media_config_ref: AgentSessionMeta['activeMediaConfigRef'] | null;
   prompt: string;
   title: string | null;
   stage_id: string;
@@ -337,7 +346,8 @@ interface SessionRow extends Record<string, unknown> {
   updated_at: Date | string;
 }
 
-const SESSION_COLUMNS = `id, owner_id, prompt, title, stage_id, skill_id, origin,
+const SESSION_COLUMNS = `id, model_ref, active_model_ref, media_config_ref, active_media_config_ref,
+  owner_id, prompt, title, stage_id, skill_id, origin,
   existing_course, status, attempt, delivered_user_message_seq, lease_worker_id, lease_worker_pid,
   lease_heartbeat_at, error, created_at, updated_at`;
 
@@ -358,6 +368,10 @@ function sessionMeta(row: SessionRow): AgentSessionMeta {
   return {
     id: row.id,
     ownerId: row.owner_id,
+    ...(row.model_ref ? { modelRef: row.model_ref } : {}),
+    ...(row.active_model_ref ? { activeModelRef: row.active_model_ref } : {}),
+    ...(row.media_config_ref ? { mediaConfigRef: row.media_config_ref } : {}),
+    ...(row.active_media_config_ref ? { activeMediaConfigRef: row.active_media_config_ref } : {}),
     prompt: row.prompt,
     ...(row.title !== null ? { title: row.title } : {}),
     stageId: row.stage_id,
@@ -474,8 +488,9 @@ export class PgAgentSessionStore
       const ownerId = await this.resolveOwnerHook(tx, input.ownerId);
       const result = await tx.query<SessionRow>(
         `INSERT INTO ${this.table('sessions')}
-          (id, owner_id, prompt, stage_id, skill_id, origin, existing_course, status, attempt)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
+          (id, owner_id, prompt, stage_id, skill_id, origin, existing_course, status, attempt,
+           model_ref, media_config_ref)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9::jsonb, $10::jsonb)
          RETURNING ${SESSION_COLUMNS}`,
         [
           id,
@@ -486,6 +501,10 @@ export class PgAgentSessionStore
           input.origin ?? null,
           input.existingCourse ?? false,
           input.status ?? 'queued',
+          input.modelRef ? encodeJson(input.modelRef, 'model reference') : null,
+          input.mediaConfigRef
+            ? encodeJson(input.mediaConfigRef, 'media configuration reference')
+            : null,
         ],
       );
       const meta = sessionMeta(result.rows[0]!);
@@ -633,6 +652,8 @@ export class PgAgentSessionStore
         const updated = await tx.query<SessionRow>(
           `UPDATE ${this.table('sessions')}
            SET status = 'running',
+               active_model_ref = COALESCE(active_model_ref, model_ref),
+               active_media_config_ref = COALESCE(active_media_config_ref, media_config_ref),
                attempt = attempt + CASE
                  WHEN status = 'queued'
                    OR (status = 'running' AND lease_worker_id IS NOT NULL) THEN 1
@@ -958,6 +979,18 @@ export class PgAgentSessionStore
       if (options.expectedOwnerId && parent.owner_id !== options.expectedOwnerId) {
         throw new AgentSessionAccessError(sessionId);
       }
+      if (options.modelRef) {
+        await tx.query(`UPDATE ${this.table('sessions')} SET model_ref = $2::jsonb WHERE id = $1`, [
+          sessionId,
+          encodeJson(options.modelRef, 'model reference'),
+        ]);
+      }
+      if (options.mediaConfigRef) {
+        await tx.query(
+          `UPDATE ${this.table('sessions')} SET media_config_ref = $2::jsonb WHERE id = $1`,
+          [sessionId, encodeJson(options.mediaConfigRef, 'media configuration reference')],
+        );
+      }
       const pendingAsk = await tx.query<{ pending: boolean }>(
         `SELECT EXISTS (
            SELECT 1 FROM ${this.table('events')} question
@@ -1006,7 +1039,8 @@ export class PgAgentSessionStore
       if (parent.status === 'queued') {
         await tx.query(
           `UPDATE ${this.table('sessions')}
-           SET attempt = 0, error = NULL, cancel_requested_at = NULL, updated_at = now()
+           SET attempt = 0, active_model_ref = NULL, active_media_config_ref = NULL,
+               error = NULL, cancel_requested_at = NULL, updated_at = now()
            WHERE id = $1 AND deleted_at IS NULL`,
           [sessionId],
         );
@@ -1162,6 +1196,10 @@ export class PgAgentSessionStore
     const result = await tx.query<{ attempt: number }>(
       `UPDATE ${this.table('sessions')}
        SET status = 'queued', attempt = CASE WHEN $2::boolean THEN 0 ELSE attempt END,
+           active_model_ref = CASE WHEN $2::boolean THEN NULL ELSE active_model_ref END,
+           active_media_config_ref = CASE
+             WHEN $2::boolean THEN NULL ELSE active_media_config_ref
+           END,
            error = NULL, cancel_requested_at = NULL, updated_at = now()
        WHERE id = $1 AND deleted_at IS NULL
          AND status IN ('succeeded', 'failed', 'cancelled') RETURNING attempt`,

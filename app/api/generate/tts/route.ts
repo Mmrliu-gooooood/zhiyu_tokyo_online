@@ -9,7 +9,7 @@ import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard'
  */
 
 import { NextRequest } from 'next/server';
-import { generateTTS, QwenTTSError, TTSRateLimitError } from '@/lib/audio/tts-providers';
+import { generateTTS, TTSRateLimitError } from '@/lib/audio/tts-providers';
 import { TTS_PROVIDERS } from '@/lib/audio/constants';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import {
@@ -25,8 +25,14 @@ import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { VOXCPM_AUTO_VOICE_ID, VOXCPM_TTS_PROVIDER_ID } from '@/lib/audio/voxcpm';
-import { QwenVoiceCloneError, qwenVoiceCloneErrorMessage } from '@/lib/audio/qwen-voice-clone';
 import { isQwenCloneVoice } from '@/lib/audio/constants';
+import {
+  CUSTOM_SPEECH_PROTOCOL,
+  MediaProviderConfigError,
+  parseCustomTTSProviderConfig,
+} from '@/lib/server/media-provider-config';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
+import { getTTSProviderErrorResponse } from '@/lib/server/tts-error-response';
 
 const log = createLogger('TTS API');
 
@@ -40,7 +46,16 @@ export async function POST(req: NextRequest) {
   let audioId: string | undefined;
   try {
     const body = await req.json();
-    const { text, ttsModelId, ttsSpeed, ttsApiKey, ttsBaseUrl, ttsProviderOptions } = body as {
+    const {
+      text,
+      ttsModelId,
+      ttsSpeed,
+      ttsApiKey,
+      ttsBaseUrl,
+      ttsProtocol,
+      ttsRequiresApiKey,
+      ttsProviderOptions,
+    } = body as {
       text: string;
       audioId: string;
       ttsProviderId: TTSProviderId;
@@ -49,6 +64,8 @@ export async function POST(req: NextRequest) {
       ttsSpeed?: number;
       ttsApiKey?: string;
       ttsBaseUrl?: string;
+      ttsProtocol?: string;
+      ttsRequiresApiKey?: boolean;
       ttsProviderOptions?: Record<string, unknown>;
     };
     ttsProviderId = body.ttsProviderId;
@@ -125,18 +142,34 @@ export async function POST(req: NextRequest) {
     const qwenCloneVoice = ttsProviderId === 'qwen-tts' && isQwenCloneVoice(ttsVoice);
     const requestedSpeed = ttsSpeed ?? 1.0;
     const resolvedModelId = resolveTTSModel(ttsProviderId, ttsModelId, ttsVoice);
-    const config = {
-      providerId: ttsProviderId as TTSProviderId,
-      modelId: resolvedModelId,
-      voice: ttsVoice,
-      speed: qwenCloneVoice ? 1 : requestedSpeed,
-      apiKey,
-      baseUrl,
-      providerOptions: {
-        ...(ttsProviderOptions || {}),
-        ...(qwenCloneVoice ? { qwenVoiceClone: true } : {}),
-      },
-    };
+    const config = String(ttsProviderId).startsWith('custom-tts-')
+      ? parseCustomTTSProviderConfig(ttsProviderId as TTSProviderId, {
+          id: ttsProviderId,
+          protocol: ttsProtocol ?? CUSTOM_SPEECH_PROTOCOL,
+          apiKey: managed ? '' : ttsApiKey || '',
+          baseUrl: clientBaseUrl || '',
+          enabled: true,
+          // Legacy custom-audio callers did not send this flag. Preserve their
+          // keyless gateway behavior; keyed gateways still return their own
+          // authentication error when a key is absent.
+          requiresApiKey: ttsRequiresApiKey ?? Boolean(ttsApiKey?.trim()),
+          modelId: ttsModelId || '',
+          voice: ttsVoice,
+          speed: qwenCloneVoice ? 1 : requestedSpeed,
+          providerOptions: ttsProviderOptions,
+        })
+      : {
+          providerId: ttsProviderId as TTSProviderId,
+          modelId: resolvedModelId,
+          voice: ttsVoice,
+          speed: qwenCloneVoice ? 1 : requestedSpeed,
+          apiKey,
+          baseUrl,
+          providerOptions: {
+            ...(ttsProviderOptions || {}),
+            ...(qwenCloneVoice ? { qwenVoiceClone: true } : {}),
+          },
+        };
 
     log.info(
       `Generating TTS: provider=${ttsProviderId}, model=${config.modelId || 'default'}, voice=${ttsVoice}, ` +
@@ -144,7 +177,11 @@ export async function POST(req: NextRequest) {
     );
 
     // Generate audio
-    const { audio, format } = await generateTTS(config, text);
+    const { audio, format } = String(ttsProviderId).startsWith('custom-tts-')
+      ? await withMediaProviderFetch(config.baseUrl!, (fetcher) =>
+          generateTTS({ ...config, fetcher }, text),
+        )
+      : await generateTTS(config, text);
 
     void recordGenerationUsage({
       kind: 'tts',
@@ -170,12 +207,12 @@ export async function POST(req: NextRequest) {
     if (error instanceof TTSRateLimitError) {
       return apiError('RATE_LIMITED', 429, error.message);
     }
-    if (error instanceof QwenVoiceCloneError) {
-      return apiError(error.code, error.httpStatus || 502, qwenVoiceCloneErrorMessage(error));
+    if (error instanceof MediaProviderConfigError) {
+      return apiError(error.code, error.status, error.message);
     }
-    if (error instanceof QwenTTSError) {
-      return apiError(error.code, error.httpStatus, error.message);
-    }
+    const providerError = getTTSProviderErrorResponse(error);
+    if (providerError)
+      return apiError(providerError.code, providerError.status, providerError.message);
     if (error instanceof TTSModelNotAllowedError) {
       return apiError(error.code, error.httpStatus, error.message);
     }

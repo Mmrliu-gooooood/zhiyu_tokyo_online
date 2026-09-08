@@ -88,6 +88,7 @@ export async function testGrokVideoConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   return probeAuth({
     providerName: 'Grok Video',
+    acceptedStatuses: [400],
     request: () =>
       fetch(`${baseUrl}/videos/generations`, {
         method: 'POST',

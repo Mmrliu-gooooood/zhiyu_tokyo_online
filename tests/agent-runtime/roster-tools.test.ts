@@ -419,6 +419,126 @@ describe('list_voices', () => {
     expect(result.details?.voices).toEqual([]);
     expect(result.content[0].text).toContain('no bindable TTS voices');
   });
+
+  it('binds a voice from the session snapshot without a server TTS key', async () => {
+    mocks.enabledServerTTSProviderIds.mockReturnValue([]);
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+    const store = makeStore(makeDoc());
+    const providerConfigs = [
+      {
+        providerId: 'minimax-tts',
+        apiKey: 'session-secret',
+        baseUrl: '',
+        requiresApiKey: true,
+        enabled: true,
+        modelId: 'speech-2.8-hd',
+        voice: 'female-yujie',
+      },
+    ];
+
+    const result = await runTool(
+      store,
+      'set_roster',
+      {
+        stageId: 'stage-test',
+        agents: [
+          llmAgent({ voice: 'minimax-tts::female-yujie' }),
+          { name: 'Student', role: 'student', persona: 'Curious.' },
+        ],
+      },
+      { providerConfigs },
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(
+      (await store.loadDocument('stage-test'))?.stage.generatedAgentConfigs?.[0]?.voiceConfig,
+    ).toEqual({ providerId: 'minimax-tts', voiceId: 'female-yujie' });
+  });
+
+  it('lists a MiniMax voice from the session snapshot without a server TTS key', async () => {
+    mocks.enabledServerTTSProviderIds.mockReturnValue([]);
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+
+    const result = await runTool(
+      makeStore(makeDoc()),
+      'list_voices',
+      {},
+      {
+        providerConfigs: [
+          {
+            providerId: 'minimax-tts',
+            apiKey: 'session-secret',
+            baseUrl: '',
+            requiresApiKey: true,
+            enabled: true,
+            modelId: 'speech-2.8-hd',
+            voice: 'female-yujie',
+          },
+        ],
+      },
+    );
+
+    expect(result.details?.voices).toEqual([
+      expect.objectContaining({
+        binding: 'minimax-tts::female-yujie',
+        providerId: 'minimax-tts',
+        voiceId: 'female-yujie',
+      }),
+    ]);
+  });
+
+  it('uses the same snapshot boundary for custom, cloned, excluded, and disabled voices', async () => {
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+    const result = await runTool(
+      makeStore(makeDoc()),
+      'list_voices',
+      {},
+      {
+        providerConfigs: [
+          {
+            providerId: 'custom-tts-classroom',
+            apiKey: 'custom-secret',
+            requiresApiKey: true,
+            enabled: true,
+            modelId: 'speech-custom',
+            voice: 'guide',
+          },
+          {
+            providerId: 'minimax-tts',
+            apiKey: 'disabled-secret',
+            requiresApiKey: true,
+            enabled: false,
+            modelId: 'speech-2.8-hd',
+            voice: 'female-yujie',
+          },
+          {
+            providerId: 'qwen-tts',
+            apiKey: 'qwen-secret',
+            requiresApiKey: true,
+            enabled: true,
+            modelId: 'qwen3-tts-vc-2026-01-22',
+            voice: 'Cherry',
+          },
+        ],
+        registeredVoices: [
+          { providerId: 'qwen-tts', voiceId: 'clone-1', name: 'Class Clone', kind: 'clone' },
+        ],
+      },
+    );
+
+    const bindings = ((result.details?.voices ?? []) as Array<{ binding: string }>).map(
+      (voice) => voice.binding,
+    );
+    expect(bindings).toEqual(['custom-tts-classroom::guide', 'qwen-tts::clone-1']);
+    expect(bindings).not.toContain('minimax-tts::female-yujie');
+    expect(bindings).not.toContain('qwen-tts::Cherry');
+  });
 });
 
 describe('roster abort handling', () => {

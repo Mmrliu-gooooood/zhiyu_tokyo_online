@@ -41,6 +41,99 @@ describe('agent driver model route', () => {
     expect(mocks.resolveModel).not.toHaveBeenCalled();
   });
 
+  it('uses Home without a dedicated route and removes incompatible thinking effort', async () => {
+    const home = {
+      modelString: 'openai:gpt-5.6',
+      apiKey: 'home-secret',
+      thinkingConfig: { effort: 'high' as const, enabled: true },
+    };
+    mocks.resolveModel.mockResolvedValue({
+      model: { provider: 'openai.responses' },
+      modelInfo: { capabilities: { tools: true } },
+      providerId: 'openai',
+      modelId: 'gpt-5.6',
+      ...home,
+    });
+    const { resolveAgentDriverModel } =
+      await import('@/lib/server/agent-runtime/agent-driver-model');
+    const driver = await resolveAgentDriverModel(home);
+    expect(driver.piModel.api).toBe('openai-responses');
+    expect(driver.connection.thinkingConfig).toEqual({ enabled: true });
+    expect(home.thinkingConfig.effort).toBe('high');
+    expect(mocks.resolveModel).toHaveBeenCalledWith({ ...home, stage: 'maic-agent-driver' });
+  });
+
+  it('removes unsupported effort while preserving an explicit disabled mode', async () => {
+    const home = {
+      modelString: 'deepseek:deepseek-v4-flash',
+      apiKey: 'home-secret',
+      thinkingConfig: { mode: 'disabled' as const, effort: 'none' as const },
+    };
+    mocks.resolveModel.mockResolvedValue({
+      model: { provider: 'deepseek.chat' },
+      modelInfo: { capabilities: { tools: true, thinking: { control: 'effort' } } },
+      providerId: 'deepseek',
+      modelId: 'deepseek-v4-flash',
+      ...home,
+    });
+    const { resolveAgentDriverModel } =
+      await import('@/lib/server/agent-runtime/agent-driver-model');
+
+    const driver = await resolveAgentDriverModel(home);
+
+    expect(driver.connection.thinkingConfig).toEqual({ mode: 'disabled' });
+  });
+
+  it('does not send Home secrets into an explicitly routed driver', async () => {
+    process.env.MODEL_ROUTES = JSON.stringify({
+      'maic-agent-driver': { model: 'openai:routed', api: 'openai-completions' },
+    });
+    mocks.resolveModel.mockResolvedValue({
+      model: {},
+      providerId: 'openai',
+      modelId: 'routed',
+      apiKey: 'server-secret',
+    });
+    const { resolveAgentDriverModel } =
+      await import('@/lib/server/agent-runtime/agent-driver-model');
+    await resolveAgentDriverModel({
+      modelString: 'custom-home:home',
+      apiKey: 'home-secret',
+      baseUrl: 'https://home.example/v1',
+    });
+    expect(mocks.resolveModel).toHaveBeenCalledWith({ stage: 'maic-agent-driver' });
+  });
+
+  it('distinguishes unknown tool capabilities from explicitly unsupported tools', async () => {
+    mocks.resolveModel.mockResolvedValue({
+      model: {},
+      providerId: 'custom-home',
+      modelId: 'home',
+      modelInfo: null,
+    });
+    const { resolveAgentDriverModel } =
+      await import('@/lib/server/agent-runtime/agent-driver-model');
+    const home = {
+      modelString: 'custom-home:home',
+      apiKey: 'secret',
+      api: 'openai-completions' as const,
+    };
+    await expect(resolveAgentDriverModel(home)).resolves.toMatchObject({
+      piModel: { api: 'openai-completions' },
+    });
+    mocks.resolveModel.mockResolvedValue({
+      model: {},
+      providerId: 'custom-home',
+      modelId: 'home',
+      modelInfo: { capabilities: { tools: false } },
+    });
+    await expect(resolveAgentDriverModel(home)).rejects.toThrow('PRO_MODEL_TOOLS');
+    mocks.resolveModel.mockResolvedValue({ model: {}, providerId: 'custom-home', modelId: 'home' });
+    await expect(resolveAgentDriverModel({ ...home, api: undefined })).rejects.toThrow(
+      'PRO_MODEL_PROTOCOL',
+    );
+  });
+
   it('fails loud when reasoning effort is configured for the tool-using driver', async () => {
     process.env.MODEL_ROUTES = JSON.stringify({
       'maic-agent-driver': {

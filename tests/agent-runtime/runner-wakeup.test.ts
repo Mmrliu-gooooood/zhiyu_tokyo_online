@@ -142,6 +142,11 @@ vi.mock('@/lib/server/agent-runtime/voice-clone-tools', async (importActual) => 
 
 // A resolvable driver model with a no-op streamFn: the fake Agent below never
 // reads the stream, so nothing touches a real model gateway.
+// This harness exercises runner lifecycle; model readiness has its own integration suite.
+vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
+  preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
+}));
+
 vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
   resolveAgentDriverModel: vi.fn(async () => ({
     connection: { model: { id: 'wakeup-test' }, modelId: 'wakeup-test', providerId: 'test' },

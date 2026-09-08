@@ -8,6 +8,8 @@
  */
 
 import { create } from 'zustand';
+import { revokeProModelConnection } from '@/lib/workbench/pro-model-connection-client';
+import { revokeMediaConfigSnapshotsForProvider } from '@/lib/workbench/media-config-snapshot-client';
 import { persist } from 'zustand/middleware';
 import type { ProviderId } from '@/lib/ai/providers';
 import type { ProvidersConfig } from '@/lib/types/settings';
@@ -28,9 +30,27 @@ import {
 import { DEFAULT_VOXCPM_BACKEND, VOXCPM_MODEL_ID, VOXCPM_VLLM_MODEL_ID } from '@/lib/audio/voxcpm';
 import { PDF_PROVIDERS } from '@/lib/pdf/constants';
 import type { PDFProviderId } from '@/lib/pdf/types';
-import type { ImageProviderId, VideoProviderId } from '@/lib/media/types';
+import type {
+  BuiltInImageProviderId,
+  BuiltInVideoProviderId,
+  ImageProtocol,
+  ImageProviderId,
+  ImageProviderSettings,
+  VideoProtocol,
+  VideoProviderId,
+  VideoProviderSettings,
+} from '@/lib/media/types';
 import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
+import {
+  findImageProvider,
+  findVideoProvider,
+  isCustomImageProviderId,
+  isCustomVideoProviderId,
+  resolveImageActivation,
+  resolveVideoActivation,
+  type MediaActivationResult,
+} from '@/lib/media/provider-catalog';
 import { WEB_SEARCH_PROVIDERS, buildWebSearchFallbackOrder } from '@/lib/web-search/constants';
 import type { BaiduSubSources, WebSearchProviderId } from '@/lib/web-search/types';
 import { createLogger } from '@/lib/logger';
@@ -38,13 +58,14 @@ import {
   validateProvider,
   resolveSelectedModel,
   isLLMProviderConfigured,
+  isProviderUsable,
 } from '@/lib/store/settings-validation';
 import { createKVPersistStorage, purgeLegacyPersistKey } from '@/lib/store/kv-persist';
 
 const log = createLogger('Settings');
 
 /** Persisted-blob version for zustand's `persist` `migrate` ladder. */
-const SETTINGS_PERSIST_VERSION = 4;
+const SETTINGS_PERSIST_VERSION = 5;
 
 /**
  * Bound after the store exists; see `onWriteRefused` for why it is not inlined.
@@ -115,6 +136,7 @@ export interface SettingsState {
       customVoices?: Array<{ id: string; name: string }>;
       isBuiltIn?: boolean;
       requiresApiKey?: boolean;
+      protocol?: 'openai-speech';
     }
   >;
 
@@ -135,6 +157,7 @@ export interface SettingsState {
       customDefaultBaseUrl?: string;
       isBuiltIn?: boolean;
       requiresApiKey?: boolean;
+      protocol?: 'openai-transcription';
     }
   >;
 
@@ -159,36 +182,12 @@ export interface SettingsState {
   // Image Generation settings
   imageProviderId: ImageProviderId;
   imageModelId: string;
-  imageProvidersConfig: Record<
-    ImageProviderId,
-    {
-      apiKey: string;
-      baseUrl: string;
-      enabled: boolean;
-      isServerConfigured?: boolean;
-      /** Admin/server-level force-off (server-providers.yml / env). Overrides `enabled`. */
-      serverDisabled?: boolean;
-      customModels?: Array<{ id: string; name: string }>;
-      replaceBuiltInModels?: boolean;
-    }
-  >;
+  imageProvidersConfig: Record<ImageProviderId, ImageProviderSettings>;
 
   // Video Generation settings
   videoProviderId: VideoProviderId;
   videoModelId: string;
-  videoProvidersConfig: Record<
-    VideoProviderId,
-    {
-      apiKey: string;
-      baseUrl: string;
-      enabled: boolean;
-      isServerConfigured?: boolean;
-      /** Admin/server-level force-off (server-providers.yml / env). Overrides `enabled`. */
-      serverDisabled?: boolean;
-      customModels?: Array<{ id: string; name: string }>;
-      replaceBuiltInModels?: boolean;
-    }
-  >;
+  videoProvidersConfig: Record<VideoProviderId, VideoProviderSettings>;
 
   // Media generation toggles
   imageGenerationEnabled: boolean;
@@ -355,8 +354,19 @@ export interface SettingsState {
       enabled: boolean;
       customModels: Array<{ id: string; name: string }>;
       replaceBuiltInModels: boolean;
+      customName: string;
+      protocol: ImageProtocol;
+      requiresApiKey: boolean;
     }>,
   ) => void;
+  addCustomImageProvider: (
+    id: `custom-image-${string}`,
+    name: string,
+    baseUrl: string,
+    protocol: ImageProtocol,
+    requiresApiKey: boolean,
+  ) => void;
+  removeCustomImageProvider: (id: ImageProviderId) => void;
 
   // Video Generation actions
   setVideoProvider: (providerId: VideoProviderId) => void;
@@ -369,12 +379,27 @@ export interface SettingsState {
       enabled: boolean;
       customModels: Array<{ id: string; name: string }>;
       replaceBuiltInModels: boolean;
+      customName: string;
+      protocol: VideoProtocol;
+      requiresApiKey: boolean;
     }>,
   ) => void;
+  addCustomVideoProvider: (
+    id: `custom-video-${string}`,
+    name: string,
+    baseUrl: string,
+    protocol: VideoProtocol,
+    requiresApiKey: boolean,
+  ) => void;
+  removeCustomVideoProvider: (id: VideoProviderId) => void;
 
   // Media generation toggle actions
-  setImageGenerationEnabled: (enabled: boolean) => void;
-  setVideoGenerationEnabled: (enabled: boolean) => void;
+  setImageGenerationEnabled: (
+    enabled: boolean,
+  ) => MediaActivationResult<ImageProviderId> | { ok: true; disabled: true };
+  setVideoGenerationEnabled: (
+    enabled: boolean,
+  ) => MediaActivationResult<VideoProviderId> | { ok: true; disabled: true };
   setReviewOutlineEnabled: (enabled: boolean) => void;
 
   // Web Search actions
@@ -465,14 +490,6 @@ function resolveMediaModels<T extends { id: string; name: string }>(
     : [...builtInModels, ...customModels];
 }
 
-function isUsableMediaProvider(
-  provider: { requiresApiKey: boolean } | undefined,
-  config: { apiKey?: string; enabled?: boolean; isServerConfigured?: boolean } | undefined,
-): boolean {
-  if (!provider || config?.enabled === false) return false;
-  return !provider.requiresApiKey || !!config?.apiKey || !!config?.isServerConfigured;
-}
-
 // Initialize default audio config
 const getDefaultAudioConfig = () => ({
   ttsProviderId: 'browser-native-tts' as TTSProviderId,
@@ -547,15 +564,57 @@ const getDefaultImageConfig = () => ({
   imageProviderId: 'seedream' as ImageProviderId,
   imageModelId: 'doubao-seedream-5-0-260128',
   imageProvidersConfig: {
-    seedream: { apiKey: '', baseUrl: '', enabled: false },
-    'openai-image': { apiKey: '', baseUrl: '', enabled: false },
-    'qwen-image': { apiKey: '', baseUrl: '', enabled: false },
-    'nano-banana': { apiKey: '', baseUrl: '', enabled: false },
-    'minimax-image': { apiKey: '', baseUrl: '', enabled: false },
-    'grok-image': { apiKey: '', baseUrl: '', enabled: false },
-    'comfyui-image': { apiKey: '', baseUrl: '', enabled: false },
-    lemonade: { apiKey: '', baseUrl: '', enabled: false },
-  } as Record<ImageProviderId, { apiKey: string; baseUrl: string; enabled: boolean }>,
+    seedream: { apiKey: '', baseUrl: '', enabled: false, isBuiltIn: true, requiresApiKey: true },
+    'openai-image': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    'qwen-image': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    'nano-banana': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    'minimax-image': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    'grok-image': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    'comfyui-image': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: false,
+    },
+    lemonade: {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: false,
+    },
+  } as Record<ImageProviderId, ImageProviderSettings>,
 });
 
 // Initialize default Video config
@@ -563,13 +622,31 @@ const getDefaultVideoConfig = () => ({
   videoProviderId: 'seedance' as VideoProviderId,
   videoModelId: 'doubao-seedance-2-0-260128',
   videoProvidersConfig: {
-    seedance: { apiKey: '', baseUrl: '', enabled: false },
-    kling: { apiKey: '', baseUrl: '', enabled: false },
-    veo: { apiKey: '', baseUrl: '', enabled: false },
-    'minimax-video': { apiKey: '', baseUrl: '', enabled: false },
-    'grok-video': { apiKey: '', baseUrl: '', enabled: false },
-    happyhorse: { apiKey: '', baseUrl: '', enabled: false },
-  } as Record<VideoProviderId, { apiKey: string; baseUrl: string; enabled: boolean }>,
+    seedance: { apiKey: '', baseUrl: '', enabled: false, isBuiltIn: true, requiresApiKey: true },
+    kling: { apiKey: '', baseUrl: '', enabled: false, isBuiltIn: true, requiresApiKey: true },
+    veo: { apiKey: '', baseUrl: '', enabled: false, isBuiltIn: true, requiresApiKey: true },
+    'minimax-video': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    'grok-video': {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+    happyhorse: {
+      apiKey: '',
+      baseUrl: '',
+      enabled: false,
+      isBuiltIn: true,
+      requiresApiKey: true,
+    },
+  } as Record<VideoProviderId, VideoProviderSettings>,
 });
 
 // Initialize default Web Search config
@@ -655,11 +732,19 @@ function ensureValidProviderSelections(state: Partial<SettingsState>): void {
   }
   ensureBaiduSubSources(state);
 
-  if (!hasProviderId(IMAGE_PROVIDERS, state.imageProviderId)) {
+  if (
+    state.imageProviderId === undefined ||
+    ((state.imageProviderId as string) !== '' &&
+      !findImageProvider(state.imageProviderId, IMAGE_PROVIDERS, state.imageProvidersConfig ?? {}))
+  ) {
     state.imageProviderId = defaultImageConfig.imageProviderId;
   }
 
-  if (!hasProviderId(VIDEO_PROVIDERS, state.videoProviderId)) {
+  if (
+    state.videoProviderId === undefined ||
+    ((state.videoProviderId as string) !== '' &&
+      !findVideoProvider(state.videoProviderId, VIDEO_PROVIDERS, state.videoProvidersConfig ?? {}))
+  ) {
     state.videoProviderId = defaultVideoConfig.videoProviderId;
   }
 
@@ -715,6 +800,15 @@ function ensureBuiltInAudioProviders(state: Partial<SettingsState>): void {
         state.asrProvidersConfig[providerId] = defaultAudioConfig.asrProvidersConfig[providerId];
       }
     }
+  }
+}
+
+function ensureCustomAudioProtocols(state: Partial<SettingsState>): void {
+  for (const [id, config] of Object.entries(state.ttsProvidersConfig ?? {})) {
+    if (isCustomTTSProvider(id) && !config.protocol) config.protocol = 'openai-speech';
+  }
+  for (const [id, config] of Object.entries(state.asrProvidersConfig ?? {})) {
+    if (isCustomASRProvider(id) && !config.protocol) config.protocol = 'openai-transcription';
   }
 }
 
@@ -778,9 +872,15 @@ function ensureBuiltInImageProviders(state: Partial<SettingsState>): void {
   if (!state.imageProvidersConfig) return;
   const defaultConfig = getDefaultImageConfig().imageProvidersConfig;
   Object.keys(IMAGE_PROVIDERS).forEach((pid) => {
-    const providerId = pid as ImageProviderId;
+    const providerId = pid as BuiltInImageProviderId;
     if (!state.imageProvidersConfig![providerId]) {
       state.imageProvidersConfig![providerId] = defaultConfig[providerId];
+    } else {
+      state.imageProvidersConfig![providerId] = {
+        ...state.imageProvidersConfig![providerId],
+        isBuiltIn: true,
+        requiresApiKey: IMAGE_PROVIDERS[providerId].requiresApiKey,
+      };
     }
   });
 }
@@ -810,9 +910,15 @@ function ensureBuiltInVideoProviders(state: Partial<SettingsState>): void {
   if (!state.videoProvidersConfig) return;
   const defaultConfig = getDefaultVideoConfig().videoProvidersConfig;
   Object.keys(VIDEO_PROVIDERS).forEach((pid) => {
-    const providerId = pid as VideoProviderId;
+    const providerId = pid as BuiltInVideoProviderId;
     if (!state.videoProvidersConfig![providerId]) {
       state.videoProvidersConfig![providerId] = defaultConfig[providerId];
+    } else {
+      state.videoProvidersConfig![providerId] = {
+        ...state.videoProvidersConfig![providerId],
+        isBuiltIn: true,
+        requiresApiKey: VIDEO_PROVIDERS[providerId].requiresApiKey,
+      };
     }
   });
 }
@@ -1156,7 +1262,8 @@ export const useSettingsStore = create<SettingsState>()(
             imageModelId: resolveSelectedModel(
               state.imageModelId,
               resolveMediaModels(
-                IMAGE_PROVIDERS[providerId]?.models ?? [],
+                findImageProvider(providerId, IMAGE_PROVIDERS, state.imageProvidersConfig)
+                  ?.models ?? [],
                 state.imageProvidersConfig[providerId],
               ),
             ),
@@ -1175,34 +1282,19 @@ export const useSettingsStore = create<SettingsState>()(
             };
             const base = { imageProvidersConfig };
             if (state.imageProviderId === providerId) {
-              // Disabling the active provider (e.g. removing a token plan) must
-              // switch the selection away to the default, or generation paths
-              // keep pointing at a disabled provider with an empty key.
               if (config.enabled === false) {
-                const providerIds = Object.keys(IMAGE_PROVIDERS) as ImageProviderId[];
-                const usableFallback = providerIds.find(
-                  (id) =>
-                    id !== providerId &&
-                    isUsableMediaProvider(IMAGE_PROVIDERS[id], imageProvidersConfig[id]),
-                );
-                const fallback =
-                  usableFallback ?? providerIds.find((id) => id !== providerId) ?? providerId;
-                const fallbackModels = resolveMediaModels(
-                  IMAGE_PROVIDERS[fallback]?.models ?? [],
-                  imageProvidersConfig[fallback],
-                );
                 return {
                   ...base,
-                  imageProviderId: fallback,
-                  imageModelId: resolveSelectedModel(state.imageModelId, fallbackModels),
-                  ...(!usableFallback ? { imageGenerationEnabled: false } : {}),
+                  imageProviderId: '' as ImageProviderId,
+                  imageModelId: '',
+                  imageGenerationEnabled: false,
                 };
               }
               // Atomic invariant (#580): a config edit on the active image
               // provider (e.g. deleting the selected custom model) must not
               // leave imageModelId pointing at a model that no longer exists.
               const models = resolveMediaModels(
-                IMAGE_PROVIDERS[providerId]?.models ?? [],
+                findImageProvider(providerId, IMAGE_PROVIDERS, imageProvidersConfig)?.models ?? [],
                 mergedProvider,
               );
               const imageModelId = resolveSelectedModel(state.imageModelId, models);
@@ -1213,6 +1305,43 @@ export const useSettingsStore = create<SettingsState>()(
             return base;
           }),
 
+        addCustomImageProvider: (id, name, baseUrl, protocol, requiresApiKey) =>
+          set((state) => {
+            if (!isCustomImageProviderId(id)) return state;
+            return {
+              imageProvidersConfig: {
+                ...state.imageProvidersConfig,
+                [id]: {
+                  apiKey: '',
+                  baseUrl,
+                  enabled: true,
+                  customModels: [],
+                  replaceBuiltInModels: true,
+                  customName: name,
+                  protocol,
+                  requiresApiKey,
+                  isBuiltIn: false,
+                },
+              },
+              imageProviderId: id,
+              imageModelId: '',
+            };
+          }),
+
+        removeCustomImageProvider: (id) =>
+          set((state) => {
+            if (!isCustomImageProviderId(id) || !state.imageProvidersConfig[id]) return state;
+            const { [id]: _, ...rest } = state.imageProvidersConfig;
+            return {
+              imageProvidersConfig: rest as typeof state.imageProvidersConfig,
+              ...(state.imageProviderId === id && {
+                imageProviderId: '' as ImageProviderId,
+                imageModelId: '',
+                imageGenerationEnabled: false,
+              }),
+            };
+          }),
+
         // Video Generation actions
         setVideoProvider: (providerId) =>
           set((state) => ({
@@ -1220,7 +1349,8 @@ export const useSettingsStore = create<SettingsState>()(
             videoModelId: resolveSelectedModel(
               state.videoModelId,
               resolveMediaModels(
-                VIDEO_PROVIDERS[providerId]?.models ?? [],
+                findVideoProvider(providerId, VIDEO_PROVIDERS, state.videoProvidersConfig)
+                  ?.models ?? [],
                 state.videoProvidersConfig[providerId],
               ),
             ),
@@ -1239,33 +1369,18 @@ export const useSettingsStore = create<SettingsState>()(
             };
             const base = { videoProvidersConfig };
             if (state.videoProviderId === providerId) {
-              // Symmetric with image: disabling the active provider switches the
-              // selection back to the default so nothing keeps pointing at a
-              // disabled provider with an empty key.
               if (config.enabled === false) {
-                const providerIds = Object.keys(VIDEO_PROVIDERS) as VideoProviderId[];
-                const usableFallback = providerIds.find(
-                  (id) =>
-                    id !== providerId &&
-                    isUsableMediaProvider(VIDEO_PROVIDERS[id], videoProvidersConfig[id]),
-                );
-                const fallback =
-                  usableFallback ?? providerIds.find((id) => id !== providerId) ?? providerId;
-                const fallbackModels = resolveMediaModels(
-                  VIDEO_PROVIDERS[fallback]?.models ?? [],
-                  videoProvidersConfig[fallback],
-                );
                 return {
                   ...base,
-                  videoProviderId: fallback,
-                  videoModelId: resolveSelectedModel(state.videoModelId, fallbackModels),
-                  ...(!usableFallback ? { videoGenerationEnabled: false } : {}),
+                  videoProviderId: '' as VideoProviderId,
+                  videoModelId: '',
+                  videoGenerationEnabled: false,
                 };
               }
               // Atomic invariant (#580): symmetric with image — a config edit on
               // the active video provider must not leave videoModelId stale.
               const models = resolveMediaModels(
-                VIDEO_PROVIDERS[providerId]?.models ?? [],
+                findVideoProvider(providerId, VIDEO_PROVIDERS, videoProvidersConfig)?.models ?? [],
                 mergedProvider,
               );
               const videoModelId = resolveSelectedModel(state.videoModelId, models);
@@ -1276,22 +1391,97 @@ export const useSettingsStore = create<SettingsState>()(
             return base;
           }),
 
+        addCustomVideoProvider: (id, name, baseUrl, protocol, requiresApiKey) =>
+          set((state) => {
+            if (!isCustomVideoProviderId(id)) return state;
+            return {
+              videoProvidersConfig: {
+                ...state.videoProvidersConfig,
+                [id]: {
+                  apiKey: '',
+                  baseUrl,
+                  enabled: true,
+                  customModels: [],
+                  replaceBuiltInModels: true,
+                  customName: name,
+                  protocol,
+                  requiresApiKey,
+                  isBuiltIn: false,
+                },
+              },
+              videoProviderId: id,
+              videoModelId: '',
+            };
+          }),
+
+        removeCustomVideoProvider: (id) =>
+          set((state) => {
+            if (!isCustomVideoProviderId(id) || !state.videoProvidersConfig[id]) return state;
+            const { [id]: _, ...rest } = state.videoProvidersConfig;
+            return {
+              videoProvidersConfig: rest as typeof state.videoProvidersConfig,
+              ...(state.videoProviderId === id && {
+                videoProviderId: '' as VideoProviderId,
+                videoModelId: '',
+                videoGenerationEnabled: false,
+              }),
+            };
+          }),
+
         // Media generation toggle actions
         setImageGenerationEnabled: (enabled) => {
-          if (enabled) {
-            const cfg = get().imageProvidersConfig;
-            const hasUsable = Object.values(cfg).some((c) => c.isServerConfigured || c.apiKey);
-            if (!hasUsable) return;
+          if (!enabled) {
+            set({ imageGenerationEnabled: false });
+            return { ok: true, disabled: true };
           }
-          set({ imageGenerationEnabled: enabled });
+          const state = get();
+          const activation = resolveImageActivation(
+            state.imageProviderId,
+            state.imageModelId,
+            IMAGE_PROVIDERS,
+            state.imageProvidersConfig,
+          );
+          if (!activation.ok) return activation;
+          set({
+            imageGenerationEnabled: true,
+            imageProviderId: activation.providerId,
+            imageModelId: activation.modelId,
+            imageProvidersConfig: {
+              ...state.imageProvidersConfig,
+              [activation.providerId]: {
+                ...state.imageProvidersConfig[activation.providerId],
+                enabled: true,
+              },
+            },
+          });
+          return activation;
         },
         setVideoGenerationEnabled: (enabled) => {
-          if (enabled) {
-            const cfg = get().videoProvidersConfig;
-            const hasUsable = Object.values(cfg).some((c) => c.isServerConfigured || c.apiKey);
-            if (!hasUsable) return;
+          if (!enabled) {
+            set({ videoGenerationEnabled: false });
+            return { ok: true, disabled: true };
           }
-          set({ videoGenerationEnabled: enabled });
+          const state = get();
+          const activation = resolveVideoActivation(
+            state.videoProviderId,
+            state.videoModelId,
+            VIDEO_PROVIDERS,
+            state.videoProvidersConfig,
+          );
+          if (!activation.ok) return activation;
+          set({
+            videoGenerationEnabled: true,
+            videoProviderId: activation.providerId,
+            videoModelId: activation.modelId,
+            videoProvidersConfig: {
+              ...state.videoProvidersConfig,
+              [activation.providerId]: {
+                ...state.videoProvidersConfig[activation.providerId],
+                enabled: true,
+              },
+            },
+          });
+          return activation;
         },
         setReviewOutlineEnabled: (enabled) => set({ reviewOutlineEnabled: enabled }),
         setTTSEnabled: (enabled) => set({ ttsEnabled: enabled }),
@@ -1312,6 +1502,7 @@ export const useSettingsStore = create<SettingsState>()(
                 customVoices: [],
                 isBuiltIn: false,
                 requiresApiKey,
+                protocol: 'openai-speech',
               },
             },
             ttsProviderId: id,
@@ -1344,6 +1535,7 @@ export const useSettingsStore = create<SettingsState>()(
                 customDefaultBaseUrl: baseUrl,
                 isBuiltIn: false,
                 requiresApiKey,
+                protocol: 'openai-transcription',
               },
             },
             asrProviderId: id,
@@ -1792,7 +1984,7 @@ export const useSettingsStore = create<SettingsState>()(
                   .map(([id]) => id) as ImageProviderId[];
                 if (
                   serverImageIds.length > 0 &&
-                  !newImageConfig[state.imageProviderId]?.isServerConfigured
+                  !isProviderUsable(newImageConfig[state.imageProviderId])
                 ) {
                   autoImageProvider = serverImageIds[0];
                   const models = IMAGE_PROVIDERS[autoImageProvider]?.models;
@@ -1800,6 +1992,13 @@ export const useSettingsStore = create<SettingsState>()(
                 }
                 if (serverImageIds.length > 0 && !state.imageGenerationEnabled) {
                   autoImageEnabled = true;
+                  const providerToEnable = autoImageProvider ?? state.imageProviderId;
+                  if (providerToEnable && newImageConfig[providerToEnable]) {
+                    newImageConfig[providerToEnable] = {
+                      ...newImageConfig[providerToEnable],
+                      enabled: true,
+                    };
+                  }
                 }
 
                 // Video: first server provider. Skip server-disabled entries —
@@ -1809,7 +2008,7 @@ export const useSettingsStore = create<SettingsState>()(
                   .map(([id]) => id) as VideoProviderId[];
                 if (
                   serverVideoIds.length > 0 &&
-                  !newVideoConfig[state.videoProviderId]?.isServerConfigured
+                  !isProviderUsable(newVideoConfig[state.videoProviderId])
                 ) {
                   autoVideoProvider = serverVideoIds[0];
                   const models = VIDEO_PROVIDERS[autoVideoProvider]?.models;
@@ -1817,6 +2016,13 @@ export const useSettingsStore = create<SettingsState>()(
                 }
                 if (serverVideoIds.length > 0 && !state.videoGenerationEnabled) {
                   autoVideoEnabled = true;
+                  const providerToEnable = autoVideoProvider ?? state.videoProviderId;
+                  if (providerToEnable && newVideoConfig[providerToEnable]) {
+                    newVideoConfig[providerToEnable] = {
+                      ...newVideoConfig[providerToEnable],
+                      enabled: true,
+                    };
+                  }
                 }
               }
 
@@ -1959,6 +2165,7 @@ export const useSettingsStore = create<SettingsState>()(
           Object.assign(state, defaultAudioConfig);
         }
         ensureBuiltInAudioProviders(state);
+        ensureCustomAudioProtocols(state);
         ensureBuiltInWebSearchProviders(state);
 
         // Migrate global ttsModelId to per-provider
@@ -2121,6 +2328,11 @@ export const useSettingsStore = create<SettingsState>()(
           }
         }
 
+        // v4 → v5: custom audio providers already used these OpenAI-compatible
+        // adapters implicitly. Persist the protocol explicitly without changing
+        // any credentials, models, voices, or enablement state.
+        if (version < 5) ensureCustomAudioProtocols(state);
+
         ensureValidProviderSelections(state);
         ensureBuiltInAudioProviders(state);
         ensureBuiltInWebSearchProviders(state);
@@ -2140,6 +2352,7 @@ export const useSettingsStore = create<SettingsState>()(
         ensureBuiltInProviders(merged as Partial<SettingsState>);
         promoteLegacyCustomProviderBaseUrls(merged as Partial<SettingsState>);
         ensureBuiltInAudioProviders(merged as Partial<SettingsState>);
+        ensureCustomAudioProtocols(merged as Partial<SettingsState>);
         ensureBuiltInImageProviders(merged as Partial<SettingsState>);
         ensureBuiltInVideoProviders(merged as Partial<SettingsState>);
         ensureBuiltInPDFProviders(merged as Partial<SettingsState>);
@@ -2166,3 +2379,64 @@ recovery.rehydrate = () => useSettingsStore.persist.rehydrate();
 // holds plaintext provider API keys, so clearing it is a small security win. No
 // correctness depends on it.
 purgeLegacyPersistKey('settings-storage');
+
+// Removing/clearing a provider through the existing settings path also revokes
+// its server-side PRO copies. Selection changes alone apply on the next run.
+if (typeof window !== 'undefined') {
+  useSettingsStore.subscribe((state, previous) => {
+    const removed = Object.entries(previous.providersConfig).some(([id, before]) => {
+      const after = state.providersConfig[id as ProviderId];
+      return before && (!after || (before.apiKey && !after.apiKey));
+    });
+    if (removed)
+      void revokeProModelConnection().catch(() => {
+        // A durable pending marker blocks the next send until revocation succeeds.
+      });
+
+    const revokedMediaIds = new Set<string>();
+    const collectRevoked = (
+      beforeMap: Record<
+        string,
+        | {
+            apiKey?: string;
+            baseUrl?: string;
+            enabled?: boolean;
+            providerOptions?: Record<string, unknown>;
+          }
+        | undefined
+      >,
+      afterMap: Record<
+        string,
+        | {
+            apiKey?: string;
+            baseUrl?: string;
+            enabled?: boolean;
+            providerOptions?: Record<string, unknown>;
+          }
+        | undefined
+      >,
+    ) => {
+      for (const [id, before] of Object.entries(beforeMap)) {
+        if (!before) continue;
+        const after = afterMap[id];
+        if (
+          !after ||
+          before.enabled !== after.enabled ||
+          before.apiKey !== after.apiKey ||
+          before.baseUrl !== after.baseUrl ||
+          JSON.stringify(before.providerOptions) !== JSON.stringify(after.providerOptions)
+        ) {
+          revokedMediaIds.add(id);
+        }
+      }
+    };
+    collectRevoked(previous.imageProvidersConfig, state.imageProvidersConfig);
+    collectRevoked(previous.videoProvidersConfig, state.videoProvidersConfig);
+    collectRevoked(previous.ttsProvidersConfig, state.ttsProvidersConfig);
+    for (const id of revokedMediaIds) {
+      void revokeMediaConfigSnapshotsForProvider(id).catch(() => {
+        // Revocation is best-effort here; the next run still creates a fresh snapshot.
+      });
+    }
+  });
+}

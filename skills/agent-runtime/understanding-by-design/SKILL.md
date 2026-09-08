@@ -1,7 +1,7 @@
 ---
 name: understanding-by-design
 title: "理解本位设计（UbD）"
-description: "Use Understanding by Design (UbD) to plan one OpenMAIC classroom or a course series around transferable conceptual understanding. Use when the user wants backward design, enduring understandings, essential questions, GRASPS performance evidence, WHERETO learning experiences, or a concept-centered lesson rather than a list of facts. Do not use for visual style cloning, teacher-style imitation, or direct PPT import."
+description: "Apply Understanding by Design in zhiyu to plan one classroom or a series around transferable concepts. Use for backward design, enduring understanding, essential questions, GRASPS evidence, WHERETO experiences, or concept-centered learning instead of fact lists. Exclude visual cloning, teacher-style imitation, and direct PPT import."
 ---
 
 # 理解本位设计（UbD）

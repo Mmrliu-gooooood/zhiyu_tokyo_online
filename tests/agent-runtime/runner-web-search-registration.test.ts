@@ -69,6 +69,11 @@ vi.mock('@/lib/server/agent-runtime/entry-tree-storage', async (importActual) =>
   };
 });
 
+// This harness exercises runner lifecycle; model readiness has its own integration suite.
+vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
+  preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
+}));
+
 vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
   resolveAgentDriverModel: mocks.resolveAgentDriverModel,
 }));
@@ -292,9 +297,14 @@ describe('web_search runner registration', () => {
       'read_classroom',
       'search_chats',
       'read_chat',
+      'submit_course_generation',
+      'get_course_generation_status',
+      'cancel_course_generation',
+      'retry_course_generation',
     ]);
     expect([...(options.allowedToolNames ?? [])].sort()).toEqual([
       'ask_user',
+      'cancel_course_generation',
       'clip_audio',
       'create_folder',
       'create_skill',
@@ -307,6 +317,7 @@ describe('web_search runner registration', () => {
       'generate_image',
       'generate_scene',
       'generate_tts',
+      'get_course_generation_status',
       'grep_stage',
       'import_pptx',
       'list_folder_stages',
@@ -323,10 +334,12 @@ describe('web_search runner registration', () => {
       'read_stage',
       'read_stage_outline',
       'rename_stage',
+      'retry_course_generation',
       'search_chats',
       'search_classrooms',
       'search_material',
       'set_roster',
+      'submit_course_generation',
       'use_material_media',
       'wait_for_materials',
       'web_search',
@@ -383,9 +396,14 @@ describe('web_search runner registration', () => {
       'read_classroom',
       'search_chats',
       'read_chat',
+      'submit_course_generation',
+      'get_course_generation_status',
+      'cancel_course_generation',
+      'retry_course_generation',
     ]);
     expect([...(options.allowedToolNames ?? [])].sort()).toEqual([
       'ask_user',
+      'cancel_course_generation',
       'clip_audio',
       'create_folder',
       'create_skill',
@@ -398,6 +416,7 @@ describe('web_search runner registration', () => {
       'generate_image',
       'generate_scene',
       'generate_tts',
+      'get_course_generation_status',
       'grep_stage',
       'import_pptx',
       'list_folder_stages',
@@ -414,10 +433,12 @@ describe('web_search runner registration', () => {
       'read_stage',
       'read_stage_outline',
       'rename_stage',
+      'retry_course_generation',
       'search_chats',
       'search_classrooms',
       'search_material',
       'set_roster',
+      'submit_course_generation',
       'use_material_media',
       'wait_for_materials',
     ]);

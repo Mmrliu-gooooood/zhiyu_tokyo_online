@@ -169,6 +169,18 @@ export const workbenchEn = {
     steerQueued: 'The agent will respond after finishing the current step',
     runFailed: 'This build failed',
     retryHint: 'Send another message to retry',
+    modelKeyRequired: 'Add an API key in model settings, then retry.',
+    modelProtocolRequired: 'Select a supported API protocol in model settings, then recheck.',
+    modelEncryptionUnavailable:
+      'The server model connection encryption secret is missing. Check deployment settings.',
+    modelConnectionUnavailable:
+      'The model connection was cleared or is unavailable. Open model settings and recheck.',
+    modelUnsafeEndpoint:
+      'The model endpoint failed its security check. Correct it in model settings.',
+    modelConfigurationRequired:
+      'The model configuration is unavailable. Open model settings and recheck before retrying.',
+    modelSettingsHint:
+      'Open model settings and recheck. Continue this conversation after fixing the connection.',
     stopped: 'This build was stopped',
     workerInterrupted:
       'Interrupted by a worker restart. This call produced no result; the agent will retry it if needed.',
@@ -469,6 +481,13 @@ export const workbenchZh = {
     steerQueued: 'agent 会在当前这一步做完后回应你',
     runFailed: '本轮生成失败',
     retryHint: '可以再说一句让它重试',
+    modelKeyRequired: '缺少 API Key，请打开模型设置补全后重试。',
+    modelProtocolRequired: '请在模型连接配置中指定支持的 API 协议，然后重新检查。',
+    modelEncryptionUnavailable: '服务器尚未配置模型连接加密密钥，请检查部署设置。',
+    modelConnectionUnavailable: '模型连接已撤销或不可用，请打开模型设置重新检查。',
+    modelUnsafeEndpoint: '模型 API 地址未通过安全校验，请在模型设置中修正。',
+    modelConfigurationRequired: '模型配置不可用，请打开模型设置重新检查后重试。',
+    modelSettingsHint: '请打开模型设置重新检查，修复后可在当前对话继续。',
     stopped: '本轮生成已停止',
     workerInterrupted: '被 worker 重启打断，这次调用没有产生结果；agent 会在新一次尝试里按需重发。',
     userStopped: '已被停止打断，这次调用没有产生结果。',

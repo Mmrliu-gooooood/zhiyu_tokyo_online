@@ -1874,7 +1874,7 @@
       "download": "다운로드",
       "detailFailed": "스킬 상세를 불러오지 못했습니다",
       "contentLabel": "내용",
-      "builtinDetailNote": "이 스킬은 OpenMAIC에 포함되어 있습니다. 다른 에이전트 작업공간으로 가져오려면 다운로드하세요.",
+      "builtinDetailNote": "이 스킬은 zhiyu에 포함되어 있습니다. 다른 에이전트 작업공간으로 가져오려면 다운로드하세요.",
       "upload": "업로드",
       "uploading": "업로드 중…",
       "uploadFailed": "스킬을 업로드하지 못했습니다. 파일을 확인하고 다시 시도하세요.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "브라우저 내장 TTS는 편집기 타임라인의 오디오 기능(미리듣기·다시 생성·전체 음성 생성)을 지원하지 않습니다. 관리형 TTS 공급자로 전환하면 줄별 오디오를 생성·관리할 수 있습니다.",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "사용자 지정 플랫폼 추가",
+    "mediaProtocol": "API 프로토콜",
+    "mediaProtocolHint": "플랫폼이 지원하는 API 형식을 선택하세요. 호환 게이트웨이의 Base URL도 사용할 수 있습니다.",
+    "customMediaProviderHint": "플랫폼을 추가한 후 API 키와 모델 ID를 입력하세요.",
+    "mediaProviderEnabled": "플랫폼 활성화",
+    "mediaConfigurationChecked": "설정이 완료되었습니다. 생성 요청은 보내지 않았으며 API 키와 모델의 사용 가능 여부는 확인되지 않았습니다.",
+    "checkMediaConfiguration": "설정 확인"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

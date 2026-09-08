@@ -20,6 +20,7 @@ export async function runWorker(options: {
   signal: AbortSignal;
   execute: (lease: GenerationLease, signal: AbortSignal) => Promise<unknown>;
   report?: (event: { event: string; jobId?: string }) => void;
+  maintenance?: () => Promise<unknown>;
 }) {
   const { repository, workerId, signal } = options;
   const versions = [GENERATION_PIPELINE_VERSION];
@@ -33,6 +34,7 @@ export async function runWorker(options: {
       await repository.reapExpired();
       await repository.confirmDuePlans();
       await repository.releaseExpiredStagedAssets?.();
+      await options.maintenance?.();
     } catch {
       options.report?.({ event: 'worker_database_unavailable' });
     } finally {

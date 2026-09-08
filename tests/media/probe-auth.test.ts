@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { probeAuth } from '@/lib/media/probe-auth';
 
 describe('probeAuth', () => {
-  it.each([200, 299, 400, 404, 429, 500])(
+  it.each([200, 299])(
     'treats HTTP %i as authenticated without reading the response body',
     async (status) => {
       const response = new Response('unused', { status });
@@ -18,6 +18,38 @@ describe('probeAuth', () => {
       expect(textSpy).not.toHaveBeenCalled();
     },
   );
+
+  it.each([400, 404])('accepts a provider-defined HTTP %i sentinel', async (status) => {
+    const response = new Response('unused', { status });
+    const textSpy = vi.spyOn(response, 'text');
+    const request = vi.fn().mockResolvedValue(response);
+
+    await expect(
+      probeAuth({ providerName: 'Example', request, acceptedStatuses: [status] }),
+    ).resolves.toEqual({ success: true, message: 'Connected to Example' });
+    expect(textSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unspecified validation response', async () => {
+    const request = vi.fn().mockResolvedValue(new Response('bad request', { status: 400 }));
+    await expect(probeAuth({ providerName: 'Example', request })).resolves.toEqual({
+      success: false,
+      message: 'Example connectivity failed (400): bad request',
+    });
+  });
+
+  it.each([
+    [429, 'rate limited'],
+    [500, 'server error'],
+    [503, 'unavailable'],
+  ])('reports HTTP %i as unavailable', async (status, body) => {
+    const request = vi.fn().mockResolvedValue(new Response(body, { status }));
+
+    await expect(probeAuth({ providerName: 'Example', request })).resolves.toEqual({
+      success: false,
+      message: `Example connectivity failed (${status}): ${body}`,
+    });
+  });
 
   it.each([300, 301, 302, 303, 304, 307, 308, 399])(
     'rejects HTTP %i redirects without reading the response body',

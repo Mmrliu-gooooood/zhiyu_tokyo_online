@@ -263,6 +263,18 @@ describe('shipped skill constraints', () => {
     }
   });
 
+  it('uses zhiyu-specific descriptions without exposing the upstream brand', async () => {
+    const loaded = await listSkills();
+    expect(loaded.length).toBeGreaterThan(0);
+    for (const skill of loaded) {
+      const description = skill.description.toLowerCase();
+      expect(description, `${skill.id} should name zhiyu`).toContain('zhiyu');
+      expect(description, `${skill.id} should not name the upstream product`).not.toContain(
+        'openmaic',
+      );
+    }
+  });
+
   it('ships the K-12 core-literacy skill as an OpenMAIC-native classroom flow', async () => {
     const root = join(process.cwd(), 'skills/agent-runtime/k12-core-literacy-planning');
     const md = readFileSync(join(root, 'SKILL.md'), 'utf8');

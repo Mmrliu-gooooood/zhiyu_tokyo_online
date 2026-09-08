@@ -29,6 +29,7 @@ import {
   generateWithLemonadeImage,
   testLemonadeImageConnectivity,
 } from './adapters/lemonade-image-adapter';
+import { generateWithCustomImageProtocol } from './adapters/custom-image-protocol-adapter';
 
 export const IMAGE_PROVIDERS: Record<ImageProviderId, ImageProviderConfig> = {
   seedream: {
@@ -192,6 +193,10 @@ export async function generateImage(
   config: ImageGenerationConfig,
   options: ImageGenerationOptions,
 ): Promise<ImageGenerationResult> {
+  if (String(config.providerId).startsWith('custom-image-')) {
+    return generateWithCustomImageProtocol(config, options);
+  }
+
   switch (config.providerId) {
     case 'seedream':
       return generateWithSeedream(config, options);

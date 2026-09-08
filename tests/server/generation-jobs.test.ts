@@ -3,6 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { ensureDocumentSchema } from '@openmaic/storage/document/pg';
 import { ensureAssetSchema } from '@openmaic/storage/asset/pg';
+import { ensureAgentSessionSchema } from '@openmaic/storage/agent-session/pg';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
 import { createOwnerBoundDocumentStore } from '@/lib/persistence/owner-bound-document-store';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
@@ -71,6 +72,7 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     await ensureDocumentSchema(pool);
     await ensureStageMetaSchema(pool);
     await ensureAssetSchema(pool);
+    await ensureAgentSessionSchema(pool);
     await migrateGenerationSchema(pool);
     repo = new GenerationJobRepository(pool);
   }, 30_000);
@@ -80,6 +82,38 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   async function create() {
     return repo.createJob('owner', 'create-key', input);
   }
+  it('projects Pro worker progress into the existing session and links only after success', async () => {
+    await pool.query(
+      "INSERT INTO agent_sessions(id,owner_id,prompt,stage_id,status) VALUES('pro-session','owner','course','stage','succeeded')",
+    );
+    const job = await repo.createJob('owner', 'pro-key', {
+      ...input,
+      source: { kind: 'pro', sessionId: 'pro-session', submissionId: 'submit-call' },
+      planning: { outlines: [outline] },
+      review: { mode: 'auto' },
+    });
+    const queued = await pool.query<{ type: string; data: { toolCallId?: string; result?: { details?: { jobId?: string } } } }>(
+      'SELECT type,data FROM agent_session_events WHERE session_id=$1 ORDER BY seq',
+      ['pro-session'],
+    );
+    expect(queued.rows.at(-1)).toMatchObject({
+      type: 'tool_execution_end',
+      data: { toolCallId: 'submit-call', result: { details: { jobId: job.jobId } } },
+    });
+    expect(queued.rows.some((event) => event.type === 'stage_link')).toBe(false);
+
+    const lease = (await repo.claim('worker'))!;
+    const slot = (await repo.getSnapshot(lease)).scenes[0]!;
+    await repo.publishScene(lease, 'one', scene(lease, slot.sceneId));
+    await repo.complete(lease);
+    const completed = await pool.query<{ type: string; data: { generationJobId?: string } }>(
+      'SELECT type,data FROM agent_session_events WHERE session_id=$1 ORDER BY seq',
+      ['pro-session'],
+    );
+    expect(completed.rows.filter((event) => event.type === 'stage_link')).toEqual([
+      expect.objectContaining({ data: expect.objectContaining({ generationJobId: job.jobId }) }),
+    ]);
+  });
   async function claimed(): Promise<GenerationLease> {
     await create();
     const lease = await repo.claim('worker');
@@ -123,7 +157,11 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   }
   it('migration reruns are idempotent and checksum drift aborts', async () => {
     await migrateGenerationSchema(pool);
-    expect(await getGenerationSchemaVersion(pool)).toBe(1);
+    expect(await getGenerationSchemaVersion(pool)).toBe(3);
+    const snapshots = await pool.query<{ name: string | null }>(
+      "SELECT to_regclass('media_config_snapshots')::text AS name",
+    );
+    expect(snapshots.rows[0]?.name).toBe('media_config_snapshots');
     await pool.query("UPDATE generation_schema_migrations SET checksum='drift'");
     await expect(migrateGenerationSchema(pool)).rejects.toThrow('checksum');
   });
@@ -139,6 +177,48 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       [job.stageId],
     );
     expect(rows.rows[0]).toEqual({ producer: 'server-job', complete: false });
+  });
+  it('reuses an owner stage at the exact revision and seeds a supplied Pro plan', async () => {
+    const store = createOwnerBoundDocumentStore<Scene>({
+      pool,
+      ownerId: 'owner',
+      validateScene: validateAppScene,
+      validateStage: validateAppStage,
+    });
+    const now = Date.now();
+    await store.saveDocument({
+      stage: {
+        id: 'pro-target',
+        name: 'Pro target',
+        createdAt: now,
+        updatedAt: now,
+        interactiveMode: false,
+        taskEngineMode: false,
+      },
+      scenes: [],
+      outline: { outlines: [] },
+    });
+    const revision = await repo.getStageRevision('owner', 'pro-target');
+    expect(revision).not.toBeNull();
+    const job = await repo.createJob('owner', 'pro-submit', {
+      ...input,
+      review: { mode: 'auto' },
+      source: { kind: 'pro', sessionId: 'session-1', submissionId: 'tool-1' },
+      target: { stageId: 'pro-target', revision },
+      planning: { outlines: [outline], skillIds: ['stage-dsl'] },
+    });
+    expect(job).toMatchObject({ stageId: 'pro-target', phase: 'agents', totalScenes: 1 });
+    expect(await repo.getJobBySession('owner', 'session-1')).toMatchObject({ jobId: job.jobId });
+    const lease = await repo.claim('worker');
+    expect(lease).toMatchObject({ jobId: job.jobId, planRevision: 1 });
+    expect((await repo.getSnapshot(lease!)).scenes).toHaveLength(1);
+    await expect(
+      repo.createJob('owner', 'stale-target', {
+        ...input,
+        source: { kind: 'pro', sessionId: 'session-2' },
+        target: { stageId: 'pro-target', revision: revision! - 1 },
+      }),
+    ).rejects.toThrow('TARGET_STAGE_REVISION_CONFLICT');
   });
   it('rejects unavailable/shared assets atomically without leaving a placeholder', async () => {
     await expect(
@@ -353,11 +433,15 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   });
   it('projects expired external work as needs_attention and still requires retry acknowledgement', async () => {
     const lease = await confirmed();
-    await repo.beginStep(lease, {
-      key: 'content:one:call:0',
-      kind: 'llm',
+    const firstAttempt = await repo.beginStep(lease, {
+      key: 'media:one:call:0',
+      kind: 'media',
       dependencyHash: 'paid',
       external: true,
+    });
+    await repo.recordProviderRequest(lease, {
+      attemptId: firstAttempt.attemptId!,
+      taskId: 'paid-task-one',
     });
     await pool.query(
       "UPDATE generation_jobs SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
@@ -375,6 +459,16 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       acknowledged: true,
     });
     expect((await repo.getJobDetail('owner', lease.jobId)).scenes[0].status).toBe('pending');
+    const resumedLease = (await repo.claim('worker-resumed'))!;
+    const resumedAttempt = await repo.beginStep(resumedLease, {
+      key: 'media:one:call:0',
+      kind: 'media',
+      dependencyHash: 'paid',
+      external: true,
+    });
+    expect(resumedAttempt.providerRequestId).toBe('paid-task-one');
+    expect(resumedLease.jobId).toBe(lease.jobId);
+    expect((await pool.query<{ count: number }>('SELECT count(*)::int count FROM generation_jobs')).rows[0]?.count).toBe(1);
   });
   it('publishes incrementally, preserves ready content, finishes both completion mirrors', async () => {
     const lease = await confirmed();

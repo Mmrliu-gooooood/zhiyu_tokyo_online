@@ -29,6 +29,8 @@ server-providers*.yml
 assets
 *.md
 !lib/prompts/**/*.md
+!skills/agent-runtime/**/*.md
+!skills/openmaic/**/*.md
 !packages/@openmaic/generation/templates/**/*.md
 !packages/@openmaic/generation/snippets/**/*.md
 !packages/@openmaic/generation/prompts-pbl/**/*.md

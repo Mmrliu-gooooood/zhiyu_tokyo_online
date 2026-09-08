@@ -12,6 +12,12 @@ export function backgroundGenerationEnabled(): boolean {
 export function acceptingGenerationJobs(): boolean {
   return backgroundGenerationEnabled() && process.env.GENERATION_ACCEPTING_JOBS === '1';
 }
+export function generationAccepting(
+  configured: boolean,
+  health: { database: boolean; schema: boolean; worker: boolean },
+): boolean {
+  return configured && health.database && health.schema && health.worker;
+}
 /** Readiness and HTTP never bootstrap schema. Only the migration CLI runs DDL. */
 export function getGenerationPool(): Pool {
   const url = process.env.DATABASE_URL;
@@ -58,7 +64,7 @@ export async function generationReadiness() {
     database,
     schema,
     worker,
-    accepting: acceptingGenerationJobs() && database && schema,
+    accepting: generationAccepting(acceptingGenerationJobs(), { database, schema, worker }),
     pipelineVersion: GENERATION_PIPELINE_VERSION,
   };
 }
@@ -66,5 +72,6 @@ export async function assertGenerationReady(submitting = false): Promise<void> {
   if (!backgroundGenerationEnabled() || (submitting && !acceptingGenerationJobs()))
     throw new GenerationJobError('GENERATION_MAINTENANCE', 503);
   const status = await generationReadiness();
-  if (!status.database || !status.schema) throw new GenerationJobError('GENERATION_NOT_READY', 503);
+  if (!status.database || !status.schema || (submitting && !status.worker))
+    throw new GenerationJobError('GENERATION_NOT_READY', 503);
 }

@@ -23,6 +23,7 @@ import type { AgentSessionMaterial, ClaimedAgentSession } from '@openmaic/storag
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { VoiceRegistrationAdapter } from '@/lib/audio/voice-registration';
+import type { AgentSessionMediaConfig } from '@/lib/server/agent-runtime/course-tools';
 
 const mocks = vi.hoisted(() => ({
   randomUUID: vi.fn(() => 'runner-test-uuid'),
@@ -68,6 +69,11 @@ vi.mock('@/lib/server/agent-runtime/entry-tree-storage', async (importActual) =>
     },
   };
 });
+
+// This harness exercises runner lifecycle; model readiness has its own integration suite.
+vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
+  preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
+}));
 
 vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
   resolveAgentDriverModel: mocks.resolveAgentDriverModel,
@@ -225,7 +231,10 @@ function makeFakeAgent(): FakeAgent {
 
 interface BuildAgentOptions {
   systemPrompt: string;
-  tools: Array<{ name: string }>;
+  tools: Array<{
+    name: string;
+    execute?: (callId: string, params: unknown, signal?: AbortSignal) => Promise<unknown>;
+  }>;
   allowedToolNames?: ReadonlySet<string>;
 }
 
@@ -249,8 +258,16 @@ beforeEach(() => {
   });
 });
 
-async function runToBuildAgent(): Promise<BuildAgentOptions> {
-  const meta = makeMeta();
+async function runToBuildAgent(
+  runOptions: {
+    meta?: ClaimedAgentSession;
+    loadMediaConfigSnapshot?: (
+      ownerId: string,
+      ref: { id: string; revision: number },
+    ) => Promise<AgentSessionMediaConfig>;
+  } = {},
+): Promise<BuildAgentOptions> {
+  const meta = runOptions.meta ?? makeMeta();
   const session = await makeEntryTree();
   const store = makeStore(meta);
   mocks.openEntryStorage.mockResolvedValue(session.getStorage());
@@ -262,7 +279,16 @@ async function runToBuildAgent(): Promise<BuildAgentOptions> {
     return makeFakeAgent();
   });
 
-  await runSession({ running: new Map(), shuttingDown: false }, meta);
+  await runSession(
+    {
+      running: new Map(),
+      shuttingDown: false,
+      ...(runOptions.loadMediaConfigSnapshot
+        ? { loadMediaConfigSnapshot: runOptions.loadMediaConfigSnapshot }
+        : {}),
+    },
+    meta,
+  );
 
   expect(options, 'buildAgent must be called with the run options').toBeDefined();
   expect(store.finishSession).toHaveBeenCalledWith(
@@ -274,6 +300,46 @@ async function runToBuildAgent(): Promise<BuildAgentOptions> {
 }
 
 describe('voice tool runner registration', () => {
+  it('threads the claimed session TTS snapshot into list_voices', async () => {
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+    const options = await runToBuildAgent({
+      meta: makeMeta({
+        activeMediaConfigRef: {
+          id: '11111111-1111-4111-8111-111111111111',
+          revision: 1,
+        },
+      }),
+      loadMediaConfigSnapshot: vi.fn(
+        async (): Promise<AgentSessionMediaConfig> => ({
+          version: 1,
+          ttsEnabled: true,
+          tts: [
+            {
+              providerId: 'minimax-tts',
+              apiKey: 'session-secret',
+              baseUrl: '',
+              requiresApiKey: true,
+              enabled: true,
+              modelId: 'speech-2.8-hd',
+              voice: 'female-yujie',
+            },
+          ],
+        }),
+      ),
+    });
+    const listVoices = options.tools.find((tool) => tool.name === 'list_voices');
+
+    expect(listVoices?.execute).toBeTypeOf('function');
+    const result = (await listVoices!.execute!('call', {}, undefined)) as {
+      details: { voices: Array<{ binding: string }> };
+    };
+    expect(result.details.voices.map((voice) => voice.binding)).toContain(
+      'minimax-tts::female-yujie',
+    );
+  });
+
   it('registers roster + clip + register_voice tools and both prompt blocks when a registration backend is configured', async () => {
     mocks.enabledServerTTSProviderIds.mockReturnValue(['fake-tts']);
     mocks.getVoiceRegistrationAdapter.mockImplementation((providerId: string) =>
@@ -319,10 +385,15 @@ describe('voice tool runner registration', () => {
       'read_classroom',
       'search_chats',
       'read_chat',
+      'submit_course_generation',
+      'get_course_generation_status',
+      'cancel_course_generation',
+      'retry_course_generation',
     ]);
     expect([...(options.allowedToolNames ?? [])].sort()).toEqual(
       [
         'ask_user',
+        'cancel_course_generation',
         'clip_audio',
         'create_folder',
         'create_skill',
@@ -335,6 +406,7 @@ describe('voice tool runner registration', () => {
         'generate_image',
         'generate_scene',
         'generate_tts',
+        'get_course_generation_status',
         'grep_stage',
         'import_pptx',
         'list_folder_stages',
@@ -352,10 +424,12 @@ describe('voice tool runner registration', () => {
         'read_stage_outline',
         'register_voice',
         'rename_stage',
+        'retry_course_generation',
         'search_chats',
         'search_classrooms',
         'search_material',
         'set_roster',
+        'submit_course_generation',
         'use_material_media',
         'wait_for_materials',
       ].sort(),
@@ -407,10 +481,15 @@ describe('voice tool runner registration', () => {
       'read_classroom',
       'search_chats',
       'read_chat',
+      'submit_course_generation',
+      'get_course_generation_status',
+      'cancel_course_generation',
+      'retry_course_generation',
     ]);
     expect([...(options.allowedToolNames ?? [])].sort()).toEqual(
       [
         'ask_user',
+        'cancel_course_generation',
         'clip_audio',
         'create_folder',
         'create_skill',
@@ -423,6 +502,7 @@ describe('voice tool runner registration', () => {
         'generate_image',
         'generate_scene',
         'generate_tts',
+        'get_course_generation_status',
         'grep_stage',
         'import_pptx',
         'list_folder_stages',
@@ -439,10 +519,12 @@ describe('voice tool runner registration', () => {
         'read_stage',
         'read_stage_outline',
         'rename_stage',
+        'retry_course_generation',
         'search_chats',
         'search_classrooms',
         'search_material',
         'set_roster',
+        'submit_course_generation',
         'use_material_media',
         'wait_for_materials',
       ].sort(),

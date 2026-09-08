@@ -198,10 +198,56 @@ export async function transcribeAudio(
 
     default:
       if (isCustomASRProvider(config.providerId)) {
-        return await transcribeOpenAIWhisper(config, audioBuffer);
+        return await transcribeCustomOpenAICompatibleASR(config, audioBuffer);
       }
       throw new Error(`Unsupported ASR provider: ${config.providerId}`);
   }
+}
+
+/** Preserve the caller's real filename and MIME type for compatible gateways. */
+async function transcribeCustomOpenAICompatibleASR(
+  config: ASRModelConfig,
+  audioBuffer: Buffer | Blob,
+): Promise<ASRTranscriptionResult> {
+  const baseUrl = config.baseUrl?.replace(/\/$/, '');
+  if (!baseUrl) throw new Error('Custom ASR base URL is required');
+  if (!config.modelId?.trim()) throw new Error('Custom ASR model is required');
+
+  const sourceIsBlob = audioBuffer instanceof Blob;
+  const mimeType = sourceIsBlob && audioBuffer.type ? audioBuffer.type : 'application/octet-stream';
+  const fileName =
+    sourceIsBlob && 'name' in audioBuffer && typeof audioBuffer.name === 'string'
+      ? audioBuffer.name
+      : `audio.${mimeType.split('/')[1]?.split(';')[0] || 'bin'}`;
+  const blob = sourceIsBlob
+    ? audioBuffer
+    : new Blob(
+        [
+          audioBuffer.buffer.slice(
+            audioBuffer.byteOffset,
+            audioBuffer.byteOffset + audioBuffer.byteLength,
+          ) as ArrayBuffer,
+        ],
+        { type: mimeType },
+      );
+  const body = new FormData();
+  body.append('file', blob, fileName);
+  body.append('model', config.modelId);
+  if (config.language && config.language !== 'auto') body.append('language', config.language);
+
+  const response = await (config.fetcher ?? fetch)(`${baseUrl}/audio/transcriptions`, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : undefined,
+    body,
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => response.statusText);
+    throw new Error(`Custom ASR API error (${response.status}): ${detail}`);
+  }
+  const result = (await response.json()) as { text?: unknown };
+  if (typeof result.text !== 'string') throw new Error('Custom ASR returned an invalid response');
+  return { text: result.text };
 }
 
 /**

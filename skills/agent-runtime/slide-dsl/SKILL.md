@@ -1,7 +1,7 @@
 ---
 name: slide-dsl
 title: "页面数据结构"
-description: The complete slide DSL manual — the canvas and its background, the ten element types field by field with units, defaults and legal values, where each type keeps its words, which field the renderer actually paints when two disagree, exactly what happens to the HTML you put in `content`, and the structure schema that is now the ONLY thing a write is checked against. Nothing filters your markup and nothing normalises your values, so this manual is the whole of what makes a page render correctly. Load it before patching a field you have not patched before, when a patch comes back rejected, when a patch lands but nothing moves on screen, or when you need to know where a colour, a font, a table cell or a code line really lives. This is a field reference and not a procedure — `page-clone` and `pro-editing` decide which pages to touch, `slide-craft` decides what a good page looks like, and this one says what the JSON means.
+description: "The zhiyu field reference and not a procedure for the slide DSL: canvas, background, element schemas, units, defaults, legal values, rendered text fields, HTML handling, and write validation. Load it before changing an unfamiliar field, after a rejected or invisible patch, or to locate colours, fonts, cells, and code. `page-clone` and `pro-editing` choose the work; `slide-craft` judges the design."
 ---
 
 # The slide DSL

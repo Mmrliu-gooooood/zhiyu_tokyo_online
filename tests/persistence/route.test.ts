@@ -1,3 +1,4 @@
+import { Request } from '@/tests/helpers/signed-owner-request';
 import type { RequestListener } from 'node:http';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';

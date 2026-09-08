@@ -44,16 +44,13 @@ const VALID_LEVELS: readonly ThinkingLevel[] = ['minimal', 'low', 'medium', 'hig
 /**
  * A resolved route entry: the model string plus an optional full thinking config.
  *
- * `api`/`dialect` and `contextWindow` are parsed for every routable stage but are
- * currently consumed only by the agent-driver stage (`maic-agent-driver`); on any
- * other stage they are inert (accepted silently, never applied). `thinking` is the
- * only field honored by the generic callLLM stages.
+ * `api`/`dialect` select an optional wire protocol in the provider adapter.
+ * `contextWindow` is consumed by the agent-driver compaction estimate.
  */
 export interface StageRoute {
   model: string;
   /**
-   * Explicit pi transport dialect (for example openai-completions). Consumed only
-   * by the agent-driver stage; inert on every other routable stage.
+   * Explicit transport dialect consumed by the provider adapter and pi driver.
    */
   api?: string;
   /**

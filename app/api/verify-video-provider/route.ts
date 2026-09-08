@@ -28,11 +28,18 @@ import type { VideoProviderId } from '@/lib/media/types';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import {
+  MediaProviderConfigError,
+  parseCustomVideoProviderConfig,
+} from '@/lib/server/media-provider-config';
 
 const log = createLogger('VerifyVideoProvider');
 
 export async function POST(request: NextRequest) {
   try {
+    const requestBody = (await request.clone().json().catch(() => ({}))) as {
+      providerConfig?: unknown;
+    };
     const providerId = (request.headers.get('x-video-provider')?.trim() ||
       resolveServerVideoProviderId()) as VideoProviderId;
     if (!providerId) {
@@ -44,6 +51,19 @@ export async function POST(request: NextRequest) {
       return apiError('PROVIDER_DISABLED', 403, 'This video provider is disabled by the server');
     }
     const clientModel = request.headers.get('x-video-model')?.trim() || undefined;
+    if (providerId.startsWith('custom-video-')) {
+      const config = parseCustomVideoProviderConfig(
+        providerId,
+        requestBody.providerConfig,
+        clientModel,
+      );
+      const ssrfError = await validateUrlForSSRF(config.baseUrl || '');
+      if (ssrfError) return apiError('INVALID_URL', 403, ssrfError);
+      return apiSuccess({
+        message: 'Configuration is complete; this protocol has no free generation probe.',
+        verification: 'configuration' as const,
+      });
+    }
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
     const managed = isServerConfiguredProvider('video', providerId);
     const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
@@ -85,6 +105,9 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ message: result.message });
   } catch (err) {
+    if (err instanceof MediaProviderConfigError) {
+      return apiError(err.code, err.status, err.message);
+    }
     log.error(`Video provider verification failed: ${err}`, err);
     return apiError('INTERNAL_ERROR', 500, `Connectivity test error: ${err}`);
   }

@@ -1,7 +1,7 @@
 ---
 name: pptx-import
 title: 'PPT 导入'
-description: 会话里有上传的 .pptx，且用户要把这份幻灯片填进一节已建的课（先 create_stage 建课，再 import_pptx 把页面追加进这节课堂，保留原版排版；课堂标题以 create_stage 为准，PPT 不接管）。随后逐页检查（有 render_scene_preview 就渲染看）并修 bad case，理解整课之后才写旁白/spotlight，最后 TTS。仅在用户要求时插入 quiz 或 interactive。不要重新规划整课。
+description: zhiyu 会话中已上传 .pptx，且用户要把原幻灯片追加到一节已创建的课堂时使用：先 create_stage，再 import_pptx，并保留原版排版与课堂标题。导入后逐页检查并修复异常，理解整课后再补旁白与 spotlight，最后生成 TTS；只在用户明确要求时加入 quiz 或 interactive，不重新规划整课。
 ---
 
 # PPT import as appended pages of a stage

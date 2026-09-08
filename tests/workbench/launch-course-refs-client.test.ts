@@ -13,7 +13,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createWorkbenchSession } from '@/lib/workbench/session-store';
+import { createWorkbenchSession, WorkbenchApiError } from '@/lib/workbench/session-store';
 import type { CourseRef } from '@/lib/workbench/course-refs';
 
 const REF: CourseRef = { kind: 'course', stageId: 'stage-1', title: '光的折射' };
@@ -27,8 +27,10 @@ const created = (extra: Record<string, unknown> = {}) => ({
 });
 
 function stubFetch(body: Record<string, unknown>) {
-  const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-    Response.json(body),
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) =>
+    String(input) === '/api/agent/media-config-snapshots'
+      ? Response.json({ ref: { id: 'media-ref', revision: 1 } })
+      : Response.json(body),
   );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -40,11 +42,43 @@ beforeEach(() => {
 });
 
 describe('creating a session with a named classroom', () => {
+  it('translates a missing-model API code while preserving request input and error metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === '/api/agent/media-config-snapshots'
+          ? Response.json({ ref: { id: 'media-ref', revision: 1 } })
+          : Response.json(
+              {
+                error: 'PRO_MODEL_CONFIGURATION_REQUIRED',
+                errorCode: 'PRO_MODEL_CONFIGURATION_REQUIRED',
+              },
+              { status: 400 },
+            ),
+      ),
+    );
+    const input = { prompt: 'Build a course', courseRefs: [REF] };
+    await expect(createWorkbenchSession(input)).rejects.toMatchObject({
+      name: 'WorkbenchApiError',
+      status: 400,
+      errorCode: 'PRO_MODEL_CONFIGURATION_REQUIRED',
+      message: expect.stringContaining('打开模型设置'),
+    });
+    expect(input).toEqual({ prompt: 'Build a course', courseRefs: [REF] });
+    expect(new WorkbenchApiError('ordinary failure', 503).message).toBe('ordinary failure');
+  });
+
   it('sends the refs verbatim', async () => {
     const fetchMock = stubFetch(created({ courseRefs: [REF] }));
     await createWorkbenchSession({ prompt: 'p', courseRefs: [REF] });
-    const request = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(request.body))).toEqual({ prompt: 'p', courseRefs: [REF] });
+    const request = fetchMock.mock.calls.find(
+      (call) => call[0] === '/api/agent/sessions',
+    )?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({
+      prompt: 'p',
+      mediaConfigRef: { id: 'media-ref', revision: 1 },
+      courseRefs: [REF],
+    });
   });
 
   it('leaves the body untouched when nothing was named', async () => {
@@ -52,13 +86,21 @@ describe('creating a session with a named classroom', () => {
     // caller and assertion already expects.
     const fetchMock = stubFetch(created());
     await createWorkbenchSession({ prompt: 'p' });
-    const request = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(request.body))).toEqual({ prompt: 'p' });
+    const request = fetchMock.mock.calls.find(
+      (call) => call[0] === '/api/agent/sessions',
+    )?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({
+      prompt: 'p',
+      mediaConfigRef: { id: 'media-ref', revision: 1 },
+    });
     expect(String(request.body)).not.toContain('courseRefs');
 
     const empty = stubFetch(created());
     await createWorkbenchSession({ prompt: 'p', courseRefs: [] });
-    expect(String((empty.mock.calls[0][1] as RequestInit).body)).not.toContain('courseRefs');
+    const emptyRequest = empty.mock.calls.find(
+      (call) => call[0] === '/api/agent/sessions',
+    )?.[1] as RequestInit;
+    expect(String(emptyRequest.body)).not.toContain('courseRefs');
   });
 
   it('reports acceptance, so a server that dropped the field is not silent', async () => {

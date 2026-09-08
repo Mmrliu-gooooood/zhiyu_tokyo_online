@@ -1859,7 +1859,7 @@
       "download": "下載",
       "detailFailed": "技能詳情載入失敗",
       "contentLabel": "正文",
-      "builtinDetailNote": "該技能隨 OpenMAIC 提供。下載後可匯入其他智能體工作台。",
+      "builtinDetailNote": "該技能隨 zhiyu 提供。下載後可匯入其他智能體工作台。",
       "upload": "上傳",
       "uploading": "正在上傳…",
       "uploadFailed": "技能上傳失敗。請檢查檔案後重試。",
@@ -1871,7 +1871,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "瀏覽器內建 TTS 不支援編輯器時間軸的音訊功能（試聽、重新生成、全部配音）。切換到受管 TTS 供應商即可逐句生成和管理音訊。",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "新增自訂平台",
+    "mediaProtocol": "API 協定",
+    "mediaProtocolHint": "選擇平台支援的介面協定；相容的閘道也可以填寫自己的 Base URL。",
+    "customMediaProviderHint": "新增平台後，請填寫該平台的 API Key 和模型 ID。",
+    "mediaProviderEnabled": "啟用平台",
+    "mediaConfigurationChecked": "設定已完整，未傳送生成請求；尚未驗證 API Key 和模型是否可用。",
+    "checkMediaConfiguration": "檢查設定"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

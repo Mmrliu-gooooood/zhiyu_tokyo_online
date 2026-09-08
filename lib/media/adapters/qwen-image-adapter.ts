@@ -43,6 +43,7 @@ export async function testQwenImageConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   return probeAuth({
     providerName: 'Qwen Image',
+    acceptedStatuses: [400],
     request: () =>
       fetch(`${baseUrl}/api/v1/services/aigc/multimodal-generation/generation`, {
         method: 'POST',

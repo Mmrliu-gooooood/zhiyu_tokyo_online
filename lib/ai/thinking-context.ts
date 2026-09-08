@@ -15,9 +15,17 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ThinkingConfig } from '@/lib/types/provider';
 
-export const thinkingContext = new AsyncLocalStorage<ThinkingConfig | undefined>();
+type ThinkingContextCarrier = AsyncLocalStorage<ThinkingConfig | undefined>;
 
-// Expose on globalThis so providers.ts can access the store without
-// importing this module (which would pull node:async_hooks into the
-// client bundle via the settings.ts → providers.ts import chain).
-(globalThis as Record<string, unknown>).__thinkingContext = thinkingContext;
+const serverGlobal = globalThis as typeof globalThis & {
+  __thinkingContext?: ThinkingContextCarrier;
+};
+
+// Production bundling can evaluate this module from more than one server
+// chunk. Reuse the first carrier in the process so a later module copy cannot
+// redirect provider fetches away from the ALS in which callLLM is running.
+export const thinkingContext =
+  serverGlobal.__thinkingContext ?? new AsyncLocalStorage<ThinkingConfig | undefined>();
+
+// providers.ts reads this client-safe seam instead of importing async_hooks.
+serverGlobal.__thinkingContext = thinkingContext;
