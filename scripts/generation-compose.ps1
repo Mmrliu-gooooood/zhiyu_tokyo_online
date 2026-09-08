@@ -121,8 +121,14 @@ switch ($Action) {
     [void](Write-ContainerReleaseRecord 'zhiyu-worker' $revision)
     $running = & docker ps --filter 'name=^/zhiyu$' --format '{{.ID}}'
     if ($running) {
-      $project = & docker inspect $running --format '{{index .Config.Labels "com.docker.compose.project"}}'
-      $service = & docker inspect $running --format '{{index .Config.Labels "com.docker.compose.service"}}'
+      # Parse inspect JSON instead of relying on a quoted Go template. Native
+      # argument quoting differs across Windows PowerShell versions and can
+      # strip the quotes around dotted label keys.
+      $rawRunningContainer = & docker inspect ($running -join '').Trim() 2>$null
+      if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the running zhiyu container.' }
+      $runningContainer = @(($rawRunningContainer -join "`n") | ConvertFrom-Json)[0]
+      $project = $runningContainer.Config.Labels.'com.docker.compose.project'
+      $service = $runningContainer.Config.Labels.'com.docker.compose.service'
       if ($project -ne 'openmaic-main' -or $service -ne 'openmaic') { throw 'A non-target zhiyu container still owns the port. Complete the verified cutover before starting Compose openmaic.' }
     }
     & docker @prefix up -d --no-deps openmaic

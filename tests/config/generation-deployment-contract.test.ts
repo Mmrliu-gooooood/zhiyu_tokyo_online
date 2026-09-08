@@ -54,5 +54,8 @@ describe('generation deployment contract', () => {
     );
     expect(script).toContain('$imageMetadata.Config.Labels');
     expect(script).not.toContain('$image = @(($rawImage');
+    expect(script).toContain("$runningContainer.Config.Labels.'com.docker.compose.project'");
+    expect(script).toContain("$runningContainer.Config.Labels.'com.docker.compose.service'");
+    expect(script).not.toContain("--format '{{index .Config.Labels");
   });
 });
