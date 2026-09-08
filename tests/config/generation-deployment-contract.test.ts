@@ -49,5 +49,10 @@ describe('generation deployment contract', () => {
     expect(script).toContain('Wait-GenerationWorkerHealthy');
     expect(script).toContain('org.opencontainers.image.revision');
     expect(script).toContain('OPENMAIC_SOURCE_REVISION');
+    expect(script).toContain(
+      'function Get-ReleaseImageRecord([string]$ImageName, [string]$ExpectedRevision)',
+    );
+    expect(script).toContain('$imageMetadata.Config.Labels');
+    expect(script).not.toContain('$image = @(($rawImage');
   });
 });

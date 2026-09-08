@@ -7,17 +7,19 @@ function Get-SourceRevision {
   return ($revision -join '').Trim()
 }
 
-function Get-ReleaseImageRecord([string]$Image, [string]$ExpectedRevision) {
-  $rawImage = & docker image inspect $Image 2>$null
-  if ($LASTEXITCODE -ne 0) { throw "Release image $Image is missing." }
-  $image = @(($rawImage -join "`n") | ConvertFrom-Json)[0]
-  $revision = $image.Config.Labels.'org.opencontainers.image.revision'
+function Get-ReleaseImageRecord([string]$ImageName, [string]$ExpectedRevision) {
+  $rawImage = & docker image inspect $ImageName 2>$null
+  if ($LASTEXITCODE -ne 0) { throw "Release image $ImageName is missing." }
+  # PowerShell variable names are case-insensitive. Keep the inspected object in
+  # a distinctly named variable so it cannot overwrite the $ImageName parameter.
+  $imageMetadata = @(($rawImage -join "`n") | ConvertFrom-Json)[0]
+  $revision = $imageMetadata.Config.Labels.'org.opencontainers.image.revision'
   if ($revision -ne $ExpectedRevision) {
-    throw "Release image $Image does not match source revision $ExpectedRevision."
+    throw "Release image $ImageName does not match source revision $ExpectedRevision."
   }
   return [pscustomobject]@{
-    image = $Image
-    imageId = $image.Id
+    image = $ImageName
+    imageId = $imageMetadata.Id
     sourceRevision = $revision
   }
 }
