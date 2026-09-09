@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runPolledTask } from '@/lib/media/polled-task';
+import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
 
 describe('runPolledTask cancellation', () => {
   afterEach(() => {
@@ -14,14 +15,16 @@ describe('runPolledTask cancellation', () => {
     const submit = vi.fn();
 
     await expect(
-      runPolledTask({
-        submit,
-        poll: vi.fn(),
-        intervalMs: 1_000,
-        maxAttempts: 3,
-        label: 'Abortable task',
-        signal: controller.signal,
-      }),
+      withPolledTaskPersistence({ persistTaskId: vi.fn() }, () =>
+        runPolledTask({
+          submit,
+          poll: vi.fn(),
+          intervalMs: 1_000,
+          maxAttempts: 3,
+          label: 'Abortable task',
+          signal: controller.signal,
+        }),
+      ),
     ).rejects.toBe(reason);
     expect(submit).not.toHaveBeenCalled();
   });
@@ -31,14 +34,16 @@ describe('runPolledTask cancellation', () => {
     const controller = new AbortController();
     const reason = new Error('stop polling');
     const poll = vi.fn();
-    const promise = runPolledTask({
-      submit: vi.fn().mockResolvedValue({ status: 'submitted', taskId: 'task-1' }),
-      poll,
-      intervalMs: 10_000,
-      maxAttempts: 3,
-      label: 'Abortable task',
-      signal: controller.signal,
-    });
+    const promise = withPolledTaskPersistence({ persistTaskId: vi.fn() }, () =>
+      runPolledTask({
+        submit: vi.fn().mockResolvedValue({ status: 'submitted', taskId: 'task-1' }),
+        poll,
+        intervalMs: 10_000,
+        maxAttempts: 3,
+        label: 'Abortable task',
+        signal: controller.signal,
+      }),
+    );
 
     await vi.advanceTimersByTimeAsync(1_000);
     controller.abort(reason);

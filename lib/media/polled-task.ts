@@ -1,23 +1,5 @@
 import { ConfirmedMediaFailure } from './generation-errors';
-import { AsyncLocalStorage } from 'node:async_hooks';
-
-export interface PolledTaskPersistence {
-  resumeTaskId?: string;
-  persistTaskId(taskId: string): Promise<void>;
-}
-
-const globalState = globalThis as typeof globalThis & {
-  __openmaicPolledTaskPersistence?: AsyncLocalStorage<PolledTaskPersistence>;
-};
-const persistenceContext =
-  (globalState.__openmaicPolledTaskPersistence ??= new AsyncLocalStorage<PolledTaskPersistence>());
-
-export function withPolledTaskPersistence<T>(
-  persistence: PolledTaskPersistence,
-  work: () => Promise<T>,
-): Promise<T> {
-  return persistenceContext.run(persistence, work);
-}
+import { readPolledTaskPersistence } from './polled-task-context';
 
 export type TerminalResult<T> =
   | { status: 'done'; result: T }
@@ -82,7 +64,7 @@ export async function runPolledTask<T>({
   formatTimeout,
 }: RunPolledTaskOptions<T>): Promise<T> {
   throwIfAborted(signal);
-  const persistence = persistenceContext.getStore();
+  const persistence = readPolledTaskPersistence();
   const submitted: SubmitResult<T> = persistence?.resumeTaskId
     ? { status: 'submitted', taskId: persistence.resumeTaskId }
     : await submit();

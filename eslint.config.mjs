@@ -23,6 +23,26 @@ const AI_SDK_DYNAMIC_IMPORT_BAN = [
   },
 ];
 
+const POLLED_TASK_SERVER_CARRIER_DYNAMIC_IMPORT_BAN = [
+  {
+    selector:
+      'ImportExpression > Literal[value=/server\\/generation-jobs\\/polled-task-persistence$/]',
+    message:
+      'Client-reachable code must not dynamically import the server-only AsyncLocalStorage carrier. Read through @/lib/media/polled-task-context instead.',
+  },
+  {
+    selector:
+      'ImportExpression > TemplateLiteral > TemplateElement[value.cooked=/server\\/generation-jobs\\/polled-task-persistence$/]',
+    message:
+      'Client-reachable code must not dynamically import the server-only AsyncLocalStorage carrier.',
+  },
+  {
+    selector:
+      "CallExpression[callee.name='require'] > Literal.arguments[value=/server\\/generation-jobs\\/polled-task-persistence$/]",
+    message: 'Client-reachable code must not require the server-only AsyncLocalStorage carrier.',
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -69,6 +89,36 @@ const eslintConfig = defineConfig([
           varsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_',
           destructuredArrayIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+  // Client boundary: the durable media task carrier owns a Node
+  // AsyncLocalStorage instance and must stay behind lib/server. Shared polling
+  // code reads it through lib/media/polled-task-context instead. Keeping this
+  // as a lint error prevents a future client entry from pulling node:async_hooks
+  // back into a production browser chunk.
+  {
+    files: [
+      'app/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'components/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'lib/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+    ],
+    ignores: ['app/api/**', 'lib/server/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/lib/server/generation-jobs/polled-task-persistence',
+                '**/server/generation-jobs/polled-task-persistence',
+              ],
+              message:
+                'Client-reachable code must read task persistence through @/lib/media/polled-task-context; the AsyncLocalStorage carrier is server-only.',
+            },
+          ],
         },
       ],
     },
@@ -663,6 +713,30 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       'no-restricted-syntax': ['error', ...AI_SDK_DYNAMIC_IMPORT_BAN],
+    },
+  },
+  // The static carrier ban near the top uses no-restricted-imports. Dynamic
+  // imports and require() need AST selectors, applied after the repo-wide AI SDK
+  // guard while preserving that guard for every matching client-owned module.
+  {
+    files: [
+      'app/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'components/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'lib/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+    ],
+    ignores: [
+      'app/api/**',
+      'lib/server/**',
+      'lib/choreography/**',
+      'lib/video-export/**',
+      'lib/pbl/v2/operations/kernel/**',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...POLLED_TASK_SERVER_CARRIER_DYNAMIC_IMPORT_BAN,
+      ],
     },
   },
 ]);

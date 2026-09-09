@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runPolledTask, withPolledTaskPersistence } from '@/lib/media/polled-task';
+import { runPolledTask } from '@/lib/media/polled-task';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
+import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
 
 describe('runPolledTask', () => {
   it.each(['failed', 'network', 'timeout'] as const)(
@@ -107,25 +108,127 @@ describe('runPolledTask', () => {
     expect(poll).toHaveBeenCalledWith('paid-123');
 
     const resumedSubmit = vi.fn();
+    const resumedPersist = vi.fn();
     await withPolledTaskPersistence(
-      { resumeTaskId: 'paid-123', persistTaskId: vi.fn() },
-      () => runPolledTask({ submit: resumedSubmit, poll, intervalMs: 0, maxAttempts: 1, label: 'paid' }),
+      { resumeTaskId: 'paid-123', persistTaskId: resumedPersist },
+      () =>
+        runPolledTask({
+          submit: resumedSubmit,
+          poll,
+          intervalMs: 0,
+          maxAttempts: 1,
+          label: 'paid',
+        }),
     );
     expect(resumedSubmit).not.toHaveBeenCalled();
+    expect(resumedPersist).not.toHaveBeenCalled();
+  });
+
+  it('keeps interleaved persistence contexts isolated across concurrent tasks', async () => {
+    let releaseFirstSubmit!: () => void;
+    const firstSubmitMayFinish = new Promise<void>((resolve) => {
+      releaseFirstSubmit = resolve;
+    });
+    const persistedByFirst: string[] = [];
+    const persistedBySecond: string[] = [];
+    const firstPoll = vi.fn().mockResolvedValue({ status: 'done', result: 'first-result' });
+    const secondPoll = vi.fn().mockResolvedValue({ status: 'done', result: 'second-result' });
+
+    const first = withPolledTaskPersistence(
+      { persistTaskId: async (taskId) => void persistedByFirst.push(taskId) },
+      () =>
+        runPolledTask({
+          submit: async () => {
+            await firstSubmitMayFinish;
+            return { status: 'submitted', taskId: 'task-first' };
+          },
+          poll: firstPoll,
+          intervalMs: 0,
+          maxAttempts: 1,
+          label: 'first',
+        }),
+    );
+    const second = withPolledTaskPersistence(
+      { persistTaskId: async (taskId) => void persistedBySecond.push(taskId) },
+      () =>
+        runPolledTask({
+          submit: async () => {
+            releaseFirstSubmit();
+            await Promise.resolve();
+            return { status: 'submitted', taskId: 'task-second' };
+          },
+          poll: secondPoll,
+          intervalMs: 0,
+          maxAttempts: 1,
+          label: 'second',
+        }),
+    );
+
+    await expect(Promise.all([first, second])).resolves.toEqual(['first-result', 'second-result']);
+    expect(persistedByFirst).toEqual(['task-first']);
+    expect(persistedBySecond).toEqual(['task-second']);
+    expect(firstPoll).toHaveBeenCalledWith('task-first');
+    expect(secondPoll).toHaveBeenCalledWith('task-second');
+  });
+
+  it('waits for durable task-id persistence before the first poll', async () => {
+    let markPersistenceStarted!: () => void;
+    const persistenceStarted = new Promise<void>((resolve) => {
+      markPersistenceStarted = resolve;
+    });
+    let finishPersistence!: () => void;
+    const persistenceMayFinish = new Promise<void>((resolve) => {
+      finishPersistence = resolve;
+    });
+    const events: string[] = [];
+    const poll = vi.fn(async () => {
+      events.push('poll');
+      return { status: 'done' as const, result: 'video-url' };
+    });
+    const result = withPolledTaskPersistence(
+      {
+        persistTaskId: async (taskId) => {
+          events.push(`persist:start:${taskId}`);
+          markPersistenceStarted();
+          await persistenceMayFinish;
+          events.push(`persist:end:${taskId}`);
+        },
+      },
+      () =>
+        runPolledTask({
+          submit: async () => ({ status: 'submitted', taskId: 'durable-first' }),
+          poll,
+          intervalMs: 0,
+          maxAttempts: 1,
+          label: 'paid',
+        }),
+    );
+
+    await persistenceStarted;
+    expect(poll).not.toHaveBeenCalled();
+    finishPersistence();
+
+    await expect(result).resolves.toBe('video-url');
+    expect(events).toEqual(['persist:start:durable-first', 'persist:end:durable-first', 'poll']);
   });
 
   it('fails before polling when the durable task-id receipt cannot be written', async () => {
     const poll = vi.fn();
     await expect(
       withPolledTaskPersistence(
-        { persistTaskId: async () => { throw new Error('receipt unavailable'); } },
-        () => runPolledTask({
-          submit: async () => ({ status: 'submitted', taskId: 'accepted-but-unknown' }),
-          poll,
-          intervalMs: 0,
-          maxAttempts: 1,
-          label: 'paid',
-        }),
+        {
+          persistTaskId: async () => {
+            throw new Error('receipt unavailable');
+          },
+        },
+        () =>
+          runPolledTask({
+            submit: async () => ({ status: 'submitted', taskId: 'accepted-but-unknown' }),
+            poll,
+            intervalMs: 0,
+            maxAttempts: 1,
+            label: 'paid',
+          }),
       ),
     ).rejects.toThrow('receipt unavailable');
     expect(poll).not.toHaveBeenCalled();
@@ -177,13 +280,15 @@ describe('runPolledTask', () => {
   it('polls exactly maxAttempts times before using the default timeout message', async () => {
     vi.useFakeTimers();
     const poll = vi.fn().mockResolvedValue({ status: 'pending' });
-    const promise = runPolledTask({
-      submit: vi.fn().mockResolvedValue({ status: 'submitted', taskId: 'task-123' }),
-      poll,
-      intervalMs: 250,
-      maxAttempts: 3,
-      label: 'Test task',
-    });
+    const promise = withPolledTaskPersistence({ persistTaskId: vi.fn() }, () =>
+      runPolledTask({
+        submit: vi.fn().mockResolvedValue({ status: 'submitted', taskId: 'task-123' }),
+        poll,
+        intervalMs: 250,
+        maxAttempts: 3,
+        label: 'Test task',
+      }),
+    );
     const rejection = expect(promise).rejects.toThrow('Test task timed out after 3 polls');
 
     await vi.advanceTimersByTimeAsync(750);

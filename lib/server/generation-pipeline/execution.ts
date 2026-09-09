@@ -7,7 +7,7 @@ import type {
 import { runWithGenerationQuota } from '@/lib/server/generation-jobs/provider-call-context';
 import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/config-snapshot';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
-import { withPolledTaskPersistence } from '@/lib/media/polled-task';
+import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
 
 export interface CheckpointRepository {
   skipStepWithWarning(
