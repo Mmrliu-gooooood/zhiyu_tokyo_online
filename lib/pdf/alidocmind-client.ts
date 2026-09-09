@@ -30,14 +30,15 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw abortReason(signal);
 }
 
-function awaitWithAbort<T>(work: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) return work;
+async function awaitWithAbort<T>(work: Promise<T>, signal?: AbortSignal): Promise<T> {
   throwIfAborted(signal);
-  return new Promise<T>((resolve, reject) => {
-    const abort = () => reject(abortReason(signal));
-    signal.addEventListener('abort', abort, { once: true });
-    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
-  });
+  // The Alibaba SDK does not expose transport cancellation. Always await its
+  // bounded request (submit uses a five-minute read timeout; later calls use
+  // shorter SDK defaults) before surfacing cancellation so the outer admission
+  // lease cannot be released while paid provider work is still in flight.
+  const result = await work;
+  throwIfAborted(signal);
+  return result;
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
