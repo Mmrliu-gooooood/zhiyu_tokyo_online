@@ -193,6 +193,8 @@ export interface AgentSessionMaterialStore {
   ): Promise<AgentSessionMaterial[]>;
   getMaterial(sessionId: string, materialId: string): Promise<AgentSessionMaterial | null>;
   enqueueExtraction(sessionId: string, materialId: string): Promise<boolean>;
+  /** Fail pending extraction roots that have exceeded the host queue deadline. */
+  expirePendingExtractions(waitMs: number, limit?: number): Promise<number>;
   claimNextExtraction(
     workerId: string,
     options: ClaimMaterialExtractionOptions,

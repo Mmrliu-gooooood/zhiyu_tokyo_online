@@ -33,12 +33,17 @@ import {
 } from '@/lib/server/media-provider-config';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 import { getTTSProviderErrorResponse } from '@/lib/server/tts-error-response';
+import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
 const log = createLogger('TTS API');
 
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
+  return runIndependentHeavyTaskRequest(req, 'media', () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let ttsProviderId: string | undefined;

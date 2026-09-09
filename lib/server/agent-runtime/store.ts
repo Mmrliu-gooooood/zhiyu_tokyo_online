@@ -11,7 +11,10 @@ import { getServerPersistenceProvider } from '@/lib/persistence/server-provider'
 import { notifyDurableAgentEvent } from './event-notify-bus';
 import {
   checkHeavyTaskAdmission,
+  checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
+  HeavyTaskCapacityError,
+  isHeavyTaskFairTurn,
 } from '@/lib/server/heavy-task-admission';
 
 interface AgentSessionStoreState {
@@ -64,7 +67,17 @@ async function createAgentSessionStore(connectionString: string): Promise<PgAgen
         nowMs: input.now,
         agentLeaseTtlMs: input.leaseTtlMs,
       });
-      return decision.allowed;
+      return (
+        decision.allowed &&
+        (decision.inherited ||
+          (await isHeavyTaskFairTurn(transaction, {
+            ownerId: input.ownerId,
+            rootTaskId: `agent:${input.sessionId}`,
+            kind: 'agent',
+            nowMs: input.now,
+            agentLeaseTtlMs: input.leaseTtlMs,
+          })))
+      );
     },
     onSessionCreated: async (transaction, meta): Promise<void> => {
       if (meta.status === 'queued') {
@@ -72,7 +85,12 @@ async function createAgentSessionStore(connectionString: string): Promise<PgAgen
           ownerId: meta.ownerId,
           rootTaskId: `agent:${meta.id}`,
         });
-        if (!queue.allowed) throw new Error(queue.reason);
+        if (!queue.allowed) throw new HeavyTaskCapacityError(queue.reason);
+        const attention = await checkHeavyTaskAttentionCapacity(transaction, {
+          ownerId: meta.ownerId,
+          rootTaskId: `agent:${meta.id}`,
+        });
+        if (!attention.allowed) throw new HeavyTaskCapacityError(attention.reason);
       }
       await store.registerSessionUrls(
         meta.id,
@@ -82,6 +100,13 @@ async function createAgentSessionStore(connectionString: string): Promise<PgAgen
       );
     },
     onUserMessagePosted: async (transaction, input): Promise<void> => {
+      if (input.delivery === 'queued') {
+        const root = { ownerId: input.session.ownerId, rootTaskId: `agent:${input.session.id}` };
+        const queue = await checkHeavyTaskQueueCapacity(transaction, root);
+        if (!queue.allowed) throw new HeavyTaskCapacityError(queue.reason);
+        const attention = await checkHeavyTaskAttentionCapacity(transaction, root);
+        if (!attention.allowed) throw new HeavyTaskCapacityError(attention.reason);
+      }
       await store.registerSessionUrls(
         input.session.id,
         extractObservedUrls(input.text),

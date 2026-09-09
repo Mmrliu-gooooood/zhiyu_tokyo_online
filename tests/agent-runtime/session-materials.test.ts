@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/server/agent-runtime/store', () => ({
   getAgentSessionStore: mocks.getAgentSessionStore,
+  nodePostgresTransaction:
+    (pool: PGlite) =>
+    <T>(body: (transaction: Queryable) => Promise<T>) =>
+      pool.transaction((transaction: Queryable) => body(transaction)),
 }));
 
 vi.mock('@/lib/persistence/server-provider', () => ({

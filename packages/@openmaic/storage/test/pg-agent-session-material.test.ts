@@ -31,6 +31,7 @@ function combinedStore(db: PGlite) {
     listMaterials: materialStore.listMaterials.bind(materialStore),
     getMaterial: materialStore.getMaterial.bind(materialStore),
     enqueueExtraction: materialStore.enqueueExtraction.bind(materialStore),
+    expirePendingExtractions: materialStore.expirePendingExtractions.bind(materialStore),
     claimNextExtraction: materialStore.claimNextExtraction.bind(materialStore),
     heartbeatExtraction: materialStore.heartbeatExtraction.bind(materialStore),
     completeExtraction: materialStore.completeExtraction.bind(materialStore),
@@ -112,6 +113,27 @@ describe('PgAgentSessionMaterialStore with PGlite', () => {
     await expect(
       admitted.claimNextExtraction('worker-b', { leaseTtlMs: 1_000 }),
     ).resolves.toMatchObject({ ownerId: 'owner-b', material: { sessionId: 'owner-b' } });
+  });
+
+  test('expires pending extraction while retaining the source material', async () => {
+    const sessionStore = new PgAgentSessionStore(db, {
+      withTransaction: (body) => db.transaction((tx: Queryable) => body(tx)),
+    });
+    await sessionStore.createSession({ id: 'expired', ownerId: 'owner-a', prompt: 'p' });
+    let now = 100_000;
+    const admitted = new PgAgentSessionMaterialStore(db, { now: () => new Date(now) });
+    const material = await admitted.createMaterial('expired', {
+      kind: 'source',
+      title: 'keep me',
+    });
+    await admitted.enqueueExtraction('expired', material.id);
+    now += 61_000;
+
+    await expect(admitted.expirePendingExtractions(60_000)).resolves.toBe(1);
+    await expect(admitted.getMaterial('expired', material.id)).resolves.toMatchObject({
+      title: 'keep me',
+      extraction: { status: 'failed', error: 'QUEUE_WAIT_EXPIRED' },
+    });
   });
 
   test('provisions the material table idempotently', async () => {

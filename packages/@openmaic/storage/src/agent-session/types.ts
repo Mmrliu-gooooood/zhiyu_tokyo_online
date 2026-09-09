@@ -317,6 +317,8 @@ export interface AgentSessionStore {
     workerPid: number,
     options: ClaimAgentSessionOptions,
   ): Promise<ClaimedAgentSession | null>;
+  /** Fail queued sessions whose accepted input has waited past the host deadline. */
+  expireQueuedSessions(waitMs: number, limit?: number): Promise<number>;
   heartbeat(sessionId: string, workerId: string): Promise<boolean>;
   /** Advance the durable delivery watermark under the active lease fence. */
   markUserMessageDelivered(

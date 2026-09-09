@@ -14,7 +14,9 @@ import { notifyDurableAgentEvent } from '@/lib/server/agent-runtime/event-notify
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
 import {
   checkHeavyTaskAdmission,
+  checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
+  isHeavyTaskFairTurn,
 } from '@/lib/server/heavy-task-admission';
 import { assertGenerationSchema } from './migrations';
 import {
@@ -336,6 +338,21 @@ export class GenerationJobRepository {
           queue.reason === 'personal_queue_limit' ? 429 : 503,
         );
       }
+      const attention = await checkHeavyTaskAttentionCapacity(q, {
+        ownerId,
+        rootTaskId:
+          input.source?.kind === 'pro' && input.source.sessionId
+            ? `agent:${input.source.sessionId}`
+            : `generation:${id}`,
+      });
+      if (!attention.allowed) {
+        throw new GenerationJobError(
+          attention.reason === 'personal_attention_limit'
+            ? 'OWNER_REVIEW_ATTENTION_LIMIT'
+            : 'GENERATION_REVIEW_ATTENTION_FULL',
+          attention.reason === 'personal_attention_limit' ? 429 : 503,
+        );
+      }
       const count = await q.query<{
         owner_count: number;
         total: number;
@@ -543,7 +560,7 @@ export class GenerationJobRepository {
   ) {
     return this.transaction(async (q) => {
       const rows = await q.query<JobRow>(
-        `SELECT * FROM generation_jobs WHERE owner_id=$1 ${options.active ? "AND status NOT IN ('succeeded','cancelled')" : ''} AND ($2::text IS NULL OR id::text < $2) ORDER BY id DESC LIMIT $3`,
+        `SELECT * FROM generation_jobs WHERE owner_id=$1 ${options.active ? "AND status NOT IN ('succeeded','failed','cancelled')" : ''} AND ($2::text IS NULL OR id::text < $2) ORDER BY id DESC LIMIT $3`,
         [ownerId, options.cursor ?? null, Math.min(100, Math.max(1, options.limit ?? 30))],
       );
       const jobs: GenerationJobView[] = [];
@@ -629,6 +646,23 @@ export class GenerationJobRepository {
           agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
         });
         if (!admission.allowed) continue;
+        if (
+          !admission.inherited &&
+          !(await isHeavyTaskFairTurn(q, {
+            ownerId: r.owner_id,
+            rootTaskId: this.rootTaskId(r),
+            kind: 'generation',
+            agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+          }))
+        )
+          continue;
+        if (r.review_policy === 'manual') {
+          const attention = await checkHeavyTaskAttentionCapacity(q, {
+            ownerId: r.owner_id,
+            rootTaskId: this.rootTaskId(r),
+          });
+          if (!attention.allowed) continue;
+        }
         const own = await q.query<{
           ownership_epoch: number;
           write_mode: string;

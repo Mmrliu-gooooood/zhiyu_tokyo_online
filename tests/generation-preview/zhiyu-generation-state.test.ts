@@ -294,5 +294,14 @@ describe('projectGenerationJobPresentation', () => {
       detail: '生成服务暂时不可用，任务状态仍会继续同步。',
       terminal: false,
     });
+    expect(
+      projectGenerationJobPresentation({
+        job: { ...job, status: 'queued', queueReason: 'service_unavailable' },
+      }),
+    ).toEqual({
+      title: '构建课程中 · 服务暂不可用',
+      detail: '生成服务暂时不可用，任务状态仍会继续同步。',
+      terminal: false,
+    });
   });
 });

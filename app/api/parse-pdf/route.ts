@@ -10,9 +10,14 @@ import { documentArtifactToParsedPdfContent, extractDocument } from '@/lib/docum
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 const log = createLogger('Parse PDF');
 
 export async function POST(req: NextRequest) {
+  return runIndependentHeavyTaskRequest(req, 'document-extraction', () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   let pdfFileName: string | undefined;
   let resolvedProviderId: string | undefined;
   try {

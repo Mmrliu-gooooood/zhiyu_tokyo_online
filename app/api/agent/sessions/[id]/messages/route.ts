@@ -15,6 +15,7 @@ import {
   bindOwnerMaterialsToSession,
   SessionMaterialBindingError,
 } from '@/lib/server/agent-runtime/session-materials';
+import { HeavyTaskCapacityError } from '@/lib/server/heavy-task-admission';
 
 export const runtime = 'nodejs';
 
@@ -23,12 +24,9 @@ interface MediaConfigRef {
   revision: number;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-function parseMediaConfigRef(
-  value: unknown,
-): { ok: true; ref?: MediaConfigRef } | { ok: false } {
+function parseMediaConfigRef(value: unknown): { ok: true; ref?: MediaConfigRef } | { ok: false } {
   if (value === undefined) return { ok: true };
   if (!value || typeof value !== 'object' || Array.isArray(value)) return { ok: false };
   const record = value as Record<string, unknown>;
@@ -141,9 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         {
           expectedOwnerId: ownerId,
           ...(modelRef ? { modelRef } : {}),
-          ...(parsedMediaConfigRef.ref
-            ? { mediaConfigRef: parsedMediaConfigRef.ref }
-            : {}),
+          ...(parsedMediaConfigRef.ref ? { mediaConfigRef: parsedMediaConfigRef.ref } : {}),
         },
       );
       return NextResponse.json(
@@ -161,6 +157,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
       if (error instanceof AgentSessionAccessError) {
         return new Response('Forbidden', { status: 403, headers: responseHeaders });
+      }
+      if (error instanceof HeavyTaskCapacityError) {
+        const code = error.reason.startsWith('personal_')
+          ? 'HEAVY_TASK_PERSONAL_CAPACITY_LIMIT'
+          : 'HEAVY_TASK_SITE_CAPACITY_LIMIT';
+        const response = apiError(code, error.httpStatus, error.reason);
+        responseHeaders.forEach((value, name) => response.headers.append(name, value));
+        return response;
       }
       throw error;
     }

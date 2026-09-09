@@ -320,7 +320,7 @@ export interface GenerationJobView {
   lastErrorCode: string | null;
   reviewHold: boolean;
   autoContinueAt: string | null;
-  queueReason?: 'queued' | 'owner_limit' | 'site_limit' | null;
+  queueReason?: 'queued' | 'owner_limit' | 'site_limit' | 'service_unavailable' | null;
   retryAt?: string | null;
   pollUrl: string;
   courseUrl: string;

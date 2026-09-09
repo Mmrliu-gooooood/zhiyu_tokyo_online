@@ -4,7 +4,7 @@ import type { PgAgentSessionMaterialStore } from '@openmaic/storage/material/pg'
 
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
 import { getAgentSessionMaterialStore } from '@/lib/server/agent-runtime/session-materials';
-import { withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
+import { heavyTaskQueueWaitMs, withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 
 import { extractClaimedSessionMaterial } from './extract';
 import { isTransientExtractionError } from './errors';
@@ -69,6 +69,7 @@ export function startMaterialExtractionRunner(
     if (stopping) return;
     try {
       const store = await getStore();
+      await store.expirePendingExtractions(heavyTaskQueueWaitMs());
       const available = agentRuntimeConfig.maxConcurrent - running.size;
       for (let index = 0; !stopping && index < available; index += 1) {
         const job: Promise<void> = runNextMaterialExtraction(store, workerId, execute)

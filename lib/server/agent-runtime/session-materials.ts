@@ -22,7 +22,10 @@ import {
 import { getReadyOwnerMaterials } from '@/lib/persistence/owner-materials';
 import {
   checkHeavyTaskAdmission,
+  checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
+  HeavyTaskCapacityError,
+  isHeavyTaskFairTurn,
 } from '@/lib/server/heavy-task-admission';
 
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
@@ -65,14 +68,30 @@ async function createMaterialStore(connectionString: string): Promise<PgAgentSes
         agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
         materialLeaseTtlMs: input.leaseTtlMs,
       });
-      return decision.allowed;
+      return (
+        decision.allowed &&
+        (decision.inherited ||
+          (await isHeavyTaskFairTurn(transaction, {
+            ownerId: input.ownerId,
+            rootTaskId: `agent:${input.sessionId}`,
+            kind: 'material-extraction',
+            nowMs: input.now,
+            agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+            materialLeaseTtlMs: input.leaseTtlMs,
+          })))
+      );
     },
     admitExtractionEnqueue: async (transaction, input): Promise<boolean> => {
       const decision = await checkHeavyTaskQueueCapacity(transaction, {
         ownerId: input.ownerId,
         rootTaskId: `agent:${input.sessionId}`,
       });
-      if (!decision.allowed) throw new Error(decision.reason);
+      if (!decision.allowed) throw new HeavyTaskCapacityError(decision.reason);
+      const attention = await checkHeavyTaskAttentionCapacity(transaction, {
+        ownerId: input.ownerId,
+        rootTaskId: `agent:${input.sessionId}`,
+      });
+      if (!attention.allowed) throw new HeavyTaskCapacityError(attention.reason);
       return true;
     },
   });

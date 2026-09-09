@@ -705,6 +705,54 @@ export class PgAgentSessionStore
     return null;
   }
 
+  async expireQueuedSessions(waitMs: number, limit = 20): Promise<number> {
+    if (
+      !Number.isSafeInteger(waitMs) ||
+      waitMs <= 0 ||
+      !Number.isSafeInteger(limit) ||
+      limit <= 0
+    ) {
+      throw new Error('@openmaic/storage: invalid queued-session expiry options');
+    }
+    return this.transaction(async (tx) => {
+      const expired = await tx.query<{ id: string; attempt: number }>(
+        `SELECT id, attempt FROM ${this.table('sessions')}
+          WHERE deleted_at IS NULL AND status = 'queued'
+            AND updated_at <= clock_timestamp() - $1 * interval '1 millisecond'
+          ORDER BY updated_at, id LIMIT $2 FOR UPDATE SKIP LOCKED`,
+        [waitMs, limit],
+      );
+      const now = this.clock();
+      for (const row of expired.rows) {
+        await tx.query(
+          `UPDATE ${this.table('sessions')}
+              SET status = 'failed', error = 'QUEUE_WAIT_EXPIRED',
+                  lease_worker_id = NULL, lease_worker_pid = NULL, lease_heartbeat_at = NULL,
+                  updated_at = now()
+            WHERE id = $1 AND status = 'queued'`,
+          [row.id],
+        );
+        await this.appendProjection(
+          {
+            type: 'session_status',
+            sessionId: row.id,
+            ts: now,
+            status: 'failed',
+            attempt: row.attempt,
+          },
+          tx,
+        );
+        await this.insertEvent(tx, row.id, {
+          ts: now,
+          attempt: row.attempt,
+          type: AGENT_SESSION_LIFECYCLE.sessionEnd,
+          data: { status: 'failed', error: 'QUEUE_WAIT_EXPIRED' },
+        });
+      }
+      return expired.rows.length;
+    });
+  }
+
   /**
    * Terminal bookkeeping for a cancel-requested session the claim scan just
    * encountered, mirroring what the runner's own cancel path does: the row

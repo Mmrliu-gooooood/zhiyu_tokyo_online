@@ -91,6 +91,28 @@ describe('PgAgentSessionStore with PGlite', () => {
     ).resolves.toMatchObject({ id: 'owner-b', ownerId: 'owner-b' });
   });
 
+  test('expires queued sessions without deleting their accepted prompt', async () => {
+    await store.createSession({ id: 'expired-session', ownerId: 'owner-a', prompt: 'keep me' });
+    await db.query("UPDATE agent_sessions SET updated_at=timestamp '2000-01-01' WHERE id=$1", [
+      'expired-session',
+    ]);
+
+    await expect(store.expireQueuedSessions(60_000)).resolves.toBe(1);
+    await expect(store.getSession('expired-session')).resolves.toMatchObject({
+      status: 'failed',
+      prompt: 'keep me',
+      error: 'QUEUE_WAIT_EXPIRED',
+    });
+    await expect(store.readEventsAfter('expired-session', 0)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'session_end',
+          data: { status: 'failed', error: 'QUEUE_WAIT_EXPIRED' },
+        }),
+      ]),
+    );
+  });
+
   test('freezes the run connection through steering and restart, adopts changes next run', async () => {
     const first = { id: 'connection-a', revision: 1 };
     const next = { id: 'connection-a', revision: 2 };

@@ -74,6 +74,14 @@ describe('generation admission configuration', () => {
       queueWaitMs: 60 * 60 * 1000,
       manualReviewWaitMs: 24 * 60 * 60 * 1000,
     });
+    expect(() =>
+      generationConfig({ GENERATION_MAX_QUEUED_JOBS: '21' } as NodeJS.ProcessEnv),
+    ).toThrow();
+    expect(() =>
+      generationConfig({
+        GENERATION_QUEUE_WAIT_MS: String(60 * 60 * 1000 + 1),
+      } as NodeJS.ProcessEnv),
+    ).toThrow();
   });
 });
 describe('generation repository PostgreSQL statements (PGlite, not a lock-concurrency substitute)', () => {

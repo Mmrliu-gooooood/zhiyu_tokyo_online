@@ -34,6 +34,7 @@ import {
 } from '@/lib/audio/voice-registration';
 import { QwenVoiceCloneError, qwenVoiceCloneErrorMessage } from '@/lib/audio/qwen-voice-clone';
 import { InvalidReferenceAudioError } from '@/lib/audio/wav-validate';
+import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
 const log = createLogger('Voice Registration API');
 
@@ -63,6 +64,10 @@ function childSignal(
 }
 
 export async function POST(req: NextRequest) {
+  return runIndependentHeavyTaskRequest(req, 'media', () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let providerId: string | undefined;

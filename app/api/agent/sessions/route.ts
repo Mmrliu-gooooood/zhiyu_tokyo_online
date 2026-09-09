@@ -20,6 +20,7 @@ import {
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { buildRequestOrigin, isValidClassroomId } from '@/lib/server/classroom-storage';
 import { decodeCourseRefs } from '@/lib/workbench/course-refs';
+import { HeavyTaskCapacityError } from '@/lib/server/heavy-task-admission';
 
 export const runtime = 'nodejs';
 
@@ -42,12 +43,9 @@ interface MediaConfigRef {
   revision: number;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-function parseMediaConfigRef(
-  value: unknown,
-): { ok: true; ref?: MediaConfigRef } | { ok: false } {
+function parseMediaConfigRef(value: unknown): { ok: true; ref?: MediaConfigRef } | { ok: false } {
   if (value === undefined) return { ok: true };
   if (!value || typeof value !== 'object' || Array.isArray(value)) return { ok: false };
   const record = value as Record<string, unknown>;
@@ -176,19 +174,27 @@ export async function POST(req: NextRequest) {
       : await validateSessionModelBinding(ownerId, body.modelRef);
     const store = await getAgentSessionStore();
     const hasOpeningContext = materialIds.length > 0 || decodedCourseRefs.refs.length > 0;
-    const meta = await store.createSession({
-      ownerId,
-      prompt,
-      ...(modelRef ? { modelRef } : {}),
-      ...(parsedMediaConfigRef.ref ? { mediaConfigRef: parsedMediaConfigRef.ref } : {}),
-      ...(stageId ? { stageId } : {}),
-      ...(skillId ? { skillId } : {}),
-      existingCourse,
-      origin: buildRequestOrigin(req),
-      // Keep the runner from claiming the session until its opening materials
-      // and references are durable. postUserMessage below atomically requeues it.
-      ...(existingCourse || hasOpeningContext ? { status: 'succeeded' as const } : {}),
-    });
+    let meta;
+    try {
+      meta = await store.createSession({
+        ownerId,
+        prompt,
+        ...(modelRef ? { modelRef } : {}),
+        ...(parsedMediaConfigRef.ref ? { mediaConfigRef: parsedMediaConfigRef.ref } : {}),
+        ...(stageId ? { stageId } : {}),
+        ...(skillId ? { skillId } : {}),
+        existingCourse,
+        origin: buildRequestOrigin(req),
+        // Keep the runner from claiming the session until its opening materials
+        // and references are durable. postUserMessage below atomically requeues it.
+        ...(existingCourse || hasOpeningContext ? { status: 'succeeded' as const } : {}),
+      });
+    } catch (error) {
+      if (error instanceof HeavyTaskCapacityError) {
+        return capacityErrorResponse(error, responseHeaders);
+      }
+      throw error;
+    }
 
     if (!hasOpeningContext) {
       return NextResponse.json(meta, { status: 202, headers: responseHeaders });
@@ -208,9 +214,7 @@ export async function POST(req: NextRequest) {
         {
           expectedOwnerId: ownerId,
           ...(modelRef ? { modelRef } : {}),
-          ...(parsedMediaConfigRef.ref
-            ? { mediaConfigRef: parsedMediaConfigRef.ref }
-            : {}),
+          ...(parsedMediaConfigRef.ref ? { mediaConfigRef: parsedMediaConfigRef.ref } : {}),
         },
       );
       return NextResponse.json(
@@ -226,9 +230,21 @@ export async function POST(req: NextRequest) {
       if (error instanceof SessionMaterialBindingError) {
         return new Response('Not found', { status: 404, headers: responseHeaders });
       }
+      if (error instanceof HeavyTaskCapacityError) {
+        return capacityErrorResponse(error, responseHeaders);
+      }
       throw error;
     }
   });
+}
+
+function capacityErrorResponse(error: HeavyTaskCapacityError, headers: Headers): Response {
+  const code = error.reason.startsWith('personal_')
+    ? 'HEAVY_TASK_PERSONAL_CAPACITY_LIMIT'
+    : 'HEAVY_TASK_SITE_CAPACITY_LIMIT';
+  const response = apiError(code, error.httpStatus, error.reason);
+  headers.forEach((value, name) => response.headers.append(name, value));
+  return response;
 }
 
 export async function GET(req: NextRequest) {

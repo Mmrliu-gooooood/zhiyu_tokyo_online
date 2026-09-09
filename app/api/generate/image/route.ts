@@ -40,6 +40,7 @@ import {
   parseCustomImageProviderConfig,
 } from '@/lib/server/media-provider-config';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
+import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
 const log = createLogger('ImageGeneration API');
 
@@ -51,6 +52,10 @@ const log = createLogger('ImageGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  return runIndependentHeavyTaskRequest(request, 'media', () => handlePost(request));
+}
+
+async function handlePost(request: NextRequest) {
   const generationGuard = await guardClientGeneration(request);
   if (generationGuard) return generationGuard;
   try {

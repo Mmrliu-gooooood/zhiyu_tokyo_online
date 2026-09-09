@@ -48,7 +48,7 @@ import {
   untrustedContentPolicyPromptBlock,
 } from './fetch-url';
 import { assembleRunnerTools, buildRunnerCoursePrompt } from './runner-contract';
-import { withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
+import { heavyTaskQueueWaitMs, withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 import { buildMaterialTools, MATERIAL_TOOL_NAMES } from './material-tools';
 import { buildRosterTools, ROSTER_TOOL_NAMES, ROSTER_TOOLS_PROMPT } from './roster-tools';
 import {
@@ -1938,6 +1938,7 @@ export function startAgentRunner(
     scanning = true;
     try {
       const store = await getAgentSessionStore();
+      await store.expireQueuedSessions(heavyTaskQueueWaitMs());
       while (ctx.running.size < config.maxConcurrent && !ctx.shuttingDown) {
         const meta = await store.claimNextSession(WORKER_ID, process.pid, {
           leaseTtlMs: config.leaseTtlMs,

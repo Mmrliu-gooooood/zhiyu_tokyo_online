@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   checkHeavyTaskAdmission,
+  checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
   getHeavyTaskRootContext,
   heavyTaskSiteLimit,
+  isHeavyTaskFairTurn,
   withHeavyTaskRootContext,
   type HeavyTaskAdmissionQueryable,
 } from '@/lib/server/heavy-task-admission';
@@ -190,5 +192,55 @@ describe('heavy task admission', () => {
       queuedRoots: 20,
       queuedOwnerRoots: 4,
     });
+  });
+
+  it('counts generation review and unanswered Pro questions in one attention backlog', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('pg_advisory_xact_lock')) return { rows: [{}] };
+      if (sql.includes("to_regclass('generation_jobs')")) {
+        return {
+          rows: [
+            {
+              generation_jobs: 'generation_jobs',
+              agent_sessions: 'agent_sessions',
+              agent_session_events: 'agent_session_events',
+            },
+          ],
+        };
+      }
+      expect(sql).toContain("status IN ('awaiting_confirmation', 'needs_attention')");
+      expect(sql).toContain("question.type = 'user_question'");
+      return { rows: [{ attention_roots: '5', attention_owner_roots: '5' }] };
+    });
+    await expect(
+      checkHeavyTaskAttentionCapacity({ query } as unknown as HeavyTaskAdmissionQueryable, {
+        ownerId: 'owner-a',
+        rootTaskId: 'agent:new',
+      }),
+    ).resolves.toMatchObject({ allowed: false, reason: 'personal_attention_limit' });
+  });
+
+  it('admits only the oldest eligible root across generation, agent and material queues', async () => {
+    const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
+      if (sql.includes("to_regclass('generation_jobs')")) {
+        return {
+          rows: [
+            {
+              generation_jobs: 'generation_jobs',
+              agent_sessions: 'agent_sessions',
+              agent_session_materials: 'agent_session_materials',
+            },
+          ],
+        };
+      }
+      expect(sql).toContain("status = 'queued'");
+      expect(sql).toContain("material.extraction_status = 'pending'");
+      expect(sql).toContain('ORDER BY queued_at, root_task_id');
+      expect(parameters).toEqual(['owner-a', 'agent:root-a', 90_000, 80_000, -3_500_000]);
+      return { rows: [{ candidate_present: true, oldest_root: 'generation:older' }] };
+    });
+    await expect(
+      isHeavyTaskFairTurn({ query } as unknown as HeavyTaskAdmissionQueryable, request),
+    ).resolves.toBe(false);
   });
 });

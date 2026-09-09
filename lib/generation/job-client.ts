@@ -3,7 +3,7 @@ import type { SceneOutline } from '@/lib/types/generation';
 import { nanoid } from 'nanoid';
 
 export interface GenerationJobSnapshot extends GenerationJobView {
-  queueReason?: 'owner_limit' | 'site_limit' | 'queued' | null;
+  queueReason?: 'owner_limit' | 'site_limit' | 'queued' | 'service_unavailable' | null;
   retryAt?: string | null;
   outlines?: SceneOutline[];
   activeSteps?: Array<{ key: string; kind: string; outlineId: string | null }>;

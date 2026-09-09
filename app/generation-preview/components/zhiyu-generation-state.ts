@@ -20,7 +20,7 @@ export function projectGenerationJobPresentation(input: {
   job: {
     status: string;
     phase: string;
-    queueReason?: 'owner_limit' | 'site_limit' | 'queued' | null;
+    queueReason?: 'owner_limit' | 'site_limit' | 'queued' | 'service_unavailable' | null;
     retryAt?: string | null;
     readyScenes: number;
     totalScenes: number;
@@ -96,9 +96,10 @@ export function projectGenerationJobPresentation(input: {
   }
   if (
     input.job &&
-    (['service_unavailable', 'worker_unavailable', 'database_unavailable'].includes(
-      input.job.phase.toLowerCase(),
-    ) ||
+    (input.job.queueReason === 'service_unavailable' ||
+      ['service_unavailable', 'worker_unavailable', 'database_unavailable'].includes(
+        input.job.phase.toLowerCase(),
+      ) ||
       input.job.lastErrorCode === 'GENERATION_SERVICE_UNAVAILABLE')
   ) {
     return {

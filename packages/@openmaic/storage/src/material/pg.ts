@@ -384,11 +384,11 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
               SET extraction_status = 'pending', extraction_attempts = 0,
                   extraction_error = NULL, extraction_stats = NULL,
                   extractor_version = NULL, extraction_lease_worker_id = NULL,
-                  extraction_lease_worker_pid = NULL, extraction_lease_heartbeat_at = NULL
+                  extraction_lease_worker_pid = NULL, extraction_lease_heartbeat_at = $3
             WHERE id = $1 AND session_id = $2
               AND kind = 'source' AND extraction_status IN ('idle', 'failed')
             RETURNING id`,
-          [materialId, sessionId],
+          [materialId, sessionId, this.now().getTime()],
         );
         return result.rows.length > 0;
       });
@@ -398,16 +398,46 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
           SET extraction_status = 'pending', extraction_attempts = 0,
               extraction_error = NULL, extraction_stats = NULL,
               extractor_version = NULL, extraction_lease_worker_id = NULL,
-              extraction_lease_worker_pid = NULL, extraction_lease_heartbeat_at = NULL
-         FROM agent_sessions AS session
+              extraction_lease_worker_pid = NULL, extraction_lease_heartbeat_at = $3
+        FROM agent_sessions AS session
         WHERE material.id = $1 AND material.session_id = $2
           AND material.session_id = session.id AND session.deleted_at IS NULL
           AND material.kind = 'source'
           AND material.extraction_status IN ('idle', 'failed')
         RETURNING material.id`,
-      [materialId, sessionId],
+      [materialId, sessionId, this.now().getTime()],
     );
     return result.rows.length > 0;
+  }
+
+  async expirePendingExtractions(waitMs: number, limit = 20): Promise<number> {
+    if (
+      !Number.isSafeInteger(waitMs) ||
+      waitMs <= 0 ||
+      !Number.isSafeInteger(limit) ||
+      limit <= 0
+    ) {
+      throw new Error('@openmaic/storage: invalid pending-extraction expiry options');
+    }
+    const threshold = this.now().getTime() - waitMs;
+    const result = await this.queryable.query<{ id: string }>(
+      `WITH expired AS (
+         SELECT id FROM ${this.table}
+          WHERE kind = 'source' AND extraction_status = 'pending'
+            AND COALESCE(
+              extraction_lease_heartbeat_at,
+              (extract(epoch FROM created_at) * 1000)::bigint
+            ) <= $1
+          ORDER BY created_at, id LIMIT $2 FOR UPDATE SKIP LOCKED
+       )
+       UPDATE ${this.table} AS material
+          SET extraction_status = 'failed', extraction_error = 'QUEUE_WAIT_EXPIRED',
+              extraction_lease_worker_id = NULL, extraction_lease_worker_pid = NULL,
+              extraction_lease_heartbeat_at = NULL
+         FROM expired WHERE material.id = expired.id RETURNING material.id`,
+      [threshold, limit],
+    );
+    return result.rows.length;
   }
 
   async claimNextExtraction(
