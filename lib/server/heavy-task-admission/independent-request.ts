@@ -24,6 +24,8 @@ import {
 // row becoming reusable while a non-network cleanup step is still unwinding.
 const SYNC_LEASE_MS = 60 * 60 * 1000;
 const SYNC_HEARTBEAT_MS = 30 * 1000;
+const SYNC_ABORT_GRACE_MS = 15 * 60 * 1000;
+const RELEASE_RETRY_DELAYS_MS = [1_000, 5_000, 15_000, 30_000] as const;
 const independentFetchSignal = new AsyncLocalStorage<AbortSignal>();
 let abortableFetchInstalled = false;
 
@@ -69,6 +71,17 @@ export async function runIndependentHeavyTaskRequest(
   const leaseAbort = new AbortController();
   let leaseFailure: unknown;
   let renewing: Promise<void> | undefined;
+  let expiryWatchdog: ReturnType<typeof setTimeout> | undefined;
+  const armExpiryWatchdog = () => {
+    if (expiryWatchdog) clearTimeout(expiryWatchdog);
+    expiryWatchdog = setTimeout(() => {
+      if (!leaseAbort.signal.aborted) {
+        leaseAbort.abort(new IndependentLeaseUncertainError());
+      }
+    }, SYNC_LEASE_MS - SYNC_ABORT_GRACE_MS);
+    expiryWatchdog.unref?.();
+  };
+  armExpiryWatchdog();
   const renew = () => {
     if (renewing) return;
     renewing = heartbeatIndependentLease(lease!)
@@ -77,6 +90,8 @@ export async function runIndependentHeavyTaskRequest(
           const error = new IndependentLeaseLostError();
           leaseFailure ??= error;
           if (!leaseAbort.signal.aborted) leaseAbort.abort(error);
+        } else {
+          armExpiryWatchdog();
         }
       })
       // A query error does not prove the fenced row was lost. The one-hour
@@ -103,8 +118,13 @@ export async function runIndependentHeavyTaskRequest(
     throw error;
   } finally {
     clearInterval(heartbeat);
+    if (expiryWatchdog) clearTimeout(expiryWatchdog);
     await renewing;
-    await releaseIndependentLease(lease).catch(() => undefined);
+    try {
+      await releaseIndependentLease(lease);
+    } catch {
+      retryReleaseIndependentLease(lease);
+    }
   }
 }
 
@@ -184,6 +204,27 @@ async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
   );
 }
 
+function retryReleaseIndependentLease(lease: IndependentLease): void {
+  void (async () => {
+    for (const delayMs of RELEASE_RETRY_DELAYS_MS) {
+      await unrefDelay(delayMs);
+      try {
+        await releaseIndependentLease(lease);
+        return;
+      } catch {
+        // A later fenced attempt is safe even if a successor already owns the row.
+      }
+    }
+  })();
+}
+
+function unrefDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    timer.unref?.();
+  });
+}
+
 async function transaction<T>(body: (client: HeavyTaskAdmissionQueryable) => Promise<T>) {
   const client = await getGenerationPool().connect();
   try {
@@ -213,6 +254,7 @@ function installAbortableFetch(): void {
 
 class PersonalCapacityError extends Error {}
 class IndependentLeaseLostError extends Error {}
+class IndependentLeaseUncertainError extends Error {}
 
 function limitResponse(reason: 'personal_limit' | 'site_limit', headers: Headers): Response {
   const response = apiError(

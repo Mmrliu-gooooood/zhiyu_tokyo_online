@@ -16,11 +16,17 @@ vi.mock('@/lib/server/agent-runtime/owner', () => ({
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
 function fakePool(
-  options: { activeOwner?: boolean; loseHeartbeat?: boolean; heartbeatError?: boolean } = {},
+  options: {
+    activeOwner?: boolean;
+    loseHeartbeat?: boolean;
+    heartbeatError?: boolean;
+    releaseFailures?: number;
+  } = {},
 ) {
   let released = false;
   const transactionQueries: string[] = [];
   const poolQueries: string[] = [];
+  let remainingReleaseFailures = options.releaseFailures ?? 0;
   const client = {
     async query(sql: string, parameters?: unknown[]) {
       transactionQueries.push(sql);
@@ -71,6 +77,10 @@ function fakePool(
       if (sql.includes('SET expires_at')) {
         if (options.heartbeatError) throw new Error('database unavailable');
         return { rows: [], rowCount: options.loseHeartbeat ? 0 : 1 };
+      }
+      if (sql.includes('DELETE FROM') && remainingReleaseFailures > 0) {
+        remainingReleaseFailures -= 1;
+        throw new Error('database unavailable');
       }
       return { rows: [], rowCount: 1 };
     }),
@@ -173,6 +183,48 @@ describe('independent heavy-task request admission', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ success: true });
+  });
+
+  it('aborts before an unconfirmed lease can expire without replacing the real response', async () => {
+    vi.useFakeTimers();
+    const state = fakePool({ heartbeatError: true });
+    mocks.getGenerationPool.mockReturnValue(state.pool);
+
+    const pending = runIndependentHeavyTaskRequest(
+      new Request('http://localhost/api/generate/image', { method: 'POST' }),
+      'media',
+      (signal) =>
+        new Promise<Response>((resolve) => {
+          signal.addEventListener(
+            'abort',
+            () => resolve(Response.json({ providerStatus: 'unknown' }, { status: 500 })),
+            { once: true },
+          );
+        }),
+    );
+
+    await vi.advanceTimersByTimeAsync(45 * 60 * 1000);
+    const response = await pending;
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({ providerStatus: 'unknown' });
+  });
+
+  it('retries a transient fenced-release failure without delaying the response', async () => {
+    vi.useFakeTimers();
+    const state = fakePool({ releaseFailures: 1 });
+    mocks.getGenerationPool.mockReturnValue(state.pool);
+
+    const response = await runIndependentHeavyTaskRequest(
+      new Request('http://localhost/api/generate/image', { method: 'POST' }),
+      'media',
+      async () => Response.json({ success: true }),
+    );
+    expect(response.status).toBe(200);
+    expect(state.poolQueries.filter((sql) => sql.includes('DELETE FROM'))).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(state.poolQueries.filter((sql) => sql.includes('DELETE FROM'))).toHaveLength(2);
   });
 
   it('returns the stable personal-capacity protocol before running provider work', async () => {
