@@ -613,8 +613,10 @@ export class GenerationJobRepository {
   ): Promise<GenerationLease | null> {
     return this.transaction(async (q) => {
       await assertGenerationSchema(q);
-      const rows = await q.query<JobRow>(
-        `SELECT * FROM generation_jobs AS candidate
+      let offset = 0;
+      for (;;) {
+        const rows = await q.query<JobRow>(
+          `SELECT * FROM generation_jobs AS candidate
          WHERE ((status='queued' AND updated_at>clock_timestamp()-$2*interval '1 millisecond') OR status='retry_wait')
            AND available_at<=clock_timestamp()
            AND pipeline_version=ANY($1::text[])
@@ -630,66 +632,61 @@ export class GenerationJobRepository {
                )
            )
          ORDER BY priority DESC,available_at,created_at,id
-         LIMIT 20 FOR UPDATE SKIP LOCKED`,
-        [pipelineVersions, this.config.queueWaitMs],
-      );
-      for (const r of rows.rows) {
-        const lock = await q.query<{ locked: boolean }>(
-          "SELECT pg_try_advisory_xact_lock(hashtext('generation:owner:' || $1)) AS locked",
-          [r.owner_id],
+         LIMIT 20 OFFSET $3 FOR UPDATE SKIP LOCKED`,
+          [pipelineVersions, this.config.queueWaitMs, offset],
         );
-        if (!lock.rows[0]?.locked) continue;
-        const admission = await checkHeavyTaskAdmission(q, {
-          ownerId: r.owner_id,
-          rootTaskId: this.rootTaskId(r),
-          kind: 'generation',
-          agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
-        });
-        if (!admission.allowed) continue;
-        if (
-          !admission.inherited &&
-          !(await isHeavyTaskFairTurn(q, {
+        for (const r of rows.rows) {
+          const lock = await q.query<{ locked: boolean }>(
+            "SELECT pg_try_advisory_xact_lock(hashtext('generation:owner:' || $1)) AS locked",
+            [r.owner_id],
+          );
+          if (!lock.rows[0]?.locked) continue;
+          const admission = await checkHeavyTaskAdmission(q, {
             ownerId: r.owner_id,
             rootTaskId: this.rootTaskId(r),
             kind: 'generation',
             agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
-          }))
-        )
-          continue;
-        if (r.review_policy === 'manual') {
-          const attention = await checkHeavyTaskAttentionCapacity(q, {
-            ownerId: r.owner_id,
-            rootTaskId: this.rootTaskId(r),
           });
-          if (!attention.allowed) continue;
+          if (!admission.allowed) continue;
+          if (
+            !admission.inherited &&
+            !(await isHeavyTaskFairTurn(q, {
+              ownerId: r.owner_id,
+              rootTaskId: this.rootTaskId(r),
+              kind: 'generation',
+              agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+            }))
+          )
+            continue;
+          const own = await q.query<{
+            ownership_epoch: number;
+            write_mode: string;
+            owner_id: string;
+          }>(
+            'SELECT ownership_epoch,write_mode,owner_id FROM generation_ownership WHERE stage_id=$1 FOR UPDATE',
+            [r.stage_id],
+          );
+          if (own.rows[0]?.write_mode !== 'generating' || own.rows[0].owner_id !== r.owner_id)
+            continue;
+          await q.query(
+            "UPDATE generation_jobs SET status='running',worker_id=$2,lease_epoch=lease_epoch+1,lease_expires_at=clock_timestamp()+$3*interval '1 millisecond',heartbeat_at=clock_timestamp(),started_at=COALESCE(started_at,clock_timestamp()),state_version=state_version+1 WHERE id=$1",
+            [r.id, workerId, this.config.leaseMs],
+          );
+          await this.event(q, r.id, 'claimed');
+          return {
+            jobId: r.id,
+            stageId: r.stage_id,
+            ownerId: r.owner_id,
+            workerId,
+            leaseEpoch: Number(r.lease_epoch) + 1,
+            ownershipEpoch: Number(own.rows[0].ownership_epoch),
+            planRevision: r.plan_revision,
+            input: r.input_snapshot,
+          };
         }
-        const own = await q.query<{
-          ownership_epoch: number;
-          write_mode: string;
-          owner_id: string;
-        }>(
-          'SELECT ownership_epoch,write_mode,owner_id FROM generation_ownership WHERE stage_id=$1 FOR UPDATE',
-          [r.stage_id],
-        );
-        if (own.rows[0]?.write_mode !== 'generating' || own.rows[0].owner_id !== r.owner_id)
-          continue;
-        await q.query(
-          "UPDATE generation_jobs SET status='running',worker_id=$2,lease_epoch=lease_epoch+1,lease_expires_at=clock_timestamp()+$3*interval '1 millisecond',heartbeat_at=clock_timestamp(),started_at=COALESCE(started_at,clock_timestamp()),state_version=state_version+1 WHERE id=$1",
-          [r.id, workerId, this.config.leaseMs],
-        );
-        await this.event(q, r.id, 'claimed');
-        return {
-          jobId: r.id,
-          stageId: r.stage_id,
-          ownerId: r.owner_id,
-          workerId,
-          leaseEpoch: Number(r.lease_epoch) + 1,
-          ownershipEpoch: Number(own.rows[0].ownership_epoch),
-          planRevision: r.plan_revision,
-          input: r.input_snapshot,
-        };
+        if (rows.rows.length < 20) return null;
+        offset += rows.rows.length;
       }
-      return null;
     });
   }
   async heartbeat(lease: GenerationLease): Promise<boolean> {

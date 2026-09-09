@@ -90,7 +90,7 @@ describe('PgAgentSessionMaterialStore with PGlite', () => {
     ]);
   });
 
-  test('keeps scanning fairly after one owner fills the confirmed queue allowance', async () => {
+  test('keeps scanning past a full candidate page from one blocked root', async () => {
     const sessionStore = new PgAgentSessionStore(db, {
       withTransaction: (body) => db.transaction((tx: Queryable) => body(tx)),
     });
@@ -100,11 +100,13 @@ describe('PgAgentSessionMaterialStore with PGlite', () => {
       now: () => new Date(1_700_000_000_000 + (tick += 1_000)),
       admitExtractionClaim: async (_transaction, input) => input.ownerId !== 'owner-a',
     });
-    for (let index = 0; index < 5; index += 1) {
-      const sessionId = `owner-a-${index}`;
-      await sessionStore.createSession({ id: sessionId, ownerId: 'owner-a', prompt: 'p' });
-      const material = await admitted.createMaterial(sessionId, { kind: 'source' });
-      await admitted.enqueueExtraction(sessionId, material.id);
+    await sessionStore.createSession({ id: 'owner-a', ownerId: 'owner-a', prompt: 'p' });
+    for (let index = 0; index < 21; index += 1) {
+      const blocked = await admitted.createMaterial('owner-a', {
+        kind: 'source',
+        title: `blocked-${index}`,
+      });
+      await admitted.enqueueExtraction('owner-a', blocked.id);
     }
     await sessionStore.createSession({ id: 'owner-b', ownerId: 'owner-b', prompt: 'p' });
     const material = await admitted.createMaterial('owner-b', { kind: 'source' });

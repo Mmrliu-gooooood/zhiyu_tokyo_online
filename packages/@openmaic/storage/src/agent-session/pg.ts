@@ -609,26 +609,28 @@ export class PgAgentSessionStore
                  AND length(btrim(COALESCE(answer.data->>'text', ''))) > 0
              )
          ))`;
-    const candidates = await this.queryable.query<{ id: string }>(
-      `SELECT id FROM ${this.table('sessions')}
+    let offset = 0;
+    for (;;) {
+      const candidates = await this.queryable.query<{ id: string }>(
+        `SELECT id FROM ${this.table('sessions')}
        WHERE deleted_at IS NULL
          AND (status = 'queued' OR
               (status = 'running'
                AND (lease_heartbeat_at IS NULL OR lease_heartbeat_at < $1)
                AND (lease_worker_id IS NULL OR lease_worker_id <> $2)))
          AND (attempt < $3 OR status = 'running')${askAdmission}${targeted}
-       ORDER BY created_at LIMIT 20`,
-      params,
-    );
-    for (const candidate of candidates.rows) {
-      const claimed = await this.transaction(async (tx) => {
-        const locked = await tx.query<{
-          status: string;
-          attempt: number;
-          owner_id: string;
-          cancel_requested_at: number | string | Date | null;
-        }>(
-          `SELECT status, attempt, owner_id, cancel_requested_at FROM ${this.table('sessions')}
+       ORDER BY created_at LIMIT 20 OFFSET $${params.length + 1}`,
+        [...params, offset],
+      );
+      for (const candidate of candidates.rows) {
+        const claimed = await this.transaction(async (tx) => {
+          const locked = await tx.query<{
+            status: string;
+            attempt: number;
+            owner_id: string;
+            cancel_requested_at: number | string | Date | null;
+          }>(
+            `SELECT status, attempt, owner_id, cancel_requested_at FROM ${this.table('sessions')}
            WHERE id = $1 AND deleted_at IS NULL
              AND (status = 'queued' OR
                   (status = 'running'
@@ -637,34 +639,34 @@ export class PgAgentSessionStore
              AND (attempt < $4 OR status = 'running')
              ${askAdmission}
            FOR UPDATE`,
-          [candidate.id, staleBefore, workerId, options.maxAttempts + 1],
-        );
-        const previous = locked.rows[0];
-        if (!previous) return null;
-        const now = this.clock();
-        // A cancel request is terminal: the session must never be re-leased
-        // for another attempt (a restart would otherwise resurrect a session
-        // the user already cancelled). Settle it as cancelled under the same
-        // lock the claim would have used, then keep scanning.
-        if (previous.cancel_requested_at !== null && previous.cancel_requested_at !== undefined) {
-          await this.settleCancelledAtClaim(tx, candidate.id, now, previous.attempt);
-          return null;
-        }
-        if (
-          this.admitClaimHook &&
-          !(await this.admitClaimHook(tx, {
-            ownerId: previous.owner_id,
-            sessionId: candidate.id,
-            now,
-            leaseTtlMs: options.leaseTtlMs,
-          }))
-        ) {
-          return null;
-        }
-        // PostgreSQL evaluates every SET expression from the locked pre-update
-        // row, so lease_worker_id still identifies the prior holder here.
-        const updated = await tx.query<SessionRow>(
-          `UPDATE ${this.table('sessions')}
+            [candidate.id, staleBefore, workerId, options.maxAttempts + 1],
+          );
+          const previous = locked.rows[0];
+          if (!previous) return null;
+          const now = this.clock();
+          // A cancel request is terminal: the session must never be re-leased
+          // for another attempt (a restart would otherwise resurrect a session
+          // the user already cancelled). Settle it as cancelled under the same
+          // lock the claim would have used, then keep scanning.
+          if (previous.cancel_requested_at !== null && previous.cancel_requested_at !== undefined) {
+            await this.settleCancelledAtClaim(tx, candidate.id, now, previous.attempt);
+            return null;
+          }
+          if (
+            this.admitClaimHook &&
+            !(await this.admitClaimHook(tx, {
+              ownerId: previous.owner_id,
+              sessionId: candidate.id,
+              now,
+              leaseTtlMs: options.leaseTtlMs,
+            }))
+          ) {
+            return null;
+          }
+          // PostgreSQL evaluates every SET expression from the locked pre-update
+          // row, so lease_worker_id still identifies the prior holder here.
+          const updated = await tx.query<SessionRow>(
+            `UPDATE ${this.table('sessions')}
            SET status = 'running',
                active_model_ref = COALESCE(active_model_ref, model_ref),
                active_media_config_ref = COALESCE(active_media_config_ref, media_config_ref),
@@ -676,33 +678,35 @@ export class PgAgentSessionStore
                lease_worker_id = $2,
                lease_worker_pid = $3, lease_heartbeat_at = $4, error = NULL, updated_at = now()
            WHERE id = $1 AND deleted_at IS NULL RETURNING ${SESSION_COLUMNS}`,
-          [candidate.id, workerId, workerPid, now],
-        );
-        const row = updated.rows[0];
-        if (!row) return null;
-        await this.appendProjection(
-          {
-            type: 'session_status',
-            sessionId: candidate.id,
-            ts: now,
-            status: 'running',
-            attempt: Number(row.attempt),
-          },
-          tx,
-        );
-        const seq = await tx.query<{ max: number | string | null }>(
-          `SELECT max(seq) AS max FROM ${this.table('events')} WHERE session_id = $1`,
-          [candidate.id],
-        );
-        return {
-          ...sessionMeta(row),
-          claimReason: previous.status === 'queued' ? 'queued' : 'orphaned',
-          claimSeq: Number(seq.rows[0]?.max ?? 0),
-        } as ClaimedAgentSession;
-      });
-      if (claimed) return claimed;
+            [candidate.id, workerId, workerPid, now],
+          );
+          const row = updated.rows[0];
+          if (!row) return null;
+          await this.appendProjection(
+            {
+              type: 'session_status',
+              sessionId: candidate.id,
+              ts: now,
+              status: 'running',
+              attempt: Number(row.attempt),
+            },
+            tx,
+          );
+          const seq = await tx.query<{ max: number | string | null }>(
+            `SELECT max(seq) AS max FROM ${this.table('events')} WHERE session_id = $1`,
+            [candidate.id],
+          );
+          return {
+            ...sessionMeta(row),
+            claimReason: previous.status === 'queued' ? 'queued' : 'orphaned',
+            claimSeq: Number(seq.rows[0]?.max ?? 0),
+          } as ClaimedAgentSession;
+        });
+        if (claimed) return claimed;
+      }
+      if (candidates.rows.length < 20) return null;
+      offset += candidates.rows.length;
     }
-    return null;
   }
 
   async expireQueuedSessions(waitMs: number, limit = 20): Promise<number> {

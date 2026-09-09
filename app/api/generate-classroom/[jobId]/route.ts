@@ -16,7 +16,7 @@ export async function GET(req: Request, context: { params: Promise<{ jobId: stri
       {
         success: true,
         ...job,
-        ...(job.status === 'queued' && !readiness.worker
+        ...(['queued', 'running', 'retry_wait'].includes(job.status) && !readiness.worker
           ? { queueReason: 'service_unavailable' as const }
           : {}),
       },

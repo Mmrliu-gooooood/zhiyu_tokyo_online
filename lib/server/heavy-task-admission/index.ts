@@ -77,11 +77,12 @@ export interface HeavyTaskAdmissionOptions extends HeavyTaskRootContext {
   siteLimit?: number;
   /** Read-only status projections may skip serialization; claim paths keep the default. */
   lock?: boolean;
+  /** A synchronous request can join the fairness comparison without a durable queue row. */
+  candidateQueuedAtMs?: number;
 }
 
 const ADMISSION_LOCK = 'heavy-task:admission:v1';
-export const HEAVY_TASK_SYNC_SITE_LOCK_CLASS = 18_401;
-export const HEAVY_TASK_SYNC_OWNER_LOCK_CLASS = 18_402;
+export const HEAVY_TASK_SYNC_QUOTA_PREFIX = 'heavy-task:sync-owner:';
 const rootContext = new AsyncLocalStorage<HeavyTaskRootContext>();
 
 export function heavyTaskSiteLimit(env: Record<string, string | undefined> = process.env): 1 | 2 {
@@ -101,6 +102,11 @@ export function heavyTaskQueueWaitMs(
     throw new Error('Invalid heavy-task configuration: GENERATION_QUEUE_WAIT_MS');
   }
   return value;
+}
+
+export function heavyTaskSyncQuotaGroup(ownerId: string): string {
+  assertRootContext({ ownerId, rootTaskId: 'sync-quota-group', kind: 'media' });
+  return `${HEAVY_TASK_SYNC_QUOTA_PREFIX}${ownerId}`;
 }
 
 export function getHeavyTaskRootContext(): HeavyTaskRootContext | undefined {
@@ -172,10 +178,12 @@ export async function checkHeavyTaskAdmission(
     generation_jobs: string | null;
     agent_sessions: string | null;
     agent_session_materials: string | null;
+    generation_provider_slots: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
-            to_regclass('agent_session_materials')::text AS agent_session_materials`,
+            to_regclass('agent_session_materials')::text AS agent_session_materials,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
   );
   const available = relations.rows[0];
   const roots: string[] = [];
@@ -216,6 +224,17 @@ export async function checkHeavyTaskAdmission(
   const activeSql = roots.length
     ? roots.join('\nUNION\n')
     : `SELECT NULL::text AS owner_id, NULL::text AS root_task_id WHERE FALSE`;
+  let synchronousSql = `SELECT 0::bigint AS active_roots, 0::bigint AS active_owner_roots`;
+  if (available?.generation_provider_slots) {
+    const syncOwnerGroup = `$${parameters.push(heavyTaskSyncQuotaGroup(options.ownerId))}`;
+    synchronousSql = `SELECT COUNT(*)::bigint AS active_roots,
+                             COUNT(*) FILTER (WHERE quota_group = ${syncOwnerGroup})::bigint
+                               AS active_owner_roots
+                        FROM generation_provider_slots
+                       WHERE quota_group LIKE '${HEAVY_TASK_SYNC_QUOTA_PREFIX}%'
+                         AND holder_attempt_id IS NOT NULL
+                         AND expires_at > clock_timestamp()`;
+  }
   const counts = await queryable.query<{
     active_roots: number | string;
     active_owner_roots: number | string;
@@ -226,18 +245,7 @@ export async function checkHeavyTaskAdmission(
               COUNT(*) FILTER (WHERE owner_id = $1)::bigint AS active_owner_roots,
               COALESCE(BOOL_OR(owner_id = $1 AND root_task_id = $2), FALSE) AS inherited
          FROM active_roots
-     ), synchronous AS (
-       SELECT COUNT(*) FILTER (
-                WHERE classid = ${HEAVY_TASK_SYNC_SITE_LOCK_CLASS}::oid
-                  AND objsubid = 2 AND granted
-              )::bigint AS active_roots,
-              CASE WHEN BOOL_OR(
-                classid = ${HEAVY_TASK_SYNC_OWNER_LOCK_CLASS}::oid
-                AND objid = ((hashtext($1)::bigint & 4294967295)::oid)
-                AND objsubid = 2 AND granted
-              ) THEN 1 ELSE 0 END::bigint AS active_owner_roots
-         FROM pg_locks WHERE locktype = 'advisory'
-     )
+     ), synchronous AS (${synchronousSql})
      SELECT durable.active_roots + synchronous.active_roots AS active_roots,
             durable.active_owner_roots + synchronous.active_owner_roots AS active_owner_roots,
             durable.inherited
@@ -289,10 +297,12 @@ export async function checkHeavyTaskQueueCapacity(
     generation_jobs: string | null;
     agent_sessions: string | null;
     agent_session_materials: string | null;
+    generation_provider_slots: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
-            to_regclass('agent_session_materials')::text AS agent_session_materials`,
+            to_regclass('agent_session_materials')::text AS agent_session_materials,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
   );
   const available = relations.rows[0];
   const roots: string[] = [];
@@ -374,7 +384,8 @@ export async function checkHeavyTaskAttentionCapacity(
                ELSE 'generation:' || id
              END AS root_task_id
         FROM generation_jobs
-       WHERE status IN ('awaiting_confirmation', 'needs_attention')`);
+       WHERE status IN ('awaiting_confirmation', 'needs_attention')
+          OR (review_policy = 'manual' AND status IN ('queued', 'running', 'retry_wait'))`);
   }
   if (available?.agent_sessions && available.agent_session_events) {
     roots.push(`
@@ -450,10 +461,12 @@ export async function isHeavyTaskFairTurn(
     generation_jobs: string | null;
     agent_sessions: string | null;
     agent_session_materials: string | null;
+    generation_provider_slots: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
-            to_regclass('agent_session_materials')::text AS agent_session_materials`,
+            to_regclass('agent_session_materials')::text AS agent_session_materials,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
   );
   const available = relations.rows[0];
   const active: string[] = [];
@@ -473,6 +486,21 @@ export async function isHeavyTaskFairTurn(
          FROM generation_jobs
         WHERE ((status = 'queued' AND updated_at > to_timestamp($5 / 1000.0))
            OR (status = 'retry_wait' AND available_at <= clock_timestamp()))`,
+    );
+  }
+  if (available?.generation_provider_slots) {
+    active.push(
+      `SELECT substring(quota_group from ${HEAVY_TASK_SYNC_QUOTA_PREFIX.length + 1}) AS owner_id,
+              'independent:' || holder_attempt_id::text AS root_task_id
+         FROM generation_provider_slots
+        WHERE quota_group LIKE '${HEAVY_TASK_SYNC_QUOTA_PREFIX}%'
+          AND holder_attempt_id IS NOT NULL AND expires_at > clock_timestamp()`,
+    );
+  }
+  if (options.candidateQueuedAtMs !== undefined) {
+    queued.push(
+      `SELECT $1::text AS owner_id, $2::text AS root_task_id,
+              to_timestamp($6::bigint / 1000.0) AS queued_at`,
     );
   }
   if (available?.agent_sessions) {
@@ -521,7 +549,7 @@ export async function isHeavyTaskFairTurn(
     `WITH request_params AS (
        SELECT $1::text AS owner_id, $2::text AS root_task_id,
               $3::bigint AS agent_stale_before, $4::bigint AS material_stale_before,
-              $5::bigint AS queue_fresh_after
+              $5::bigint AS queue_fresh_after, $6::bigint AS candidate_queued_at
      ), active_roots AS (${activeSql}), raw_queue AS (${queuedSql}), queued_roots AS (
        SELECT owner_id, root_task_id, MIN(queued_at) AS queued_at
          FROM raw_queue GROUP BY owner_id, root_task_id
@@ -538,7 +566,14 @@ export async function isHeavyTaskFairTurn(
             (SELECT root_task_id FROM eligible ORDER BY queued_at, root_task_id LIMIT 1)
               AS oldest_root
        FROM request_params`,
-    [options.ownerId, options.rootTaskId, agentStaleBefore, materialStaleBefore, queueFreshAfter],
+    [
+      options.ownerId,
+      options.rootTaskId,
+      agentStaleBefore,
+      materialStaleBefore,
+      queueFreshAfter,
+      options.candidateQueuedAtMs ?? nowMs,
+    ],
   );
   const row = result.rows[0];
   return row?.candidate_present !== true || row.oldest_root === options.rootTaskId;

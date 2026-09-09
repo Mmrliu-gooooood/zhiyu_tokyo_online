@@ -288,6 +288,14 @@ describe('projectGenerationJobPresentation', () => {
       projectGenerationJobPresentation({ job, observationError: new Error('offline') }).title,
     ).toBe('构建课程中 · 连接中断，正在重连');
     expect(
+      projectGenerationJobPresentation({
+        job,
+        observationError: Object.assign(new Error('GENERATION_NOT_READY'), {
+          code: 'GENERATION_NOT_READY',
+        }),
+      }).title,
+    ).toBe('构建课程中 · 服务暂不可用');
+    expect(
       projectGenerationJobPresentation({ job: { ...job, phase: 'service_unavailable' } }),
     ).toEqual({
       title: '构建课程中 · 服务暂不可用',

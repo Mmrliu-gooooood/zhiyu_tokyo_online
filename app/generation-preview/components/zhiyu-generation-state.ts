@@ -87,6 +87,21 @@ export function projectGenerationJobPresentation(input: {
       terminal: false,
     };
   }
+  const observationCode = input.observationError
+    ? ((input.observationError as Error & { code?: string }).code ?? input.observationError.message)
+    : null;
+  if (
+    observationCode &&
+    ['GENERATION_NOT_READY', 'GENERATION_DATABASE_UNAVAILABLE', 'GENERATION_UNAVAILABLE'].includes(
+      observationCode,
+    )
+  ) {
+    return {
+      titleKey: 'generation.statusServiceUnavailable',
+      detailKey: 'generation.statusServiceUnavailableDesc',
+      terminal: false,
+    };
+  }
   if (input.observationError) {
     return {
       titleKey: 'generation.statusReconnecting',

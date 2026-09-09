@@ -1,24 +1,35 @@
 import { randomUUID } from 'node:crypto';
-import { Client } from 'pg';
 
 import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
-import { backgroundGenerationEnabled } from '@/lib/server/generation-jobs/runtime';
+import { apiError } from '@/lib/server/api-response';
+import {
+  backgroundGenerationEnabled,
+  getGenerationPool,
+} from '@/lib/server/generation-jobs/runtime';
 
 import {
   checkHeavyTaskAdmission,
-  heavyTaskSiteLimit,
-  HEAVY_TASK_SYNC_OWNER_LOCK_CLASS,
-  HEAVY_TASK_SYNC_SITE_LOCK_CLASS,
+  heavyTaskSyncQuotaGroup,
+  isHeavyTaskFairTurn,
   withHeavyTaskRootContext,
+  type HeavyTaskAdmissionQueryable,
   type HeavyTaskKind,
 } from './index';
 
+const SYNC_LEASE_MS = 10 * 60 * 1000;
+const SYNC_HEARTBEAT_MS = 30 * 1000;
+
+interface IndependentLease {
+  group: string;
+  holder: string;
+  epoch: number;
+}
+
 /**
- * Admit a synchronous parsing/media request without adding a database table.
- * A dedicated connection holds two session-level advisory locks only while the
- * bounded request runs. Durable claimers count these locks through pg_locks;
- * a process crash closes the connection and releases both locks automatically.
+ * Admit a synchronous parsing/media request through a recoverable PostgreSQL
+ * lease. Provider waits never pin a SQL connection; a crashed process simply
+ * stops heartbeating and the slot becomes reusable after the bounded lease.
  */
 export async function runIndependentHeavyTaskRequest(
   request: Request,
@@ -32,91 +43,152 @@ export async function runIndependentHeavyTaskRequest(
 
   const responseHeaders = new Headers({ 'Cache-Control': 'no-store' });
   const ownerId = resolveRequestOwnerId(request, responseHeaders);
-  const rootTaskId = `independent:${kind}:${randomUUID()}`;
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    connectionTimeoutMillis: 5_000,
-    query_timeout: 10_000,
-  });
-  let ownerLocked = false;
-  let siteSlot: number | null = null;
+  const holder = randomUUID();
+  const rootTaskId = `independent:${holder}`;
+  let lease: IndependentLease | null;
   try {
-    await client.connect();
-    await client.query('BEGIN');
-    const decision = await checkHeavyTaskAdmission(client, {
-      ownerId,
-      rootTaskId,
-      kind,
-      agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
-    });
-    if (!decision.allowed) {
-      await client.query('COMMIT');
-      return limitResponse(decision.reason, responseHeaders);
-    }
+    lease = await acquireIndependentLease(ownerId, rootTaskId, kind, holder);
+  } catch (error) {
+    return error instanceof PersonalCapacityError
+      ? limitResponse('personal_limit', responseHeaders)
+      : serviceUnavailableResponse(responseHeaders);
+  }
+  if (!lease) return limitResponse('site_limit', responseHeaders);
 
-    ownerLocked =
-      (
-        await client.query<{ locked: boolean }>(
-          'SELECT pg_try_advisory_lock($1::integer, hashtext($2)) AS locked',
-          [HEAVY_TASK_SYNC_OWNER_LOCK_CLASS, ownerId],
-        )
-      ).rows[0]?.locked === true;
-    if (ownerLocked) {
-      for (let slot = 1; slot <= heavyTaskSiteLimit(); slot += 1) {
-        const locked = await client.query<{ locked: boolean }>(
-          'SELECT pg_try_advisory_lock($1::integer, $2::integer) AS locked',
-          [HEAVY_TASK_SYNC_SITE_LOCK_CLASS, slot],
-        );
-        if (locked.rows[0]?.locked) {
-          siteSlot = slot;
-          break;
-        }
-      }
-    }
-    await client.query('COMMIT');
-    if (!ownerLocked) return limitResponse('personal_limit', responseHeaders);
-    if (siteSlot === null) return limitResponse('site_limit', responseHeaders);
-
+  let renewing = false;
+  const heartbeat = setInterval(() => {
+    if (renewing) return;
+    renewing = true;
+    void heartbeatIndependentLease(lease!)
+      .catch(() => undefined)
+      .finally(() => {
+        renewing = false;
+      });
+  }, SYNC_HEARTBEAT_MS);
+  heartbeat.unref?.();
+  try {
     const response = await withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body);
     appendResponseHeaders(response, responseHeaders);
     return response;
+  } finally {
+    clearInterval(heartbeat);
+    await releaseIndependentLease(lease).catch(() => undefined);
+  }
+}
+
+async function acquireIndependentLease(
+  ownerId: string,
+  rootTaskId: string,
+  kind: Extract<HeavyTaskKind, 'document-extraction' | 'media'>,
+  holder: string,
+): Promise<IndependentLease | null> {
+  return transaction(async (queryable) => {
+    const nowMs = Date.now();
+    const decision = await checkHeavyTaskAdmission(queryable, {
+      ownerId,
+      rootTaskId,
+      kind,
+      nowMs,
+      agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+    });
+    if (!decision.allowed) {
+      if (decision.reason === 'personal_limit') throw new PersonalCapacityError();
+      return null;
+    }
+    if (
+      !decision.inherited &&
+      !(await isHeavyTaskFairTurn(queryable, {
+        ownerId,
+        rootTaskId,
+        kind,
+        nowMs,
+        candidateQueuedAtMs: nowMs,
+        agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+      }))
+    ) {
+      return null;
+    }
+    const group = heavyTaskSyncQuotaGroup(ownerId);
+    const acquired = await queryable.query<{ lease_epoch: number | string }>(
+      `INSERT INTO generation_provider_slots(
+         quota_group, slot_no, holder_attempt_id, lease_epoch, expires_at,
+         quarantine_until, cooldown_until
+       ) VALUES (
+         $1, 0, $2, 1,
+         clock_timestamp() + $3 * interval '1 millisecond', NULL, NULL
+       )
+       ON CONFLICT (quota_group, slot_no) DO UPDATE
+         SET holder_attempt_id = EXCLUDED.holder_attempt_id,
+             lease_epoch = generation_provider_slots.lease_epoch + 1,
+             expires_at = EXCLUDED.expires_at,
+             quarantine_until = NULL,
+             cooldown_until = NULL
+       WHERE generation_provider_slots.holder_attempt_id IS NULL
+          OR generation_provider_slots.expires_at <= clock_timestamp()
+       RETURNING lease_epoch`,
+      [group, holder, SYNC_LEASE_MS],
+    );
+    const row = acquired.rows[0];
+    return row ? { group, holder, epoch: Number(row.lease_epoch) } : null;
+  });
+}
+
+async function heartbeatIndependentLease(lease: IndependentLease): Promise<void> {
+  await getGenerationPool().query(
+    `UPDATE generation_provider_slots
+        SET expires_at = clock_timestamp() + $4 * interval '1 millisecond'
+      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
+        AND expires_at > clock_timestamp()`,
+    [lease.group, lease.holder, lease.epoch, SYNC_LEASE_MS],
+  );
+}
+
+async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
+  await getGenerationPool().query(
+    `UPDATE generation_provider_slots
+        SET holder_attempt_id=NULL, expires_at=NULL
+      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
+    [lease.group, lease.holder, lease.epoch],
+  );
+}
+
+async function transaction<T>(body: (queryable: HeavyTaskAdmissionQueryable) => Promise<T>) {
+  const client = await getGenerationPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await body(client);
+    await client.query('COMMIT');
+    return result;
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined);
     throw error;
   } finally {
-    if (siteSlot !== null) {
-      await client
-        .query('SELECT pg_advisory_unlock($1::integer, $2::integer)', [
-          HEAVY_TASK_SYNC_SITE_LOCK_CLASS,
-          siteSlot,
-        ])
-        .catch(() => undefined);
-    }
-    if (ownerLocked) {
-      await client
-        .query('SELECT pg_advisory_unlock($1::integer, hashtext($2))', [
-          HEAVY_TASK_SYNC_OWNER_LOCK_CLASS,
-          ownerId,
-        ])
-        .catch(() => undefined);
-    }
-    await client.end().catch(() => undefined);
+    client.release();
   }
 }
 
+class PersonalCapacityError extends Error {}
+
 function limitResponse(reason: 'personal_limit' | 'site_limit', headers: Headers): Response {
-  return Response.json(
-    {
-      success: false,
-      errorCode:
-        reason === 'personal_limit' ? 'HEAVY_TASK_PERSONAL_LIMIT' : 'HEAVY_TASK_SITE_LIMIT',
-      error:
-        reason === 'personal_limit'
-          ? 'Your previous heavy task is still running.'
-          : 'The service is busy with another heavy task.',
-    },
-    { status: 429, headers },
+  const response = apiError(
+    reason === 'personal_limit'
+      ? 'HEAVY_TASK_PERSONAL_CAPACITY_LIMIT'
+      : 'HEAVY_TASK_SITE_CAPACITY_LIMIT',
+    reason === 'personal_limit' ? 429 : 503,
+    reason,
   );
+  appendResponseHeaders(response, headers);
+  return response;
+}
+
+function serviceUnavailableResponse(headers: Headers): Response {
+  const response = apiError(
+    'HEAVY_TASK_SITE_CAPACITY_LIMIT',
+    503,
+    'Heavy task admission is unavailable',
+  );
+  appendResponseHeaders(response, headers);
+  return response;
 }
 
 function appendResponseHeaders(response: Response, headers: Headers): void {

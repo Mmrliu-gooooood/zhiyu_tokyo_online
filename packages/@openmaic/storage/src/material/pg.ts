@@ -450,8 +450,10 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
     const now = this.now().getTime();
     const staleBefore = now - options.leaseTtlMs;
     if (this.admitExtractionClaimHook && this.transactionHook) {
-      const candidates = await this.queryable.query<{ id: string }>(
-        `SELECT material.id
+      let offset = 0;
+      for (;;) {
+        const candidates = await this.queryable.query<{ id: string }>(
+          `SELECT material.id
            FROM ${this.table} AS material
            INNER JOIN agent_sessions AS session ON session.id = material.session_id
           WHERE session.deleted_at IS NULL AND material.kind = 'source'
@@ -460,13 +462,13 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
                 AND material.extraction_lease_heartbeat_at < $1
                 AND (material.extraction_lease_worker_id IS NULL
                   OR material.extraction_lease_worker_id <> $2)))
-          ORDER BY material.created_at, material.id LIMIT 20`,
-        [staleBefore, workerId],
-      );
-      for (const candidate of candidates.rows) {
-        const claimed = await this.transactionHook(async (tx) => {
-          const locked = await tx.query<MaterialRow & { owner_id: string }>(
-            `SELECT material.*, session.owner_id
+          ORDER BY material.created_at, material.id LIMIT 20 OFFSET $3`,
+          [staleBefore, workerId, offset],
+        );
+        for (const candidate of candidates.rows) {
+          const claimed = await this.transactionHook(async (tx) => {
+            const locked = await tx.query<MaterialRow & { owner_id: string }>(
+              `SELECT material.*, session.owner_id
                FROM ${this.table} AS material
                INNER JOIN agent_sessions AS session ON session.id = material.session_id
               WHERE material.id = $1 AND session.deleted_at IS NULL
@@ -477,39 +479,41 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
                     AND (material.extraction_lease_worker_id IS NULL
                       OR material.extraction_lease_worker_id <> $3)))
               FOR UPDATE OF material`,
-            [candidate.id, staleBefore, workerId],
-          );
-          const row = locked.rows[0];
-          if (!row) return null;
-          const allowed = await this.admitExtractionClaimHook!(tx, {
-            ownerId: row.owner_id,
-            sessionId: row.session_id,
-            materialId: row.id,
-            now,
-            leaseTtlMs: options.leaseTtlMs,
-          });
-          if (!allowed) return null;
-          const updated = await tx.query<MaterialRow>(
-            `UPDATE ${this.table}
+              [candidate.id, staleBefore, workerId],
+            );
+            const row = locked.rows[0];
+            if (!row) return null;
+            const allowed = await this.admitExtractionClaimHook!(tx, {
+              ownerId: row.owner_id,
+              sessionId: row.session_id,
+              materialId: row.id,
+              now,
+              leaseTtlMs: options.leaseTtlMs,
+            });
+            if (!allowed) return null;
+            const updated = await tx.query<MaterialRow>(
+              `UPDATE ${this.table}
                 SET extraction_status = 'running', extraction_error = NULL,
                     extraction_lease_worker_id = $2, extraction_lease_worker_pid = $3,
                     extraction_lease_heartbeat_at = $4
               WHERE id = $1 AND extraction_status IN ('pending', 'running')
               RETURNING *`,
-            [row.id, workerId, process.pid, now],
-          );
-          return updated.rows[0] ? { row: updated.rows[0], ownerId: row.owner_id } : null;
-        });
-        if (claimed) {
-          return {
-            material: mapRow(claimed.row),
-            ownerId: claimed.ownerId,
-            workerId,
-            heartbeatAt: now,
-          };
+              [row.id, workerId, process.pid, now],
+            );
+            return updated.rows[0] ? { row: updated.rows[0], ownerId: row.owner_id } : null;
+          });
+          if (claimed) {
+            return {
+              material: mapRow(claimed.row),
+              ownerId: claimed.ownerId,
+              workerId,
+              heartbeatAt: now,
+            };
+          }
         }
+        if (candidates.rows.length < 20) return null;
+        offset += candidates.rows.length;
       }
-      return null;
     }
     const result = await this.queryable.query<MaterialRow & { owner_id: string }>(
       `WITH candidate AS (

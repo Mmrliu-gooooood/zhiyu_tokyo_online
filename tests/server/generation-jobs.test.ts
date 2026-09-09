@@ -75,12 +75,12 @@ describe('generation admission configuration', () => {
       manualReviewWaitMs: 24 * 60 * 60 * 1000,
     });
     expect(() =>
-      generationConfig({ GENERATION_MAX_QUEUED_JOBS: '21' } as NodeJS.ProcessEnv),
+      generationConfig({ GENERATION_MAX_QUEUED_JOBS: '21' } as unknown as NodeJS.ProcessEnv),
     ).toThrow();
     expect(() =>
       generationConfig({
         GENERATION_QUEUE_WAIT_MS: String(60 * 60 * 1000 + 1),
-      } as NodeJS.ProcessEnv),
+      } as unknown as NodeJS.ProcessEnv),
     ).toThrow();
   });
 });

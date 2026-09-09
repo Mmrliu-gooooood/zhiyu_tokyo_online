@@ -16,7 +16,13 @@ function queryable(input: {
   activeOwnerRoots: number;
   inherited?: boolean;
   relations?: Partial<
-    Record<'generation_jobs' | 'agent_sessions' | 'agent_session_materials', string>
+    Record<
+      | 'generation_jobs'
+      | 'agent_sessions'
+      | 'agent_session_materials'
+      | 'generation_provider_slots',
+      string
+    >
   >;
 }) {
   const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
@@ -29,6 +35,7 @@ function queryable(input: {
             agent_sessions: input.relations?.agent_sessions ?? 'agent_sessions',
             agent_session_materials:
               input.relations?.agent_session_materials ?? 'agent_session_materials',
+            generation_provider_slots: input.relations?.generation_provider_slots ?? null,
           },
         ],
       };
@@ -85,6 +92,41 @@ describe('heavy task admission', () => {
     expect(countSql).toContain('FROM agent_sessions');
     expect(countSql).toContain('FROM agent_session_materials');
     expect(countSql.match(/UNION/g)).toHaveLength(2);
+  });
+
+  it('counts recoverable synchronous leases without holding advisory sessions open', async () => {
+    const fake = queryable({
+      activeRoots: 1,
+      activeOwnerRoots: 1,
+      relations: { generation_provider_slots: 'generation_provider_slots' },
+    });
+    fake.query.mockImplementationOnce(async () => ({ rows: [{}] }));
+    fake.query.mockImplementationOnce(async () => ({
+      rows: [
+        {
+          generation_jobs: 'generation_jobs',
+          agent_sessions: 'agent_sessions',
+          agent_session_materials: 'agent_session_materials',
+          generation_provider_slots: 'generation_provider_slots',
+        },
+      ],
+    }));
+    fake.query.mockImplementationOnce(async (sql, parameters) => {
+      expect(sql).toContain('FROM generation_provider_slots');
+      expect(sql).not.toContain('FROM pg_locks');
+      expect(parameters).toEqual([
+        'owner-a',
+        'agent:root-a',
+        90_000,
+        80_000,
+        'heavy-task:sync-owner:owner-a',
+      ]);
+      return { rows: [{ active_roots: '1', active_owner_roots: '1', inherited: false }] };
+    });
+    await expect(checkHeavyTaskAdmission(fake.queryable, request)).resolves.toMatchObject({
+      allowed: false,
+      reason: 'personal_limit',
+    });
   });
 
   it('rejects another root from the same owner before considering the site limit', async () => {
@@ -236,7 +278,7 @@ describe('heavy task admission', () => {
       expect(sql).toContain("status = 'queued'");
       expect(sql).toContain("material.extraction_status = 'pending'");
       expect(sql).toContain('ORDER BY queued_at, root_task_id');
-      expect(parameters).toEqual(['owner-a', 'agent:root-a', 90_000, 80_000, -3_500_000]);
+      expect(parameters).toEqual(['owner-a', 'agent:root-a', 90_000, 80_000, -3_500_000, 100_000]);
       return { rows: [{ candidate_present: true, oldest_root: 'generation:older' }] };
     });
     await expect(
