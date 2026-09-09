@@ -52,10 +52,10 @@ const log = createLogger('ImageGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
-  return runIndependentHeavyTaskRequest(request, 'media', () => handlePost(request));
+  return runIndependentHeavyTaskRequest(request, 'media', (signal) => handlePost(request, signal));
 }
 
-async function handlePost(request: NextRequest) {
+async function handlePost(request: NextRequest, signal: AbortSignal) {
   const generationGuard = await guardClientGeneration(request);
   if (generationGuard) return generationGuard;
   try {
@@ -96,7 +96,7 @@ async function handlePost(request: NextRequest) {
         body.height = dims.height;
       }
       const generated = await withMediaProviderFetch(runtimeConfig.baseUrl!, (fetcher) =>
-        generateImage({ ...runtimeConfig, fetcher }, body),
+        generateImage({ ...runtimeConfig, fetcher }, { ...body, signal }),
       );
       const { bytes: _bytes, ...result } = generated as typeof generated & {
         bytes?: Uint8Array;
@@ -162,7 +162,7 @@ async function handlePost(request: NextRequest) {
         `prompt="${body.prompt.slice(0, 80)}...", size=${body.width ?? 'auto'}x${body.height ?? 'auto'}`,
     );
 
-    const result = await generateImage({ providerId, apiKey, baseUrl, model }, body);
+    const result = await generateImage({ providerId, apiKey, baseUrl, model }, { ...body, signal });
 
     void recordGenerationUsage({
       kind: 'image',

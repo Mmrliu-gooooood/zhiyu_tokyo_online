@@ -44,10 +44,10 @@ const log = createLogger('VideoGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
-  return runIndependentHeavyTaskRequest(request, 'media', () => handlePost(request));
+  return runIndependentHeavyTaskRequest(request, 'media', (signal) => handlePost(request, signal));
 }
 
-async function handlePost(request: NextRequest) {
+async function handlePost(request: NextRequest, signal: AbortSignal) {
   const generationGuard = await guardClientGeneration(request);
   if (generationGuard) return generationGuard;
   try {
@@ -82,7 +82,7 @@ async function handlePost(request: NextRequest) {
         const ssrfError = await validateUrlForSSRF(runtimeConfig.baseUrl || '');
         if (ssrfError) return apiError('INVALID_URL', 403, ssrfError);
       }
-      const options = normalizeVideoOptions(providerId, body);
+      const options = normalizeVideoOptions(providerId, { ...body, signal });
       const generated = await withMediaProviderFetch(runtimeConfig.baseUrl!, (fetcher) =>
         generateVideo({ ...runtimeConfig, fetcher }, options),
       );
@@ -146,7 +146,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Normalize options against provider capabilities
-    const options = normalizeVideoOptions(providerId, body);
+    const options = normalizeVideoOptions(providerId, { ...body, signal });
 
     log.info(
       `Generating video: provider=${providerId}, model=${model || 'default'}, ` +

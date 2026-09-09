@@ -40,10 +40,10 @@ const log = createLogger('TTS API');
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
-  return runIndependentHeavyTaskRequest(req, 'media', () => handlePost(req));
+  return runIndependentHeavyTaskRequest(req, 'media', (signal) => handlePost(req, signal));
 }
 
-async function handlePost(req: NextRequest) {
+async function handlePost(req: NextRequest, signal: AbortSignal) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let ttsProviderId: string | undefined;
@@ -184,9 +184,9 @@ async function handlePost(req: NextRequest) {
     // Generate audio
     const { audio, format } = String(ttsProviderId).startsWith('custom-tts-')
       ? await withMediaProviderFetch(config.baseUrl!, (fetcher) =>
-          generateTTS({ ...config, fetcher }, text),
+          generateTTS({ ...config, fetcher, signal }, text),
         )
-      : await generateTTS(config, text);
+      : await generateTTS({ ...config, signal }, text);
 
     void recordGenerationUsage({
       kind: 'tts',

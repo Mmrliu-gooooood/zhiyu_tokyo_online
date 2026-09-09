@@ -64,18 +64,21 @@ function childSignal(
 }
 
 export async function POST(req: NextRequest) {
-  return runIndependentHeavyTaskRequest(req, 'media', () => handlePost(req));
+  return runIndependentHeavyTaskRequest(req, 'media', (signal) => handlePost(req, signal));
 }
 
-async function handlePost(req: NextRequest) {
+async function handlePost(req: NextRequest, admissionSignal: AbortSignal) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let providerId: string | undefined;
   let voiceId: string | undefined;
   const deadline = new AbortController();
   const abortFromRequest = () => deadline.abort(req.signal.reason);
+  const abortFromAdmission = () => deadline.abort(admissionSignal.reason);
   if (req.signal.aborted) abortFromRequest();
   else req.signal.addEventListener('abort', abortFromRequest, { once: true });
+  if (admissionSignal.aborted) abortFromAdmission();
+  else admissionSignal.addEventListener('abort', abortFromAdmission, { once: true });
   const deadlineTimer = setTimeout(
     () => deadline.abort(new DOMException('Voice registration timed out', 'TimeoutError')),
     ROUTE_DEADLINE_MS,
@@ -259,5 +262,6 @@ async function handlePost(req: NextRequest) {
   } finally {
     clearTimeout(deadlineTimer);
     req.signal.removeEventListener('abort', abortFromRequest);
+    admissionSignal.removeEventListener('abort', abortFromAdmission);
   }
 }

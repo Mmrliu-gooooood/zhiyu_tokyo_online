@@ -1,5 +1,5 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
-import type { PoolClient } from 'pg';
 
 import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
@@ -14,56 +14,93 @@ import {
   heavyTaskSyncQuotaGroup,
   isHeavyTaskFairTurn,
   withHeavyTaskRootContext,
+  type HeavyTaskAdmissionQueryable,
   type HeavyTaskKind,
 } from './index';
 
-const SYNC_LEASE_MS = 10 * 60 * 1000;
+// This grace window exceeds every synchronous chain's own hard budget (local
+// media extraction is the longest at 45 minutes). Heartbeats normally keep it
+// moving; the hour exists so a DB outage can abort provider work without the
+// row becoming reusable while a non-network cleanup step is still unwinding.
+const SYNC_LEASE_MS = 60 * 60 * 1000;
+const SYNC_HEARTBEAT_MS = 30 * 1000;
+const independentFetchSignal = new AsyncLocalStorage<AbortSignal>();
+let abortableFetchInstalled = false;
 
-interface IndependentLeaseGuard {
+interface IndependentLease {
   group: string;
   holder: string;
   epoch: number;
-  client: PoolClient;
 }
 
 /**
  * Admit a synchronous parsing/media request through a recoverable PostgreSQL
- * lease. One row lock is held while provider work runs. Because site admission
- * is capped at two roots, this consumes at most two of the pool's eight clients.
- * The lock prevents an expired lease from being reclaimed while its body is
- * still alive; a crashed process releases the lock automatically and the
- * bounded lease then makes the row recoverable.
+ * lease. Provider waits never pin a SQL connection. A heartbeat renews the
+ * fencing row while work is alive; if persistence is lost, the contextual
+ * AbortSignal cancels this task's provider fetches before the lease can expire.
+ * The wrapper still awaits the body settling, so it never releases capacity
+ * while detached provider work is continuing.
  */
 export async function runIndependentHeavyTaskRequest(
   request: Request,
   kind: Extract<HeavyTaskKind, 'document-extraction' | 'media'>,
-  body: () => Promise<Response>,
+  body: (signal: AbortSignal) => Promise<Response>,
 ): Promise<Response> {
   // Worker deployments reject browser media routes at their existing guard;
   // durable worker/Pro media already inherits its admitted root context.
-  if (kind === 'media' && backgroundGenerationEnabled()) return body();
-  if (!process.env.DATABASE_URL?.trim()) return body();
+  if (kind === 'media' && backgroundGenerationEnabled()) return body(new AbortController().signal);
+  if (!process.env.DATABASE_URL?.trim()) return body(new AbortController().signal);
 
   const responseHeaders = new Headers({ 'Cache-Control': 'no-store' });
   const ownerId = resolveRequestOwnerId(request, responseHeaders);
   const holder = randomUUID();
   const rootTaskId = `independent:${holder}`;
-  let guard: IndependentLeaseGuard | null;
+  let lease: IndependentLease | null;
   try {
-    guard = await acquireIndependentLease(ownerId, rootTaskId, kind, holder);
+    lease = await acquireIndependentLease(ownerId, rootTaskId, kind, holder);
   } catch (error) {
     return error instanceof PersonalCapacityError
       ? limitResponse('personal_limit', responseHeaders)
       : serviceUnavailableResponse(responseHeaders);
   }
-  if (!guard) return limitResponse('site_limit', responseHeaders);
+  if (!lease) return limitResponse('site_limit', responseHeaders);
 
+  installAbortableFetch();
+  const leaseAbort = new AbortController();
+  let leaseFailure: unknown;
+  let renewing: Promise<void> | undefined;
+  const renew = () => {
+    if (renewing) return;
+    renewing = heartbeatIndependentLease(lease!)
+      .then((alive) => {
+        if (!alive) throw new IndependentLeaseLostError();
+      })
+      .catch((error: unknown) => {
+        leaseFailure ??= error;
+        if (!leaseAbort.signal.aborted) leaseAbort.abort(error);
+      })
+      .finally(() => {
+        renewing = undefined;
+      });
+  };
+  const heartbeat = setInterval(renew, SYNC_HEARTBEAT_MS);
+  heartbeat.unref?.();
   try {
-    const response = await withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body);
+    const response = await withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, () =>
+      independentFetchSignal.run(leaseAbort.signal, () => body(leaseAbort.signal)),
+    );
+    if (leaseFailure) return serviceUnavailableResponse(responseHeaders);
     appendResponseHeaders(response, responseHeaders);
     return response;
+  } catch (error) {
+    if (leaseFailure || error instanceof IndependentLeaseLostError) {
+      return serviceUnavailableResponse(responseHeaders);
+    }
+    throw error;
   } finally {
-    await releaseIndependentLease(guard);
+    clearInterval(heartbeat);
+    await renewing;
+    await releaseIndependentLease(lease).catch(() => undefined);
   }
 }
 
@@ -72,12 +109,8 @@ async function acquireIndependentLease(
   rootTaskId: string,
   kind: Extract<HeavyTaskKind, 'document-extraction' | 'media'>,
   holder: string,
-): Promise<IndependentLeaseGuard | null> {
-  const client = await getGenerationPool().connect();
-  let transactionOpen = false;
-  try {
-    await client.query('BEGIN');
-    transactionOpen = true;
+): Promise<IndependentLease | null> {
+  return transaction(async (client) => {
     const nowMs = Date.now();
     const decision = await checkHeavyTaskAdmission(client, {
       ownerId,
@@ -88,9 +121,6 @@ async function acquireIndependentLease(
     });
     if (!decision.allowed) {
       if (decision.reason === 'personal_limit') throw new PersonalCapacityError();
-      await client.query('ROLLBACK');
-      transactionOpen = false;
-      client.release();
       return null;
     }
     if (
@@ -104,9 +134,6 @@ async function acquireIndependentLease(
         agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
       }))
     ) {
-      await client.query('ROLLBACK');
-      transactionOpen = false;
-      client.release();
       return null;
     }
     const group = heavyTaskSyncQuotaGroup(ownerId);
@@ -130,66 +157,58 @@ async function acquireIndependentLease(
       [group, holder, SYNC_LEASE_MS],
     );
     const row = acquired.rows[0];
-    if (!row) {
-      await client.query('ROLLBACK');
-      transactionOpen = false;
-      client.release();
-      return null;
-    }
+    return row ? { group, holder, epoch: Number(row.lease_epoch) } : null;
+  });
+}
 
-    const epoch = Number(row.lease_epoch);
-    await client.query('COMMIT');
-    transactionOpen = false;
+async function heartbeatIndependentLease(lease: IndependentLease): Promise<boolean> {
+  const result = await getGenerationPool().query(
+    `UPDATE generation_provider_slots
+        SET expires_at = clock_timestamp() + $4 * interval '1 millisecond'
+      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
+        AND expires_at > clock_timestamp()`,
+    [lease.group, lease.holder, lease.epoch, SYNC_LEASE_MS],
+  );
+  return result.rowCount === 1;
+}
 
-    // Start a separate guard transaction after publishing the lease. The
-    // ten-minute expiry closes the tiny commit-to-lock window to competitors.
+async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
+  await getGenerationPool().query(
+    `DELETE FROM generation_provider_slots
+      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
+    [lease.group, lease.holder, lease.epoch],
+  );
+}
+
+async function transaction<T>(body: (client: HeavyTaskAdmissionQueryable) => Promise<T>) {
+  const client = await getGenerationPool().connect();
+  try {
     await client.query('BEGIN');
-    transactionOpen = true;
-    const locked = await client.query(
-      `SELECT 1 FROM generation_provider_slots
-        WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
-        FOR UPDATE`,
-      [group, holder, epoch],
-    );
-    if (locked.rowCount !== 1) {
-      await client.query('ROLLBACK');
-      transactionOpen = false;
-      client.release();
-      return null;
-    }
-    return { group, holder, epoch, client };
+    const result = await body(client);
+    await client.query('COMMIT');
+    return result;
   } catch (error) {
-    if (transactionOpen) await client.query('ROLLBACK').catch(() => undefined);
-    client.release(error instanceof Error ? error : undefined);
+    await client.query('ROLLBACK').catch(() => undefined);
     throw error;
+  } finally {
+    client.release();
   }
 }
 
-async function releaseIndependentLease(guard: IndependentLeaseGuard): Promise<void> {
-  try {
-    await guard.client.query(
-      `DELETE FROM generation_provider_slots
-        WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
-      [guard.group, guard.holder, guard.epoch],
-    );
-    await guard.client.query('COMMIT');
-  } catch (_error) {
-    await guard.client.query('ROLLBACK').catch(() => undefined);
-    // The fenced fallback handles a connection failure after the body without
-    // risking deletion of a successor's lease.
-    await getGenerationPool()
-      .query(
-        `DELETE FROM generation_provider_slots
-          WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
-        [guard.group, guard.holder, guard.epoch],
-      )
-      .catch(() => undefined);
-  } finally {
-    guard.client.release();
-  }
+function installAbortableFetch(): void {
+  if (abortableFetchInstalled) return;
+  const originalFetch = globalThis.fetch.bind(globalThis);
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const contextSignal = independentFetchSignal.getStore();
+    if (!contextSignal) return originalFetch(input, init);
+    const signal = init?.signal ? AbortSignal.any([init.signal, contextSignal]) : contextSignal;
+    return originalFetch(input, { ...init, signal });
+  }) as typeof globalThis.fetch;
+  abortableFetchInstalled = true;
 }
 
 class PersonalCapacityError extends Error {}
+class IndependentLeaseLostError extends Error {}
 
 function limitResponse(reason: 'personal_limit' | 'site_limit', headers: Headers): Response {
   const response = apiError(

@@ -15,7 +15,7 @@ vi.mock('@/lib/server/agent-runtime/owner', () => ({
 
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
-function fakePool(options: { activeOwner?: boolean } = {}) {
+function fakePool(options: { activeOwner?: boolean; loseHeartbeat?: boolean } = {}) {
   let released = false;
   const transactionQueries: string[] = [];
   const poolQueries: string[] = [];
@@ -56,7 +56,6 @@ function fakePool(options: { activeOwner?: boolean } = {}) {
       if (sql.includes('INSERT INTO generation_provider_slots')) {
         return { rows: [{ lease_epoch: 1 }], rowCount: 1 };
       }
-      if (sql.includes('FOR UPDATE')) return { rows: [{ '?column?': 1 }], rowCount: 1 };
       return { rows: [{}], rowCount: 1 };
     },
     release() {
@@ -67,6 +66,9 @@ function fakePool(options: { activeOwner?: boolean } = {}) {
     connect: vi.fn(async () => client),
     query: vi.fn(async (sql: string) => {
       poolQueries.push(sql);
+      if (sql.includes('SET expires_at')) {
+        return { rows: [], rowCount: options.loseHeartbeat ? 0 : 1 };
+      }
       return { rows: [], rowCount: 1 };
     }),
   };
@@ -84,7 +86,7 @@ describe('independent heavy-task request admission', () => {
     vi.unstubAllEnvs();
   });
 
-  it('holds a bounded row-lock guard through provider work, then deletes the fenced lease', async () => {
+  it('commits and releases the SQL client before provider work, then deletes the fenced lease', async () => {
     const state = fakePool();
     mocks.getGenerationPool.mockReturnValue(state.pool);
 
@@ -92,8 +94,7 @@ describe('independent heavy-task request admission', () => {
       new Request('http://localhost/api/parse-pdf', { method: 'POST' }),
       'document-extraction',
       async () => {
-        expect(state.wasReleased()).toBe(false);
-        expect(state.transactionQueries.some((sql) => sql.includes('FOR UPDATE'))).toBe(true);
+        expect(state.wasReleased()).toBe(true);
         return Response.json({ success: true });
       },
     );
@@ -103,8 +104,45 @@ describe('independent heavy-task request admission', () => {
     expect(
       state.transactionQueries.some((sql) => sql.includes('expires_at <= clock_timestamp()')),
     ).toBe(true);
-    expect(state.transactionQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
+    expect(state.poolQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
     expect(state.wasReleased()).toBe(true);
+  });
+
+  it('aborts provider work on lease loss and waits for it to settle before returning', async () => {
+    vi.useFakeTimers();
+    const state = fakePool({ loseHeartbeat: true });
+    mocks.getGenerationPool.mockReturnValue(state.pool);
+    let bodySettled = false;
+
+    const pending = runIndependentHeavyTaskRequest(
+      new Request('http://localhost/api/parse-pdf', { method: 'POST' }),
+      'document-extraction',
+      (signal) =>
+        new Promise<Response>((resolve) => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              setTimeout(() => {
+                bodySettled = true;
+                resolve(Response.json({ success: false }));
+              }, 100);
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(bodySettled).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    const response = await pending;
+
+    expect(bodySettled).toBe(true);
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      errorCode: 'HEAVY_TASK_ADMISSION_UNAVAILABLE',
+    });
+    expect(state.poolQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
   });
 
   it('returns the stable personal-capacity protocol before running provider work', async () => {
