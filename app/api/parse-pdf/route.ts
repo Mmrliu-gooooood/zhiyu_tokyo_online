@@ -11,6 +11,8 @@ import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
+
+export const maxDuration = 300;
 const log = createLogger('Parse PDF');
 
 export async function POST(req: NextRequest) {

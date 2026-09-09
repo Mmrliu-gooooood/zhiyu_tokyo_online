@@ -285,6 +285,16 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       'OWNER_REVIEW_ATTENTION_LIMIT',
     );
   });
+  it('reserves manual-review admission before accepted jobs produce an outline', async () => {
+    const jobs = [];
+    for (let index = 0; index < 5; index += 1) {
+      jobs.push(await repo.createJob('reserved-owner', `reserved-${index}`, input));
+    }
+    expect((await repo.claim('reservation-worker'))?.jobId).toBe(jobs[0].jobId);
+    await expect(repo.createJob('reserved-owner', 'reserved-sixth', input)).rejects.toThrow(
+      'OWNER_REVIEW_ATTENTION_LIMIT',
+    );
+  });
   it('counts queued agent roots before accepting an ordinary generation job', async () => {
     for (let index = 0; index < 5; index += 1) {
       await pool.query(

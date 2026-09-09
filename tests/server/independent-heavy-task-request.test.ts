@@ -15,7 +15,7 @@ vi.mock('@/lib/server/agent-runtime/owner', () => ({
 
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
-function fakePool(options: { activeOwner?: boolean; loseHeartbeat?: boolean } = {}) {
+function fakePool(options: { activeOwner?: boolean } = {}) {
   let released = false;
   const transactionQueries: string[] = [];
   const poolQueries: string[] = [];
@@ -66,9 +66,6 @@ function fakePool(options: { activeOwner?: boolean; loseHeartbeat?: boolean } = 
     connect: vi.fn(async () => client),
     query: vi.fn(async (sql: string) => {
       poolQueries.push(sql);
-      if (sql.includes('SET expires_at')) {
-        return { rows: [], rowCount: options.loseHeartbeat ? 0 : 1 };
-      }
       return { rows: [], rowCount: 1 };
     }),
   };
@@ -101,26 +98,10 @@ describe('independent heavy-task request admission', () => {
 
     expect(response.status).toBe(200);
     expect(state.transactionQueries.some((sql) => sql.includes('INSERT INTO'))).toBe(true);
+    expect(
+      state.transactionQueries.some((sql) => sql.includes('expires_at <= clock_timestamp()')),
+    ).toBe(true);
     expect(state.poolQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
-  });
-
-  it('fails closed when a heartbeat proves the fenced lease was lost', async () => {
-    vi.useFakeTimers();
-    const state = fakePool({ loseHeartbeat: true });
-    mocks.getGenerationPool.mockReturnValue(state.pool);
-
-    const pending = runIndependentHeavyTaskRequest(
-      new Request('http://localhost/api/parse-pdf', { method: 'POST' }),
-      'document-extraction',
-      () => new Promise<Response>(() => undefined),
-    );
-    await vi.advanceTimersByTimeAsync(30_000);
-    const response = await pending;
-
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toMatchObject({
-      errorCode: 'HEAVY_TASK_ADMISSION_UNAVAILABLE',
-    });
   });
 
   it('returns the stable personal-capacity protocol before running provider work', async () => {

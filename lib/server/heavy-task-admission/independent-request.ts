@@ -18,7 +18,6 @@ import {
 } from './index';
 
 const SYNC_LEASE_MS = 10 * 60 * 1000;
-const SYNC_HEARTBEAT_MS = 30 * 1000;
 
 interface IndependentLease {
   group: string;
@@ -28,8 +27,9 @@ interface IndependentLease {
 
 /**
  * Admit a synchronous parsing/media request through a recoverable PostgreSQL
- * lease. Provider waits never pin a SQL connection; a crashed process simply
- * stops heartbeating and the slot becomes reusable after the bounded lease.
+ * lease. Provider waits never pin a SQL connection. The fixed ten-minute lease
+ * outlives every wrapped endpoint's five-minute request budget, while a crashed
+ * process releases capacity automatically without a session-affine connection.
  */
 export async function runIndependentHeavyTaskRequest(
   request: Request,
@@ -55,40 +55,11 @@ export async function runIndependentHeavyTaskRequest(
   }
   if (!lease) return limitResponse('site_limit', responseHeaders);
 
-  let renewing = false;
-  let rejectLeaseLost: (reason: unknown) => void = () => undefined;
-  const leaseLost = new Promise<never>((_resolve, reject) => {
-    rejectLeaseLost = reject;
-  });
-  const heartbeat = setInterval(() => {
-    if (renewing) return;
-    renewing = true;
-    void heartbeatIndependentLease(lease!)
-      .then(
-        (alive) => {
-          if (!alive) rejectLeaseLost(new IndependentLeaseLostError());
-        },
-        () => rejectLeaseLost(new IndependentLeaseLostError()),
-      )
-      .finally(() => {
-        renewing = false;
-      });
-  }, SYNC_HEARTBEAT_MS);
-  heartbeat.unref?.();
   try {
-    const response = await Promise.race([
-      withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body),
-      leaseLost,
-    ]);
+    const response = await withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body);
     appendResponseHeaders(response, responseHeaders);
     return response;
-  } catch (error) {
-    if (error instanceof IndependentLeaseLostError) {
-      return serviceUnavailableResponse(responseHeaders);
-    }
-    throw error;
   } finally {
-    clearInterval(heartbeat);
     await releaseIndependentLease(lease).catch(() => undefined);
   }
 }
@@ -150,17 +121,6 @@ async function acquireIndependentLease(
   });
 }
 
-async function heartbeatIndependentLease(lease: IndependentLease): Promise<boolean> {
-  const result = await getGenerationPool().query(
-    `UPDATE generation_provider_slots
-        SET expires_at = clock_timestamp() + $4 * interval '1 millisecond'
-      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
-        AND expires_at > clock_timestamp()`,
-    [lease.group, lease.holder, lease.epoch, SYNC_LEASE_MS],
-  );
-  return result.rowCount === 1;
-}
-
 async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
   await getGenerationPool().query(
     `DELETE FROM generation_provider_slots
@@ -185,7 +145,6 @@ async function transaction<T>(body: (queryable: HeavyTaskAdmissionQueryable) => 
 }
 
 class PersonalCapacityError extends Error {}
-class IndependentLeaseLostError extends Error {}
 
 function limitResponse(reason: 'personal_limit' | 'site_limit', headers: Headers): Response {
   const response = apiError(

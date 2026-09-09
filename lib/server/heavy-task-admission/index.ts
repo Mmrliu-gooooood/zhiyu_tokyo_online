@@ -83,6 +83,7 @@ export interface HeavyTaskAdmissionOptions extends HeavyTaskRootContext {
 
 const ADMISSION_LOCK = 'heavy-task:admission:v1';
 export const HEAVY_TASK_SYNC_QUOTA_PREFIX = 'heavy-task:sync-owner:';
+const HEAVY_TASK_ATTENTION_RESERVATION_GROUP = 'heavy-task:attention-reservation';
 const rootContext = new AsyncLocalStorage<HeavyTaskRootContext>();
 
 export function heavyTaskSiteLimit(env: Record<string, string | undefined> = process.env): 1 | 2 {
@@ -374,10 +375,12 @@ export async function checkHeavyTaskAttentionCapacity(
     generation_jobs: string | null;
     agent_sessions: string | null;
     agent_session_events: string | null;
+    generation_provider_slots: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
-            to_regclass('agent_session_events')::text AS agent_session_events`,
+            to_regclass('agent_session_events')::text AS agent_session_events,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
   );
   const available = relations.rows[0];
   const roots: string[] = [];
@@ -392,6 +395,21 @@ export async function checkHeavyTaskAttentionCapacity(
              END AS root_task_id
         FROM generation_jobs
        WHERE status IN ('awaiting_confirmation', 'needs_attention')`);
+    if (available.generation_provider_slots) {
+      roots.push(`
+        SELECT job.owner_id,
+               CASE
+                 WHEN job.input_snapshot->'source'->>'kind' = 'pro'
+                  AND NULLIF(job.input_snapshot->'source'->>'sessionId', '') IS NOT NULL
+                 THEN 'agent:' || (job.input_snapshot->'source'->>'sessionId')
+                 ELSE 'generation:' || job.id
+               END AS root_task_id
+          FROM generation_provider_slots AS reservation
+          JOIN generation_jobs AS job ON job.id = reservation.holder_attempt_id
+         WHERE reservation.quota_group = '${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}'
+           AND job.review_policy = 'manual'
+           AND job.status NOT IN ('succeeded', 'failed', 'cancelled')`);
+    }
   }
   if (available?.agent_sessions && available.agent_session_events) {
     roots.push(`
@@ -445,6 +463,45 @@ export async function checkHeavyTaskAttentionCapacity(
     };
   }
   return { allowed: true, attentionRoots, attentionOwnerRoots };
+}
+
+/** Reserve one of the twenty future manual-review admission slots for an accepted job. */
+export async function reserveHeavyTaskAttention(
+  queryable: HeavyTaskAdmissionQueryable,
+  jobId: string,
+): Promise<boolean> {
+  if (!/^[0-9a-f-]{36}$/i.test(jobId)) throw new Error('Invalid attention reservation job id');
+  await queryable.query(
+    `INSERT INTO generation_provider_slots(quota_group, slot_no)
+     SELECT '${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}', slot_no
+       FROM generate_series(0, 19) AS slot_no
+     ON CONFLICT DO NOTHING`,
+  );
+  const result = await queryable.query<{ slot_no: number }>(
+    `WITH available AS (
+       SELECT reservation.slot_no
+         FROM generation_provider_slots AS reservation
+        WHERE reservation.quota_group = '${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}'
+          AND (
+            reservation.holder_attempt_id IS NULL OR NOT EXISTS (
+              SELECT 1 FROM generation_jobs AS job
+               WHERE job.id = reservation.holder_attempt_id
+                 AND job.review_policy = 'manual'
+                 AND job.status NOT IN ('succeeded', 'failed', 'cancelled')
+            )
+          )
+        ORDER BY reservation.slot_no LIMIT 1 FOR UPDATE
+     )
+     UPDATE generation_provider_slots AS reservation
+        SET holder_attempt_id=$1, lease_epoch=reservation.lease_epoch+1,
+            expires_at=NULL, quarantine_until=NULL, cooldown_until=NULL
+       FROM available
+      WHERE reservation.quota_group='${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}'
+        AND reservation.slot_no=available.slot_no
+      RETURNING reservation.slot_no`,
+    [jobId],
+  );
+  return result.rows.length === 1;
 }
 
 /**

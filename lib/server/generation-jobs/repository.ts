@@ -17,6 +17,7 @@ import {
   checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
   isHeavyTaskFairTurn,
+  reserveHeavyTaskAttention,
 } from '@/lib/server/heavy-task-admission';
 import { assertGenerationSchema } from './migrations';
 import {
@@ -450,6 +451,9 @@ export class GenerationJobRepository {
           input.review.mode,
         ],
       );
+      if (input.review.mode === 'manual' && !(await reserveHeavyTaskAttention(q, id))) {
+        throw new GenerationJobError('GENERATION_REVIEW_ATTENTION_FULL', 503);
+      }
       await q.query(
         `INSERT INTO generation_ownership(stage_id,owner_id,producer_kind,producer_ref,write_mode)
          VALUES($1,$2,'course-worker',$3,'generating')
