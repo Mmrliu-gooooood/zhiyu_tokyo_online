@@ -111,6 +111,10 @@ describe('heavy task admission', () => {
         },
       ],
     }));
+    fake.query.mockImplementationOnce(async (sql) => {
+      expect(sql).toContain('DELETE FROM generation_provider_slots');
+      return { rows: [] };
+    });
     fake.query.mockImplementationOnce(async (sql, parameters) => {
       expect(sql).toContain('FROM generation_provider_slots');
       expect(sql).not.toContain('FROM pg_locks');

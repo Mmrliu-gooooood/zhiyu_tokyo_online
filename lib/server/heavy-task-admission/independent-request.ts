@@ -56,20 +56,37 @@ export async function runIndependentHeavyTaskRequest(
   if (!lease) return limitResponse('site_limit', responseHeaders);
 
   let renewing = false;
+  let rejectLeaseLost: (reason: unknown) => void = () => undefined;
+  const leaseLost = new Promise<never>((_resolve, reject) => {
+    rejectLeaseLost = reject;
+  });
   const heartbeat = setInterval(() => {
     if (renewing) return;
     renewing = true;
     void heartbeatIndependentLease(lease!)
-      .catch(() => undefined)
+      .then(
+        (alive) => {
+          if (!alive) rejectLeaseLost(new IndependentLeaseLostError());
+        },
+        () => rejectLeaseLost(new IndependentLeaseLostError()),
+      )
       .finally(() => {
         renewing = false;
       });
   }, SYNC_HEARTBEAT_MS);
   heartbeat.unref?.();
   try {
-    const response = await withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body);
+    const response = await Promise.race([
+      withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body),
+      leaseLost,
+    ]);
     appendResponseHeaders(response, responseHeaders);
     return response;
+  } catch (error) {
+    if (error instanceof IndependentLeaseLostError) {
+      return serviceUnavailableResponse(responseHeaders);
+    }
+    throw error;
   } finally {
     clearInterval(heartbeat);
     await releaseIndependentLease(lease).catch(() => undefined);
@@ -133,20 +150,20 @@ async function acquireIndependentLease(
   });
 }
 
-async function heartbeatIndependentLease(lease: IndependentLease): Promise<void> {
-  await getGenerationPool().query(
+async function heartbeatIndependentLease(lease: IndependentLease): Promise<boolean> {
+  const result = await getGenerationPool().query(
     `UPDATE generation_provider_slots
         SET expires_at = clock_timestamp() + $4 * interval '1 millisecond'
       WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
         AND expires_at > clock_timestamp()`,
     [lease.group, lease.holder, lease.epoch, SYNC_LEASE_MS],
   );
+  return result.rowCount === 1;
 }
 
 async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
   await getGenerationPool().query(
-    `UPDATE generation_provider_slots
-        SET holder_attempt_id=NULL, expires_at=NULL
+    `DELETE FROM generation_provider_slots
       WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
     [lease.group, lease.holder, lease.epoch],
   );
@@ -168,6 +185,7 @@ async function transaction<T>(body: (queryable: HeavyTaskAdmissionQueryable) => 
 }
 
 class PersonalCapacityError extends Error {}
+class IndependentLeaseLostError extends Error {}
 
 function limitResponse(reason: 'personal_limit' | 'site_limit', headers: Headers): Response {
   const response = apiError(
@@ -183,7 +201,7 @@ function limitResponse(reason: 'personal_limit' | 'site_limit', headers: Headers
 
 function serviceUnavailableResponse(headers: Headers): Response {
   const response = apiError(
-    'HEAVY_TASK_SITE_CAPACITY_LIMIT',
+    'HEAVY_TASK_ADMISSION_UNAVAILABLE',
     503,
     'Heavy task admission is unavailable',
   );

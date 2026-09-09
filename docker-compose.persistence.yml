@@ -210,6 +210,18 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     build:
       args:
         NEXT_PUBLIC_PERSISTENCE: ${NEXT_PUBLIC_PERSISTENCE:?Set to 1 at build time}

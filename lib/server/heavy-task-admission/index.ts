@@ -186,6 +186,13 @@ export async function checkHeavyTaskAdmission(
             to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
   );
   const available = relations.rows[0];
+  if (available?.generation_provider_slots && options.lock !== false) {
+    await queryable.query(
+      `DELETE FROM generation_provider_slots
+        WHERE quota_group LIKE '${HEAVY_TASK_SYNC_QUOTA_PREFIX}%'
+          AND (holder_attempt_id IS NULL OR expires_at <= clock_timestamp())`,
+    );
+  }
   const roots: string[] = [];
   const parameters: unknown[] = [options.ownerId, options.rootTaskId];
   if (available?.generation_jobs) {
@@ -384,8 +391,7 @@ export async function checkHeavyTaskAttentionCapacity(
                ELSE 'generation:' || id
              END AS root_task_id
         FROM generation_jobs
-       WHERE status IN ('awaiting_confirmation', 'needs_attention')
-          OR (review_policy = 'manual' AND status IN ('queued', 'running', 'retry_wait'))`);
+       WHERE status IN ('awaiting_confirmation', 'needs_attention')`);
   }
   if (available?.agent_sessions && available.agent_session_events) {
     roots.push(`
