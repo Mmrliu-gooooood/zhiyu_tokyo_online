@@ -56,6 +56,7 @@ function fakePool(options: { activeOwner?: boolean } = {}) {
       if (sql.includes('INSERT INTO generation_provider_slots')) {
         return { rows: [{ lease_epoch: 1 }], rowCount: 1 };
       }
+      if (sql.includes('FOR UPDATE')) return { rows: [{ '?column?': 1 }], rowCount: 1 };
       return { rows: [{}], rowCount: 1 };
     },
     release() {
@@ -83,7 +84,7 @@ describe('independent heavy-task request admission', () => {
     vi.unstubAllEnvs();
   });
 
-  it('commits and releases the SQL client before provider work, then deletes the fenced lease', async () => {
+  it('holds a bounded row-lock guard through provider work, then deletes the fenced lease', async () => {
     const state = fakePool();
     mocks.getGenerationPool.mockReturnValue(state.pool);
 
@@ -91,7 +92,8 @@ describe('independent heavy-task request admission', () => {
       new Request('http://localhost/api/parse-pdf', { method: 'POST' }),
       'document-extraction',
       async () => {
-        expect(state.wasReleased()).toBe(true);
+        expect(state.wasReleased()).toBe(false);
+        expect(state.transactionQueries.some((sql) => sql.includes('FOR UPDATE'))).toBe(true);
         return Response.json({ success: true });
       },
     );
@@ -101,7 +103,8 @@ describe('independent heavy-task request admission', () => {
     expect(
       state.transactionQueries.some((sql) => sql.includes('expires_at <= clock_timestamp()')),
     ).toBe(true);
-    expect(state.poolQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
+    expect(state.transactionQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
+    expect(state.wasReleased()).toBe(true);
   });
 
   it('returns the stable personal-capacity protocol before running provider work', async () => {

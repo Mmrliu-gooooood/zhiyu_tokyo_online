@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PoolClient } from 'pg';
 
 import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
@@ -13,23 +14,25 @@ import {
   heavyTaskSyncQuotaGroup,
   isHeavyTaskFairTurn,
   withHeavyTaskRootContext,
-  type HeavyTaskAdmissionQueryable,
   type HeavyTaskKind,
 } from './index';
 
 const SYNC_LEASE_MS = 10 * 60 * 1000;
 
-interface IndependentLease {
+interface IndependentLeaseGuard {
   group: string;
   holder: string;
   epoch: number;
+  client: PoolClient;
 }
 
 /**
  * Admit a synchronous parsing/media request through a recoverable PostgreSQL
- * lease. Provider waits never pin a SQL connection. The fixed ten-minute lease
- * outlives every wrapped endpoint's five-minute request budget, while a crashed
- * process releases capacity automatically without a session-affine connection.
+ * lease. One row lock is held while provider work runs. Because site admission
+ * is capped at two roots, this consumes at most two of the pool's eight clients.
+ * The lock prevents an expired lease from being reclaimed while its body is
+ * still alive; a crashed process releases the lock automatically and the
+ * bounded lease then makes the row recoverable.
  */
 export async function runIndependentHeavyTaskRequest(
   request: Request,
@@ -45,22 +48,22 @@ export async function runIndependentHeavyTaskRequest(
   const ownerId = resolveRequestOwnerId(request, responseHeaders);
   const holder = randomUUID();
   const rootTaskId = `independent:${holder}`;
-  let lease: IndependentLease | null;
+  let guard: IndependentLeaseGuard | null;
   try {
-    lease = await acquireIndependentLease(ownerId, rootTaskId, kind, holder);
+    guard = await acquireIndependentLease(ownerId, rootTaskId, kind, holder);
   } catch (error) {
     return error instanceof PersonalCapacityError
       ? limitResponse('personal_limit', responseHeaders)
       : serviceUnavailableResponse(responseHeaders);
   }
-  if (!lease) return limitResponse('site_limit', responseHeaders);
+  if (!guard) return limitResponse('site_limit', responseHeaders);
 
   try {
     const response = await withHeavyTaskRootContext({ ownerId, rootTaskId, kind }, body);
     appendResponseHeaders(response, responseHeaders);
     return response;
   } finally {
-    await releaseIndependentLease(lease).catch(() => undefined);
+    await releaseIndependentLease(guard);
   }
 }
 
@@ -69,10 +72,14 @@ async function acquireIndependentLease(
   rootTaskId: string,
   kind: Extract<HeavyTaskKind, 'document-extraction' | 'media'>,
   holder: string,
-): Promise<IndependentLease | null> {
-  return transaction(async (queryable) => {
+): Promise<IndependentLeaseGuard | null> {
+  const client = await getGenerationPool().connect();
+  let transactionOpen = false;
+  try {
+    await client.query('BEGIN');
+    transactionOpen = true;
     const nowMs = Date.now();
-    const decision = await checkHeavyTaskAdmission(queryable, {
+    const decision = await checkHeavyTaskAdmission(client, {
       ownerId,
       rootTaskId,
       kind,
@@ -81,11 +88,14 @@ async function acquireIndependentLease(
     });
     if (!decision.allowed) {
       if (decision.reason === 'personal_limit') throw new PersonalCapacityError();
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      client.release();
       return null;
     }
     if (
       !decision.inherited &&
-      !(await isHeavyTaskFairTurn(queryable, {
+      !(await isHeavyTaskFairTurn(client, {
         ownerId,
         rootTaskId,
         kind,
@@ -94,10 +104,13 @@ async function acquireIndependentLease(
         agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
       }))
     ) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      client.release();
       return null;
     }
     const group = heavyTaskSyncQuotaGroup(ownerId);
-    const acquired = await queryable.query<{ lease_epoch: number | string }>(
+    const acquired = await client.query<{ lease_epoch: number | string }>(
       `INSERT INTO generation_provider_slots(
          quota_group, slot_no, holder_attempt_id, lease_epoch, expires_at,
          quarantine_until, cooldown_until
@@ -117,30 +130,62 @@ async function acquireIndependentLease(
       [group, holder, SYNC_LEASE_MS],
     );
     const row = acquired.rows[0];
-    return row ? { group, holder, epoch: Number(row.lease_epoch) } : null;
-  });
-}
+    if (!row) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      client.release();
+      return null;
+    }
 
-async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
-  await getGenerationPool().query(
-    `DELETE FROM generation_provider_slots
-      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
-    [lease.group, lease.holder, lease.epoch],
-  );
-}
-
-async function transaction<T>(body: (queryable: HeavyTaskAdmissionQueryable) => Promise<T>) {
-  const client = await getGenerationPool().connect();
-  try {
-    await client.query('BEGIN');
-    const result = await body(client);
+    const epoch = Number(row.lease_epoch);
     await client.query('COMMIT');
-    return result;
+    transactionOpen = false;
+
+    // Start a separate guard transaction after publishing the lease. The
+    // ten-minute expiry closes the tiny commit-to-lock window to competitors.
+    await client.query('BEGIN');
+    transactionOpen = true;
+    const locked = await client.query(
+      `SELECT 1 FROM generation_provider_slots
+        WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
+        FOR UPDATE`,
+      [group, holder, epoch],
+    );
+    if (locked.rowCount !== 1) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      client.release();
+      return null;
+    }
+    return { group, holder, epoch, client };
   } catch (error) {
-    await client.query('ROLLBACK').catch(() => undefined);
+    if (transactionOpen) await client.query('ROLLBACK').catch(() => undefined);
+    client.release(error instanceof Error ? error : undefined);
     throw error;
+  }
+}
+
+async function releaseIndependentLease(guard: IndependentLeaseGuard): Promise<void> {
+  try {
+    await guard.client.query(
+      `DELETE FROM generation_provider_slots
+        WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
+      [guard.group, guard.holder, guard.epoch],
+    );
+    await guard.client.query('COMMIT');
+  } catch (_error) {
+    await guard.client.query('ROLLBACK').catch(() => undefined);
+    // The fenced fallback handles a connection failure after the body without
+    // risking deletion of a successor's lease.
+    await getGenerationPool()
+      .query(
+        `DELETE FROM generation_provider_slots
+          WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
+        [guard.group, guard.holder, guard.epoch],
+      )
+      .catch(() => undefined);
   } finally {
-    client.release();
+    guard.client.release();
   }
 }
 
