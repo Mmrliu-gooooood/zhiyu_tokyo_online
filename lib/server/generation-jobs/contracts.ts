@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { SceneOutline } from '@/lib/types/generation';
 
 export const GENERATION_PIPELINE_VERSION = '1';
-export const GENERATION_SCHEMA_VERSION = 3;
+export const GENERATION_SCHEMA_VERSION = 4;
 export class GenerationJobError extends Error {
   constructor(
     readonly code: string,
@@ -27,6 +27,10 @@ export const GenerationModelRefSchema = z
   .object({ id: z.uuid(), revision: z.number().int().positive() })
   .strict();
 export type GenerationModelRef = z.infer<typeof GenerationModelRefSchema>;
+export const GenerationSearchRefSchema = z
+  .object({ id: z.uuid(), revision: z.number().int().positive() })
+  .strict();
+export type GenerationSearchRef = z.infer<typeof GenerationSearchRefSchema>;
 const image = z
   .object({
     id: ref,
@@ -141,6 +145,7 @@ export const GenerationInputSchema = z
       .optional(),
     mediaConfigRef: MediaConfigRefSchema.optional(),
     modelConfigRef: GenerationModelRefSchema.optional(),
+    searchConfigRef: GenerationSearchRefSchema.optional(),
     source: z
       .object({
         kind: z.enum(['home', 'pro']),

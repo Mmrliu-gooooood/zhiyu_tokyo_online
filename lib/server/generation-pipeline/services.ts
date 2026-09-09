@@ -10,6 +10,7 @@ import {
   type AICallFn,
   type AgentInfo,
   type GeneratedSceneContent,
+  isAbortError,
 } from '@openmaic/generation';
 import { callLLM } from '@/lib/ai/llm';
 import { resolveModel } from '@/lib/server/resolve-model';
@@ -18,7 +19,8 @@ import { isProviderKeyRequired } from '@/lib/ai/providers';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
 import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import { getDefaultAgents } from '@/lib/orchestration/registry/defaults';
-import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
+import { resolveGenerationSearchConfig } from './search';
+import type { GenerationSearchSnapshotContent } from '@/lib/server/generation-search-snapshots';
 import { searchWeb, formatSearchResultsAsContext } from '@/lib/web-search';
 import { validatePlan } from '@/lib/server/generation-jobs/contracts';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
@@ -26,12 +28,14 @@ import type { ProModelContext } from '@/types/pro-model';
 import type { SceneOutline, PdfImage } from '@/lib/types/generation';
 import type { Action } from '@/lib/types/action';
 import type { Scene } from '@/lib/types/stage';
-import type { WebSearchProviderId } from '@/lib/web-search/types';
 import { buildPrompt, PROMPT_IDS } from '@/lib/prompts';
 import { MAX_PDF_CONTENT_CHARS } from '@/lib/constants/generation';
 import { normalizeTaskEngineOutline, sanitizeNonTaskEngineOutline } from './outline-modes';
 import { buildSearchQuery } from '@/lib/server/search-query-builder';
 import { PipelineExecution } from './execution';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('GenerationSearch');
 
 export interface GenerationPlan {
   outlines: SceneOutline[];
@@ -54,6 +58,7 @@ export class GenerationServices {
     readonly input: GenerationInput,
     readonly assets: PipelineAssets,
     readonly modelContext?: ProModelContext,
+    readonly searchConfig?: GenerationSearchSnapshotContent,
   ) {}
 
   async modelCall(
@@ -134,15 +139,7 @@ export class GenerationServices {
   async research(): Promise<string> {
     if (this.input.researchContext) return this.input.researchContext;
     if (!this.input.enableWebSearch && !this.input.requirements.webSearch) return '';
-    const config = resolveClassroomWebSearchConfig({
-      webSearchProviderId: this.input.webSearch?.providerId as WebSearchProviderId | undefined,
-      webSearchModelId: this.input.webSearch?.modelId,
-    });
-    if (
-      !config ||
-      (this.input.webSearch?.providerId && config.providerId !== this.input.webSearch.providerId)
-    )
-      throw new Error('WEB_SEARCH_NOT_CONFIGURED');
+    const config = resolveGenerationSearchConfig(this.input, this.searchConfig);
     const query = await this.execution.checkpoint(
       'research:query',
       { requirements: this.input.requirements, text: this.input.materials?.text },
@@ -162,9 +159,25 @@ export class GenerationServices {
       config.providerId,
       async (signal) => {
         signal.throwIfAborted();
-        const result = await searchWeb({ ...config, query: query.query });
-        signal.throwIfAborted();
-        return formatSearchResultsAsContext(result);
+        const optionalSearch = !!this.input.searchConfigRef && this.input.source?.kind !== 'pro';
+        try {
+          const result = await searchWeb({
+            ...config,
+            query: query.query,
+            ...(optionalSearch ? { signal } : {}),
+          });
+          signal.throwIfAborted();
+          return formatSearchResultsAsContext(result);
+        } catch (error) {
+          signal.throwIfAborted();
+          if (!optionalSearch || isAbortError(error)) throw error;
+          // Persist an empty result once, so resuming this course never repeats
+          // an optional failed search. Do not log provider errors or credentials.
+          log.warn(
+            'Optional web search unavailable; continuing course generation without research',
+          );
+          return '';
+        }
       },
     );
   }

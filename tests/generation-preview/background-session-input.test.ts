@@ -62,6 +62,86 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('background session input', () => {
+  it.each([
+    { providerId: 'brave', config: { apiKey: '', baseUrl: 'https://search.brave.com' } },
+    { providerId: 'tavily', config: { apiKey: 'client-search-key', baseUrl: '' } },
+    {
+      providerId: 'doubao',
+      config: {
+        apiKey: 'stale-client-search-key',
+        baseUrl: 'https://open.feedcoopapi.com',
+        isServerConfigured: true,
+      },
+    },
+  ])(
+    'accepts the effective server search configuration for $providerId',
+    async ({ providerId, config }) => {
+      mocks.settings.mockReturnValue({
+        ...settings,
+        webSearchProviderId: providerId,
+        webSearchProvidersConfig: { [providerId]: config },
+      });
+      const ref = { id: crypto.randomUUID(), revision: 1 };
+      const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === '/api/generate-classroom/search-snapshots') {
+          expect(JSON.parse(String(init?.body))).toMatchObject({
+            version: 1,
+            providerId,
+            apiKey: config.apiKey,
+            baseUrl: config.baseUrl,
+          });
+          return Response.json({ ref });
+        }
+        return url === '/api/agent/media-config-snapshots'
+          ? Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } })
+          : Response.json({ jobs: [] });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const input = await buildGenerationJobInput(
+        { ...session, requirements: { ...session.requirements, webSearch: true } },
+        'zh-CN',
+        new AbortController().signal,
+        vi.fn(),
+      );
+
+      expect(GenerationInputSchema.safeParse(input).success).toBe(true);
+      expect(input.enableWebSearch).toBe(true);
+      expect(input.webSearch).toEqual({ providerId });
+      expect(input.searchConfigRef).toEqual(ref);
+      expect(JSON.stringify(input)).not.toContain('stale-client-search-key');
+      expect(JSON.stringify(input)).not.toContain('client-search-key');
+      expect(JSON.stringify(input)).not.toContain('baseUrl');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/generate-classroom');
+    },
+  );
+
+  it('ignores unused document and search credentials for a text-only course', async () => {
+    mocks.settings.mockReturnValue({
+      ...settings,
+      webSearchProvidersConfig: { tavily: { apiKey: 'unused-search-key' } },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string) =>
+        url === '/api/agent/media-config-snapshots'
+          ? Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } })
+          : Response.json({ jobs: [] }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const input = await buildGenerationJobInput(
+      { ...session, pdfProviderConfig: { apiKey: 'unused-pdf-key' } },
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+    expect(input.searchConfigRef).toBeUndefined();
+    expect(fetchMock.mock.calls.map((call) => call[0])).not.toContain(
+      '/api/generate-classroom/search-snapshots',
+    );
+    expect(JSON.stringify(input)).not.toContain('unused-');
+  });
+
   it('transfers source bytes into the signed owner scope before submitting generation', async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.endsWith('/assets')) {

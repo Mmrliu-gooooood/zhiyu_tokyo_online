@@ -15,6 +15,10 @@ import {
   cleanupGenerationModelSnapshots,
   loadGenerationModelSnapshot,
 } from '@/lib/server/generation-model-snapshots';
+import {
+  cleanupGenerationSearchSnapshots,
+  loadGenerationSearchSnapshot,
+} from '@/lib/server/generation-search-snapshots';
 
 async function main() {
   const config = generationConfig();
@@ -48,7 +52,11 @@ async function main() {
       heartbeatMs: config.heartbeatMs,
       signal: controller.signal,
       report: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
-      maintenance: () => cleanupGenerationModelSnapshots(7 * 24 * 60 * 60 * 1000),
+      maintenance: async () => {
+        const retentionMs = 7 * 24 * 60 * 60 * 1000;
+        await cleanupGenerationModelSnapshots(retentionMs);
+        await cleanupGenerationSearchSnapshots(retentionMs);
+      },
       execute: async (lease, signal) => {
         const budgetSignal = AbortSignal.any([
           signal,
@@ -73,7 +81,16 @@ async function main() {
           const modelContext = storedModel
             ? (({ version: _version, ...context }) => context)(storedModel)
             : undefined;
-          const services = new GenerationServices(execution, input, assets, modelContext);
+          const searchConfig = input.searchConfigRef
+            ? await loadGenerationSearchSnapshot(lease.ownerId, input.searchConfigRef)
+            : undefined;
+          const services = new GenerationServices(
+            execution,
+            input,
+            assets,
+            modelContext,
+            searchConfig,
+          );
           const media = new GenerationMediaServices(execution, input, assets, mediaConfig);
           await runGenerationPipeline(
             repository,

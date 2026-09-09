@@ -31,6 +31,9 @@ import {
 } from '@/lib/server/media-config-snapshots';
 import { GenerationJobError, type GenerationInput } from './contracts';
 import { GenerationModelSnapshotStore } from '@/lib/server/generation-model-snapshots';
+import { GenerationSearchSnapshotStore } from '@/lib/server/generation-search-snapshots';
+import { resolveGenerationSearchConfig } from '@/lib/server/generation-pipeline/search';
+import { getStageRoute } from '@/lib/server/model-routes';
 
 export interface BackgroundProviderValidationContext {
   ownerId: string;
@@ -202,6 +205,13 @@ export async function validateBackgroundProviders(
             throw new Error('Model snapshot context unavailable');
           })()
       : undefined;
+    if (
+      modelSnapshot &&
+      input.model?.modelString &&
+      input.model.modelString !== modelSnapshot.modelString
+    ) {
+      throw new Error('Model snapshot does not match the selected model');
+    }
     const providers = getServerProviders();
     for (const stage of [
       'scene-outlines-stream',
@@ -216,9 +226,16 @@ export async function validateBackgroundProviders(
       const { version: _version, ...modelContext } = modelSnapshot ?? { version: 1 as const };
       const resolved = await resolveModel({ ...input.model, ...modelContext, stage });
       const managed = providers[resolved.providerId];
+      // Only the authenticated owner snapshot authorizes an unmanaged model.
+      // Explicit operator routes still require server configuration, even when
+      // a route happens to select the same model as the client snapshot.
+      const ownerConfigured =
+        modelSnapshot &&
+        !getStageRoute(stage) &&
+        resolved.modelString === modelSnapshot.modelString;
       if (
-        !managed ||
-        (managed.models?.length && !managed.models.includes(resolved.modelId)) ||
+        (!managed && !ownerConfigured) ||
+        (managed?.models?.length && !managed.models.includes(resolved.modelId)) ||
         (isProviderKeyRequired(resolved.providerId) && !resolved.apiKey)
       )
         throw new Error('Unavailable provider');
@@ -239,8 +256,18 @@ export async function validateBackgroundProviders(
     }
     if (input.enableImageGeneration) requireImageProvider(input, mediaSnapshot);
     if (input.enableVideoGeneration) requireVideoProvider(input, mediaSnapshot);
-    if (input.enableWebSearch || input.requirements.webSearch)
-      requireProvider(input.webSearch?.providerId, getServerWebSearchProviders());
+    if (input.enableWebSearch || input.requirements.webSearch) {
+      if (input.searchConfigRef) {
+        if (!context) throw new Error('Search snapshot context unavailable');
+        const searchSnapshot = await new GenerationSearchSnapshotStore(context.queryable).load(
+          context.ownerId,
+          input.searchConfigRef,
+        );
+        resolveGenerationSearchConfig(input, searchSnapshot);
+      } else {
+        requireProvider(input.webSearch?.providerId, getServerWebSearchProviders());
+      }
+    }
   } catch {
     throw new GenerationJobError('BACKGROUND_PROVIDER_UNAVAILABLE', 422);
   }

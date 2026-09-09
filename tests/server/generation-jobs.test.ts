@@ -92,10 +92,12 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       planning: { outlines: [outline] },
       review: { mode: 'auto' },
     });
-    const queued = await pool.query<{ type: string; data: { toolCallId?: string; result?: { details?: { jobId?: string } } } }>(
-      'SELECT type,data FROM agent_session_events WHERE session_id=$1 ORDER BY seq',
-      ['pro-session'],
-    );
+    const queued = await pool.query<{
+      type: string;
+      data: { toolCallId?: string; result?: { details?: { jobId?: string } } };
+    }>('SELECT type,data FROM agent_session_events WHERE session_id=$1 ORDER BY seq', [
+      'pro-session',
+    ]);
     expect(queued.rows.at(-1)).toMatchObject({
       type: 'tool_execution_end',
       data: { toolCallId: 'submit-call', result: { details: { jobId: job.jobId } } },
@@ -157,7 +159,7 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   }
   it('migration reruns are idempotent and checksum drift aborts', async () => {
     await migrateGenerationSchema(pool);
-    expect(await getGenerationSchemaVersion(pool)).toBe(3);
+    expect(await getGenerationSchemaVersion(pool)).toBe(4);
     const snapshots = await pool.query<{ name: string | null }>(
       "SELECT to_regclass('media_config_snapshots')::text AS name",
     );
@@ -468,7 +470,10 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     });
     expect(resumedAttempt.providerRequestId).toBe('paid-task-one');
     expect(resumedLease.jobId).toBe(lease.jobId);
-    expect((await pool.query<{ count: number }>('SELECT count(*)::int count FROM generation_jobs')).rows[0]?.count).toBe(1);
+    expect(
+      (await pool.query<{ count: number }>('SELECT count(*)::int count FROM generation_jobs'))
+        .rows[0]?.count,
+    ).toBe(1);
   });
   it('publishes incrementally, preserves ready content, finishes both completion mirrors', async () => {
     const lease = await confirmed();

@@ -106,10 +106,24 @@ CREATE INDEX generation_model_snapshots_owner_idx ON generation_model_snapshots(
 CREATE UNIQUE INDEX generation_model_snapshots_active_intent_idx
  ON generation_model_snapshots(owner_id,intent_digest) WHERE revoked_at IS NULL;
 `;
+export const GENERATION_MIGRATION_4 = `
+CREATE TABLE generation_search_snapshots (
+ id UUID PRIMARY KEY, owner_id TEXT NOT NULL,
+ revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+ schema_version INTEGER NOT NULL CHECK(schema_version > 0),
+ ciphertext TEXT NOT NULL, intent_digest TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(), revoked_at TIMESTAMPTZ,
+ UNIQUE(id,revision)
+);
+CREATE INDEX generation_search_snapshots_owner_idx ON generation_search_snapshots(owner_id,created_at DESC,id);
+CREATE UNIQUE INDEX generation_search_snapshots_active_intent_idx
+ ON generation_search_snapshots(owner_id,intent_digest) WHERE revoked_at IS NULL;
+`;
 export const GENERATION_MIGRATIONS = [
   { version: 1, sql: GENERATION_MIGRATION_1 },
   { version: 2, sql: GENERATION_MIGRATION_2 },
   { version: 3, sql: GENERATION_MIGRATION_3 },
+  { version: 4, sql: GENERATION_MIGRATION_4 },
 ] as const;
 
 /** Explicit operator entry point; never called by readiness, an API or worker bootstrap. */
