@@ -157,4 +157,29 @@ describe('durable job client ownership', () => {
     stop();
     expect(versions).toEqual([3, 4]);
   });
+
+  it('reports a recovered observation connection without republishing an equal snapshot', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ jobId: 'a', stateVersion: 3, status: 'running', pollIntervalMs: 1000 }),
+      )
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(
+        Response.json({ jobId: 'a', stateVersion: 3, status: 'running', pollIntervalMs: 1000 }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const onSnapshot = vi.fn();
+    const onError = vi.fn();
+    const onReconnect = vi.fn();
+    const stop = observeGenerationJob('a', onSnapshot, onError, onReconnect);
+
+    await vi.advanceTimersByTimeAsync(6100);
+    stop();
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onReconnect).toHaveBeenCalledOnce();
+    expect(onSnapshot).toHaveBeenCalledOnce();
+  });
 });

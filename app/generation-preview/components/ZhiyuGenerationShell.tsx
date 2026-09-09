@@ -13,12 +13,18 @@ export function ZhiyuGenerationShell({
   preview,
   illustration,
   actions,
+  statusTitle,
+  statusDetail,
+  terminal = false,
 }: {
   readonly title: string;
   readonly steps: readonly ZhiyuGenerationStep[];
   readonly preview: ReactNode;
   readonly illustration?: ReactNode;
   readonly actions?: ReactNode;
+  readonly statusTitle?: string;
+  readonly statusDetail?: string;
+  readonly terminal?: boolean;
 }) {
   const { t } = useI18n();
 
@@ -41,14 +47,16 @@ export function ZhiyuGenerationShell({
       <main className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 py-5 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:px-7 lg:py-7">
         <section className="rounded-[22px] border border-border/70 bg-card p-5 shadow-[0_16px_44px_rgba(30,48,39,0.06)] md:p-6">
           <div className="mb-5">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--zhiyu-ai)]">
-              {t('generation.aiWorking')}
-            </p>
+            {!terminal ? (
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--zhiyu-ai)]">
+                {t('generation.aiWorking')}
+              </p>
+            ) : null}
             <h1 className="text-xl font-semibold tracking-[-0.02em] md:text-2xl">
-              {t('generation.aiWorking')}
+              {statusTitle ?? t('generation.aiWorking')}
             </h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t('generation.generatingOutlinesDesc')}
+              {statusDetail ?? t('generation.generatingOutlinesDesc')}
             </p>
           </div>
           <div className="mb-5">

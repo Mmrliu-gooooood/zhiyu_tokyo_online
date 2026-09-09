@@ -11,6 +11,11 @@ import type { SceneOutline } from '@/lib/types/generation';
 import { generationConfig, type GenerationConfig } from './config';
 import { generationRequestHash } from './config-snapshot';
 import { notifyDurableAgentEvent } from '@/lib/server/agent-runtime/event-notify-bus';
+import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
+import {
+  checkHeavyTaskAdmission,
+  checkHeavyTaskQueueCapacity,
+} from '@/lib/server/heavy-task-admission';
 import { assertGenerationSchema } from './migrations';
 import {
   canonicalHash,
@@ -50,6 +55,7 @@ interface JobRow extends Record<string, unknown> {
   config_version: string;
   editable_revision: number | null;
   active_elapsed_ms: number;
+  available_at: Date | string;
 }
 interface StepRow extends Record<string, unknown> {
   id: string;
@@ -78,7 +84,7 @@ interface Command {
   acknowledged?: boolean;
   stepKeys?: string[];
 }
-const terminal = new Set(['succeeded', 'cancelled']);
+const terminal = new Set(['succeeded', 'failed', 'cancelled']);
 function view(r: JobRow): GenerationJobView {
   return {
     jobId: r.id,
@@ -94,6 +100,8 @@ function view(r: JobRow): GenerationJobView {
     lastErrorCode: r.last_error_code,
     reviewHold: r.review_hold,
     autoContinueAt: r.auto_continue_at ? new Date(r.auto_continue_at).toISOString() : null,
+    queueReason: r.status === 'queued' ? 'queued' : null,
+    retryAt: r.status === 'retry_wait' ? new Date(r.available_at).toISOString() : null,
     pollUrl: `/api/generate-classroom/${r.id}`,
     courseUrl: `/classroom/${r.stage_id}`,
     pollIntervalMs: 2000,
@@ -135,6 +143,31 @@ export class GenerationJobRepository {
     if (!r.rows[0]) throw new GenerationJobError('JOB_NOT_FOUND', 404);
     return r.rows[0];
   }
+  private rootTaskId(job: JobRow): string {
+    const source = job.input_snapshot.source;
+    return source?.kind === 'pro' && source.sessionId
+      ? `agent:${source.sessionId}`
+      : `generation:${job.id}`;
+  }
+  private async projectedView(q: Queryable, job: JobRow): Promise<GenerationJobView> {
+    const result = view(job);
+    if (job.status !== 'queued') return result;
+    const admission = await checkHeavyTaskAdmission(q, {
+      ownerId: job.owner_id,
+      rootTaskId: this.rootTaskId(job),
+      kind: 'generation',
+      agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+      lock: false,
+    });
+    return {
+      ...result,
+      queueReason: admission.allowed
+        ? 'queued'
+        : admission.reason === 'personal_limit'
+          ? 'owner_limit'
+          : 'site_limit',
+    };
+  }
   private async event(
     q: Queryable,
     id: string,
@@ -167,7 +200,7 @@ export class GenerationJobRepository {
       [sessionId, job.owner_id],
     );
     if (!session.rows[0]) return;
-    const snapshot = view(job);
+    const snapshot = await this.projectedView(q, job);
     const isError = ['failed', 'needs_attention'].includes(job.status);
     const text = `Course generation: ${job.status} / ${job.phase}; ${job.ready_scenes}/${job.total_scenes} pages ready${job.last_error_code ? ` (${job.last_error_code})` : ''}.`;
     await q.query(
@@ -289,16 +322,43 @@ export class GenerationJobRepository {
           throw new GenerationJobError('IDEMPOTENCY_CONFLICT');
         return view(found.rows[0]);
       }
-      const count = await q.query<{ owner_count: number; total: number }>(
-        "SELECT count(*) FILTER(WHERE owner_id=$1)::int owner_count,count(*)::int total FROM generation_jobs WHERE status IN ('queued','running','retry_wait','awaiting_confirmation','needs_attention')",
+      const id = randomUUID();
+      const queue = await checkHeavyTaskQueueCapacity(q, {
+        ownerId,
+        rootTaskId:
+          input.source?.kind === 'pro' && input.source.sessionId
+            ? `agent:${input.source.sessionId}`
+            : `generation:${id}`,
+      });
+      if (!queue.allowed) {
+        throw new GenerationJobError(
+          queue.reason === 'personal_queue_limit' ? 'OWNER_QUEUE_LIMIT' : 'GENERATION_QUEUE_FULL',
+          queue.reason === 'personal_queue_limit' ? 429 : 503,
+        );
+      }
+      const count = await q.query<{
+        owner_count: number;
+        total: number;
+        owner_review_attention: number;
+        review_attention: number;
+      }>(
+        `SELECT
+           count(*) FILTER(WHERE owner_id=$1 AND status='queued')::int owner_count,
+           count(*) FILTER(WHERE status='queued')::int total,
+           count(*) FILTER(WHERE owner_id=$1 AND status IN ('awaiting_confirmation','needs_attention'))::int owner_review_attention,
+           count(*) FILTER(WHERE status IN ('awaiting_confirmation','needs_attention'))::int review_attention
+         FROM generation_jobs`,
         [ownerId],
       );
       if (count.rows[0].owner_count >= this.config.maxQueuedPerOwner)
         throw new GenerationJobError('OWNER_QUEUE_LIMIT', 429);
       if (count.rows[0].total >= this.config.maxQueued)
         throw new GenerationJobError('GENERATION_QUEUE_FULL', 503);
-      const id = randomUUID(),
-        stageId = input.target?.stageId ?? randomUUID(),
+      if (count.rows[0].owner_review_attention >= this.config.maxReviewAttentionPerOwner)
+        throw new GenerationJobError('OWNER_REVIEW_ATTENTION_LIMIT', 429);
+      if (count.rows[0].review_attention >= this.config.maxReviewAttention)
+        throw new GenerationJobError('GENERATION_REVIEW_ATTENTION_FULL', 503);
+      const stageId = input.target?.stageId ?? randomUUID(),
         now = Date.now();
       if (input.target) {
         const target = await q.query<{
@@ -441,13 +501,13 @@ export class GenerationJobRepository {
         );
       }
       await this.event(q, id, 'queued');
-      return view(await this.job(q, id));
+      return this.projectedView(q, await this.job(q, id));
     });
   }
   async getJob(ownerId: string, id: string): Promise<GenerationJobView | null> {
     return this.transaction(async (q) => {
       try {
-        return view(await this.job(q, id, ownerId, false));
+        return await this.projectedView(q, await this.job(q, id, ownerId, false));
       } catch (e) {
         if (e instanceof GenerationJobError && e.httpStatus === 404) return null;
         throw e;
@@ -463,7 +523,7 @@ export class GenerationJobRepository {
          ORDER BY created_at DESC LIMIT 1`,
         [ownerId, sessionId],
       );
-      return result.rows[0] ? view(result.rows[0]) : null;
+      return result.rows[0] ? this.projectedView(q, result.rows[0]) : null;
     });
   }
   async getStageRevision(ownerId: string, stageId: string): Promise<number | null> {
@@ -486,7 +546,9 @@ export class GenerationJobRepository {
         `SELECT * FROM generation_jobs WHERE owner_id=$1 ${options.active ? "AND status NOT IN ('succeeded','cancelled')" : ''} AND ($2::text IS NULL OR id::text < $2) ORDER BY id DESC LIMIT $3`,
         [ownerId, options.cursor ?? null, Math.min(100, Math.max(1, options.limit ?? 30))],
       );
-      return { jobs: rows.rows.map(view), cursor: rows.rows.length ? rows.rows.at(-1)!.id : null };
+      const jobs: GenerationJobView[] = [];
+      for (const row of rows.rows) jobs.push(await this.projectedView(q, row));
+      return { jobs, cursor: rows.rows.length ? rows.rows.at(-1)!.id : null };
     });
   }
   private async scenes(q: Queryable, id: string): Promise<SceneCheckpoint[]> {
@@ -519,7 +581,7 @@ export class GenerationJobRepository {
         [id],
       );
       return {
-        ...view(job),
+        ...(await this.projectedView(q, job)),
         outlines: outline.rows[0]?.data.outlines ?? [],
         scenes,
         activeSteps: active.rows,
@@ -535,8 +597,24 @@ export class GenerationJobRepository {
     return this.transaction(async (q) => {
       await assertGenerationSchema(q);
       const rows = await q.query<JobRow>(
-        "SELECT * FROM generation_jobs WHERE status IN ('queued','retry_wait') AND available_at<=clock_timestamp() AND pipeline_version=ANY($1::text[]) ORDER BY priority DESC,available_at,created_at,id LIMIT 20 FOR UPDATE SKIP LOCKED",
-        [pipelineVersions],
+        `SELECT * FROM generation_jobs AS candidate
+         WHERE ((status='queued' AND updated_at>clock_timestamp()-$2*interval '1 millisecond') OR status='retry_wait')
+           AND available_at<=clock_timestamp()
+           AND pipeline_version=ANY($1::text[])
+           AND NOT EXISTS (
+             SELECT 1 FROM generation_jobs AS active
+             WHERE active.owner_id=candidate.owner_id AND active.status='running'
+               AND active.lease_expires_at>clock_timestamp()
+               AND NOT (
+                 candidate.input_snapshot->'source'->>'kind'='pro'
+                 AND NULLIF(candidate.input_snapshot->'source'->>'sessionId','') IS NOT NULL
+                 AND active.input_snapshot->'source'->>'kind'='pro'
+                 AND active.input_snapshot->'source'->>'sessionId'=candidate.input_snapshot->'source'->>'sessionId'
+               )
+           )
+         ORDER BY priority DESC,available_at,created_at,id
+         LIMIT 20 FOR UPDATE SKIP LOCKED`,
+        [pipelineVersions, this.config.queueWaitMs],
       );
       for (const r of rows.rows) {
         const lock = await q.query<{ locked: boolean }>(
@@ -544,11 +622,13 @@ export class GenerationJobRepository {
           [r.owner_id],
         );
         if (!lock.rows[0]?.locked) continue;
-        const count = await q.query<{ n: number }>(
-          "SELECT count(*)::int n FROM generation_jobs WHERE owner_id=$1 AND status='running' AND lease_expires_at>clock_timestamp()",
-          [r.owner_id],
-        );
-        if (count.rows[0].n >= this.config.maxActivePerOwner) continue;
+        const admission = await checkHeavyTaskAdmission(q, {
+          ownerId: r.owner_id,
+          rootTaskId: this.rootTaskId(r),
+          kind: 'generation',
+          agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+        });
+        if (!admission.allowed) continue;
         const own = await q.query<{
           ownership_epoch: number;
           write_mode: string;
@@ -674,14 +754,14 @@ export class GenerationJobRepository {
       );
       const attemptId = input.external ? randomUUID() : null;
       const priorProviderRequest = input.external
-        ? (
+        ? ((
             await q.query<{ provider_request_id: string | null }>(
               `SELECT provider_request_id FROM generation_attempts
                WHERE step_id=$1 AND provider_request_id IS NOT NULL
                ORDER BY attempt_no DESC LIMIT 1`,
               [step.id],
             )
-          ).rows[0]?.provider_request_id ?? undefined
+          ).rows[0]?.provider_request_id ?? undefined)
         : undefined;
       if (attemptId)
         await q.query(
@@ -848,7 +928,7 @@ export class GenerationJobRepository {
         [lease.stageId, JSON.stringify(outlines.map((o, i) => ({ ...o, order: i }))), Date.now()],
       );
       await q.query(
-        "UPDATE generation_jobs SET status='awaiting_confirmation',phase='outlines',plan_revision=$2,total_scenes=$3,worker_id=NULL,lease_expires_at=NULL,lease_epoch=lease_epoch+1,state_version=state_version+1,auto_continue_at=CASE WHEN review_policy='auto' THEN clock_timestamp()+$4*interval '1 second' ELSE NULL END WHERE id=$1",
+        "UPDATE generation_jobs SET status='awaiting_confirmation',phase='outlines',plan_revision=$2,total_scenes=$3,worker_id=NULL,lease_expires_at=NULL,lease_epoch=lease_epoch+1,state_version=state_version+1,auto_continue_at=CASE WHEN review_policy='auto' THEN clock_timestamp()+$4*interval '1 second' ELSE NULL END,updated_at=clock_timestamp() WHERE id=$1",
         [lease.jobId, revision, outlines.length, lease.input.review.autoConfirmSeconds ?? 2.5],
       );
       await this.event(q, lease.jobId, 'awaiting_confirmation');
@@ -894,7 +974,7 @@ export class GenerationJobRepository {
         ],
       );
     await q.query(
-      "UPDATE generation_jobs SET status='queued',phase='agents',auto_continue_at=NULL,state_version=state_version+1,available_at=clock_timestamp() WHERE id=$1",
+      "UPDATE generation_jobs SET status='queued',phase='agents',auto_continue_at=NULL,state_version=state_version+1,available_at=clock_timestamp(),finished_at=NULL,updated_at=clock_timestamp() WHERE id=$1",
       [job.id],
     );
     await this.event(q, job.id, 'confirmed');
@@ -943,7 +1023,7 @@ export class GenerationJobRepository {
       )
         throw new GenerationJobError('COURSE_NOT_FOUND', 404);
       await body(q, job);
-      const result = view(await this.job(q, id));
+      const result = await this.projectedView(q, await this.job(q, id));
       await q.query(
         'INSERT INTO generation_commands(job_id,command_key,kind,request_hash,result_version,result) VALUES($1,$2,$3,$4,$5,$6::jsonb)',
         [id, input.commandKey, kind, hash, result.stateVersion, JSON.stringify(result)],
@@ -967,7 +1047,7 @@ export class GenerationJobRepository {
         );
       }
       await q.query(
-        "UPDATE generation_jobs SET plan_revision=plan_revision+$2,total_scenes=COALESCE($3,total_scenes),review_hold=$4,review_policy=CASE WHEN $4 THEN review_policy ELSE 'auto' END,auto_continue_at=CASE WHEN $4 THEN NULL ELSE clock_timestamp()+interval '2.5 seconds' END,state_version=state_version+1 WHERE id=$1",
+        "UPDATE generation_jobs SET plan_revision=plan_revision+$2,total_scenes=COALESCE($3,total_scenes),review_hold=$4,review_policy=CASE WHEN $4 THEN review_policy ELSE 'auto' END,auto_continue_at=CASE WHEN $4 THEN NULL ELSE clock_timestamp()+interval '2.5 seconds' END,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
         [id, input.outlines ? 1 : 0, input.outlines?.length ?? null, input.reviewHold ?? true],
       );
       await this.event(q, id, 'outline_reviewed');
@@ -991,6 +1071,45 @@ export class GenerationJobRepository {
       );
       for (const job of rows.rows) await this.freezePlan(q, job);
       return rows.rows.length;
+    });
+  }
+  /** End abandoned pure queue/manual-review waits without deleting their durable inputs or outline. */
+  async expireWaitingJobs(): Promise<number> {
+    return this.transaction(async (q) => {
+      const queued = await q.query<JobRow>(
+        `SELECT * FROM generation_jobs
+         WHERE status='queued'
+           AND updated_at<=clock_timestamp()-$1*interval '1 millisecond'
+         LIMIT 20 FOR UPDATE SKIP LOCKED`,
+        [this.config.queueWaitMs],
+      );
+      const reviews = await q.query<JobRow>(
+        `SELECT * FROM generation_jobs
+         WHERE status='awaiting_confirmation'
+           AND (review_policy='manual' OR review_hold)
+           AND updated_at<=clock_timestamp()-$1*interval '1 millisecond'
+         LIMIT 20 FOR UPDATE SKIP LOCKED`,
+        [this.config.manualReviewWaitMs],
+      );
+      for (const [jobs, code, event] of [
+        [queued.rows, 'QUEUE_WAIT_EXPIRED', 'queue_expired'],
+        [reviews.rows, 'OUTLINE_REVIEW_EXPIRED', 'outline_review_expired'],
+      ] as const) {
+        for (const job of jobs) {
+          await this.projectSceneFailure(q, job.id, 'failed', code);
+          await q.query(
+            `UPDATE generation_jobs
+             SET status='failed',last_error_code=$2,worker_id=NULL,lease_epoch=lease_epoch+1,
+                 lease_expires_at=NULL,auto_continue_at=NULL,finished_at=clock_timestamp(),
+                 state_version=state_version+1,updated_at=clock_timestamp()
+             WHERE id=$1`,
+            [job.id, code],
+          );
+          await this.editable(q, job);
+          await this.event(q, job.id, event, { code });
+        }
+      }
+      return queued.rows.length + reviews.rows.length;
     });
   }
   private async editable(q: Queryable, job: JobRow) {
@@ -1022,12 +1141,26 @@ export class GenerationJobRepository {
     return this.command(ownerId, id, 'retry', input, async (q, j) => {
       if (!['failed', 'needs_attention'].includes(j.status) || input.expectedVersion === undefined)
         throw new GenerationJobError('JOB_NOT_RETRYABLE');
+      if (['QUEUE_WAIT_EXPIRED', 'OUTLINE_REVIEW_EXPIRED'].includes(j.last_error_code ?? ''))
+        throw new GenerationJobError('EXPIRED_JOB_REQUIRES_NEW_SUBMISSION', 409);
       if (j.status === 'needs_attention' && !input.acknowledged)
         throw new GenerationJobError('EXTERNAL_RESULT_ACKNOWLEDGEMENT_REQUIRED');
       await q.query("SELECT pg_advisory_xact_lock(hashtext('generation:create'))");
       await q.query("SELECT pg_advisory_xact_lock(hashtext('generation:owner:' || $1))", [ownerId]);
+      const sharedQueue = await checkHeavyTaskQueueCapacity(q, {
+        ownerId,
+        rootTaskId: this.rootTaskId(j),
+      });
+      if (!sharedQueue.allowed) {
+        throw new GenerationJobError(
+          sharedQueue.reason === 'personal_queue_limit'
+            ? 'OWNER_QUEUE_LIMIT'
+            : 'GENERATION_QUEUE_FULL',
+          sharedQueue.reason === 'personal_queue_limit' ? 429 : 503,
+        );
+      }
       const queued = await q.query<{ owner_count: number; total: number }>(
-        "SELECT count(*) FILTER(WHERE owner_id=$1)::int owner_count,count(*)::int total FROM generation_jobs WHERE id<>$2 AND status IN ('queued','running','retry_wait','awaiting_confirmation','needs_attention')",
+        "SELECT count(*) FILTER(WHERE owner_id=$1)::int owner_count,count(*)::int total FROM generation_jobs WHERE id<>$2 AND status='queued'",
         [ownerId, id],
       );
       if (queued.rows[0].owner_count >= this.config.maxQueuedPerOwner)
@@ -1067,7 +1200,7 @@ export class GenerationJobRepository {
         [j.stage_id],
       );
       await q.query(
-        "UPDATE generation_jobs SET status='queued',run_no=run_no+1,lease_epoch=lease_epoch+1,worker_id=NULL,lease_expires_at=NULL,last_error_code=NULL,available_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1",
+        "UPDATE generation_jobs SET status='queued',run_no=run_no+1,lease_epoch=lease_epoch+1,worker_id=NULL,lease_expires_at=NULL,last_error_code=NULL,available_at=clock_timestamp(),finished_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
         [id],
       );
       await this.event(q, id, 'retry_acknowledged');
@@ -1209,7 +1342,7 @@ export class GenerationJobRepository {
       const finalStatus = other.rows.length ? 'needs_attention' : status;
       await this.projectSceneFailure(q, lease.jobId, finalStatus, code, input.stepKey);
       await q.query(
-        "UPDATE generation_jobs SET status=$2,last_error_code=$3,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp()+$4*interval '1 millisecond',state_version=state_version+1 WHERE id=$1",
+        "UPDATE generation_jobs SET status=$2,last_error_code=$3,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp()+$4*interval '1 millisecond',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
         [lease.jobId, finalStatus, code, delay],
       );
       if (finalStatus !== 'retry_wait') await this.editable(q, job);
@@ -1264,7 +1397,7 @@ export class GenerationJobRepository {
           uncertain ? 'EXTERNAL_RESULT_UNKNOWN' : 'WORKER_LEASE_EXPIRED',
         );
         await q.query(
-          'UPDATE generation_jobs SET status=$2,last_error_code=$3,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1',
+          'UPDATE generation_jobs SET status=$2,last_error_code=$3,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1',
           [
             job.id,
             uncertain ? 'needs_attention' : 'retry_wait',

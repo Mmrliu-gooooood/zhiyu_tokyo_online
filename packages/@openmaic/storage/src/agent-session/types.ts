@@ -519,6 +519,16 @@ export interface AgentSessionTransaction {
  */
 export interface AgentSessionHooks {
   resolveFinalOwner?: (transaction: AgentSessionTransaction, ownerId: string) => Promise<string>;
+  /**
+   * Optional host admission fence for a queued/stale claim. It runs after the
+   * candidate row is locked and cancellation is handled, but before the row is
+   * changed to running. Returning false leaves the candidate queued so another
+   * queue kind can use the shared execution capacity.
+   */
+  admitClaim?: (
+    transaction: AgentSessionTransaction,
+    input: { ownerId: string; sessionId: string; now: number; leaseTtlMs: number },
+  ) => Promise<boolean>;
   /** Runs after insertion, before the creation transaction can commit. */
   onSessionCreated?: (
     transaction: AgentSessionTransaction,

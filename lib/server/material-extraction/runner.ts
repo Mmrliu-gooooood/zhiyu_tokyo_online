@@ -4,6 +4,7 @@ import type { PgAgentSessionMaterialStore } from '@openmaic/storage/material/pg'
 
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
 import { getAgentSessionMaterialStore } from '@/lib/server/agent-runtime/session-materials';
+import { withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 
 import { extractClaimedSessionMaterial } from './extract';
 import { isTransientExtractionError } from './errors';
@@ -32,7 +33,14 @@ export async function runNextMaterialExtraction(
     void store.heartbeatExtraction(claim.material.id, workerId);
   }, agentRuntimeConfig.heartbeatIntervalMs);
   try {
-    await execute(claim);
+    await withHeavyTaskRootContext(
+      {
+        ownerId: claim.ownerId,
+        rootTaskId: `agent:${claim.material.sessionId}`,
+        kind: 'material-extraction',
+      },
+      () => execute(claim),
+    );
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     await store.settleExtractionFailure(

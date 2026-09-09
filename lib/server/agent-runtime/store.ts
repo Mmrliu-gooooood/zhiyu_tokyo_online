@@ -9,6 +9,10 @@ import type { Pool } from 'pg';
 
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 import { notifyDurableAgentEvent } from './event-notify-bus';
+import {
+  checkHeavyTaskAdmission,
+  checkHeavyTaskQueueCapacity,
+} from '@/lib/server/heavy-task-admission';
 
 interface AgentSessionStoreState {
   connectionString?: string;
@@ -52,7 +56,24 @@ async function createAgentSessionStore(connectionString: string): Promise<PgAgen
   // store is constructed, so the closure reference is always assigned.
   const store: PgAgentSessionStore = new PgAgentSessionStore(pool, {
     withTransaction: nodePostgresTransaction(pool),
+    admitClaim: async (transaction, input): Promise<boolean> => {
+      const decision = await checkHeavyTaskAdmission(transaction, {
+        ownerId: input.ownerId,
+        rootTaskId: `agent:${input.sessionId}`,
+        kind: 'agent',
+        nowMs: input.now,
+        agentLeaseTtlMs: input.leaseTtlMs,
+      });
+      return decision.allowed;
+    },
     onSessionCreated: async (transaction, meta): Promise<void> => {
+      if (meta.status === 'queued') {
+        const queue = await checkHeavyTaskQueueCapacity(transaction, {
+          ownerId: meta.ownerId,
+          rootTaskId: `agent:${meta.id}`,
+        });
+        if (!queue.allowed) throw new Error(queue.reason);
+      }
       await store.registerSessionUrls(
         meta.id,
         extractObservedUrls(meta.prompt),

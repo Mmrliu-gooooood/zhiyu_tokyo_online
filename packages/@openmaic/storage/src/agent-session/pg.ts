@@ -429,6 +429,7 @@ export class PgAgentSessionStore
   private readonly createId: () => string;
   private readonly clock: () => number;
   private readonly resolveOwnerHook: NonNullable<AgentSessionHooks['resolveFinalOwner']>;
+  private readonly admitClaimHook?: AgentSessionHooks['admitClaim'];
   private readonly createdHook?: AgentSessionHooks['onSessionCreated'];
   private readonly messageHook?: AgentSessionHooks['onUserMessagePosted'];
   private readonly sessionEventHook?: AgentSessionHooks['onSessionEventAppended'];
@@ -453,6 +454,7 @@ export class PgAgentSessionStore
     this.createId = options.createId ?? randomUUID;
     this.clock = options.now ?? Date.now;
     this.resolveOwnerHook = options.resolveFinalOwner ?? (async (_tx, ownerId) => ownerId);
+    this.admitClaimHook = options.admitClaim;
     this.createdHook = options.onSessionCreated;
     this.messageHook = options.onUserMessagePosted;
     this.sessionEventHook = options.onSessionEventAppended;
@@ -615,7 +617,7 @@ export class PgAgentSessionStore
                AND (lease_heartbeat_at IS NULL OR lease_heartbeat_at < $1)
                AND (lease_worker_id IS NULL OR lease_worker_id <> $2)))
          AND (attempt < $3 OR status = 'running')${askAdmission}${targeted}
-       ORDER BY created_at LIMIT 5`,
+       ORDER BY created_at LIMIT 20`,
       params,
     );
     for (const candidate of candidates.rows) {
@@ -623,9 +625,10 @@ export class PgAgentSessionStore
         const locked = await tx.query<{
           status: string;
           attempt: number;
+          owner_id: string;
           cancel_requested_at: number | string | Date | null;
         }>(
-          `SELECT status, attempt, cancel_requested_at FROM ${this.table('sessions')}
+          `SELECT status, attempt, owner_id, cancel_requested_at FROM ${this.table('sessions')}
            WHERE id = $1 AND deleted_at IS NULL
              AND (status = 'queued' OR
                   (status = 'running'
@@ -645,6 +648,17 @@ export class PgAgentSessionStore
         // lock the claim would have used, then keep scanning.
         if (previous.cancel_requested_at !== null && previous.cancel_requested_at !== undefined) {
           await this.settleCancelledAtClaim(tx, candidate.id, now, previous.attempt);
+          return null;
+        }
+        if (
+          this.admitClaimHook &&
+          !(await this.admitClaimHook(tx, {
+            ownerId: previous.owner_id,
+            sessionId: candidate.id,
+            now,
+            leaseTtlMs: options.leaseTtlMs,
+          }))
+        ) {
           return null;
         }
         // PostgreSQL evaluates every SET expression from the locked pre-update

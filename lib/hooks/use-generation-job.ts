@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { nanoid } from 'nanoid';
 import { getDocumentStore } from '@/lib/document-store';
 import { useStageStore } from '@/lib/store/stage';
 import { isStageDeleted } from '@/lib/utils/deleted-stages';
@@ -69,11 +70,21 @@ export function useGenerationJob(
   jobId: string | null,
   onSnapshot?: (job: GenerationJobSnapshot) => void,
 ) {
+  const activeJobIdRef = useRef(jobId);
+  useEffect(() => {
+    activeJobIdRef.current = jobId;
+  }, [jobId]);
   const [observation, setObservation] = useState<{
     jobId: string;
     job: GenerationJobSnapshot | null;
     error: Error | null;
   } | null>(null);
+  const [cancellation, setCancellation] = useState<{
+    jobId: string;
+    cancelling: boolean;
+    error: Error | null;
+  } | null>(null);
+  const cancelCommandRef = useRef<{ jobId: string; key: string } | null>(null);
   const callback = useRef(onSnapshot);
   useEffect(() => {
     callback.current = onSnapshot;
@@ -92,14 +103,44 @@ export function useGenerationJob(
           job: previous?.jobId === jobId ? previous.job : null,
           error,
         })),
+      () =>
+        setObservation((previous) =>
+          previous?.jobId === jobId ? { ...previous, error: null } : previous,
+        ),
     );
   }, [jobId]);
-  const cancel = useCallback(async () => {
+  const cancel = useCallback(async (): Promise<GenerationJobSnapshot | undefined> => {
     if (!jobId) return;
-    const cancelled = await cancelGenerationJob(jobId);
-    setObservation({ jobId, job: cancelled, error: null });
+    const requestedJobId = jobId;
+    const command =
+      cancelCommandRef.current?.jobId === requestedJobId
+        ? cancelCommandRef.current
+        : { jobId: requestedJobId, key: nanoid() };
+    cancelCommandRef.current = command;
+    setCancellation({ jobId: requestedJobId, cancelling: true, error: null });
+    try {
+      const cancelled = await cancelGenerationJob(requestedJobId, command.key);
+      if (activeJobIdRef.current !== requestedJobId || cancelled.jobId !== requestedJobId)
+        return undefined;
+      cancelCommandRef.current = null;
+      setObservation({ jobId: requestedJobId, job: cancelled, error: null });
+      setCancellation({ jobId: requestedJobId, cancelling: false, error: null });
+      return cancelled;
+    } catch (failure) {
+      const cancelError =
+        failure instanceof Error ? failure : new Error('GENERATION_CANCELLATION_FAILED');
+      if (activeJobIdRef.current === requestedJobId) {
+        setCancellation({ jobId: requestedJobId, cancelling: false, error: cancelError });
+      }
+      throw cancelError;
+    }
   }, [jobId]);
-  return { ...(observation?.jobId === jobId ? observation : { job: null, error: null }), cancel };
+  return {
+    ...(observation?.jobId === jobId ? observation : { job: null, error: null }),
+    cancelling: cancellation?.jobId === jobId ? cancellation.cancelling : false,
+    cancelError: cancellation?.jobId === jobId ? cancellation.error : null,
+    cancel,
+  };
 }
 
 /** Agent runtime server jobs have their own observer; only generation refs enter this hook. */

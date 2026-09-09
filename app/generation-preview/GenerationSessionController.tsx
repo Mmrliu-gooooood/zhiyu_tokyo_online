@@ -68,8 +68,12 @@ import {
   getGenerationStepText,
 } from './types';
 import { ZhiyuGenerationShell } from './components/ZhiyuGenerationShell';
+import { GenerationExitDialog } from './components/GenerationExitDialog';
 import { ZhiyuGenerationTopicCards } from './components/ZhiyuGenerationTopicCards';
-import { projectZhiyuGenerationSteps } from './components/zhiyu-generation-state';
+import {
+  projectGenerationJobPresentation,
+  projectZhiyuGenerationSteps,
+} from './components/zhiyu-generation-state';
 import { resolveTaskEngineModeFromOutlineDoneEvent } from './vocational-mode';
 import {
   GenerationResourceLease,
@@ -154,6 +158,8 @@ function GenerationPreviewContent() {
   const [error, setError] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [exitCancelError, setExitCancelError] = useState<Error | null>(null);
   const [streamingOutlines, setStreamingOutlines] = useState<SceneOutline[] | null>(null);
   const [isOutlineStreaming, setIsOutlineStreaming] = useState(false);
   const [truncationWarnings, setTruncationWarnings] = useState<string[]>([]);
@@ -241,7 +247,7 @@ function GenerationPreviewContent() {
     );
     setStatusMessage(awaiting && !reviewing ? t('generation.reviewOutlineAutoContinue') : '');
     setError(
-      ['failed', 'needs_attention', 'cancelled'].includes(job.status)
+      ['failed', 'needs_attention'].includes(job.status)
         ? job.lastErrorCode || t('generation.sceneGenerateFailed')
         : null,
     );
@@ -300,10 +306,6 @@ function GenerationPreviewContent() {
     session?.generationJobId ?? null,
     applyBackgroundSnapshot,
   );
-  useEffect(() => {
-    if (backgroundObservation.error) setError(backgroundObservation.error.message);
-  }, [backgroundObservation.error]);
-
   const sceneGenerationErrorMessage = (failure: SceneGenerationFailure): string => {
     if (
       failure.errorCode === 'MISSING_API_KEY' ||
@@ -1480,11 +1482,22 @@ function GenerationPreviewContent() {
     return backgroundCommandRef.current;
   };
 
+  const continueInBackgroundAndReturn = () => {
+    generationRuntimeRef.current?.stop();
+    backgroundObservationEpoch.current += 1;
+    setShowExitDialog(false);
+    router.push('/');
+  };
+
   const goBackToHome = () => {
     if (sessionRef.current?.generationBackend === 'server-job') {
-      generationRuntimeRef.current?.stop();
-      backgroundObservationEpoch.current += 1;
-      router.push('/');
+      const status = backgroundJobRef.current?.status;
+      if (status && ['succeeded', 'failed', 'needs_attention', 'cancelled'].includes(status)) {
+        continueInBackgroundAndReturn();
+      } else {
+        setExitCancelError(null);
+        setShowExitDialog(true);
+      }
       return;
     }
     generationRuntimeRef.current?.cancel();
@@ -1495,6 +1508,33 @@ function GenerationPreviewContent() {
     });
     sessionStorage.removeItem('generationSession');
     router.push('/');
+  };
+
+  const cancelBackgroundAndReturn = async () => {
+    const requestedJobId = sessionRef.current?.generationJobId;
+    if (!requestedJobId) {
+      setExitCancelError(new Error('GENERATION_JOB_SUBMISSION_PENDING'));
+      return;
+    }
+    setExitCancelError(null);
+    try {
+      const settled = await backgroundObservation.cancel();
+      if (
+        sessionRef.current?.generationJobId !== requestedJobId ||
+        settled?.jobId !== requestedJobId
+      ) {
+        return;
+      }
+      if (!['succeeded', 'failed', 'cancelled'].includes(settled.status)) {
+        setExitCancelError(new Error('GENERATION_CANCELLATION_NOT_CONFIRMED'));
+        return;
+      }
+      continueInBackgroundAndReturn();
+    } catch (failure) {
+      setExitCancelError(
+        failure instanceof Error ? failure : new Error('GENERATION_CANCELLATION_FAILED'),
+      );
+    }
   };
 
   const handleGoBackAndRetry = () => {
@@ -1708,6 +1748,41 @@ function GenerationPreviewContent() {
       ? activeSteps[Math.min(currentStepIndex, activeSteps.length - 1)]
       : ALL_STEPS[0];
   const activeStepText = getGenerationStepText(activeStep, session);
+  const observedBackgroundJob =
+    backgroundObservation.job?.jobId === session.generationJobId
+      ? backgroundObservation.job
+      : backgroundJobRef.current?.jobId === session.generationJobId
+        ? backgroundJobRef.current
+        : null;
+  const jobPresentation =
+    session.generationBackend === 'server-job'
+      ? projectGenerationJobPresentation({
+          job: observedBackgroundJob,
+          observationError: backgroundObservation.error,
+          cancelling: backgroundObservation.cancelling,
+          cancelError: exitCancelError ?? backgroundObservation.cancelError,
+        })
+      : null;
+  const jobStatusTitle = jobPresentation ? t(jobPresentation.titleKey) : null;
+  const jobStatusDetail = jobPresentation
+    ? t(jobPresentation.detailKey, jobPresentation.detailValues)
+    : null;
+  const requiresNewSubmission = ['QUEUE_WAIT_EXPIRED', 'OUTLINE_REVIEW_EXPIRED'].includes(
+    observedBackgroundJob?.lastErrorCode ?? '',
+  );
+  const exitDialog = (
+    <GenerationExitDialog
+      open={showExitDialog}
+      cancelling={backgroundObservation.cancelling}
+      cancelError={exitCancelError ?? backgroundObservation.cancelError}
+      onContinueInBackground={continueInBackgroundAndReturn}
+      onCancelAndReturn={() => void cancelBackgroundAndReturn()}
+      onStay={() => {
+        setShowExitDialog(false);
+        setExitCancelError(null);
+      }}
+    />
+  );
 
   if (isReviewingOutlines) {
     const outlineStepIndex = Math.max(
@@ -1719,75 +1794,83 @@ function GenerationPreviewContent() {
     const editorOutlines = session.sceneOutlines ?? streamingOutlines ?? [];
 
     return (
-      <div className="min-h-[100dvh] w-full bg-background">
-        <header className="border-b border-border/70 bg-background/92 px-4 backdrop-blur md:px-7">
-          <div className="mx-auto flex min-h-16 w-full max-w-5xl items-center justify-between gap-4">
-            <ZhiyuLockup size="sm" />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={goBackToHome}
-              disabled={isConfirmingOutlines}
+      <>
+        <div className="min-h-[100dvh] w-full bg-background">
+          <header className="border-b border-border/70 bg-background/92 px-4 backdrop-blur md:px-7">
+            <div className="mx-auto flex min-h-16 w-full max-w-5xl items-center justify-between gap-4">
+              <ZhiyuLockup size="sm" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goBackToHome}
+                disabled={isConfirmingOutlines}
+              >
+                <ArrowLeft className="mr-2 size-4" />
+                {t('generation.backToHome')}
+              </Button>
+            </div>
+          </header>
+
+          <div className="mx-auto w-full max-w-5xl px-4 pb-8 pt-8 md:px-7">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
             >
-              <ArrowLeft className="mr-2 size-4" />
-              {t('generation.backToHome')}
-            </Button>
-          </div>
-        </header>
-
-        <div className="mx-auto w-full max-w-5xl px-4 pb-8 pt-8 md:px-7">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            <div className="flex justify-center gap-2">
-              {activeSteps.map((step, idx) => (
-                <div
-                  key={step.id}
-                  className={cn(
-                    'h-1.5 rounded-full transition-all duration-500',
-                    idx < outlineStepIndex
-                      ? 'w-1.5 bg-blue-500/30'
-                      : idx === outlineStepIndex
-                        ? 'w-8 bg-blue-500'
-                        : 'w-1.5 bg-muted/50',
-                  )}
-                />
-              ))}
-            </div>
-
-            <div className="max-w-2xl space-y-2 text-center mx-auto">
-              <h2 className="text-2xl font-bold tracking-tight">
-                {t('generation.reviewOutlineTitle')}
-              </h2>
-              <p className="text-muted-foreground text-sm md:text-base">
-                {isOutlineStreaming
-                  ? t('generation.reviewOutlineStreamingDesc')
-                  : t('generation.reviewOutlineDesc')}
-              </p>
-            </div>
-
-            {error && (
-              <div className="mx-auto max-w-2xl rounded-md border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
-                {error}
+              <div className="flex justify-center gap-2">
+                {activeSteps.map((step, idx) => (
+                  <div
+                    key={step.id}
+                    className={cn(
+                      'h-1.5 rounded-full transition-all duration-500',
+                      idx < outlineStepIndex
+                        ? 'w-1.5 bg-blue-500/30'
+                        : idx === outlineStepIndex
+                          ? 'w-8 bg-blue-500'
+                          : 'w-1.5 bg-muted/50',
+                    )}
+                  />
+                ))}
               </div>
-            )}
 
-            <OutlinesEditor
-              outlines={editorOutlines}
-              onChange={handleOutlinesChange}
-              onConfirm={handleConfirmOutlines}
-              onBack={goBackToHome}
-              alwaysReview={reviewOutlineEnabled}
-              onAlwaysReviewChange={setReviewOutlineEnabled}
-              isLoading={isConfirmingOutlines}
-              isStreaming={isOutlineStreaming}
-              onCollapse={handleCollapseEditor}
-            />
-          </motion.div>
+              <div className="max-w-2xl space-y-2 text-center mx-auto">
+                {jobStatusTitle ? (
+                  <p className="text-sm font-medium text-[color:var(--zhiyu-ai)]" role="status">
+                    {jobStatusTitle}
+                  </p>
+                ) : null}
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {t('generation.reviewOutlineTitle')}
+                </h2>
+                <p className="text-muted-foreground text-sm md:text-base">
+                  {isOutlineStreaming
+                    ? t('generation.reviewOutlineStreamingDesc')
+                    : t('generation.reviewOutlineDesc')}
+                </p>
+              </div>
+
+              {error && (
+                <div className="mx-auto max-w-2xl rounded-md border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
+                  {error}
+                </div>
+              )}
+
+              <OutlinesEditor
+                outlines={editorOutlines}
+                onChange={handleOutlinesChange}
+                onConfirm={handleConfirmOutlines}
+                onBack={goBackToHome}
+                alwaysReview={reviewOutlineEnabled}
+                onAlwaysReviewChange={setReviewOutlineEnabled}
+                isLoading={isConfirmingOutlines}
+                isStreaming={isOutlineStreaming}
+                onCollapse={handleCollapseEditor}
+              />
+            </motion.div>
+          </div>
         </div>
-      </div>
+        {exitDialog}
+      </>
     );
   }
 
@@ -1833,6 +1916,9 @@ function GenerationPreviewContent() {
       <ZhiyuGenerationShell
         title={`${t(activeStepText.title, activeStepText.titleValues)} · ${courseTitle}`}
         steps={zhiyuSteps}
+        statusTitle={jobStatusTitle ?? undefined}
+        statusDetail={jobStatusDetail ?? undefined}
+        terminal={jobPresentation?.terminal}
         actions={
           <Button variant="ghost" size="sm" onClick={goBackToHome}>
             <ArrowLeft className="mr-2 size-4" />
@@ -1843,13 +1929,16 @@ function GenerationPreviewContent() {
           <div className="flex min-h-[480px] flex-col">
             <div className="flex items-center justify-between gap-4 border-b border-border/70 px-5 py-4 md:px-7">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {t('generation.aiWorking')}
-                </p>
+                {!jobPresentation?.terminal ? (
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {t('generation.aiWorking')}
+                  </p>
+                ) : null}
                 <h2 className="mt-1 truncate text-lg font-semibold">
-                  {error
-                    ? t('generation.generationFailed')
-                    : t(activeStepText.title, activeStepText.titleValues)}
+                  {jobStatusTitle ??
+                    (error
+                      ? t('generation.generationFailed')
+                      : t(activeStepText.title, activeStepText.titleValues))}
                 </h2>
               </div>
             </div>
@@ -1917,7 +2006,8 @@ function GenerationPreviewContent() {
 
               <div className="mt-6 w-full max-w-2xl rounded-2xl border border-border/70 bg-card px-5 py-4">
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {error ? error : statusMessage || t(activeStepText.description)}
+                  {jobStatusDetail ??
+                    (error ? error : statusMessage || t(activeStepText.description))}
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1958,8 +2048,18 @@ function GenerationPreviewContent() {
                   ) : null}
 
                   {error ? (
-                    <Button size="sm" variant="outline" onClick={handleGoBackAndRetry}>
-                      {t('generation.goBackAndRetry')}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={
+                        requiresNewSubmission ? continueInBackgroundAndReturn : handleGoBackAndRetry
+                      }
+                    >
+                      {t(
+                        requiresNewSubmission
+                          ? 'generation.backToHome'
+                          : 'generation.goBackAndRetry',
+                      )}
                     </Button>
                   ) : null}
                 </div>
@@ -1978,6 +2078,7 @@ function GenerationPreviewContent() {
           agentRevealResolveRef.current = null;
         }}
       />
+      {exitDialog}
     </>
   );
 }

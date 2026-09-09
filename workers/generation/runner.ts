@@ -7,6 +7,7 @@ export interface WorkerRepository {
   heartbeat(lease: GenerationLease): Promise<boolean>;
   workerHeartbeat(workerId: string, versions?: string[], draining?: boolean): Promise<void>;
   reapExpired(): Promise<number>;
+  expireWaitingJobs(): Promise<number>;
   confirmDuePlans(): Promise<number>;
   releaseExpiredStagedAssets?(): Promise<number>;
 }
@@ -32,6 +33,7 @@ export async function runWorker(options: {
     try {
       await repository.workerHeartbeat(workerId, versions, signal.aborted);
       await repository.reapExpired();
+      await repository.expireWaitingJobs();
       await repository.confirmDuePlans();
       await repository.releaseExpiredStagedAssets?.();
       await options.maintenance?.();

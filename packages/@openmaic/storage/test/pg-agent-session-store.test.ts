@@ -42,6 +42,55 @@ describe('PgAgentSessionStore with PGlite', () => {
   });
   runAgentSessionUrlContract('Postgres (PGlite)', () => store);
 
+  test('keeps a claim queued when the host shared-admission hook rejects it', async () => {
+    const calls: Array<{ ownerId: string; sessionId: string }> = [];
+    const admitted = new PgAgentSessionStore(db, {
+      ...optionsFor(db),
+      admitClaim: async (_transaction, input) => {
+        calls.push(input);
+        return false;
+      },
+    });
+    await admitted.createSession({ id: 'admission-session', ownerId: 'owner-a', prompt: 'p' });
+
+    await expect(
+      admitted.claimNextSession('worker-a', 1, { leaseTtlMs: 1_000, maxAttempts: 3 }),
+    ).resolves.toBeNull();
+    const session = await admitted.getSession('admission-session');
+    expect(session).toMatchObject({ status: 'queued' });
+    expect(session?.lease).toBeUndefined();
+    expect(calls).toEqual([
+      expect.objectContaining({ ownerId: 'owner-a', sessionId: 'admission-session' }),
+    ]);
+  });
+
+  test('keeps scanning fairly after one owner fills the confirmed queue allowance', async () => {
+    const admitted = new PgAgentSessionStore(db, {
+      ...optionsFor(db),
+      admitClaim: async (_transaction, input) => input.ownerId !== 'owner-a',
+    });
+    for (let index = 0; index < 5; index += 1) {
+      await admitted.createSession({
+        id: `owner-a-${index}`,
+        ownerId: 'owner-a',
+        prompt: 'p',
+      });
+      await db.query('UPDATE agent_sessions SET created_at=$2 WHERE id=$1', [
+        `owner-a-${index}`,
+        new Date(1_700_000_000_000 + index * 1_000),
+      ]);
+    }
+    await admitted.createSession({ id: 'owner-b', ownerId: 'owner-b', prompt: 'p' });
+    await db.query('UPDATE agent_sessions SET created_at=$2 WHERE id=$1', [
+      'owner-b',
+      new Date(1_700_000_010_000),
+    ]);
+
+    await expect(
+      admitted.claimNextSession('worker-b', 2, { leaseTtlMs: 1_000, maxAttempts: 3 }),
+    ).resolves.toMatchObject({ id: 'owner-b', ownerId: 'owner-b' });
+  });
+
   test('freezes the run connection through steering and restart, adopts changes next run', async () => {
     const first = { id: 'connection-a', revision: 1 };
     const next = { id: 'connection-a', revision: 2 };

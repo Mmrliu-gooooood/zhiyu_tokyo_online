@@ -27,4 +27,18 @@ describe('Generation Preview route/session boundary', () => {
     expect(controller).toContain('if (!generationRuntimeRef.current?.canAcceptIntent) return;');
     expect(controller).toContain('generationRuntimeRef.current?.stop()');
   });
+
+  it('separates server-job navigation from explicit cancellation', () => {
+    const controller = read('app/generation-preview/GenerationSessionController.tsx');
+    const dialog = read('app/generation-preview/components/GenerationExitDialog.tsx');
+
+    expect(controller).toContain('<GenerationExitDialog');
+    expect(controller).toContain('continueInBackgroundAndReturn');
+    expect(controller).toContain('backgroundObservation.cancel()');
+    expect(dialog).toContain("t('generation.exitContinueInBackground')");
+    expect(dialog).toContain("'generation.exitCancelAndReturn'");
+    expect(dialog).toContain("t('generation.exitStay')");
+    expect(controller).not.toContain("addEventListener('beforeunload'");
+    expect(controller).not.toContain("addEventListener('pagehide'");
+  });
 });

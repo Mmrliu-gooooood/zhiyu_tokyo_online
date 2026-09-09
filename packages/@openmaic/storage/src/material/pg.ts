@@ -46,6 +46,24 @@ export const DEFAULT_AGENT_SESSION_MATERIAL_TABLE_NAMES: Readonly<AgentSessionMa
 
 export interface PgAgentSessionMaterialStoreOptions {
   tableNames?: Partial<AgentSessionMaterialTableNames>;
+  /** Pins claim admission and the running-state update to one transaction. */
+  withTransaction?: <T>(body: (queryable: Queryable) => Promise<T>) => Promise<T>;
+  /** Optional host fence shared with other heavy-task queue kinds. */
+  admitExtractionClaim?: (
+    queryable: Queryable,
+    input: {
+      ownerId: string;
+      sessionId: string;
+      materialId: string;
+      now: number;
+      leaseTtlMs: number;
+    },
+  ) => Promise<boolean>;
+  /** Optional host queue-capacity fence for a new independent extraction root. */
+  admitExtractionEnqueue?: (
+    queryable: Queryable,
+    input: { ownerId: string; sessionId: string; materialId: string },
+  ) => Promise<boolean>;
   /** Test seams; production callers normally use the defaults. */
   createId?: () => string;
   now?: () => Date;
@@ -204,12 +222,24 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
   private readonly tableNames: AgentSessionMaterialTableNames;
   private readonly createId: () => string;
   private readonly now: () => Date;
+  private readonly transactionHook?: PgAgentSessionMaterialStoreOptions['withTransaction'];
+  private readonly admitExtractionClaimHook?: PgAgentSessionMaterialStoreOptions['admitExtractionClaim'];
+  private readonly admitExtractionEnqueueHook?: PgAgentSessionMaterialStoreOptions['admitExtractionEnqueue'];
 
   constructor(queryable: Queryable, options: PgAgentSessionMaterialStoreOptions = {}) {
     this.queryable = queryable;
     this.tableNames = resolveTableNames(options.tableNames);
     this.createId = options.createId ?? (() => createMaterialId());
     this.now = options.now ?? (() => new Date());
+    this.transactionHook = options.withTransaction;
+    this.admitExtractionClaimHook = options.admitExtractionClaim;
+    this.admitExtractionEnqueueHook = options.admitExtractionEnqueue;
+    if (
+      (this.admitExtractionClaimHook || this.admitExtractionEnqueueHook) &&
+      !this.transactionHook
+    ) {
+      throw new Error('@openmaic/storage: material admission requires withTransaction');
+    }
   }
 
   private get table(): string {
@@ -329,6 +359,40 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
   }
 
   async enqueueExtraction(sessionId: string, materialId: string): Promise<boolean> {
+    if (this.admitExtractionEnqueueHook && this.transactionHook) {
+      return this.transactionHook(async (tx) => {
+        const candidate = await tx.query<{ id: string; session_id: string; owner_id: string }>(
+          `SELECT material.id, material.session_id, session.owner_id
+             FROM ${this.table} AS material
+             INNER JOIN agent_sessions AS session ON session.id = material.session_id
+            WHERE material.id = $1 AND material.session_id = $2
+              AND session.deleted_at IS NULL AND material.kind = 'source'
+              AND material.extraction_status IN ('idle', 'failed')
+            FOR UPDATE OF material`,
+          [materialId, sessionId],
+        );
+        const row = candidate.rows[0];
+        if (!row) return false;
+        const allowed = await this.admitExtractionEnqueueHook!(tx, {
+          ownerId: row.owner_id,
+          sessionId: row.session_id,
+          materialId: row.id,
+        });
+        if (!allowed) return false;
+        const result = await tx.query(
+          `UPDATE ${this.table}
+              SET extraction_status = 'pending', extraction_attempts = 0,
+                  extraction_error = NULL, extraction_stats = NULL,
+                  extractor_version = NULL, extraction_lease_worker_id = NULL,
+                  extraction_lease_worker_pid = NULL, extraction_lease_heartbeat_at = NULL
+            WHERE id = $1 AND session_id = $2
+              AND kind = 'source' AND extraction_status IN ('idle', 'failed')
+            RETURNING id`,
+          [materialId, sessionId],
+        );
+        return result.rows.length > 0;
+      });
+    }
     const result = await this.queryable.query(
       `UPDATE ${this.table} AS material
           SET extraction_status = 'pending', extraction_attempts = 0,
@@ -355,9 +419,71 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
     }
     const now = this.now().getTime();
     const staleBefore = now - options.leaseTtlMs;
-    const result = await this.queryable.query<MaterialRow>(
+    if (this.admitExtractionClaimHook && this.transactionHook) {
+      const candidates = await this.queryable.query<{ id: string }>(
+        `SELECT material.id
+           FROM ${this.table} AS material
+           INNER JOIN agent_sessions AS session ON session.id = material.session_id
+          WHERE session.deleted_at IS NULL AND material.kind = 'source'
+            AND (material.extraction_status = 'pending'
+              OR (material.extraction_status = 'running'
+                AND material.extraction_lease_heartbeat_at < $1
+                AND (material.extraction_lease_worker_id IS NULL
+                  OR material.extraction_lease_worker_id <> $2)))
+          ORDER BY material.created_at, material.id LIMIT 20`,
+        [staleBefore, workerId],
+      );
+      for (const candidate of candidates.rows) {
+        const claimed = await this.transactionHook(async (tx) => {
+          const locked = await tx.query<MaterialRow & { owner_id: string }>(
+            `SELECT material.*, session.owner_id
+               FROM ${this.table} AS material
+               INNER JOIN agent_sessions AS session ON session.id = material.session_id
+              WHERE material.id = $1 AND session.deleted_at IS NULL
+                AND material.kind = 'source'
+                AND (material.extraction_status = 'pending'
+                  OR (material.extraction_status = 'running'
+                    AND material.extraction_lease_heartbeat_at < $2
+                    AND (material.extraction_lease_worker_id IS NULL
+                      OR material.extraction_lease_worker_id <> $3)))
+              FOR UPDATE OF material`,
+            [candidate.id, staleBefore, workerId],
+          );
+          const row = locked.rows[0];
+          if (!row) return null;
+          const allowed = await this.admitExtractionClaimHook!(tx, {
+            ownerId: row.owner_id,
+            sessionId: row.session_id,
+            materialId: row.id,
+            now,
+            leaseTtlMs: options.leaseTtlMs,
+          });
+          if (!allowed) return null;
+          const updated = await tx.query<MaterialRow>(
+            `UPDATE ${this.table}
+                SET extraction_status = 'running', extraction_error = NULL,
+                    extraction_lease_worker_id = $2, extraction_lease_worker_pid = $3,
+                    extraction_lease_heartbeat_at = $4
+              WHERE id = $1 AND extraction_status IN ('pending', 'running')
+              RETURNING *`,
+            [row.id, workerId, process.pid, now],
+          );
+          return updated.rows[0] ? { row: updated.rows[0], ownerId: row.owner_id } : null;
+        });
+        if (claimed) {
+          return {
+            material: mapRow(claimed.row),
+            ownerId: claimed.ownerId,
+            workerId,
+            heartbeatAt: now,
+          };
+        }
+      }
+      return null;
+    }
+    const result = await this.queryable.query<MaterialRow & { owner_id: string }>(
       `WITH candidate AS (
-         SELECT material.id
+         SELECT material.id, session.owner_id
            FROM ${this.table} AS material
            INNER JOIN agent_sessions AS session ON session.id = material.session_id
           WHERE session.deleted_at IS NULL AND material.kind = 'source'
@@ -380,11 +506,16 @@ export class PgAgentSessionMaterialStore implements AgentSessionMaterialStore {
               AND material.extraction_lease_heartbeat_at < $1
               AND (material.extraction_lease_worker_id IS NULL
                 OR material.extraction_lease_worker_id <> $2)))
-        RETURNING material.*`,
+        RETURNING material.*, candidate.owner_id`,
       [staleBefore, workerId, process.pid, now],
     );
     if (!result.rows[0]) return null;
-    return { material: mapRow(result.rows[0]), workerId, heartbeatAt: now };
+    return {
+      material: mapRow(result.rows[0]),
+      ownerId: result.rows[0].owner_id,
+      workerId,
+      heartbeatAt: now,
+    };
   }
 
   async heartbeatExtraction(materialId: string, workerId: string): Promise<boolean> {

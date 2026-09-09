@@ -122,6 +122,8 @@ export interface CreateAgentSessionMaterialInput {
 
 export interface ClaimedMaterialExtraction {
   material: AgentSessionMaterial;
+  /** Durable owner inherited from the material's parent session at claim time. */
+  ownerId: string;
   workerId: string;
   heartbeatAt: number;
 }

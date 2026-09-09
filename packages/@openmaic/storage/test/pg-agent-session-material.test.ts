@@ -58,6 +58,62 @@ describe('PgAgentSessionMaterialStore with PGlite', () => {
 
   runAgentSessionMaterialContract('Postgres (PGlite)', () => combinedStore(db));
 
+  test('keeps extraction pending when the host shared-admission hook rejects it', async () => {
+    const sessionStore = new PgAgentSessionStore(db, {
+      withTransaction: (body) => db.transaction((tx: Queryable) => body(tx)),
+    });
+    await sessionStore.createSession({ id: 'admission-session', ownerId: 'owner-a', prompt: 'p' });
+    const calls: Array<{ ownerId: string; sessionId: string; materialId: string }> = [];
+    const admitted = new PgAgentSessionMaterialStore(db, {
+      withTransaction: (body) => db.transaction((tx: Queryable) => body(tx)),
+      admitExtractionClaim: async (_transaction, input) => {
+        calls.push(input);
+        return false;
+      },
+    });
+    const material = await admitted.createMaterial('admission-session', { kind: 'source' });
+    await admitted.enqueueExtraction('admission-session', material.id);
+
+    await expect(
+      admitted.claimNextExtraction('worker-a', { leaseTtlMs: 1_000 }),
+    ).resolves.toBeNull();
+    await expect(admitted.getMaterial('admission-session', material.id)).resolves.toMatchObject({
+      extraction: { status: 'pending' },
+    });
+    expect(calls).toEqual([
+      expect.objectContaining({
+        ownerId: 'owner-a',
+        sessionId: 'admission-session',
+        materialId: material.id,
+      }),
+    ]);
+  });
+
+  test('keeps scanning fairly after one owner fills the confirmed queue allowance', async () => {
+    const sessionStore = new PgAgentSessionStore(db, {
+      withTransaction: (body) => db.transaction((tx: Queryable) => body(tx)),
+    });
+    let tick = 0;
+    const admitted = new PgAgentSessionMaterialStore(db, {
+      withTransaction: (body) => db.transaction((tx: Queryable) => body(tx)),
+      now: () => new Date(1_700_000_000_000 + (tick += 1_000)),
+      admitExtractionClaim: async (_transaction, input) => input.ownerId !== 'owner-a',
+    });
+    for (let index = 0; index < 5; index += 1) {
+      const sessionId = `owner-a-${index}`;
+      await sessionStore.createSession({ id: sessionId, ownerId: 'owner-a', prompt: 'p' });
+      const material = await admitted.createMaterial(sessionId, { kind: 'source' });
+      await admitted.enqueueExtraction(sessionId, material.id);
+    }
+    await sessionStore.createSession({ id: 'owner-b', ownerId: 'owner-b', prompt: 'p' });
+    const material = await admitted.createMaterial('owner-b', { kind: 'source' });
+    await admitted.enqueueExtraction('owner-b', material.id);
+
+    await expect(
+      admitted.claimNextExtraction('worker-b', { leaseTtlMs: 1_000 }),
+    ).resolves.toMatchObject({ ownerId: 'owner-b', material: { sessionId: 'owner-b' } });
+  });
+
   test('provisions the material table idempotently', async () => {
     await expect(ensureAgentSessionMaterialSchema(db)).resolves.toBeUndefined();
     const result = await db.query<{ table_name: string }>(

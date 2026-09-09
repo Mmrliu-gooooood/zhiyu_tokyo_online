@@ -1,9 +1,12 @@
 export interface GenerationConfig {
   enabled: boolean;
   workerConcurrency: number;
-  maxActivePerOwner: number;
   maxQueuedPerOwner: number;
   maxQueued: number;
+  maxReviewAttentionPerOwner: number;
+  maxReviewAttention: number;
+  queueWaitMs: number;
+  manualReviewWaitMs: number;
   contentConcurrency: number;
   llmConcurrency: number;
   ttsConcurrency: number;
@@ -22,9 +25,17 @@ export function generationConfig(env: NodeJS.ProcessEnv = process.env): Generati
   return {
     enabled: env.GENERATION_BACKGROUND_ENABLED === '1',
     workerConcurrency: integer('GENERATION_WORKER_CONCURRENCY', 1, 1, 8),
-    maxActivePerOwner: integer('GENERATION_MAX_ACTIVE_JOBS_PER_OWNER', 1, 1, 5),
     maxQueuedPerOwner: integer('GENERATION_MAX_QUEUED_JOBS_PER_OWNER', 5, 1, 50),
-    maxQueued: integer('GENERATION_MAX_QUEUED_JOBS', 100, 1, 10000),
+    maxQueued: integer('GENERATION_MAX_QUEUED_JOBS', 20, 1, 10000),
+    maxReviewAttentionPerOwner: integer('GENERATION_MAX_REVIEW_ATTENTION_JOBS_PER_OWNER', 5, 1, 50),
+    maxReviewAttention: integer('GENERATION_MAX_REVIEW_ATTENTION_JOBS', 20, 1, 10000),
+    queueWaitMs: integer('GENERATION_QUEUE_WAIT_MS', 60 * 60 * 1000, 1000, 24 * 60 * 60 * 1000),
+    manualReviewWaitMs: integer(
+      'GENERATION_MANUAL_REVIEW_WAIT_MS',
+      24 * 60 * 60 * 1000,
+      1000,
+      7 * 24 * 60 * 60 * 1000,
+    ),
     contentConcurrency: Math.max(1, integer('PARALLEL_SCENE_CONCURRENCY', 2, 0, 10)),
     llmConcurrency: integer('GENERATION_LLM_MAX_INFLIGHT', 3, 1, 30),
     ttsConcurrency: integer('GENERATION_TTS_CONCURRENCY', 2, 1, 10),

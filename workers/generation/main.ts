@@ -19,6 +19,7 @@ import {
   cleanupGenerationSearchSnapshots,
   loadGenerationSearchSnapshot,
 } from '@/lib/server/generation-search-snapshots';
+import { withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 
 async function main() {
   const config = generationConfig();
@@ -57,69 +58,80 @@ async function main() {
         await cleanupGenerationModelSnapshots(retentionMs);
         await cleanupGenerationSearchSnapshots(retentionMs);
       },
-      execute: async (lease, signal) => {
-        const budgetSignal = AbortSignal.any([
-          signal,
-          AbortSignal.timeout(lease.input.budget?.activeMs ?? 3_600_000),
-        ]);
-        const execution = new PipelineExecution(repository, lease, budgetSignal, limiter);
-        const assets = {
-          read: (id: string) => repository.readAsset(lease.ownerId, id),
-          write: (logicalKey: string, bytes: Uint8Array, mimeType: string) =>
-            repository.writeAsset(lease, { logicalKey, bytes, mimeType }),
-        };
-        try {
-          assertGenerationConfigSnapshot(lease.input);
-          const materials = await prepareMaterials(lease.input, execution, assets);
-          const input = { ...lease.input, materials };
-          const mediaConfig = input.mediaConfigRef
-            ? await loadMediaConfigSnapshot(lease.ownerId, input.mediaConfigRef)
-            : undefined;
-          const storedModel = input.modelConfigRef
-            ? await loadGenerationModelSnapshot(lease.ownerId, input.modelConfigRef)
-            : undefined;
-          const modelContext = storedModel
-            ? (({ version: _version, ...context }) => context)(storedModel)
-            : undefined;
-          const searchConfig = input.searchConfigRef
-            ? await loadGenerationSearchSnapshot(lease.ownerId, input.searchConfigRef)
-            : undefined;
-          const services = new GenerationServices(
-            execution,
-            input,
-            assets,
-            modelContext,
-            searchConfig,
-          );
-          const media = new GenerationMediaServices(execution, input, assets, mediaConfig);
-          await runGenerationPipeline(
-            repository,
-            execution,
-            {
-              research: () => services.research(),
-              plan: (research) => services.plan(research),
-              agents: (plan) => services.agents(plan),
-              content: (outline, agents, plan) => services.content(outline, agents, plan),
-              actions: (content, agents, plan, previous) =>
-                services.actions(content, agents, plan, previous),
-              assemble: (content, actions, sceneId) => services.assemble(content, actions, sceneId),
-              media: (scene, outline) => media.media(scene, outline),
-              tts: (scene, agents) => media.tts(scene, agents),
-            },
-            config.contentConcurrency,
-          );
-        } catch (error) {
-          // Step failures normally fenced the job already; this covers failures
-          // before the first checkpoint (configuration, deleted material, etc.).
-          await repository
-            .fail(
-              lease,
-              signal.aborted ? 'WORKER_INTERRUPTED' : 'GENERATION_FAILED',
-              signal.aborted,
-            )
-            .catch(() => {});
-          throw error;
-        }
+      execute: (lease, signal) => {
+        const source = lease.input.source;
+        const rootTaskId =
+          source?.kind === 'pro' && source.sessionId
+            ? `agent:${source.sessionId}`
+            : `generation:${lease.jobId}`;
+        return withHeavyTaskRootContext(
+          { ownerId: lease.ownerId, rootTaskId, kind: 'generation' },
+          async () => {
+            const budgetSignal = AbortSignal.any([
+              signal,
+              AbortSignal.timeout(lease.input.budget?.activeMs ?? 3_600_000),
+            ]);
+            const execution = new PipelineExecution(repository, lease, budgetSignal, limiter);
+            const assets = {
+              read: (id: string) => repository.readAsset(lease.ownerId, id),
+              write: (logicalKey: string, bytes: Uint8Array, mimeType: string) =>
+                repository.writeAsset(lease, { logicalKey, bytes, mimeType }),
+            };
+            try {
+              assertGenerationConfigSnapshot(lease.input);
+              const materials = await prepareMaterials(lease.input, execution, assets);
+              const input = { ...lease.input, materials };
+              const mediaConfig = input.mediaConfigRef
+                ? await loadMediaConfigSnapshot(lease.ownerId, input.mediaConfigRef)
+                : undefined;
+              const storedModel = input.modelConfigRef
+                ? await loadGenerationModelSnapshot(lease.ownerId, input.modelConfigRef)
+                : undefined;
+              const modelContext = storedModel
+                ? (({ version: _version, ...context }) => context)(storedModel)
+                : undefined;
+              const searchConfig = input.searchConfigRef
+                ? await loadGenerationSearchSnapshot(lease.ownerId, input.searchConfigRef)
+                : undefined;
+              const services = new GenerationServices(
+                execution,
+                input,
+                assets,
+                modelContext,
+                searchConfig,
+              );
+              const media = new GenerationMediaServices(execution, input, assets, mediaConfig);
+              await runGenerationPipeline(
+                repository,
+                execution,
+                {
+                  research: () => services.research(),
+                  plan: (research) => services.plan(research),
+                  agents: (plan) => services.agents(plan),
+                  content: (outline, agents, plan) => services.content(outline, agents, plan),
+                  actions: (content, agents, plan, previous) =>
+                    services.actions(content, agents, plan, previous),
+                  assemble: (content, actions, sceneId) =>
+                    services.assemble(content, actions, sceneId),
+                  media: (scene, outline) => media.media(scene, outline),
+                  tts: (scene, agents) => media.tts(scene, agents),
+                },
+                config.contentConcurrency,
+              );
+            } catch (error) {
+              // Step failures normally fenced the job already; this covers failures
+              // before the first checkpoint (configuration, deleted material, etc.).
+              await repository
+                .fail(
+                  lease,
+                  signal.aborted ? 'WORKER_INTERRUPTED' : 'GENERATION_FAILED',
+                  signal.aborted,
+                )
+                .catch(() => {});
+              throw error;
+            }
+          },
+        );
       },
     });
   } finally {

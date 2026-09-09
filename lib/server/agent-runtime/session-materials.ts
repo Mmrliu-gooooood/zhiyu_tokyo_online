@@ -20,11 +20,16 @@ import {
   type ListAgentSessionMaterialsOptions,
 } from '@openmaic/storage';
 import { getReadyOwnerMaterials } from '@/lib/persistence/owner-materials';
+import {
+  checkHeavyTaskAdmission,
+  checkHeavyTaskQueueCapacity,
+} from '@/lib/server/heavy-task-admission';
 
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 import { getMaterialByteStore } from '@/lib/server/materials/bytes';
 
-import { getAgentSessionStore } from './store';
+import { getAgentSessionStore, nodePostgresTransaction } from './store';
+import { agentRuntimeConfig } from './config';
 import { isPptxMaterial } from './pptx-mime';
 import type { ExtractedWebPage } from './fetch-url';
 
@@ -49,7 +54,28 @@ async function createMaterialStore(connectionString: string): Promise<PgAgentSes
   // schema (provisioned by getAgentSessionStore) must exist first — the same
   // dependency the URL trust-gate table has inside that schema.
   await ensureAgentSessionMaterialSchema(pool);
-  return new PgAgentSessionMaterialStore(pool);
+  return new PgAgentSessionMaterialStore(pool, {
+    withTransaction: nodePostgresTransaction(pool),
+    admitExtractionClaim: async (transaction, input): Promise<boolean> => {
+      const decision = await checkHeavyTaskAdmission(transaction, {
+        ownerId: input.ownerId,
+        rootTaskId: `agent:${input.sessionId}`,
+        kind: 'material-extraction',
+        nowMs: input.now,
+        agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+        materialLeaseTtlMs: input.leaseTtlMs,
+      });
+      return decision.allowed;
+    },
+    admitExtractionEnqueue: async (transaction, input): Promise<boolean> => {
+      const decision = await checkHeavyTaskQueueCapacity(transaction, {
+        ownerId: input.ownerId,
+        rootTaskId: `agent:${input.sessionId}`,
+      });
+      if (!decision.allowed) throw new Error(decision.reason);
+      return true;
+    },
+  });
 }
 
 /**

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
-import { beforeEach, afterEach, describe, it, expect } from 'vitest';
+import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import { ensureDocumentSchema } from '@openmaic/storage/document/pg';
 import { ensureAssetSchema } from '@openmaic/storage/asset/pg';
 import { ensureAgentSessionSchema } from '@openmaic/storage/agent-session/pg';
@@ -18,6 +18,7 @@ import {
   type GenerationLease,
 } from '@/lib/server/generation-jobs/contracts';
 import { PostgresGenerationLimiter } from '@/lib/server/generation-jobs/limiter';
+import { generationConfig } from '@/lib/server/generation-jobs/config';
 import type { Scene } from '@/lib/types/stage';
 
 class TestPool {
@@ -62,6 +63,18 @@ describe('generation input whitelist', () => {
   });
   it('hashes canonical JSON without depending on property insertion order', () =>
     expect(canonicalHash({ a: 1, b: 2 })).toBe(canonicalHash({ b: 2, a: 1 })));
+});
+describe('generation admission configuration', () => {
+  it('starts with the confirmed site queue and execution limits and permits an explicit two-slot trial', () => {
+    expect(generationConfig({} as NodeJS.ProcessEnv)).toMatchObject({
+      maxQueuedPerOwner: 5,
+      maxQueued: 20,
+      maxReviewAttentionPerOwner: 5,
+      maxReviewAttention: 20,
+      queueWaitMs: 60 * 60 * 1000,
+      manualReviewWaitMs: 24 * 60 * 60 * 1000,
+    });
+  });
 });
 describe('generation repository PostgreSQL statements (PGlite, not a lock-concurrency substitute)', () => {
   let db: PGlite, pool: TestPool, repo: GenerationJobRepository;
@@ -169,6 +182,7 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   });
   it('creates stage, owner, outline and job once, rejects body conflicts and hides foreign jobs', async () => {
     const job = await create();
+    expect(job).toMatchObject({ queueReason: 'queued', retryAt: null });
     expect(await create()).toEqual(job);
     await expect(
       repo.createJob('owner', 'create-key', { ...input, requirements: { requirement: 'Other' } }),
@@ -241,6 +255,164 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     expect(await repo.claim('future', ['999'])).toBeNull();
     expect(await repo.claim('one')).not.toBeNull();
     expect(await repo.claim('two')).toBeNull();
+  });
+  it('counts only queued work against queue limits and separately blocks review/attention backlog', async () => {
+    repo = new GenerationJobRepository(pool, {
+      maxQueuedPerOwner: 1,
+      maxReviewAttentionPerOwner: 1,
+    });
+    const running = await repo.createJob('owner', 'running', input);
+    expect((await repo.claim('worker'))?.jobId).toBe(running.jobId);
+    const queued = await repo.createJob('owner', 'queued', input);
+    await expect(repo.createJob('owner', 'queue-full', input)).rejects.toThrow('OWNER_QUEUE_LIMIT');
+    await repo.cancel('owner', running.jobId, { commandKey: 'cancel-running' });
+    await repo.cancel('owner', queued.jobId, { commandKey: 'cancel-queued' });
+
+    const reviewOwner = 'review-owner';
+    const review = await repo.createJob(reviewOwner, 'review', input);
+    const reviewLease = (await repo.claim('review-worker'))!;
+    expect(reviewLease.jobId).toBe(review.jobId);
+    await repo.savePlan(reviewLease, [outline]);
+    await expect(repo.createJob(reviewOwner, 'blocked-by-review', input)).rejects.toThrow(
+      'OWNER_REVIEW_ATTENTION_LIMIT',
+    );
+  });
+  it('counts queued agent roots before accepting an ordinary generation job', async () => {
+    for (let index = 0; index < 5; index += 1) {
+      await pool.query(
+        "INSERT INTO agent_sessions(id,owner_id,prompt,stage_id,status) VALUES($1,$2,$3,$4,'queued')",
+        [`agent-${index}`, 'shared-owner', 'course', `stage-${index}`],
+      );
+    }
+    await expect(repo.createJob('shared-owner', 'generation-sixth', input)).rejects.toThrow(
+      'OWNER_QUEUE_LIMIT',
+    );
+  });
+  it('enforces the site execution limit in the repository across worker claimants', async () => {
+    vi.stubEnv('APP_HEAVY_TASK_LIMIT', '1');
+    const first = await repo.createJob('owner-a', 'first', input);
+    const ownerBlocked = await repo.createJob('owner-a', 'owner-blocked', input);
+    const siteBlocked = await repo.createJob('owner-b', 'second', input);
+    expect((await repo.claim('worker-a'))?.jobId).toBe(first.jobId);
+    expect(await repo.claim('worker-b')).toBeNull();
+    expect(await repo.getJob('owner-a', ownerBlocked.jobId)).toEqual(
+      expect.objectContaining({ queueReason: 'owner_limit' }),
+    );
+    expect(await repo.getJob('owner-b', siteBlocked.jobId)).toEqual(
+      expect.objectContaining({ queueReason: 'site_limit' }),
+    );
+    vi.unstubAllEnvs();
+  });
+  it('skips an active owner entire backlog so another owner receives the free site slot', async () => {
+    vi.stubEnv('APP_HEAVY_TASK_LIMIT', '2');
+    try {
+      const ownerAJobs = [];
+      for (let index = 0; index < 5; index += 1) {
+        ownerAJobs.push(await repo.createJob('owner-a', `owner-a-${index}`, input));
+      }
+      const ownerB = await repo.createJob('owner-b', 'owner-b', input);
+      expect((await repo.claim('worker-a'))?.jobId).toBe(ownerAJobs[0].jobId);
+      expect((await repo.claim('worker-b'))?.jobId).toBe(ownerB.jobId);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it('lets Pro generation children inherit their running agent root without taking another slot', async () => {
+    vi.stubEnv('APP_HEAVY_TASK_LIMIT', '1');
+    try {
+      await pool.query(
+        `INSERT INTO agent_sessions(
+           id,owner_id,prompt,stage_id,status,lease_worker_id,lease_worker_pid,lease_heartbeat_at
+         ) VALUES('pro-root','pro-owner','course','pro-stage','running','agent-worker',1,$1)`,
+        [Date.now()],
+      );
+      for (const key of ['pro-child-one', 'pro-child-two']) {
+        await repo.createJob('pro-owner', key, {
+          ...input,
+          source: { kind: 'pro', sessionId: 'pro-root', submissionId: key },
+        });
+      }
+      expect(await repo.claim('generation-worker-one')).not.toBeNull();
+      expect(await repo.claim('generation-worker-two')).not.toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it('expires only pure queued waits, retains their input, and does not expire retry backoff', async () => {
+    repo = new GenerationJobRepository(pool, { queueWaitMs: 60_000 });
+    const expired = await repo.createJob('queue-owner', 'expired', input);
+    await pool.query(
+      "UPDATE generation_jobs SET updated_at=clock_timestamp()-interval '2 minutes' WHERE id=$1",
+      [expired.jobId],
+    );
+    expect(await repo.expireWaitingJobs()).toBe(1);
+    const expiredView = (await repo.getJob('queue-owner', expired.jobId))!;
+    expect(expiredView).toMatchObject({
+      status: 'failed',
+      lastErrorCode: 'QUEUE_WAIT_EXPIRED',
+    });
+    await expect(
+      repo.retry('queue-owner', expired.jobId, {
+        commandKey: 'do-not-resume-expired',
+        expectedVersion: expiredView.stateVersion,
+      }),
+    ).rejects.toThrow('EXPIRED_JOB_REQUIRES_NEW_SUBMISSION');
+    const retained = await pool.query<{
+      requirement: string;
+      write_mode: string;
+    }>(
+      `SELECT j.input_snapshot->'requirements'->>'requirement' requirement,o.write_mode
+       FROM generation_jobs j JOIN generation_ownership o ON o.stage_id=j.stage_id
+       WHERE j.id=$1`,
+      [expired.jobId],
+    );
+    expect(retained.rows[0]).toEqual({ requirement: 'Test course', write_mode: 'editable' });
+
+    const retryWait = await repo.createJob('queue-owner', 'retry-wait', input);
+    await pool.query(
+      "UPDATE generation_jobs SET status='retry_wait',updated_at=clock_timestamp()-interval '2 minutes' WHERE id=$1",
+      [retryWait.jobId],
+    );
+    expect(await repo.expireWaitingJobs()).toBe(0);
+    expect((await repo.getJob('queue-owner', retryWait.jobId))?.status).toBe('retry_wait');
+  });
+  it('expires manual outline review after 24 hours with its outline retained, leaving auto review alone', async () => {
+    repo = new GenerationJobRepository(pool, { manualReviewWaitMs: 60_000 });
+    const manual = await repo.createJob('manual-owner', 'manual', input);
+    const manualLease = (await repo.claim('manual-worker'))!;
+    await repo.savePlan(manualLease, [outline]);
+    await pool.query(
+      "UPDATE generation_jobs SET updated_at=clock_timestamp()-interval '2 minutes' WHERE id=$1",
+      [manual.jobId],
+    );
+
+    const automatic = await repo.createJob('auto-owner', 'auto', {
+      ...input,
+      review: { mode: 'auto' },
+    });
+    const autoLease = (await repo.claim('auto-worker'))!;
+    await repo.savePlan(autoLease, [{ ...outline, id: 'auto-outline' }]);
+    await pool.query(
+      "UPDATE generation_jobs SET updated_at=clock_timestamp()-interval '2 minutes' WHERE id=$1",
+      [automatic.jobId],
+    );
+
+    expect(await repo.expireWaitingJobs()).toBe(1);
+    const expiredReview = (await repo.getJob('manual-owner', manual.jobId))!;
+    expect(expiredReview).toMatchObject({
+      status: 'failed',
+      lastErrorCode: 'OUTLINE_REVIEW_EXPIRED',
+    });
+    await expect(
+      repo.retry('manual-owner', manual.jobId, {
+        commandKey: 'do-not-resume-review',
+        expectedVersion: expiredReview.stateVersion,
+      }),
+    ).rejects.toThrow('EXPIRED_JOB_REQUIRES_NEW_SUBMISSION');
+    expect((await repo.getJobDetail('manual-owner', manual.jobId)).outlines).toEqual([outline]);
+    expect((await repo.getJob('auto-owner', automatic.jobId))?.status).toBe(
+      'awaiting_confirmation',
+    );
   });
   it('persists manual review, command replay, freeze and scene identity', async () => {
     const lease = await claimed();
@@ -318,6 +490,13 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       "UPDATE generation_jobs SET lease_expires_at=clock_timestamp()-interval '1 second'",
     );
     expect(await repo.reapExpired()).toBe(1);
+    expect(await repo.getJob('owner', first.jobId)).toEqual(
+      expect.objectContaining({
+        status: 'retry_wait',
+        queueReason: null,
+        retryAt: expect.any(String),
+      }),
+    );
     const second = (await repo.claim('new'))!;
     await expect(
       repo.beginStep(first, { key: 'stale', kind: 'content', dependencyHash: 'x' }),

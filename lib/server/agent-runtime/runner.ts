@@ -48,6 +48,7 @@ import {
   untrustedContentPolicyPromptBlock,
 } from './fetch-url';
 import { assembleRunnerTools, buildRunnerCoursePrompt } from './runner-contract';
+import { withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 import { buildMaterialTools, MATERIAL_TOOL_NAMES } from './material-tools';
 import { buildRosterTools, ROSTER_TOOL_NAMES, ROSTER_TOOLS_PROMPT } from './roster-tools';
 import {
@@ -902,6 +903,13 @@ function leaseMatches(
 // finally blocks pair every timer, subscription, and agent listener with the
 // exact lifetime in which it can fire.
 export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Promise<void> {
+  return withHeavyTaskRootContext(
+    { ownerId: meta.ownerId, rootTaskId: `agent:${meta.id}`, kind: 'agent' },
+    () => runAdmittedSession(ctx, meta),
+  );
+}
+
+async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): Promise<void> {
   const id = meta.id;
   const attempt = meta.attempt;
   const claimSeq = meta.claimSeq;

@@ -3,6 +3,8 @@ import type { SceneOutline } from '@/lib/types/generation';
 import { nanoid } from 'nanoid';
 
 export interface GenerationJobSnapshot extends GenerationJobView {
+  queueReason?: 'owner_limit' | 'site_limit' | 'queued' | null;
+  retryAt?: string | null;
   outlines?: SceneOutline[];
   activeSteps?: Array<{ key: string; kind: string; outlineId: string | null }>;
   scenes?: Array<{ outlineId: string; sceneId: string; ordinal: number; status: string }>;
@@ -114,10 +116,12 @@ export function observeGenerationJob(
   jobId: string,
   onSnapshot: (job: GenerationJobSnapshot) => void | Promise<void>,
   onError: (error: Error) => void,
+  onReconnect?: () => void,
 ) {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let version = -1;
+  let disconnected = false;
   const poll = async () => {
     let interval = 2000;
     try {
@@ -126,6 +130,10 @@ export function observeGenerationJob(
         { signal: controller.signal },
       );
       if (controller.signal.aborted || job.jobId !== jobId) return;
+      if (disconnected) {
+        disconnected = false;
+        onReconnect?.();
+      }
       interval = Math.max(1000, Math.min(job.pollIntervalMs ?? 2000, 30_000));
       if (job.stateVersion > version) {
         await onSnapshot(job);
@@ -134,6 +142,7 @@ export function observeGenerationJob(
       if (['succeeded', 'cancelled'].includes(job.status)) return;
     } catch (error) {
       if (controller.signal.aborted) return;
+      disconnected = true;
       onError(error instanceof Error ? error : new Error('GENERATION_OBSERVATION_FAILED'));
       interval = 5000;
     }
