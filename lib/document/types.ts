@@ -30,6 +30,8 @@ export interface DocumentExtractorInput {
   fileSize?: number;
   mimeType: string;
   config: DocumentExtractorConfig;
+  /** Cancels provider I/O and long local parsing at admission/worker shutdown. */
+  signal?: AbortSignal;
 }
 
 export interface DocumentExtractorProvider {
@@ -67,6 +69,8 @@ export interface MediaExtractorInput {
   fileSize?: number;
   mimeType: string;
   config: DocumentExtractorConfig;
+  /** Cancels provider I/O and child processes at admission/worker shutdown. */
+  signal?: AbortSignal;
 }
 
 export interface MediaExtractorProvider {

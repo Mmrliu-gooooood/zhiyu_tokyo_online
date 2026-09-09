@@ -33,6 +33,7 @@ interface IndependentLease {
   group: string;
   holder: string;
   epoch: number;
+  expiresAtMs: number;
 }
 
 /**
@@ -91,6 +92,7 @@ export async function runIndependentHeavyTaskRequest(
           leaseFailure ??= error;
           if (!leaseAbort.signal.aborted) leaseAbort.abort(error);
         } else {
+          lease!.expiresAtMs = Date.now() + SYNC_LEASE_MS;
           armExpiryWatchdog();
         }
       })
@@ -181,7 +183,9 @@ async function acquireIndependentLease(
       [group, holder, SYNC_LEASE_MS],
     );
     const row = acquired.rows[0];
-    return row ? { group, holder, epoch: Number(row.lease_epoch) } : null;
+    return row
+      ? { group, holder, epoch: Number(row.lease_epoch), expiresAtMs: Date.now() + SYNC_LEASE_MS }
+      : null;
   });
 }
 
@@ -206,7 +210,11 @@ async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
 
 function retryReleaseIndependentLease(lease: IndependentLease): void {
   void (async () => {
-    for (const delayMs of RELEASE_RETRY_DELAYS_MS) {
+    let attempt = 0;
+    while (Date.now() < lease.expiresAtMs) {
+      const configuredDelay =
+        RELEASE_RETRY_DELAYS_MS[Math.min(attempt, RELEASE_RETRY_DELAYS_MS.length - 1)];
+      const delayMs = Math.min(configuredDelay, Math.max(1, lease.expiresAtMs - Date.now()));
       await unrefDelay(delayMs);
       try {
         await releaseIndependentLease(lease);
@@ -214,6 +222,7 @@ function retryReleaseIndependentLease(lease: IndependentLease): void {
       } catch {
         // A later fenced attempt is safe even if a successor already owns the row.
       }
+      attempt += 1;
     }
   })();
 }

@@ -39,6 +39,7 @@ export interface MediaParseInput {
   fileName: string;
   mimeType: string;
   config: MediaParserConfig;
+  signal?: AbortSignal;
 }
 
 export type MediaParseResult = MediaArtifact;

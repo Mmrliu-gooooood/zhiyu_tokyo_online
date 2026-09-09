@@ -37,6 +37,8 @@ export interface PDFParserConfig {
   allowEnvFallback?: boolean;
   /** Skip image extraction when the caller needs text only. */
   textOnly?: boolean;
+  /** Cancels provider I/O and long local parsing. */
+  signal?: AbortSignal;
 }
 
 // Note: ParsedPdfContent is imported from @/lib/types/pdf to avoid duplication

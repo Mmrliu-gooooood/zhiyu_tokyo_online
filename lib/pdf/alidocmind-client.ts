@@ -20,7 +20,43 @@ const log = createLogger('AliDocMind');
 const POLL_INTERVAL_MS = 3_000;
 const POLL_MAX_MS = 15 * 60 * 1_000;
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+function abortReason(signal?: AbortSignal): Error {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new DOMException('AliDocMind parsing aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+function awaitWithAbort<T>(work: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return work;
+  throwIfAborted(signal);
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(abortReason(signal));
+    signal.addEventListener('abort', abort, { once: true });
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(done, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      reject(abortReason(signal));
+    };
+    function done() {
+      signal!.removeEventListener('abort', abort);
+      resolve();
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
 
 export interface AliDocMindCredentials {
   accessKeyId: string;
@@ -52,6 +88,7 @@ export interface AliDocMindSubmitOptions {
     vlParsePrompt?: string;
   };
   outputHtmlTable?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface AliDocMindResult {
@@ -101,6 +138,7 @@ export async function parseWithAliDocMindClient(
   creds: Partial<AliDocMindCredentials>,
   options: AliDocMindSubmitOptions,
 ): Promise<AliDocMindResult> {
+  throwIfAborted(options.signal);
   const resolved = resolveCredentials(creds);
   const client = createClient(resolved);
 
@@ -128,7 +166,10 @@ export async function parseWithAliDocMindClient(
     readTimeout: 5 * 60_000,
   });
   log.info(`Submitting ${options.fileName} (${options.buffer.byteLength} bytes)`);
-  const submitRes = await client.submitDocParserJobAdvance(request, runtime);
+  const submitRes = await awaitWithAbort(
+    client.submitDocParserJobAdvance(request, runtime),
+    options.signal,
+  );
   const jobId = submitRes.body?.data?.id;
   if (!jobId) {
     throw new Error(`AliDocMind submit returned no job id: ${JSON.stringify(submitRes.body)}`);
@@ -138,8 +179,9 @@ export async function parseWithAliDocMindClient(
   const deadline = Date.now() + POLL_MAX_MS;
   let lastStatus = '';
   while (Date.now() < deadline) {
-    const statusRes = await client.queryDocParserStatus(
-      new $Docmind.QueryDocParserStatusRequest({ id: jobId }),
+    const statusRes = await awaitWithAbort(
+      client.queryDocParserStatus(new $Docmind.QueryDocParserStatusRequest({ id: jobId })),
+      options.signal,
     );
     // A body-level error (NoPermission, throttling, expired job, …) carries a
     // non-benign code and often no status — surface it now instead of polling
@@ -166,7 +208,7 @@ export async function parseWithAliDocMindClient(
       throw new Error(`AliDocMind job ${jobId} failed: ${statusRes.body?.message ?? 'unknown'}`);
     }
     if (status === 'success') {
-      const result = await fetchResult(client, jobId);
+      const result = await fetchResult(client, jobId, options.signal);
       return {
         jobId,
         data: result,
@@ -177,12 +219,16 @@ export async function parseWithAliDocMindClient(
         tokens: data?.tokens,
       };
     }
-    await sleep(POLL_INTERVAL_MS);
+    await sleep(POLL_INTERVAL_MS, options.signal);
   }
   throw new Error(`AliDocMind job ${jobId} timed out after ${POLL_MAX_MS / 1000}s`);
 }
 
-async function fetchResult(client: Client, jobId: string): Promise<Record<string, unknown>> {
+async function fetchResult(
+  client: Client,
+  jobId: string,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
   const STEP = 100;
   const merged: {
     layouts?: unknown[];
@@ -193,12 +239,15 @@ async function fetchResult(client: Client, jobId: string): Promise<Record<string
   let layoutNum = 0;
 
   while (true) {
-    const res = await client.getDocParserResult(
-      new $Docmind.GetDocParserResultRequest({
-        id: jobId,
-        layoutNum,
-        layoutStepSize: STEP,
-      }),
+    const res = await awaitWithAbort(
+      client.getDocParserResult(
+        new $Docmind.GetDocParserResultRequest({
+          id: jobId,
+          layoutNum,
+          layoutStepSize: STEP,
+        }),
+      ),
+      signal,
     );
 
     // Surface a real API error instead of silently returning empty text.

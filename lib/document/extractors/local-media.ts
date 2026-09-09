@@ -57,7 +57,12 @@ export interface MediaCommandResult {
 
 export interface MediaCommandRunner {
   resolve(name: 'ffmpeg' | 'ffprobe'): Promise<string>;
-  run(file: string, args: string[], timeoutMs: number): Promise<MediaCommandResult>;
+  run(
+    file: string,
+    args: string[],
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<MediaCommandResult>;
 }
 
 export interface LocalMediaExtractorDependencies {
@@ -84,7 +89,10 @@ export interface MediaProbe {
 class MediaJobDeadline {
   private readonly expiresAt: number;
 
-  constructor(timeoutMs: number) {
+  constructor(
+    timeoutMs: number,
+    readonly signal?: AbortSignal,
+  ) {
     this.expiresAt = Date.now() + timeoutMs;
   }
 
@@ -93,6 +101,11 @@ class MediaJobDeadline {
   }
 
   check(): void {
+    if (this.signal?.aborted) {
+      throw new MaterialExtractionError('media extraction cancelled', true, {
+        cause: this.signal.reason,
+      });
+    }
     if (this.remainingMs() <= 0) {
       throw new MaterialExtractionError('media extraction job deadline exceeded', true);
     }
@@ -158,7 +171,7 @@ async function runMediaCommand(
   const timeoutMs = deadline.commandTimeoutMs(maximumTimeoutMs);
   const jobLimited = timeoutMs < maximumTimeoutMs;
   try {
-    const result = await commands.run(file, args, timeoutMs);
+    const result = await commands.run(file, args, timeoutMs, deadline.signal);
     deadline.check();
     return result;
   } catch (error) {
@@ -201,9 +214,9 @@ async function resolveExecutable(name: 'ffmpeg' | 'ffprobe'): Promise<string> {
 
 export const defaultMediaCommands: MediaCommandRunner = {
   resolve: resolveExecutable,
-  run(file, args, timeoutMs) {
+  run(file, args, timeoutMs, signal) {
     return new Promise((resolve, reject) => {
-      execFile(
+      const child = execFile(
         file,
         args,
         { timeout: timeoutMs, maxBuffer: COMMAND_MAX_BUFFER, encoding: 'utf8' },
@@ -222,6 +235,10 @@ export const defaultMediaCommands: MediaCommandRunner = {
           resolve({ stdout: String(stdout), stderr: String(stderr) });
         },
       );
+      const abort = () => child.kill();
+      if (signal?.aborted) abort();
+      else signal?.addEventListener('abort', abort, { once: true });
+      child.once('close', () => signal?.removeEventListener('abort', abort));
     });
   },
 };
@@ -541,7 +558,10 @@ export async function extractMediaMaterial(
     throw new MaterialExtractionError(`Unsupported media MIME type: ${input.mimeType}`, false);
   }
   const startedAt = Date.now();
-  const deadline = new MediaJobDeadline(dependencies.jobTimeoutMs ?? MEDIA_JOB_TIMEOUT_MS);
+  const deadline = new MediaJobDeadline(
+    dependencies.jobTimeoutMs ?? MEDIA_JOB_TIMEOUT_MS,
+    input.signal,
+  );
   const commands = dependencies.commands ?? defaultMediaCommands;
   const transcribe = dependencies.transcribe ?? transcribeAudio;
   const sessionDir = await deadline.beforeAwait(() => mkdtemp(join(tmpdir(), 'openmaic-media-')));

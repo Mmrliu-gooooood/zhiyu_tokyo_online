@@ -197,6 +197,7 @@ export async function parsePDF(
   pdfBuffer: Buffer,
   options?: { fileName?: string; mimeType?: string },
 ): Promise<ParsedPdfContent> {
+  throwIfAborted(config.signal);
   const provider = PDF_PROVIDERS[config.providerId];
   if (!provider) {
     throw new Error(`Unknown PDF provider: ${config.providerId}`);
@@ -217,7 +218,7 @@ export async function parsePDF(
 
   switch (config.providerId) {
     case 'unpdf':
-      result = await parseWithUnpdf(pdfBuffer, config.textOnly === true);
+      result = await parseWithUnpdf(pdfBuffer, config.textOnly === true, config.signal);
       break;
 
     case 'mineru':
@@ -235,6 +236,7 @@ export async function parsePDF(
     default:
       throw new Error(`Unsupported PDF provider: ${config.providerId}`);
   }
+  throwIfAborted(config.signal);
 
   // Add processing time to metadata
   if (result.metadata) {
@@ -247,7 +249,12 @@ export async function parsePDF(
 /**
  * Parse PDF using unpdf (existing implementation)
  */
-async function parseWithUnpdf(pdfBuffer: Buffer, textOnly = false): Promise<ParsedPdfContent> {
+async function parseWithUnpdf(
+  pdfBuffer: Buffer,
+  textOnly = false,
+  signal?: AbortSignal,
+): Promise<ParsedPdfContent> {
+  throwIfAborted(signal);
   const uint8Array = new Uint8Array(pdfBuffer);
   const pdf = await getDocumentProxy(
     uint8Array,
@@ -259,71 +266,82 @@ async function parseWithUnpdf(pdfBuffer: Buffer, textOnly = false): Promise<Pars
       : {},
   );
   const numPages = pdf.numPages;
+  const abortPdf = () => void pdf.destroy();
+  signal?.addEventListener('abort', abortPdf, { once: true });
 
-  // Extract text using the document proxy
-  const { text: pdfText } = await extractText(pdf, {
-    mergePages: true,
-  });
+  try {
+    // Extract text using the document proxy
+    const { text: pdfText } = await extractText(pdf, {
+      mergePages: true,
+    });
+    throwIfAborted(signal);
 
-  // Extract images using the same document proxy
-  const images: string[] = [];
-  const pdfImagesMeta: Array<{
-    id: string;
-    src: string;
-    pageNumber: number;
-    width: number;
-    height: number;
-  }> = [];
-  let imageCounter = 0;
+    // Extract images using the same document proxy
+    const images: string[] = [];
+    const pdfImagesMeta: Array<{
+      id: string;
+      src: string;
+      pageNumber: number;
+      width: number;
+      height: number;
+    }> = [];
+    let imageCounter = 0;
 
-  for (let pageNum = 1; !textOnly && pageNum <= numPages; pageNum++) {
-    try {
-      const pageImages = await extractImages(pdf, pageNum);
-      for (let i = 0; i < pageImages.length; i++) {
-        const imgData = pageImages[i];
-        try {
-          // Use sharp to convert raw image data to PNG base64
-          const pngBuffer = await sharp(Buffer.from(imgData.data), {
-            raw: {
+    for (let pageNum = 1; !textOnly && pageNum <= numPages; pageNum++) {
+      throwIfAborted(signal);
+      try {
+        const pageImages = await extractImages(pdf, pageNum);
+        for (let i = 0; i < pageImages.length; i++) {
+          throwIfAborted(signal);
+          const imgData = pageImages[i];
+          try {
+            // Use sharp to convert raw image data to PNG base64
+            const pngBuffer = await sharp(Buffer.from(imgData.data), {
+              raw: {
+                width: imgData.width,
+                height: imgData.height,
+                channels: imgData.channels,
+              },
+            })
+              .png()
+              .toBuffer();
+
+            // Convert to base64
+            const base64 = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+            imageCounter++;
+            const imgId = `img_${imageCounter}`;
+            images.push(base64);
+            pdfImagesMeta.push({
+              id: imgId,
+              src: base64,
+              pageNumber: pageNum,
               width: imgData.width,
               height: imgData.height,
-              channels: imgData.channels,
-            },
-          })
-            .png()
-            .toBuffer();
-
-          // Convert to base64
-          const base64 = `data:image/png;base64,${pngBuffer.toString('base64')}`;
-          imageCounter++;
-          const imgId = `img_${imageCounter}`;
-          images.push(base64);
-          pdfImagesMeta.push({
-            id: imgId,
-            src: base64,
-            pageNumber: pageNum,
-            width: imgData.width,
-            height: imgData.height,
-          });
-        } catch (sharpError) {
-          log.error(`Failed to convert image ${i + 1} from page ${pageNum}:`, sharpError);
+            });
+          } catch (sharpError) {
+            throwIfAborted(signal);
+            log.error(`Failed to convert image ${i + 1} from page ${pageNum}:`, sharpError);
+          }
         }
+      } catch (pageError) {
+        throwIfAborted(signal);
+        log.error(`Failed to extract images from page ${pageNum}:`, pageError);
       }
-    } catch (pageError) {
-      log.error(`Failed to extract images from page ${pageNum}:`, pageError);
     }
-  }
 
-  return {
-    text: pdfText,
-    images,
-    metadata: {
-      pageCount: numPages,
-      parser: 'unpdf',
-      imageMapping: Object.fromEntries(pdfImagesMeta.map((m) => [m.id, m.src])),
-      pdfImages: pdfImagesMeta,
-    },
-  };
+    return {
+      text: pdfText,
+      images,
+      metadata: {
+        pageCount: numPages,
+        parser: 'unpdf',
+        imageMapping: Object.fromEntries(pdfImagesMeta.map((m) => [m.id, m.src])),
+        pdfImages: pdfImagesMeta,
+      },
+    };
+  } finally {
+    signal?.removeEventListener('abort', abortPdf);
+  }
 }
 
 /**
@@ -370,10 +388,11 @@ async function parseWithAliDocMind(
       llmEnhancement: true,
       enhancementMode: 'VLM',
       outputHtmlTable: true,
+      signal: config.signal,
     },
   );
 
-  return aliDocMindLayoutsToParsedPdf(result, fileName);
+  return aliDocMindLayoutsToParsedPdf(result, fileName, config.signal);
 }
 
 /** Match markdown image syntax `![alt](url)` and capture the URL. */
@@ -418,7 +437,10 @@ function isTrustedAliyunOssUrl(url: string): boolean {
  * redirects are disallowed (an OSS signed URL never needs one). Returns null on
  * any failure so one bad image never fails the whole parse.
  */
-export async function fetchAliDocMindImageAsBase64(url: string): Promise<string | null> {
+export async function fetchAliDocMindImageAsBase64(
+  url: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
   if (!isTrustedAliyunOssUrl(url)) {
     log.warn(`[AliDocMind] refusing non-OSS image URL: ${url.slice(0, 80)}`);
     return null;
@@ -427,7 +449,7 @@ export async function fetchAliDocMindImageAsBase64(url: string): Promise<string 
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
     const res = await fetch(url, {
-      signal: controller.signal,
+      signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
       redirect: 'error', // signed OSS URLs are direct; a redirect is suspicious
     });
     if (!res.ok) {
@@ -511,6 +533,7 @@ async function mapWithConcurrency<T, R>(
 async function aliDocMindLayoutsToParsedPdf(
   result: { data: Record<string, unknown>; pageCountEstimate?: number; jobId?: string },
   fileName: string,
+  signal?: AbortSignal,
 ): Promise<ParsedPdfContent> {
   const layouts = (Array.isArray(result.data.layouts) ? result.data.layouts : []) as Array<{
     text?: string;
@@ -528,6 +551,7 @@ async function aliDocMindLayoutsToParsedPdf(
   let maxPage = 0;
 
   for (const l of layouts) {
+    throwIfAborted(signal);
     // AliDocMind pageNum is 0-based; normalize to 1-based page numbers.
     const pageNum = (l.pageNum ?? 0) + 1;
     maxPage = Math.max(maxPage, pageNum);
@@ -571,9 +595,10 @@ async function aliDocMindLayoutsToParsedPdf(
   // Download images with bounded concurrency; keep the source page number so
   // downstream image→page association is correct. Failed downloads drop out.
   const fetched = await mapWithConcurrency(imageRefs, ALIDOCMIND_IMAGE_CONCURRENCY, async (ref) => {
-    const src = await fetchAliDocMindImageAsBase64(ref.url);
+    const src = await fetchAliDocMindImageAsBase64(ref.url, signal);
     return src ? { src, pageNumber: ref.pageNumber } : null;
   });
+  throwIfAborted(signal);
   const pdfImagesMeta = fetched
     .filter((x): x is { src: string; pageNumber: number } => x !== null)
     .map((x, i) => ({ id: `img_${i + 1}`, src: x.src, pageNumber: x.pageNumber }));
@@ -666,6 +691,7 @@ export async function parseWithMinerUDocument(
     method: 'POST',
     headers,
     body: formData,
+    signal: config.signal,
   });
 
   if (!response.ok) {
@@ -689,6 +715,13 @@ export async function parseWithMinerUDocument(
   }
 
   return extractMinerUResult(fileResult);
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw signal.reason instanceof Error
+    ? signal.reason
+    : new DOMException('Document parsing aborted', 'AbortError');
 }
 
 /**

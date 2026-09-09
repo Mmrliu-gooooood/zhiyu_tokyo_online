@@ -15,10 +15,12 @@ import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admissio
 const log = createLogger('Parse PDF');
 
 export async function POST(req: NextRequest) {
-  return runIndependentHeavyTaskRequest(req, 'document-extraction', () => handlePost(req));
+  return runIndependentHeavyTaskRequest(req, 'document-extraction', (signal) =>
+    handlePost(req, signal),
+  );
 }
 
-async function handlePost(req: NextRequest) {
+async function handlePost(req: NextRequest, signal: AbortSignal) {
   let pdfFileName: string | undefined;
   let resolvedProviderId: string | undefined;
   try {
@@ -74,6 +76,7 @@ async function handlePost(req: NextRequest) {
       fileSize: pdfFile.size,
       mimeType: 'application/pdf',
       config,
+      signal,
     });
     const result = documentArtifactToParsedPdfContent(artifact);
 

@@ -222,6 +222,7 @@ async function runExtraction(
   requestConfig: ExtractRequestConfig,
   logState: ExtractLogState,
   isAssetIdForm: boolean,
+  signal: AbortSignal,
 ) {
   const { fileName, fileSize, mimeType, buffer } = source;
 
@@ -267,6 +268,7 @@ async function runExtraction(
       fileName,
       fileSize,
       mimeType,
+      signal,
       config: {
         providerId: requestConfig.providerId || '',
         apiKey: mediaManaged ? undefined : requestConfig.apiKey || undefined,
@@ -420,6 +422,7 @@ async function runExtraction(
     fileSize,
     mimeType,
     config,
+    signal,
   });
   const result = documentArtifactToParsedPdfContent(artifact);
 
@@ -439,10 +442,12 @@ async function runExtraction(
 }
 
 export async function POST(req: NextRequest) {
-  return runIndependentHeavyTaskRequest(req, 'document-extraction', () => handlePost(req));
+  return runIndependentHeavyTaskRequest(req, 'document-extraction', (signal) =>
+    handlePost(req, signal),
+  );
 }
 
-async function handlePost(req: NextRequest) {
+async function handlePost(req: NextRequest, signal: AbortSignal) {
   const logState: ExtractLogState = {};
   // Whether this request took the asset-id (JSON) form. The multipart byte
   // form's observable behavior is frozen; a few JSON-path-only responses use
@@ -636,7 +641,7 @@ async function handlePost(req: NextRequest) {
       );
     }
 
-    return await runExtraction(source, requestConfig, logState, isAssetIdForm);
+    return await runExtraction(source, requestConfig, logState, isAssetIdForm, signal);
   } catch (error) {
     log.error(
       `Document extraction failed [provider=${logState.resolvedProviderId ?? 'unknown'}, file="${sanitizeLogValue(
