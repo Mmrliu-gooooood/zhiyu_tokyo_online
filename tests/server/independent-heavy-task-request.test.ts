@@ -15,7 +15,9 @@ vi.mock('@/lib/server/agent-runtime/owner', () => ({
 
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 
-function fakePool(options: { activeOwner?: boolean; loseHeartbeat?: boolean } = {}) {
+function fakePool(
+  options: { activeOwner?: boolean; loseHeartbeat?: boolean; heartbeatError?: boolean } = {},
+) {
   let released = false;
   const transactionQueries: string[] = [];
   const poolQueries: string[] = [];
@@ -67,6 +69,7 @@ function fakePool(options: { activeOwner?: boolean; loseHeartbeat?: boolean } = 
     query: vi.fn(async (sql: string) => {
       poolQueries.push(sql);
       if (sql.includes('SET expires_at')) {
+        if (options.heartbeatError) throw new Error('database unavailable');
         return { rows: [], rowCount: options.loseHeartbeat ? 0 : 1 };
       }
       return { rows: [], rowCount: 1 };
@@ -143,6 +146,33 @@ describe('independent heavy-task request admission', () => {
       errorCode: 'HEAVY_TASK_ADMISSION_UNAVAILABLE',
     });
     expect(state.poolQueries.some((sql) => sql.includes('DELETE FROM'))).toBe(true);
+  });
+
+  it('preserves the real provider result when a heartbeat query is only unavailable', async () => {
+    vi.useFakeTimers();
+    const state = fakePool({ heartbeatError: true });
+    mocks.getGenerationPool.mockReturnValue(state.pool);
+    let resolveBody: ((response: Response) => void) | undefined;
+    let receivedSignal: AbortSignal | undefined;
+
+    const pending = runIndependentHeavyTaskRequest(
+      new Request('http://localhost/api/generate/image', { method: 'POST' }),
+      'media',
+      (signal) => {
+        receivedSignal = signal;
+        return new Promise<Response>((resolve) => {
+          resolveBody = resolve;
+        });
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(receivedSignal?.aborted).toBe(false);
+    resolveBody?.(Response.json({ success: true }));
+    const response = await pending;
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ success: true });
   });
 
   it('returns the stable personal-capacity protocol before running provider work', async () => {

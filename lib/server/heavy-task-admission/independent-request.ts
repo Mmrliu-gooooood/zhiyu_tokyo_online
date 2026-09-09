@@ -73,12 +73,16 @@ export async function runIndependentHeavyTaskRequest(
     if (renewing) return;
     renewing = heartbeatIndependentLease(lease!)
       .then((alive) => {
-        if (!alive) throw new IndependentLeaseLostError();
+        if (!alive) {
+          const error = new IndependentLeaseLostError();
+          leaseFailure ??= error;
+          if (!leaseAbort.signal.aborted) leaseAbort.abort(error);
+        }
       })
-      .catch((error: unknown) => {
-        leaseFailure ??= error;
-        if (!leaseAbort.signal.aborted) leaseAbort.abort(error);
-      })
+      // A query error does not prove the fenced row was lost. The one-hour
+      // grace remains exclusive longer than every wrapped local hard budget,
+      // so preserve the provider's real outcome and retry on the next tick.
+      .catch(() => undefined)
       .finally(() => {
         renewing = undefined;
       });
