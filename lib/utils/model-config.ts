@@ -33,5 +33,29 @@ export function getCurrentModelConfig() {
     requiresApiKey: providerConfig?.requiresApiKey,
     isServerConfigured: providerConfig?.isServerConfigured,
     thinkingConfig,
+    api: providerConfig?.api,
   };
+}
+
+/** Synchronize Home selection before PRO writes, without putting keys in message bodies. */
+export async function getProModelRef() {
+  const { flushProModelRevocation } = await import('@/lib/workbench/pro-model-connection-client');
+  await flushProModelRevocation();
+  const config = getCurrentModelConfig();
+  // No local selection preserves explicit administrator routes on older deployments.
+  if (!config.providerId || !config.modelId) return undefined;
+  const { syncProModelConnection, proModelConfigurationMessage } =
+    await import('@/lib/workbench/pro-model-connection-client');
+  const modelRef = await syncProModelConnection(config);
+  const response = await fetch('/api/agent/runtime', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ modelRef }),
+  });
+  const readiness = await response.json().catch(() => ({}));
+  if (!response.ok || readiness.chatReady !== true || readiness.generationReady !== true) {
+    throw new Error(proModelConfigurationMessage(readiness.error));
+  }
+  return modelRef;
 }

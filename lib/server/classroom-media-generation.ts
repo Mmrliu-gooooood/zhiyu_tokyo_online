@@ -184,7 +184,14 @@ export async function generateMediaForClassroom(
           normalized,
         );
 
-        const buf = await downloadToBuffer(result.url);
+        const buf = result.bytes?.length
+          ? Buffer.from(result.bytes)
+          : result.base64
+            ? Buffer.from(result.base64, 'base64')
+            : result.url
+              ? await downloadToBuffer(result.url)
+              : null;
+        if (!buf?.length) throw new Error('Video generation returned no data');
         const filename = `${req.elementId}.mp4`;
         await fs.writeFile(path.join(mediaDir, filename), buf);
         mediaMap[req.elementId] = mediaServingUrl(baseUrl, classroomId, `media/${filename}`);

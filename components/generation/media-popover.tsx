@@ -28,6 +28,12 @@ import { resolveASRProviderName } from '@/lib/audio/provider-display';
 import { useSettingsStore } from '@/lib/store/settings';
 import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
+import {
+  listImageProviders,
+  listVideoProviders,
+  isImageProviderAvailable,
+  isVideoProviderAvailable,
+} from '@/lib/media/provider-catalog';
 import { CUSTOM_ASR_DEFAULT_LANGUAGES } from '@/lib/audio/constants';
 import { ASR_PROVIDERS, getASRSupportedLanguages } from '@/lib/audio/constants';
 import type { ImageProviderId, VideoProviderId } from '@/lib/media/types';
@@ -148,13 +154,15 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
   // ─── Grouped select data (only available providers) ───
   const imageGroups = useMemo(
     () =>
-      Object.values(IMAGE_PROVIDERS)
-        .filter((p) => cfgOk(imageProvidersConfig, p.id, p.requiresApiKey))
+      listImageProviders(IMAGE_PROVIDERS, imageProvidersConfig)
+        .filter((p) => isImageProviderAvailable(p.id, IMAGE_PROVIDERS, imageProvidersConfig))
         .map((p) => {
           const items =
             p.id === 'comfyui-image'
               ? comfyWorkflows
-              : providerModels(p.models, imageProvidersConfig[p.id]);
+              : p.isBuiltIn === false
+                ? p.models
+                : providerModels(p.models, imageProvidersConfig[p.id]);
 
           return {
             groupId: p.id,
@@ -168,24 +176,27 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
             })),
           };
         }),
-    [cfgOk, imageProvidersConfig, comfyWorkflows],
+    [imageProvidersConfig, comfyWorkflows],
   );
 
   const videoGroups = useMemo(
     () =>
-      Object.values(VIDEO_PROVIDERS)
-        .filter((p) => cfgOk(videoProvidersConfig, p.id, p.requiresApiKey))
+      listVideoProviders(VIDEO_PROVIDERS, videoProvidersConfig)
+        .filter((p) => isVideoProviderAvailable(p.id, VIDEO_PROVIDERS, videoProvidersConfig))
         .map((p) => ({
           groupId: p.id,
           groupName: p.name,
           groupIcon: VIDEO_PROVIDER_ICONS[p.id],
           available: true,
-          items: providerModels(p.models, videoProvidersConfig[p.id]).map((m) => ({
+          items: (p.isBuiltIn === false
+            ? p.models
+            : providerModels(p.models, videoProvidersConfig[p.id])
+          ).map((m) => ({
             id: m.id,
             name: m.name,
           })),
         })),
-    [cfgOk, videoProvidersConfig],
+    [videoProvidersConfig],
   );
 
   // ASR: built-in + custom providers

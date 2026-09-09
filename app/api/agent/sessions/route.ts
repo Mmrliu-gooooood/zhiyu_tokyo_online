@@ -12,6 +12,7 @@ import { apiError } from '@/lib/server/api-response';
 import { MAX_SESSION_TEXT_LENGTH } from '@/lib/server/agent-runtime/limits';
 import { findSkill, inferSkillIdFromPrompt, listSkills } from '@/lib/server/agent-runtime/skills';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
+import { validateSessionModelBinding } from '@/lib/server/agent-runtime/session-model-binding';
 import {
   bindOwnerMaterialsToSession,
   SessionMaterialBindingError,
@@ -23,6 +24,8 @@ import { decodeCourseRefs } from '@/lib/workbench/course-refs';
 export const runtime = 'nodejs';
 
 interface CreateSessionBody {
+  mediaConfigRef?: unknown;
+  modelRef?: unknown;
   prompt?: string;
   stageId?: string;
   skill?: string;
@@ -32,6 +35,32 @@ interface CreateSessionBody {
   materialIds?: unknown;
   /** Classrooms named on the opening message. */
   courseRefs?: unknown;
+}
+
+interface MediaConfigRef {
+  id: string;
+  revision: number;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function parseMediaConfigRef(
+  value: unknown,
+): { ok: true; ref?: MediaConfigRef } | { ok: false } {
+  if (value === undefined) return { ok: true };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ok: false };
+  const record = value as Record<string, unknown>;
+  if (
+    Object.keys(record).some((key) => key !== 'id' && key !== 'revision') ||
+    typeof record.id !== 'string' ||
+    !UUID_PATTERN.test(record.id) ||
+    !Number.isSafeInteger(record.revision) ||
+    (record.revision as number) < 1
+  ) {
+    return { ok: false };
+  }
+  return { ok: true, ref: { id: record.id, revision: record.revision as number } };
 }
 
 export async function POST(req: NextRequest) {
@@ -88,6 +117,14 @@ export async function POST(req: NextRequest) {
   if (!decodedCourseRefs.ok) {
     return apiError('INVALID_REQUEST', 400, decodedCourseRefs.error);
   }
+  const parsedMediaConfigRef = parseMediaConfigRef(body.mediaConfigRef);
+  if (!parsedMediaConfigRef.ok) {
+    return apiError(
+      'INVALID_REQUEST',
+      400,
+      'mediaConfigRef must contain only a UUID id and a positive integer revision',
+    );
+  }
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     // An EXPLICIT skill — a `?skill=` launch link, not composer UI — is
@@ -134,11 +171,16 @@ export async function POST(req: NextRequest) {
     // sessions validate only the identifier format here. Full existence and
     // ownership validation is deferred until a later slice consumes stageId —
     // the upstream document store has no owner partition yet.
+    const modelRef = existingCourse
+      ? undefined
+      : await validateSessionModelBinding(ownerId, body.modelRef);
     const store = await getAgentSessionStore();
     const hasOpeningContext = materialIds.length > 0 || decodedCourseRefs.refs.length > 0;
     const meta = await store.createSession({
       ownerId,
       prompt,
+      ...(modelRef ? { modelRef } : {}),
+      ...(parsedMediaConfigRef.ref ? { mediaConfigRef: parsedMediaConfigRef.ref } : {}),
       ...(stageId ? { stageId } : {}),
       ...(skillId ? { skillId } : {}),
       existingCourse,
@@ -163,7 +205,13 @@ export async function POST(req: NextRequest) {
           ...(materials.length ? { materials } : {}),
           ...(decodedCourseRefs.refs.length ? { courseRefs: decodedCourseRefs.refs } : {}),
         },
-        { expectedOwnerId: ownerId },
+        {
+          expectedOwnerId: ownerId,
+          ...(modelRef ? { modelRef } : {}),
+          ...(parsedMediaConfigRef.ref
+            ? { mediaConfigRef: parsedMediaConfigRef.ref }
+            : {}),
+        },
       );
       return NextResponse.json(
         {

@@ -7,6 +7,7 @@ import type {
 import { runWithGenerationQuota } from '@/lib/server/generation-jobs/provider-call-context';
 import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/config-snapshot';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
+import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
 
 export interface CheckpointRepository {
   skipStepWithWarning(
@@ -36,6 +37,10 @@ export interface CheckpointRepository {
       retryAfterMs?: number;
     },
   ): Promise<unknown>;
+  recordProviderRequest?(
+    lease: GenerationLease,
+    input: { attemptId: string; taskId: string },
+  ): Promise<void>;
 }
 
 /** An outbound request may have been accepted. Never automatically replay it. */
@@ -179,8 +184,22 @@ export class PipelineExecution {
         // Race even adapters lacking AbortSignal support. They may still finish
         // remotely, but they cannot keep the Worker lease alive indefinitely or
         // commit late results. Signal-aware adapters also stop their local I/O.
+        const invoke = () =>
+          kind === 'media' && receipt.attemptId && this.repository.recordProviderRequest
+            ? withPolledTaskPersistence(
+                {
+                  resumeTaskId: receipt.providerRequestId,
+                  persistTaskId: (taskId) =>
+                    this.repository.recordProviderRequest!(this.lease, {
+                      attemptId: receipt.attemptId!,
+                      taskId,
+                    }),
+                },
+                () => work(callSignal),
+              )
+            : work(callSignal);
         const result = await raceWithAbort(callSignal, () =>
-          kind === 'llm' ? runWithGenerationQuota(() => work(callSignal)) : work(callSignal),
+          kind === 'llm' ? runWithGenerationQuota(invoke) : invoke(),
         );
         responseReceived = true;
         callSignal.throwIfAborted();

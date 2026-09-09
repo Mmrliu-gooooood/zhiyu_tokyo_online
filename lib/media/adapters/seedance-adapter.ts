@@ -127,6 +127,7 @@ export async function testSeedanceConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   return probeAuth({
     providerName: 'Seedance',
+    acceptedStatuses: [404],
     request: () =>
       fetch(`${resolveArkRoot(baseUrl)}/contents/generations/tasks/connectivity-test-nonexistent`, {
         method: 'GET',

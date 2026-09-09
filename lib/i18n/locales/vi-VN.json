@@ -1874,7 +1874,7 @@
       "download": "Tải xuống",
       "detailFailed": "Không thể tải chi tiết skill",
       "contentLabel": "Nội dung",
-      "builtinDetailNote": "Skill này đi kèm với OpenMAIC. Tải xuống để nhập vào không gian làm việc của agent khác.",
+      "builtinDetailNote": "Skill này đi kèm với zhiyu. Tải xuống để nhập vào không gian làm việc của agent khác.",
       "upload": "Tải lên",
       "uploading": "Đang tải lên…",
       "uploadFailed": "Không thể tải skill lên. Hãy kiểm tra tệp và thử lại.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "Giọng đọc của trình duyệt không hỗ trợ các chức năng âm thanh trên dòng thời gian của trình sửa (nghe thử, tạo lại, lồng tiếng hàng loạt). Hãy chuyển sang một nhà cung cấp giọng đọc có quản lý để tạo và quản lý âm thanh theo từng dòng.",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "Thêm nền tảng tùy chỉnh",
+    "mediaProtocol": "Giao thức API",
+    "mediaProtocolHint": "Chọn định dạng API được hỗ trợ. Cổng tương thích có thể dùng Base URL riêng.",
+    "customMediaProviderHint": "Thêm nền tảng, sau đó nhập khóa API và ID mô hình.",
+    "mediaProviderEnabled": "Bật nền tảng",
+    "mediaConfigurationChecked": "Cấu hình đã đầy đủ. Chưa gửi yêu cầu tạo; khóa API và mô hình chưa được xác minh.",
+    "checkMediaConfiguration": "Kiểm tra cấu hình"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

@@ -29,7 +29,29 @@ export function assertGenerationOrigin(req: Request): void {
     .split(',')
     .map((v) => v.trim())
     .filter(Boolean);
-  const target = new URL(req.url);
+  let target = new URL(req.url);
+  const host = req.headers.get('host');
+  if (host !== null) {
+    // Next standalone can expose its bind address (0.0.0.0) in req.url.
+    // The actual Host is usable only after strict allowlist validation below;
+    // forwarded host/protocol headers never grant trust.
+    try {
+      const addressed = new URL(`${target.protocol}//${host}`);
+      if (
+        addressed.host !== host.toLowerCase() ||
+        addressed.username ||
+        addressed.password ||
+        addressed.pathname !== '/' ||
+        addressed.search ||
+        addressed.hash
+      ) {
+        throw new Error('Invalid Host');
+      }
+      target = addressed;
+    } catch {
+      throw new GenerationJobError('ORIGIN_NOT_ALLOWED', 403);
+    }
+  }
   if (!allowed.includes(target.origin)) throw new GenerationJobError('ORIGIN_NOT_ALLOWED', 403);
   const origin = req.headers.get('origin');
   const site = req.headers.get('sec-fetch-site');

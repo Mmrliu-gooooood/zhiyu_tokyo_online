@@ -42,6 +42,81 @@ describe('PgAgentSessionStore with PGlite', () => {
   });
   runAgentSessionUrlContract('Postgres (PGlite)', () => store);
 
+  test('freezes the run connection through steering and restart, adopts changes next run', async () => {
+    const first = { id: 'connection-a', revision: 1 };
+    const next = { id: 'connection-a', revision: 2 };
+    await store.createSession({ ...makeAgentSessionInput(), modelRef: first });
+    const claim = await store.claimNextSession('worker-a', 1, { leaseTtlMs: 1000, maxAttempts: 3 });
+    expect(claim?.activeModelRef).toEqual(first);
+    await store.postUserMessage(
+      'session-1',
+      { text: 'Continue' },
+      {
+        expectedOwnerId: 'owner-a',
+        modelRef: next,
+      },
+    );
+    expect(await store.getSession('session-1')).toMatchObject({
+      modelRef: next,
+      activeModelRef: first,
+    });
+    await store.releaseLease('session-1', 'worker-a');
+    const resumed = await store.claimNextSession('worker-b', 2, {
+      leaseTtlMs: 1000,
+      maxAttempts: 3,
+    });
+    expect(resumed?.activeModelRef).toEqual(first);
+    await store.finishSession('session-1', 'worker-b', { status: 'succeeded' });
+    await store.postUserMessage(
+      'session-1',
+      { text: 'Next lesson' },
+      {
+        expectedOwnerId: 'owner-a',
+        modelRef: next,
+      },
+    );
+    const fresh = await store.claimNextSession('worker-c', 3, { leaseTtlMs: 1000, maxAttempts: 3 });
+    expect(fresh?.activeModelRef).toEqual(next);
+    const events = await store.readEventsAfter('session-1', 0);
+    expect(JSON.stringify(events)).not.toContain('connection-a');
+  });
+
+  test('owner-fences and freezes media snapshots through crash recovery', async () => {
+    const first = { id: '11111111-1111-4111-8111-111111111111', revision: 1 };
+    const next = { id: '22222222-2222-4222-8222-222222222222', revision: 2 };
+    await store.createSession({ ...makeAgentSessionInput(), mediaConfigRef: first });
+    const claim = await store.claimNextSession('worker-a', 1, {
+      leaseTtlMs: 1000,
+      maxAttempts: 3,
+    });
+    expect(claim?.activeMediaConfigRef).toEqual(first);
+    await expect(
+      store.postUserMessage(
+        'session-1',
+        { text: 'foreign' },
+        { expectedOwnerId: 'owner-b', mediaConfigRef: next },
+      ),
+    ).rejects.toThrow();
+    await store.postUserMessage(
+      'session-1',
+      { text: 'Continue' },
+      { expectedOwnerId: 'owner-a', mediaConfigRef: next },
+    );
+    expect(await store.getSession('session-1')).toMatchObject({
+      mediaConfigRef: next,
+      activeMediaConfigRef: first,
+    });
+    await store.releaseLease('session-1', 'worker-a');
+    expect(
+      (
+        await store.claimNextSession('worker-b', 2, {
+          leaseTtlMs: 1000,
+          maxAttempts: 3,
+        })
+      )?.activeMediaConfigRef,
+    ).toEqual(first);
+  });
+
   test('provisions all six tables idempotently', async () => {
     await expect(ensureAgentSessionSchema(db)).resolves.toBeUndefined();
     const result = await db.query<{ table_name: string }>(

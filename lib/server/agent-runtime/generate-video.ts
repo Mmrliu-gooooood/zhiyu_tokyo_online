@@ -28,6 +28,7 @@ import { CLASSROOMS_DIR } from '@/lib/server/classroom-storage';
 import type { CourseToolDeps } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { errorResult, MEDIA_TOOL_ERROR_REASONS } from './media-tool-result';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 
 const log = createLogger('AgentGenerateVideo');
 
@@ -71,10 +72,17 @@ export const GenerateVideoParams = Type.Object({
 type GenerateConfiguredVideo = (
   config: VideoGenerationConfig,
   options: VideoGenerationOptions,
-) => Promise<VideoGenerationResult>;
+) => Promise<PersistableVideoResult>;
+
+type PersistableVideoResult = Omit<VideoGenerationResult, 'url'> & {
+  /** Hosted legacy result. Optional when an adapter returns inline bytes. */
+  url?: string;
+  bytes?: Uint8Array;
+  mimeType?: string;
+};
 
 interface PersistVideoInput {
-  result: VideoGenerationResult;
+  result: PersistableVideoResult;
   stageId: string;
   signal: AbortSignal;
 }
@@ -86,7 +94,10 @@ interface PersistedVideo {
 
 type PersistGeneratedVideo = (input: PersistVideoInput) => Promise<PersistedVideo>;
 
-export interface GenerateVideoToolDeps extends Pick<CourseToolDeps, 'sessionId' | 'abortSignal'> {
+export interface GenerateVideoToolDeps extends Pick<
+  CourseToolDeps,
+  'sessionId' | 'abortSignal' | 'mediaConfig'
+> {
   getConfiguredVideoProviders?: () => Record<string, { models?: string[]; disabled?: boolean }>;
   resolveVideoProviderConfig?: (providerId: VideoProviderId) => VideoGenerationConfig;
   generateConfiguredVideo?: GenerateConfiguredVideo;
@@ -97,7 +108,17 @@ export interface GenerateVideoToolDeps extends Pick<CourseToolDeps, 'sessionId' 
 function extensionForVideoMime(mime: string): string {
   if (mime === 'video/webm') return 'webm';
   if (mime === 'video/quicktime') return 'mov';
-  return 'mp4';
+  if (mime === 'video/mp4') return 'mp4';
+  throw new Error(`Video provider returned unsupported content type: ${mime}`);
+}
+
+function normalizeVideoMime(value: string | undefined): string {
+  const mime = value?.split(';')[0]?.trim().toLowerCase() || 'video/mp4';
+  if (!mime.startsWith('video/')) {
+    throw new Error(`Video provider returned unexpected content type: ${mime}`);
+  }
+  extensionForVideoMime(mime);
+  return mime;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -157,23 +178,32 @@ export async function defaultPersistGeneratedVideo({
   signal,
 }: PersistVideoInput): Promise<PersistedVideo> {
   throwIfAborted(signal);
-  let parsed: URL;
-  try {
-    parsed = new URL(result.url);
-  } catch {
-    throw new Error('Video provider returned an invalid URL');
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error(`Video provider returned an unsupported URL protocol: ${parsed.protocol}`);
-  }
+  let bytes: Buffer;
+  let mime: string;
+  if (result.bytes) {
+    bytes = Buffer.from(result.bytes);
+    if (!bytes.length) throw new Error('Video provider returned empty video bytes');
+    if (bytes.length > MAX_GENERATED_VIDEO_BYTES) {
+      throw new Error(`Generated video exceeds the ${MAX_GENERATED_VIDEO_BYTES}-byte limit`);
+    }
+    mime = normalizeVideoMime(result.mimeType);
+  } else {
+    if (!result.url) throw new Error('Video provider returned neither URL nor video bytes');
+    let parsed: URL;
+    try {
+      parsed = new URL(result.url);
+    } catch {
+      throw new Error('Video provider returned an invalid URL');
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`Video provider returned an unsupported URL protocol: ${parsed.protocol}`);
+    }
 
-  const response = await fetchGeneratedVideo(result.url, signal);
-  if (!response.ok) throw new Error(`Generated video download failed: HTTP ${response.status}`);
-  const mime = response.headers.get('content-type')?.split(';')[0]?.trim() || 'video/mp4';
-  if (!mime.startsWith('video/')) {
-    throw new Error(`Generated video download returned unexpected content type: ${mime}`);
+    const response = await fetchGeneratedVideo(result.url, signal);
+    if (!response.ok) throw new Error(`Generated video download failed: HTTP ${response.status}`);
+    mime = normalizeVideoMime(response.headers.get('content-type') ?? undefined);
+    bytes = await readResponseBodyWithLimit(response, { maxBytes: MAX_GENERATED_VIDEO_BYTES });
   }
-  const bytes = await readResponseBodyWithLimit(response, { maxBytes: MAX_GENERATED_VIDEO_BYTES });
   const hash = createHash('sha256').update(bytes).digest('hex');
   throwIfAborted(signal);
 
@@ -215,6 +245,17 @@ function defaultResolveVideoProviderConfig(providerId: VideoProviderId): VideoGe
 
 /** Capability gate used before the tool enters a session's registered toolset. */
 export function hasConfiguredVideoGeneration(deps: Partial<GenerateVideoToolDeps> = {}): boolean {
+  if (deps.mediaConfig?.videoEnabled === false) return false;
+  const selected = deps.mediaConfig?.video;
+  if (selected) {
+    if (!selected.enabled || isServerProviderDisabled('video', selected.providerId)) return false;
+    const apiKey = resolveVideoApiKey(selected.providerId, selected.apiKey);
+    const model = resolveVideoModel(selected.providerId, selected.modelId);
+    const requiresApiKey =
+      VIDEO_PROVIDERS[selected.providerId as keyof typeof VIDEO_PROVIDERS]?.requiresApiKey ??
+      selected.requiresApiKey;
+    return (!requiresApiKey || !!apiKey) && !!model;
+  }
   const getConfigured = deps.getConfiguredVideoProviders ?? getServerVideoProviders;
   const resolveConfig = deps.resolveVideoProviderConfig ?? defaultResolveVideoProviderConfig;
   return configuredProviderIds(getConfigured()).some((providerId) => {
@@ -231,6 +272,18 @@ export function buildGenerateVideoTool(
   const resolveConfig = deps.resolveVideoProviderConfig ?? defaultResolveVideoProviderConfig;
   const callProvider = deps.generateConfiguredVideo ?? generateVideo;
   const persist = deps.persistGeneratedVideo ?? defaultPersistGeneratedVideo;
+  const resolveSnapshotConfig = (): VideoGenerationConfig | undefined => {
+    const selected = deps.mediaConfig?.video;
+    if (!selected) return undefined;
+    return {
+      providerId: selected.providerId,
+      apiKey: resolveVideoApiKey(selected.providerId, selected.apiKey),
+      baseUrl: resolveVideoBaseUrl(selected.providerId, selected.baseUrl),
+      model: resolveVideoModel(selected.providerId, selected.modelId),
+      ...(selected.protocol ? { protocol: selected.protocol } : {}),
+      requiresApiKey: selected.requiresApiKey,
+    } as VideoGenerationConfig;
+  };
 
   return {
     name: GENERATE_VIDEO_TOOL_NAME,
@@ -246,11 +299,20 @@ export function buildGenerateVideoTool(
       if (!prompt) return errorResult('Video generation failed: prompt must not be empty.');
       const stageId = params.stageId;
 
-      const configured = getConfigured();
-      const providerId = configuredProviderIds(configured).find((id) => {
-        const provider = VIDEO_PROVIDERS[id];
-        return !provider.requiresApiKey || !!resolveConfig(id).apiKey;
-      });
+      const selected = deps.mediaConfig?.video;
+      const configured = selected ? {} : getConfigured();
+      const providerId =
+        selected?.providerId ??
+        configuredProviderIds(configured).find((id) => {
+          const provider = VIDEO_PROVIDERS[id];
+          return !provider.requiresApiKey || !!resolveConfig(id).apiKey;
+        });
+      if (selected && !selected.enabled) {
+        return errorResult('Video generation is unavailable.', {
+          stageId,
+          reason: MEDIA_TOOL_ERROR_REASONS.providerDisabled,
+        });
+      }
       if (!providerId) {
         log.warn(`[${toolCallId}] Video generation unavailable: no enabled server video provider`);
         return errorResult(
@@ -276,12 +338,22 @@ export function buildGenerateVideoTool(
         });
       }
 
-      const providerConfig = resolveConfig(providerId);
+      const providerConfig = resolveSnapshotConfig() ?? resolveConfig(providerId);
+      const customProvider = String(providerId).startsWith('custom-video-');
+      const requiresApiKey =
+        VIDEO_PROVIDERS[providerId as keyof typeof VIDEO_PROVIDERS]?.requiresApiKey ??
+        providerConfig.requiresApiKey;
+      if (requiresApiKey && !providerConfig.apiKey) {
+        return errorResult(
+          'Video generation is unavailable: no API key is configured for the selected video provider.',
+          { stageId, reason: MEDIA_TOOL_ERROR_REASONS.missingApiKey },
+        );
+      }
       const model = providerConfig.model;
       // Same fail-loud discipline as generate_image: the server-side model
       // resolution is authoritative, and a provider that expects an explicit
       // model errors here instead of silently defaulting.
-      if ((VIDEO_PROVIDERS[providerId]?.models?.length ?? 0) > 0 && !model) {
+      if ((selected || (VIDEO_PROVIDERS[providerId]?.models?.length ?? 0) > 0) && !model) {
         log.warn(
           `[${toolCallId}] Video generation unavailable: no model configured for provider ${providerId}`,
         );
@@ -304,10 +376,14 @@ export function buildGenerateVideoTool(
       const ioSignal = combineSignals(callerSignal, timeoutMs);
 
       try {
-        const result = await awaitWithSignal(
-          callProvider(providerConfig, { ...normalized, signal: ioSignal }),
-          ioSignal,
-        );
+        const providerOptions = { ...normalized, signal: ioSignal };
+        const providerCall =
+          customProvider && callProvider === generateVideo
+            ? withMediaProviderFetch(providerConfig.baseUrl!, (fetcher) =>
+                callProvider({ ...providerConfig, fetcher }, providerOptions),
+              )
+            : callProvider(providerConfig, providerOptions);
+        const result = await awaitWithSignal(providerCall, ioSignal);
         throwIfAborted(ioSignal);
         const stored = await persist({
           result,

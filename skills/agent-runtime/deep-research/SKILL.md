@@ -1,7 +1,7 @@
 ---
 name: deep-research
 title: "深度调研"
-description: Courses whose content rests on current, external or real-world facts that must be verified against live sources before being taught — recent events, market or policy data, product and version specifics, scientific developments, named cases. Researches the topic first, keeps a claim-to-source ledger, and grounds the outline and every page in what was actually fetched. Use when the request depends on up-to-date or externally checkable facts; not for timeless textbook topics that stand on established knowledge alone.
+description: Ground a zhiyu course in live, verifiable sources when it depends on recent events, market or policy data, product versions, scientific developments, or named cases. Research first, keep a claim-to-source ledger, and teach only what the gathered evidence supports; skip this for stable textbook knowledge.
 ---
 
 # Deep Research course design

@@ -26,6 +26,9 @@ const elementRef: ElementRef = {
 function captureFetch(responseBody?: unknown) {
   const calls: Array<{ url: string; init: RequestInit }> = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/api/agent/media-config-snapshots') {
+      return Response.json({ ref: { id: 'media-ref', revision: 1 } });
+    }
     calls.push({ url: String(input), init: init ?? {} });
     return responseBody === undefined
       ? new Response(null, { status: 202 })
@@ -55,21 +58,29 @@ describe('postWorkbenchMessage element refs', () => {
   it('sends a body identical to the pre-refs shape when nothing is staged', async () => {
     const calls = captureFetch();
     await postWorkbenchMessage('sess-1', '第三页换个例子');
-    expect(calls[0].init.body).toBe(JSON.stringify({ text: '第三页换个例子' }));
+    expect(calls[0].init.body).toBe(
+      JSON.stringify({ text: '第三页换个例子', mediaConfigRef: { id: 'media-ref', revision: 1 } }),
+    );
   });
 
   it('keeps the materials-only body byte-identical too', async () => {
     const calls = captureFetch();
     await postWorkbenchMessage('sess-1', '读这份 PDF', [material]);
     expect(calls[0].init.body).toBe(
-      JSON.stringify({ text: '读这份 PDF', materialIds: [material.materialId] }),
+      JSON.stringify({
+        text: '读这份 PDF',
+        mediaConfigRef: { id: 'media-ref', revision: 1 },
+        materialIds: [material.materialId],
+      }),
     );
   });
 
   it('omits the field for an explicitly empty ref list', async () => {
     const calls = captureFetch();
     await postWorkbenchMessage('sess-1', 'hi', [], []);
-    expect(calls[0].init.body).toBe(JSON.stringify({ text: 'hi' }));
+    expect(calls[0].init.body).toBe(
+      JSON.stringify({ text: 'hi', mediaConfigRef: { id: 'media-ref', revision: 1 } }),
+    );
     expect(String(calls[0].init.body)).not.toContain('elementRefs');
   });
 
@@ -79,6 +90,7 @@ describe('postWorkbenchMessage element refs', () => {
     expect(calls[0].init.body).toBe(
       JSON.stringify({
         text: '把标题改短',
+        mediaConfigRef: { id: 'media-ref', revision: 1 },
         materialIds: [material.materialId],
         elementRefs: [elementRef],
       }),

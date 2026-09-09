@@ -46,7 +46,14 @@ export async function register(): Promise<void> {
       // startAgentRunner only installs a timer. Store/schema initialization is
       // retained behind the store's lazy promise and never blocks register().
       const runtime = await import('@/lib/server/agent-runtime/runner');
-      runner = runtime.startAgentRunner();
+      const mediaSnapshots = await import('@/lib/server/media-config-snapshots');
+      runner = runtime.startAgentRunner({
+        loadMediaConfigSnapshot: async (ownerId, ref) =>
+          (await mediaSnapshots.loadMediaConfigSnapshot(
+            ownerId,
+            ref,
+          )) as unknown as import('@/lib/server/agent-runtime/course-tools').AgentSessionMediaConfig,
+      });
       const extraction = await import('@/lib/server/material-extraction/runner');
       extractionRunner = extraction.startMaterialExtractionRunner();
     }

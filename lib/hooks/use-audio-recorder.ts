@@ -66,6 +66,10 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
           if (effectiveBaseUrl) {
             formData.append('baseUrl', effectiveBaseUrl);
           }
+          if (providerConfig?.protocol) formData.append('protocol', providerConfig.protocol);
+          if (typeof providerConfig?.requiresApiKey === 'boolean') {
+            formData.append('requiresApiKey', String(providerConfig.requiresApiKey));
+          }
         } else {
           formData.append('audio', audioBlob, 'recording.webm');
         }

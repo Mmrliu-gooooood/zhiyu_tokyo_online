@@ -34,6 +34,7 @@ import { CLASSROOMS_DIR } from '@/lib/server/classroom-storage';
 import type { CourseToolDeps } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { errorResult, MEDIA_TOOL_ERROR_REASONS } from './media-tool-result';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 
 const log = createLogger('AgentGenerateImage');
 
@@ -63,17 +64,27 @@ export const GenerateImageParams = Type.Object({
 type GenerateConfiguredImage = (
   config: ImageGenerationConfig,
   options: ImageGenerationOptions,
-) => Promise<ImageGenerationResult>;
+) => Promise<PersistableImageResult>;
+
+type PersistableImageResult = ImageGenerationResult & {
+  /** Inline bytes used by custom protocol adapters. */
+  bytes?: Uint8Array;
+  /** MIME supplied alongside inline bytes/base64. */
+  mimeType?: string;
+};
 
 interface PersistImageInput {
-  result: ImageGenerationResult;
+  result: PersistableImageResult;
   stageId: string;
   signal: AbortSignal;
 }
 
 type PersistGeneratedImage = (input: PersistImageInput) => Promise<string>;
 
-export interface GenerateImageToolDeps extends Pick<CourseToolDeps, 'sessionId' | 'abortSignal'> {
+export interface GenerateImageToolDeps extends Pick<
+  CourseToolDeps,
+  'sessionId' | 'abortSignal' | 'mediaConfig'
+> {
   getConfiguredProviders?: typeof getServerImageProviders;
   resolveProviderConfig?: (providerId: ImageProviderId) => ImageGenerationConfig;
   generateConfiguredImage?: GenerateConfiguredImage;
@@ -85,7 +96,17 @@ function extensionForMime(mime: string): string {
   if (mime === 'image/jpeg') return 'jpg';
   if (mime === 'image/webp') return 'webp';
   if (mime === 'image/gif') return 'gif';
-  return 'png';
+  if (mime === 'image/png') return 'png';
+  throw new Error(`Image provider returned unsupported content type: ${mime}`);
+}
+
+function normalizeImageMime(value: string | undefined): string {
+  const mime = value?.split(';')[0]?.trim().toLowerCase() || 'image/png';
+  if (!mime.startsWith('image/') || mime === 'image/svg+xml') {
+    throw new Error(`Image provider returned unsupported content type: ${mime}`);
+  }
+  extensionForMime(mime);
+  return mime;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -123,16 +144,24 @@ async function fetchGeneratedImage(url: string, signal: AbortSignal): Promise<Re
 }
 
 async function imageBytes(
-  result: ImageGenerationResult,
+  result: PersistableImageResult,
   signal: AbortSignal,
 ): Promise<{ bytes: Buffer; mime: string }> {
+  if (result.bytes) {
+    const bytes = Buffer.from(result.bytes);
+    if (!bytes.length) throw new Error('Image provider returned empty image bytes');
+    if (bytes.length > MAX_REMOTE_IMAGE_BYTES) {
+      throw new Error(`Generated image exceeds the ${MAX_REMOTE_IMAGE_BYTES}-byte limit`);
+    }
+    return { bytes, mime: normalizeImageMime(result.mimeType) };
+  }
   if (result.base64) {
     const bytes = Buffer.from(result.base64, 'base64');
     if (!bytes.length) throw new Error('Image provider returned empty base64 data');
     if (bytes.length > MAX_REMOTE_IMAGE_BYTES) {
       throw new Error(`Generated image exceeds the ${MAX_REMOTE_IMAGE_BYTES}-byte limit`);
     }
-    return { bytes, mime: 'image/png' };
+    return { bytes, mime: normalizeImageMime(result.mimeType) };
   }
   if (!result.url) throw new Error('Image provider returned neither URL nor image bytes');
 
@@ -207,6 +236,19 @@ export function buildGenerateImageTool(
   const callProvider = deps.generateConfiguredImage ?? generateImage;
   const persist = deps.persistGeneratedImage ?? defaultPersistGeneratedImage;
 
+  const resolveSnapshotConfig = (): ImageGenerationConfig | undefined => {
+    const selected = deps.mediaConfig?.image;
+    if (!selected) return undefined;
+    return {
+      providerId: selected.providerId,
+      apiKey: resolveImageApiKey(selected.providerId, selected.apiKey),
+      baseUrl: resolveImageBaseUrl(selected.providerId, selected.baseUrl),
+      model: resolveImageModel(selected.providerId, selected.modelId),
+      ...(selected.protocol ? { protocol: selected.protocol } : {}),
+      requiresApiKey: selected.requiresApiKey,
+    } as ImageGenerationConfig;
+  };
+
   return {
     name: GENERATE_IMAGE_TOOL_NAME,
     label: 'Generate image',
@@ -223,9 +265,23 @@ export function buildGenerateImageTool(
       const stageId = params.stageId;
       throwIfAborted(callerSignal);
 
-      const providers = configuredProviders();
-      const providerId = selectProvider(providers);
+      if (deps.mediaConfig?.imageEnabled === false) {
+        return errorResult('Image generation is unavailable.', {
+          stageId,
+          reason: MEDIA_TOOL_ERROR_REASONS.providerDisabled,
+        });
+      }
+
+      const selected = deps.mediaConfig?.image;
+      const providers = selected ? {} : configuredProviders();
+      const providerId = selected?.providerId ?? selectProvider(providers);
       const requestedDefault = process.env.DEFAULT_IMAGE_PROVIDER?.trim();
+      if (selected && !selected.enabled) {
+        return errorResult('Image generation is unavailable.', {
+          stageId,
+          reason: MEDIA_TOOL_ERROR_REASONS.providerDisabled,
+        });
+      }
       if (!providerId) {
         if (requestedDefault) {
           log.warn(
@@ -262,7 +318,8 @@ export function buildGenerateImageTool(
       }
 
       const provider = IMAGE_PROVIDERS[providerId];
-      if (!provider) {
+      const customProvider = String(providerId).startsWith('custom-image-');
+      if (!provider && !customProvider) {
         log.error(
           `[${toolCallId}] Image generation unavailable: unsupported provider ${providerId}`,
         );
@@ -274,8 +331,8 @@ export function buildGenerateImageTool(
           },
         );
       }
-      const providerConfig = resolveProviderConfig(providerId);
-      if (provider.requiresApiKey && !providerConfig.apiKey) {
+      const providerConfig = resolveSnapshotConfig() ?? resolveProviderConfig(providerId);
+      if ((provider?.requiresApiKey ?? providerConfig.requiresApiKey) && !providerConfig.apiKey) {
         log.warn(
           `[${toolCallId}] Image generation unavailable: no API key configured for provider ${providerId}`,
         );
@@ -291,7 +348,7 @@ export function buildGenerateImageTool(
       // fails loud here instead of silently falling back to an adapter
       // default. Model-less providers (empty catalog, e.g. workflow-driven
       // runners) resolve their own target at call time.
-      if ((provider.models?.length ?? 0) > 0 && !model) {
+      if ((selected || (provider?.models?.length ?? 0) > 0) && !model) {
         log.warn(
           `[${toolCallId}] Image generation unavailable: no model configured for provider ${providerId}`,
         );
@@ -313,11 +370,14 @@ export function buildGenerateImageTool(
       const ioSignal = combineSignals(callerSignal, deps.timeoutMs ?? GENERATE_IMAGE_TIMEOUT_MS);
 
       try {
-        const result = await callProvider(providerConfig, {
-          ...options,
-          stageId,
-          signal: ioSignal,
-        });
+        const providerOptions = { ...options, stageId, signal: ioSignal };
+        const result =
+          (customProvider || providerId === 'comfyui-image' || providerId === 'lemonade') &&
+          callProvider === generateImage
+            ? await withMediaProviderFetch(providerConfig.baseUrl!, (fetcher) =>
+                callProvider({ ...providerConfig, fetcher }, providerOptions),
+              )
+            : await callProvider(providerConfig, providerOptions);
         throwIfAborted(ioSignal);
 
         const src = await persist({ result, stageId, signal: ioSignal });

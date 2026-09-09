@@ -215,7 +215,7 @@ const TEMPORARY_VENDOR_DEBT: readonly AllowedVendorDebt[] = [
     'app/api/generate/tts/route.ts',
     'Temporary: TTS request preparation and error behavior have not moved behind adapters.',
     [
-      ['qwen', 14],
+      ['qwen', 8],
       ['voxcpm', 12],
       ['browser-native-tts', 2],
       ['browser-native', 2],

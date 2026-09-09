@@ -24,12 +24,16 @@ import { parseElementRefs, type ElementRef } from '@/lib/workbench/element-refs'
 import type { Scene, SlideContent } from '@/lib/types/stage';
 
 import { resolveAgentDriverModel } from './agent-driver-model';
+import { loadModelConnection } from './model-connections';
+import { preflightProModel } from './model-preflight';
+import { isModelConfigurationError, safeModelError } from './model-errors';
 import { buildAskUserTool } from './ask-user';
 import { agentRuntimeConfig as config } from './config';
 import { buildCreateSkillTool } from './create-skill';
 import {
   buildDslCourseToolset,
   withOwnerStageAuthorization,
+  type AgentSessionMediaConfig,
   type CourseStore,
 } from './course-tools';
 import {
@@ -90,6 +94,13 @@ import { subscribeAgentEventWakeup } from './event-notify-bus';
 import { getOwnerScopedDocumentStore } from './owner-scoped-documents';
 import { assertCurrentStageMutationActive } from './mutation-fence';
 import { inventorySlide } from './course-edit/apply';
+import { buildGenerationJobTools, GENERATION_JOB_TOOL_NAMES } from './generation-job-tools';
+import { GenerationJobRepository } from '@/lib/server/generation-jobs/repository';
+import { assertGenerationReady, getGenerationPool } from '@/lib/server/generation-jobs/runtime';
+import {
+  generationModelSnapshotContent,
+  syncGenerationModelSnapshot,
+} from '@/lib/server/generation-model-snapshots';
 import {
   buildPersonalHistoryTools,
   createPersonalHistorySource,
@@ -855,6 +866,10 @@ export interface AgentRunnerHandle {
 export interface RunContext {
   running: Map<string, { abort: AbortController }>;
   shuttingDown: boolean;
+  loadMediaConfigSnapshot?: (
+    ownerId: string,
+    ref: NonNullable<AgentSessionMeta['mediaConfigRef']>,
+  ) => Promise<AgentSessionMediaConfig>;
 }
 
 function toFollowUp(message: AgentSessionUserMessage): FollowUpMessage {
@@ -1259,7 +1274,20 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
       });
     }
 
-    const driver = await resolveAgentDriverModel();
+    const modelContext = meta.activeModelRef
+      ? await loadModelConnection(meta.ownerId, meta.activeModelRef)
+      : undefined;
+    if (meta.activeMediaConfigRef && !ctx.loadMediaConfigSnapshot) {
+      throw new Error('media configuration snapshot loader is unavailable');
+    }
+    const mediaConfig = meta.activeMediaConfigRef
+      ? await ctx.loadMediaConfigSnapshot!(meta.ownerId, meta.activeMediaConfigRef)
+      : undefined;
+    const modelReadiness = await preflightProModel(modelContext);
+    if (!modelReadiness.chatReady || !modelReadiness.generationReady) {
+      throw new Error(modelReadiness.error);
+    }
+    const driver = await resolveAgentDriverModel(modelContext);
     const streamFn = createCallLlmStreamFn({
       languageModel: driver.connection.model,
       maxOutputTokens: driver.wireMaxOutputTokens,
@@ -1267,6 +1295,9 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
       thinkingConfig: driver.connection.thinkingConfig,
       source: 'agent-runtime',
       abortSignal: abort.signal,
+      beforeCall: modelContext?.assertActive,
+      maxRetries: 0,
+      formatError: safeModelError,
     });
     let questionEmitted = false;
     const askUserTool = buildAskUserTool({
@@ -1348,6 +1379,8 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
     // sequential by the shared STAGE_WRITER_TOOL_NAMES registry
     // (course-tools.ts).
     const dslTools = buildDslCourseToolset({
+      modelContext,
+      mediaConfig,
       store: ownerScopedStore,
       stageAccess,
       onCheckpoint: (info) => emit(LIFECYCLE.checkpoint, info),
@@ -1395,6 +1428,7 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
         onCheckpoint: (info) => emit(LIFECYCLE.checkpoint, info),
         sessionId: id,
         registeredVoices: sessionRegisteredVoices,
+        providerConfigs: mediaConfig?.ttsEnabled === false ? [] : mediaConfig?.tts,
       }),
       { stageAccess },
     );
@@ -1416,6 +1450,38 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
       }),
       id,
     );
+    const generationRepository = () => new GenerationJobRepository(getGenerationPool());
+    const generationJobTools = buildGenerationJobTools({
+      ownerId: meta.ownerId,
+      sessionId: id,
+      repository: {
+        createJob: (...args) => generationRepository().createJob(...args),
+        getJob: (...args) => generationRepository().getJob(...args),
+        getJobBySession: (...args) => generationRepository().getJobBySession(...args),
+        getStageRevision: (...args) => generationRepository().getStageRevision(...args),
+        cancel: (...args) => generationRepository().cancel(...args),
+        retry: (...args) => generationRepository().retry(...args),
+      },
+      resolveModelConfigRef: modelContext
+        ? () =>
+            syncGenerationModelSnapshot(meta.ownerId, generationModelSnapshotContent(modelContext))
+        : undefined,
+      mediaConfigRef: meta.activeMediaConfigRef,
+      ensureReady: () => assertGenerationReady(true),
+      resolveSkillConstraints: async (ids) =>
+        ids.flatMap((skillId) => {
+          const skill = installedSkills.find((candidate) => candidate.id === skillId);
+          return skill?.constraints
+            ? [{ id: skill.id, constraints: skill.constraints as Record<string, unknown> }]
+            : [];
+        }),
+      onCompleted: (job) =>
+        emit(LIFECYCLE.stageLink, {
+          stageId: job.stageId,
+          title: 'Generated course',
+          url: job.courseUrl,
+        }),
+    });
     const tools = assembleRunnerTools(
       [askUserTool],
       webSearchTools,
@@ -1445,6 +1511,7 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
       rosterTools,
       voiceCloneTools,
       personalHistoryTools,
+      generationJobTools,
     );
     const askUserLatch = createAskUserTerminateLatch();
     let toolCalls = 0;
@@ -1474,6 +1541,7 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
         ...CURRICULUM_ALLOWLIST,
         ...ROSTER_TOOL_NAMES,
         ...PERSONAL_HISTORY_TOOL_NAMES,
+        ...GENERATION_JOB_TOOL_NAMES,
         // register_voice is registered only when the deployment has a voice
         // registration backend, so the allowlist follows: clip_audio is always
         // available, register_voice only with a backend.
@@ -1773,14 +1841,14 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
         markLeaseLost();
         return;
       }
-      if (!settledCancelled) {
+      if (!settledCancelled && !isModelConfigurationError(error)) {
         await requeueIfUndelivered('settle');
       }
       log.info(`session ${id} -> ${status} (attempt ${attempt}, ${toolCalls} tool calls)`);
     } catch (error) {
       queueInterruptedToolResults();
       if (isLeaseLostError(error)) markLeaseLost();
-      const message = error instanceof Error ? error.message : String(error);
+      const message = safeModelError(error);
       if (ctx.shuttingDown || leaseLost || tripwireViolated) {
         emit(LIFECYCLE.sessionInterrupted, {
           reason: tripwireViolated
@@ -1802,8 +1870,9 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
           error: message,
           expectedAttempt: attempt,
         });
-        if (settled) await requeueIfUndelivered('run failure');
-        log.error(`session ${id} failed`, error);
+        if (settled && !isModelConfigurationError(message))
+          await requeueIfUndelivered('run failure');
+        log.error(`session ${id} failed`, message);
       }
     } finally {
       abort.signal.removeEventListener('abort', abortAgent);
@@ -1812,7 +1881,7 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
     }
   } catch (error) {
     if (isLeaseLostError(error)) markLeaseLost();
-    const message = error instanceof Error ? error.message : String(error);
+    const message = safeModelError(error);
     if (ctx.shuttingDown || leaseLost || tripwireViolated) {
       if (tripwireViolated) {
         emit(LIFECYCLE.sessionInterrupted, {
@@ -1834,9 +1903,10 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
           expectedAttempt: attempt,
         })
         .catch(() => false);
-      if (settled) await requeueIfUndelivered('setup failure');
+      if (settled && !isModelConfigurationError(message))
+        await requeueIfUndelivered('setup failure');
     }
-    log.error(`session ${id} failed during setup`, error);
+    log.error(`session ${id} failed during setup`, message);
   } finally {
     clearInterval(heartbeatTimer);
     clearInterval(cancelPoll);
@@ -1848,8 +1918,10 @@ export async function runSession(ctx: RunContext, meta: ClaimedAgentSession): Pr
 }
 
 /** Start scanning. Store/schema construction remains lazy behind each scan. */
-export function startAgentRunner(): AgentRunnerHandle {
-  const ctx: RunContext = { running: new Map(), shuttingDown: false };
+export function startAgentRunner(
+  deps: Pick<RunContext, 'loadMediaConfigSnapshot'> = {},
+): AgentRunnerHandle {
+  const ctx: RunContext = { running: new Map(), shuttingDown: false, ...deps };
   let scanTimer: ReturnType<typeof setInterval> | null = null;
   let scanning = false;
 

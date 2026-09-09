@@ -1829,3 +1829,217 @@ describe('TTS provider enablement (#665)', () => {
     expect(store.getState().ttsProvidersConfig['openai-tts'].serverDisabled).toBe(false);
   });
 });
+
+describe('custom image/video provider core', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    storage.clear();
+    mockFetch.mockReset();
+  });
+
+  async function getStore() {
+    const { useSettingsStore } = await import('@/lib/store/settings');
+    await useSettingsStore.persist.rehydrate();
+    return useSettingsStore;
+  }
+
+  it('adds independent custom image and video provider instances', async () => {
+    const store = await getStore();
+
+    store
+      .getState()
+      .addCustomImageProvider(
+        'custom-image-one',
+        'Image One',
+        'https://image.example/v1',
+        'openai-images',
+        true,
+      );
+    store
+      .getState()
+      .addCustomVideoProvider(
+        'custom-video-one',
+        'Video One',
+        'http://localhost:8080/api/v1',
+        'openrouter-video',
+        false,
+      );
+
+    expect(store.getState().imageProvidersConfig['custom-image-one']).toMatchObject({
+      baseUrl: 'https://image.example/v1',
+      customName: 'Image One',
+      protocol: 'openai-images',
+      requiresApiKey: true,
+      isBuiltIn: false,
+      customModels: [],
+    });
+    expect(store.getState().videoProvidersConfig['custom-video-one']).toMatchObject({
+      baseUrl: 'http://localhost:8080/api/v1',
+      customName: 'Video One',
+      protocol: 'openrouter-video',
+      requiresApiKey: false,
+      isBuiltIn: false,
+      customModels: [],
+    });
+  });
+
+  it('removing the selected custom provider clears selection and disables generation', async () => {
+    const store = await getStore();
+    store
+      .getState()
+      .addCustomImageProvider(
+        'custom-image-current',
+        'Current Image',
+        'https://image.example/v1',
+        'siliconflow-images',
+        true,
+      );
+    store.getState().setImageProviderConfig('custom-image-current', {
+      apiKey: 'image-key',
+      customModels: [{ id: 'image-1', name: 'Image 1' }],
+    });
+    store.getState().setImageGenerationEnabled(true);
+
+    store
+      .getState()
+      .addCustomVideoProvider(
+        'custom-video-current',
+        'Current Video',
+        'https://video.example/v1',
+        'siliconflow-video',
+        true,
+      );
+    store.getState().setVideoProviderConfig('custom-video-current', {
+      apiKey: 'video-key',
+      customModels: [{ id: 'video-1', name: 'Video 1' }],
+    });
+    store.getState().setVideoGenerationEnabled(true);
+
+    store.getState().removeCustomImageProvider('custom-image-current');
+    store.getState().removeCustomVideoProvider('custom-video-current');
+
+    expect(store.getState().imageProviderId).toBe('');
+    expect(store.getState().imageModelId).toBe('');
+    expect(store.getState().imageGenerationEnabled).toBe(false);
+    expect(store.getState().videoProviderId).toBe('');
+    expect(store.getState().videoModelId).toBe('');
+    expect(store.getState().videoGenerationEnabled).toBe(false);
+  });
+
+  it('keeps a usable custom selection and its models across server sync', async () => {
+    const store = await getStore();
+    store
+      .getState()
+      .addCustomImageProvider(
+        'custom-image-sync',
+        'Sync Image',
+        'https://image.example/v1',
+        'openrouter-images',
+        true,
+      );
+    store.getState().setImageProviderConfig('custom-image-sync', {
+      apiKey: 'image-key',
+      customModels: [{ id: 'custom/image:1', name: 'Custom Image' }],
+    });
+    store.getState().setImageModelId('custom/image:1');
+
+    mockServerResponse({ image: { seedream: {} } });
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState().imageProviderId).toBe('custom-image-sync');
+    expect(store.getState().imageModelId).toBe('custom/image:1');
+    expect(store.getState().imageProvidersConfig['custom-image-sync']).toMatchObject({
+      protocol: 'openrouter-images',
+      apiKey: 'image-key',
+      customModels: [{ id: 'custom/image:1', name: 'Custom Image' }],
+    });
+  });
+
+  it('migrates v4 custom protocols idempotently and preserves built-in/custom media config', async () => {
+    storage.set(
+      SETTINGS_KV_KEY,
+      JSON.stringify({
+        version: 4,
+        state: {
+          ttsProvidersConfig: {
+            'custom-tts-old': {
+              apiKey: 'tts-key',
+              baseUrl: 'https://audio.example/v1',
+              enabled: true,
+              modelId: 'speech/model',
+              customName: 'Old TTS',
+              customVoices: [{ id: 'voice:1', name: 'Voice 1' }],
+              isBuiltIn: false,
+              requiresApiKey: true,
+            },
+          },
+          asrProvidersConfig: {
+            'custom-asr-old': {
+              apiKey: 'asr-key',
+              baseUrl: 'https://audio.example/v1',
+              enabled: true,
+              modelId: 'transcribe/model',
+              customName: 'Old ASR',
+              isBuiltIn: false,
+              requiresApiKey: true,
+            },
+          },
+          imageProviderId: 'custom-image-old',
+          imageModelId: 'image/model',
+          imageProvidersConfig: {
+            seedream: {
+              apiKey: 'built-in-key',
+              baseUrl: 'https://seedream.gateway/v1',
+              enabled: true,
+              customModels: [{ id: 'seedream-custom', name: 'Seedream Custom' }],
+            },
+            'custom-image-old': {
+              apiKey: 'custom-key',
+              baseUrl: 'https://image.example/v1',
+              enabled: true,
+              customName: 'Old Image',
+              protocol: 'openai-images',
+              requiresApiKey: true,
+              isBuiltIn: false,
+              customModels: [{ id: 'image/model', name: 'Image Model' }],
+            },
+          },
+          videoProviderId: 'custom-video-old',
+          videoModelId: 'video/model',
+          videoProvidersConfig: {
+            'custom-video-old': {
+              apiKey: '',
+              baseUrl: 'http://localhost:8080/v1',
+              enabled: true,
+              customName: 'Old Video',
+              protocol: 'openrouter-video',
+              requiresApiKey: false,
+              isBuiltIn: false,
+              customModels: [{ id: 'video/model', name: 'Video Model' }],
+            },
+          },
+        },
+      }),
+    );
+
+    const store = await getStore();
+    expect(store.getState().ttsProvidersConfig['custom-tts-old']).toMatchObject({
+      protocol: 'openai-speech',
+      apiKey: 'tts-key',
+      customVoices: [{ id: 'voice:1', name: 'Voice 1' }],
+    });
+    expect(store.getState().asrProvidersConfig['custom-asr-old']).toMatchObject({
+      protocol: 'openai-transcription',
+      apiKey: 'asr-key',
+      modelId: 'transcribe/model',
+    });
+    expect(store.getState().imageProviderId).toBe('custom-image-old');
+    expect(store.getState().videoProviderId).toBe('custom-video-old');
+    expect(store.getState().imageProvidersConfig.seedream).toMatchObject({
+      apiKey: 'built-in-key',
+      baseUrl: 'https://seedream.gateway/v1',
+      isBuiltIn: true,
+      customModels: [{ id: 'seedream-custom', name: 'Seedream Custom' }],
+    });
+  });
+});

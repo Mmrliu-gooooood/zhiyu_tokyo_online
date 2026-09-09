@@ -2028,6 +2028,11 @@ export function isProviderKeyRequired(providerId: string): boolean {
  * Get a configured language model instance with its info
  * Accepts individual parameters for flexibility and security
  */
+/** Narrow an optional route wire dialect at the provider adapter boundary. */
+export function normalizeModelApi(api?: string): ModelConfig['api'] {
+  return api === 'openai-completions' || api === 'openai-responses' ? api : undefined;
+}
+
 export function getModel(config: ModelConfig): ModelWithInfo {
   // providerType can come from client for custom providers; fall back to registry.
   let providerType = config.providerType;
@@ -2075,10 +2080,9 @@ export function getModel(config: ModelConfig): ModelWithInfo {
     }
 
     case 'openai': {
-      const useStreamingChatCompat = shouldUseOpenAIStreamingChatCompat(
-        config.providerId,
-        effectiveBaseUrl,
-      );
+      const useStreamingChatCompat =
+        config.api !== 'openai-responses' &&
+        shouldUseOpenAIStreamingChatCompat(config.providerId, effectiveBaseUrl);
       const openaiOptions: Parameters<typeof createOpenAI>[0] = {
         apiKey: effectiveApiKey,
         baseURL: effectiveBaseUrl,
@@ -2090,7 +2094,10 @@ export function getModel(config: ModelConfig): ModelWithInfo {
       // as named compatible providers: inject the gateway's thinking control
       // and recover reasoning_content before the SDK schema can discard it.
       const usesOpenAIResponses =
-        !useStreamingChatCompat && shouldUseOpenAIResponsesApi(config.providerId, config.modelId);
+        config.api === 'openai-responses' ||
+        (config.api !== 'openai-completions' &&
+          !useStreamingChatCompat &&
+          shouldUseOpenAIResponsesApi(config.providerId, config.modelId));
       const usesCompatTransport =
         config.providerId !== 'openai' ||
         (usesCustomOpenAIBaseUrl(config.baseUrl) && !usesOpenAIResponses);
@@ -2184,14 +2191,13 @@ export function getModel(config: ModelConfig): ModelWithInfo {
 
             try {
               JSON.parse(text);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
+            } catch {
               log.warn(
-                `[Lemonade] Invalid JSON response from OpenAI-compatible path: status=${response.status}, contentType=${contentType || 'n/a'}, bodyLen=${text.length}, first=${JSON.stringify(text.slice(0, 500))}, last=${JSON.stringify(text.slice(Math.max(0, text.length - 500)))}, parseError=${message}`,
+                `[Lemonade] Invalid JSON response from OpenAI-compatible path: status=${response.status}, contentType=${contentType || 'n/a'}, bodyLen=${text.length}`,
               );
             }
-          } catch (error) {
-            log.warn('[Lemonade] Failed to inspect JSON response body:', error);
+          } catch {
+            log.warn('[Lemonade] Failed to inspect JSON response body');
           }
 
           return response;
@@ -2199,6 +2205,15 @@ export function getModel(config: ModelConfig): ModelWithInfo {
         openaiOptions.fetch = compatFetch as typeof globalThis.fetch;
       }
 
+      if (config.validateRequestUrl) {
+        const validate = config.validateRequestUrl;
+        const transport = openaiOptions.fetch ?? globalThis.fetch;
+        openaiOptions.fetch = async (input, init) => {
+          await validate(requestUrlString(input));
+          // Keep the per-provider adapter, but never follow an untrusted redirect.
+          return transport(input, { ...init, redirect: 'error' });
+        };
+      }
       const openai = createOpenAI(openaiOptions);
       model = usesOpenAIResponses ? openai.responses(config.modelId) : openai.chat(config.modelId);
       // OpenAI-compatible providers (e.g. DeepSeek, Qwen), including a custom

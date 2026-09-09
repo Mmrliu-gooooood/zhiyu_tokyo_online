@@ -35,6 +35,11 @@ import type { ImageProviderId, ImageGenerationOptions } from '@/lib/media/types'
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import {
+  MediaProviderConfigError,
+  parseCustomImageProviderConfig,
+} from '@/lib/server/media-provider-config';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 
 const log = createLogger('ImageGeneration API');
 
@@ -49,7 +54,10 @@ export async function POST(request: NextRequest) {
   const generationGuard = await guardClientGeneration(request);
   if (generationGuard) return generationGuard;
   try {
-    const body = (await request.json()) as ImageGenerationOptions;
+    const requestBody = (await request.json()) as ImageGenerationOptions & {
+      providerConfig?: unknown;
+    };
+    const { providerConfig, ...body } = requestBody;
 
     if (!body.prompt) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing prompt');
@@ -66,6 +74,36 @@ export async function POST(request: NextRequest) {
     // regardless of any client key/selection — mirror the TTS contract (#665).
     if (isServerProviderDisabled('image', providerId)) {
       return apiError('PROVIDER_DISABLED', 403, 'This image provider is disabled by the server');
+    }
+    if (String(providerId).startsWith('custom-image-')) {
+      const runtimeConfig = parseCustomImageProviderConfig(
+        providerId,
+        providerConfig,
+        request.headers.get('x-image-model')?.trim() || undefined,
+      );
+      if (process.env.NODE_ENV === 'production') {
+        const ssrfError = await validateUrlForSSRF(runtimeConfig.baseUrl || '');
+        if (ssrfError) return apiError('INVALID_URL', 403, ssrfError);
+      }
+      if (!body.width && !body.height && body.aspectRatio) {
+        const dims = aspectRatioToDimensions(body.aspectRatio);
+        body.width = dims.width;
+        body.height = dims.height;
+      }
+      const generated = await withMediaProviderFetch(runtimeConfig.baseUrl!, (fetcher) =>
+        generateImage({ ...runtimeConfig, fetcher }, body),
+      );
+      const { bytes: _bytes, ...result } = generated as typeof generated & {
+        bytes?: Uint8Array;
+      };
+      void recordGenerationUsage({
+        kind: 'image',
+        unit: 'image',
+        providerId,
+        modelId: runtimeConfig.model,
+        quantity: 1,
+      });
+      return apiSuccess({ result });
     }
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
     const managed = isServerConfiguredProvider('image', providerId);
@@ -131,6 +169,9 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ result });
   } catch (error) {
+    if (error instanceof MediaProviderConfigError) {
+      return apiError(error.code, error.status, error.message);
+    }
     const message = error instanceof Error ? error.message : String(error);
     // Detect content safety filter rejections (e.g. Seedream OutputImageSensitiveContentDetected)
     if (message.includes('SensitiveContent') || message.includes('sensitive information')) {

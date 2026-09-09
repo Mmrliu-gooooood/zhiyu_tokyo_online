@@ -53,6 +53,8 @@ COPY --from=deps /app/packages ./packages
 RUN node scripts/build-generation-worker.mjs
 
 FROM base AS generation-worker
+ARG OPENMAIC_SOURCE_REVISION="unknown"
+LABEL org.opencontainers.image.revision=$OPENMAIC_SOURCE_REVISION
 ENV NODE_ENV=production
 RUN apk add --no-cache cairo pango jpeg giflib librsvg
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 worker
@@ -107,6 +109,8 @@ RUN pnpm build
 FROM node:22-alpine AS runner
 
 ARG ALPINE_MIRROR=""
+ARG OPENMAIC_SOURCE_REVISION="unknown"
+LABEL org.opencontainers.image.revision=$OPENMAIC_SOURCE_REVISION
 
 WORKDIR /app
 

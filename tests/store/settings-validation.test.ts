@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isProviderUsable,
+  isMediaProviderUsable,
   validateProvider,
   validateModel,
   resolveSelectedModel,
@@ -63,6 +64,30 @@ describe('isProviderUsable', () => {
   it('returns false for a server-disabled provider even with a client API key (#665)', () => {
     expect(isProviderUsable({ apiKey: 'sk-xxx', serverDisabled: true })).toBe(false);
     expect(isProviderUsable({ isServerConfigured: true, serverDisabled: true })).toBe(false);
+  });
+
+  it('returns false for an explicitly disabled media provider regardless of credentials', () => {
+    expect(isMediaProviderUsable({ apiKey: 'sk-xxx', enabled: false })).toBe(false);
+    expect(isMediaProviderUsable({ isServerConfigured: true, enabled: false })).toBe(false);
+  });
+
+  it('honors explicit custom-provider authentication semantics', () => {
+    expect(
+      isMediaProviderUsable({
+        apiKey: '',
+        baseUrl: 'http://localhost:8080/v1',
+        requiresApiKey: false,
+        enabled: true,
+      }),
+    ).toBe(true);
+    expect(
+      isMediaProviderUsable({
+        apiKey: '',
+        baseUrl: 'https://images.example/v1',
+        requiresApiKey: true,
+        enabled: true,
+      }),
+    ).toBe(false);
   });
 });
 

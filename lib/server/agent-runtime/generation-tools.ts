@@ -28,6 +28,7 @@ import { synthesizeSceneNarration } from './scene-tts';
 import { toGenerationContent } from './generation-content';
 import { checkScenesAgainstSkill } from './skills';
 import { isMediaPlaceholder } from '@/lib/store/media-generation';
+import { generationInputHash } from './generation-checkpoint';
 
 const MAX_GENERATE_SCENE_MEDIA = 8;
 const SUPPORTED_SCENE_TYPES = new Set(['slide', 'quiz', 'interactive', 'pbl']);
@@ -198,7 +199,10 @@ export function filterKnownActions(actions: readonly Action[]): Action[] {
 }
 
 export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never, never>[] {
-  const routed = createGenerationAiCallFactory({ abortSignal: deps.abortSignal });
+  const routed = createGenerationAiCallFactory({
+    abortSignal: deps.abortSignal,
+    modelContext: deps.modelContext,
+  });
   const aiCallFor = (stage: Parameters<typeof routed>[0]) => deps.aiCall ?? routed(stage);
   const actionGenerator = deps.generateActions ?? generateSceneActions;
 
@@ -209,6 +213,7 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
       'Generate and durably persist one page from an explicit title, type, and brief. Reusing an order replaces that page.',
     parameters: SceneParams,
     async execute(_callId, params, signal) {
+      const startedAt = Date.now();
       if (!Number.isInteger(params.order) || params.order < 1) {
         return result(
           'generate_scene needs a 1-based integer page order.',
@@ -285,6 +290,33 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
               background: existing.content.canvas.background,
             }
           : undefined;
+      const skill = deps.getActiveSkill?.() ?? null;
+      const modelContext = deps.modelContext as
+        | { modelString?: string; baseUrl?: string; providerType?: string; api?: string; thinkingConfig?: unknown }
+        | undefined;
+      const inputHash = generationInputHash({
+        stageId: params.stageId,
+        order: params.order,
+        title,
+        type: params.type,
+        brief,
+        ...(params.instruction ? { instruction: params.instruction } : {}),
+        ...(params.materialFacts ? { materialFacts: params.materialFacts } : {}),
+        ...(params.media ? { media: params.media } : {}),
+        agents: doc.stage.generatedAgentConfigs,
+        languageDirective: doc.stage.languageDirective ?? '',
+        model: modelContext
+          ? {
+              modelString: modelContext.modelString,
+              baseUrl: modelContext.baseUrl,
+              providerType: modelContext.providerType,
+              api: modelContext.api,
+              thinkingConfig: modelContext.thinkingConfig,
+            }
+          : undefined,
+        skill: skill ? { id: skill.id, constraints: skill.constraints } : undefined,
+        baseline,
+      });
       const assignedImages: PdfImage[] = [];
       const imageMapping: ImageMapping = {};
       for (const [index, media] of (params.media ?? []).entries()) {
@@ -324,34 +356,75 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
       }
       const agents = doc.stage.generatedAgentConfigs;
       let content: Awaited<ReturnType<typeof generateSceneContent>>;
-      try {
-        content = await generateSceneContent(outline, aiCallFor(sceneContentStage(params.type)), {
-          agents,
-          languageDirective: doc.stage.languageDirective ?? '',
-          allowProceduralSkill: true,
-          ...(assignedImages.length ? { assignedImages, imageMapping } : {}),
-          ...(params.instruction ? { editDirective: params.instruction } : {}),
-          ...(baseline ? { baselineContent: baseline } : {}),
-        });
-      } catch (error) {
-        if (error instanceof PBLGenerationError) {
-          return result(
-            `PBL generation failed and nothing was written. ${error.message}`,
-            {
-              error: 'pbl-planner-failed',
-              order: params.order,
-              title,
-              sceneId: existing?.id,
-              ...(error.statusCode !== undefined ? { statusCode: error.statusCode } : {}),
-              cause: error.message,
-            },
-            true,
-          );
+      const canReuseContent =
+        existing?.generationCheckpoint?.phase === 'content_completed' &&
+        existing.generationCheckpoint.inputHash === inputHash;
+      if (canReuseContent) {
+        // This content was written by the same generator immediately before
+        // the checkpoint marker; the hash gate prevents reuse for a changed
+        // request while the persisted Scene type remains deliberately wider.
+        content = existing.content as Awaited<ReturnType<typeof generateSceneContent>>;
+      } else {
+        try {
+          content = await generateSceneContent(outline, aiCallFor(sceneContentStage(params.type)), {
+            agents,
+            languageDirective: doc.stage.languageDirective ?? '',
+            allowProceduralSkill: true,
+            ...(assignedImages.length ? { assignedImages, imageMapping } : {}),
+            ...(params.instruction ? { editDirective: params.instruction } : {}),
+            ...(baseline ? { baselineContent: baseline } : {}),
+          });
+        } catch (error) {
+          if (error instanceof PBLGenerationError) {
+            return result(
+              `PBL generation failed and nothing was written. ${error.message}`,
+              {
+                error: 'pbl-planner-failed',
+                order: params.order,
+                title,
+                sceneId: existing?.id,
+                ...(error.statusCode !== undefined ? { statusCode: error.statusCode } : {}),
+                cause: error.message,
+              },
+              true,
+            );
+          }
+          throw error;
         }
-        throw error;
       }
       if (signal?.aborted) throw new Error('aborted');
       if (!content) return result('Page content generation failed; nothing was written.', {}, true);
+      const sceneId = existing?.id ?? sceneIdFor(doc.scenes, params.order);
+      if (!canReuseContent) {
+        const checkpointScene = buildCompleteScene(outline, content, [], params.stageId, {
+          sceneId,
+        });
+        if (!checkpointScene) {
+          return result('Page assembly failed; nothing was written.', {}, true);
+        }
+        const elapsedMs = Date.now() - startedAt;
+        const durableCheckpoint = checkpointScene as Scene;
+        durableCheckpoint.generationCheckpoint = {
+          phase: 'content_completed',
+          inputHash,
+          elapsedMs,
+          updatedAt: Date.now(),
+        };
+        await runStageMutation(signal, () =>
+          putSceneBringingCurrent(deps.store, params.stageId, durableCheckpoint),
+        );
+        deps.onCheckpoint({
+          tool: 'generate_scene',
+          stageId: params.stageId,
+          sceneId,
+          order: params.order,
+          title,
+          sceneType: params.type,
+          phase: 'content_completed',
+          elapsedMs,
+          detail: `page ${params.order} content persisted`,
+        });
+      }
       const actions = filterKnownActions(
         await actionGenerator(outline, content, aiCallFor('scene-actions'), {
           agents,
@@ -359,14 +432,13 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
         }),
       );
       const built = buildCompleteScene(outline, content, actions, params.stageId, {
-        sceneId: existing?.id ?? sceneIdFor(doc.scenes, params.order),
+        sceneId,
       });
       if (!built) return result('Page assembly failed; nothing was written.', {}, true);
       const scene = built as Scene;
       await runStageMutation(signal, () =>
         putSceneBringingCurrent(deps.store, params.stageId, scene),
       );
-      const skill = deps.getActiveSkill?.() ?? null;
       const afterWrite = await deps.store.loadDocument(params.stageId);
       const skillViolations =
         skill && afterWrite ? checkScenesAgainstSkill(afterWrite.scenes, skill.constraints) : [];
@@ -379,6 +451,8 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
         order: scene.order,
         title: scene.title,
         sceneType: scene.type,
+        phase: 'persisted',
+        elapsedMs: Date.now() - startedAt,
         skill: skill?.id,
         ...(skillViolations.length ? { skillViolations } : {}),
         detail: `page ${scene.order} persisted`,
@@ -480,11 +554,18 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
           });
         }
       }
-      return result(`Persisted ${actions.length} known actions for "${scene.title}".`, {
-        sceneId: scene.id,
-        actions,
-        ...(audio ? { audio } : {}),
-      });
+      const narrationIncomplete = !!audio && (!audio.available || audio.failed.length > 0);
+      return result(
+        narrationIncomplete
+          ? `Persisted ${actions.length} known actions for "${scene.title}", but narration is incomplete; the speech text was preserved for retry.`
+          : `Persisted ${actions.length} known actions for "${scene.title}".`,
+        {
+          sceneId: scene.id,
+          actions,
+          ...(audio ? { audio } : {}),
+        },
+        narrationIncomplete,
+      );
     },
   };
 

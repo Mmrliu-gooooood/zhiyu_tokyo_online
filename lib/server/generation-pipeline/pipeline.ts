@@ -8,6 +8,7 @@ import { AGENT_COLOR_PALETTE, AGENT_DEFAULT_AVATARS } from '@/lib/constants/agen
 import { buildVideoManifestFromOutlines } from '@/lib/media/video-manifest';
 import { PipelineExecution, type CheckpointRepository } from './execution';
 import type { ContentCheckpoint, GenerationPlan } from './services';
+import { checkOutlineAgainstSkill, type OutlineConstraints } from '@/lib/server/agent-runtime/skills';
 
 export interface PipelineRepository extends CheckpointRepository {
   getSnapshot(lease: GenerationLease): Promise<{
@@ -52,9 +53,18 @@ export async function runGenerationPipeline(
 ): Promise<'awaiting_confirmation' | 'succeeded'> {
   const { lease, signal } = execution;
   const snapshot = await repository.getSnapshot(lease);
-  const research = await execution.checkpoint('research', lease.input, () => services.research());
+  const suppliedPlan = lease.input.planning;
+  const research = await execution.checkpoint('research', lease.input, () =>
+    suppliedPlan ? Promise.resolve(suppliedPlan.researchContext ?? '') : services.research(),
+  );
   const originalPlan = await execution.checkpoint('plan', { input: lease.input, research }, () =>
-    services.plan(research),
+    suppliedPlan
+      ? Promise.resolve({
+          outlines: suppliedPlan.outlines as SceneOutline[],
+          courseTitle: suppliedPlan.courseTitle,
+          languageDirective: suppliedPlan.languageDirective ?? lease.input.languageDirective ?? '',
+        })
+      : services.plan(research),
   );
   if (!snapshot.outlines.length) {
     await repository.savePlan(lease, originalPlan.outlines, {
@@ -71,6 +81,14 @@ export async function runGenerationPipeline(
     ...originalPlan,
     outlines: [...snapshot.outlines].sort((a, b) => a.order - b.order),
   };
+  for (const skill of suppliedPlan?.skillConstraints ?? []) {
+    const violations = checkOutlineAgainstSkill(
+      plan.outlines,
+      skill.constraints as OutlineConstraints,
+    );
+    if (violations.length)
+      throw new Error(`SKILL_CONSTRAINT_VIOLATION:${skill.id}:${violations.join('; ')}`);
+  }
   const agents = await execution.checkpoint(
     'agents',
     {

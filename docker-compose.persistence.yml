@@ -2,6 +2,10 @@
 # Use scripts/generation-compose.ps1 for one consistent project/env/override entry.
 x-generation-environment: &generation-environment
   DATABASE_URL: ${DATABASE_URL:?Persist the verified existing database URL in .env.local}
+  # Web and worker decrypt owner-scoped media and generation-model snapshots with
+  # dedicated keys. The worker must not receive the unrelated PRO model key.
+  MEDIA_CONFIG_ENCRYPTION_KEY: ${MEDIA_CONFIG_ENCRYPTION_KEY:?Persistent 32-byte hex media snapshot key required}
+  GENERATION_MODEL_ENCRYPTION_KEY: ${GENERATION_MODEL_ENCRYPTION_KEY:?Persistent 32-byte hex generation model snapshot key required}
   DEFAULT_MODEL: ${DEFAULT_MODEL:-}
   MODEL_ROUTES: ${MODEL_ROUTES:-}
   GENERATION_BACKGROUND_ENABLED: ${GENERATION_BACKGROUND_ENABLED:-0}
@@ -181,6 +185,7 @@ services:
     env_file: !reset []
     environment:
       <<: *generation-environment
+      PRO_MODEL_ENCRYPTION_KEY: ${PRO_MODEL_ENCRYPTION_KEY:?Persistent 32-byte hex encryption key required}
       PERSISTENCE_DEV_TOKEN: ${PERSISTENCE_DEV_TOKEN:?Persistence token required}
       GENERATION_SESSION_SECRET: ${GENERATION_SESSION_SECRET:?Stable signing secret required}
       GENERATION_ALLOWED_ORIGINS: ${GENERATION_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}

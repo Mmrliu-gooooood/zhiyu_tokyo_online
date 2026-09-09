@@ -56,7 +56,23 @@ export function assertGenerationConfigSnapshot(input: GenerationInput): void {
   if (version && version !== generationProviderConfigVersion())
     throw new GenerationJobError('GENERATION_CONFIG_CHANGED', 409);
 }
-/** Server-derived configuration version is not part of a user's idempotency intent. */
+/**
+ * Server configuration and an owner-scoped media snapshot are separate version domains.
+ * The media value hashes only the opaque reference; plaintext configuration is never read here.
+ */
+export function generationConfigVersions(input: GenerationInput): {
+  server: string;
+  media?: string;
+} {
+  return {
+    server: generationProviderConfigVersion(),
+    media: input.mediaConfigRef
+      ? canonicalHash({ namespace: 'media-config-ref:v1', ref: input.mediaConfigRef })
+      : undefined,
+  };
+}
+
+/** Server-derived configuration is omitted; an opaque media ref remains user intent. */
 export function generationRequestHash(input: GenerationInput): string {
   const model = input.model ? { ...input.model, configVersion: undefined } : undefined;
   return canonicalHash({

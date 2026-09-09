@@ -452,9 +452,10 @@ async function queuePrompt(
   baseUrl: string,
   workflow: Record<string, unknown>,
   clientId: string,
+  fetcher: typeof fetch,
 ): Promise<string> {
   log.info(`Submitting workflow to queue [client_id: ${clientId}]`);
-  const response = await fetch(`${baseUrl}/prompt`, {
+  const response = await fetcher(`${baseUrl}/prompt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: workflow, client_id: clientId }),
@@ -478,11 +479,15 @@ async function queuePrompt(
   return data.prompt_id;
 }
 
-async function pollHistory(baseUrl: string, promptId: string): Promise<HistoryEntry | null> {
+async function pollHistory(
+  baseUrl: string,
+  promptId: string,
+  fetcher: typeof fetch,
+): Promise<HistoryEntry | null> {
   // A single poll timing out or blipping must not abort the whole generation —
   // return null so the caller's loop simply tries again on the next interval.
   try {
-    const response = await fetch(`${baseUrl}/history/${promptId}`, {
+    const response = await fetcher(`${baseUrl}/history/${promptId}`, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) return null;
@@ -499,9 +504,10 @@ async function fetchImageAsBase64(
   filename: string,
   subfolder: string,
   type: string,
+  fetcher: typeof fetch,
 ): Promise<string> {
   const params = new URLSearchParams({ filename, subfolder, type });
-  const response = await fetch(`${baseUrl}/view?${params.toString()}`, {
+  const response = await fetcher(`${baseUrl}/view?${params.toString()}`, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
@@ -538,7 +544,7 @@ export async function testComfyuiImageConnectivity(
   const baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/$/, '');
   log.info(`Testing connectivity to ${baseUrl}`);
   try {
-    const response = await fetch(`${baseUrl}/system_stats`, {
+    const response = await (config.fetcher ?? fetch)(`${baseUrl}/system_stats`, {
       redirect: 'manual',
       signal: AbortSignal.timeout(CONNECTIVITY_TIMEOUT_MS),
     });
@@ -566,6 +572,7 @@ export async function generateWithComfyuiImage(
 ): Promise<ImageGenerationResult> {
   const baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/$/, '');
   const comfyConfig = config as ComfyUIImageGenerationConfig;
+  const fetcher = config.fetcher ?? fetch;
 
   log.info(`Starting image generation [baseUrl: ${baseUrl}] [model: ${config.model ?? 'default'}]`);
   log.info(`Prompt: "${options.prompt.slice(0, 120)}${options.prompt.length > 120 ? '…' : ''}"`);
@@ -589,7 +596,7 @@ export async function generateWithComfyuiImage(
   const clientId = `openmaic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   // 3. Submit to the queue ---------------------------------------------------
-  const promptId = await queuePrompt(baseUrl, workflow, clientId);
+  const promptId = await queuePrompt(baseUrl, workflow, clientId, fetcher);
 
   // 4. Poll history until complete -------------------------------------------
   const deadline = Date.now() + GENERATION_TIMEOUT_MS;
@@ -600,7 +607,7 @@ export async function generateWithComfyuiImage(
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     pollCount++;
-    entry = await pollHistory(baseUrl, promptId);
+    entry = await pollHistory(baseUrl, promptId, fetcher);
 
     // Fail fast on a runtime execution error. A workflow that errors mid-run
     // records completed:false with status_str:"error", so without this check
@@ -666,6 +673,7 @@ export async function generateWithComfyuiImage(
     imageInfo.filename,
     imageInfo.subfolder,
     imageInfo.type,
+    fetcher,
   );
 
   const totalMs = Date.now() - startTime;

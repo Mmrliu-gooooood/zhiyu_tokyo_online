@@ -1,7 +1,7 @@
 ---
 name: teacher-style-clone
 title: "名师风格"
-description: 工作台会话挂载了教师课堂录像/讲义材料时使用。
+description: zhiyu 工作台会话中挂载了教师课堂录像或讲义，且需要提炼并迁移教师的表达方式、教学节奏与讲解习惯时使用。
 ---
 
 # Teacher style extraction and transfer

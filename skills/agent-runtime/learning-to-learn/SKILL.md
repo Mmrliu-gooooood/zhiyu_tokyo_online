@@ -1,7 +1,7 @@
 ---
 name: learning-to-learn
 title: "学会学习（Learning to Learn）"
-description: "Infuse learning strategies and metacognition into a concept-centered OpenMAIC classroom as a parallel goal. Use when the user wants students to learn how to learn while studying a subject: retrieval practice, self-explanation, prediction before feedback, monitoring understanding, deliberate review, or productive failure. Do not use when learning science or study skills should be the standalone subject of the lesson."
+description: "Add metacognition to a concept-centered zhiyu classroom as a parallel goal through retrieval practice, self-explanation, prediction before feedback, understanding checks, deliberate review, or productive failure. Use when students should learn how to learn alongside a subject, not when study skills are the standalone lesson."
 ---
 
 # 学会学习（Learning to Learn）

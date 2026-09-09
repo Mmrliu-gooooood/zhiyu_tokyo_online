@@ -33,6 +33,15 @@ export function isProviderUsable(cfg: ProviderCfgLike | undefined): boolean {
   return !!cfg.apiKey;
 }
 
+export type MediaProviderCfgLike = ProviderCfgLike & { enabled?: boolean };
+
+/** Media providers have an explicit user enablement switch in addition to the
+ * shared credential-path rules used by selection reconciliation. */
+export function isMediaProviderUsable(cfg: MediaProviderCfgLike | undefined): boolean {
+  if (!cfg || cfg.enabled === false) return false;
+  return isProviderUsable(cfg);
+}
+
 /**
  * Validate current provider selection against updated config.
  * Returns the current ID if still usable, otherwise the first usable

@@ -1,7 +1,7 @@
 ---
 name: stage-design
 title: "课堂设计"
-description: The baseline method for building ONE stage — a single classroom — with this runtime. Covers how the plan is settled in conversation, the order the generation tools are called in, how the classroom roster is written, when narration has to be re-synthesized, and what must be true before a stage is called done. Load this before generating or rebuilding any stage from scratch, whatever its subject; it is the floor the topic skills build on, not an alternative to them.
+description: The baseline zhiyu method for building one classroom stage from scratch. It covers agreeing on the plan, sequencing generation tools, writing the roster, resynthesizing narration when needed, and verifying completion. Load it beneath any topic-specific skill whenever a stage is created or rebuilt.
 ---
 
 # Building one stage

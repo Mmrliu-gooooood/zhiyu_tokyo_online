@@ -1,7 +1,7 @@
 ---
 name: vocational
 title: "职业实训"
-description: Vocational / technical training courses. Plans the course as a hands-on work task with an operation flow, tool and equipment state, safety boundaries and GO/STOP judgements, instead of a concept lecture. Use when the requirement names a real occupational task, a piece of equipment, a clinical or industrial procedure, or a certification skill.
+description: Turn a real occupational task into a zhiyu hands-on training flow with operation steps, tool and equipment state, safety boundaries, and GO/STOP decisions. Use for equipment work, clinical or industrial procedures, technical practice, and certification skills rather than concept-first lectures.
 ---
 
 # Vocational task-engine course design

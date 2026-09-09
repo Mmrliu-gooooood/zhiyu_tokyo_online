@@ -74,7 +74,28 @@ export interface AgentSessionLease {
   heartbeatAt: number;
 }
 
+export interface AgentModelRef {
+  id: string;
+  revision: number;
+}
+
+/** Immutable encrypted media-configuration snapshot reference. */
+export interface AgentMediaConfigRef {
+  /** Snapshot UUID. Credentials and provider configuration never live here. */
+  id: string;
+  /** Positive immutable snapshot revision. */
+  revision: number;
+}
+
 export interface AgentSessionMeta {
+  /** Next user-initiated run connection. Never contains credentials. */
+  modelRef?: AgentModelRef;
+  /** Fixed at claim, preserved across crash/retry recovery. */
+  activeModelRef?: AgentModelRef;
+  /** Next user-initiated run media snapshot. Never contains credentials. */
+  mediaConfigRef?: AgentMediaConfigRef;
+  /** Fixed at claim, preserved across crash/retry recovery. */
+  activeMediaConfigRef?: AgentMediaConfigRef;
   id: string;
   ownerId: string;
   prompt: string;
@@ -96,6 +117,8 @@ export interface AgentSessionMeta {
 }
 
 export interface CreateAgentSessionInput {
+  modelRef?: AgentModelRef;
+  mediaConfigRef?: AgentMediaConfigRef;
   /** An optional caller-minted stable id. */
   id?: string;
   ownerId: string;
@@ -144,6 +167,8 @@ export interface PostAgentUserMessageResult {
 }
 
 export interface PostAgentUserMessageOptions {
+  modelRef?: AgentModelRef;
+  mediaConfigRef?: AgentMediaConfigRef;
   /** Revalidates an owner snapshot after the transaction has acquired its locks. */
   expectedOwnerId?: string;
 }

@@ -159,3 +159,45 @@ A server-encrypted model connection isolated to its current owner, removable fro
 _Avoid_: plaintext session credentials, shared administrator key
 
 The Learning and assessment terminology above records the wider project direction. New diagnostics, Lesson plans, checkpoints, dynamic question sets, assessment attempts, reports, and advice loops are deferred and are not requirements or evidence of implementation for this Pro bugfix.
+
+## Deployment planning (2026-09-07)
+
+**Full-function first deployment**:
+The first hosted release retains current application capabilities including the Pro workbench, except server-rendered MP4 export, which the user explicitly deferred. Formal accounts and cross-device synchronization are required; Vercel and real payments are deferred. The latest 2026-09-08 deployment revision starts with about five classmates on Rainyun Tokyo, managed Supabase Free for PostgreSQL/Auth, and private persistent files on the application host. Text/images and speech are primary, with occasional video; heavy tasks start at one globally and may increase after measurement. The infrastructure budget targets CNY 350/month with a CNY 500 ceiling when needed, excluding model APIs; low starting cost is preferred. Daily off-host backups and one-day recovery objectives require restore evidence. Pro subscription and cloud file storage from ADR-0015 are superseded by ADR-0016; no local PostgreSQL or full self-hosted Supabase is planned. Domain/HTTPS and real-environment checks remain required. See ADR-0016 and optimization_docs/zhiyu-deployment-execution-plan-2026-09-07.md for implementation tasks, Free limits, file mounts and upgrade triggers; these are plans, not completed deployment evidence.
+_Avoid_: reduced classic-only launch, mandatory first-release MP4 rendering
+
+**Generation Worker**:
+The independent process entered through `workers/generation/main.ts` that claims durable course-generation jobs from PostgreSQL and executes the generation pipeline. It is separate from the Pro Agent Runner.
+_Avoid_: Pro Agent Runner, web request handler
+
+**Pro Agent Runner**:
+The durable conversation executor currently started by the Next.js Node process through `instrumentation.ts`; it uses PostgreSQL leases, stored session events, and notification wakeups. Moving it to a separate host requires an explicit process-entry and lifecycle design.
+_Avoid_: Generation Worker, browser chat state
+
+**MP4 Render Service**:
+The isolated service in `render-service/` that accepts a browser-produced classroom ZIP and renders video using Chromium and FFmpeg. Its first-release deployment is deferred; preserve its code for later activation.
+_Avoid_: video-generation API provider, browser ZIP export
+
+**Hosted account**:
+A registered user identity required for the hosted release, with the same user's courses, conversations, and learning records available across devices. The invited beta requires managed Supabase Auth with email/password, verified email, and invitation-based admission, reaffirmed on 2026-09-08. This adds an account boundary beyond device-scoped identity and is not evidence of completed authentication implementation.
+_Avoid_: access code, anonymous device cookie
+
+**Platform credits**:
+The planned user balance for platform-funded model calls, alongside support for a user's own model API connection. The invited beta uses issued test credits; real payment is deferred. Only actual platform-funded API calls consume model credits; BYOK calls do not, while shared resource quotas still apply. Exact tariffs and settlement details remain implementation proposals, not evidence of an implemented ledger.
+_Avoid_: existing usage log, model provider balance
+
+**Published course**:
+A course explicitly made available for link-based viewing by its owner; source materials, conversations, saved credentials, and learner records remain private. Teachers and students share the same individual-account permissions in the invited beta; AI operations use the viewer's own credits or API configuration.
+_Avoid_: public owner workspace, class-management permission, shared creator API allowance
+
+**Beta heavy-task quota**:
+The deployment baseline limits each user to one heavy task, starts at one globally, and permits increasing to two only after combined-load validation, with excess work queued. Ordinary course generation, Pro long-running work, independent parsing and media jobs share this admission boundary; child tools inherit their root task's admission. It is independent of the number of people reading or learning. The initial file limits are 50 MB per file and 1 GB of user files per account, subject to load-test-informed adjustment. See ADR-0016 and the deployment execution plan; these are planned limits, not proof of enforcement in current code.
+_Avoid_: two-user site limit, guaranteed fifty concurrent generations
+
+**Course-generation concurrency**:
+The number of course jobs executing at the same time, subject to both account admission and the site heavy-task quota. It is distinct from parallel scene generation within a course and shared provider-call limits.
+_Avoid_: online-user count, scene concurrency
+
+**Generation status suffix**:
+The requested user-visible status appended to “构建课程中”, derived from the server job lifecycle and execution phase. Queueing, execution and unavailable observations must remain distinguishable; detailed wording and exit choices are being reviewed in the 2026-09-09 generation interview.
+_Avoid_: simulated progress, browser-only task status

@@ -12,5 +12,8 @@ export function assembleRunnerTools(
 
 /** The DSL compatibility block is part of every runner prompt. */
 export function buildRunnerCoursePrompt(blocks: Omit<PromptBlocks, 'dslTools'>): string {
-  return courseSystemPrompt({ ...blocks, dslTools: DSL_TOOLS_PROMPT });
+  return (
+    courseSystemPrompt({ ...blocks, dslTools: DSL_TOOLS_PROMPT }) +
+    '\nWhen generating a course, carry forward the topic, prior knowledge, learning goals and scope already established in the conversation into each page brief and materialFacts. A final message such as "生成课程" is a continuation of that request. Follow active skills without adding a fixed number of questions.'
+  );
 }

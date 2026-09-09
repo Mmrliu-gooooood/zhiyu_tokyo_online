@@ -19,6 +19,8 @@ export type SettingsSection =
  * Both built-in and custom providers use the same structure
  */
 export interface ProviderSettings {
+  /** Explicit protocol for custom PRO connections, retained by settings import/export. */
+  api?: 'openai-completions' | 'openai-responses';
   // Configuration
   apiKey: string;
   baseUrl: string;

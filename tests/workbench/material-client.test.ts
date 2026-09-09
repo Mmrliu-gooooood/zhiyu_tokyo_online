@@ -88,12 +88,16 @@ describe('workbench material client', () => {
   });
 
   it('sends only materialIds when creating a session', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      Response.json({ id: 's1', stageId: 'stage-1', status: 'queued', prompt: 'p' }),
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) =>
+      String(input) === '/api/agent/media-config-snapshots'
+        ? Response.json({ ref: { id: 'media-ref', revision: 1 } })
+        : Response.json({ id: 's1', stageId: 'stage-1', status: 'queued', prompt: 'p' }),
     );
     vi.stubGlobal('fetch', fetchMock);
     await createWorkbenchSession({ prompt: 'p', materials: [material] });
-    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    const request = fetchMock.mock.calls.find(
+      (call) => call[0] === '/api/agent/sessions',
+    )?.[1] as RequestInit;
     expect(JSON.parse(String(request.body))).toMatchObject({
       prompt: 'p',
       materialIds: [material.materialId],
@@ -102,14 +106,19 @@ describe('workbench material client', () => {
   });
 
   it('sends only materialIds on a follow-up message', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      Response.json({ id: 's1' }),
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) =>
+      String(input) === '/api/agent/media-config-snapshots'
+        ? Response.json({ ref: { id: 'media-ref', revision: 1 } })
+        : Response.json({ id: 's1' }),
     );
     vi.stubGlobal('fetch', fetchMock);
     await postWorkbenchMessage('s1', '继续', [material]);
-    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    const request = fetchMock.mock.calls.find((call) =>
+      String(call[0]).endsWith('/messages'),
+    )?.[1] as RequestInit;
     expect(JSON.parse(String(request.body))).toEqual({
       text: '继续',
+      mediaConfigRef: { id: 'media-ref', revision: 1 },
       materialIds: [material.materialId],
     });
   });

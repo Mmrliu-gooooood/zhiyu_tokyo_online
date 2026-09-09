@@ -10,7 +10,10 @@ import {
   resolveTTSBaseUrl,
   resolveTTSModel,
 } from '@/lib/server/provider-config';
+import { parseCustomTTSProviderConfig } from '@/lib/server/media-provider-config';
 import { persistClassroomMediaBytes } from '@/lib/server/classroom-media-bytes';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
+import { resolveEffectiveSessionVoice } from './effective-voice-directory';
 
 export interface SceneTtsSummary {
   available: boolean;
@@ -25,6 +28,24 @@ export interface SceneTtsInput {
   force: boolean;
   roster?: readonly GeneratedAgentConfig[] | null;
   signal?: AbortSignal;
+  /** Fixed, owner-loaded session snapshot. Undefined preserves legacy server selection. */
+  providerConfigs?: readonly SceneTtsProviderConfig[];
+}
+
+export interface SceneTtsProviderConfig {
+  providerId: TTSProviderId;
+  protocol?: 'openai-speech';
+  apiKey: string;
+  baseUrl: string;
+  requiresApiKey: boolean;
+  enabled: boolean;
+  modelId: string;
+  voice: string;
+  /** Explicit narration fallback selected when no roster voice is bound. */
+  default?: boolean;
+  speed?: number;
+  format?: string;
+  providerOptions?: Record<string, unknown>;
 }
 
 function enabledProviderIds(): TTSProviderId[] {
@@ -43,30 +64,52 @@ function audioMime(format: string) {
 
 /** Server-configured narration synthesis into the stage's classroom-media path. */
 export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<SceneTtsSummary> {
-  const enabled = enabledProviderIds();
   const bound = narratorVoice(input.roster);
-  const providerId = (
-    bound?.providerId && enabled.includes(bound.providerId as TTSProviderId)
+  const selected = input.providerConfigs
+    ? resolveEffectiveSessionVoice(input.providerConfigs, bound)
+    : undefined;
+  const enabled = input.providerConfigs ? [] : enabledProviderIds();
+  const providerId = (selected?.providerId ??
+    (bound?.providerId && enabled.includes(bound.providerId as TTSProviderId)
       ? bound.providerId
-      : enabled[0]
-  ) as TTSProviderId | undefined;
+      : enabled[0])) as TTSProviderId | undefined;
   if (!providerId) {
     return { available: false, changed: false, generated: 0, skipped: 0, failed: [] };
   }
-  const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
-  const apiKey = resolveTTSApiKey(providerId);
-  if (provider?.requiresApiKey && !apiKey) {
+  if ((selected && !selected.enabled) || getServerTTSProviders()[providerId]?.disabled) {
     return { available: false, changed: false, generated: 0, skipped: 0, failed: [] };
   }
-  const voice =
-    bound?.providerId === providerId && bound.voiceId
+  const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
+  const customConfig =
+    selected && String(providerId).startsWith('custom-tts-')
+      ? parseCustomTTSProviderConfig(providerId, {
+          id: providerId,
+          protocol: selected.protocol,
+          apiKey: selected.apiKey,
+          baseUrl: selected.baseUrl,
+          enabled: selected.enabled,
+          requiresApiKey: selected.requiresApiKey,
+          modelId: selected.modelId,
+          voice: selected.voice,
+          speed: selected.speed,
+          format: selected.format,
+          providerOptions: selected.providerOptions,
+        })
+      : undefined;
+  const apiKey = resolveTTSApiKey(providerId, customConfig?.apiKey ?? selected?.apiKey);
+  if ((provider?.requiresApiKey ?? selected?.requiresApiKey) && !apiKey) {
+    return { available: false, changed: false, generated: 0, skipped: 0, failed: [] };
+  }
+  const selectedVoice =
+    selected?.voice ||
+    (bound?.providerId === providerId && bound.voiceId
       ? bound.voiceId
-      : DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] || '';
+      : DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] || '');
   const modelId =
     resolveTTSModel(
       providerId,
-      DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '',
-      voice,
+      selected?.modelId || DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '',
+      selectedVoice,
     ) || '';
   let generated = 0;
   let skipped = 0;
@@ -80,18 +123,24 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
     }
     if (input.signal?.aborted) throw new Error('aborted');
     try {
-      const audio = await generateTTS(
-        {
-          providerId,
-          modelId,
-          apiKey,
-          baseUrl: resolveTTSBaseUrl(providerId),
-          voice,
-          speed: speech.speed,
-          signal: input.signal,
-        },
-        speech.text,
-      );
+      const runtimeConfig = {
+        providerId,
+        modelId,
+        apiKey,
+        baseUrl: resolveTTSBaseUrl(providerId, customConfig?.baseUrl ?? selected?.baseUrl),
+        voice: selectedVoice,
+        speed: speech.speed ?? selected?.speed,
+        format: selected?.format,
+        providerOptions: selected?.providerOptions,
+        signal: input.signal,
+      };
+      const restrictedEndpoint =
+        customConfig || providerId === 'voxcpm-tts' || providerId === 'lemonade-tts';
+      const audio = restrictedEndpoint
+        ? await withMediaProviderFetch(runtimeConfig.baseUrl!, (fetcher) =>
+            generateTTS({ ...runtimeConfig, fetcher }, speech.text),
+          )
+        : await generateTTS(runtimeConfig, speech.text);
       if (input.signal?.aborted) throw new Error('aborted');
       // The persisted reference is the RELATIVE classroom-media path (the
       // agent runtime has no request origin; relative stays valid on any

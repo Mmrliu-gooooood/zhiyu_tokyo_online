@@ -1874,7 +1874,7 @@
       "download": "ダウンロード",
       "detailFailed": "スキル詳細を読み込めませんでした",
       "contentLabel": "内容",
-      "builtinDetailNote": "このスキルは OpenMAIC に同梱されています。他のエージェントワークスペースにインポートするにはダウンロードしてください。",
+      "builtinDetailNote": "このスキルは zhiyu に同梱されています。他のエージェントワークスペースにインポートするにはダウンロードしてください。",
       "upload": "アップロード",
       "uploading": "アップロード中…",
       "uploadFailed": "スキルをアップロードできませんでした。ファイルを確認して再試行してください。",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "ブラウザ内蔵 TTS はエディターのタイムライン音声機能（試聴・再生成・一括音声生成）に対応していません。マネージド TTS プロバイダーに切り替えると、行ごとの音声を生成・管理できます。",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "カスタムプラットフォームを追加",
+    "mediaProtocol": "API プロトコル",
+    "mediaProtocolHint": "プラットフォームが対応する API 形式を選択してください。互換ゲートウェイには独自の Base URL を指定できます。",
+    "customMediaProviderHint": "追加後に API キーとモデル ID を入力してください。",
+    "mediaProviderEnabled": "プラットフォームを有効化",
+    "mediaConfigurationChecked": "設定は完了しています。生成リクエストは送信していません。API キーとモデルの利用可否は未確認です。",
+    "checkMediaConfiguration": "設定を確認"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

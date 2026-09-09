@@ -1874,7 +1874,7 @@
       "download": "Baixar",
       "detailFailed": "Não foi possível carregar os detalhes do skill",
       "contentLabel": "Conteúdo",
-      "builtinDetailNote": "Este skill acompanha o OpenMAIC. Baixe-o para importar em outro espaço de trabalho de agente.",
+      "builtinDetailNote": "Este skill acompanha o zhiyu. Baixe-o para importar em outro espaço de trabalho de agente.",
       "upload": "Enviar",
       "uploading": "Enviando…",
       "uploadFailed": "Não foi possível enviar o skill. Verifique o arquivo e tente novamente.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "O TTS nativo do navegador não suporta os recursos de áudio da linha do tempo do editor (pré-visualizar, regenerar e narração em lote). Mude para um provedor de TTS gerenciado para gerar e gerenciar o áudio de cada linha.",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "Adicionar plataforma personalizada",
+    "mediaProtocol": "Protocolo da API",
+    "mediaProtocolHint": "Escolha o formato de API compatível. Gateways compatíveis podem usar sua própria URL base.",
+    "customMediaProviderHint": "Adicione a plataforma e informe a chave de API e o ID do modelo.",
+    "mediaProviderEnabled": "Ativar plataforma",
+    "mediaConfigurationChecked": "A configuração está completa. Nenhuma geração foi solicitada; a chave de API e o modelo ainda não foram verificados.",
+    "checkMediaConfiguration": "Verificar configuração"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

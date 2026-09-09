@@ -184,6 +184,10 @@ export interface ProviderConfig {
  * Model configuration for API calls
  */
 export interface ModelConfig {
+  /** Server policy for user-supplied endpoints; never supplied by request JSON. */
+  validateRequestUrl?: (url: string) => Promise<void>;
+  /** Explicit OpenAI wire dialect for a saved PRO connection or stage route. */
+  api?: 'openai-completions' | 'openai-responses';
   providerId: ProviderId;
   modelId: string;
   apiKey: string;

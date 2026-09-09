@@ -70,4 +70,14 @@ describe('skill settings locale coverage', () => {
       }
     }
   });
+
+  it('identifies bundled skills as provided by zhiyu in every locale', () => {
+    for (const [code, data] of Object.entries(locales)) {
+      const note = get(data, 'settings.skills.builtinDetailNote') as string;
+      expect(note.toLowerCase(), `${code} should name zhiyu`).toContain('zhiyu');
+      expect(note.toLowerCase(), `${code} should not expose the upstream brand`).not.toContain(
+        'openmaic',
+      );
+    }
+  });
 });

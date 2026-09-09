@@ -373,6 +373,8 @@ export async function generateAndStoreTTS(
             // client's own base URL (custom providers).
             ttsBaseUrl:
               ttsProviderConfig?.baseUrl || ttsProviderConfig?.customDefaultBaseUrl || undefined,
+            ttsProtocol: ttsProviderConfig?.protocol,
+            ttsRequiresApiKey: ttsProviderConfig?.requiresApiKey,
             ttsProviderOptions: providerOptions,
           }),
           signal,

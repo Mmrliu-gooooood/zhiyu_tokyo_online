@@ -98,6 +98,37 @@ function deps(store: CourseStore, extra: Record<string, unknown> = {}) {
 }
 
 describe('generation and deck tools', () => {
+  it('fails loudly when requested narration cannot be completed while preserving speech text', async () => {
+    const current = state(document([slide('scene-a', 1, 'Narrated page')]));
+    const generate = find(
+      buildGenerationTools(
+        deps(current.store, {
+          generateActions: vi.fn(async () => [
+            { id: 'speech-a', type: 'speech', text: 'Keep this narration script.' },
+          ]),
+          synthesizeTts: vi.fn(async () => ({
+            available: false,
+            changed: false,
+            generated: 0,
+            skipped: 0,
+            failed: [],
+          })),
+        }),
+      ),
+      'generate_actions',
+    );
+
+    const response = await generate.execute('call', { stageId: 'stage-test', order: 1 } as never);
+
+    expect(response).toMatchObject({ isError: true });
+    expect((response.content[0] as { text?: string } | undefined)?.text).toContain(
+      'narration is incomplete',
+    );
+    expect(current.get()?.scenes[0]?.actions).toEqual([
+      { id: 'speech-a', type: 'speech', text: 'Keep this narration script.' },
+    ]);
+  });
+
   it('reports active-skill diagnostics against the persisted stage after generation', async () => {
     const current = state(document([]));
     const onCheckpoint = vi.fn();
@@ -175,6 +206,59 @@ describe('generation and deck tools', () => {
     expect(current.get()?.scenes.map(({ order, title }) => ({ order, title }))).toEqual([
       { order: 1, title: 'First' },
     ]);
+  });
+
+  it('checkpoints completed content and reuses it when action generation is retried', async () => {
+    const current = state(document([]));
+    const contentCall = vi.fn(async () =>
+      JSON.stringify([{ id: 'q1', type: 'short_answer', question: 'Retry?' }]),
+    );
+    const actionGenerator = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('actions unavailable'))
+      .mockResolvedValueOnce([{ id: 'speech-1', type: 'speech', text: 'Recovered.' }]);
+    const onCheckpoint = vi.fn();
+    const generate = find(
+      buildGenerationTools(
+        deps(current.store, {
+          aiCall: contentCall,
+          generateActions: actionGenerator,
+          onCheckpoint,
+        }),
+      ),
+      'generate_scene',
+    );
+    const params = {
+      stageId: 'stage-test',
+      order: 1,
+      title: 'Recovery',
+      type: 'quiz',
+      brief: 'Keep completed content',
+    } as const;
+
+    await expect(generate.execute('first', params as never)).rejects.toThrow('actions unavailable');
+    expect(current.get()?.scenes[0]).toMatchObject({
+      title: 'Recovery',
+      generationCheckpoint: { phase: 'content_completed', inputHash: expect.any(String) },
+    });
+    expect(onCheckpoint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool: 'generate_scene',
+        sceneId: expect.any(String),
+        phase: 'content_completed',
+        elapsedMs: expect.any(Number),
+      }),
+    );
+
+    const result = (await generate.execute('retry', params as never)) as { isError?: boolean };
+
+    expect(result.isError).toBeUndefined();
+    expect(contentCall).toHaveBeenCalledTimes(1);
+    expect(actionGenerator).toHaveBeenCalledTimes(2);
+    expect(current.get()?.scenes[0]?.actions).toEqual([
+      { id: 'speech-1', type: 'speech', text: 'Recovered.' },
+    ]);
+    expect(current.get()?.scenes[0]).not.toHaveProperty('generationCheckpoint');
   });
 
   it('refuses destructive PBL type changes and unresolved generation media', async () => {

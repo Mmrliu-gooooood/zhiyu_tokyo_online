@@ -65,4 +65,52 @@ describe('generation owner sessions', () => {
       resolveGenerationOwner(new Request('http://localhost:3000'), new Headers(), true),
     ).toThrow('GENERATION_SESSION_UNAVAILABLE');
   });
+
+  it('accepts the actual allowlisted Host when standalone exposes its 0.0.0.0 bind URL', () => {
+    expect(() =>
+      assertGenerationOrigin(
+        new Request('http://0.0.0.0:3000/api/agent/model-connections', {
+          method: 'POST',
+          headers: { host: 'localhost:3000', origin: 'http://localhost:3000' },
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it.each([
+    'evil.example:3000',
+    'localhost:3000@evil.example',
+    'localhost:3000/path',
+    'localhost:3000,evil.example',
+  ])(
+    'rejects an untrusted or malformed actual Host %s despite forged forwarded headers',
+    (host) => {
+      expect(() =>
+        assertGenerationOrigin(
+          new Request('http://0.0.0.0:3000/api/agent/model-connections', {
+            method: 'POST',
+            headers: {
+              host,
+              origin: 'http://localhost:3000',
+              'x-forwarded-host': 'localhost:3000',
+              'x-forwarded-proto': 'http',
+            },
+          }),
+        ),
+      ).toThrow('ORIGIN_NOT_ALLOWED');
+    },
+  );
+
+  it('still requires an exact Origin match for the standalone Host', () => {
+    for (const origin of [undefined, 'http://127.0.0.1:3000', 'https://evil.example']) {
+      expect(() =>
+        assertGenerationOrigin(
+          new Request('http://0.0.0.0:3000/api/agent/model-connections', {
+            method: 'POST',
+            headers: { host: 'localhost:3000', ...(origin ? { origin } : {}) },
+          }),
+        ),
+      ).toThrow();
+    }
+  });
 });

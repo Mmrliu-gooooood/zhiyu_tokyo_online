@@ -7,6 +7,9 @@ import { loadDocumentBlob } from '@/lib/utils/image-storage';
 import { resolveSessionDocumentSources } from '@/lib/document/session-sources';
 import { resolveStoredBytes } from '@/lib/media/resolve-stored-bytes';
 import { GenerationJobRequestError, generationJobRequest } from './job-client';
+import { syncCurrentMediaConfigSnapshot } from '@/lib/workbench/media-config-snapshot-client';
+import { syncGenerationModelSnapshot } from './model-snapshot-client';
+import { syncGenerationSearchSnapshot } from './search-snapshot-client';
 
 export interface GenerationUploadedAsset {
   assetId: string;
@@ -30,7 +33,7 @@ function rejectClientProvider(config?: {
   }
 }
 
-/** Freeze only non-secret configuration; credentials are always resolved by the server. */
+/** Freeze configuration while credentials travel only through an owner-scoped encrypted snapshot. */
 export async function buildGenerationJobInput(
   session: GenerationSessionState,
   locale: string,
@@ -39,22 +42,53 @@ export async function buildGenerationJobInput(
 ): Promise<GenerationInput> {
   const settings = useSettingsStore.getState();
   const model = getCurrentModelConfig();
-  rejectClientProvider(model);
-  rejectClientProvider(session.pdfProviderConfig);
+  if (resolveSessionDocumentSources(session).length)
+    rejectClientProvider(session.pdfProviderConfig);
   if (session.sceneOutlines?.length || session.researchContext) {
     throw new GenerationJobRequestError(422, 'BACKGROUND_LEGACY_SESSION_UNSUPPORTED');
   }
-  if (settings.imageGenerationEnabled)
-    rejectClientProvider(settings.imageProvidersConfig[settings.imageProviderId]);
-  if (settings.videoGenerationEnabled)
-    rejectClientProvider(settings.videoProvidersConfig[settings.videoProviderId]);
-  if (session.requirements.webSearch)
-    rejectClientProvider(settings.webSearchProvidersConfig[settings.webSearchProviderId]);
-  if (settings.ttsEnabled && settings.ttsProviderId !== 'browser-native-tts')
-    rejectClientProvider(settings.ttsProvidersConfig[settings.ttsProviderId]);
-
   // Establish the signed owner before uploading any source bytes.
   await generationJobRequest('', { signal });
+  const searchConfig = settings.webSearchProvidersConfig[settings.webSearchProviderId];
+  const searchModelId = searchConfig?.modelId?.trim() || undefined;
+  const searchConfigRef = session.requirements.webSearch
+    ? await syncGenerationSearchSnapshot(
+        {
+          version: 1,
+          providerId: settings.webSearchProviderId,
+          apiKey: searchConfig?.apiKey,
+          baseUrl: searchConfig?.baseUrl,
+          modelId: searchModelId,
+          baiduSubSources:
+            settings.webSearchProviderId === 'baidu' ? settings.baiduSubSources : undefined,
+        },
+        signal,
+      )
+    : undefined;
+  const modelConfigRef =
+    model.apiKey?.trim() || model.baseUrl?.trim()
+      ? await syncGenerationModelSnapshot(model, signal)
+      : undefined;
+  const selected = settings.selectedAgentIds
+    .map((id) => useAgentRegistry.getState().getAgent(id))
+    .filter((agent) => agent && !agent.isGenerated);
+  const items = selected.map((agent) => {
+    if (!agent || !['teacher', 'assistant', 'student'].includes(agent.role))
+      throw new GenerationJobRequestError(422, 'BACKGROUND_AGENT_ROLE_UNSUPPORTED');
+    return {
+      id: agent.id,
+      name: agent.name,
+      role: agent.role as 'teacher' | 'assistant' | 'student',
+      persona: agent.persona,
+      avatar: agent.avatar,
+      color: agent.color,
+      priority: agent.priority,
+      voiceConfig: settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig,
+    };
+  });
+  const mediaConfigRef = await syncCurrentMediaConfigSnapshot(
+    items.flatMap((agent) => (agent.voiceConfig ? [agent.voiceConfig] : [])),
+  );
   const uploaded = { ...session.backgroundAssets };
   const upload = async (
     key: string,
@@ -133,28 +167,13 @@ export async function buildGenerationJobInput(
       visionPriority: image.visionPriority,
     });
   }
-  const selected = settings.selectedAgentIds
-    .map((id) => useAgentRegistry.getState().getAgent(id))
-    .filter((agent) => agent && !agent.isGenerated);
-  const items = selected.map((agent) => {
-    if (!agent || !['teacher', 'assistant', 'student'].includes(agent.role))
-      throw new GenerationJobRequestError(422, 'BACKGROUND_AGENT_ROLE_UNSUPPORTED');
-    return {
-      id: agent.id,
-      name: agent.name,
-      role: agent.role as 'teacher' | 'assistant' | 'student',
-      persona: agent.persona,
-      avatar: agent.avatar,
-      color: agent.color,
-      priority: agent.priority,
-      voiceConfig: settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig,
-    };
-  });
   return {
     version: 1,
     requirements: session.requirements,
     locale,
     model: { modelString: model.modelString, thinkingConfig: model.thinkingConfig },
+    ...(modelConfigRef ? { modelConfigRef } : {}),
+    ...(searchConfigRef ? { searchConfigRef } : {}),
     materials: { text: session.pdfText || undefined, sources, images },
     agents:
       settings.agentMode === 'auto'
@@ -172,10 +191,11 @@ export async function buildGenerationJobInput(
         ? { providerId: settings.videoProviderId, modelId: settings.videoModelId }
         : undefined,
     },
+    ...(mediaConfigRef ? { mediaConfigRef } : {}),
     webSearch: session.requirements.webSearch
       ? {
           providerId: settings.webSearchProviderId,
-          modelId: settings.webSearchProvidersConfig[settings.webSearchProviderId]?.modelId,
+          modelId: searchModelId,
         }
       : undefined,
     tts: settings.ttsEnabled

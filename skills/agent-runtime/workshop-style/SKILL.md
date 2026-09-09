@@ -1,7 +1,7 @@
 ---
 name: workshop-style
 title: "互动工作坊"
-description: Hands-on workshop — the learner works through the course instead of watching it, with an exercise or a check every couple of pages, short slides that only set up the next task, guiding narration that asks more than it tells, and a closing page where the pieces come together in one small project. Use when the ask is a workshop, a bootcamp session, 「动手」「实操」「练中学」「边做边学」, or a skill the learner is meant to leave holding; also use when the user names this style. Not for a systematic explanatory course (that is `lecture-style`) and not for occupational procedure training with tools and safety gates (that is `vocational`).
+description: "Run a zhiyu workshop in which learners do more than watch: frequent exercises or checks, short task-setting slides, question-led narration, and a small closing project. Use for a workshop, bootcamp, 「动手」「实操」「练中学」 or 「边做边学」; choose `lecture-style` for systematic explanation and `vocational` for safety-gated occupational procedures."
 ---
 
 # Workshop design

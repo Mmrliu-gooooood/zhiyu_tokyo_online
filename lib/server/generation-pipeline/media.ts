@@ -27,6 +27,14 @@ import type { Scene } from '@/lib/types/stage';
 import type { ImageProviderId, VideoProviderId } from '@/lib/media/types';
 import type { TTSProviderId } from '@/lib/audio/types';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
+import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
+import {
+  parseCustomImageProviderConfig,
+  parseCustomTTSProviderConfig,
+  parseCustomVideoProviderConfig,
+} from '@/lib/server/media-provider-config';
+import { isServerProviderDisabled } from '@/lib/server/provider-config';
+import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 import type { PipelineAssets } from './services';
 import { PipelineExecution, mapBounded } from './execution';
 
@@ -46,11 +54,18 @@ async function download(url: string, signal: AbortSignal, maxBytes: number): Pro
   }
 }
 
+function customSnapshotInput<T extends { providerId: string }>(config: T | undefined): unknown {
+  if (!config) return undefined;
+  const { providerId, ...rest } = config;
+  return { ...rest, id: providerId };
+}
+
 export class GenerationMediaServices {
   constructor(
     readonly execution: PipelineExecution,
     readonly input: GenerationInput,
     readonly assets: PipelineAssets,
+    readonly mediaConfig?: MediaConfigSnapshotContent,
   ) {}
 
   async media(original: Scene, outline: SceneOutline): Promise<Scene> {
@@ -64,96 +79,150 @@ export class GenerationMediaServices {
         continue;
       const key = `media:${outline.id}:${request.elementId}`;
       if (request.type === 'image') {
+        if (this.mediaConfig?.imageEnabled === false)
+          throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
         const providerId = (this.input.media?.image?.providerId ??
           Object.entries(getServerImageProviders()).find(([, info]) => !info.disabled)?.[0]) as
           | ImageProviderId
           | undefined;
+        if (!providerId || isServerProviderDisabled('image', providerId))
+          throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
+        const snapshot = this.mediaConfig?.image;
+        const selectedSnapshot = snapshot?.providerId === providerId ? snapshot : undefined;
         if (
-          !providerId ||
-          !getServerImageProviders()[providerId] ||
-          getServerImageProviders()[providerId]?.disabled
+          this.mediaConfig?.imageEnabled === true &&
+          (!selectedSnapshot || !selectedSnapshot.enabled)
         )
           throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
-        const provider = IMAGE_PROVIDERS[providerId];
-        const apiKey = resolveImageApiKey(providerId);
-        if (provider?.requiresApiKey && !apiKey) throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
+        const custom = providerId.startsWith('custom-image-');
+        const provider = custom
+          ? undefined
+          : IMAGE_PROVIDERS[providerId as keyof typeof IMAGE_PROVIDERS];
+        const providerConfig = custom
+          ? parseCustomImageProviderConfig(
+              providerId as Parameters<typeof parseCustomImageProviderConfig>[0],
+              customSnapshotInput(snapshot?.providerId === providerId ? snapshot : undefined),
+              this.input.media?.image?.modelId,
+            )
+          : {
+              providerId: providerId as keyof typeof IMAGE_PROVIDERS,
+              apiKey: resolveImageApiKey(providerId, selectedSnapshot?.apiKey),
+              baseUrl: resolveImageBaseUrl(providerId, selectedSnapshot?.baseUrl),
+              model:
+                resolveImageModel(
+                  providerId,
+                  selectedSnapshot?.modelId || this.input.media?.image?.modelId,
+                ) ?? provider?.models[0]?.id,
+            };
+        if (provider?.requiresApiKey && !providerConfig.apiKey)
+          throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
         const result = await this.execution.external(
           key,
           request,
           'media',
           providerId,
           async (signal) => {
-            const output = await generateImage(
-              {
-                providerId,
-                apiKey,
-                baseUrl: resolveImageBaseUrl(providerId),
-                model:
-                  resolveImageModel(providerId, this.input.media?.image?.modelId) ??
-                  provider?.models[0]?.id,
-              },
-              {
-                prompt: request.prompt,
-                aspectRatio: request.aspectRatio ?? '16:9',
-                signal,
-              },
-            );
+            const options = {
+              prompt: request.prompt,
+              aspectRatio: request.aspectRatio ?? '16:9',
+              signal,
+            };
+            const restrictedEndpoint =
+              custom || providerId === 'comfyui-image' || providerId === 'lemonade';
+            const output = restrictedEndpoint
+              ? await withMediaProviderFetch(providerConfig.baseUrl!, (fetcher) =>
+                  generateImage({ ...providerConfig, fetcher }, options),
+                )
+              : await generateImage(providerConfig, options);
             signal.throwIfAborted();
-            const bytes = output.base64
-              ? Buffer.from(output.base64, 'base64')
-              : output.url
-                ? await download(output.url, signal, 20 * 1024 * 1024)
-                : null;
+            const bytes = output.bytes?.length
+              ? Buffer.from(output.bytes)
+              : output.base64
+                ? Buffer.from(output.base64, 'base64')
+                : output.url
+                  ? await download(output.url, signal, 20 * 1024 * 1024)
+                  : null;
             if (!bytes?.length || bytes.length > 20 * 1024 * 1024)
               throw new Error('INVALID_IMAGE_OUTPUT');
             signal.throwIfAborted();
-            return this.assets.write(`scene:${outline.id}:${key}`, bytes, 'image/png');
+            return this.assets.write(
+              `scene:${outline.id}:${key}`,
+              bytes,
+              output.mimeType || 'image/png',
+            );
           },
           true,
         );
         if (result) mapping[request.elementId] = result;
       } else {
+        if (this.mediaConfig?.videoEnabled === false)
+          throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
         const providerId = (this.input.media?.video?.providerId ??
           Object.entries(getServerVideoProviders()).find(([, info]) => !info.disabled)?.[0]) as
           | VideoProviderId
           | undefined;
+        if (!providerId || isServerProviderDisabled('video', providerId))
+          throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
+        const snapshot = this.mediaConfig?.video;
+        const selectedSnapshot = snapshot?.providerId === providerId ? snapshot : undefined;
         if (
-          !providerId ||
-          !getServerVideoProviders()[providerId] ||
-          getServerVideoProviders()[providerId]?.disabled
+          this.mediaConfig?.videoEnabled === true &&
+          (!selectedSnapshot || !selectedSnapshot.enabled)
         )
           throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
-        const apiKey = resolveVideoApiKey(providerId);
-        if (!apiKey) throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
+        const custom = providerId.startsWith('custom-video-');
+        const providerConfig = custom
+          ? parseCustomVideoProviderConfig(
+              providerId as Parameters<typeof parseCustomVideoProviderConfig>[0],
+              customSnapshotInput(snapshot?.providerId === providerId ? snapshot : undefined),
+              this.input.media?.video?.modelId,
+            )
+          : {
+              providerId: providerId as keyof typeof VIDEO_PROVIDERS,
+              apiKey: resolveVideoApiKey(providerId, selectedSnapshot?.apiKey),
+              baseUrl: resolveVideoBaseUrl(providerId, selectedSnapshot?.baseUrl),
+              model:
+                resolveVideoModel(
+                  providerId,
+                  selectedSnapshot?.modelId || this.input.media?.video?.modelId,
+                ) ?? VIDEO_PROVIDERS[providerId as keyof typeof VIDEO_PROVIDERS]?.models[0]?.id,
+            };
+        if (!custom && !providerConfig.apiKey) throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
         const result = await this.execution.external(
           key,
           request,
           'media',
           providerId,
           async (signal) => {
-            const output = await generateVideo(
-              {
-                providerId,
-                apiKey,
-                baseUrl: resolveVideoBaseUrl(providerId),
-                model:
-                  resolveVideoModel(providerId, this.input.media?.video?.modelId) ??
-                  VIDEO_PROVIDERS[providerId]?.models[0]?.id,
-              },
-              normalizeVideoOptions(providerId, {
-                prompt: request.prompt,
-                aspectRatio: request.aspectRatio as '16:9',
-                signal,
-              }),
-            );
-            signal.throwIfAborted();
-            const bytes = await download(
-              output.url,
+            const options = normalizeVideoOptions(providerId, {
+              prompt: request.prompt,
+              aspectRatio: request.aspectRatio as '16:9',
               signal,
-              this.input.budget?.maxAssetBytes ?? 100_000_000,
-            );
+            });
+            const output = custom
+              ? await withMediaProviderFetch(providerConfig.baseUrl!, (fetcher) =>
+                  generateVideo({ ...providerConfig, fetcher }, options),
+                )
+              : await generateVideo(providerConfig, options);
             signal.throwIfAborted();
-            return this.assets.write(`scene:${outline.id}:${key}`, bytes, 'video/mp4');
+            const bytes = output.bytes?.length
+              ? Buffer.from(output.bytes)
+              : output.base64
+                ? Buffer.from(output.base64, 'base64')
+                : output.url
+                  ? await download(
+                      output.url,
+                      signal,
+                      this.input.budget?.maxAssetBytes ?? 100_000_000,
+                    )
+                  : null;
+            if (!bytes?.length) throw new Error('INVALID_VIDEO_OUTPUT');
+            signal.throwIfAborted();
+            return this.assets.write(
+              `scene:${outline.id}:${key}`,
+              bytes,
+              output.mimeType || 'video/mp4',
+            );
           },
           true,
         );
@@ -173,6 +242,7 @@ export class GenerationMediaServices {
   async tts(original: Scene, agents: AgentInfo[] = []): Promise<Scene> {
     if (!this.input.tts?.enabled || this.input.tts.providerId === 'browser-native-tts')
       return original;
+    if (this.mediaConfig?.ttsEnabled === false) return original;
     const defaultProviderId = (this.input.tts.providerId ??
       Object.entries(getServerTTSProviders()).find(
         ([id, info]) => id !== 'browser-native-tts' && !info.disabled,
@@ -195,11 +265,9 @@ export class GenerationMediaServices {
       if (action.type !== 'speech' || !action.text) return;
       const providerId = (override?.providerId ?? defaultProviderId) as TTSProviderId;
       if (providerId === 'browser-native-tts') return;
-      if (!getServerTTSProviders()[providerId] || getServerTTSProviders()[providerId]?.disabled)
+      if (isServerProviderDisabled('tts', providerId))
         throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
-      const apiKey = resolveTTSApiKey(providerId);
-      if (provider?.requiresApiKey && !apiKey) throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       const voice =
         override?.voiceId ??
         this.input.tts!.voice ??
@@ -225,25 +293,51 @@ export class GenerationMediaServices {
         DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] ??
         '';
       const speed = action.speed ?? this.input.tts!.speed;
+      const snapshot = this.mediaConfig?.tts?.find(
+        (candidate) =>
+          candidate.providerId === providerId &&
+          candidate.modelId === modelId &&
+          candidate.voice === voice,
+      );
+      if (this.mediaConfig?.ttsEnabled === true && (!snapshot || !snapshot.enabled)) {
+        throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
+      }
+      const custom = providerId.startsWith('custom-tts-');
+      const providerConfig = custom
+        ? parseCustomTTSProviderConfig(
+            providerId as Parameters<typeof parseCustomTTSProviderConfig>[0],
+            customSnapshotInput(snapshot),
+          )
+        : {
+            providerId,
+            apiKey: resolveTTSApiKey(providerId, snapshot?.apiKey),
+            baseUrl: resolveTTSBaseUrl(providerId, snapshot?.baseUrl),
+            voice,
+            modelId,
+            speed,
+            providerOptions: { ...snapshot?.providerOptions, ...providerOptions },
+          };
+      if (provider?.requiresApiKey && !providerConfig.apiKey)
+        throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       action.audioId = await this.execution.external(
         key,
         { text: action.text, voice, providerId, modelId, speed, providerOptions },
         'tts',
         providerId,
         async (signal) => {
-          const result = await generateTTS(
-            {
-              providerId,
-              apiKey,
-              baseUrl: resolveTTSBaseUrl(providerId),
-              voice,
-              modelId,
-              speed,
-              providerOptions,
-              signal,
-            },
-            action.text,
-          );
+          const runtimeConfig = {
+            ...providerConfig,
+            speed,
+            providerOptions: { ...snapshot?.providerOptions, ...providerOptions },
+            signal,
+          };
+          const restrictedEndpoint =
+            custom || providerId === 'voxcpm-tts' || providerId === 'lemonade-tts';
+          const result = restrictedEndpoint
+            ? await withMediaProviderFetch(runtimeConfig.baseUrl!, (fetcher) =>
+                generateTTS({ ...runtimeConfig, fetcher }, action.text),
+              )
+            : await generateTTS(runtimeConfig, action.text);
           signal.throwIfAborted();
           if (!result.audio.length) throw new Error('EMPTY_TTS_OUTPUT');
           return this.assets.write(

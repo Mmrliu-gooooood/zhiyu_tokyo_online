@@ -18,6 +18,7 @@ import {
 } from './adapters/minimax-video-adapter';
 import { generateWithGrokVideo, testGrokVideoConnectivity } from './adapters/grok-video-adapter';
 import { generateWithHappyHorse, testHappyHorseConnectivity } from './adapters/happyhorse-adapter';
+import { generateWithCustomVideoProtocol } from './adapters/custom-video-protocol-adapter';
 
 export const VIDEO_PROVIDERS: Record<VideoProviderId, VideoProviderConfig> = {
   seedance: {
@@ -192,6 +193,10 @@ export async function generateVideo(
   config: VideoGenerationConfig,
   options: VideoGenerationOptions,
 ): Promise<VideoGenerationResult> {
+  if (String(config.providerId).startsWith('custom-video-')) {
+    return generateWithCustomVideoProtocol(config, options);
+  }
+
   switch (config.providerId) {
     case 'seedance':
       return generateWithSeedance(config, options);

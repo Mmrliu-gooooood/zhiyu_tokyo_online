@@ -1,7 +1,7 @@
 ---
 name: curriculum-planner
 title: "系列课规划"
-description: Multi-stage series — a request for several classrooms that belong together, like 「7 天学 Python」, a four-week onboarding track, a semester unit split across lessons, or "turn this book into a lesson per chapter". Clarifies the series brief, gets the user's explicit sign-off on the full lesson list before spending anything, then builds the stages one at a time into a shared folder. Use when the ask is a sequence of classrooms; not for a single stage, however large.
+description: Plan a connected zhiyu course series, from 「7 天学 Python」 to onboarding tracks, semester units, or one lesson per book chapter. It clarifies the brief, gets the user's explicit sign-off on the full lesson list before spending anything, then builds stages one by one in a shared folder. Use for a sequence of classrooms, not one oversized stage.
 ---
 
 # Planning and building a stage series

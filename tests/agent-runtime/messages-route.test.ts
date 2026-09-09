@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   bindOwnerMaterialsToSession: vi.fn(),
 }));
 
+vi.mock('@/lib/server/agent-runtime/session-model-binding', () => ({
+  validateSessionModelBinding: async (_owner: string, ref: unknown) => ref,
+}));
+
 vi.mock('@/lib/config/feature-flags', () => ({
   isAgentRuntimeEnabled: () => true,
   isAgentRuntimeConfigured: () => true,
@@ -33,9 +37,9 @@ import { POST } from '@/app/api/agent/sessions/[id]/messages/route';
 import { MAX_SESSION_TEXT_LENGTH } from '@/lib/server/agent-runtime/limits';
 
 function call(body: unknown) {
-  const request = new NextRequest('http://localhost/api/agent/sessions/session-1/messages', {
+  const request = new NextRequest('http://localhost:3000/api/agent/sessions/session-1/messages', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { origin: 'http://localhost:3000', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return POST(request, { params: Promise.resolve({ id: 'session-1' }) });
@@ -49,6 +53,32 @@ beforeEach(() => {
 });
 
 describe('POST agent session message', () => {
+  it('binds the next run reference atomically through store options instead of message data', async () => {
+    const modelRef = { id: 'connection-a', revision: 3 };
+    const response = await call({ text: 'Continue', modelRef });
+    expect(response.status).toBe(202);
+    expect(mocks.postUserMessage).toHaveBeenCalledWith(
+      'session-1',
+      { text: 'Continue' },
+      {
+        expectedOwnerId: 'owner-1',
+        modelRef,
+      },
+    );
+  });
+
+  it('owner-fences a strict media snapshot ref outside message data', async () => {
+    const mediaConfigRef = { id: '11111111-1111-4111-8111-111111111111', revision: 3 };
+    const response = await call({ text: 'Continue', ownerId: 'owner-forged', mediaConfigRef });
+    expect(response.status).toBe(202);
+    expect(mocks.postUserMessage).toHaveBeenCalledWith(
+      'session-1',
+      { text: 'Continue' },
+      { expectedOwnerId: 'owner-1', mediaConfigRef },
+    );
+    expect(JSON.stringify(mocks.postUserMessage.mock.calls)).not.toContain('owner-forged');
+  });
+
   it('posts a trimmed message with an owner fence and returns its delivery', async () => {
     const response = await call({ text: ' Continue ' });
 

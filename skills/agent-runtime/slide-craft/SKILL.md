@@ -1,7 +1,7 @@
 ---
 name: slide-craft
 title: "页面设计"
-description: The design law of a slide page — canvas geometry, the text height table, the type scale, contrast pairs, spacing rhythm, and which element type carries which content. Load it when patching slide elements one at a time, when a fix is about colour or contrast, when text has to grow or shrink inside a box, when a page feels crowded or empty, or when replacement content needs real rich-text structure. It is the standard `page-clone` and `pro-editing` edit against, not a procedure of its own — those two decide which pages to touch and in what order, this one decides what a good page looks like when you put it back.
+description: The zhiyu design standard for canvas geometry, text height, type scale, contrast, spacing rhythm, and content-bearing elements. Load it when patching slide elements, correcting colour or contrast, resizing text, fixing a crowded page, or structuring rich text. It guides `page-clone` and `pro-editing` but is not a procedure of its own.
 ---
 
 # The design law of a slide page

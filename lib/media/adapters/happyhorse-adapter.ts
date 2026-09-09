@@ -205,6 +205,7 @@ export async function testHappyHorseConnectivity(
 ): Promise<{ success: boolean; message: string }> {
   return probeAuth({
     providerName: 'HappyHorse',
+    acceptedStatuses: [404],
     request: () => {
       const baseUrl = normalizeBaseUrl(config.baseUrl);
       return fetch(`${baseUrl}/api/v1/tasks/connectivity-test-nonexistent`, {

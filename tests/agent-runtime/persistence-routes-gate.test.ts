@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest } from '@/tests/helpers/signed-owner-request';
 
 import type { AgentSessionMaterial } from '@openmaic/storage';
 

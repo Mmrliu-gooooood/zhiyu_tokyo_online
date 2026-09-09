@@ -133,6 +133,7 @@ export async function testKlingConnectivity(
   const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
   return probeAuth({
     providerName: 'Kling',
+    acceptedStatuses: [404],
     request: () => {
       const { accessKey, secretKey } = parseApiKey(config.apiKey);
       const token = generateJWT(accessKey, secretKey);

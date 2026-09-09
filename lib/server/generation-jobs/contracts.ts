@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { SceneOutline } from '@/lib/types/generation';
 
 export const GENERATION_PIPELINE_VERSION = '1';
-export const GENERATION_SCHEMA_VERSION = 1;
+export const GENERATION_SCHEMA_VERSION = 4;
 export class GenerationJobError extends Error {
   constructor(
     readonly code: string,
@@ -19,6 +19,18 @@ const ref = z
   .min(1)
   .max(200)
   .regex(/^[a-zA-Z0-9_.:/-]+$/);
+export const MediaConfigRefSchema = z
+  .object({ id: z.uuid(), revision: z.number().int().positive() })
+  .strict();
+export type MediaConfigRef = z.infer<typeof MediaConfigRefSchema>;
+export const GenerationModelRefSchema = z
+  .object({ id: z.uuid(), revision: z.number().int().positive() })
+  .strict();
+export type GenerationModelRef = z.infer<typeof GenerationModelRefSchema>;
+export const GenerationSearchRefSchema = z
+  .object({ id: z.uuid(), revision: z.number().int().positive() })
+  .strict();
+export type GenerationSearchRef = z.infer<typeof GenerationSearchRefSchema>;
 const image = z
   .object({
     id: ref,
@@ -131,6 +143,39 @@ export const GenerationInputSchema = z
       })
       .strict()
       .optional(),
+    mediaConfigRef: MediaConfigRefSchema.optional(),
+    modelConfigRef: GenerationModelRefSchema.optional(),
+    searchConfigRef: GenerationSearchRefSchema.optional(),
+    source: z
+      .object({
+        kind: z.enum(['home', 'pro']),
+        sessionId: ref.optional(),
+        submissionId: ref.optional(),
+      })
+      .strict()
+      .optional(),
+    target: z
+      .object({
+        stageId: ref,
+        revision: z.number().int().nonnegative(),
+        replaceExisting: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    planning: z
+      .object({
+        outlines: z.array(z.unknown()).min(1).max(30),
+        courseTitle: z.string().max(500).optional(),
+        languageDirective: text.optional(),
+        researchContext: text.optional(),
+        skillIds: z.array(ref).max(30).optional(),
+        skillConstraints: z
+          .array(z.object({ id: ref, constraints: z.record(z.string(), z.unknown()) }).strict())
+          .max(30)
+          .optional(),
+      })
+      .strict()
+      .optional(),
     tts: z
       .object({
         enabled: z.boolean(),
@@ -163,6 +208,9 @@ export function parseGenerationInput(value: unknown): GenerationInput {
       parsed.data.agents.items.filter((a) => a.role === 'teacher').length !== 1)
   )
     throw new GenerationJobError('INVALID_AGENTS', 400);
+  if (parsed.data.planning) validatePlan(parsed.data.planning.outlines);
+  if ((parsed.data.target || parsed.data.planning) && parsed.data.source?.kind !== 'pro')
+    throw new GenerationJobError('INVALID_PRO_GENERATION_INPUT', 400);
   return parsed.data;
 }
 export function canonicalHash(value: unknown): string {
@@ -290,4 +338,5 @@ export interface StepReceipt {
   requestKey: string;
   status: string;
   result?: unknown;
+  providerRequestId?: string;
 }

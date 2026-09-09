@@ -1,7 +1,7 @@
 ---
 name: page-clone
 title: "页面克隆"
-description: Building one page that looks like a page the course already has — copy the model page with `duplicate_scene`, then rewrite the copy's words with one `patch_stage` op per content slot. Use when a new page has to inherit an existing page's design, whether the model page came from an imported deck or the course wrote it earlier. Not for revising a page that is already the page you want (that is `pro-editing`), and not for the course-level work of cataloguing layouts and assigning one per outline entry (that is `style-clone`).
+description: Reuse an existing page design inside zhiyu by copying the model page with `duplicate_scene` and replacing each content slot with one focused `patch_stage` operation. Use for one new page that must inherit a known design; use `pro-editing` to revise the page itself and `style-clone` to map layouts across a whole course.
 ---
 
 # Cloning one page's design

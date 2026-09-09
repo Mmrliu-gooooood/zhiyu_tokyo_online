@@ -2,6 +2,9 @@ import type { Api, Model } from '@earendil-works/pi-ai';
 
 import { getStageRoute } from '@/lib/server/model-routes';
 import { resolveModel, type ResolvedModel } from '@/lib/server/resolve-model';
+import { getProvider } from '@/lib/ai/providers';
+import type { ProviderId } from '@/lib/types/provider';
+import type { ProModelContext } from '@/types/pro-model';
 
 export const AGENT_DRIVER_STAGE = 'maic-agent-driver' as const;
 export const UNKNOWN_MODEL_RESERVED_OUTPUT_TOKENS = 8_192;
@@ -45,8 +48,8 @@ export function buildPiDriverModel(
   } as Model<Api>;
 }
 
-/** Resolve the driver from its dedicated route; DEFAULT_MODEL is never consulted. */
-export async function resolveAgentDriverModel(): Promise<{
+/** Dedicated route wins; otherwise use the run's bound Home connection. */
+export async function resolveAgentDriverModel(modelContext?: ProModelContext): Promise<{
   connection: ResolvedModel;
   piModel: Model<Api>;
   /** Catalog-backed API limit; undefined means omit max_tokens on the wire. */
@@ -55,7 +58,8 @@ export async function resolveAgentDriverModel(): Promise<{
   reservedOutputTokens: number;
 }> {
   const route = getStageRoute(AGENT_DRIVER_STAGE);
-  if (!route) {
+  await modelContext?.assertActive?.();
+  if (!route && !modelContext) {
     throw new Error(
       `MODEL_ROUTES must explicitly configure stage "${AGENT_DRIVER_STAGE}" ` +
         `with a provider-prefixed model id and an api/dialect.`,
@@ -64,26 +68,59 @@ export async function resolveAgentDriverModel(): Promise<{
   // The provider prefix must be explicit. parseModelString silently defaults a
   // bare model id to the openai provider, so the driver must fail here before
   // resolveModel reaches that fallback and routes to the wrong provider.
-  const providerSeparator = route.model.indexOf(':');
-  const modelId = providerSeparator > 0 ? route.model.slice(providerSeparator + 1) : undefined;
+  const modelString = route?.model ?? modelContext!.modelString;
+  const providerSeparator = modelString.indexOf(':');
+  const modelId = providerSeparator > 0 ? modelString.slice(providerSeparator + 1) : undefined;
   if (!modelId) {
     throw new Error(
       `MODEL_ROUTES stage "${AGENT_DRIVER_STAGE}" must use a model id with an explicit ` +
         `provider prefix; ` +
-        `received ${JSON.stringify(route.model)}.`,
+        `received an invalid model identifier.`,
     );
   }
-  if (route.thinking?.effort !== undefined) {
+  if (route?.thinking?.effort !== undefined) {
     throw new Error(
       `MODEL_ROUTES stage "${AGENT_DRIVER_STAGE}" must not set thinking.effort because ` +
         `${modelId} cannot combine reasoning_effort with function tools on this transport.`,
     );
   }
-  const connection = await resolveModel({ stage: AGENT_DRIVER_STAGE });
+  // Never forward personal credentials when an administrator selected this stage.
+  const connection = await resolveModel(
+    route ? { stage: AGENT_DRIVER_STAGE } : { ...modelContext, stage: AGENT_DRIVER_STAGE },
+  );
+  let api = route?.api ?? modelContext?.api;
+  if (!route) {
+    const provider = getProvider(connection.providerId as ProviderId);
+    if (!api && provider?.type === 'openai') {
+      api =
+        typeof connection.model !== 'string' && connection.model?.provider?.endsWith('.responses')
+          ? 'openai-responses'
+          : 'openai-completions';
+    }
+    // Home's existing custom-provider OpenAI mode explicitly uses chat
+    // completions in getModel; this is a saved transport choice, not a probe.
+    if (!api && !provider && modelContext?.providerType === 'openai') api = 'openai-completions';
+    if (!api) throw new Error('PRO_MODEL_PROTOCOL: 请在模型设置中选择支持的 OpenAI 协议。');
+    const providerType = provider?.type ?? modelContext?.providerType;
+    if (providerType && providerType !== 'openai') {
+      throw new Error('PRO_MODEL_PROTOCOL: 当前 PRO 驱动仅支持 OpenAI 兼容协议，请更换模型连接。');
+    }
+    // Home effort is a generation preference; this tool driver cannot send it.
+    if (connection.thinkingConfig) {
+      const { effort: _effort, ...thinking } = connection.thinkingConfig;
+      // The driver transport cannot combine an effort parameter with tools,
+      // but its explicit on/off preference is still meaningful. Removing one
+      // unsupported field must not silently restore provider-default thinking.
+      connection.thinkingConfig = thinking;
+    }
+  }
+  if (connection.modelInfo?.capabilities?.tools === false) {
+    throw new Error('PRO_MODEL_TOOLS: 当前模型已确认不支持工具调用，请在模型设置中更换模型。');
+  }
   const wireMaxOutputTokens = connection.modelInfo?.outputWindow;
   return {
     connection,
-    piModel: buildPiDriverModel(connection, route.api, route.contextWindow),
+    piModel: buildPiDriverModel(connection, api, route?.contextWindow),
     wireMaxOutputTokens,
     reservedOutputTokens: wireMaxOutputTokens ?? UNKNOWN_MODEL_RESERVED_OUTPUT_TOKENS,
   };

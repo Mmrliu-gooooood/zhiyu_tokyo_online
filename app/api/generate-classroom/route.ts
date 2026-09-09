@@ -34,7 +34,10 @@ export async function POST(req: Request) {
         headers.set('Location', previous.pollUrl);
         return generationResponse({ success: true, ...previous }, headers, 202);
       }
-      await validateBackgroundProviders(input);
+      await validateBackgroundProviders(input, {
+        ownerId,
+        queryable: getGenerationPool(),
+      });
       input.model = { ...input.model, configVersion: generationProviderConfigVersion() };
       const job = await repository.createJob(ownerId, key, input);
       headers.set('Location', job.pollUrl);

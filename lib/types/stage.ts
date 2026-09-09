@@ -107,6 +107,18 @@ export type AppScene = DslScene<Action, SceneContent> & {
    * scene-derived outline.
    */
   outlineId?: string;
+  /**
+   * Durable seam between content and action generation. A retry with the same
+   * input may reuse the already-persisted content instead of paying for (and
+   * potentially changing) it again. The marker is removed after the complete
+   * scene has been persisted.
+   */
+  generationCheckpoint?: {
+    phase: 'content_completed';
+    inputHash: string;
+    elapsedMs: number;
+    updatedAt: number;
+  };
 };
 export type Scene = AppScene;
 

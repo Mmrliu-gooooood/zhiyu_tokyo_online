@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { VideoProviderId } from '@/lib/media/types';
+import type { BuiltInVideoProviderId, VideoProviderId } from '@/lib/media/types';
 import { VIDEO_PROVIDERS, generateVideo, testVideoConnectivity } from '@/lib/media/video-providers';
 
 const adapterMocks = vi.hoisted(() => {
@@ -41,7 +41,7 @@ vi.mock('@/lib/media/adapters/happyhorse-adapter', () => ({
 }));
 
 /** Every catalog id must dispatch to its own adapter in both switches. */
-const CATALOG_IDS = Object.keys(VIDEO_PROVIDERS) as VideoProviderId[];
+const CATALOG_IDS = Object.keys(VIDEO_PROVIDERS) as BuiltInVideoProviderId[];
 
 describe('video provider catalog', () => {
   it('does not list a selectable provider that has no adapter (sora)', () => {

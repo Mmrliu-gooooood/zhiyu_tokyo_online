@@ -1874,7 +1874,7 @@
       "download": "Télécharger",
       "detailFailed": "Impossible de charger les détails du skill",
       "contentLabel": "Contenu",
-      "builtinDetailNote": "Ce skill est fourni avec OpenMAIC. Téléchargez-le pour l’importer dans un autre espace de travail d’agent.",
+      "builtinDetailNote": "Ce skill est fourni avec zhiyu. Téléchargez-le pour l’importer dans un autre espace de travail d’agent.",
       "upload": "Importer",
       "uploading": "Importation…",
       "uploadFailed": "Impossible d’importer le skill. Vérifiez le fichier et réessayez.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "La synthèse vocale native du navigateur ne prend pas en charge les fonctions audio de la piste de l’éditeur (écoute, régénération et sonorisation groupée). Choisissez un fournisseur de synthèse vocale géré pour produire et gérer l’audio réplique par réplique.",
     "alidocmindAccessKeyId": "Identifiant de clé d’accès",
-    "alidocmindAccessKeySecret": "Secret de clé d’accès"
+    "alidocmindAccessKeySecret": "Secret de clé d’accès",
+    "addCustomMediaProvider": "Ajouter une plateforme personnalisée",
+    "mediaProtocol": "Protocole API",
+    "mediaProtocolHint": "Choisissez le format API pris en charge. Les passerelles compatibles peuvent utiliser leur propre URL de base.",
+    "customMediaProviderHint": "Ajoutez la plateforme, puis saisissez sa clé API et son identifiant de modèle.",
+    "mediaProviderEnabled": "Activer la plateforme",
+    "mediaConfigurationChecked": "La configuration est complète. Aucune génération demandée ; la clé API et le modèle ne sont pas encore vérifiés.",
+    "checkMediaConfiguration": "Vérifier la configuration"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

@@ -157,6 +157,8 @@ export interface TTSModelConfig {
   speed?: number;
   format?: string;
   providerOptions?: Record<string, unknown>;
+  /** Server-only restricted transport for user-configured endpoints. */
+  fetcher?: typeof fetch;
   /**
    * Cancel the provider request(s) when this signal aborts. The agent runtime
    * threads the session cancel signal here so an in-flight synthesis fetch is
@@ -210,6 +212,8 @@ export interface ASRModelConfig {
   apiKey?: string;
   baseUrl?: string;
   language?: string;
+  /** Server-only restricted transport for user-configured endpoints. */
+  fetcher?: typeof fetch;
 }
 
 /** Returns true if the provider ID is a user-defined custom TTS provider. */

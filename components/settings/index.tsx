@@ -63,6 +63,8 @@ import { TokenPlanSettings } from './token-plan-settings';
 import { ModelEditDialog } from './model-edit-dialog';
 import { AddProviderDialog, type NewProviderData } from './add-provider-dialog';
 import { AddAudioProviderDialog, type NewAudioProviderData } from './add-audio-provider-dialog';
+import { AddMediaProviderDialog } from './add-media-provider-dialog';
+import { listImageProviders, listVideoProviders } from '@/lib/media/provider-catalog';
 import { isCustomTTSProvider, isCustomASRProvider } from '@/lib/audio/types';
 import { resolveASRProviderName, resolveTTSProviderName } from '@/lib/audio/provider-display';
 import type { SettingsSection, EditingModel } from '@/lib/types/settings';
@@ -76,6 +78,7 @@ function ProviderListColumn<T extends string>({
   width,
   t,
   onAdd,
+  addLabel,
 }: {
   providers: Array<{ id: T; name: string; icon?: string }>;
   configs: Record<string, { isServerConfigured?: boolean }>;
@@ -84,6 +87,7 @@ function ProviderListColumn<T extends string>({
   width: number;
   t: (key: string) => string;
   onAdd?: () => void;
+  addLabel?: string;
 }) {
   return (
     <div className="flex-shrink-0 bg-background flex flex-col" style={{ width }}>
@@ -127,7 +131,7 @@ function ProviderListColumn<T extends string>({
         <div className="p-3 border-t">
           <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={onAdd}>
             <Plus className="h-3.5 w-3.5" />
-            {t('settings.addProviderButton')}
+            {addLabel || t('settings.addProviderButton')}
           </Button>
         </div>
       )}
@@ -240,10 +244,26 @@ export function SettingsDialog({
   const [selectedPdfProviderId, setSelectedPdfProviderId] = useState<PDFProviderId>(pdfProviderId);
   const [selectedWebSearchProviderId, setSelectedWebSearchProviderId] =
     useState<WebSearchProviderId>(webSearchProviderId);
-  const [selectedImageProviderId, setSelectedImageProviderId] =
-    useState<ImageProviderId>(imageProviderId);
-  const [selectedVideoProviderId, setSelectedVideoProviderId] =
-    useState<VideoProviderId>(videoProviderId);
+  const [imagePanelId, setSelectedImageProviderId] = useState<ImageProviderId>(imageProviderId);
+  const [videoPanelId, setSelectedVideoProviderId] = useState<VideoProviderId>(videoProviderId);
+  const imageProviders = listImageProviders(IMAGE_PROVIDERS, imageProvidersConfig);
+  const videoProviders = listVideoProviders(VIDEO_PROVIDERS, videoProvidersConfig);
+  // The panel needs a display selection even when generation has no active provider.
+  // Do not change the user's generation selection merely by opening settings.
+  const selectedImageProviderId = imageProviders.some((p) => p.id === imagePanelId)
+    ? imagePanelId
+    : imageProviders[0].id;
+  const selectedVideoProviderId = videoProviders.some((p) => p.id === videoPanelId)
+    ? videoPanelId
+    : videoProviders[0].id;
+  const mediaProviderName = (kind: 'image' | 'video', id: string, fallback: string) => {
+    const names: Partial<Record<string, string>> =
+      kind === 'image' ? IMAGE_PROVIDER_NAMES : VIDEO_PROVIDER_NAMES;
+    const key = names[id];
+    if (!key) return fallback;
+    const translated = t(`settings.${key}`);
+    return translated === `settings.${key}` ? fallback : translated;
+  };
   // Navigate to initialSection when dialog opens
   useEffect(() => {
     if (open && initialSection) {
@@ -263,6 +283,9 @@ export function SettingsDialog({
   const [showAddProviderDialog, setShowAddProviderDialog] = useState(false);
   const [showAddTTSProviderDialog, setShowAddTTSProviderDialog] = useState(false);
   const [showAddASRProviderDialog, setShowAddASRProviderDialog] = useState(false);
+  const [addMediaKind, setAddMediaKind] = useState<'image' | 'video' | null>(null);
+  const addCustomImageProvider = useSettingsStore((state) => state.addCustomImageProvider);
+  const addCustomVideoProvider = useSettingsStore((state) => state.addCustomVideoProvider);
   const addCustomTTSProvider = useSettingsStore((state) => state.addCustomTTSProvider);
   const addCustomASRProvider = useSettingsStore((state) => state.addCustomASRProvider);
 
@@ -648,7 +671,7 @@ export function SettingsDialog({
         );
       }
       case 'image': {
-        const imgProvider = IMAGE_PROVIDERS[selectedImageProviderId];
+        const imgProvider = imageProviders.find((p) => p.id === selectedImageProviderId);
         const imgIcon = IMAGE_PROVIDER_ICONS[selectedImageProviderId];
         return (
           <>
@@ -665,13 +688,17 @@ export function SettingsDialog({
               <Box className="h-8 w-8 text-muted-foreground" />
             )}
             <h2 className="text-lg font-semibold">
-              {t(`settings.${IMAGE_PROVIDER_NAMES[selectedImageProviderId]}`) || imgProvider?.name}
+              {mediaProviderName(
+                'image',
+                selectedImageProviderId,
+                imgProvider?.name || t('settings.imageSettings'),
+              )}
             </h2>
           </>
         );
       }
       case 'video': {
-        const vidProvider = VIDEO_PROVIDERS[selectedVideoProviderId];
+        const vidProvider = videoProviders.find((p) => p.id === selectedVideoProviderId);
         const vidIcon = VIDEO_PROVIDER_ICONS[selectedVideoProviderId];
         return (
           <>
@@ -688,7 +715,11 @@ export function SettingsDialog({
               <Box className="h-8 w-8 text-muted-foreground" />
             )}
             <h2 className="text-lg font-semibold">
-              {t(`settings.${VIDEO_PROVIDER_NAMES[selectedVideoProviderId]}`) || vidProvider?.name}
+              {mediaProviderName(
+                'video',
+                selectedVideoProviderId,
+                vidProvider?.name || t('settings.videoSettings'),
+              )}
             </h2>
           </>
         );
@@ -1012,14 +1043,16 @@ export function SettingsDialog({
             {activeSection === 'image' && (
               <>
                 <ProviderListColumn
-                  providers={Object.values(IMAGE_PROVIDERS).map((p) => ({
+                  providers={imageProviders.map((p) => ({
                     id: p.id,
-                    name: t(`settings.${IMAGE_PROVIDER_NAMES[p.id]}`) || p.name,
+                    name: mediaProviderName('image', p.id, p.name),
                     icon: IMAGE_PROVIDER_ICONS[p.id],
                   }))}
                   configs={imageProvidersConfig}
                   selectedId={selectedImageProviderId}
                   onSelect={setSelectedImageProviderId}
+                  onAdd={() => setAddMediaKind('image')}
+                  addLabel={t('settings.addProvider')}
                   width={providerListWidth}
                   t={t}
                 />
@@ -1035,14 +1068,16 @@ export function SettingsDialog({
             {activeSection === 'video' && (
               <>
                 <ProviderListColumn
-                  providers={Object.values(VIDEO_PROVIDERS).map((p) => ({
+                  providers={videoProviders.map((p) => ({
                     id: p.id,
-                    name: t(`settings.${VIDEO_PROVIDER_NAMES[p.id]}`) || p.name,
+                    name: mediaProviderName('video', p.id, p.name),
                     icon: VIDEO_PROVIDER_ICONS[p.id],
                   }))}
                   configs={videoProvidersConfig}
                   selectedId={selectedVideoProviderId}
                   onSelect={setSelectedVideoProviderId}
+                  onAdd={() => setAddMediaKind('video')}
+                  addLabel={t('settings.addProvider')}
                   width={providerListWidth}
                   t={t}
                 />
@@ -1198,10 +1233,16 @@ export function SettingsDialog({
                   <WebSearchSettings selectedProviderId={selectedWebSearchProviderId} />
                 )}
                 {activeSection === 'image' && (
-                  <ImageSettings selectedProviderId={selectedImageProviderId} />
+                  <ImageSettings
+                    key={selectedImageProviderId}
+                    selectedProviderId={selectedImageProviderId}
+                  />
                 )}
                 {activeSection === 'video' && (
-                  <VideoSettings selectedProviderId={selectedVideoProviderId} />
+                  <VideoSettings
+                    key={selectedVideoProviderId}
+                    selectedProviderId={selectedVideoProviderId}
+                  />
                 )}
                 {activeSection === 'tts' && <TTSSettings selectedProviderId={ttsProviderId} />}
                 {activeSection === 'asr' && <ASRSettings selectedProviderId={asrProviderId} />}
@@ -1257,6 +1298,36 @@ export function SettingsDialog({
       />
 
       {/* Add TTS Provider Dialog */}
+      {addMediaKind && (
+        <AddMediaProviderDialog
+          kind={addMediaKind}
+          onClose={() => setAddMediaKind(null)}
+          onAdd={(data) => {
+            if (data.kind === 'image') {
+              const id = `custom-image-${crypto.randomUUID()}` as const;
+              addCustomImageProvider(
+                id,
+                data.name,
+                data.baseUrl,
+                data.protocol,
+                data.requiresApiKey,
+              );
+              setSelectedImageProviderId(id);
+            } else {
+              const id = `custom-video-${crypto.randomUUID()}` as const;
+              addCustomVideoProvider(
+                id,
+                data.name,
+                data.baseUrl,
+                data.protocol,
+                data.requiresApiKey,
+              );
+              setSelectedVideoProviderId(id);
+            }
+          }}
+        />
+      )}
+
       <AddAudioProviderDialog
         open={showAddTTSProviderDialog}
         onOpenChange={setShowAddTTSProviderDialog}

@@ -256,6 +256,70 @@ describe('classic media orchestrator', () => {
     expect(events).toEqual(['generate:first', 'proxy:first', 'generate:second', 'proxy:second']);
   });
 
+  it('binds a selected custom provider configuration to the generation request', async () => {
+    mocks.settings.mockReturnValue({
+      imageGenerationEnabled: true,
+      videoGenerationEnabled: true,
+      imageProviderId: 'custom-image-gateway',
+      imageModelId: 'vendor/image-v2',
+      imageProvidersConfig: {
+        'custom-image-gateway': {
+          apiKey: 'image-secret',
+          baseUrl: 'https://gateway.test/team/v1',
+          enabled: true,
+          protocol: 'openai-images',
+          requiresApiKey: true,
+        },
+      },
+      videoProviderId: 'custom-video-gateway',
+      videoModelId: 'vendor/video-v1',
+      videoProvidersConfig: {
+        'custom-video-gateway': {
+          apiKey: 'video-secret',
+          baseUrl: 'https://gateway.test/team/api/v1',
+          enabled: true,
+          protocol: 'openrouter-video',
+          requiresApiKey: true,
+        },
+      },
+    });
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/generate/image') {
+        const body = JSON.parse(String(init?.body));
+        expect(body.providerConfig).toEqual({
+          id: 'custom-image-gateway',
+          protocol: 'openai-images',
+          apiKey: 'image-secret',
+          baseUrl: 'https://gateway.test/team/v1',
+          enabled: true,
+          requiresApiKey: true,
+          modelId: 'vendor/image-v2',
+        });
+        return new Response(
+          JSON.stringify({ success: true, result: { base64: 'aW1hZ2U=', mimeType: 'image/webp' } }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      if (String(input).startsWith('data:image/webp;base64,')) {
+        return new Response(new Blob(['image'], { type: 'image/webp' }), { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    });
+
+    await generateMediaForOutlines(
+      [outlineWith({ type: 'image', prompt: 'Custom gateway', elementId: imageRef })],
+      stageId,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/generate/image',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(mocks.mediaPut).toHaveBeenCalledWith(
+      expect.objectContaining({ id: `${stageId}:${imageRef}` }),
+    );
+  });
+
   it('skips already completed, permanently failed, and disabled requests', async () => {
     useMediaGenerationStore.setState({
       tasks: {

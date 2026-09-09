@@ -1,7 +1,7 @@
 ---
 name: pro-editing
 title: "专业编辑"
-description: Professional editing of a course that already exists. Use when the user wants to revise, improve, restructure or polish pages the course already has — fix a page, tune a layout, repair a quiz, reword narration, reorder the deck, or raise the quality of the whole course. Not for building a new course from scratch.
+description: "Refine an existing zhiyu course without rebuilding it: repair pages or quizzes, tune layouts, rewrite narration, reorder the deck, or polish the course end to end. Use only when the course already exists, not for creating a new one from scratch."
 ---
 
 # Professional course editing

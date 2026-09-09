@@ -1,7 +1,7 @@
 ---
 name: style-clone
 title: "名师复刻"
-description: Building a new course inside someone else's deck — import the deck as a library of layouts, then produce each page of the new course by copying the layout that fits it and rewriting that copy's content element by element, so the result reads as though the original author made it. Use when the session has an imported deck (or a `.pptx` to import) and the ask is to teach new material in its design — its palette, its typography, its way of dividing a page. Not for a straight import that must stay slide-for-slide identical to the file (that is `pptx-import`), and not for extracting how a teacher speaks from a recording or handout (that is `teacher-style-clone`, which supplies the voice while this one supplies the look; the two compose).
+description: "Build a new zhiyu course in the visual language of an imported deck or `.pptx`: treat its pages as a layout library, copy the best fit, then rewrite elements individually. Use `pptx-import` for a slide-for-slide transfer and `teacher-style-clone` for the teacher's voice; this skill supplies the look and can combine with the latter."
 ---
 
 # Cloning a deck's style

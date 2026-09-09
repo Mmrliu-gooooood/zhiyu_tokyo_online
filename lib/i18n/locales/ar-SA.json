@@ -1874,7 +1874,7 @@
       "download": "تنزيل",
       "detailFailed": "تعذّر تحميل تفاصيل المهارة",
       "contentLabel": "المحتوى",
-      "builtinDetailNote": "هذه المهارة مرفقة مع OpenMAIC. نزّلها لاستيرادها إلى مساحة عمل وكيل أخرى.",
+      "builtinDetailNote": "هذه المهارة مرفقة مع zhiyu. نزّلها لاستيرادها إلى مساحة عمل وكيل أخرى.",
       "upload": "رفع",
       "uploading": "جارٍ الرفع…",
       "uploadFailed": "تعذّر رفع المهارة. تحقّق من الملف وحاول مرة أخرى.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "لا يدعم تحويل النص إلى كلام المدمج في المتصفح ميزات الصوت في الخط الزمني للمحرر (المعاينة وإعادة التوليد والتعليق الصوتي الجماعي). بدّل إلى مزود TTS مُدار لتوليد صوت كل سطر وإدارته.",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "إضافة منصة مخصصة",
+    "mediaProtocol": "بروتوكول API",
+    "mediaProtocolHint": "اختر تنسيق API الذي تدعمه المنصة. يمكن للبوابات المتوافقة استخدام عنوان Base URL الخاص بها.",
+    "customMediaProviderHint": "أضف المنصة، ثم أدخل مفتاح API ومعرّف النموذج.",
+    "mediaProviderEnabled": "تفعيل المنصة",
+    "mediaConfigurationChecked": "اكتملت الإعدادات. لم يُرسل طلب توليد؛ لم يتم التحقق من المفتاح وتوفر النموذج بعد.",
+    "checkMediaConfiguration": "فحص الإعدادات"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

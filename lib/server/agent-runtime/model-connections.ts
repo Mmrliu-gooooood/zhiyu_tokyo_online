@@ -1,0 +1,282 @@
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
+import { getProvider, parseModelString } from '@/lib/ai/providers';
+import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
+import { isServerConfiguredProvider } from '@/lib/server/provider-config';
+import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import { nodePostgresTransaction } from './store';
+import type { ProModelContext, ProModelRef } from '@/types/pro-model';
+
+export class ProModelConnectionError extends Error {
+  constructor(
+    readonly code: string,
+    readonly status = 400,
+  ) {
+    super(code);
+    this.name = 'ProModelConnectionError';
+  }
+}
+
+const refSchema = z.object({ id: z.uuid(), revision: z.number().int().positive() });
+const contextSchema = z.object({
+  modelString: z
+    .string()
+    .trim()
+    .min(3)
+    .max(500)
+    .regex(/^[^:/\s]+[:/].+$/),
+  apiKey: z.string().max(16384).optional(),
+  baseUrl: z.string().trim().max(2048).optional(),
+  providerType: z.enum(['openai', 'azure', 'anthropic', 'bedrock', 'google']).optional(),
+  api: z.enum(['openai-completions', 'openai-responses']).optional(),
+  thinkingConfig: z
+    .object({
+      mode: z.enum(['default', 'disabled', 'enabled', 'auto']).optional(),
+      effort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
+      level: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
+      enabled: z.boolean().optional(),
+      budgetTokens: z.number().int().nonnegative().max(1000000).optional(),
+      excludeReasoningOutput: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+export function parseProModelRef(value: unknown): ProModelRef | undefined {
+  const result = refSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+}
+
+function encryptionKey(): Buffer {
+  const configured = process.env.PRO_MODEL_ENCRYPTION_KEY;
+  if (!configured || !/^[a-f0-9]{64}$/i.test(configured)) {
+    throw new ProModelConnectionError('PRO_MODEL_ENCRYPTION_UNAVAILABLE', 503);
+  }
+  return Buffer.from(configured, 'hex');
+}
+
+function seal(context: ProModelContext, ownerId: string, ref: ProModelRef): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', encryptionKey(), iv);
+  cipher.setAAD(Buffer.from(JSON.stringify(['pro-model:v1', ownerId, ref.id, ref.revision])));
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(context), 'utf8'), cipher.final()]);
+  return [
+    'v1',
+    iv.toString('base64'),
+    cipher.getAuthTag().toString('base64'),
+    encrypted.toString('base64'),
+  ].join('.');
+}
+
+function unseal(ciphertext: string, ownerId: string, ref: ProModelRef): ProModelContext {
+  const key = encryptionKey();
+  try {
+    const [version, iv, tag, encrypted, extra] = ciphertext.split('.');
+    if (version !== 'v1' || extra || !iv || !tag || !encrypted) throw new Error();
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
+    decipher.setAAD(Buffer.from(JSON.stringify(['pro-model:v1', ownerId, ref.id, ref.revision])));
+    decipher.setAuthTag(Buffer.from(tag, 'base64'));
+    return contextSchema.parse(
+      JSON.parse(
+        Buffer.concat([
+          decipher.update(Buffer.from(encrypted, 'base64')),
+          decipher.final(),
+        ]).toString('utf8'),
+      ),
+    );
+  } catch {
+    throw new ProModelConnectionError('PRO_MODEL_DECRYPTION_FAILED', 503);
+  }
+}
+
+export async function normalizeModelConnectionContext(value: unknown): Promise<ProModelContext> {
+  const result = contextSchema.safeParse(value);
+  if (!result.success) throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+  const context = result.data;
+  const { providerId } = parseModelString(context.modelString);
+  const provider = getProvider(providerId);
+  const managed = isServerConfiguredProvider('providers', providerId);
+  // Home's existing OpenAI API mode is explicitly the chat-completions
+  // transport (getModel uses .chat); preserve that existing selection.
+  if (!provider && !context.api && context.providerType === 'openai') {
+    context.api = 'openai-completions';
+  }
+  if (!provider && !context.api) {
+    throw new ProModelConnectionError('PRO_MODEL_PROTOCOL_REQUIRED');
+  }
+  if (provider?.type && context.providerType && provider.type !== context.providerType) {
+    throw new ProModelConnectionError('PRO_MODEL_PROVIDER_TYPE_MISMATCH');
+  }
+  if (managed) {
+    // Browser copies never override administrator-owned credentials/endpoints.
+    delete context.apiKey;
+    delete context.baseUrl;
+    delete context.providerType;
+  } else {
+    if (provider?.requiresApiKey !== false && !context.apiKey?.trim()) {
+      throw new ProModelConnectionError('PRO_MODEL_KEY_REQUIRED');
+    }
+    if (context.baseUrl) {
+      const unsafe = await validateUrlForSSRF(context.baseUrl);
+      if (unsafe) throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
+      const url = new URL(context.baseUrl);
+      if (url.username || url.password || url.search || url.hash) {
+        throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
+      }
+    }
+  }
+  return context;
+}
+
+/** Additive lazy migration, shared by web and the durable runtime. */
+export const PRO_MODEL_CONNECTION_SCHEMA = `
+CREATE TABLE IF NOT EXISTS pro_model_connections (
+  id UUID PRIMARY KEY, owner_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision > 0),
+  revoked BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS pro_model_connections_owner ON pro_model_connections(owner_id);
+CREATE TABLE IF NOT EXISTS pro_model_connection_revisions (
+  connection_id UUID NOT NULL REFERENCES pro_model_connections(id),
+  revision INTEGER NOT NULL CHECK (revision > 0), ciphertext TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(connection_id, revision)
+);`;
+
+/** Repository uses injected transactions so encryption/isolation can be tested with real SQL. */
+export class ProModelConnectionStore {
+  constructor(
+    private readonly db: Queryable,
+    private readonly transaction: WithTransaction,
+  ) {}
+
+  async sync(ownerId: string, value: unknown, previous?: ProModelRef): Promise<ProModelRef> {
+    encryptionKey();
+    const context = await normalizeModelConnectionContext(value);
+    return this.transaction(async (db) => {
+      await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`pro-model:${ownerId}`]);
+      const existing = await db.query<{ id: string; revision: number; revoked: boolean }>(
+        previous
+          ? 'SELECT id, revision, revoked FROM pro_model_connections WHERE owner_id=$1 AND id=$2 FOR UPDATE'
+          : 'SELECT id, revision, revoked FROM pro_model_connections WHERE owner_id=$1 AND NOT revoked ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+        previous ? [ownerId, previous.id] : [ownerId],
+      );
+      const current = existing.rows[0];
+      if (previous && (!current || current.revoked)) {
+        throw new ProModelConnectionError('PRO_MODEL_CONNECTION_UNAVAILABLE', 409);
+      }
+      if (previous && current.revision !== previous.revision) {
+        throw new ProModelConnectionError('PRO_MODEL_CONNECTION_STALE', 409);
+      }
+      if (current) {
+        const latest = await db.query<{ ciphertext: string }>(
+          'SELECT ciphertext FROM pro_model_connection_revisions WHERE connection_id=$1 AND revision=$2',
+          [current.id, current.revision],
+        );
+        let unchanged = false;
+        try {
+          unchanged =
+            JSON.stringify(unseal(latest.rows[0].ciphertext, ownerId, current)) ===
+            JSON.stringify(context);
+        } catch (error) {
+          // A deliberate deployment-key rotation invalidates old snapshots but
+          // must not prevent this authenticated owner from replacing its input.
+          if (
+            !(error instanceof ProModelConnectionError) ||
+            error.code !== 'PRO_MODEL_DECRYPTION_FAILED'
+          )
+            throw error;
+        }
+        if (unchanged) {
+          return { id: current.id, revision: current.revision };
+        }
+      }
+      const ref = { id: current?.id ?? randomUUID(), revision: (current?.revision ?? 0) + 1 };
+      const ciphertext = seal(context, ownerId, ref);
+      if (current) {
+        await db.query('UPDATE pro_model_connections SET revision=$2 WHERE id=$1', [
+          ref.id,
+          ref.revision,
+        ]);
+      } else {
+        await db.query(
+          'INSERT INTO pro_model_connections(id,owner_id,revision) VALUES ($1,$2,$3)',
+          [ref.id, ownerId, ref.revision],
+        );
+      }
+      await db.query(
+        'INSERT INTO pro_model_connection_revisions(connection_id,revision,ciphertext) VALUES ($1,$2,$3)',
+        [ref.id, ref.revision, ciphertext],
+      );
+      return ref;
+    });
+  }
+
+  async assertActive(ownerId: string, ref: ProModelRef): Promise<void> {
+    const result = await this.db.query(
+      'SELECT 1 FROM pro_model_connections c JOIN pro_model_connection_revisions r ON r.connection_id=c.id WHERE c.id=$1 AND c.owner_id=$2 AND NOT c.revoked AND r.revision=$3',
+      [ref.id, ownerId, ref.revision],
+    );
+    if (!result.rows.length)
+      throw new ProModelConnectionError('PRO_MODEL_CONNECTION_UNAVAILABLE', 409);
+  }
+
+  async load(ownerId: string, ref: ProModelRef): Promise<ProModelContext> {
+    if (!parseProModelRef(ref)) throw new ProModelConnectionError('PRO_MODEL_INVALID_REFERENCE');
+    const result = await this.db.query<{ ciphertext: string }>(
+      'SELECT r.ciphertext FROM pro_model_connections c JOIN pro_model_connection_revisions r ON r.connection_id=c.id WHERE c.id=$1 AND c.owner_id=$2 AND NOT c.revoked AND r.revision=$3',
+      [ref.id, ownerId, ref.revision],
+    );
+    if (!result.rows[0]) throw new ProModelConnectionError('PRO_MODEL_CONNECTION_UNAVAILABLE', 409);
+    const context = await normalizeModelConnectionContext(
+      unseal(result.rows[0].ciphertext, ownerId, ref),
+    );
+    return { ...context, assertActive: () => this.assertActive(ownerId, ref) };
+  }
+
+  async revoke(ownerId: string, id?: string): Promise<void> {
+    if (id && !z.uuid().safeParse(id).success)
+      throw new ProModelConnectionError('PRO_MODEL_INVALID_REFERENCE');
+    await this.transaction(async (db) => {
+      await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`pro-model:${ownerId}`]);
+      await db.query(
+        'UPDATE pro_model_connections SET revoked=true WHERE owner_id=$1 AND ($2::uuid IS NULL OR id=$2)',
+        [ownerId, id ?? null],
+      );
+      // Crypto material is removed as well as marking references unusable.
+      await db.query(
+        'DELETE FROM pro_model_connection_revisions r USING pro_model_connections c WHERE r.connection_id=c.id AND c.owner_id=$1 AND c.revoked',
+        [ownerId],
+      );
+    });
+  }
+}
+
+const initializations = new WeakMap<object, Promise<ProModelConnectionStore>>();
+async function getStore(): Promise<ProModelConnectionStore> {
+  if (!process.env.DATABASE_URL)
+    throw new ProModelConnectionError('PRO_MODEL_DATABASE_UNAVAILABLE', 503);
+  const { pool } = await getServerPersistenceProvider(process.env.DATABASE_URL);
+  let pending = initializations.get(pool);
+  if (!pending) {
+    pending = nodePostgresTransaction(pool)(async (db) => {
+      // Web and runner processes may initialize simultaneously on first deploy.
+      await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['pro-model-schema:v1']);
+      await db.query(PRO_MODEL_CONNECTION_SCHEMA);
+      return new ProModelConnectionStore(pool, nodePostgresTransaction(pool));
+    });
+    initializations.set(pool, pending);
+    pending.catch(() => initializations.delete(pool));
+  }
+  return pending;
+}
+
+export async function syncModelConnection(ownerId: string, context: unknown, ref?: ProModelRef) {
+  return (await getStore()).sync(ownerId, context, ref);
+}
+export async function loadModelConnection(ownerId: string, ref: ProModelRef) {
+  return (await getStore()).load(ownerId, ref);
+}
+export const resolveProModelContext = loadModelConnection;
+export const loadProModelContext = loadModelConnection;
+export async function revokeModelConnections(ownerId: string, id?: string) {
+  return (await getStore()).revoke(ownerId, id);
+}

@@ -46,6 +46,7 @@ import type { CheckpointInfo } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { markDocumentWritersSequential } from './course-tools';
 import { runStageMutation } from './mutation-fence';
+import { sessionVoiceCatalog, type EffectiveSessionVoiceConfig } from './effective-voice-directory';
 
 export type CourseDocument = MaicDocument<Scene, Stage>;
 export type CourseStore = DocumentStore<Scene, Stage>;
@@ -64,7 +65,11 @@ export interface RosterToolDeps {
    * `buildVoiceCloneTools` and `buildRosterTools`.
    */
   registeredVoices?: RegisteredVoiceInfo[];
+  /** Fixed TTS configurations loaded from this session's encrypted media snapshot. */
+  providerConfigs?: readonly RosterVoiceProviderConfig[];
 }
+
+export type RosterVoiceProviderConfig = EffectiveSessionVoiceConfig;
 
 // ── Roster helpers ──────────────────────────────────────────────────────────
 
@@ -94,7 +99,11 @@ export function parseVoiceConfig(
  * voice it was actually shown (or just registered). One shared implementation
  * for both.
  */
-export function agentVoiceCatalog(registeredVoices: RegisteredVoiceInfo[] = []): CatalogVoice[] {
+export function agentVoiceCatalog(
+  registeredVoices: RegisteredVoiceInfo[] = [],
+  providerConfigs?: readonly RosterVoiceProviderConfig[],
+): CatalogVoice[] {
+  if (providerConfigs) return sessionVoiceCatalog(providerConfigs, registeredVoices);
   const providers: VoiceCatalogProvider[] = [];
   for (const id of enabledServerTTSProviderIds()) {
     const config = TTS_PROVIDERS[id as keyof typeof TTS_PROVIDERS];
@@ -210,7 +219,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
       'A cloned voice registered this session with register_voice appears here too.',
     parameters: LIST_VOICES_PARAMS,
     async execute() {
-      const catalog = agentVoiceCatalog(deps.registeredVoices);
+      const catalog = agentVoiceCatalog(deps.registeredVoices, deps.providerConfigs);
       const voices = catalog.map((voice) => ({
         binding: voice.binding,
         providerId: voice.providerId,
@@ -296,7 +305,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
       // synthesizable. A voice registered in an earlier session is NOT in the
       // catalog (registration is session-scoped by design): re-register it,
       // bind a catalog voice, or omit `voice`.
-      const catalog = agentVoiceCatalog(deps.registeredVoices);
+      const catalog = agentVoiceCatalog(deps.registeredVoices, deps.providerConfigs);
       const catalogBindings = new Set(catalog.map((voice) => voice.binding));
       const unusableBinding = params.agents
         .map((agent) => parseVoiceConfig(agent.voice))

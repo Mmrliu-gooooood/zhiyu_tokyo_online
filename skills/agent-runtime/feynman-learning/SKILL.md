@@ -1,7 +1,7 @@
 ---
 name: feynman-learning
 title: "费曼学习法"
-description: "Turn any concept, lesson, slide deck, or source material into a Feynman learning cycle in which learners explain first, expose the smallest gap, rebuild the explanation through Socratic prompts, strip jargon, stress-test analogies, and transfer the idea to a new context. Use when the user asks for teach-back, learning by explaining, or a Feynman-style classroom. Do not use when the Feynman technique itself is merely the lesson topic or when study strategy should remain a parallel goal."
+description: "Build a zhiyu Feynman cycle from a concept, lesson, deck, or source: the learner explains first, finds the smallest gap, rebuilds through Socratic prompts, removes jargon, tests analogies, and transfers the idea. Use for teach-back or learning by explaining, not when Feynman is merely the topic or study strategy is only a parallel goal."
 ---
 
 # 费曼学习法

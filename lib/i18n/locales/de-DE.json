@@ -1874,7 +1874,7 @@
       "download": "Herunterladen",
       "detailFailed": "Die Skill-Details konnten nicht geladen werden",
       "contentLabel": "Inhalt",
-      "builtinDetailNote": "Dieser Skill ist in OpenMAIC enthalten. Lade ihn herunter, um ihn in einen anderen Agenten-Arbeitsbereich zu importieren.",
+      "builtinDetailNote": "Dieser Skill ist in zhiyu enthalten. Lade ihn herunter, um ihn in einen anderen Agenten-Arbeitsbereich zu importieren.",
       "upload": "Hochladen",
       "uploading": "Wird hochgeladen…",
       "uploadFailed": "Der Skill konnte nicht hochgeladen werden. Prüfe die Datei und versuche es erneut.",
@@ -1886,7 +1886,14 @@
     },
     "ttsBrowserNativeTimelineNotice": "Browserintegrierte TTS unterstützt die Audiofunktionen der Editor-Zeitleiste nicht (Vorschau, erneute Generierung und Sammelvertonung). Wechsle zu einem verwalteten TTS-Anbieter, um Audio für einzelne Zeilen zu generieren und zu verwalten.",
     "alidocmindAccessKeyId": "AccessKey ID",
-    "alidocmindAccessKeySecret": "AccessKey Secret"
+    "alidocmindAccessKeySecret": "AccessKey Secret",
+    "addCustomMediaProvider": "Eigene Plattform hinzufügen",
+    "mediaProtocol": "API-Protokoll",
+    "mediaProtocolHint": "Wählen Sie das unterstützte API-Format. Kompatible Gateways können ihre eigene Basis-URL verwenden.",
+    "customMediaProviderHint": "Fügen Sie die Plattform hinzu und geben Sie dann API-Schlüssel und Modell-ID ein.",
+    "mediaProviderEnabled": "Plattform aktivieren",
+    "mediaConfigurationChecked": "Die Konfiguration ist vollständig. Keine Generierung angefordert; API-Schlüssel und Modell wurden noch nicht geprüft.",
+    "checkMediaConfiguration": "Konfiguration prüfen"
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

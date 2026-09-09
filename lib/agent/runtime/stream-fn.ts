@@ -137,6 +137,10 @@ export function hasLengthToolCallProvenance(message: AssistantMessage): boolean 
 }
 
 export interface CallLlmStreamFnOptions {
+  /** Run-scoped credential revocation fence before every upstream turn. */
+  beforeCall?: () => Promise<void>;
+  formatError?: (error: unknown) => string;
+  maxRetries?: number;
   /** Resolved Vercel AI SDK model instance (from resolveModelFromRequest). */
   languageModel: LanguageModel;
   maxOutputTokens?: number;
@@ -397,6 +401,7 @@ async function pump(
       : opts.maxOutputTokens && requestedMaxTokens
         ? Math.min(opts.maxOutputTokens, requestedMaxTokens)
         : (requestedMaxTokens ?? opts.maxOutputTokens);
+    await opts.beforeCall?.();
     const result = await streamLLM(
       {
         model: opts.languageModel,
@@ -412,6 +417,7 @@ async function pump(
         // pi's loop owns multi-step; one LLM turn per streamFn call.
         stopWhen: stepCountIs(1),
         maxOutputTokens,
+        ...(opts.maxRetries === undefined ? {} : { maxRetries: opts.maxRetries }),
         abortSignal: combinedAbort.signal,
       },
       opts.source ?? 'maic-agent',
@@ -432,14 +438,14 @@ async function pump(
         break;
       }
       if (part.type === 'error') {
-        settleError('error', part.error);
+        settleError('error', opts.formatError ? opts.formatError(part.error) : part.error);
         break;
       }
       mapper.handle(part);
     }
     if (!settled) settleError('error', 'LLM stream ended without a terminal event');
   } catch (err) {
-    settleError('error', err);
+    settleError('error', opts.formatError ? opts.formatError(err) : err);
   } finally {
     cleanupAbortListeners();
   }

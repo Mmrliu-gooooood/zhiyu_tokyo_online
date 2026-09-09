@@ -7,6 +7,7 @@ import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { apiError } from '@/lib/server/api-response';
 import { MAX_SESSION_TEXT_LENGTH } from '@/lib/server/agent-runtime/limits';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
+import { validateSessionModelBinding } from '@/lib/server/agent-runtime/session-model-binding';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { decodeElementRefs } from '@/lib/workbench/element-refs';
 import { decodeCourseRefs } from '@/lib/workbench/course-refs';
@@ -16,6 +17,32 @@ import {
 } from '@/lib/server/agent-runtime/session-materials';
 
 export const runtime = 'nodejs';
+
+interface MediaConfigRef {
+  id: string;
+  revision: number;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function parseMediaConfigRef(
+  value: unknown,
+): { ok: true; ref?: MediaConfigRef } | { ok: false } {
+  if (value === undefined) return { ok: true };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ok: false };
+  const record = value as Record<string, unknown>;
+  if (
+    Object.keys(record).some((key) => key !== 'id' && key !== 'revision') ||
+    typeof record.id !== 'string' ||
+    !UUID_PATTERN.test(record.id) ||
+    !Number.isSafeInteger(record.revision) ||
+    (record.revision as number) < 1
+  ) {
+    return { ok: false };
+  }
+  return { ok: true, ref: { id: record.id, revision: record.revision as number } };
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAgentRuntimeConfigured()) {
@@ -32,6 +59,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     let body: {
       text?: string;
+      mediaConfigRef?: unknown;
+      modelRef?: unknown;
       materialIds?: unknown;
       elementRefs?: unknown;
       courseRefs?: unknown;
@@ -45,6 +74,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const text = (body.text ?? '').toString().trim();
+    const parsedMediaConfigRef = parseMediaConfigRef(body.mediaConfigRef);
+    if (!parsedMediaConfigRef.ok) {
+      const response = apiError(
+        'INVALID_REQUEST',
+        400,
+        'mediaConfigRef must contain only a UUID id and a positive integer revision',
+      );
+      responseHeaders.forEach((value, name) => response.headers.append(name, value));
+      return response;
+    }
     if (
       body.materialIds !== undefined &&
       (!Array.isArray(body.materialIds) || body.materialIds.some((id) => typeof id !== 'string'))
@@ -87,6 +126,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     try {
+      const modelRef = await validateSessionModelBinding(ownerId, body.modelRef, meta.modelRef);
       const materials = materialIds.length
         ? await bindOwnerMaterialsToSession(id, ownerId, materialIds)
         : [];
@@ -98,7 +138,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           ...(decodedElementRefs.refs.length ? { elementRefs: decodedElementRefs.refs } : {}),
           ...(decodedCourseRefs.refs.length ? { courseRefs: decodedCourseRefs.refs } : {}),
         },
-        { expectedOwnerId: ownerId },
+        {
+          expectedOwnerId: ownerId,
+          ...(modelRef ? { modelRef } : {}),
+          ...(parsedMediaConfigRef.ref
+            ? { mediaConfigRef: parsedMediaConfigRef.ref }
+            : {}),
+        },
       );
       return NextResponse.json(
         {

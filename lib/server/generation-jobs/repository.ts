@@ -10,6 +10,7 @@ import type { Scene, Stage } from '@/lib/types/stage';
 import type { SceneOutline } from '@/lib/types/generation';
 import { generationConfig, type GenerationConfig } from './config';
 import { generationRequestHash } from './config-snapshot';
+import { notifyDurableAgentEvent } from '@/lib/server/agent-runtime/event-notify-bus';
 import { assertGenerationSchema } from './migrations';
 import {
   canonicalHash,
@@ -144,6 +145,68 @@ export class GenerationJobRepository {
       'INSERT INTO generation_events(job_id,run_no,state_version,type,payload) SELECT id,run_no,state_version,$2,$3::jsonb FROM generation_jobs WHERE id=$1',
       [id, type, JSON.stringify(payload)],
     );
+    await this.projectProSession(q, id, type);
+  }
+
+  /** Same-transaction projection lets Pro reconnect by replaying its normal event log. */
+  private async projectProSession(q: Queryable, id: string, eventType: string): Promise<void> {
+    const result = await q.query<JobRow>(
+      `SELECT * FROM generation_jobs WHERE id=$1
+       AND input_snapshot->'source'->>'kind'='pro'
+       AND input_snapshot->'source'->>'sessionId' IS NOT NULL
+       AND input_snapshot->'source'->>'submissionId' IS NOT NULL`,
+      [id],
+    );
+    const job = result.rows[0];
+    if (!job) return;
+    const source = job.input_snapshot.source!;
+    const sessionId = source.sessionId!;
+    const submissionId = source.submissionId!;
+    const session = await q.query<{ attempt: number }>(
+      'SELECT attempt FROM agent_sessions WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL FOR UPDATE',
+      [sessionId, job.owner_id],
+    );
+    if (!session.rows[0]) return;
+    const snapshot = view(job);
+    const isError = ['failed', 'needs_attention'].includes(job.status);
+    const text = `Course generation: ${job.status} / ${job.phase}; ${job.ready_scenes}/${job.total_scenes} pages ready${job.last_error_code ? ` (${job.last_error_code})` : ''}.`;
+    await q.query(
+      `INSERT INTO agent_session_events(session_id,seq,ts,attempt,type,data)
+       SELECT $1,COALESCE(MAX(seq),0)+1,$2,$3,'tool_execution_end',$4::jsonb
+       FROM agent_session_events WHERE session_id=$1`,
+      [
+        sessionId,
+        Date.now(),
+        Number(session.rows[0].attempt),
+        JSON.stringify({
+          toolCallId: submissionId,
+          toolName: 'submit_course_generation',
+          isError,
+          result: { content: [{ type: 'text', text }], details: { ...snapshot, eventType } },
+        }),
+      ],
+    );
+    if (job.status === 'succeeded') {
+      await q.query(
+        `INSERT INTO agent_session_events(session_id,seq,ts,attempt,type,data)
+         SELECT $1,COALESCE(MAX(seq),0)+1,$2,$3,'stage_link',$4::jsonb
+         FROM agent_session_events WHERE session_id=$1
+         AND NOT EXISTS (SELECT 1 FROM agent_session_events WHERE session_id=$1 AND type='stage_link' AND data->>'generationJobId'=$5)`,
+        [
+          sessionId,
+          Date.now(),
+          Number(session.rows[0].attempt),
+          JSON.stringify({
+            stageId: job.stage_id,
+            title: 'Generated course',
+            url: snapshot.courseUrl,
+            generationJobId: job.id,
+          }),
+          job.id,
+        ],
+      );
+    }
+    await notifyDurableAgentEvent(q, { kind: 'session', sessionId });
   }
   private async bump(q: Queryable, id: string) {
     await q.query(
@@ -235,33 +298,67 @@ export class GenerationJobRepository {
       if (count.rows[0].total >= this.config.maxQueued)
         throw new GenerationJobError('GENERATION_QUEUE_FULL', 503);
       const id = randomUUID(),
-        stageId = randomUUID(),
+        stageId = input.target?.stageId ?? randomUUID(),
         now = Date.now();
-      const stage = {
-        id: stageId,
-        name: input.requirements.requirement.slice(0, 120),
-        createdAt: now,
-        updatedAt: now,
-        interactiveMode: input.requirements.interactiveMode ?? false,
-        taskEngineMode: input.requirements.taskEngineMode ?? false,
-        [DSL_VERSION_KEY]: DSL_VERSION,
-      };
-      await q.query(
-        'INSERT INTO document_stages(id,name,created_at,updated_at,owner_id,interactive_mode,task_engine_mode,data) VALUES($1,$2,$3,$3,$4,$5,$6,$7::jsonb)',
-        [
+      if (input.target) {
+        const target = await q.query<{
+          owner_id: string;
+          deleted_at: unknown;
+          revision: number;
+          scene_count: number;
+        }>(
+          `SELECT m.owner_id,m.deleted_at,r.rev::int revision,
+             (SELECT count(*)::int FROM document_scenes s WHERE s.stage_id=d.id) scene_count
+           FROM document_stages d JOIN stage_meta m ON m.stage_id=d.id
+           JOIN document_stage_revision r ON r.stage_id=d.id
+           WHERE d.id=$1 FOR UPDATE OF d,m,r`,
+          [stageId],
+        );
+        const current = target.rows[0];
+        if (!current || current.owner_id !== ownerId || current.deleted_at !== null)
+          throw new GenerationJobError('COURSE_NOT_FOUND', 404);
+        if (Number(current.revision) !== input.target.revision)
+          throw new GenerationJobError('TARGET_STAGE_REVISION_CONFLICT');
+        if (current.scene_count > 0 && !input.target.replaceExisting)
+          throw new GenerationJobError('TARGET_STAGE_NOT_EMPTY');
+        const ownership = await q.query<{ write_mode: string }>(
+          'SELECT write_mode FROM generation_ownership WHERE stage_id=$1 FOR UPDATE',
+          [stageId],
+        );
+        if (ownership.rows[0]?.write_mode === 'generating')
+          throw new GenerationJobError('GENERATION_OWNERSHIP_CONFLICT');
+        if (input.target.replaceExisting)
+          await q.query('DELETE FROM document_scenes WHERE stage_id=$1', [stageId]);
+        await q.query('UPDATE stage_meta SET generation_complete=false WHERE stage_id=$1', [
           stageId,
-          stage.name,
-          now,
-          ownerId,
-          stage.interactiveMode,
-          stage.taskEngineMode,
-          JSON.stringify(stage),
-        ],
-      );
-      await q.query(
-        'INSERT INTO stage_meta(stage_id,owner_id,is_public,generation_complete) VALUES($1,$2,false,false)',
-        [stageId, ownerId],
-      );
+        ]);
+      } else {
+        const stage = {
+          id: stageId,
+          name: input.requirements.requirement.slice(0, 120),
+          createdAt: now,
+          updatedAt: now,
+          interactiveMode: input.requirements.interactiveMode ?? false,
+          taskEngineMode: input.requirements.taskEngineMode ?? false,
+          [DSL_VERSION_KEY]: DSL_VERSION,
+        };
+        await q.query(
+          'INSERT INTO document_stages(id,name,created_at,updated_at,owner_id,interactive_mode,task_engine_mode,data) VALUES($1,$2,$3,$3,$4,$5,$6,$7::jsonb)',
+          [
+            stageId,
+            stage.name,
+            now,
+            ownerId,
+            stage.interactiveMode,
+            stage.taskEngineMode,
+            JSON.stringify(stage),
+          ],
+        );
+        await q.query(
+          'INSERT INTO stage_meta(stage_id,owner_id,is_public,generation_complete) VALUES($1,$2,false,false)',
+          [stageId, ownerId],
+        );
+      }
       await q.query(
         "INSERT INTO generation_jobs(id,stage_id,owner_id,idempotency_key,request_hash,status,pipeline_version,config_version,input_snapshot,review_policy) VALUES($1,$2,$3,$4,$5,'queued',$6,$7,$8::jsonb,$9)",
         [
@@ -277,22 +374,39 @@ export class GenerationJobRepository {
         ],
       );
       await q.query(
-        "INSERT INTO generation_ownership(stage_id,owner_id,producer_kind,producer_ref,write_mode) VALUES($1,$2,'course-worker',$3,'generating')",
+        `INSERT INTO generation_ownership(stage_id,owner_id,producer_kind,producer_ref,write_mode)
+         VALUES($1,$2,'course-worker',$3,'generating')
+         ON CONFLICT(stage_id) DO UPDATE SET producer_kind='course-worker',producer_ref=$3,
+           write_mode='generating',ownership_epoch=generation_ownership.ownership_epoch+1,updated_at=clock_timestamp()
+         WHERE generation_ownership.owner_id=$2`,
         [stageId, ownerId, id],
       );
-      await q.query('INSERT INTO document_outlines(stage_id,data) VALUES($1,$2::jsonb)', [
-        stageId,
-        JSON.stringify({
-          outlines: [],
-          requirement: input.requirements.requirement,
-          generationComplete: false,
-          producer: 'server-job',
-          producerKind: 'course-worker',
-          producerRef: id,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      ]);
+      const planned = input.planning ? validatePlan(input.planning.outlines) : [];
+      await q.query(
+        `INSERT INTO document_outlines(stage_id,data) VALUES($1,$2::jsonb)
+        ON CONFLICT(stage_id) DO UPDATE SET data=EXCLUDED.data`,
+        [
+          stageId,
+          JSON.stringify({
+            outlines: planned,
+            requirement: input.requirements.requirement,
+            generationComplete: false,
+            producer: 'server-job',
+            producerKind: 'course-worker',
+            producerRef: id,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        ],
+      );
+      if (planned.length) {
+        await q.query(
+          "UPDATE generation_jobs SET plan_revision=1,total_scenes=$2,phase='agents' WHERE id=$1",
+          [id, planned.length],
+        );
+        const seeded = await this.job(q, id);
+        await this.freezePlan(q, seeded);
+      }
       const sources = input.materials?.sources ?? [];
       const assets = new Set([
         ...sources.map((s) => s.assetId),
@@ -338,6 +452,29 @@ export class GenerationJobRepository {
         if (e instanceof GenerationJobError && e.httpStatus === 404) return null;
         throw e;
       }
+    });
+  }
+  async getJobBySession(ownerId: string, sessionId: string): Promise<GenerationJobView | null> {
+    return this.transaction(async (q) => {
+      const result = await q.query<JobRow>(
+        `SELECT * FROM generation_jobs WHERE owner_id=$1
+         AND input_snapshot->'source'->>'kind'='pro'
+         AND input_snapshot->'source'->>'sessionId'=$2
+         ORDER BY created_at DESC LIMIT 1`,
+        [ownerId, sessionId],
+      );
+      return result.rows[0] ? view(result.rows[0]) : null;
+    });
+  }
+  async getStageRevision(ownerId: string, stageId: string): Promise<number | null> {
+    return this.transaction(async (q) => {
+      const result = await q.query<{ revision: number }>(
+        `SELECT r.rev::int revision FROM document_stage_revision r
+         JOIN stage_meta m ON m.stage_id=r.stage_id
+         WHERE r.stage_id=$1 AND m.owner_id=$2 AND m.deleted_at IS NULL`,
+        [stageId, ownerId],
+      );
+      return result.rows[0] ? Number(result.rows[0].revision) : null;
     });
   }
   async listJobs(
@@ -536,9 +673,19 @@ export class GenerationJobRepository {
         [step.id, deadline],
       );
       const attemptId = input.external ? randomUUID() : null;
+      const priorProviderRequest = input.external
+        ? (
+            await q.query<{ provider_request_id: string | null }>(
+              `SELECT provider_request_id FROM generation_attempts
+               WHERE step_id=$1 AND provider_request_id IS NOT NULL
+               ORDER BY attempt_no DESC LIMIT 1`,
+              [step.id],
+            )
+          ).rows[0]?.provider_request_id ?? undefined
+        : undefined;
       if (attemptId)
         await q.query(
-          "INSERT INTO generation_attempts(id,step_id,attempt_no,lease_epoch,provider_config_ref,request_key,request_hash,outcome) VALUES($1,$2,$3,$4,$5,$6,$7,'running')",
+          "INSERT INTO generation_attempts(id,step_id,attempt_no,lease_epoch,provider_config_ref,request_key,request_hash,provider_request_id,outcome) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'running')",
           [
             attemptId,
             step.id,
@@ -547,6 +694,7 @@ export class GenerationJobRepository {
             job.config_version,
             requestKey,
             input.dependencyHash,
+            priorProviderRequest ?? null,
           ],
         );
       const phases: Record<string, string> = {
@@ -563,7 +711,31 @@ export class GenerationJobRepository {
         await q.query('UPDATE generation_jobs SET phase=$2 WHERE id=$1', [lease.jobId, phase]);
       await this.bump(q, lease.jobId);
       await this.event(q, lease.jobId, 'step_started', { stepKey: input.key, kind: input.kind });
-      return { stepId: step.id, attemptId, requestKey, status: 'running' };
+      return {
+        stepId: step.id,
+        attemptId,
+        requestKey,
+        status: 'running',
+        ...(priorProviderRequest ? { providerRequestId: priorProviderRequest } : {}),
+      };
+    });
+  }
+  async recordProviderRequest(
+    lease: GenerationLease,
+    input: { attemptId: string; taskId: string },
+  ): Promise<void> {
+    if (!input.taskId || input.taskId.length > 500)
+      throw new GenerationJobError('INVALID_PROVIDER_REQUEST_ID', 400);
+    await this.transaction(async (q) => {
+      await this.assertLease(q, lease);
+      const updated = await q.query<{ id: string }>(
+        `UPDATE generation_attempts a SET provider_request_id=$3
+         FROM generation_steps s WHERE a.id=$1 AND a.step_id=s.id AND s.job_id=$2
+         AND a.outcome='running' AND (a.provider_request_id IS NULL OR a.provider_request_id=$3)
+         RETURNING a.id`,
+        [input.attemptId, lease.jobId, input.taskId],
+      );
+      if (!updated.rows[0]) throw new GenerationJobError('PROVIDER_REQUEST_ID_CONFLICT');
     });
   }
   async commitCheckpoint(
