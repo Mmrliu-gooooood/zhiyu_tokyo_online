@@ -191,5 +191,13 @@ A course explicitly made available for link-based viewing by its owner; source m
 _Avoid_: public owner workspace, class-management permission, shared creator API allowance
 
 **Beta heavy-task quota**:
-The accepted initial limit of one heavy task per user and two globally, with excess work queued; it is independent of the number of people reading or learning. The initial file limits are 50 MB per file and 1 GB of user files per account, subject to load-test-informed adjustment.
+The deployment baseline limits each user to one heavy task, starts at one globally, and permits increasing to two only after combined-load validation, with excess work queued. Ordinary course generation, Pro long-running work, independent parsing and media jobs share this admission boundary; child tools inherit their root task's admission. It is independent of the number of people reading or learning. The initial file limits are 50 MB per file and 1 GB of user files per account, subject to load-test-informed adjustment. See ADR-0016 and the deployment execution plan; these are planned limits, not proof of enforcement in current code.
 _Avoid_: two-user site limit, guaranteed fifty concurrent generations
+
+**Course-generation concurrency**:
+The number of course jobs executing at the same time, subject to both account admission and the site heavy-task quota. It is distinct from parallel scene generation within a course and shared provider-call limits.
+_Avoid_: online-user count, scene concurrency
+
+**Generation status suffix**:
+The requested user-visible status appended to “构建课程中”, derived from the server job lifecycle and execution phase. Queueing, execution and unavailable observations must remain distinguishable; detailed wording and exit choices are being reviewed in the 2026-09-09 generation interview.
+_Avoid_: simulated progress, browser-only task status
