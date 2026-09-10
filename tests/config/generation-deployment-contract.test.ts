@@ -8,7 +8,9 @@ describe('generation deployment contract', () => {
   it('shares only dedicated generation snapshot keys with the worker', () => {
     const compose = read('docker-compose.persistence.yml');
     const envExample = read('.env.example');
-    const deploymentPlan = read('optimization_docs/zhiyu-deployment-execution-plan-2026-09-07.md');
+    const deploymentPlan = read(
+      'docs/archive/investigations/zhiyu-deployment-execution-plan-2026-09-07.md',
+    );
 
     expect(compose).toContain('GENERATION_MODEL_ENCRYPTION_KEY:');
     expect(compose).toContain('MEDIA_CONFIG_ENCRYPTION_KEY:');

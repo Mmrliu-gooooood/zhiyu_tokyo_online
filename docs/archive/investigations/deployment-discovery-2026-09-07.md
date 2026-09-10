@@ -4,15 +4,15 @@
 
 本次按 grill-with-docs 进行代码调查和需求讨论，仅更新文档。未修改业务实现、未部署云服务、未修改数据库。[最终执行方案](zhiyu-deployment-execution-plan-2026-09-07.md) 已整理；下文保留各轮历史上下文，早期候选与“待讨论”不代表仍未决。
 
-**最新决定优先于下文历史调研（2026-09-08低成本修订）**：先约5名同学封闭体验，雨云东京运行Web/API、Pro、素材解析与独立Generation Worker并存储持久文件；Supabase Free东京项目承载PostgreSQL和Auth。图文语音为主、视频少量，按容量/出网/并发实测扩容；不固定50人，不要求先购买Pro或自托管数据库。保留正式账号、默认私有/明确发布、跨设备同步、线上空库、真实域名/HTTPS、每日异机备份与一天级恢复目标。Vercel、完整自托管Supabase、MP4及真实支付仍暂缓。以 [ADR-0016](../docs/adr/0016-free-supabase-with-local-files-for-small-trial.md) 和 [当前执行计划](zhiyu-deployment-execution-plan-2026-09-07.md) 为准；下文Pro/全部Storage等结论保留作历史调研，不作为最新启动指令。
+**最新决定优先于下文历史调研（2026-09-08低成本修订）**：先约5名同学封闭体验，雨云东京运行Web/API、Pro、素材解析与独立Generation Worker并存储持久文件；Supabase Free东京项目承载PostgreSQL和Auth。图文语音为主、视频少量，按容量/出网/并发实测扩容；不固定50人，不要求先购买Pro或自托管数据库。保留正式账号、默认私有/明确发布、跨设备同步、线上空库、真实域名/HTTPS、每日异机备份与一天级恢复目标。Vercel、完整自托管Supabase、MP4及真实支付仍暂缓。以 [ADR-0016](../../adr/0016-free-supabase-with-local-files-for-small-trial.md) 和 [当前执行计划](zhiyu-deployment-execution-plan-2026-09-07.md) 为准；下文Pro/全部Storage等结论保留作历史调研，不作为最新启动指令。
 
 ## 1. 调研基线与已确定范围
 
 - 工作目录：`D:\ZZGG_Innovation_Project\OpenMAIC-main`。
 - 分支 `main`，调查时 HEAD `4d5ad10`；工作区存在大量已有修改和未跟踪文件。本稿依据当前工作区，不仅依据该提交。未来部署须明确包含哪些尚未提交的修改，避免部署旧版本。
 - 产品名称依据根目录 `CONTEXT.md`：智域 / ZHIYU，基于 OpenMAIC 构建。
-- 用户最初要求含 MP4 的完整功能；随后明确 MP4 暂不上线，其余功能保留。[ADR-0010](../docs/adr/0010-defer-mp4-and-payments-in-private-beta.md) 已更新原 [ADR-0008](../docs/adr/0008-preserve-full-capabilities-in-first-deployment.md)。
-- 用户已明确：学生与教师；国内外均有用户，前期优先海外；商业用途；邀请 10–50 人测试（不是已确认的同时在线人数）；正式账号和跨设备同步；基础设施月预算 350 元，不含模型 API。见 [ADR-0009](../docs/adr/0009-require-hosted-accounts-and-cross-device-data.md)。
+- 用户最初要求含 MP4 的完整功能；随后明确 MP4 暂不上线，其余功能保留。[ADR-0010](../../adr/0010-defer-mp4-and-payments-in-private-beta.md) 已更新原 [ADR-0008](../../adr/0008-preserve-full-capabilities-in-first-deployment.md)。
+- 用户已明确：学生与教师；国内外均有用户，前期优先海外；商业用途；邀请 10–50 人测试（不是已确认的同时在线人数）；正式账号和跨设备同步；基础设施月预算 350 元，不含模型 API。见 [ADR-0009](../../adr/0009-require-hosted-accounts-and-cross-device-data.md)。
 - 商业意图：平台提供模型、用户购买积分套餐，也支持用户自己的模型 API。内测先发测试积分，真实支付后续上线；积分规则和 BYOK 是否收取基础设施费用尚未确定。
 - 用户希望先用 Vercel、考虑 Supabase，后续可能迁至香港服务器；这是待评估意向，并非已经选定的架构。
 - 旧 ADR/CONTEXT 中存在未来学习评估功能及“implementation pending”描述；不能把这些文字当成当前已实现或已上线功能。
@@ -161,7 +161,7 @@ Supabase Free 当前列出 500 MB 数据库、1 GB 对象存储、单文件最�
 
 此前用于比较的新加坡 [AWS Lightsail 定价](https://aws.amazon.com/lightsail/pricing/) 公开 IPv4 Linux 档位：2 GB/2 vCPU 为 12 美元/月，4 GB/2 vCPU 为 24 美元/月；加 Supabase Pro 25 美元，分别合计 37/49 美元。以预算假设汇率 7 约 259/343 元，不含税、备份、域名与额外用量。**这不是香港服务器报价**，不能移用为香港采购承诺；香港提供商与续费价需另查。
 
-第三轮 Q12–Q15 已答：只扣实际平台 API 调用积分，BYOK 调用不扣模型积分；教师学生统一个人权限，发布课程链接可浏览；每人一个/全站两个重任务、单文件 50 MB、每人总文件 1 GB；暂无域名和云服务器账号，Supabase 可以创建项目。见 [ADR-0011](../docs/adr/0011-isolate-published-learning-and-meter-platform-calls.md)。Supabase Pro 与邮件服务仍是建议，尚未代表用户购买授权或已创建资源。
+第三轮 Q12–Q15 已答：只扣实际平台 API 调用积分，BYOK 调用不扣模型积分；教师学生统一个人权限，发布课程链接可浏览；每人一个/全站两个重任务、单文件 50 MB、每人总文件 1 GB；暂无域名和云服务器账号，Supabase 可以创建项目。见 [ADR-0011](../../adr/0011-isolate-published-learning-and-meter-platform-calls.md)。Supabase Pro 与邮件服务仍是建议，尚未代表用户购买授权或已创建资源。
 
 登录邮件必须配置实际可给受邀用户发信的 SMTP；[Supabase 默认 SMTP](https://supabase.com/docs/guides/auth/auth-smtp) 只给组织成员地址发信，不能当作给 10–50 位测试用户的正式通道。[Resend Free](https://resend.com/pricing) 当前有每月 3000、每日 100 封额度，可作为小规模验证候选，需用户域名验证与实际投递验收。
 

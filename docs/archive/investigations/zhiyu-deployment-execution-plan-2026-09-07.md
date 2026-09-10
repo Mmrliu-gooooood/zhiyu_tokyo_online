@@ -4,7 +4,7 @@
 
 **当前执行基线（2026-09-08低成本修订）：先邀请约5名同学封闭试用；雨云日本东京服务器运行应用、后台任务并保存持久文件；托管 Supabase Free 东京项目承载 PostgreSQL 和 Auth。首发不购买 Supabase Pro，不在应用服务器另建 PostgreSQL、完整 Supabase 或独立对象存储服务。** 图文与语音为主，视频少量；以后人数未知，按真实负载扩容。应用仍面向中国、日本、韩国等亚洲国家和地区的学生与教师，使用真实域名与 HTTPS 验证。试用起止时间、采购状态以控制台记录为准。
 
-本轮仅更新实施方案，不代表已购买/扩容服务器、创建云项目、注册域名、签发证书、完成代码改造或通过线上验收。用户确认基础设施目标350元/月、必要时上限500元/月（不含模型API），首发尽量低于目标；接受每日备份、最多丢失约一天更新、目标一天内恢复。本文据此选择 Free + 本机文件，并在第10节规定升级条件。最新决策见 [ADR-0016](../docs/adr/0016-free-supabase-with-local-files-for-small-trial.md)，取代 ADR-0015 中 Pro 和全部文件托管的选择；东京地区与既有隐私、功能边界保留。历史 ADR 不改写为新决定。
+本轮仅更新实施方案，不代表已购买/扩容服务器、创建云项目、注册域名、签发证书、完成代码改造或通过线上验收。用户确认基础设施目标350元/月、必要时上限500元/月（不含模型API），首发尽量低于目标；接受每日备份、最多丢失约一天更新、目标一天内恢复。本文据此选择 Free + 本机文件，并在第10节规定升级条件。最新决策见 [ADR-0016](../../adr/0016-free-supabase-with-local-files-for-small-trial.md)，取代 ADR-0015 中 Pro 和全部文件托管的选择；东京地区与既有隐私、功能边界保留。历史 ADR 不改写为新决定。
 
 ## 1. 最终目标与边界
 
@@ -186,7 +186,7 @@ Supabase 不要求把现有 SQL 改为 ORM，也不要求所有业务通过其 D
 - 人工大纲审阅最多24小时，期间不占执行位，到期保留大纲并结束等待，自动确认模式照旧。
 - 主动取消后保留已完成页面，可查看/删除，本期不提供取消后的断点续跑；重做需新建任务。
 
-生命周期边界见[ADR-0017](../docs/adr/0017-separate-generation-navigation-cancellation-and-admission.md)。详细代码差距、状态文案示例、验收场景与已确认问答见[课程生成并发与交互访谈](zhiyu-generation-concurrency-interview-2026-09-09.md)。产品需求已获整体确认，文案与底层工程参数按记录说明在实现中核实，不代表已经实现。
+生命周期边界见[ADR-0017](../../adr/0017-separate-generation-navigation-cancellation-and-admission.md)。详细代码差距、状态文案示例、验收场景与已确认问答见[课程生成并发与交互访谈](zhiyu-generation-concurrency-interview-2026-09-09.md)。产品需求已获整体确认，文案与底层工程参数按记录说明在实现中核实，不代表已经实现。
 
 新增 `lib/server/billing/` 和配套迁移/API/轻量余额界面；复用 PostgreSQL 的事务与唯一约束。建议表：`credit_accounts`、不可变 `credit_ledger`、`api_calls`、`credit_reservations`、`model_tariffs`、`task_admissions`、`storage_reservations`。具体字段由实现补齐，以下行为不可省略。
 
@@ -461,7 +461,7 @@ docker compose -f docker-compose.production.yml up -d web generation-worker
 
 ## 12. 新对话 AI 的启动指令
 
-2026-09-09补充：同时阅读[ADR-0017](../docs/adr/0017-separate-generation-navigation-cancellation-and-admission.md)和[生成并发与交互访谈](zhiyu-generation-concurrency-interview-2026-09-09.md)，按已获整体确认的Q1–Q7实施T5规则、真实状态后缀及配套验收；不能只调整Worker环境变量就宣布统一并发限制完成。
+2026-09-09补充：同时阅读[ADR-0017](../../adr/0017-separate-generation-navigation-cancellation-and-admission.md)和[生成并发与交互访谈](zhiyu-generation-concurrency-interview-2026-09-09.md)，按已获整体确认的Q1–Q7实施T5规则、真实状态后缀及配套验收；不能只调整Worker环境变量就宣布统一并发限制完成。
 
 可直接复制下面内容：
 

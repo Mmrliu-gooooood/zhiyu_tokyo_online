@@ -14,8 +14,8 @@ PRO 与普通模式的差异可以主要放在生成输入的形成方式：普�
 
 | 能力 | 普通模式 | PRO | 本阶段处理 |
 | --- | --- | --- | --- |
-| 页面内容 | [scene-content API](../app/api/generate/scene-content/route.ts) 调用 `generateSceneContent` | [generation-tools.ts](../lib/server/agent-runtime/generation-tools.ts) 调用同名函数 | 继续共用 `@openmaic/generation` |
-| 讲解动作 | [scene-actions API](../app/api/generate/scene-actions/route.ts) 调用 `generateSceneActions` | `generation-tools.ts` 调用同名函数 | 继续共用 |
+| 页面内容 | [scene-content API](../../../app/api/generate/scene-content/route.ts) 调用 `generateSceneContent` | [generation-tools.ts](../../../lib/server/agent-runtime/generation-tools.ts) 调用同名函数 | 继续共用 `@openmaic/generation` |
+| 讲解动作 | [scene-actions API](../../../app/api/generate/scene-actions/route.ts) 调用 `generateSceneActions` | `generation-tools.ts` 调用同名函数 | 继续共用 |
 | 页面组装 | scene-actions API 调用 `buildCompleteScene` | `generation-tools.ts` 调用同名函数 | 继续共用 |
 | 输入准备 | 大纲、要求、材料、角色等由普通生成流程提供 | 对话/skill 形成 `title/type/brief/materialFacts`，课程提供角色和语言 | 保留两种准备方式，不只转发最后一句话 |
 | 编排和存储 | 普通模式自己的预览、生成及存储入口 | agent 工具逐页执行，经 owner 校验持久化并反馈进度 | 不重写，不互相绕过 |
@@ -26,7 +26,7 @@ PRO 与普通模式的差异可以主要放在生成输入的形成方式：普�
 
 ### 为什么本次不直接改成调用整个普通生成接口
 
-当前 [generate-classroom API](../app/api/generate-classroom/route.ts) 已属于另一套后台 job 控制面，包含幂等键、provider preflight、配置指纹、资产和 job 生命周期；[generation/session-input.ts](../lib/generation/session-input.ts) 还明确拒绝浏览器自填的 Key/base URL。
+当前 [generate-classroom API](../../../app/api/generate-classroom/route.ts) 已属于另一套后台 job 控制面，包含幂等键、provider preflight、配置指纹、资产和 job 生命周期；[generation/session-input.ts](../../../lib/generation/session-input.ts) 还明确拒绝浏览器自填的 Key/base URL。
 
 直接让 agent 调用它，需要额外打通身份、凭据、材料、任务进度、取消、已有课程编辑和课程归属，未必更简单。也不能在 worker 里调用浏览器 hook 或依赖浏览器 localStorage。
 
@@ -43,28 +43,28 @@ MODEL_ROUTES must explicitly configure stage "maic-agent-driver"
 with a provider-prefixed model id and an api/dialect.
 ```
 
-[agent-driver-model.ts](../lib/server/agent-runtime/agent-driver-model.ts) 的 `resolveAgentDriverModel()` 强制要求服务器存在有效的 `maic-agent-driver` 路由；缺失时直接抛错，不读取 Home 配置，也不回退到 `DEFAULT_MODEL`。这是驱动初始化错误，此处尚未调用上游模型，不能据此认定 API Key 无效。
+[agent-driver-model.ts](../../../lib/server/agent-runtime/agent-driver-model.ts) 的 `resolveAgentDriverModel()` 强制要求服务器存在有效的 `maic-agent-driver` 路由；缺失时直接抛错，不读取 Home 配置，也不回退到 `DEFAULT_MODEL`。这是驱动初始化错误，此处尚未调用上游模型，不能据此认定 API Key 无效。
 
 “缺失”包括未设置、解析后条目无效或运行进程没有加载预期配置；尚未读取实际容器环境，不能断言具体漏了哪个文件。
 
 ### 2.2 Home 配置在 PRO 控制面断开
 
-- [model-config.ts](../lib/utils/model-config.ts) 的 `getCurrentModelConfig()` 能获得 Home 选择的模型、Key、地址、providerType 和 thinking。
-- 普通模式 [use-scene-generator.ts](../lib/hooks/use-scene-generator.ts) 等调用层把配置放入请求头。
-- PRO [session-store.ts](../lib/workbench/session-store.ts) 的新建会话和续聊请求没有模型连接或连接引用；[session API](../app/api/agent/sessions/route.ts) 和 [message API](../app/api/agent/sessions/[id]/messages/route.ts) 也未建立对应的后台配置绑定。
-- [runner.ts](../lib/server/agent-runtime/runner.ts) 在原 HTTP 请求结束后启动，调用无参数的 `resolveAgentDriverModel()`。
+- [model-config.ts](../../../lib/utils/model-config.ts) 的 `getCurrentModelConfig()` 能获得 Home 选择的模型、Key、地址、providerType 和 thinking。
+- 普通模式 [use-scene-generator.ts](../../../lib/hooks/use-scene-generator.ts) 等调用层把配置放入请求头。
+- PRO [session-store.ts](../../../lib/workbench/session-store.ts) 的新建会话和续聊请求没有模型连接或连接引用；[session API](../../../app/api/agent/sessions/route.ts) 和 [message API](../../../app/api/agent/sessions/[id]/messages/route.ts) 也未建立对应的后台配置绑定。
+- [runner.ts](../../../lib/server/agent-runtime/runner.ts) 在原 HTTP 请求结束后启动，调用无参数的 `resolveAgentDriverModel()`。
 
 所以只修改按钮跳转或加一个前端请求头都不够：后台必须实际取到本用户的连接。
 
 ### 2.3 页面生成还有第二处配置断点
 
-[generation-ai-call.ts](../lib/server/agent-runtime/generation-ai-call.ts) 只调用 `resolveModel({ stage })`。即使 agent 对话模型修好，`scene-content`/子类型与 `scene-actions` 仍可能因为服务器没有默认模型或对应路由而失败。
+[generation-ai-call.ts](../../../lib/server/agent-runtime/generation-ai-call.ts) 只调用 `resolveModel({ stage })`。即使 agent 对话模型修好，`scene-content`/子类型与 `scene-actions` 仍可能因为服务器没有默认模型或对应路由而失败。
 
 修复必须同时覆盖 **driver → 页面内容 → 讲解动作**，不能以“AI 能回复一句话”作为完成标准。
 
 ### 2.4 入口将开关误当成可用性
 
-[runtime API](../app/api/agent/runtime/route.ts) 和 [feature-flags.ts](../lib/config/feature-flags.ts) 仅判断 runtime 开关与非空数据库地址。前次只读检查本机接口返回 `enabled=true/runtimeEnabled=true`，但没有验证模型配置。
+[runtime API](../../../app/api/agent/runtime/route.ts) 和 [feature-flags.ts](../../../lib/config/feature-flags.ts) 仅判断 runtime 开关与非空数据库地址。前次只读检查本机接口返回 `enabled=true/runtimeEnabled=true`，但没有验证模型配置。
 
 ## 3. 最小实施设计
 
@@ -97,7 +97,7 @@ type ProModelMetadata = {
 4. 通过现有设置路径提供连接清除/替换，清除后阻止后续调用；已发出的上游请求不能保证撤回。主加密密钥由部署 secret 提供，缺失时明确报配置错误，不降级明文。
 5. 不使用进程全局“当前模型”覆盖多用户配置。
 
-**必要身份约束：**当前 [owner.ts](../lib/server/agent-runtime/owner.ts) 的部分路径使用未签名匿名 cookie；不能据此开放新凭据读写。复用/抽取已有 [generation-jobs/auth.ts](../lib/server/generation-jobs/auth.ts) 的签名 owner 和同源验证能力，使凭据访问不依赖另一后台生成开关。旧 owner 的迁移不得仅凭客户端提供的 UUID 自动认领；本地受信迁移需有明确路径。此项只覆盖模型连接的必要隔离，不要求新增登录系统。
+**必要身份约束：**当前 [owner.ts](../../../lib/server/agent-runtime/owner.ts) 的部分路径使用未签名匿名 cookie；不能据此开放新凭据读写。复用/抽取已有 [generation-jobs/auth.ts](../../../lib/server/generation-jobs/auth.ts) 的签名 owner 和同源验证能力，使凭据访问不依赖另一后台生成开关。旧 owner 的迁移不得仅凭客户端提供的 UUID 自动认领；本地受信迁移需有明确路径。此项只覆盖模型连接的必要隔离，不要求新增登录系统。
 
 客户端 endpoint 继续应用 SSRF/重定向校验，不能因存进数据库就被视作管理员可信地址。服务器托管 provider 的 Key 和地址仍由管理员控制，不接受客户端覆盖。
 
@@ -133,7 +133,7 @@ Home 当前模型
               └─ generateSceneActions(...)
 ```
 
-保留 [resolve-model.ts](../lib/server/resolve-model.ts) 的 `stage route > 客户端模型 > DEFAULT_MODEL` 语义：没有阶段路由时，将本用户已解析的连接作为 fallback；命中路由时使用该路由自己的服务器凭据，不能把 Home 的 Key 传给另一提供商。
+保留 [resolve-model.ts](../../../lib/server/resolve-model.ts) 的 `stage route > 客户端模型 > DEFAULT_MODEL` 语义：没有阶段路由时，将本用户已解析的连接作为 fallback；命中路由时使用该路由自己的服务器凭据，不能把 Home 的 Key 传给另一提供商。
 
 内容阶段继续使用现有 `scene-content`/子类型匹配规则，动作阶段使用 `scene-actions`。不要把 driver 最终选中的管理员专用模型强行覆盖所有阶段；**共用的是 Home fallback 和连接解析规则，各阶段显式配置仍然有效。**
 
@@ -193,4 +193,4 @@ Home 当前模型
 
 本轮进一步核实普通模式和 PRO 共用的三个生成函数，以及当前 generate-classroom API 的后台 job 边界，仅更新方案与决策文档。未调用真实模型、未修改业务代码、数据库、Key 或部署。实施后需更新旧契约测试，并完成上述验收。
 
-相关决策：[当前范围 ADR-0007](../docs/adr/0007-fix-pro-model-binding-with-existing-generation.md)、[凭据边界 ADR-0006](../docs/adr/0006-own-encrypted-model-connections-on-server.md)。
+相关决策：[当前范围 ADR-0007](../../adr/0007-fix-pro-model-binding-with-existing-generation.md)、[凭据边界 ADR-0006](../../adr/0006-own-encrypted-model-connections-on-server.md)。

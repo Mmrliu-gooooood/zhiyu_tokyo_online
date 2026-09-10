@@ -8,4 +8,4 @@
 
 动态测试、Lesson 计划、checkpoint、动态题集、assessment attempt、报告及建议闭环均为后续独立工作，不纳入本次修复的依赖、实现或验收。
 
-本页保留原文件路径以兼容已有链接。旧决策的替代关系见 [ADR-0007](../docs/adr/0007-fix-pro-model-binding-with-existing-generation.md)。
+本页保留原文件路径以兼容已有链接。旧决策的替代关系见 [ADR-0007](../../adr/0007-fix-pro-model-binding-with-existing-generation.md)。

@@ -158,7 +158,7 @@ async function loadWorkflow(
         log.error('No ComfyUI workflow files found in public/');
         throw new Error(
           'ComfyUI: no workflow JSON files found in the public/ folder. ' +
-            'Add at least one comfyui-*.json workflow — see comfyui-setup-instructions.md.',
+            'Add at least one comfyui-*.json workflow — see docs/guides/comfyui-workflows.md.',
         );
       }
       filename = known[0];
@@ -324,7 +324,7 @@ function patchWorkflow(
     log.error(`Prompt node (id: ${promptNodeId}) has no "inputs" object`);
     throw new Error(
       `ComfyUI workflow prompt node (id: ${promptNodeId}) is malformed — it has no "inputs" object. ` +
-        'Re-export the workflow in API format (see comfyui-setup-instructions.md).',
+        'Re-export the workflow in API format (see docs/guides/comfyui-workflows.md).',
     );
   }
   promptInputs['value'] = options.prompt;

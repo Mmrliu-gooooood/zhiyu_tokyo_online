@@ -74,8 +74,7 @@ next-env.d.ts
 /data
 /logs
 
-# docs
-/docs
+# Project documentation lives in /docs and is version-controlled.
 # Eval results
 eval/whiteboard-layout/results/
 eval/outline-language/results/
