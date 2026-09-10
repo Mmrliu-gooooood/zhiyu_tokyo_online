@@ -4,21 +4,13 @@
 FROM node:22-alpine AS base
 
 ARG ALPINE_MIRROR=""
-ARG NPM_REGISTRY=""
 
 RUN if [ -n "$ALPINE_MIRROR" ]; then \
       sed -i "s|dl-cdn.alpinelinux.org|$ALPINE_MIRROR|g" /etc/apk/repositories; \
     fi && \
     apk add --no-cache libc6-compat
 
-RUN npm_registry="$NPM_REGISTRY"; \
-    while [ "${npm_registry%/}" != "$npm_registry" ]; do \
-      npm_registry="${npm_registry%/}"; \
-    done; \
-    if [ -n "$npm_registry" ]; then \
-      export COREPACK_NPM_REGISTRY="$npm_registry"; \
-    fi && \
-    corepack enable && \
+RUN corepack enable && \
     corepack prepare pnpm@10.28.0 --activate
 
 WORKDIR /app

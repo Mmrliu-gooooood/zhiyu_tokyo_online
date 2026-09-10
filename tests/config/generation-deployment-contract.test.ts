@@ -41,6 +41,19 @@ describe('generation deployment contract', () => {
     ).toHaveLength(2);
   });
 
+  it('uses the optional npm mirror for dependency tarballs, not Corepack metadata', () => {
+    const dockerfile = read('Dockerfile');
+    const baseStage = dockerfile.slice(0, dockerfile.indexOf('# ---- Stage 2: Dependencies ----'));
+    const depsStage = dockerfile.slice(
+      dockerfile.indexOf('# ---- Stage 2: Dependencies ----'),
+      dockerfile.indexOf('# ---- Independent worker'),
+    );
+
+    expect(baseStage).not.toContain('COREPACK_NPM_REGISTRY');
+    expect(depsStage).toContain('ARG NPM_REGISTRY');
+    expect(depsStage).toContain('pnpm config set registry "$npm_registry"');
+  });
+
   it('gives the non-root generation worker a writable usage directory', () => {
     const dockerfile = read('Dockerfile');
     const workerStage = dockerfile.slice(
