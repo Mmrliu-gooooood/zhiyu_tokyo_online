@@ -12,6 +12,52 @@ function settings(overrides: Partial<SettingsState>): SettingsState {
 describe('media config snapshot client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it('freezes a versioned MiniMax directory without copying its execution secret per voice', () => {
+    const state = useSettingsStore.getState();
+    const snapshot = buildMediaConfigSnapshot(
+      settings({
+        ttsEnabled: true,
+        ttsProviderId: 'minimax-tts',
+        ttsVoice: 'female-yujie',
+        ttsProvidersConfig: {
+          ...state.ttsProvidersConfig,
+          'minimax-tts': {
+            ...state.ttsProvidersConfig['minimax-tts'],
+            apiKey: 'session-secret',
+            enabled: true,
+            modelId: 'speech-2.8-hd',
+          },
+        },
+      }),
+    );
+
+    expect(snapshot).toMatchObject({
+      version: 2,
+      ttsDefault: {
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voiceId: 'female-yujie',
+      },
+      ttsProviders: [
+        expect.objectContaining({
+          providerId: 'minimax-tts',
+          apiKey: 'session-secret',
+          modelId: 'speech-2.8-hd',
+        }),
+      ],
+      ttsVoiceDirectory: [
+        expect.objectContaining({
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          voiceIds: expect.arrayContaining(['female-yujie', 'male-qn-jingying']),
+        }),
+      ],
+    });
+    expect(snapshot?.ttsVoiceDirectory?.[0]?.voiceIds.length).toBeGreaterThan(1);
+    expect(snapshot?.tts).toBeUndefined();
+    expect(JSON.stringify(snapshot).match(/session-secret/g)).toHaveLength(1);
+  });
+
   it('captures every built-in server media provider through the encrypted snapshot path', () => {
     const state = useSettingsStore.getState();
     const imageIds = [
@@ -95,7 +141,7 @@ describe('media config snapshot client', () => {
               },
             },
           }),
-        )?.tts?.[0]?.providerId,
+        )?.ttsProviders?.[0]?.providerId,
       ).toBe(providerId);
     }
   });
@@ -110,7 +156,7 @@ describe('media config snapshot client', () => {
         }),
       ),
     ).toEqual({
-      version: 1,
+      version: 2,
       imageEnabled: false,
       videoEnabled: false,
       ttsEnabled: false,
@@ -159,7 +205,7 @@ describe('media config snapshot client', () => {
     );
 
     expect(snapshot).toMatchObject({
-      version: 1,
+      version: 2,
       imageEnabled: true,
       videoEnabled: true,
       ttsEnabled: true,
@@ -173,15 +219,20 @@ describe('media config snapshot client', () => {
         apiKey: 'video-secret',
         modelId: 'MiniMax-Hailuo-2.3',
       },
-      tts: [
+      ttsProviders: [
         expect.objectContaining({
           providerId: 'minimax-tts',
           apiKey: 'tts-secret',
           modelId: 'speech-2.8-hd',
-          voice: 'male-qn-qingse',
           providerOptions: { emotion: 'happy' },
         }),
       ],
+      ttsDefault: {
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voiceId: 'male-qn-qingse',
+        speed: expect.any(Number),
+      },
     });
   });
 
@@ -212,7 +263,7 @@ describe('media config snapshot client', () => {
 
     expect(snapshot?.image?.enabled).toBe(false);
     expect(snapshot?.video?.enabled).toBe(false);
-    expect(snapshot?.tts?.[0]?.enabled).toBe(false);
+    expect(snapshot?.ttsProviders?.[0]?.enabled).toBe(false);
   });
 
   it('keeps browser-native TTS in the browser and blocks server fallback', () => {
@@ -251,14 +302,22 @@ describe('media config snapshot client', () => {
       [{ providerId: 'doubao-tts', modelId: 'doubao-model', voiceId: 'doubao-voice' }],
     );
 
-    expect(snapshot?.tts).toEqual(
+    expect(snapshot?.ttsProviders).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ providerId: 'minimax-tts', apiKey: 'minimax-secret' }),
         expect.objectContaining({
           providerId: 'doubao-tts',
           apiKey: 'doubao-secret',
           modelId: 'doubao-model',
-          voice: 'doubao-voice',
+        }),
+      ]),
+    );
+    expect(snapshot?.ttsVoiceDirectory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          providerId: 'doubao-tts',
+          modelId: 'doubao-model',
+          voiceIds: expect.arrayContaining(['doubao-voice']),
         }),
       ]),
     );

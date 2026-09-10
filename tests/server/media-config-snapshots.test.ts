@@ -74,6 +74,49 @@ describe('encrypted media configuration snapshots', () => {
     expect(await store.load('owner-a', first)).toEqual(snapshot);
   });
 
+  it('stores a compact v2 voice directory and keeps v1 snapshots readable', async () => {
+    const voiceIds = Array.from({ length: 120 }, (_, index) => `voice-${index + 1}`);
+    const v2 = {
+      version: 2,
+      imageEnabled: false,
+      videoEnabled: false,
+      ttsEnabled: true,
+      ttsProviders: [
+        {
+          providerId: 'custom-tts-private',
+          protocol: 'openai-speech',
+          apiKey: 'one-session-secret',
+          baseUrl: 'https://tts.example.test/v1',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'tts-model',
+          speed: 1,
+        },
+      ],
+      ttsDefault: {
+        providerId: 'custom-tts-private',
+        modelId: 'tts-model',
+        voiceId: 'voice-1',
+        speed: 1,
+      },
+      ttsVoiceDirectory: [
+        { providerId: 'custom-tts-private', modelId: 'tts-model', voiceIds },
+      ],
+    } as const;
+
+    const v2Ref = await store.create('owner-a', v2);
+    const legacyRef = await store.create('owner-a', snapshot);
+    expect(await store.load('owner-a', v2Ref)).toEqual(v2);
+    expect(await store.load('owner-a', legacyRef)).toEqual(snapshot);
+
+    const rows = await db.query<{ schema_version: number; ciphertext: string }>(
+      'SELECT schema_version,ciphertext FROM media_config_snapshots ORDER BY schema_version',
+    );
+    expect(rows.rows.map((row) => Number(row.schema_version))).toEqual([1, 2]);
+    expect(JSON.stringify(rows.rows)).not.toContain('one-session-secret');
+    expect(JSON.stringify(v2).match(/one-session-secret/g)).toHaveLength(1);
+  });
+
   it('isolates owners and revokes every snapshot containing a provider instance', async () => {
     const ownerRef = await store.create('owner-a', snapshot);
     const otherRef = await store.create('owner-b', snapshot);

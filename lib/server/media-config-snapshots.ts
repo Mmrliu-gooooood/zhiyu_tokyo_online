@@ -16,7 +16,8 @@ export class MediaConfigSnapshotError extends Error {
   }
 }
 
-export const MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION = 1;
+export const MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION = 2;
+const SUPPORTED_MEDIA_CONFIG_SNAPSHOT_VERSIONS = new Set([1, 2]);
 
 const providerInstanceId = z
   .string()
@@ -180,16 +181,69 @@ const builtInTtsConfig = z
 const imageConfig = z.union([customImageConfig, builtInImageConfig]);
 const videoConfig = z.union([customVideoConfig, builtInVideoConfig]);
 const ttsConfig = z.union([customTtsConfig, builtInTtsConfig]);
-
-export const MediaConfigSnapshotContentSchema = z
+const ttsExecutionOptions = {
+  speed: z.number().min(0.25).max(4).optional(),
+  format: z.string().trim().min(1).max(32).optional(),
+  providerOptions: z.record(z.string(), z.unknown()).optional(),
+};
+const customTtsProviderConfig = z
   .object({
-    version: z.literal(MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION),
-    imageEnabled: z.boolean().optional(),
-    videoEnabled: z.boolean().optional(),
-    ttsEnabled: z.boolean().optional(),
-    image: imageConfig.optional(),
-    video: videoConfig.optional(),
+    providerId: providerInstanceId.refine((id) => id.startsWith('custom-tts-')),
+    protocol: z.literal('openai-speech'),
+    ...common,
+    ...ttsExecutionOptions,
+  })
+  .strict();
+const builtInTtsProviderConfig = z
+  .object({
+    providerId: z.enum([
+      'openai-tts',
+      'azure-tts',
+      'glm-tts',
+      'qwen-tts',
+      'doubao-tts',
+      'elevenlabs-tts',
+      'minimax-tts',
+      'voxcpm-tts',
+      'lemonade-tts',
+    ]),
+    ...builtInCommon,
+    ...ttsExecutionOptions,
+  })
+  .strict()
+  .superRefine(validateBuiltInBaseUrl);
+const ttsProviderConfig = z.union([customTtsProviderConfig, builtInTtsProviderConfig]);
+const ttsVoiceBinding = z
+  .object({
+    providerId: providerInstanceId,
+    modelId,
+    voiceId: z.string().trim().min(1).max(500),
+    speed: z.number().min(0.25).max(4).optional(),
+  })
+  .strict();
+const ttsVoiceDirectoryEntry = z
+  .object({
+    providerId: providerInstanceId,
+    modelId,
+    voiceIds: z.array(z.string().trim().min(1).max(500)).min(1).max(1_000),
+  })
+  .strict();
+const mediaIntent = {
+  imageEnabled: z.boolean().optional(),
+  videoEnabled: z.boolean().optional(),
+  ttsEnabled: z.boolean().optional(),
+  image: imageConfig.optional(),
+  video: videoConfig.optional(),
+};
+
+const MediaConfigSnapshotV1Schema = z
+  .object({
+    version: z.literal(1),
+    ...mediaIntent,
     tts: z.array(ttsConfig).max(100).optional(),
+    ttsProviders: z.never().optional(),
+    ttsDefault: z.never().optional(),
+    ttsVoiceDirectory: z.never().optional(),
   })
   .strict()
   .refine(
@@ -204,6 +258,62 @@ export const MediaConfigSnapshotContentSchema = z
       message: 'At least one media provider configuration or explicit intent is required',
     },
   );
+
+const MediaConfigSnapshotV2Schema = z
+  .object({
+    version: z.literal(2),
+    ...mediaIntent,
+    tts: z.never().optional(),
+    ttsProviders: z.array(ttsProviderConfig).max(100).optional(),
+    ttsDefault: ttsVoiceBinding.optional(),
+    ttsVoiceDirectory: z.array(ttsVoiceDirectoryEntry).max(100).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const providerKeys = new Set<string>();
+    for (const config of value.ttsProviders ?? []) {
+      const key = `${config.providerId}\0${config.modelId}`;
+      if (providerKeys.has(key)) {
+        context.addIssue({ code: 'custom', message: 'Duplicate TTS provider/model execution config' });
+      }
+      providerKeys.add(key);
+    }
+    const directoryKeys = new Set<string>();
+    for (const entry of value.ttsVoiceDirectory ?? []) {
+      const key = `${entry.providerId}\0${entry.modelId}`;
+      if (!providerKeys.has(key)) {
+        context.addIssue({ code: 'custom', message: 'Voice directory has no execution config' });
+      }
+      if (directoryKeys.has(key) || new Set(entry.voiceIds).size !== entry.voiceIds.length) {
+        context.addIssue({ code: 'custom', message: 'Duplicate voice directory entry' });
+      }
+      directoryKeys.add(key);
+    }
+    if (value.ttsDefault) {
+      const key = `${value.ttsDefault.providerId}\0${value.ttsDefault.modelId}`;
+      const directory = value.ttsVoiceDirectory?.find(
+        (entry) => `${entry.providerId}\0${entry.modelId}` === key,
+      );
+      if (!providerKeys.has(key) || !directory?.voiceIds.includes(value.ttsDefault.voiceId)) {
+        context.addIssue({ code: 'custom', message: 'Default voice is outside the voice directory' });
+      }
+    }
+  })
+  .refine(
+    (value) =>
+      value.image ||
+      value.video ||
+      value.ttsProviders?.length ||
+      value.imageEnabled !== undefined ||
+      value.videoEnabled !== undefined ||
+      value.ttsEnabled !== undefined,
+    { message: 'At least one media provider configuration or explicit intent is required' },
+  );
+
+export const MediaConfigSnapshotContentSchema = z.discriminatedUnion('version', [
+  MediaConfigSnapshotV1Schema,
+  MediaConfigSnapshotV2Schema,
+]);
 export type MediaConfigSnapshotContent = z.infer<typeof MediaConfigSnapshotContentSchema>;
 
 export function parseMediaConfigRef(value: unknown): MediaConfigRef | undefined {
@@ -254,6 +364,7 @@ function unseal(
   ciphertext: string,
   ownerId: string,
   ref: MediaConfigRef,
+  schemaVersion: number,
 ): MediaConfigSnapshotContent {
   try {
     const [version, iv, tag, encrypted, extra] = ciphertext.split('.');
@@ -265,7 +376,9 @@ function unseal(
       decipher.update(Buffer.from(encrypted, 'base64')),
       decipher.final(),
     ]).toString('utf8');
-    return MediaConfigSnapshotContentSchema.parse(JSON.parse(plaintext));
+    const content = MediaConfigSnapshotContentSchema.parse(JSON.parse(plaintext));
+    if (content.version !== schemaVersion) throw new Error();
+    return content;
   } catch (error) {
     if (
       error instanceof MediaConfigSnapshotError &&
@@ -280,7 +393,12 @@ function unseal(
 function parseContent(value: unknown): MediaConfigSnapshotContent {
   const parsed = MediaConfigSnapshotContentSchema.safeParse(value);
   if (!parsed.success) throw new MediaConfigSnapshotError('MEDIA_CONFIG_INVALID');
-  for (const config of [parsed.data.image, parsed.data.video, ...(parsed.data.tts ?? [])]) {
+  for (const config of [
+    parsed.data.image,
+    parsed.data.video,
+    ...(parsed.data.tts ?? []),
+    ...(parsed.data.ttsProviders ?? []),
+  ]) {
     const isCustom = config?.providerId.startsWith('custom-');
     if (config?.requiresApiKey && !config.apiKey.trim() && !isCustom) {
       // A built-in provider may be server-managed; the authoritative key check
@@ -299,6 +417,8 @@ function providerInstanceIds(content: MediaConfigSnapshotContent): string[] {
     content.image?.providerId,
     content.video?.providerId,
     ...(content.tts ?? []).map((v) => v.providerId),
+    ...(content.ttsProviders ?? []).map((v) => v.providerId),
+    ...(content.ttsVoiceDirectory ?? []).map((v) => v.providerId),
   ]
     .filter((value): value is string => !!value)
     .filter((value, index, all) => all.indexOf(value) === index)
@@ -335,7 +455,7 @@ export class MediaConfigSnapshotStore {
           ref.id,
           ownerId,
           ref.revision,
-          MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION,
+          content.version,
           seal(content, ownerId, ref),
           intentDigest,
           JSON.stringify(providerInstanceIds(content)),
@@ -361,10 +481,11 @@ export class MediaConfigSnapshotStore {
       [parsed.id, parsed.revision, ownerId],
     );
     const row = result.rows[0];
-    if (!row || Number(row.schema_version) !== MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION) {
+    const schemaVersion = Number(row?.schema_version);
+    if (!row || !SUPPORTED_MEDIA_CONFIG_SNAPSHOT_VERSIONS.has(schemaVersion)) {
       throw new MediaConfigSnapshotError('MEDIA_CONFIG_SNAPSHOT_UNAVAILABLE', 409);
     }
-    return unseal(row.ciphertext, ownerId, parsed);
+    return unseal(row.ciphertext, ownerId, parsed, schemaVersion);
   }
 
   async revokeByProviderInstance(ownerId: string, providerId: string): Promise<number> {

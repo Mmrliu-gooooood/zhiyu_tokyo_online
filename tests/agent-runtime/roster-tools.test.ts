@@ -491,6 +491,71 @@ describe('list_voices', () => {
     ]);
   });
 
+  it('persists the selected model when binding a non-default v2 directory voice', async () => {
+    mocks.enabledServerTTSProviderIds.mockReturnValue([]);
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+    const voiceSource = {
+      providerConfigs: [
+        {
+          providerId: 'minimax-tts',
+          apiKey: 'session-secret',
+          baseUrl: '',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'speech-2.8-hd',
+        },
+      ],
+      defaultVoice: {
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voiceId: 'female-yujie',
+      },
+      voiceDirectory: [
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          voiceIds: ['female-yujie', 'male-qn-jingying'],
+        },
+      ],
+    };
+    const listed = await runTool(makeStore(makeDoc()), 'list_voices', {}, {
+      providerConfigs: voiceSource,
+    } as never);
+    expect(listed.details?.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          binding: 'minimax-tts::male-qn-jingying',
+          modelId: 'speech-2.8-hd',
+        }),
+      ]),
+    );
+
+    const store = makeStore(makeDoc());
+    const result = await runTool(
+      store,
+      'set_roster',
+      {
+        stageId: 'stage-test',
+        agents: [
+          llmAgent({ voice: 'minimax-tts::male-qn-jingying' }),
+          { name: 'Student', role: 'student', persona: 'Curious.' },
+        ],
+      },
+      { providerConfigs: voiceSource } as never,
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(
+      (await store.loadDocument('stage-test'))?.stage.generatedAgentConfigs?.[0]?.voiceConfig,
+    ).toEqual({
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-hd',
+      voiceId: 'male-qn-jingying',
+    });
+  });
+
   it('uses the same snapshot boundary for custom, cloned, excluded, and disabled voices', async () => {
     mocks.resolveTTSApiKey.mockImplementation(
       (_id: string, snapshotKey?: string) => snapshotKey || '',

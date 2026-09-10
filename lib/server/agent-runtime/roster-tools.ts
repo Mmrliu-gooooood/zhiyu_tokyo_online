@@ -46,7 +46,11 @@ import type { CheckpointInfo } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { markDocumentWritersSequential } from './course-tools';
 import { runStageMutation } from './mutation-fence';
-import { sessionVoiceCatalog, type EffectiveSessionVoiceConfig } from './effective-voice-directory';
+import {
+  sessionVoiceCatalog,
+  type EffectiveSessionVoiceConfig,
+  type EffectiveSessionVoiceSource,
+} from './effective-voice-directory';
 
 export type CourseDocument = MaicDocument<Scene, Stage>;
 export type CourseStore = DocumentStore<Scene, Stage>;
@@ -66,7 +70,9 @@ export interface RosterToolDeps {
    */
   registeredVoices?: RegisteredVoiceInfo[];
   /** Fixed TTS configurations loaded from this session's encrypted media snapshot. */
-  providerConfigs?: readonly RosterVoiceProviderConfig[];
+  providerConfigs?:
+    | readonly RosterVoiceProviderConfig[]
+    | EffectiveSessionVoiceSource<RosterVoiceProviderConfig>;
 }
 
 export type RosterVoiceProviderConfig = EffectiveSessionVoiceConfig;
@@ -101,8 +107,10 @@ export function parseVoiceConfig(
  */
 export function agentVoiceCatalog(
   registeredVoices: RegisteredVoiceInfo[] = [],
-  providerConfigs?: readonly RosterVoiceProviderConfig[],
-): CatalogVoice[] {
+  providerConfigs?:
+    | readonly RosterVoiceProviderConfig[]
+    | EffectiveSessionVoiceSource<RosterVoiceProviderConfig>,
+): Array<CatalogVoice & { modelId?: string }> {
   if (providerConfigs) return sessionVoiceCatalog(providerConfigs, registeredVoices);
   const providers: VoiceCatalogProvider[] = [];
   for (const id of enabledServerTTSProviderIds()) {
@@ -223,6 +231,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
       const voices = catalog.map((voice) => ({
         binding: voice.binding,
         providerId: voice.providerId,
+        ...(voice.modelId ? { modelId: voice.modelId } : {}),
         voiceId: voice.id,
         name: voice.name,
         language: voice.language,
@@ -306,7 +315,8 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
       // catalog (registration is session-scoped by design): re-register it,
       // bind a catalog voice, or omit `voice`.
       const catalog = agentVoiceCatalog(deps.registeredVoices, deps.providerConfigs);
-      const catalogBindings = new Set(catalog.map((voice) => voice.binding));
+      const catalogByBinding = new Map(catalog.map((voice) => [voice.binding, voice]));
+      const catalogBindings = new Set(catalogByBinding.keys());
       const unusableBinding = params.agents
         .map((agent) => parseVoiceConfig(agent.voice))
         .find(
@@ -333,7 +343,18 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
 
       const roster: GeneratedAgentConfig[] = params.agents.map((agent, index) => {
         const voiceDesign = normalizeVoiceDesign(agent.voiceDesign);
-        const voiceConfig = parseVoiceConfig(agent.voice);
+        const parsedVoice = parseVoiceConfig(agent.voice);
+        const catalogVoice = parsedVoice
+          ? catalogByBinding.get(`${parsedVoice.providerId}::${parsedVoice.voiceId}`)
+          : undefined;
+        const voiceConfig =
+          parsedVoice && catalogVoice
+            ? {
+                providerId: parsedVoice.providerId,
+                ...(catalogVoice.modelId ? { modelId: catalogVoice.modelId } : {}),
+                voiceId: parsedVoice.voiceId,
+              }
+            : undefined;
         return {
           id: agent.id?.trim() || `gen-${nanoid(8)}`,
           name: agent.name,
