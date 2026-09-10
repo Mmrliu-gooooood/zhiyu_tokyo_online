@@ -77,7 +77,7 @@ describe('TTS abort propagation and per-request timeout', () => {
     vi.restoreAllMocks();
   });
 
-  it('rejects at the per-request timeout with the retryable error when the provider hangs', async () => {
+  it('rejects at the per-request timeout with an unknown-result error when the provider hangs', async () => {
     const previous = process.env.TTS_REQUEST_TIMEOUT_MS;
     process.env.TTS_REQUEST_TIMEOUT_MS = '80';
     const captured: AbortSignal[] = [];
@@ -88,11 +88,12 @@ describe('TTS abort propagation and per-request timeout', () => {
         force: false,
       }).catch((err: unknown) => err);
 
-      // The hung provider fails the tool call with a clear retryable error
-      // instead of wedging the session.
+      // A sent request can have completed upstream, so timeout is explicit but
+      // never advertised as a safe blind retry.
       expect(error).toBeInstanceOf(TTSRequestTimeoutError);
       expect(String(error)).toContain('timed out');
-      expect(String(error)).toContain('Retry the tool call');
+      expect(String(error)).toContain('provider result is unknown');
+      expect(String(error)).not.toContain('Retry the tool call');
       expect(mocks.persist).not.toHaveBeenCalled();
       // The underlying request was aborted by the timeout bound.
       expect(captured).toHaveLength(1);

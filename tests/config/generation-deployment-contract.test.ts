@@ -22,6 +22,18 @@ describe('generation deployment contract', () => {
     expect(deploymentPlan).toContain('`GENERATION_MODEL_ENCRYPTION_KEY`');
   });
 
+  it('shares one TTS request budget between the web and generation worker', () => {
+    const compose = read('docker-compose.persistence.yml');
+    const envExample = read('.env.example');
+
+    expect(compose).toContain(
+      'TTS_REQUEST_TIMEOUT_MS: ${TTS_REQUEST_TIMEOUT_MS:-120000}',
+    );
+    expect(compose.match(/^\s*TTS_REQUEST_TIMEOUT_MS:/gm)).toHaveLength(1);
+    expect(envExample).toContain('# TTS_REQUEST_TIMEOUT_MS=120000');
+    expect(envExample).toContain('worker reserves additional checkpoint commit time');
+  });
+
   it('labels both runtime images with the same source revision', () => {
     const dockerfile = read('Dockerfile');
 

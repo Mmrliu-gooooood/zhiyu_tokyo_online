@@ -92,6 +92,17 @@ interface Command {
   acknowledged?: boolean;
   stepKeys?: string[];
 }
+function sanitizeErrorSummary(value: string | undefined): string | null {
+  if (!value) return null;
+  const compact = value
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/https?:\/\/\S+/gi, '[redacted-url]')
+    .replace(/\bBearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[redacted-key]')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return compact ? compact.slice(0, 240) : null;
+}
 const terminal = new Set(['succeeded', 'failed', 'cancelled']);
 function view(r: JobRow): GenerationJobView {
   return {
@@ -1193,6 +1204,10 @@ export class GenerationJobRepository {
         [id],
       );
       await q.query(
+        "UPDATE generation_attempts a SET outcome='uncertain',finished_at=clock_timestamp() FROM generation_steps s WHERE a.step_id=s.id AND s.job_id=$1 AND a.outcome='running'",
+        [id],
+      );
+      await q.query(
         "UPDATE generation_steps SET status='cancelled' WHERE job_id=$1 AND status NOT IN ('succeeded','skipped')",
         [id],
       );
@@ -1263,7 +1278,7 @@ export class GenerationJobRepository {
         [j.stage_id],
       );
       await q.query(
-        "UPDATE generation_jobs SET status='queued',run_no=run_no+1,lease_epoch=lease_epoch+1,worker_id=NULL,lease_expires_at=NULL,last_error_code=NULL,available_at=clock_timestamp(),finished_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
+        "UPDATE generation_jobs SET status='queued',run_no=run_no+1,lease_epoch=lease_epoch+1,worker_id=NULL,lease_expires_at=NULL,last_error_code=NULL,last_error_summary=NULL,available_at=clock_timestamp(),finished_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
         [id],
       );
       await this.event(q, id, 'retry_acknowledged');
@@ -1358,6 +1373,7 @@ export class GenerationJobRepository {
       stepKey: string;
       code: string;
       uncertain: boolean;
+      errorSummary?: string;
       retryable?: boolean;
       retryAfterMs?: number;
     },
@@ -1375,6 +1391,7 @@ export class GenerationJobRepository {
         !input.uncertain && input.retryable && step.attempt_count < step.max_attempts;
       const status = input.uncertain ? 'needs_attention' : safeRetry ? 'retry_wait' : 'failed';
       const code = /^[A-Z0-9_]{1,100}$/.test(input.code) ? input.code : 'GENERATION_STEP_FAILED';
+      const errorSummary = sanitizeErrorSummary(input.errorSummary);
       const delay = Math.max(
         input.retryAfterMs ?? 0,
         Math.min(60_000, 2000 * 2 ** Math.max(0, step.attempt_count - 1)) +
@@ -1405,11 +1422,15 @@ export class GenerationJobRepository {
       const finalStatus = other.rows.length ? 'needs_attention' : status;
       await this.projectSceneFailure(q, lease.jobId, finalStatus, code, input.stepKey);
       await q.query(
-        "UPDATE generation_jobs SET status=$2,last_error_code=$3,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp()+$4*interval '1 millisecond',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
-        [lease.jobId, finalStatus, code, delay],
+        "UPDATE generation_jobs SET status=$2,last_error_code=$3,last_error_summary=$5,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp()+$4*interval '1 millisecond',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
+        [lease.jobId, finalStatus, code, delay, errorSummary],
       );
       if (finalStatus !== 'retry_wait') await this.editable(q, job);
-      await this.event(q, lease.jobId, finalStatus, { stepKey: input.stepKey, code });
+      await this.event(q, lease.jobId, finalStatus, {
+        stepKey: input.stepKey,
+        code,
+        ...(errorSummary ? { errorSummary } : {}),
+      });
     });
   }
   async fail(lease: GenerationLease, code = 'GENERATION_FAILED', uncertain = false): Promise<void> {
@@ -1449,6 +1470,10 @@ export class GenerationJobRepository {
           [job.id],
         );
         const uncertain = unresolved.rows.length > 0;
+        const code = uncertain ? 'WORKER_LEASE_LOST' : 'WORKER_LEASE_EXPIRED';
+        const errorSummary = uncertain
+          ? 'External request remained unresolved after the worker lease was lost.'
+          : null;
         await q.query(
           "UPDATE generation_steps SET status=CASE WHEN id IN(SELECT step_id FROM generation_attempts WHERE outcome='uncertain') THEN 'uncertain' ELSE 'pending' END WHERE job_id=$1 AND status='running'",
           [job.id],
@@ -1457,15 +1482,11 @@ export class GenerationJobRepository {
           q,
           job.id,
           uncertain ? 'needs_attention' : 'retry_wait',
-          uncertain ? 'EXTERNAL_RESULT_UNKNOWN' : 'WORKER_LEASE_EXPIRED',
+          code,
         );
         await q.query(
-          'UPDATE generation_jobs SET status=$2,last_error_code=$3,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1',
-          [
-            job.id,
-            uncertain ? 'needs_attention' : 'retry_wait',
-            uncertain ? 'EXTERNAL_RESULT_UNKNOWN' : 'WORKER_LEASE_EXPIRED',
-          ],
+          'UPDATE generation_jobs SET status=$2,last_error_code=$3,last_error_summary=$4,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1',
+          [job.id, uncertain ? 'needs_attention' : 'retry_wait', code, errorSummary],
         );
         if (uncertain) await this.editable(q, job);
         await this.event(q, job.id, uncertain ? 'needs_attention' : 'lease_reaped');

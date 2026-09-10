@@ -8,6 +8,13 @@ import { runWithGenerationQuota } from '@/lib/server/generation-jobs/provider-ca
 import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/config-snapshot';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
 import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
+import {
+  DEFAULT_TTS_REQUEST_TIMEOUT_MS,
+  resolveTTSRequestTimeoutMs,
+  TTSConfigurationError,
+  TTSProviderTerminalError,
+  TTSRequestTimeoutError,
+} from '@/lib/audio/tts-providers';
 
 export interface CheckpointRepository {
   skipStepWithWarning(
@@ -33,6 +40,7 @@ export interface CheckpointRepository {
       stepKey: string;
       code: string;
       uncertain: boolean;
+      errorSummary?: string;
       retryable?: boolean;
       retryAfterMs?: number;
     },
@@ -45,8 +53,13 @@ export interface CheckpointRepository {
 
 /** An outbound request may have been accepted. Never automatically replay it. */
 export class UnknownExternalOutcome extends Error {
-  constructor(readonly stepKey: string) {
+  constructor(
+    readonly stepKey: string,
+    readonly code = 'EXTERNAL_RESULT_UNKNOWN',
+    readonly safeSummary = 'External provider result is unknown.',
+  ) {
     super('EXTERNAL_RESULT_UNKNOWN');
+    this.name = 'UnknownExternalOutcome';
   }
 }
 export class ProviderRetryScheduled extends Error {
@@ -57,14 +70,40 @@ export class ProviderRetryScheduled extends Error {
 }
 
 export type QuotaKind = 'llm' | 'tts' | 'media';
+const TTS_POST_RESPONSE_GRACE_MS = 15_000;
 export const EXTERNAL_CALL_DEADLINES_MS: Readonly<Record<QuotaKind, number>> = {
   llm: 300_000,
-  tts: 120_000,
+  tts: DEFAULT_TTS_REQUEST_TIMEOUT_MS + TTS_POST_RESPONSE_GRACE_MS,
   media: 600_000,
 };
+export function externalCallDeadlineMs(
+  kind: QuotaKind,
+  env: Readonly<{ TTS_REQUEST_TIMEOUT_MS?: string }> = process.env as unknown as Readonly<{
+    TTS_REQUEST_TIMEOUT_MS?: string;
+  }>,
+): number {
+  return kind === 'tts'
+    ? resolveTTSRequestTimeoutMs(env) + TTS_POST_RESPONSE_GRACE_MS
+    : EXTERNAL_CALL_DEADLINES_MS[kind];
+}
+
+export class ExternalCallInterrupted extends Error {
+  constructor(
+    readonly code: 'EXTERNAL_CALL_CANCELLED' | 'WORKER_LEASE_LOST',
+    readonly requestOutcomeUnknown: boolean,
+    readonly safeSummary: string,
+  ) {
+    super(code);
+    this.name = 'ExternalCallInterrupted';
+  }
+}
 export interface QuotaGate {
   run<T>(kind: QuotaKind, group: string, signal: AbortSignal, work: () => Promise<T>): Promise<T>;
   cooldown?(group: string, retryAfterMs: number): Promise<void>;
+}
+
+export interface ExternalCallLifecycle {
+  markResponseReceived(): void;
 }
 
 export class PipelineExecution {
@@ -139,7 +178,7 @@ export class PipelineExecution {
     dependency: unknown,
     kind: QuotaKind,
     group: string,
-    work: (signal: AbortSignal) => Promise<T>,
+    work: (signal: AbortSignal, lifecycle: ExternalCallLifecycle) => Promise<T>,
     optionalMedia: true,
   ): Promise<T | null>;
   external<T>(
@@ -147,7 +186,7 @@ export class PipelineExecution {
     dependency: unknown,
     kind: QuotaKind,
     group: string,
-    work: (signal: AbortSignal) => Promise<T>,
+    work: (signal: AbortSignal, lifecycle: ExternalCallLifecycle) => Promise<T>,
     optionalMedia?: false,
   ): Promise<T>;
   async external<T>(
@@ -155,18 +194,19 @@ export class PipelineExecution {
     dependency: unknown,
     kind: QuotaKind,
     _group: string,
-    work: (signal: AbortSignal) => Promise<T>,
+    work: (signal: AbortSignal, lifecycle: ExternalCallLifecycle) => Promise<T>,
     optionalMedia = false,
   ): Promise<T | null> {
     return this.quota.run(kind, 'deployment', this.signal, async () => {
       this.signal.throwIfAborted();
       assertGenerationConfigSnapshot(this.lease.input);
+      const deadlineMs = externalCallDeadlineMs(kind);
       const receipt = await this.repository.beginStep(this.lease, {
         key,
         kind,
         dependencyHash: canonicalHash(dependency),
         external: true,
-        deadlineMs: EXTERNAL_CALL_DEADLINES_MS[kind],
+        deadlineMs,
         outlineId: sceneOutlineId(key),
       });
       if (receipt.status === 'succeeded') return receipt.result as T;
@@ -175,17 +215,25 @@ export class PipelineExecution {
       const callSignal = AbortSignal.any([this.signal, deadline.signal]);
       const timeout = setTimeout(
         () => deadline.abort(new Error('PROVIDER_DEADLINE_EXCEEDED')),
-        EXTERNAL_CALL_DEADLINES_MS[kind],
+        deadlineMs,
       );
       timeout.unref?.();
       // Persist the attempt before sending; this also checks the live DB fence.
+      let requestDispatched = false;
       let responseReceived = false;
+      let commitStarted = false;
+      const lifecycle: ExternalCallLifecycle = {
+        markResponseReceived: () => {
+          responseReceived = true;
+        },
+      };
       try {
         // Race even adapters lacking AbortSignal support. They may still finish
         // remotely, but they cannot keep the Worker lease alive indefinitely or
         // commit late results. Signal-aware adapters also stop their local I/O.
-        const invoke = () =>
-          kind === 'media' && receipt.attemptId && this.repository.recordProviderRequest
+        const invoke = () => {
+          requestDispatched = true;
+          return kind === 'media' && receipt.attemptId && this.repository.recordProviderRequest
             ? withPolledTaskPersistence(
                 {
                   resumeTaskId: receipt.providerRequestId,
@@ -195,17 +243,53 @@ export class PipelineExecution {
                       taskId,
                     }),
                 },
-                () => work(callSignal),
+                () => work(callSignal, lifecycle),
               )
-            : work(callSignal);
+            : work(callSignal, lifecycle);
+        };
         const result = await raceWithAbort(callSignal, () =>
           kind === 'llm' ? runWithGenerationQuota(invoke) : invoke(),
         );
         responseReceived = true;
         callSignal.throwIfAborted();
+        commitStarted = true;
         await this.repository.commitCheckpoint(this.lease, { stepKey: key, result });
         return result;
       } catch (error) {
+        if (this.signal.aborted) {
+          const reason = this.signal.reason;
+          const leaseLost =
+            reason instanceof Error && reason.message === 'GENERATION_LEASE_LOST';
+          const interrupted = new ExternalCallInterrupted(
+            leaseLost ? 'WORKER_LEASE_LOST' : 'EXTERNAL_CALL_CANCELLED',
+            requestDispatched && !responseReceived,
+            leaseLost
+              ? 'External request was interrupted because the worker lease was lost.'
+              : 'External request was interrupted by cancellation after dispatch.',
+          );
+          this.stopped.abort(interrupted);
+          throw interrupted;
+        }
+        if (kind === 'tts' && error instanceof TTSConfigurationError) {
+          await this.repository.failStep(this.lease, {
+            stepKey: key,
+            code: error.code,
+            uncertain: false,
+            errorSummary: error.safeSummary,
+          });
+          this.stopped.abort(error);
+          throw error;
+        }
+        if (kind === 'tts' && error instanceof TTSProviderTerminalError) {
+          await this.repository.failStep(this.lease, {
+            stepKey: key,
+            code: error.code,
+            uncertain: false,
+            errorSummary: error.safeSummary,
+          });
+          this.stopped.abort(error);
+          throw error;
+        }
         // Only provider-confirmed rejection or terminal failure can downgrade an
         // optional image/video. Lost responses and download failures stay unknown.
         if (
@@ -256,6 +340,7 @@ export class PipelineExecution {
             stepKey: key,
             code: 'PROVIDER_RATE_LIMITED',
             uncertain: false,
+            errorSummary: 'Provider explicitly rejected the request with HTTP 429.',
             retryable: true,
             retryAfterMs: boundedDelay,
           });
@@ -266,10 +351,44 @@ export class PipelineExecution {
         // Even aborts and failed commits can occur after the provider succeeded.
         // If DB is offline this fails too; the expired-attempt reaper makes the
         // same needs_attention decision from the durable running receipt.
-        const outcome = new UnknownExternalOutcome(key);
+        const commitFailure = kind === 'tts' && commitStarted;
+        const persistFailure = kind === 'tts' && responseReceived && !commitStarted;
+        const timeoutFailure =
+          kind === 'tts' &&
+          (error instanceof TTSRequestTimeoutError ||
+            (deadline.signal.aborted && !this.signal.aborted));
+        const timeoutCode = 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT';
+        const timeoutSummary =
+          'TTS provider did not return before the deadline; its result is unknown.';
+        const outcome = new UnknownExternalOutcome(
+          key,
+          commitFailure
+            ? 'TTS_RESULT_COMMIT_FAILED'
+            : persistFailure
+            ? 'TTS_RESULT_PERSIST_FAILED'
+            : timeoutFailure
+            ? error instanceof TTSRequestTimeoutError
+              ? error.code
+              : timeoutCode
+            : undefined,
+          commitFailure
+            ? 'TTS result was produced, but its checkpoint could not be committed.'
+            : persistFailure
+            ? 'TTS response was received, but its audio asset could not be persisted.'
+            : timeoutFailure
+            ? error instanceof TTSRequestTimeoutError
+              ? error.safeSummary
+              : timeoutSummary
+            : undefined,
+        );
         this.stopped.abort(outcome);
         await this.repository
-          .failStep(this.lease, { stepKey: key, code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true })
+          .failStep(this.lease, {
+            stepKey: key,
+            code: outcome.code,
+            uncertain: true,
+            errorSummary: outcome.safeSummary,
+          })
           .catch(() => {});
         throw outcome;
       } finally {

@@ -324,7 +324,7 @@ export class GenerationMediaServices {
         { text: action.text, voice, providerId, modelId, speed, providerOptions },
         'tts',
         providerId,
-        async (signal) => {
+        async (signal, lifecycle) => {
           const runtimeConfig = {
             ...providerConfig,
             speed,
@@ -340,6 +340,7 @@ export class GenerationMediaServices {
             : await generateTTS(runtimeConfig, action.text);
           signal.throwIfAborted();
           if (!result.audio.length) throw new Error('EMPTY_TTS_OUTPUT');
+          lifecycle.markResponseReceived();
           return this.assets.write(
             `scene:${scene.outlineId}:${key}`,
             result.audio,

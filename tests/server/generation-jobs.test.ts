@@ -708,6 +708,12 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     const lease = await claimed();
     await repo.beginStep(lease, { key: 'research', kind: 'research', dependencyHash: 'one' });
     await repo.commitCheckpoint(lease, { stepKey: 'research', result: { text: 'saved' } });
+    await repo.beginStep(lease, {
+      key: 'tts:one:speech',
+      kind: 'tts',
+      dependencyHash: 'paid-call',
+      external: true,
+    });
     const result = await repo.cancel('owner', lease.jobId, { commandKey: 'cancel' });
     expect(result.status).toBe('cancelled');
     expect(await repo.heartbeat(lease)).toBe(false);
@@ -724,6 +730,17 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     expect(
       (await pool.query<{ result: unknown }>('SELECT result FROM generation_steps')).rows[0].result,
     ).toEqual({ text: 'saved' });
+    expect(
+      (
+        await pool.query<{ outcome: string }>(
+          `SELECT a.outcome
+             FROM generation_attempts a
+             JOIN generation_steps s ON s.id=a.step_id
+            WHERE s.step_key='tts:one:speech'`,
+        )
+      ).rows[0]?.outcome,
+    ).toBe('uncertain');
+    expect((await repo.getJob('owner', lease.jobId))?.status).toBe('cancelled');
   });
   it('reaps pure work safely, but never automatically replays an external unknown', async () => {
     const first = await claimed();
@@ -803,6 +820,29 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       }),
     ).rejects.toThrow('OWNER_QUEUE_LIMIT');
   });
+  it('persists and projects a bounded safe external failure summary', async () => {
+    const lease = await claimed();
+    await repo.beginStep(lease, {
+      key: 'tts:one:speech',
+      kind: 'tts',
+      dependencyHash: 'tts',
+      external: true,
+    });
+    await repo.failStep(lease, {
+      stepKey: 'tts:one:speech',
+      code: 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT',
+      uncertain: true,
+      errorSummary: 'TTS provider did not return before the deadline; its result is unknown.',
+    });
+
+    const stored = await pool.query<{ last_error_summary: string | null }>(
+      'SELECT last_error_summary FROM generation_jobs WHERE id=$1',
+      [lease.jobId],
+    );
+    expect(stored.rows[0]?.last_error_summary).toBe(
+      'TTS provider did not return before the deadline; its result is unknown.',
+    );
+  });
   it('projects a scene step failure and resets only its status on retry, preserving ready scenes and content', async () => {
     const initial = await claimed();
     const second = { ...outline, id: 'two', title: 'Two', order: 1 };
@@ -872,6 +912,7 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     );
     await repo.reapExpired();
     const detail = await repo.getJobDetail('owner', lease.jobId);
+    expect(detail.lastErrorCode).toBe('WORKER_LEASE_LOST');
     expect(detail.scenes[0].status).toBe('needs_attention');
     await expect(
       repo.retry('owner', lease.jobId, { commandKey: 'bad', expectedVersion: detail.stateVersion }),

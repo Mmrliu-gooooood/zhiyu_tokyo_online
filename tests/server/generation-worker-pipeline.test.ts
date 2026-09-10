@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
+import {
+  generateTTS,
+  TTSConfigurationError,
+  TTSProviderTerminalError,
+  TTSRequestTimeoutError,
+} from '@/lib/audio/tts-providers';
 import type { AgentInfo } from '@openmaic/generation';
 import type { Action } from '@/lib/types/action';
 import type { Scene, Stage } from '@/lib/types/stage';
@@ -7,6 +13,7 @@ import type { SceneOutline } from '@/lib/types/generation';
 import type { GenerationLease, StepStart } from '@/lib/server/generation-jobs/contracts';
 import {
   PipelineExecution,
+  ExternalCallInterrupted,
   UnknownExternalOutcome,
   EXTERNAL_CALL_DEADLINES_MS,
   mapBounded,
@@ -46,7 +53,14 @@ class MemoryRepository implements PipelineRepository {
   plans = outlines;
   completeCount = 0;
   stageUpdates: Array<Partial<Stage>> = [];
-  failures: Array<{ stepKey: string; code: string; uncertain: boolean }> = [];
+  failures: Array<{
+    stepKey: string;
+    code: string;
+    uncertain: boolean;
+    errorSummary?: string;
+    retryable?: boolean;
+    retryAfterMs?: number;
+  }> = [];
   warnings: string[] = [];
   async skipStepWithWarning(_lease: GenerationLease, input: { stepKey: string; code: string }) {
     if (this.checkpoints.get(input.stepKey)?.status === 'skipped') return;
@@ -71,7 +85,14 @@ class MemoryRepository implements PipelineRepository {
   }
   async failStep(
     _lease: GenerationLease,
-    failure: { stepKey: string; code: string; uncertain: boolean },
+    failure: {
+      stepKey: string;
+      code: string;
+      uncertain: boolean;
+      errorSummary?: string;
+      retryable?: boolean;
+      retryAfterMs?: number;
+    },
   ) {
     this.failures.push(failure);
   }
@@ -255,7 +276,16 @@ describe('durable worker pipeline', () => {
         expect(providerSignal?.aborted).toBe(true);
         expect(await result).toBeInstanceOf(UnknownExternalOutcome);
         expect(repo.failures).toEqual([
-          { stepKey: 'timeout', code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true },
+          {
+            stepKey: 'timeout',
+            code:
+              kind === 'tts' ? 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT' : 'EXTERNAL_RESULT_UNKNOWN',
+            uncertain: true,
+            errorSummary:
+              kind === 'tts'
+                ? 'TTS provider did not return before the deadline; its result is unknown.'
+                : 'External provider result is unknown.',
+          },
         ]);
         finish('late provider output');
         await vi.advanceTimersByTimeAsync(0);
@@ -290,9 +320,48 @@ describe('durable worker pipeline', () => {
       })
       .catch((error) => error);
     await began;
-    controller.abort(new Error('BUDGET_EXCEEDED'));
-    expect(await result).toBeInstanceOf(UnknownExternalOutcome);
+    controller.abort(new Error('GENERATION_CANCELLED'));
+    expect(await result).toMatchObject({
+      code: 'EXTERNAL_CALL_CANCELLED',
+      requestOutcomeUnknown: true,
+      safeSummary: 'External request was interrupted by cancellation after dispatch.',
+    });
+    expect(await result).toBeInstanceOf(ExternalCallInterrupted);
     expect(repo.checkpoints.size).toBe(0);
+    expect(repo.failures).toEqual([]);
+  });
+
+  it('distinguishes worker lease loss and rejects a late provider result', async () => {
+    const repo = new MemoryRepository();
+    const controller = new AbortController();
+    const execution = new PipelineExecution(repo, lease, controller.signal, {
+      run: (_kind, _group, _signal, work) => work(),
+    });
+    let started!: () => void;
+    let finish!: (value: string) => void;
+    const began = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const result = execution
+      .external('lease-lost', {}, 'tts', 'provider', async () => {
+        started();
+        return new Promise<string>((resolve) => {
+          finish = resolve;
+        });
+      })
+      .catch((error) => error);
+
+    await began;
+    controller.abort(new Error('GENERATION_LEASE_LOST'));
+    expect(await result).toMatchObject({
+      code: 'WORKER_LEASE_LOST',
+      requestOutcomeUnknown: true,
+      safeSummary: 'External request was interrupted because the worker lease was lost.',
+    });
+    finish('late result');
+    await Promise.resolve();
+    expect(repo.checkpoints.has('lease-lost')).toBe(false);
+    expect(repo.failures).toEqual([]);
   });
   it('overlaps at most two content calls with a two-outline lookahead and ordered committed speeches', async () => {
     const { repo, execution, services, counts } = setup();
@@ -463,8 +532,159 @@ describe('durable worker pipeline', () => {
     ).rejects.toBeInstanceOf(UnknownExternalOutcome);
     expect(calls).toBe(1);
     expect(repo.failures).toEqual([
-      { stepKey: 'paid-call', code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true },
+      {
+        stepKey: 'paid-call',
+        code: 'EXTERNAL_RESULT_UNKNOWN',
+        uncertain: true,
+        errorSummary: 'External provider result is unknown.',
+      },
     ]);
+  });
+
+  it('records a request-before-send TTS configuration failure as certain', async () => {
+    const { execution, repo } = setup();
+
+    const error = await execution
+      .external('tts:o0:a0', {}, 'tts', 'openai-tts', async (signal) =>
+        generateTTS(
+          {
+            providerId: 'openai-tts',
+            voice: 'alloy',
+            signal,
+          },
+          'Hello',
+        ),
+      )
+      .catch((failure: unknown) => failure);
+
+    expect(error).toBeInstanceOf(TTSConfigurationError);
+    expect(repo.failures).toEqual([
+      {
+        stepKey: 'tts:o0:a0',
+        code: 'TTS_CONFIGURATION_INVALID',
+        uncertain: false,
+        errorSummary: 'TTS request was not sent because its configuration is invalid.',
+      },
+    ]);
+  });
+
+  it('records an explicit terminal TTS response without leaking provider details', async () => {
+    const { execution, repo } = setup();
+    const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'invalid sk-secret-123' } }), {
+        status: 400,
+        statusText: 'Bad Request',
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    try {
+      const error = await execution
+        .external('tts:o0:a0', {}, 'tts', 'openai-tts', async (signal) =>
+          generateTTS(
+            {
+              providerId: 'openai-tts',
+              apiKey: 'sk-secret-123',
+              voice: 'alloy',
+              signal,
+            },
+            'private narration',
+          ),
+        )
+        .catch((failure: unknown) => failure);
+
+      expect(error).toBeInstanceOf(TTSProviderTerminalError);
+      expect(repo.failures).toEqual([
+        {
+          stepKey: 'tts:o0:a0',
+          code: 'TTS_PROVIDER_TERMINAL_FAILURE',
+          uncertain: false,
+          errorSummary: 'TTS provider returned an explicit terminal failure.',
+        },
+      ]);
+      expect(JSON.stringify(repo.failures)).not.toMatch(/secret|private narration|https?:\/\//i);
+    } finally {
+      transport.mockRestore();
+    }
+  });
+
+  it('keeps a TTS timeout after dispatch uncertain and never schedules a blind retry', async () => {
+    const { execution, repo } = setup();
+    let calls = 0;
+
+    const error = await execution
+      .external('tts:o0:a0', {}, 'tts', 'minimax-tts', async () => {
+        calls++;
+        throw new TTSRequestTimeoutError('minimax-tts', 'contains private provider detail');
+      })
+      .catch((failure: unknown) => failure);
+
+    expect(error).toMatchObject({
+      name: 'UnknownExternalOutcome',
+      code: 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT',
+    });
+    expect(calls).toBe(1);
+    expect(repo.failures).toEqual([
+      {
+        stepKey: 'tts:o0:a0',
+        code: 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT',
+        uncertain: true,
+        errorSummary: 'TTS provider did not return before the deadline; its result is unknown.',
+      },
+    ]);
+    expect(JSON.stringify(repo.failures)).not.toContain('private provider detail');
+  });
+
+  it('classifies TTS asset persistence failure after a received response without replay', async () => {
+    const { execution, repo } = setup();
+    let calls = 0;
+
+    const error = await execution
+      .external('tts:o0:a0', {}, 'tts', 'minimax-tts', async (_signal, lifecycle) => {
+        calls++;
+        lifecycle.markResponseReceived();
+        throw new Error('disk path and provider payload must stay private');
+      })
+      .catch((failure: unknown) => failure);
+
+    expect(error).toMatchObject({
+      name: 'UnknownExternalOutcome',
+      code: 'TTS_RESULT_PERSIST_FAILED',
+    });
+    expect(calls).toBe(1);
+    expect(repo.failures).toEqual([
+      {
+        stepKey: 'tts:o0:a0',
+        code: 'TTS_RESULT_PERSIST_FAILED',
+        uncertain: true,
+        errorSummary: 'TTS response was received, but its audio asset could not be persisted.',
+      },
+    ]);
+    expect(JSON.stringify(repo.failures)).not.toContain('disk path');
+  });
+
+  it('classifies a TTS checkpoint commit failure separately from asset persistence', async () => {
+    const { execution, repo } = setup();
+    repo.commitCheckpoint = async () => {
+      throw new Error('database connection contains private host details');
+    };
+
+    const error = await execution
+      .external('tts:o0:a0', {}, 'tts', 'minimax-tts', async () => 'asset-id')
+      .catch((failure: unknown) => failure);
+
+    expect(error).toMatchObject({
+      name: 'UnknownExternalOutcome',
+      code: 'TTS_RESULT_COMMIT_FAILED',
+    });
+    expect(repo.failures).toEqual([
+      {
+        stepKey: 'tts:o0:a0',
+        code: 'TTS_RESULT_COMMIT_FAILED',
+        uncertain: true,
+        errorSummary: 'TTS result was produced, but its checkpoint could not be committed.',
+      },
+    ]);
+    expect(JSON.stringify(repo.failures)).not.toContain('private host');
   });
 
   it('bounds speech work independently and joins in-flight calls on failure', async () => {
@@ -540,6 +760,7 @@ describe('durable worker pipeline', () => {
         stepKey: 'limited',
         code: 'PROVIDER_RATE_LIMITED',
         uncertain: false,
+        errorSummary: 'Provider explicitly rejected the request with HTTP 429.',
         retryable: true,
         retryAfterMs: 12000,
       },

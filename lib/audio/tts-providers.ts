@@ -130,18 +130,6 @@ export class TTSRateLimitError extends Error {
   }
 }
 
-/** Neutral identity for ordinary Qwen TTS failures (never VC-branded). */
-export class QwenTTSError extends Error {
-  readonly code = 'QWEN_TTS_ERROR';
-  readonly httpStatus: number;
-
-  constructor(message: string, httpStatus = 502) {
-    super(message);
-    this.name = 'QwenTTSError';
-    this.httpStatus = httpStatus;
-  }
-}
-
 /**
  * Per-request bound for one TTS provider call, ported from the reference
  * runtime's TTS bounds (30s request timeouts on the managed TTS clients).
@@ -149,12 +137,50 @@ export class QwenTTSError extends Error {
  * upstreams; a hung provider fails the call with this error instead of
  * wedging the session.
  */
-const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 30_000;
+export const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 120_000;
 
-function ttsRequestTimeoutMs(): number {
-  const raw = process.env.TTS_REQUEST_TIMEOUT_MS?.trim();
+export function resolveTTSRequestTimeoutMs(
+  env: Readonly<{ TTS_REQUEST_TIMEOUT_MS?: string }> = process.env as unknown as Readonly<{
+    TTS_REQUEST_TIMEOUT_MS?: string;
+  }>,
+): number {
+  const raw = env.TTS_REQUEST_TIMEOUT_MS?.trim();
   const parsed = raw ? Number(raw) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TTS_REQUEST_TIMEOUT_MS;
+}
+
+export class TTSConfigurationError extends Error {
+  readonly code = 'TTS_CONFIGURATION_INVALID';
+  readonly safeSummary = 'TTS request was not sent because its configuration is invalid.';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'TTSConfigurationError';
+  }
+}
+
+export class TTSProviderTerminalError extends Error {
+  readonly code: string = 'TTS_PROVIDER_TERMINAL_FAILURE';
+  readonly safeSummary = 'TTS provider returned an explicit terminal failure.';
+
+  constructor(
+    public readonly provider: string,
+    public readonly httpStatus: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'TTSProviderTerminalError';
+  }
+}
+
+/** Neutral identity for ordinary Qwen TTS failures (never VC-branded). */
+export class QwenTTSError extends TTSProviderTerminalError {
+  override readonly code = 'QWEN_TTS_ERROR';
+
+  constructor(message: string, httpStatus = 502) {
+    super('qwen-tts', httpStatus, message);
+    this.name = 'QwenTTSError';
+  }
 }
 
 /**
@@ -163,6 +189,10 @@ function ttsRequestTimeoutMs(): number {
  * is a provider failure the caller may retry.
  */
 export class TTSRequestTimeoutError extends Error {
+  readonly code = 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT';
+  readonly safeSummary =
+    'TTS provider did not return before the deadline; its result is unknown.';
+
   constructor(
     public readonly provider: string,
     message: string,
@@ -174,7 +204,7 @@ export class TTSRequestTimeoutError extends Error {
 
 /** Combine the caller's cancel signal with the per-request timeout. */
 function ttsRequestSignal(callerSignal?: AbortSignal): AbortSignal {
-  const timeout = AbortSignal.timeout(ttsRequestTimeoutMs());
+  const timeout = AbortSignal.timeout(resolveTTSRequestTimeoutMs());
   return callerSignal ? AbortSignal.any([callerSignal, timeout]) : timeout;
 }
 
@@ -212,7 +242,7 @@ export async function generateTTS(
 
   // Validate API key if required (only for built-in providers with known config)
   if (provider?.requiresApiKey && !config.apiKey) {
-    throw new Error(`API key required for TTS provider: ${config.providerId}`);
+    throw new TTSConfigurationError(`API key required for TTS provider: ${config.providerId}`);
   }
 
   const signal = ttsRequestSignal(config.signal);
@@ -244,7 +274,7 @@ export async function generateTTS(
         return await generateLemonadeTTS(config, text, signal);
 
       case 'browser-native-tts':
-        throw new Error(
+        throw new TTSConfigurationError(
           'Browser Native TTS must be handled client-side using Web Speech API. This provider cannot be used on the server.',
         );
 
@@ -252,7 +282,7 @@ export async function generateTTS(
         if (isCustomTTSProvider(config.providerId)) {
           return await generateOpenAITTS(config, text, signal);
         }
-        throw new Error(`Unsupported TTS provider: ${config.providerId}`);
+        throw new TTSConfigurationError(`Unsupported TTS provider: ${config.providerId}`);
     }
   } catch (error) {
     // A caller cancel must propagate as-is so the enclosing run treats it as an
@@ -261,7 +291,7 @@ export async function generateTTS(
     if (isTimeoutSignal(signal)) {
       throw new TTSRequestTimeoutError(
         config.providerId,
-        `TTS request timed out after ${ttsRequestTimeoutMs()}ms (provider ${config.providerId}) — the provider did not respond. Retry the tool call.`,
+        `TTS request timed out after ${resolveTTSRequestTimeoutMs()}ms (provider ${config.providerId}) — the provider result is unknown.`,
       );
     }
     throw error;
@@ -299,7 +329,11 @@ async function generateOpenAITTS(
   if (!response.ok) {
     throwIfTtsRateLimited('OpenAI', response.status);
     const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(`OpenAI TTS API error: ${error.error?.message || response.statusText}`);
+    throw new TTSProviderTerminalError(
+      'openai-tts',
+      response.status,
+      `OpenAI TTS API error: ${error.error?.message || response.statusText}`,
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -344,7 +378,11 @@ async function generateLemonadeTTS(
 
   if (!response.ok) {
     throwIfTtsRateLimited('Lemonade', response.status);
-    throw new Error(`Lemonade TTS API error: ${await readTTSApiError(response)}`);
+    throw new TTSProviderTerminalError(
+      'lemonade-tts',
+      response.status,
+      `Lemonade TTS API error: ${await readTTSApiError(response)}`,
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -371,7 +409,7 @@ async function generateVoxCPMTTS(
     '',
   );
   if (!baseUrl) {
-    throw new Error('VoxCPM base URL is required');
+    throw new TTSConfigurationError('VoxCPM base URL is required');
   }
 
   const options = (config.providerOptions || {}) as VoxCPMProviderOptions;
@@ -384,7 +422,7 @@ async function generateVoxCPMTTS(
   // A registered voice carries timbre by id, so no voice prompt is required.
   const registeredVoiceId = options.registeredVoiceId?.trim() || undefined;
   if (config.voice === VOXCPM_AUTO_VOICE_ID && !voicePrompt && !registeredVoiceId) {
-    throw new Error('VoxCPM Auto Voice requires agent context');
+    throw new TTSConfigurationError('VoxCPM Auto Voice requires agent context');
   }
   const cfgValue = options.cfgValue ?? 2.0;
   const inferenceTimesteps = options.inferenceTimesteps ?? 10;
@@ -416,7 +454,11 @@ async function generateVoxCPMTTS(
 
   if (!response.ok) {
     throwIfTtsRateLimited('VoxCPM', response.status);
-    throw new Error(`VoxCPM TTS API error: ${await readTTSApiError(response)}`);
+    throw new TTSProviderTerminalError(
+      'voxcpm-tts',
+      response.status,
+      `VoxCPM TTS API error: ${await readTTSApiError(response)}`,
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -678,7 +720,11 @@ async function generateAzureTTS(
 
   if (!response.ok) {
     throwIfTtsRateLimited('Azure', response.status);
-    throw new Error(`Azure TTS API error: ${response.statusText}`);
+    throw new TTSProviderTerminalError(
+      'azure-tts',
+      response.status,
+      `Azure TTS API error: ${response.statusText}`,
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -727,7 +773,7 @@ async function generateGLMTTS(
     } catch {
       // If not JSON, use the text as is
     }
-    throw new Error(errorMessage);
+    throw new TTSProviderTerminalError('glm-tts', response.status, errorMessage);
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -879,18 +925,30 @@ async function generateMiniMaxTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('MiniMax', response.status);
     const errorText = await response.text().catch(() => response.statusText);
-    throw new Error(`MiniMax TTS API error: ${errorText}`);
+    throw new TTSProviderTerminalError(
+      'minimax-tts',
+      response.status,
+      `MiniMax TTS API error: ${errorText}`,
+    );
   }
 
   const data = await response.json();
   const hexAudio = data?.data?.audio;
   if (!hexAudio || typeof hexAudio !== 'string') {
-    throw new Error(`MiniMax TTS error: No audio returned. Response: ${JSON.stringify(data)}`);
+    throw new TTSProviderTerminalError(
+      'minimax-tts',
+      response.status,
+      `MiniMax TTS error: No audio returned. Response: ${JSON.stringify(data)}`,
+    );
   }
 
   const cleanedHex = hexAudio.trim();
   if (cleanedHex.length % 2 !== 0) {
-    throw new Error('MiniMax TTS error: invalid hex audio payload length');
+    throw new TTSProviderTerminalError(
+      'minimax-tts',
+      response.status,
+      'MiniMax TTS error: invalid hex audio payload length',
+    );
   }
 
   const audio = new Uint8Array(
@@ -947,7 +1005,11 @@ async function generateElevenLabsTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('ElevenLabs', response.status);
     const errorText = await response.text().catch(() => response.statusText);
-    throw new Error(`ElevenLabs TTS API error: ${errorText || response.statusText}`);
+    throw new TTSProviderTerminalError(
+      'elevenlabs-tts',
+      response.status,
+      `ElevenLabs TTS API error: ${errorText || response.statusText}`,
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -1010,7 +1072,7 @@ async function generateDoubaoTTS(
 ): Promise<TTSGenerationResult> {
   const rawKey = config.apiKey || '';
   if (!rawKey) {
-    throw new Error(
+    throw new TTSConfigurationError(
       'Doubao TTS requires an API key: an Agent Plan key, or "appId:accessKey" from the Volcengine speech console.',
     );
   }
@@ -1023,7 +1085,7 @@ async function generateDoubaoTTS(
   // A colon with an empty half is a malformed pair — fail clearly rather than
   // sending an empty appId/accessKey header that the API rejects opaquely.
   if (!isPlanKey && (!appId || !accessKey)) {
-    throw new Error(
+    throw new TTSConfigurationError(
       'Doubao TTS appId:accessKey is malformed — both halves are required (or use an Agent Plan key).',
     );
   }
@@ -1056,7 +1118,11 @@ async function generateDoubaoTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('Doubao', response.status);
     const errorText = await response.text().catch(() => response.statusText);
-    throw new Error(`Doubao TTS API error (${response.status}): ${errorText}`);
+    throw new TTSProviderTerminalError(
+      'doubao-tts',
+      response.status,
+      `Doubao TTS API error (${response.status}): ${errorText}`,
+    );
   }
 
   const responseText = await response.text();
@@ -1082,12 +1148,20 @@ async function generateDoubaoTTS(
       if (chunk.code === 45000000 || chunk.code === 45000292) {
         throw new TTSRateLimitError('doubao-tts', chunk.message || 'concurrency quota exceeded');
       }
-      throw new Error(`Doubao TTS error: ${chunk.message || 'unknown'} (code: ${chunk.code})`);
+      throw new TTSProviderTerminalError(
+        'doubao-tts',
+        response.status,
+        `Doubao TTS error: ${chunk.message || 'unknown'} (code: ${chunk.code})`,
+      );
     }
   }
 
   if (audioChunks.length === 0) {
-    throw new Error('Doubao TTS: no audio data received');
+    throw new TTSProviderTerminalError(
+      'doubao-tts',
+      response.status,
+      'Doubao TTS: no audio data received',
+    );
   }
 
   const totalLength = audioChunks.reduce((sum, c) => sum + c.length, 0);
