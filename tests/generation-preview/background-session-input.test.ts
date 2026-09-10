@@ -351,10 +351,23 @@ describe('background session input', () => {
       if (url === '/api/generate-classroom') return Response.json({ jobs: [] });
       if (url === '/api/agent/media-config-snapshots') {
         const request = JSON.parse(String(init?.body));
-        expect(request.snapshot.tts[0]).toMatchObject({
+        expect(request.snapshot).toMatchObject({
+          version: 2,
+          ttsDefault: {
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-hd',
+            voiceId: 'male-qn-qingse',
+          },
+        });
+        expect(request.snapshot.ttsProviders[0]).toMatchObject({
           providerId: 'minimax-tts',
           apiKey: 'built-in-secret',
           modelId: 'speech-2.8-hd',
+        });
+        expect(request.snapshot.ttsVoiceDirectory[0]).toMatchObject({
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          voiceIds: expect.arrayContaining(['male-qn-qingse']),
         });
         return Response.json({ ref });
       }
