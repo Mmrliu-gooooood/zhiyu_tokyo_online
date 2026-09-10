@@ -129,7 +129,7 @@ export function sessionVoiceCatalog(
     | EffectiveSessionVoiceSource<EffectiveSessionVoiceConfig>,
   registeredVoices: RegisteredVoiceInfo[] = [],
 ): SessionCatalogVoice[] {
-  const modelAware = !Array.isArray(source) && !!source.voiceDirectory;
+  const modelAware = !!asVoiceSource(source).voiceDirectory;
   const providers = new Map<string, VoiceCatalogProvider>();
   const configs = effectiveSessionVoiceConfigs(source).sort((left, right) => {
     if (!!left.default !== !!right.default) return left.default ? -1 : 1;

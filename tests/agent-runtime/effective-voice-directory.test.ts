@@ -25,7 +25,7 @@ const execution = {
   enabled: true,
   modelId: 'speech-2.8-hd',
   speed: 1,
-};
+} as const;
 
 describe('effective session voice directory', () => {
   it('keeps v1 exact while v2 resolves every authorized voice through one execution config', () => {

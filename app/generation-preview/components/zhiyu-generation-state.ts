@@ -137,9 +137,10 @@ export function projectGenerationJobPresentation(input: {
     input.job.displayProgress?.failedStep?.phase === 'tts'
   ) {
     const progress = input.job.displayProgress;
-    const failedOutlineIndex = progress.failedStep.outlineId
+    const failedStep = progress.failedStep!;
+    const failedOutlineIndex = failedStep.outlineId
       ? (input.job.outlines?.findIndex(
-          (outline) => outline.id === progress.failedStep?.outlineId,
+          (outline) => outline.id === failedStep.outlineId,
         ) ?? -1)
       : -1;
     return {

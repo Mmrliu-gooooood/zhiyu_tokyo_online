@@ -54,7 +54,7 @@ describe('media config snapshot client', () => {
       ],
     });
     expect(snapshot?.ttsVoiceDirectory?.[0]?.voiceIds.length).toBeGreaterThan(1);
-    expect(snapshot?.tts).toBeUndefined();
+    expect('tts' in (snapshot ?? {})).toBe(false);
     expect(JSON.stringify(snapshot).match(/session-secret/g)).toHaveLength(1);
   });
 
@@ -277,7 +277,7 @@ describe('media config snapshot client', () => {
     );
 
     expect(snapshot).toMatchObject({ ttsEnabled: true });
-    expect(snapshot?.tts).toBeUndefined();
+    expect('tts' in (snapshot ?? {})).toBe(false);
   });
 
   it('includes provider configuration for a voice bound on the current course roster', () => {
