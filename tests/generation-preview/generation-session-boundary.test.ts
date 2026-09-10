@@ -41,4 +41,15 @@ describe('Generation Preview route/session boundary', () => {
     expect(controller).not.toContain("addEventListener('beforeunload'");
     expect(controller).not.toContain("addEventListener('pagehide'");
   });
+
+  it('wires the server display progress projection into the controller and five-column timeline', () => {
+    const controller = read('app/generation-preview/GenerationSessionController.tsx');
+
+    expect(controller).toContain('projectBackgroundGenerationSnapshot(job)');
+    expect(controller).toContain('setGeneratedSceneCount(snapshotProjection.generatedContentCount)');
+    expect(controller).toContain('setCanonicalPhase(snapshotProjection.canonicalPhase)');
+    expect(controller).toContain('step.id === snapshotProjection.stepId');
+    expect(controller).toContain('displayProgress: observedBackgroundJob?.displayProgress');
+    expect(controller).toContain('jobStatus: observedBackgroundJob?.status');
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  projectBackgroundGenerationSnapshot,
   projectGenerationJobPresentation as projectGenerationJobPresentationKeys,
   projectZhiyuGenerationSteps,
 } from '@/app/generation-preview/components/zhiyu-generation-state';
@@ -23,6 +24,8 @@ const zh: Record<string, string> = {
   'generation.statusGeneratingMediaDesc': '正在处理页面所需媒体。',
   'generation.statusAwaitingOutlineReview': '构建课程中 · 等待你确认大纲',
   'generation.statusAwaitingOutlineReviewDesc': '大纲已保留，确认前不会占用重任务执行位。',
+  'generation.statusOutlineAutoContinue': '构建课程中 · 大纲已完成',
+  'generation.reviewOutlineAutoContinue': '如不审阅，大纲生成后会自动继续生成课程内容。',
   'generation.statusRetryWait': '构建课程中 · 模型繁忙，等待重试',
   'generation.statusRetryScheduledDesc': '模型服务繁忙，已安排自动重试。',
   'generation.statusCourseComplete': '课程已生成',
@@ -33,6 +36,9 @@ const zh: Record<string, string> = {
   'generation.statusGenerationCancelledDesc': '已完成页面已保留；重新生成会创建新任务。',
   'generation.statusNeedsAttention': '需要确认处理',
   'generation.statusNeedsAttentionDesc': '任务需要你确认后才能继续处理。',
+  'generation.statusSpeechNeedsAttention': '语音生成中断',
+  'generation.statusSpeechNeedsAttentionDesc':
+    '第 {{page}} 页语音生成中断，已有 {{completed}} / {{total}} 页内容已保留。语音服务的返回结果未确认。',
   'generation.statusCancelling': '构建课程中 · 正在取消',
   'generation.statusCancellingDesc': '正在请求停止尚未开始的工作；已完成页面会保留。',
   'generation.statusCancelFailed': '构建课程中 · 取消失败，可重试',
@@ -60,6 +66,32 @@ function projectGenerationJobPresentation(
 }
 
 describe('projectZhiyuGenerationSteps', () => {
+  it('keeps content and finalization columns independently active during concurrent TTS', () => {
+    const steps = projectZhiyuGenerationSteps({
+      outlineReady: true,
+      agentsReady: true,
+      generatedSceneCount: 0,
+      totalSceneCount: 2,
+      mediaPending: false,
+      jobStatus: 'running',
+      displayProgress: {
+        phase: 'tts',
+        content: { completed: 1, total: 2, active: 1 },
+        actions: { completed: 1, total: 2, active: 0 },
+        speech: { completed: 0, total: null, active: 1, skipped: 0 },
+        published: { completed: 0, total: 2 },
+      },
+    });
+
+    expect(steps.map((step) => [step.id, step.status, step.detail])).toEqual([
+      ['goal', 'done', undefined],
+      ['outline', 'done', undefined],
+      ['agents', 'done', undefined],
+      ['scenes', 'active', '1 / 2'],
+      ['media', 'active', '0 / 2'],
+    ]);
+  });
+
   it('follows the actions phase before the first complete scene is published', () => {
     const steps = projectZhiyuGenerationSteps({
       outlineReady: true,
@@ -160,7 +192,157 @@ describe('projectZhiyuGenerationSteps', () => {
   });
 });
 
+describe('projectBackgroundGenerationSnapshot', () => {
+  it('keeps DTO phase and content progress stable across running and stopped snapshots', () => {
+    const running = {
+      status: 'running',
+      phase: 'scene_content',
+      readyScenes: 0,
+      activeSteps: [{ kind: 'llm' }],
+      displayProgress: {
+        phase: 'tts' as const,
+        content: { completed: 1, total: 2, active: 1 },
+        actions: { completed: 1, total: 2, active: 0 },
+        speech: { completed: 0, total: null, active: 1, skipped: 0 },
+        published: { completed: 0, total: 2 },
+      },
+    };
+    expect(projectBackgroundGenerationSnapshot(running)).toEqual({
+      canonicalPhase: 'media-actions',
+      stepId: 'actions',
+      generatedContentCount: 1,
+    });
+
+    const stopped = {
+      ...running,
+      status: 'needs_attention',
+      displayProgress: {
+        ...running.displayProgress,
+        phase: 'tts' as const,
+        content: { completed: 1, total: 2, active: 0 },
+        speech: { completed: 0, total: null, active: 0, skipped: 0 },
+        failedStep: {
+          key: 'tts:scene_1',
+          phase: 'tts' as const,
+          outlineId: 'scene_1',
+          code: 'EXTERNAL_RESULT_UNKNOWN',
+        },
+      },
+    };
+    expect(projectBackgroundGenerationSnapshot(stopped)).toEqual({
+      canonicalPhase: 'failed',
+      stepId: 'actions',
+      generatedContentCount: 1,
+    });
+  });
+});
+
 describe('projectGenerationJobPresentation', () => {
+  it('replays content child calls from the unified display progress without returning to preparing', () => {
+    const replay = {
+      status: 'running',
+      phase: 'scene_content',
+      readyScenes: 0,
+      totalScenes: 8,
+      lastErrorCode: null,
+      activeSteps: [{ kind: 'llm' }, { kind: 'content:scene_4' }],
+      displayProgress: {
+        phase: 'content' as const,
+        content: { completed: 3, total: 8, active: 1 },
+        actions: { completed: 0, total: 8, active: 0 },
+        speech: { completed: 0, total: null, active: 0, skipped: 0 },
+        published: { completed: 0, total: 8 },
+      },
+    };
+
+    expect(projectGenerationJobPresentation({ job: replay })).toEqual({
+      title: '构建课程中 · 正在生成页面',
+      detail: '已完成 3 / 8 页。',
+      terminal: false,
+    });
+  });
+
+  it('keeps an uncertain speech failure in the fifth column and preserves completed content', () => {
+    const replay = {
+      status: 'needs_attention',
+      phase: 'failed',
+      readyScenes: 0,
+      totalScenes: 2,
+      lastErrorCode: 'EXTERNAL_RESULT_UNKNOWN',
+      outlines: [{ id: 'scene_1' }, { id: 'scene_2' }],
+      displayProgress: {
+        phase: 'tts' as const,
+        content: { completed: 1, total: 2, active: 0 },
+        actions: { completed: 1, total: 2, active: 0 },
+        speech: { completed: 0, total: null, active: 0, skipped: 0 },
+        published: { completed: 0, total: 2 },
+        failedStep: {
+          key: 'tts:scene_1',
+          phase: 'tts' as const,
+          outlineId: 'scene_1',
+          code: 'EXTERNAL_RESULT_UNKNOWN',
+        },
+      },
+    };
+
+    expect(projectGenerationJobPresentation({ job: replay })).toEqual({
+      title: '语音生成中断',
+      detail: '第 1 页语音生成中断，已有 1 / 2 页内容已保留。语音服务的返回结果未确认。',
+      terminal: true,
+    });
+
+    const steps = projectZhiyuGenerationSteps({
+      outlineReady: true,
+      agentsReady: true,
+      generatedSceneCount: 0,
+      totalSceneCount: 2,
+      mediaPending: false,
+      jobStatus: replay.status,
+      displayProgress: replay.displayProgress,
+    });
+    expect(steps.map((step) => [step.id, step.status, step.detail])).toEqual([
+      ['goal', 'done', undefined],
+      ['outline', 'done', undefined],
+      ['agents', 'done', undefined],
+      ['scenes', 'pending', '1 / 2'],
+      ['media', 'error', '0 / 2'],
+    ]);
+  });
+
+  it('does not present automatic outline continuation as required manual confirmation', () => {
+    expect(
+      projectGenerationJobPresentation({
+        job: {
+          status: 'awaiting_confirmation',
+          phase: 'outlines',
+          readyScenes: 0,
+          totalScenes: 4,
+          lastErrorCode: null,
+          reviewHold: false,
+          autoContinueAt: '2030-01-02T03:04:05.000Z',
+        },
+      }),
+    ).toEqual({
+      title: '构建课程中 · 大纲已完成',
+      detail: '如不审阅，大纲生成后会自动继续生成课程内容。',
+      terminal: false,
+    });
+
+    expect(
+      projectGenerationJobPresentation({
+        job: {
+          status: 'awaiting_confirmation',
+          phase: 'outlines',
+          readyScenes: 0,
+          totalScenes: 4,
+          lastErrorCode: null,
+          reviewHold: true,
+          autoContinueAt: null,
+        },
+      }).title,
+    ).toBe('构建课程中 · 等待你确认大纲');
+  });
+
   it.each([
     ['QUEUE_WAIT_EXPIRED', 'generation.statusQueueExpired', 'generation.statusQueueExpiredDesc'],
     [

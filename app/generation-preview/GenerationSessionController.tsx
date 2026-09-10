@@ -71,6 +71,7 @@ import { ZhiyuGenerationShell } from './components/ZhiyuGenerationShell';
 import { GenerationExitDialog } from './components/GenerationExitDialog';
 import { ZhiyuGenerationTopicCards } from './components/ZhiyuGenerationTopicCards';
 import {
+  projectBackgroundGenerationSnapshot,
   projectGenerationJobPresentation,
   projectZhiyuGenerationSteps,
 } from './components/zhiyu-generation-state';
@@ -192,9 +193,11 @@ function GenerationPreviewContent() {
     if (previous?.jobId === job.jobId && previous.stateVersion > job.stateVersion) return;
     backgroundJobRef.current = job;
     const runningPhase =
+      job.displayProgress?.phase ??
       job.activeSteps?.find((step) => ['actions', 'tts', 'media'].includes(step.kind))?.kind ??
       job.activeSteps?.[0]?.kind ??
       job.phase;
+    const snapshotProjection = projectBackgroundGenerationSnapshot(job);
     const awaiting = job.status === 'awaiting_confirmation';
     const reviewing = awaiting && (job.reviewHold || !job.autoContinueAt);
     const next = {
@@ -211,38 +214,12 @@ function GenerationPreviewContent() {
       !job.outlines?.length &&
         ['preparing', 'outline', 'outlines', 'research'].includes(runningPhase),
     );
-    setGeneratedSceneCount(job.readyScenes);
-    const phase: GenerationCanonicalPhase =
-      job.status === 'succeeded'
-        ? 'completed'
-        : ['failed', 'needs_attention'].includes(job.status)
-          ? 'failed'
-          : job.status === 'cancelled'
-            ? 'cancelled'
-            : awaiting
-              ? 'outline-review'
-              : runningPhase === 'agents'
-                ? 'agent-generation'
-                : ['content', 'scenes'].includes(runningPhase)
-                  ? 'scene-generation'
-                  : ['actions', 'tts', 'media'].includes(runningPhase)
-                    ? 'media-actions'
-                    : 'outline-streaming';
-    setCanonicalPhase(phase);
-    const stepId =
-      phase === 'agent-generation'
-        ? 'agent-generation'
-        : phase === 'scene-generation'
-          ? 'slide-content'
-          : phase === 'media-actions' || phase === 'completed'
-            ? 'actions'
-            : runningPhase === 'research'
-              ? 'web-search'
-              : 'outline';
+    setGeneratedSceneCount(snapshotProjection.generatedContentCount);
+    setCanonicalPhase(snapshotProjection.canonicalPhase);
     setCurrentStepIndex(
       Math.max(
         0,
-        getActiveSteps(next).findIndex((step) => step.id === stepId),
+        getActiveSteps(next).findIndex((step) => step.id === snapshotProjection.stepId),
       ),
     );
     setStatusMessage(awaiting && !reviewing ? t('generation.reviewOutlineAutoContinue') : '');
@@ -1890,7 +1867,8 @@ function GenerationPreviewContent() {
     : null;
   const contentStepIndex = activeSteps.findIndex((step) => step.id === 'slide-content');
   const currentGenerationSceneCount =
-    contentStepIndex >= 0 && currentStepIndex >= contentStepIndex ? generatedSceneCount : 0;
+    observedBackgroundJob?.displayProgress?.content.completed ??
+    (contentStepIndex >= 0 && currentStepIndex >= contentStepIndex ? generatedSceneCount : 0);
   const currentGeneratedScene =
     contentStepIndex >= 0 && currentStepIndex >= contentStepIndex ? generatedScene : undefined;
   const previewOutlines = session.sceneOutlines ?? streamingOutlines ?? [];
@@ -1907,6 +1885,8 @@ function GenerationPreviewContent() {
     scenesStarted,
     mediaPending: canonicalPhase === 'scene-generation' || canonicalPhase === 'media-actions',
     errorStage,
+    displayProgress: observedBackgroundJob?.displayProgress,
+    jobStatus: observedBackgroundJob?.status,
   });
   const courseTitle =
     session.courseTitle || extractTopicFromRequirement(session.requirements.requirement);
