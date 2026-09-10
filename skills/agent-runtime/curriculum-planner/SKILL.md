@@ -12,13 +12,12 @@ built. Three things are yours and only yours: getting the brief straight,
 getting the user's sign-off on the whole list, and carrying the series from the
 first stage to the last without losing the thread.
 
-Your tools for the series layer: `create_folder`, `create_stage`,
-`move_to_folder`, `list_folder_stages`, `read_stage_outline`,
-and `ask_user`. Everything else — planning in conversation, `set_roster`,
-`generate_scene`, `list_scenes`, `read_stage`, `patch_stage`, `grep_stage`,
-`edit_deck`, `generate_tts`, the material tools, `web_search`, `fetch_url`,
-`render_scene_preview` — is the same toolset you would use for a single stage,
-applied with that stage's explicit `stageId` on every call.
+Your tools for the series layer are `create_folder`,
+`submit_course_generation`, `get_course_generation_status`,
+`list_folder_stages`, `read_stage_outline`, and `ask_user`. Use
+`move_to_folder` only to repair the filing of an existing stage. Material and
+research tools may prepare evidence before submission; the generation worker
+owns every new complete lesson after submission.
 
 ## `ask_user` ends the run
 
@@ -144,30 +143,32 @@ no preview of the question you are about to ask.
   folder reads as a curriculum: 「第 3 天：把重复的活写成函数」 rather than
   「Python 基础（三）」.
 
-## The execution loop
+## Durable series execution
 
 Once you have the go:
 
-1. `create_folder` for the series, named as the user would name it.
-2. For each stage, in order:
-   - `create_stage` passing the series folder's `folderId` — the stage is filed
-     into the folder in the same call, never left sitting in ungrouped — keep
-     the returned `stageId` and pass it to every generation/edit/read call;
-   - build it by the `stage-design` sequence — outline once, roster, one
-     `generate_scene` per page in order, `list_scenes` to verify, audio checked
-     before it counts as done;
-   - after the lesson is built, `list_folder_stages` and check the stage is in
-     the series folder. If it shows no folder (the `folderId` was dropped), call
-     `move_to_folder` to file it right away — never let the whole series run to
-     the end before noticing an ungrouped stage;
-   - write **one short paragraph into the chat**: what this lesson ended up
-     covering, and what the next one starts from. Three or four sentences.
-3. Before starting a stage that builds on an earlier one, `read_stage_outline`
-   on that earlier stage. Read what was actually built, not what you planned to
-   build — the outline generator's plan is never exactly your proposal, and
-   continuity has to be against reality.
-4. `list_folder_stages` when you need to know where the series stands — which
-   stages exist, in what order.
+1. Call `create_folder` for the series, named as the user would name it.
+2. Prepare the first lesson completely in the Pro conversation, then call
+   `submit_course_generation` once for that lesson. Map its learning contract
+   to `requirement`, title to `courseTitle`, language to
+   `languageDirective`, ordered page plan to `outlines`, active pedagogy to
+   `skillIds`, evidence and continuity notes to `researchContext`, a deliberate
+   custom cast to `agents`, and the series folder to `folderId`.
+3. The per-page mapping is explicit: teaching/style/activity intent goes in
+   `outlines[].description`; verified source facts and page-specific
+   constraints go in `outlines[].keyPoints`.
+4. Observe the submitted lesson later with `get_course_generation_status`.
+   Do not busy-wait or poll in a loop. Submit the next lesson only after a
+   status observation shows the prior lesson completed; this respects durable
+   admission instead of manufacturing a synchronous series loop.
+5. Before submitting a lesson that builds on an earlier completed one, use
+   `read_stage_outline` on that earlier stage. Read what was actually built,
+   not only what was planned, and carry the continuity delta into the next
+   lesson's `researchContext` and page descriptions.
+6. Use `list_folder_stages` to check which completed stages exist and their
+   order. Because each submit carries `folderId`, new stages are filed by the
+   worker. Use `move_to_folder` only as a narrow repair for an existing stage
+   whose filing is already wrong.
 
 ## Long-run context discipline
 
@@ -181,17 +182,15 @@ or `list_folder_stages` instead of keeping it alive by repetition.
 
 ## When something fails
 
-One bad page does not end a series. If a page or a whole stage will not
-generate:
+One failed job does not erase a series. Preserve the reported evidence and
+state. If the status says an external result is unknown or needs attention, do
+not retry blindly; report the affected lesson and wait for an explicit safe
+decision. Never restart the series or silently drop a lesson from the approved
+plan.
 
-- retry it once — every tool is idempotent, and an interrupted step just needs
-  re-issuing;
-- if it still fails, note it, leave the rest of that stage intact, and move on
-  to the next one. Do not restart the series, and do not silently drop a lesson
-  from the plan;
-- keep a short running list of what did not come out right, and **report it at
-  the end**: which lesson, which page, what needs a rebuild. A series delivered
-  with two known gaps is worth far more than a series abandoned at lesson three.
+This durable whole-course path does not replace focused operations. A
+single-page or existing-course edit follows `pro-editing`; an original PPT
+import follows `pptx-import` and preserves the imported deck.
 
 ## Finishing
 

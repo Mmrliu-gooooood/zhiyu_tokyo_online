@@ -288,10 +288,11 @@ describe('shipped skill constraints', () => {
       source: 'builtin',
       constraints: null,
     });
-    expect(md).toContain('create_stage');
-    expect(md).toContain('set_roster');
-    expect(md).toContain('generate_scene');
-    expect(md).toContain('list_scenes');
+    expect(md).toContain('submit_course_generation');
+    expect(md).toContain('get_course_generation_status');
+    expect(md).toContain('outlines[].description');
+    expect(md).toContain('outlines[].keyPoints');
+    expect(md).toContain('skillIds');
     expect(md).toContain('generate_tts');
     expect(md).toContain('read_stage');
     expect(md).toContain('patch_stage');
@@ -489,6 +490,55 @@ describe('shipped skill constraints', () => {
 });
 
 describe('shipped course-design skills', () => {
+  it('routes every new complete-course skill through one durable worker submission', async () => {
+    const completeCourseSkillIds = [
+      'stage-design',
+      'stage-dsl',
+      'workshop-style',
+      'lecture-style',
+      'curriculum-planner',
+      'deep-research',
+      'teacher-style-clone',
+      'k12-core-literacy-planning',
+      'feynman-learning',
+    ];
+
+    for (const id of completeCourseSkillIds) {
+      const content = flat((await findSkill(id))!.content);
+      expect(content, `${id}: durable submit`).toContain('`submit_course_generation`');
+      expect(content, `${id}: status observation`).toContain('`get_course_generation_status`');
+      expect(content, `${id}: no busy wait`).toMatch(/do not (busy-wait|poll in a loop)/i);
+      for (const legacyLoop of [
+        '`generate_scene` once for each',
+        'one `generate_scene` per page',
+        'one page per `generate_scene`',
+        '逐页 `generate_scene`',
+        '每页 `generate_scene`',
+      ]) {
+        expect(content, `${id}: no synchronous whole-course loop`).not.toContain(legacyLoop);
+      }
+    }
+
+    const stageDesign = flat((await findSkill('stage-design'))!.content);
+    for (const field of [
+      '`requirement`',
+      '`courseTitle`',
+      '`languageDirective`',
+      '`outlines`',
+      '`outlines[].description`',
+      '`outlines[].keyPoints`',
+      '`agents`',
+      '`skillIds`',
+      '`researchContext`',
+      '`folderId`',
+    ]) {
+      expect(stageDesign, `stage-design maps ${field}`).toContain(field);
+    }
+    expect(stageDesign).toContain('`pro-editing`');
+    expect(stageDesign).toContain('`pptx-import`');
+    expect(stageDesign).toContain('single-page');
+  });
+
   it('loads stage-dsl as a valid builtin map with its reference chapters', async () => {
     const all = await listSkills();
     const courseDsl = all.find((skill) => skill.id === 'stage-dsl');
@@ -518,8 +568,8 @@ describe('shipped course-design skills', () => {
       'grep_stage',
       'list_folder_stages',
       'edit_deck',
-      'create_stage',
-      'generate_scene',
+      'submit_course_generation',
+      'get_course_generation_status',
       'set_roster',
     ]) {
       expect(content, tool).toContain(tool);
@@ -587,20 +637,22 @@ describe('shipped course-design skills', () => {
   it('carries the build methodology in stage-design', async () => {
     const stageDesign = (await listSkills()).find((s) => s.id === 'stage-design');
     expect(stageDesign).toBeTruthy();
+    const content = stageDesign!.content.replace(/\s+/g, ' ');
     for (const kept of [
-      'set_roster',
+      'submit_course_generation',
+      'get_course_generation_status',
       'exactly one teacher',
-      'at least two agents',
-      'ascending order',
-      'list_scenes',
+      'outlines[].description',
+      'outlines[].keyPoints',
+      'skillIds',
       'generate_tts',
-      'audioId',
+      'pro-editing',
+      'pptx-import',
     ]) {
-      expect(stageDesign!.content, kept).toContain(kept);
+      expect(content, kept).toContain(kept);
     }
-    // The retired planning tools are gone from the build sequence: planning is
-    // conversation + create_stage + explicit briefs, and the roster is written
-    // with set_roster.
+    // The retired planning tools stay absent; whole-course execution is one
+    // durable submission rather than an in-session page loop.
     for (const retired of ['generate_outline', 'generate_roster']) {
       expect(stageDesign!.content, retired).not.toContain(retired);
     }
@@ -608,11 +660,10 @@ describe('shipped course-design skills', () => {
 
   it('says where a turn may end, so a prepared stage is not a finished one', async () => {
     const stageDesign = flat((await listSkills()).find((s) => s.id === 'stage-design')!.content);
-    expect(stageDesign).toContain('is a place to stop');
-    expect(stageDesign).toContain('a turn ends when a page actually landed');
-    expect(stageDesign).toContain('holding an empty deck');
-    expect(stageDesign).toContain('a stage is done when the deck is complete');
-    expect(stageDesign).toContain('narration that talks about material this stage does not teach');
+    expect(stageDesign).toContain('Submission is complete when the tool returns');
+    expect(stageDesign).toContain('Course generation is complete only when');
+    expect(stageDesign).toContain('Do not busy-wait or poll in a loop');
+    expect(stageDesign).toContain('do not retry blindly');
   });
 
   it('does not teach a single removed slide op in any shipped agent skill', async () => {
@@ -664,7 +715,8 @@ describe('shipped course-design skills', () => {
       'create_folder',
       'move_to_folder',
       'list_folder_stages',
-      'create_stage',
+      'submit_course_generation',
+      'get_course_generation_status',
       'read_stage_outline',
     ]) {
       expect(planner!.content, tool).toContain(tool);
@@ -701,16 +753,13 @@ describe('shipped course-design skills', () => {
     expect((loaded.content[0] as { text: string }).text).toContain('search_classrooms');
   });
 
-  it('teaches one-step archiving: create_stage files via folderId, move_to_folder is the fallback', async () => {
+  it('teaches worker filing via folderId, with move_to_folder only as repair', async () => {
     const planner = (await listSkills()).find((s) => s.id === 'curriculum-planner');
     const content = flat(planner!.content);
-    expect(content).toContain("`create_stage` passing the series folder's `folderId`");
-    expect(content).toContain('filed into the folder in the same call');
-    expect(content).toContain('`list_folder_stages` and check the stage is in');
-    expect(content).toContain('`move_to_folder` to file it right away');
-    expect(content).toContain(
-      'never let the whole series run to the end before noticing an ungrouped stage',
-    );
+    expect(content).toContain('the series folder to `folderId`');
+    expect(content).toContain('new stages are filed by the worker');
+    expect(content).toContain('`move_to_folder` only as a narrow repair');
+    expect(content).toContain('`list_folder_stages` to check');
   });
 
   it('bans prose questions at BOTH curriculum-planner gates', async () => {
@@ -831,7 +880,12 @@ describe('pedagogy style skills', () => {
   it('carries the narration style through the fields the generators actually read', async () => {
     for (const id of ['lecture-style', 'workshop-style']) {
       const skill = (await findSkill(id))!;
-      for (const field of ['materialFacts', 'brief', 'set_roster', 'voiceDesign']) {
+      for (const field of [
+        'outlines[].description',
+        'outlines[].keyPoints',
+        'agents[].persona',
+        'agents[].voiceConfig',
+      ]) {
         expect(skill.content, `${id}/${field}`).toContain(field);
       }
       expect(skill.content, `${id}/one teacher`).toContain('exactly one teacher');

@@ -11,9 +11,9 @@ the subject to being able to explain it, and the pages exist to support that
 explanation rather than to interrupt it. Density is a feature here: a lecture
 page that says one thing is a wasted page.
 
-`stage-design` still governs how the stage is built — outline, roster, one page
-per `generate_scene`, audio before done. This skill governs what the stage
-contains and how it sounds.
+`stage-design` still governs the whole-course boundary: plan here, submit once
+to the durable generation worker, and observe later. This skill governs what
+the course contains and how it sounds.
 
 ## The shape
 
@@ -79,29 +79,38 @@ Examples of the right length and motion:
 ## The roster
 
 The runtime allows **exactly one teacher**, and in this style that teacher is
-the lecturer — the whole course is their voice. Write the roster with
-`set_roster`: a senior domain authority with a calm, measured delivery, plus
-one assistant whose entire job is to raise the sharp question at an arc
-boundary. Keep the roster small; a crowded classroom fragments a lecture. Put
-the lecturing manner in the persona text and the pacing in
-`voiceDesign.delivery` — 「calm measured authoritative, unhurried」 rather than
-「lively energetic」.
+the lecturer — the whole course is their voice. If the cast is deliberately
+fixed, pass complete `agents` entries: a senior domain authority with a calm,
+measured delivery, plus one assistant whose entire job is to raise the sharp
+question at an arc boundary. Keep the roster small. Put the lecturing manner in
+each `persona` — 「calm, measured, authoritative, unhurried」 rather than
+「lively, energetic」— and bind only a valid `voiceConfig` returned by the
+session voice directory. Otherwise
+omit `agents` and let the worker choose and freeze the roster.
 
-## Carrying the style into the generators
+## Carrying the style into submission
 
-There is no outline generator: you plan the course in the conversation, then
-call `create_stage` and one `generate_scene` per page with an explicit brief.
-Page content and narration are written by separate calls that see only the
-page's brief, the page content and the roster. So the style has to be carried
-there explicitly:
+Plan the entire lecture in the Pro conversation, then call
+`submit_course_generation` exactly once. Pass `lecture-style` in `skillIds` so
+its structural constraints are enforced. Also carry the concrete style into
+the worker inputs:
 
-- put the arc structure and the density expectation into each page's
-  `generate_scene` `brief`;
-- put the lecturing manner into each persona of `set_roster`;
-- pass the narration directive for each page in `generate_scene.materialFacts`
-  — e.g. 「旁白为连续讲述，四到六句一段，先定义再机制再案例」「本页复用前一页
-  的同一家公司作为案例」. Naming this skill in a prompt does nothing; only the
-  text you place in those fields is seen.
+- put the arc structure, density, case continuity, and teaching handoff into
+  each page's `outlines[].description`;
+- put verified material facts and the page-specific continuous-narration
+  directive in `outlines[].keyPoints`;
+- put the lecturing manner and pacing into custom `agents[].persona`, and bind
+  its authorized voice in `agents[].voiceConfig`, when using a custom cast;
+- put source boundaries and cross-arc evidence notes in `researchContext`, and
+  set `courseTitle` and `languageDirective` explicitly when settled.
+
+After submission, use `get_course_generation_status` for one observation when
+needed. Do not busy-wait or poll in a loop, and do not manually continue page
+generation after an accepted job.
+
+This rule is only for a new complete course. A single-page or existing-course
+edit keeps the `pro-editing` path, and an original PPT import keeps the
+`pptx-import` path.
 
 ## Scene naming
 

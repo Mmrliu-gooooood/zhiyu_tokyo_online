@@ -46,10 +46,10 @@ textbook knowledge is skipped and taught as such.
 - At most **8 `web_search` calls for the whole session**, planned across the
   facets. One precise query beats several vague ones; write queries in the
   language of the course.
-- The session shares one run with planning, `set_roster` and
-  every page's generation, and every extra call is latency the user watches.
-  Research is one slice of the run, not the main act. If the run gets long,
-  cut facets — never generation.
+- The session shares one planning run with the submission decision, and every
+  extra call is latency the user watches. Research is one slice of the run,
+  not the main act. If the run gets long, narrow the facets without weakening
+  the evidence required by the settled course.
 - Read each result before searching again: the next query should be shaped by
   what the last one returned, not a rewording of it.
 
@@ -102,28 +102,37 @@ Research is complete when both hold:
 Then stop. Polishing searches after coverage is reached steal budget from
 generation.
 
-## Step 8 — Ground the outline
+## Step 8 — Ground the submit intent
 
-There is no outline generator: plan the outline in the conversation, then
-`create_stage` and one `generate_scene` per page with an explicit brief. The
-page generator sees each page's `brief` and nothing you remember. Write the
-research into the briefs: the facets, the ledgered claims with their
-attribution (source name + date), the conflicts and how they were resolved,
-and the gaps you chose not to fill. Anything you want to shape the course must
-live in this text. Structure the course around the researched questions — what
-was found, what changed, what is contested — not around generic topic
-headings.
+Plan the complete outline in the Pro conversation, then call
+`submit_course_generation` exactly once. Put `deep-research` in `skillIds`.
+Map the full claim-to-source ledger, source boundaries, conflicts, dates, and
+unresolved gaps to `researchContext`; map the research question and evidence
+standard to `requirement`; and map the settled title and language to
+`courseTitle` and `languageDirective`.
 
-## Step 9 — Ground every page
+Structure `outlines` around the researched questions — what was found, what
+changed, what is contested — not generic topic headings. Put each page's
+teaching intent and citation behavior in `outlines[].description`. Put only the
+verified claims needed by that page, with source name and date, in
+`outlines[].keyPoints`. If a custom cast is deliberately settled, pass complete
+`agents`; otherwise omit it. Pass `folderId` when the course belongs to a
+series.
 
-- When generating a scene, pass that page's sourced facts in
-  `generate_scene.materialFacts` — quoted concretely (figures, names,
-  findings) with their attribution. The page generator only receives what you
-  hand it; which fact belongs on which page is your choice.
-- Inside page content, cite naturally — the institution, the report, the year.
-  Do not dump raw URLs at the learner.
+## Step 9 — Submit once, observe later
+
+- The single submit call is the handoff to the durable generation worker. Do
+  not manually continue page generation after it is accepted.
+- Use `get_course_generation_status` for one observation when the user asks or
+  after reconnecting. Do not busy-wait or poll in a loop.
+- Inside generated page content, cite naturally — the institution, the report,
+  the year. Do not dump raw URLs at the learner.
 - Quiz distractors and interactive scenarios draw on ledgered facts too: a
   quiz that tests a number nobody verified teaches noise.
+
+This rule applies to a new complete course. A single-page or existing-course
+edit remains under `pro-editing`; an original PPT import remains under
+`pptx-import` and is not replanned as a generated deck.
 
 ## Scene naming
 

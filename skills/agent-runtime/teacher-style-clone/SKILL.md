@@ -59,18 +59,31 @@ Treat unsupported or contradicted hypotheses as absent from the final profile.
 
 ## Step 5 — transfer the profile into generation inputs
 
-Plan the course in the conversation, then `create_stage` and call
-`generate_scene` once per page with an explicit brief. Put the complete,
-evidence-backed style profile into each page's `brief` under a `## 讲课风格`
-section, alongside any independently verified subject facts the requested
-course needs. Include the load-bearing instructions: opening ritual, phrasing
-habits, example pattern, pacing, interaction rhythm, and visual presentation.
+Plan the complete course in the Pro conversation, then call
+`submit_course_generation` exactly once. Put `teacher-style-clone` in
+`skillIds`, the requested subject and transfer boundary in `requirement`, and
+the settled title and language in `courseTitle` and `languageDirective`.
 
-For every page, put the relevant evidence and concrete style directions in
-`generate_scene.materialFacts`. Examples: 「以复习上节课的问题开场」、「先用一个具体例子建立
-直觉，再给出公式」、「页尾用已核验的口头禅式小结」。Do not merely
-refer to a profile by name: the page generator only receives the text placed
-in each page's `brief` and `materialFacts`.
+Map the compact, evidence-backed style profile and its transcript/keyframe
+provenance to `researchContext`. For every item in `outlines`, put the concrete
+teaching and presentation directions in `outlines[].description`: opening
+ritual, phrasing habits, example pattern, pacing, interaction rhythm, and
+visual presentation. Put independently verified subject facts and the relevant
+timestamped style evidence in `outlines[].keyPoints`. Do not merely refer to a
+profile by name.
+
+If the teacher-style cast is deliberately fixed, pass complete `agents` and
+encode delivery in `agents[].persona` and `agents[].voiceConfig`; otherwise
+omit it and let the worker choose and freeze the roster. Pass `folderId` when
+the course belongs to a series.
+
+After submission, use `get_course_generation_status` for one observation when
+needed. Do not busy-wait or poll in a loop, and do not manually continue page
+generation after an accepted job.
+
+This is the boundary for a new complete course. A single-page or
+existing-course edit keeps the `pro-editing` path. An original PPT import keeps
+the `pptx-import` path and is not rebuilt as a newly generated deck.
 
 ## Hard rules
 

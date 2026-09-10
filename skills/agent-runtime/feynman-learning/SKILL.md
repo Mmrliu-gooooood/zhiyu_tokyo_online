@@ -8,7 +8,7 @@ description: "Build a zhiyu Feynman cycle from a concept, lesson, deck, or sourc
 
 把任何学科内容重构为一轮完整的费曼学习循环。核心对象不是教材，而是学习者当前的解释。学习者必须经历“先解释、暴露缺口、自己重建、换种说法、迁移应用”，最终留下《费曼学习记录》和下一轮目标。
 
-先加载 `/stage-design`，遵循它的新课堂创建、roster、逐页持久化和音频验收流程。本 Skill 只规定教学法、页面 brief 和互动节奏。
+先加载 `/stage-design`，遵循它“Pro 中完成规划、一次提交给 worker、之后按需观察”的完整课程边界。本 Skill 只规定教学法、页面计划和互动节奏。
 
 ## 适用范围
 
@@ -127,7 +127,27 @@ description: "Build a zhiyu Feynman cycle from a concept, lesson, deck, or sourc
 
 ## 搭建与验收
 
-按 `/stage-design` 的顺序创建课堂：`create_stage` → `set_roster` → 按批准计划逐页 `generate_scene` → `list_scenes` → `read_stage` 验收。页面需要补写或重建旁白时使用 `generate_actions`，并确保最终 speech actions 都有音频；修改旁白文字后调用 `generate_tts`。
+在 Pro 对话中完成整个费曼循环的页面规划后，只调用一次
+`submit_course_generation`：
+
+- 把概念边界、目标听众、teacher constraints、学习证据和完成标准写入
+  `requirement`，把课名与语言写入 `courseTitle`、`languageDirective`；
+- 把完整有序页面写入 `outlines`，每页的学习者动作、追问边界、缺口证据与
+  页面衔接写入 `outlines[].description`，材料中已核验的事实和该页具体约束写入
+  `outlines[].keyPoints`；
+- 把 `feynman-learning` 及其他生效技能写入 `skillIds`，把材料来源、事实边界、
+  尚未核实的内容写入 `researchContext`；
+- 只有阵容已被明确固定时才传完整 `agents`，否则省略，由 worker 自动决定并
+  冻结角色；系列课同时传 `folderId`。
+
+提交成功后由 generation worker 负责课堂、页面、旁白、音频和 checkpoint。
+需要查看时调用一次 `get_course_generation_status`。Do not busy-wait or poll
+in a loop，也不要在任务已接受后手工续做页面。
+
+这条边界只约束新建完整课程。单页编辑、现有课程修订继续使用
+`pro-editing`；原版 PPT 导入继续使用 `pptx-import`，不得把导入页重新规划成
+生成式整课。现有课程中只改旁白时，仍可按编辑流程使用 `generate_actions`、
+`generate_tts` 并读回验证。
 
 完成前逐页检查：
 

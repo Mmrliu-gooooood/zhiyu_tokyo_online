@@ -16,10 +16,10 @@ The invariant is:
 
 **authentic context → performance task → learning activity → observable evidence → transfer**
 
-`stage-design` still governs the persistence sequence for a new stage. This
-skill governs the pedagogy and the information carried in every page brief. If
-the stage already has pages, edit it surgically under the `pro-editing` rules;
-do not create a duplicate stage.
+`stage-design` still governs the durable submission boundary for a new complete
+course. This skill governs the pedagogy and the information carried in every
+planned page. If the stage already has pages, edit it surgically under the
+`pro-editing` rules; do not create a duplicate stage.
 
 ## Ground the lesson before planning
 
@@ -106,33 +106,37 @@ Titles name what learners discover or make: 「拖动倾角，看射程怎么变
 「两份史料为什么说得不一样」, 「给校园开放日改写导览词」. Do not use
 「概念介绍」「知识讲解」「案例分析」「课堂总结」.
 
-## New-stage execution
+## New complete-course submission
 
-After the teacher approves the page plan through `ask_user`:
+After the teacher approves the page plan through `ask_user`, call
+`submit_course_generation` exactly once:
 
-1. `create_stage` with the settled title and the series `folderId` when relevant.
-2. `set_roster` before any page. Use exactly one teacher and at least two agents.
-   The teacher persona embodies the subject method; another role surfaces a
-   typical misconception, asks for evidence or compares strategies. Keep
-   language and cognitive demand appropriate to the grade.
-3. Call `generate_scene` once for **each** approved page, in ascending order.
-   Pass the page's title, type and a self-contained `brief`. When attached
-   material grounds the page, pass only verified facts in `materialFacts`.
-4. Carry this skill into every generator call. A page brief must say:
-   - the target literacy dimension and visible learner action;
-   - what learners see, manipulate, read, discuss or produce;
-   - the evidence or source they must use;
-   - the likely misconception and the scaffold that addresses it;
-   - the assessment evidence collected on this page;
-   - the grade-appropriate register and the handoff to the next page.
-5. `list_scenes` and verify every approved page persisted in the correct order.
-6. Read the pages' narration actions. Call `generate_tts` on every page whose
-   speech is new, changed or missing `audioId`. A planned or silent page is not
-   finished.
+1. Put the learning contract, audience, grade, scope, and authentic performance
+   task in `requirement`; put the settled title and classroom language in
+   `courseTitle` and `languageDirective`.
+2. Pass the complete ordered plan in `outlines`. Each
+   `outlines[].description` states the target literacy dimension, visible
+   learner action, evidence or source, misconception and scaffold, assessment
+   evidence, grade-appropriate register, and handoff. Each
+   `outlines[].keyPoints` contains only verified material facts and concrete
+   page constraints.
+3. Put `k12-core-literacy-planning` and every other active generation skill in
+   `skillIds`. Put curriculum/source provenance, alignment limits, and unresolved
+   uncertainty in `researchContext`.
+4. If a custom cast is deliberately settled, pass complete `agents` with
+   exactly one teacher. The teacher persona embodies the subject method; another
+   role surfaces a typical misconception or asks for evidence. Otherwise omit
+   `agents` so the worker chooses and freezes the roster. Pass `folderId` when
+   this lesson belongs to a series.
 
-Do not stop after presenting a plan. A turn ends only at an `ask_user` gate,
-after a page has actually persisted, or when the whole stage passes the checks
-below.
+The generation worker owns persistence, pages, narration, media, and final
+checks after submission. Use `get_course_generation_status` for one observation
+when requested or after reconnecting. Do not busy-wait or poll in a loop, and
+do not manually continue generation after an accepted job.
+
+The durable boundary does not affect focused operations: a single-page or
+existing-course edit follows `pro-editing`, and an original PPT import follows
+`pptx-import` without replanning the imported deck.
 
 ## Existing-stage adaptation
 

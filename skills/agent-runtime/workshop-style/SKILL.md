@@ -11,9 +11,9 @@ to set up the next thing the learner does, and every idea is followed
 immediately by a page where they try it. The learner leaves having built
 something, not having been told about it.
 
-`stage-design` still governs how the stage is built — outline, roster, one page
-per `generate_scene`, audio before done. This skill governs what the stage
-contains and how it sounds.
+`stage-design` still governs the whole-course boundary: plan here, submit once
+to the durable generation worker, and observe later. This skill governs what
+the course contains and how it sounds.
 
 ## The shape
 
@@ -82,27 +82,37 @@ This is where the style is heard, so it is the part to get right.
 ## The roster
 
 The runtime allows **exactly one teacher**, so the dialogic pair is a lead
-teacher plus a co-facilitator `assistant` — not two teachers. Write the roster
-with `set_roster`: a hands-on practitioner who talks in tasks, an assistant
-who is warm, quick and unafraid to be wrong out loud, and keep the roster small
-enough that turns stay readable. Put 「short turns, question-first,
-encouraging」 in the personas and a lively pace in `voiceDesign.delivery`.
+teacher plus a co-facilitator `assistant` — not two teachers. If this cast is
+deliberately fixed, pass complete entries in `agents`: a hands-on practitioner
+who talks in tasks and an assistant who is warm, quick and unafraid to be wrong
+out loud. Put 「short turns, question-first, encouraging」 in their `persona`
+fields, then bind only a valid `voiceConfig` returned by the session voice
+directory. Otherwise omit `agents` and let the worker choose and freeze the
+roster.
 
-## Carrying the style into the generators
+## Carrying the style into submission
 
-There is no outline generator: you plan the course in the conversation, then
-call `create_stage` and one `generate_scene` per page with an explicit brief.
-Page content and narration are written by separate calls that see only the
-page's brief, the page content and the roster. So the style has to be carried
-there explicitly:
+Plan the entire workshop in the Pro conversation, then call
+`submit_course_generation` exactly once. Pass `workshop-style` in `skillIds` so
+its structural constraints are enforced. Also make the concrete intent visible
+to the worker:
 
-- put the concept → exercise cadence and the closing project into each page's
-  `generate_scene` `brief`;
-- put the two-voice facilitation manner into each persona of `set_roster`;
-- pass the narration directive for each page in `generate_scene.materialFacts`
-  — e.g. 「旁白为引导式短句，一到两句一条，提问多于陈述」「本页先让学员动手，
-  结论留到操作之后」. Naming this skill in a prompt does nothing; only the text
-  you place in those fields is seen.
+- put concept → exercise cadence, the learner action, widget intent, and the
+  closing project into each page's `outlines[].description`;
+- put verified material facts plus page-specific short, question-first
+  narration directions in `outlines[].keyPoints`;
+- put the two-voice facilitation manner into each custom `agents[].persona` and
+  its pacing into `agents[].voiceConfig`, when using a custom cast;
+- put source boundaries and cross-page evidence notes in `researchContext`, and
+  set `courseTitle` and `languageDirective` explicitly when settled.
+
+After submission, use `get_course_generation_status` for one observation when
+needed. Do not busy-wait or poll in a loop, and do not manually continue page
+generation after an accepted job.
+
+This rule is only for a new complete course. A single-page or existing-course
+edit keeps the `pro-editing` path, and an original PPT import keeps the
+`pptx-import` path.
 
 ## Scene naming
 

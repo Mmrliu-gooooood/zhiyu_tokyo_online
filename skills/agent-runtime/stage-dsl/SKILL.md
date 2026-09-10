@@ -45,8 +45,9 @@ reorder, and retitle pages with `edit_deck`.
 | Search visible text or source | `grep_stage` | literal search over the whole stage |
 | List stages in folders | `list_folder_stages` | returns the explicit `stageId` required by every stage tool |
 | Insert, delete, reorder, or retitle pages | `edit_deck` | page-list operations stay outside the document patcher |
-| Plan and build a new stage | conversation + `create_stage` + `generate_scene` | settle the page plan in conversation, then call `generate_scene` once per page with an explicit brief |
-| Set the classroom cast | `set_roster` | write the settled roster before page generation |
+| Submit a new complete course | `submit_course_generation` | settle the full plan first, map it to `requirement`, `courseTitle`, `languageDirective`, `outlines`, `agents`, `skillIds`, `researchContext`, and `folderId`, then submit once |
+| Observe durable generation | `get_course_generation_status` | observe once when status is needed; do not busy-wait or poll in a loop |
+| Edit the cast on an existing stage | `set_roster` | use only for an explicit existing-course roster edit, not to assemble a new complete course |
 
 ## Addressing with read_stage
 
@@ -150,6 +151,24 @@ Never build a patch from `tree`; it intentionally omits neighbouring fields.
 
 Never copy a `<… bytes omitted: …>` media placeholder into a write. Supply a
 new real URL/src or leave that field untouched.
+
+## Whole-course routing boundary
+
+This document map does not define a synchronous whole-course build procedure.
+For a new complete course, finish Pro planning and material/style constraints,
+then use `submit_course_generation` once and let the generation worker own all
+pages and media. Map each page's intent and style to
+`outlines[].description`, verified material facts to
+`outlines[].keyPoints`, active enforceable skills to `skillIds`, and source
+provenance or uncertainty to `researchContext`.
+
+After submission, use `get_course_generation_status` only for a requested or
+reconnection observation. Do not busy-wait or poll in a loop.
+
+The boundary does not change existing-course tools. A single-page or narrow
+existing-course edit still follows `pro-editing` and this document map. An
+original PPT import still follows `pptx-import`; preserve that deck instead of
+turning it into a newly generated course.
 
 ## Route to the field manual
 
