@@ -199,5 +199,5 @@ The number of course jobs executing at the same time, subject to both account ad
 _Avoid_: online-user count, scene concurrency
 
 **Generation status suffix**:
-The requested user-visible status appended to “构建课程中”, derived from the server job lifecycle and execution phase. Queueing, execution and unavailable observations must remain distinguishable; detailed wording and exit choices are being reviewed in the 2026-09-09 generation interview.
+The requested user-visible status appended to “构建课程中”, derived from the server job lifecycle and execution phase. Queueing, execution and unavailable observations must remain distinguishable; terminal work uses a terminal title. The 2026-09-09 interview and ADR-0017 record the accepted exit, expiry and admission decisions; exact phase wording remains an implementation detail.
 _Avoid_: simulated progress, browser-only task status
