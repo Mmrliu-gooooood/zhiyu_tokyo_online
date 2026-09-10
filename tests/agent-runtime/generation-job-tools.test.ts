@@ -114,6 +114,160 @@ describe('Pro durable whole-course tools', () => {
     expect(createJob).toHaveBeenCalledTimes(1);
   });
 
+  it('derives a complete Pro worker intent from the frozen v2 media snapshot and planned pages', async () => {
+    const createJob = vi.fn(async (_owner: string, _key: string, _input: unknown) => view);
+    const tools = buildGenerationJobTools({
+      ownerId: 'owner',
+      sessionId: 'session-one',
+      repository: { createJob, getJob: vi.fn(), getJobBySession: vi.fn(), cancel: vi.fn() },
+      mediaConfigRef: { id: '11111111-1111-4111-8111-111111111111', revision: 2 },
+      mediaConfig: {
+        version: 2,
+        imageEnabled: true,
+        videoEnabled: false,
+        ttsEnabled: true,
+        image: {
+          providerId: 'minimax-image',
+          apiKey: 'image-secret',
+          baseUrl: 'https://api.minimaxi.com',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'image-01',
+        },
+        ttsProviders: [
+          {
+            providerId: 'minimax-tts',
+            apiKey: 'tts-secret',
+            baseUrl: 'https://api.minimaxi.com',
+            requiresApiKey: true,
+            enabled: true,
+            modelId: 'speech-2.8-hd',
+            speed: 1.1,
+          },
+        ],
+        ttsDefault: {
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          voiceId: 'female-yujie',
+          speed: 1.1,
+        },
+        ttsVoiceDirectory: [
+          {
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-hd',
+            voiceIds: ['female-yujie', 'male-qn-jingying'],
+          },
+        ],
+      },
+    });
+    const submit = tools.find((tool) => tool.name === 'submit_course_generation')!;
+
+    await submit.execute(
+      'complete-intent',
+      {
+        requirement: 'Teach feedback loops',
+        courseTitle: 'Feedback Workshop',
+        languageDirective: 'Teach in English',
+        folderId: 'folder-one',
+        outlines: [
+          {
+            id: 'practice',
+            order: 2,
+            title: 'Try the loop',
+            type: 'interactive',
+            brief: 'Learners apply one feedback loop.',
+            materialFacts: ['Observe before adjusting', 'Change one variable'],
+            language: 'English',
+          },
+          {
+            id: 'concept',
+            order: 1,
+            title: 'See the loop',
+            type: 'slide',
+            brief: 'Explain the loop with a concrete example.',
+            materialFacts: ['A loop links output back to input'],
+            language: 'English',
+          },
+        ],
+      } as never,
+      undefined,
+      undefined,
+    );
+
+    expect(createJob).toHaveBeenCalledTimes(1);
+    expect(createJob.mock.calls[0]?.[2]).toMatchObject({
+      destination: { folderId: 'folder-one' },
+      agents: { mode: 'generate' },
+      enableImageGeneration: true,
+      enableVideoGeneration: false,
+      media: {
+        image: { providerId: 'minimax-image', modelId: 'image-01' },
+      },
+      tts: {
+        enabled: true,
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voice: 'female-yujie',
+        speed: 1.1,
+      },
+      planning: {
+        courseTitle: 'Feedback Workshop',
+        languageDirective: 'Teach in English',
+        outlines: [
+          {
+            id: 'concept',
+            order: 1,
+            title: 'See the loop',
+            type: 'slide',
+            description: 'Explain the loop with a concrete example.',
+            keyPoints: ['A loop links output back to input'],
+            languageNote: 'English',
+          },
+          {
+            id: 'practice',
+            order: 2,
+            title: 'Try the loop',
+            type: 'interactive',
+            description: 'Learners apply one feedback loop.',
+            keyPoints: ['Observe before adjusting', 'Change one variable'],
+            languageNote: 'English',
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(createJob.mock.calls[0]?.[2])).not.toContain('secret');
+  });
+
+  it('refuses an incomplete custom roster instead of treating set_roster arguments as AgentInfo', async () => {
+    const createJob = vi.fn(async (_owner: string, _key: string, _input: unknown) => view);
+    const tools = buildGenerationJobTools({
+      ownerId: 'owner',
+      sessionId: 'session-one',
+      repository: { createJob, getJob: vi.fn(), getJobBySession: vi.fn(), cancel: vi.fn() },
+    });
+    const submit = tools.find((tool) => tool.name === 'submit_course_generation')!;
+
+    const response = (await submit.execute(
+      'incomplete-roster',
+      {
+        requirement: 'Course',
+        agents: [
+          {
+            name: 'Teacher',
+            role: 'teacher',
+            persona: 'Teaches with examples.',
+            voice: 'minimax-tts::female-yujie',
+          },
+        ],
+      } as never,
+      undefined,
+      undefined,
+    )) as { isError?: boolean; details?: { code?: string } };
+
+    expect(response).toMatchObject({ isError: true, details: { code: 'INVALID_AGENTS' } });
+    expect(createJob).not.toHaveBeenCalled();
+  });
+
   it('requires explicit acknowledgement for unknown external results before retrying the same job', async () => {
     const attention = {
       ...view,

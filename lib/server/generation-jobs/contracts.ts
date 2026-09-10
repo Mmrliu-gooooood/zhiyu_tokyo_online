@@ -154,6 +154,7 @@ export const GenerationInputSchema = z
       })
       .strict()
       .optional(),
+    destination: z.object({ folderId: ref }).strict().optional(),
     target: z
       .object({
         stageId: ref,

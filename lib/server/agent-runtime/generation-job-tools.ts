@@ -7,6 +7,13 @@ import type {
   GenerationModelRef,
   MediaConfigRef,
 } from '@/lib/server/generation-jobs/contracts';
+import {
+  GenerationJobError,
+  parseGenerationInput,
+  validatePlan,
+} from '@/lib/server/generation-jobs/contracts';
+import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
+import { mediaConfigVoiceSource, resolveEffectiveSessionVoice } from './effective-voice-directory';
 
 const SubmitParams = Type.Object({
   requirement: Type.String({ description: 'The complete course generation brief.' }),
@@ -16,6 +23,7 @@ const SubmitParams = Type.Object({
   outlines: Type.Optional(Type.Array(Type.Any(), { minItems: 1, maxItems: 30 })),
   agents: Type.Optional(Type.Array(Type.Any(), { minItems: 1, maxItems: 10 })),
   skillIds: Type.Optional(Type.Array(Type.String(), { maxItems: 30 })),
+  folderId: Type.Optional(Type.String()),
   targetStageId: Type.Optional(Type.String()),
   targetRevision: Type.Optional(Type.Integer({ minimum: 0 })),
   replaceExisting: Type.Optional(Type.Boolean()),
@@ -55,6 +63,7 @@ export interface GenerationJobToolDeps {
   modelConfigRef?: GenerationModelRef;
   resolveModelConfigRef?: () => Promise<GenerationModelRef | undefined>;
   mediaConfigRef?: MediaConfigRef;
+  mediaConfig?: MediaConfigSnapshotContent;
   ensureReady?: () => Promise<void>;
   resolveSkillConstraints?: (
     ids: readonly string[],
@@ -74,6 +83,101 @@ function result(text: string, details: unknown, isError = false) {
 }
 function progress(job: GenerationJobView) {
   return `${job.status} / ${job.phase}; ${job.readyScenes}/${job.totalScenes} pages ready`;
+}
+
+function normalizePlannedOutlines(value: readonly unknown[]) {
+  const normalized = value.map((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new GenerationJobError('INVALID_OUTLINE', 400);
+    }
+    const source = { ...(item as Record<string, unknown>) };
+    const description = source.description ?? source.brief;
+    const keyPoints = source.keyPoints ?? source.materialFacts;
+    const languageNote = source.languageNote ?? source.language;
+    if (
+      (source.description !== undefined &&
+        source.brief !== undefined &&
+        source.description !== source.brief) ||
+      (source.keyPoints !== undefined &&
+        source.materialFacts !== undefined &&
+        JSON.stringify(source.keyPoints) !== JSON.stringify(source.materialFacts)) ||
+      (source.languageNote !== undefined &&
+        source.language !== undefined &&
+        source.languageNote !== source.language)
+    ) {
+      throw new GenerationJobError('INVALID_OUTLINE', 400);
+    }
+    delete source.brief;
+    delete source.materialFacts;
+    delete source.language;
+    return { ...source, description, keyPoints, ...(languageNote ? { languageNote } : {}) };
+  });
+  const orders = new Set<number>();
+  for (const item of normalized) {
+    if (!Number.isInteger(item.order) || orders.has(item.order as number)) {
+      throw new GenerationJobError('INVALID_OUTLINE', 400);
+    }
+    orders.add(item.order as number);
+  }
+  return validatePlan(normalized.sort((left, right) => (left.order as number) - (right.order as number)));
+}
+
+function frozenMediaIntent(
+  mediaConfig: MediaConfigSnapshotContent | undefined,
+  agents: GenerationInput['agents'],
+): Pick<
+  GenerationInput,
+  'enableImageGeneration' | 'enableVideoGeneration' | 'media' | 'tts'
+> {
+  if (!mediaConfig) return {};
+  const imageEnabled = mediaConfig.imageEnabled ?? !!mediaConfig.image;
+  const videoEnabled = mediaConfig.videoEnabled ?? !!mediaConfig.video;
+  const voiceSource = mediaConfigVoiceSource(mediaConfig);
+  const defaultVoice = resolveEffectiveSessionVoice(voiceSource);
+  const ttsEnabled = mediaConfig.ttsEnabled ?? !!defaultVoice;
+  const agentVoiceOverrides =
+    agents?.mode === 'custom'
+      ? Object.fromEntries(
+          (agents.items ?? []).flatMap((agent) =>
+            agent.voiceConfig ? [[agent.id, agent.voiceConfig] as const] : [],
+          ),
+        )
+      : undefined;
+  return {
+    enableImageGeneration: imageEnabled,
+    enableVideoGeneration: videoEnabled,
+    media: {
+      ...(imageEnabled && mediaConfig.image
+        ? {
+            image: {
+              providerId: mediaConfig.image.providerId,
+              modelId: mediaConfig.image.modelId,
+            },
+          }
+        : {}),
+      ...(videoEnabled && mediaConfig.video
+        ? {
+            video: {
+              providerId: mediaConfig.video.providerId,
+              modelId: mediaConfig.video.modelId,
+            },
+          }
+        : {}),
+    },
+    tts:
+      ttsEnabled && defaultVoice
+        ? {
+            enabled: true,
+            providerId: defaultVoice.providerId,
+            modelId: defaultVoice.modelId,
+            voice: defaultVoice.voice,
+            speed: defaultVoice.speed,
+            ...(agentVoiceOverrides && Object.keys(agentVoiceOverrides).length
+              ? { agentVoiceOverrides }
+              : {}),
+          }
+        : { enabled: false },
+  };
 }
 
 /** Durable whole-course tools. They enqueue work; they never wait for the generation worker. */
@@ -104,40 +208,58 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         : undefined;
       if (params.skillIds?.length && skillConstraints?.length !== new Set(params.skillIds).size)
         return result('One or more requested skills are unavailable or have no enforceable constraints.', { refused: true, code: 'INVALID_GENERATION_SKILL' }, true);
-      const input: GenerationInput = {
-        version: 1,
-        requirements: { requirement: params.requirement },
-        review: { mode: 'auto' },
-        source: { kind: 'pro', sessionId: deps.sessionId, submissionId: callId },
-        ...(modelConfigRef ? { modelConfigRef } : {}),
-        ...(deps.mediaConfigRef ? { mediaConfigRef: deps.mediaConfigRef } : {}),
-        ...(params.agents ? { agents: { mode: 'custom', items: params.agents } } : {}),
-        ...(params.targetStageId
-          ? {
-              target: {
-                stageId: params.targetStageId,
-                revision: targetRevision!,
-                replaceExisting: params.replaceExisting,
-              },
-            }
-          : {}),
-        ...(params.outlines
-          ? {
-              planning: {
-                outlines: params.outlines,
+      const agents: GenerationInput['agents'] = params.agents
+        ? { mode: 'custom', items: params.agents }
+        : { mode: 'generate' };
+      let input: GenerationInput;
+      try {
+        input = parseGenerationInput({
+          version: 1,
+          requirements: { requirement: params.requirement },
+          review: { mode: 'auto' },
+          source: { kind: 'pro', sessionId: deps.sessionId, submissionId: callId },
+          ...(modelConfigRef ? { modelConfigRef } : {}),
+          ...(deps.mediaConfigRef ? { mediaConfigRef: deps.mediaConfigRef } : {}),
+          agents,
+          ...frozenMediaIntent(deps.mediaConfig, agents),
+          ...(params.folderId ? { destination: { folderId: params.folderId } } : {}),
+          ...(params.targetStageId
+            ? {
+                target: {
+                  stageId: params.targetStageId,
+                  revision: targetRevision!,
+                  replaceExisting: params.replaceExisting,
+                },
+              }
+            : {}),
+          ...(params.outlines
+            ? {
+                planning: {
+                  outlines: normalizePlannedOutlines(params.outlines),
+                  courseTitle: params.courseTitle,
+                  languageDirective: params.languageDirective,
+                  researchContext: params.researchContext,
+                  skillIds: params.skillIds,
+                  skillConstraints,
+                },
+              }
+            : {
                 courseTitle: params.courseTitle,
                 languageDirective: params.languageDirective,
                 researchContext: params.researchContext,
-                skillIds: params.skillIds,
-                skillConstraints,
-              },
-            }
-          : {
-              courseTitle: params.courseTitle,
-              languageDirective: params.languageDirective,
-              researchContext: params.researchContext,
-            }),
-      };
+              }),
+        });
+      } catch (error) {
+        if (!(error instanceof GenerationJobError)) throw error;
+        const code = params.agents ? 'INVALID_AGENTS' : error.code;
+        return result(
+          code === 'INVALID_AGENTS'
+            ? 'The custom roster is incomplete or invalid. Supply full AgentInfo entries with stable ids and voiceConfig objects.'
+            : 'The planned course could not be converted into a valid generation input.',
+          { refused: true, code },
+          true,
+        );
+      }
       const job = await deps.repository.createJob(
         deps.ownerId,
         key('submit', deps.sessionId, callId),
