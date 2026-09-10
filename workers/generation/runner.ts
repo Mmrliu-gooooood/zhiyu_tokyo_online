@@ -55,9 +55,15 @@ export function safeWorkerStopReport(
   let category = 'unexpected';
   let summary =
     'Generation execution stopped unexpectedly; inspect the durable job failure evidence.';
-  if (code === 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT' || code === 'EXTERNAL_RESULT_UNKNOWN') {
+  if (code === 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT') {
     category = 'external_result_unknown';
     summary = 'TTS request exceeded its deadline after dispatch; the external result is unknown.';
+  } else if (code === 'EXTERNAL_RESULT_UNKNOWN') {
+    category = 'external_result_unknown';
+    summary = 'External provider request outcome is unknown; durable evidence requires review.';
+  } else if (code === 'PROVIDER_REQUEST_NOT_SENT') {
+    category = 'provider_request_not_sent';
+    summary = 'Provider request was not sent because DNS resolution failed; a bounded retry is safe.';
   } else if (code === 'GENERATION_LEASE_LOST') {
     category = 'lease_lost';
     summary = 'Generation stopped after its durable worker lease was lost.';

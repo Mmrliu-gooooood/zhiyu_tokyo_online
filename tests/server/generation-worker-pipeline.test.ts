@@ -599,6 +599,54 @@ describe('durable worker pipeline', () => {
     ]);
   });
 
+  it.each(['EAI_AGAIN', 'ENOTFOUND'] as const)(
+    'classifies nested %s DNS failures as safely retryable before send',
+    async (code) => {
+      const { execution, repo } = setup();
+      const cause = Object.assign(new Error('private hostname'), { code });
+      const wrapped = Object.assign(new Error('provider transport failed'), { cause });
+
+      await expect(
+        execution.external('agents:call:0', {}, 'llm', 'provider', async () => {
+          throw wrapped;
+        }),
+      ).rejects.toMatchObject({
+        name: 'ProviderRetryScheduled',
+        code: 'PROVIDER_REQUEST_NOT_SENT',
+        phase: 'agents:call:0',
+      });
+      expect(repo.failures).toEqual([
+        {
+          stepKey: 'agents:call:0',
+          code: 'PROVIDER_REQUEST_NOT_SENT',
+          uncertain: false,
+          errorSummary: 'Provider request was not sent because DNS resolution failed.',
+          retryable: true,
+          retryAfterMs: 5000,
+        },
+      ]);
+    },
+  );
+
+  it('keeps a media DNS failure unknown because a paid task may already exist', async () => {
+    const { execution, repo } = setup();
+    const dnsFailure = Object.assign(new Error('private poll hostname'), { code: 'EAI_AGAIN' });
+
+    await expect(
+      execution.external('media:o0:video', {}, 'media', 'provider', async () => {
+        throw dnsFailure;
+      }),
+    ).rejects.toBeInstanceOf(UnknownExternalOutcome);
+    expect(repo.failures).toEqual([
+      {
+        stepKey: 'media:o0:video',
+        code: 'EXTERNAL_RESULT_UNKNOWN',
+        uncertain: true,
+        errorSummary: 'External provider result is unknown.',
+      },
+    ]);
+  });
+
   it('records a request-before-send TTS configuration failure as certain', async () => {
     const { execution, repo } = setup();
 

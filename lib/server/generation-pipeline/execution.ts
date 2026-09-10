@@ -65,9 +65,24 @@ export class UnknownExternalOutcome extends Error {
 }
 export class ProviderRetryScheduled extends Error {
   readonly safeToRetry = true;
-  constructor() {
-    super('PROVIDER_RATE_LIMITED');
+  constructor(
+    readonly code = 'PROVIDER_RATE_LIMITED',
+    readonly phase = 'execution',
+  ) {
+    super(code);
+    this.name = 'ProviderRetryScheduled';
   }
+}
+
+/** DNS resolution failures prove that no HTTP request reached the provider. */
+function requestNotSentTransportCode(error: unknown): 'EAI_AGAIN' | 'ENOTFOUND' | undefined {
+  let current = error;
+  for (let depth = 0; depth < 6 && current && typeof current === 'object'; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    if (code === 'EAI_AGAIN' || code === 'ENOTFOUND') return code;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return undefined;
 }
 
 export type QuotaKind = 'llm' | 'tts' | 'media';
@@ -304,6 +319,22 @@ export class PipelineExecution {
           this.stopped.abort(error);
           throw error;
         }
+        const requestNotSentCode = requestNotSentTransportCode(error);
+        // Media adapters may submit a paid task and only then hit DNS while
+        // polling/downloading, so their DNS failures must remain unknown.
+        if (kind !== 'media' && !callSignal.aborted && !responseReceived && requestNotSentCode) {
+          await this.repository.failStep(this.lease, {
+            stepKey: key,
+            code: 'PROVIDER_REQUEST_NOT_SENT',
+            uncertain: false,
+            errorSummary: 'Provider request was not sent because DNS resolution failed.',
+            retryable: true,
+            retryAfterMs: 5000,
+          });
+          const retry = new ProviderRetryScheduled('PROVIDER_REQUEST_NOT_SENT', key);
+          this.stopped.abort(retry);
+          throw retry;
+        }
         // Only provider-confirmed rejection or terminal failure can downgrade an
         // optional image/video. Lost responses and download failures stay unknown.
         if (
@@ -358,7 +389,7 @@ export class PipelineExecution {
             retryable: true,
             retryAfterMs: boundedDelay,
           });
-          const retry = new ProviderRetryScheduled();
+          const retry = new ProviderRetryScheduled('PROVIDER_RATE_LIMITED', key);
           this.stopped.abort(retry);
           throw retry;
         }

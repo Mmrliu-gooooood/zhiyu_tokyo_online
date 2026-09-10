@@ -60,6 +60,45 @@ describe('generation worker stop diagnostics', () => {
     expect(report.summary).not.toContain('private detail');
   });
 
+  it('does not describe a generic unknown LLM result as a TTS timeout', () => {
+    const report = safeWorkerStopReport(
+      Object.assign(new Error('private provider detail'), {
+        code: 'EXTERNAL_RESULT_UNKNOWN',
+        phase: 'agents:call:0',
+      }),
+      lease,
+      100,
+      250,
+    );
+
+    expect(report).toMatchObject({
+      category: 'external_result_unknown',
+      code: 'EXTERNAL_RESULT_UNKNOWN',
+      phase: 'agents:call:0',
+      summary: 'External provider request outcome is unknown; durable evidence requires review.',
+    });
+    expect(report.summary).not.toContain('TTS');
+  });
+
+  it('reports a DNS failure as a request that was not sent', () => {
+    expect(
+      safeWorkerStopReport(
+        Object.assign(new Error('getaddrinfo EAI_AGAIN private.example'), {
+          code: 'PROVIDER_REQUEST_NOT_SENT',
+          phase: 'agents:call:0',
+        }),
+        lease,
+        100,
+        250,
+      ),
+    ).toMatchObject({
+      category: 'provider_request_not_sent',
+      code: 'PROVIDER_REQUEST_NOT_SENT',
+      phase: 'agents:call:0',
+      summary: 'Provider request was not sent because DNS resolution failed; a bounded retry is safe.',
+    });
+  });
+
   it('uses a bounded generic report for an unexpected error', () => {
     expect(safeWorkerStopReport(new Error('customer secret'), lease, 100, 50)).toEqual({
       event: 'job_stopped',
