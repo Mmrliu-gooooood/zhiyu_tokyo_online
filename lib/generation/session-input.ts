@@ -175,10 +175,7 @@ export async function buildGenerationJobInput(
     ...(modelConfigRef ? { modelConfigRef } : {}),
     ...(searchConfigRef ? { searchConfigRef } : {}),
     materials: { text: session.pdfText || undefined, sources, images },
-    agents:
-      settings.agentMode === 'auto'
-        ? { mode: 'generate', count: settings.autoAgentCount }
-        : { mode: 'custom', items },
+    agents: settings.agentMode === 'auto' ? { mode: 'generate' } : { mode: 'custom', items },
     review: { mode: settings.reviewOutlineEnabled ? 'manual' : 'auto', autoConfirmSeconds: 2.5 },
     enableWebSearch: session.requirements.webSearch === true,
     enableImageGeneration: settings.imageGenerationEnabled,

@@ -7,8 +7,15 @@ import type { GenerationLease } from '@/lib/server/generation-jobs/contracts';
 import { AGENT_COLOR_PALETTE, AGENT_DEFAULT_AVATARS } from '@/lib/constants/agent-defaults';
 import { buildVideoManifestFromOutlines } from '@/lib/media/video-manifest';
 import { PipelineExecution, type CheckpointRepository } from './execution';
-import type { ContentCheckpoint, GenerationPlan } from './services';
-import { checkOutlineAgainstSkill, type OutlineConstraints } from '@/lib/server/agent-runtime/skills';
+import {
+  type AgentCheckpoint,
+  type ContentCheckpoint,
+  type GenerationPlan,
+} from './services';
+import {
+  checkOutlineAgainstSkill,
+  type OutlineConstraints,
+} from '@/lib/server/agent-runtime/skills';
 
 export interface PipelineRepository extends CheckpointRepository {
   getSnapshot(lease: GenerationLease): Promise<{
@@ -27,7 +34,7 @@ export interface PipelineRepository extends CheckpointRepository {
 export interface PipelineServices {
   research(): Promise<string>;
   plan(research: string): Promise<GenerationPlan>;
-  agents(plan: GenerationPlan): Promise<AgentInfo[]>;
+  agents(plan: GenerationPlan): Promise<AgentCheckpoint>;
   content(
     outline: SceneOutline,
     agents: AgentInfo[],
@@ -42,6 +49,18 @@ export interface PipelineServices {
   assemble(content: ContentCheckpoint, actions: Action[], sceneId: string): Scene;
   media(scene: Scene, outline: SceneOutline): Promise<Scene>;
   tts(scene: Scene, agents: AgentInfo[]): Promise<Scene>;
+}
+
+/** Read both legacy AgentInfo[] checkpoints and versioned automatic decisions. */
+export function agentsFromCheckpoint(checkpoint: AgentCheckpoint): AgentInfo[] {
+  if (Array.isArray(checkpoint)) return checkpoint;
+  if (
+    checkpoint?.kind === 'automatic-agent-decision' &&
+    checkpoint.version === 1 &&
+    Array.isArray(checkpoint.agents)
+  )
+    return checkpoint.agents;
+  throw new Error('INVALID_AGENT_CHECKPOINT');
 }
 
 /** Durable stages, bounded content lookahead, and strictly ordered dependencies. */
@@ -89,7 +108,7 @@ export async function runGenerationPipeline(
     if (violations.length)
       throw new Error(`SKILL_CONSTRAINT_VIOLATION:${skill.id}:${violations.join('; ')}`);
   }
-  const agents = await execution.checkpoint(
+  const agentCheckpoint = await execution.checkpoint<AgentCheckpoint>(
     'agents',
     {
       planRevision: lease.planRevision,
@@ -98,6 +117,7 @@ export async function runGenerationPipeline(
     },
     () => services.agents(plan),
   );
+  const agents = agentsFromCheckpoint(agentCheckpoint);
   await repository.updateStage(lease, {
     languageDirective: plan.languageDirective,
     videoManifest: buildVideoManifestFromOutlines(plan.outlines),

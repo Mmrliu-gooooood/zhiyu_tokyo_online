@@ -62,6 +62,37 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('background session input', () => {
+  it('does not submit the legacy fixed agent count for a new automatic roster', async () => {
+    const automaticSettings = {
+      ...settings,
+      agentMode: 'auto',
+    };
+    Object.defineProperty(automaticSettings, 'autoAgentCount', {
+      get: () => {
+        throw new Error('legacy autoAgentCount must not be read');
+      },
+    });
+    mocks.settings.mockReturnValue(automaticSettings);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url === '/api/agent/media-config-snapshots'
+          ? Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } })
+          : Response.json({ jobs: [] }),
+      ),
+    );
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(input.agents).toEqual({ mode: 'generate' });
+    expect(JSON.stringify(input)).not.toContain('autoAgentCount');
+  });
+
   it.each([
     { providerId: 'brave', config: { apiKey: '', baseUrl: 'https://search.brave.com' } },
     { providerId: 'tavily', config: { apiKey: 'client-search-key', baseUrl: '' } },

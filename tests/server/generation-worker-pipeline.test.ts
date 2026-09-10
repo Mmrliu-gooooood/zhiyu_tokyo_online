@@ -45,6 +45,7 @@ class MemoryRepository implements PipelineRepository {
   scenes: Scene[] = [];
   plans = outlines;
   completeCount = 0;
+  stageUpdates: Array<Partial<Stage>> = [];
   failures: Array<{ stepKey: string; code: string; uncertain: boolean }> = [];
   warnings: string[] = [];
   async skipStepWithWarning(_lease: GenerationLease, input: { stepKey: string; code: string }) {
@@ -83,7 +84,9 @@ class MemoryRepository implements PipelineRepository {
   async savePlan(_lease: GenerationLease, plan: SceneOutline[]) {
     this.plans = plan;
   }
-  async updateStage(_lease: GenerationLease, _stage: Partial<Stage>) {}
+  async updateStage(_lease: GenerationLease, stage: Partial<Stage>) {
+    this.stageUpdates.push(structuredClone(stage));
+  }
   async publishScene(_lease: GenerationLease, _outlineId: string, scene: Scene) {
     this.scenes = [...this.scenes.filter((existing) => existing.id !== scene.id), scene];
   }
@@ -343,6 +346,86 @@ describe('durable worker pipeline', () => {
     expect(restarted.counts.calls).toEqual([]);
     expect(restarted.counts.actions).toEqual([]);
     expect(restarted.repo.scenes.map((scene) => scene.id)).toEqual(ids);
+  });
+
+  it('persists and reuses the versioned automatic roster decision after worker restart', async () => {
+    const fixture = setup();
+    fixture.repo.plans = [outlines[0]!];
+    const frozenAgents: AgentInfo[] = [
+      {
+        id: 'gen-job-0',
+        name: 'Teacher',
+        role: 'teacher',
+        persona: 'Explains and checks the core concept.',
+      },
+      {
+        id: 'gen-job-1',
+        name: 'Peer',
+        role: 'student',
+        persona: 'Attempts the task and compares reasoning.',
+      },
+    ];
+    const decision = {
+      kind: 'automatic-agent-decision' as const,
+      version: 1 as const,
+      strategyVersion: 'difficulty-v1' as const,
+      outlineVersion: 1,
+      difficulty: {
+        level: 'introductory' as const,
+        rationale: 'A single focused concept needs two distinct responsibilities.',
+      },
+      agents: frozenAgents,
+    };
+    fixture.services.agents = vi.fn(async () => decision);
+
+    await runGenerationPipeline(fixture.repo, fixture.execution, fixture.services);
+
+    expect(fixture.repo.checkpoints.get('agents')?.result).toEqual(decision);
+    expect(fixture.repo.stageUpdates.at(-1)?.generatedAgentConfigs).toEqual(
+      expect.arrayContaining(frozenAgents.map((agent) => expect.objectContaining(agent))),
+    );
+
+    const restarted = setup(fixture.repo);
+    restarted.repo.plans = [outlines[0]!];
+    restarted.services.agents = vi.fn(async () => {
+      throw new Error('automatic roster must not be regenerated');
+    });
+    await runGenerationPipeline(restarted.repo, restarted.execution, restarted.services);
+
+    expect(restarted.services.agents).not.toHaveBeenCalled();
+    expect(restarted.repo.stageUpdates.at(-1)?.generatedAgentConfigs).toEqual(
+      expect.arrayContaining(frozenAgents.map((agent) => expect.objectContaining(agent))),
+    );
+  });
+
+  it('reads a legacy array roster checkpoint without regenerating it', async () => {
+    const fixture = setup();
+    fixture.repo.plans = [outlines[0]!];
+    const legacyAgents: AgentInfo[] = [
+      {
+        id: 'legacy-teacher',
+        name: 'Legacy Teacher',
+        role: 'teacher',
+        persona: 'Kept from the original checkpoint.',
+      },
+      {
+        id: 'legacy-peer',
+        name: 'Legacy Peer',
+        role: 'student',
+        persona: 'Kept from the original checkpoint.',
+      },
+    ];
+    fixture.repo.checkpoints.set('agents', { status: 'succeeded', result: legacyAgents });
+    fixture.services.agents = vi.fn(async () => {
+      throw new Error('legacy roster must not be regenerated');
+    });
+
+    await runGenerationPipeline(fixture.repo, fixture.execution, fixture.services);
+
+    expect(fixture.services.agents).not.toHaveBeenCalled();
+    expect(fixture.repo.stageUpdates.at(-1)?.generatedAgentConfigs).toEqual(
+      expect.arrayContaining(legacyAgents.map((agent) => expect.objectContaining(agent))),
+    );
   });
 
   it('persists a plan then yields without agents or first-scene generation', async () => {

@@ -37,6 +37,22 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger('GenerationSearch');
 
+export const AUTO_AGENT_STRATEGY_VERSION = 'difficulty-v1';
+
+export interface AutomaticAgentDecisionCheckpoint {
+  kind: 'automatic-agent-decision';
+  version: 1;
+  strategyVersion: typeof AUTO_AGENT_STRATEGY_VERSION;
+  outlineVersion: number;
+  difficulty: {
+    level: 'introductory' | 'applied' | 'complex';
+    rationale: string;
+  };
+  agents: AgentInfo[];
+}
+
+export type AgentCheckpoint = AgentInfo[] | AutomaticAgentDecisionCheckpoint;
+
 export interface GenerationPlan {
   outlines: SceneOutline[];
   languageDirective: string;
@@ -249,36 +265,96 @@ export class GenerationServices {
     };
   }
 
-  async agents(plan: GenerationPlan): Promise<AgentInfo[]> {
+  async agents(plan: GenerationPlan): Promise<AgentCheckpoint> {
     if (this.input.agents?.mode === 'custom') return this.input.agents.items!;
     if (this.input.agents?.mode !== 'generate') return getDefaultAgents();
     const { aiCall } = await this.modelCall('agent-profiles', 'agents');
     const count = this.input.agents.count;
     const text = await aiCall(
-      `Generate classroom agent profiles. Return JSON {"agents":[{"name":"...","role":"teacher|assistant|student","persona":"..."}]}. Exactly one teacher and ${count ? `exactly ${count}` : '2–5'} total agents.`,
-      `${this.input.requirements.requirement}\nLanguage: ${plan.languageDirective}`,
+      `Evaluate the course difficulty and generate its classroom roster in one decision. Return JSON {"difficulty":{"level":"introductory|applied|complex","rationale":"..."},"agents":[{"id":"unique-role-id","name":"...","role":"teacher|assistant|student","persona":"course-specific teaching or learning responsibility"}]}. Exactly one teacher and ${count ? `exactly ${count} total agents for this legacy fixed-count task` : '2–5 total agents chosen from the course complexity and necessary responsibilities'}. Use distinct non-empty responsibilities and unique role IDs. Do not choose from title, subject, or page count alone.`,
+      JSON.stringify(
+        {
+          courseRequestIncludingGoalsPrerequisitesAndTeachingMethod:
+            this.input.requirements.requirement,
+          learner: {
+            nickname: this.input.requirements.userNickname,
+            levelAndBackground: this.input.requirements.userBio,
+          },
+          courseTitle: plan.courseTitle,
+          languageDirective: plan.languageDirective,
+          confirmedOutline: plan.outlines,
+          decisionGuidance: {
+            difficultyBasis:
+              'Use objectives, prerequisites, abstraction, reasoning or operational steps, learner level, and teaching method.',
+            introductory: 'Usually 2-3 roles for one focused goal.',
+            applied: 'Usually 3-4 roles for multi-step application.',
+            complex:
+              'Usually 4-5 roles when integrated reasoning or multiple necessary perspectives demand it.',
+          },
+        },
+        null,
+        2,
+      ),
     );
-    const value = JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')) as {
-      agents: AgentInfo[];
+    let value: {
+      selectedCount?: number;
+      difficulty?: AutomaticAgentDecisionCheckpoint['difficulty'];
+      agents?: AgentInfo[];
     };
+    try {
+      value = JSON.parse(
+        text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''),
+      ) as typeof value;
+    } catch {
+      throw new Error('INVALID_AGENT_RESULT');
+    }
+    const agents = value.agents;
+    const difficulty = value.difficulty;
+    const ids = new Set<string>();
+    const responsibilities = new Set<string>();
+    const expectedCount = count ?? null;
     if (
-      !Array.isArray(value.agents) ||
-      value.agents.length < 1 ||
-      value.agents.length > 10 ||
-      (count && value.agents.length !== count) ||
-      value.agents.filter((agent) => agent.role === 'teacher').length !== 1 ||
-      value.agents.some(
+      !difficulty ||
+      !['introductory', 'applied', 'complex'].includes(difficulty.level) ||
+      typeof difficulty.rationale !== 'string' ||
+      !difficulty.rationale.trim() ||
+      !Array.isArray(agents) ||
+      (expectedCount === null && (agents.length < 2 || agents.length > 5)) ||
+      (expectedCount !== null && agents.length !== expectedCount) ||
+      (value.selectedCount !== undefined && value.selectedCount !== agents.length) ||
+      agents.filter((agent) => agent.role === 'teacher').length !== 1 ||
+      agents.some(
         (agent) =>
-          !agent.name ||
-          !agent.persona ||
+          typeof agent.id !== 'string' ||
+          !/^[a-zA-Z0-9_.:/-]+$/.test(agent.id) ||
+          ids.has(agent.id) ||
+          !ids.add(agent.id) ||
+          typeof agent.name !== 'string' ||
+          !agent.name.trim() ||
+          typeof agent.persona !== 'string' ||
+          !agent.persona.trim() ||
+          responsibilities.has(agent.persona.trim().toLocaleLowerCase()) ||
+          !responsibilities.add(agent.persona.trim().toLocaleLowerCase()) ||
           !['teacher', 'assistant', 'student'].includes(agent.role),
       )
     )
       throw new Error('INVALID_AGENT_RESULT');
-    return value.agents.map((agent, index) => ({
-      ...agent,
-      id: `gen-${this.execution.lease.jobId}-${index}`,
-    }));
+    return {
+      kind: 'automatic-agent-decision',
+      version: 1,
+      strategyVersion: AUTO_AGENT_STRATEGY_VERSION,
+      outlineVersion: this.execution.lease.planRevision,
+      difficulty: {
+        level: difficulty.level,
+        rationale: difficulty.rationale.trim(),
+      },
+      agents: agents.map((agent, index) => ({
+        ...agent,
+        name: agent.name.trim(),
+        persona: agent.persona!.trim(),
+        id: `gen-${this.execution.lease.jobId}-${index}`,
+      })),
+    };
   }
 
   async content(
