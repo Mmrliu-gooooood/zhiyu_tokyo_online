@@ -972,7 +972,7 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
 
     const detail = await repo.getJobDetail('owner', lease.jobId);
     expect(detail.status).toBe('needs_attention');
-    expect(detail.lastErrorCode).toBe('CONTENT_GENERATION_FAILED');
+    expect(detail.lastErrorCode).toBe('EXTERNAL_RESULT_UNKNOWN');
     expect(detail.displayProgress?.failedStep).toEqual({
       key: 'tts:one:call:0',
       phase: 'tts',
@@ -1001,6 +1001,22 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
         error_code: 'EXTERNAL_RESULT_UNKNOWN',
       },
     ]);
+    expect(
+      (
+        await pool.query<{ last_error_summary: string | null }>(
+          'SELECT last_error_summary FROM generation_jobs WHERE id=$1',
+          [lease.jobId],
+        )
+      ).rows[0]?.last_error_summary,
+    ).toBe('A concurrent external request remained unresolved after the pipeline stopped.');
+    expect(
+      (
+        await pool.query<{ status: string; error_code: string | null }>(
+          'SELECT status,error_code FROM generation_scenes WHERE job_id=$1 AND outline_id=$2',
+          [lease.jobId, 'one'],
+        )
+      ).rows[0],
+    ).toEqual({ status: 'needs_attention', error_code: 'EXTERNAL_RESULT_UNKNOWN' });
   });
   it('projects a scene step failure and resets only its status on retry, preserving ready scenes and content', async () => {
     const initial = await claimed();

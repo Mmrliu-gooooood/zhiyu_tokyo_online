@@ -1470,17 +1470,22 @@ export class GenerationJobRepository {
         "UPDATE generation_steps SET status='pending' WHERE job_id=$1 AND status='running'",
         [lease.jobId],
       );
-      const finalStatus = other.rows.length ? 'needs_attention' : status;
-      await this.projectSceneFailure(q, lease.jobId, finalStatus, code, input.stepKey);
+      const concurrentUnknown = other.rows.length > 0;
+      const finalStatus = concurrentUnknown ? 'needs_attention' : status;
+      const finalCode = concurrentUnknown ? 'EXTERNAL_RESULT_UNKNOWN' : code;
+      const finalErrorSummary = concurrentUnknown
+        ? 'A concurrent external request remained unresolved after the pipeline stopped.'
+        : errorSummary;
+      await this.projectSceneFailure(q, lease.jobId, finalStatus, finalCode, input.stepKey);
       await q.query(
         "UPDATE generation_jobs SET status=$2,last_error_code=$3,last_error_summary=$5,worker_id=NULL,lease_epoch=lease_epoch+1,lease_expires_at=NULL,available_at=clock_timestamp()+$4*interval '1 millisecond',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1",
-        [lease.jobId, finalStatus, code, delay, errorSummary],
+        [lease.jobId, finalStatus, finalCode, delay, finalErrorSummary],
       );
       if (finalStatus !== 'retry_wait') await this.editable(q, job);
       await this.event(q, lease.jobId, finalStatus, {
         stepKey: input.stepKey,
-        code,
-        ...(errorSummary ? { errorSummary } : {}),
+        code: finalCode,
+        ...(finalErrorSummary ? { errorSummary: finalErrorSummary } : {}),
       });
     });
   }
@@ -1553,11 +1558,19 @@ export class GenerationJobRepository {
     code: string,
     failedKey?: string,
   ): Promise<void> {
-    const failures = await q.query<{ outline_id: string | null; step_key: string; status: string }>(
-      "SELECT outline_id,step_key,status FROM generation_steps WHERE job_id=$1 AND (status IN ('failed','uncertain','retry_wait') OR step_key=$2)",
+    const failures = await q.query<{
+      outline_id: string | null;
+      step_key: string;
+      status: string;
+      error_code: string | null;
+    }>(
+      "SELECT outline_id,step_key,status,error_code FROM generation_steps WHERE job_id=$1 AND (status IN ('failed','uncertain','retry_wait') OR step_key=$2)",
       [jobId, failedKey ?? null],
     );
-    const targets = new Map<string, 'failed' | 'needs_attention' | 'retry_wait'>();
+    const targets = new Map<
+      string,
+      { status: 'failed' | 'needs_attention' | 'retry_wait'; code: string }
+    >();
     for (const failure of failures.rows) {
       const outlineId =
         failure.outline_id ??
@@ -1569,13 +1582,16 @@ export class GenerationJobRepository {
           : failure.status === 'retry_wait'
             ? 'retry_wait'
             : 'failed';
-      if (targets.get(outlineId) !== 'needs_attention') targets.set(outlineId, projected);
+      const current = targets.get(outlineId);
+      if (!current || projected === 'needs_attention' || current.status === 'retry_wait') {
+        targets.set(outlineId, { status: projected, code: failure.error_code ?? code });
+      }
     }
     let projected = 0;
-    for (const [outlineId, status] of targets) {
+    for (const [outlineId, target] of targets) {
       const result = await q.query<{ outline_id: string }>(
         "UPDATE generation_scenes SET status=$3,error_code=$4 WHERE job_id=$1 AND outline_id=$2 AND status<>'ready' RETURNING outline_id",
-        [jobId, outlineId, status, code],
+        [jobId, outlineId, target.status, target.code],
       );
       projected += result.rows.length;
     }
