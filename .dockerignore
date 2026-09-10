@@ -9,6 +9,11 @@ build
 dist
 dist-worker
 .scratch
+.worktrees
+.codegraph
+.superdesign
+.superpowers
+.temp
 optimization_docs
 debug.log
 
@@ -40,6 +45,10 @@ assets
 .vercel
 coverage
 tests
+e2e
+eval
+playwright-report
+test-results
 logs
 data
 docs
