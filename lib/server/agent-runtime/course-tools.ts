@@ -59,7 +59,13 @@ import {
   hasConfiguredVideoGeneration,
   type GenerateVideoToolDeps,
 } from './generate-video';
-import { synthesizeSceneNarration, type SceneTtsInput, type SceneTtsSummary } from './scene-tts';
+import {
+  synthesizeSceneNarration,
+  type SceneTtsInput,
+  type SceneTtsProviderConfig,
+  type SceneTtsSummary,
+} from './scene-tts';
+import type { EffectiveSessionVoiceSource } from './effective-voice-directory';
 import type { LoadedSkill } from './skills';
 
 export type CourseDocument = MaicDocument<Scene, Stage>;
@@ -106,30 +112,40 @@ export interface AgentSessionVideoMediaConfig {
   modelId: string;
 }
 
-export interface AgentSessionTtsMediaConfig {
+export interface AgentSessionTtsMediaConfig extends SceneTtsProviderConfig {
   providerId: TTSProviderId;
-  protocol?: 'openai-speech';
-  apiKey: string;
-  baseUrl: string;
-  requiresApiKey: boolean;
-  enabled: boolean;
-  modelId: string;
   voice: string;
-  default?: boolean;
+}
+
+export interface AgentSessionTtsProviderMediaConfig extends SceneTtsProviderConfig {
+  providerId: TTSProviderId;
+}
+
+export interface AgentSessionVoiceBinding {
+  providerId: string;
+  modelId: string;
+  voiceId: string;
   speed?: number;
-  format?: string;
-  providerOptions?: Record<string, unknown>;
+}
+
+export interface AgentSessionVoiceDirectoryEntry {
+  providerId: string;
+  modelId: string;
+  voiceIds: readonly string[];
 }
 
 /** Decrypted once per claimed run and kept outside model-visible arguments. */
 export interface AgentSessionMediaConfig {
-  version: 1;
+  version: 1 | 2;
   imageEnabled?: boolean;
   videoEnabled?: boolean;
   ttsEnabled?: boolean;
   image?: AgentSessionImageMediaConfig;
   video?: AgentSessionVideoMediaConfig;
   tts?: readonly AgentSessionTtsMediaConfig[];
+  ttsProviders?: readonly AgentSessionTtsProviderMediaConfig[];
+  ttsDefault?: AgentSessionVoiceBinding;
+  ttsVoiceDirectory?: readonly AgentSessionVoiceDirectoryEntry[];
 }
 
 export interface CourseToolDeps {
@@ -137,6 +153,8 @@ export interface CourseToolDeps {
   modelContext?: ProModelContext;
   /** Fixed media snapshot for this claim; never included in model-visible arguments. */
   mediaConfig?: AgentSessionMediaConfig;
+  /** Runner-resolved TTS execution config and authorized voice directory. */
+  voiceSource?: EffectiveSessionVoiceSource<SceneTtsProviderConfig>;
   /** The owner-bound document store of the run's session owner. */
   store: CourseStore;
   /**
@@ -270,14 +288,13 @@ export function buildDslCourseToolset(
     Partial<GenerateVideoToolDeps>,
 ): AgentTool<never, never>[] {
   const toolDeps =
-    (deps.mediaConfig?.tts || deps.mediaConfig?.ttsEnabled !== undefined) && !deps.synthesizeTts
+    deps.voiceSource && !deps.synthesizeTts
       ? {
           ...deps,
           synthesizeTts: (input: SceneTtsInput) =>
             synthesizeSceneNarration({
               ...input,
-              providerConfigs:
-                deps.mediaConfig!.ttsEnabled === false ? [] : (deps.mediaConfig!.tts ?? []),
+              providerConfigs: deps.voiceSource,
             }),
         }
       : deps;

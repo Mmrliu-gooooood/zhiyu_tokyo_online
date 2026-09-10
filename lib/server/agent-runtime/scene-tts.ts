@@ -13,7 +13,10 @@ import {
 import { parseCustomTTSProviderConfig } from '@/lib/server/media-provider-config';
 import { persistClassroomMediaBytes } from '@/lib/server/classroom-media-bytes';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
-import { resolveEffectiveSessionVoice } from './effective-voice-directory';
+import {
+  resolveEffectiveSessionVoice,
+  type EffectiveSessionVoiceSource,
+} from './effective-voice-directory';
 
 export interface SceneTtsSummary {
   available: boolean;
@@ -29,7 +32,9 @@ export interface SceneTtsInput {
   roster?: readonly GeneratedAgentConfig[] | null;
   signal?: AbortSignal;
   /** Fixed, owner-loaded session snapshot. Undefined preserves legacy server selection. */
-  providerConfigs?: readonly SceneTtsProviderConfig[];
+  providerConfigs?:
+    | readonly SceneTtsProviderConfig[]
+    | EffectiveSessionVoiceSource<SceneTtsProviderConfig>;
 }
 
 export interface SceneTtsProviderConfig {
@@ -40,7 +45,7 @@ export interface SceneTtsProviderConfig {
   requiresApiKey: boolean;
   enabled: boolean;
   modelId: string;
-  voice: string;
+  voice?: string;
   /** Explicit narration fallback selected when no roster voice is bound. */
   default?: boolean;
   speed?: number;

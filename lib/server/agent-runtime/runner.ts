@@ -47,10 +47,20 @@ import {
   fetchPromptBlock,
   untrustedContentPolicyPromptBlock,
 } from './fetch-url';
-import { assembleRunnerTools, buildRunnerCoursePrompt } from './runner-contract';
+import {
+  assembleRunnerTools,
+  buildRunnerCoursePrompt,
+  createProCourseRuntimeBoundary,
+} from './runner-contract';
 import { heavyTaskQueueWaitMs, withHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 import { buildMaterialTools, MATERIAL_TOOL_NAMES } from './material-tools';
 import { buildRosterTools, ROSTER_TOOL_NAMES, ROSTER_TOOLS_PROMPT } from './roster-tools';
+import {
+  mediaConfigVoiceSource,
+  type EffectiveSessionVoiceSource,
+} from './effective-voice-directory';
+import type { SceneTtsProviderConfig } from './scene-tts';
+import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
 import {
   buildVoiceCloneTools,
   hasConfiguredVoiceRegistrationCapability,
@@ -1291,6 +1301,30 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     const mediaConfig = meta.activeMediaConfigRef
       ? await ctx.loadMediaConfigSnapshot!(meta.ownerId, meta.activeMediaConfigRef)
       : undefined;
+    const hasSessionTtsIntent =
+      mediaConfig &&
+      (mediaConfig.ttsEnabled !== undefined ||
+        (mediaConfig.version === 1
+          ? mediaConfig.tts !== undefined
+          : !!(
+              mediaConfig.ttsProviders !== undefined ||
+              mediaConfig.ttsDefault !== undefined ||
+              mediaConfig.ttsVoiceDirectory !== undefined
+            )));
+    const voiceSource: EffectiveSessionVoiceSource<SceneTtsProviderConfig> | undefined =
+      hasSessionTtsIntent
+        ? mediaConfig!.ttsEnabled === false
+          ? { providerConfigs: [] }
+          : (mediaConfigVoiceSource(
+              mediaConfig! as MediaConfigSnapshotContent,
+            ) as unknown as EffectiveSessionVoiceSource<SceneTtsProviderConfig>)
+        : undefined;
+    const rosterVoiceSource =
+      mediaConfig?.version === 1 &&
+      mediaConfig.ttsEnabled !== false &&
+      mediaConfig.tts === undefined
+        ? undefined
+        : voiceSource;
     const modelReadiness = await preflightProModel(modelContext);
     if (!modelReadiness.chatReady || !modelReadiness.generationReady) {
       throw new Error(modelReadiness.error);
@@ -1389,6 +1423,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     const dslTools = buildDslCourseToolset({
       modelContext,
       mediaConfig,
+      voiceSource,
       store: ownerScopedStore,
       stageAccess,
       onCheckpoint: (info) => emit(LIFECYCLE.checkpoint, info),
@@ -1436,7 +1471,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         onCheckpoint: (info) => emit(LIFECYCLE.checkpoint, info),
         sessionId: id,
         registeredVoices: sessionRegisteredVoices,
-        providerConfigs: mediaConfig?.ttsEnabled === false ? [] : mediaConfig?.tts,
+        providerConfigs: rosterVoiceSource,
       }),
       { stageAccess },
     );
@@ -1522,6 +1557,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       generationJobTools,
     );
     const askUserLatch = createAskUserTerminateLatch();
+    const courseRuntimeBoundary = createProCourseRuntimeBoundary();
     let toolCalls = 0;
     const agent = buildAgent({
       streamFn,
@@ -1556,12 +1592,13 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         ...(voiceRegistrationEnabled ? VOICE_CLONE_TOOL_NAMES : ['clip_audio']),
       ]),
       ...(plan.kind === 'start' ? {} : { history: modelMessages }),
+      beforeToolCall: (toolContext) => courseRuntimeBoundary.before(toolContext.toolCall.name),
       afterToolCall: (toolContext) => {
         toolCalls += 1;
         if (askUserLatch.shouldTerminate(toolContext.toolCall.name, toolContext.isError)) {
           return { terminate: true };
         }
-        return undefined;
+        return courseRuntimeBoundary.after(toolContext.toolCall.name, toolContext.isError);
       },
     });
 

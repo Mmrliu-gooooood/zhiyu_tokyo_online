@@ -38,6 +38,10 @@ const mocks = vi.hoisted(() => ({
   enabledServerTTSProviderIds: vi.fn(),
   resolveTTSApiKey: vi.fn(),
   getVoiceRegistrationAdapter: vi.fn(),
+  getOwnerScopedDocumentStore: vi.fn(),
+  probeStageAccess: vi.fn(),
+  generateTTS: vi.fn(),
+  persistClassroomMediaBytes: vi.fn(),
 }));
 
 vi.mock('node:crypto', async (importActual) => {
@@ -51,6 +55,24 @@ vi.mock('@/lib/server/agent-runtime/store', () => ({
 
 vi.mock('@/lib/persistence/server-provider', () => ({
   getServerPersistenceProvider: mocks.getServerPersistenceProvider,
+}));
+
+vi.mock('@/lib/server/agent-runtime/owner-scoped-documents', () => ({
+  getOwnerScopedDocumentStore: mocks.getOwnerScopedDocumentStore,
+}));
+
+vi.mock('@/lib/server/agent-runtime/curriculum-tools', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/server/agent-runtime/curriculum-tools')>();
+  return { ...actual, probeStageAccess: mocks.probeStageAccess };
+});
+
+vi.mock('@/lib/audio/tts-providers', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/audio/tts-providers')>();
+  return { ...actual, generateTTS: mocks.generateTTS };
+});
+
+vi.mock('@/lib/server/classroom-media-bytes', () => ({
+  persistClassroomMediaBytes: mocks.persistClassroomMediaBytes,
 }));
 
 vi.mock('@/lib/server/agent-runtime/session-materials', async (importActual) => {
@@ -253,6 +275,12 @@ beforeEach(() => {
   mocks.enabledServerTTSProviderIds.mockReturnValue([]);
   mocks.resolveTTSApiKey.mockReturnValue('sk-test');
   mocks.getVoiceRegistrationAdapter.mockReturnValue(undefined);
+  mocks.getOwnerScopedDocumentStore.mockResolvedValue({});
+  mocks.probeStageAccess.mockResolvedValue({ kind: 'owned' });
+  mocks.generateTTS.mockResolvedValue({ audio: new Uint8Array([1, 2]), format: 'mp3' });
+  mocks.persistClassroomMediaBytes.mockResolvedValue(
+    '/api/classroom-media/stage-1/media/tts-speech-1.mp3',
+  );
   mocks.getServerPersistenceProvider.mockResolvedValue({
     documentStore: { forOwner: () => ({}) },
   });
@@ -338,6 +366,174 @@ describe('voice tool runner registration', () => {
     expect(result.details.voices.map((voice) => voice.binding)).toContain(
       'minimax-tts::female-yujie',
     );
+  });
+
+  it('preserves the server voice catalog fallback for a v1 intent-only snapshot', async () => {
+    mocks.enabledServerTTSProviderIds.mockReturnValue(['minimax-tts']);
+    mocks.resolveTTSApiKey.mockReturnValue('server-secret');
+    const options = await runToBuildAgent({
+      meta: makeMeta({
+        activeMediaConfigRef: {
+          id: '11111111-1111-4111-8111-111111111112',
+          revision: 1,
+        },
+      }),
+      loadMediaConfigSnapshot: vi.fn(
+        async (): Promise<AgentSessionMediaConfig> => ({
+          version: 1,
+          ttsEnabled: true,
+        }),
+      ),
+    });
+    const listVoices = options.tools.find((tool) => tool.name === 'list_voices')!;
+
+    const result = (await listVoices.execute!('call', {}, undefined)) as {
+      details: { voices: Array<{ providerId: string }> };
+    };
+    expect(result.details.voices).toEqual(
+      expect.arrayContaining([expect.objectContaining({ providerId: 'minimax-tts' })]),
+    );
+    expect(JSON.stringify(result)).not.toContain('server-secret');
+  });
+
+  it('threads the complete v2 voice directory into list_voices and set_roster', async () => {
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+    let document = {
+      stage: {
+        id: 'stage-1',
+        name: 'Voice course',
+        generatedAgentConfigs: [] as Array<{
+          voiceConfig?: { providerId: string; modelId?: string; voiceId: string };
+        }>,
+        agentIds: [],
+        updatedAt: 1,
+      },
+      scenes: [
+        {
+          id: 'scene-1',
+          stageId: 'stage-1',
+          order: 1,
+          title: 'Voice page',
+          type: 'slide',
+          content: { type: 'slide', elements: [] },
+          actions: [{ id: 'speech-1', type: 'speech', text: 'Hello' }],
+        },
+      ],
+    };
+    mocks.getOwnerScopedDocumentStore.mockResolvedValue({
+      loadDocument: vi.fn(async () => structuredClone(document)),
+      saveDocument: vi.fn(async (next) => {
+        document = structuredClone(next) as typeof document;
+      }),
+      putScene: vi.fn(async (_stageId, scene) => {
+        document.scenes = document.scenes.map((item) =>
+          item.id === scene.id ? (structuredClone(scene) as typeof item) : item,
+        );
+      }),
+    });
+    const options = await runToBuildAgent({
+      meta: makeMeta({
+        activeMediaConfigRef: {
+          id: '22222222-2222-4222-8222-222222222222',
+          revision: 2,
+        },
+      }),
+      loadMediaConfigSnapshot: vi.fn(
+        async (): Promise<AgentSessionMediaConfig> => ({
+          version: 2,
+          ttsEnabled: true,
+          ttsProviders: [
+            {
+              providerId: 'minimax-tts',
+              apiKey: 'session-secret',
+              baseUrl: 'https://api.minimaxi.com',
+              requiresApiKey: true,
+              enabled: true,
+              modelId: 'speech-2.8-hd',
+              speed: 1,
+            },
+          ],
+          ttsDefault: {
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-hd',
+            voiceId: 'female-yujie',
+            speed: 1,
+          },
+          ttsVoiceDirectory: [
+            {
+              providerId: 'minimax-tts',
+              modelId: 'speech-2.8-hd',
+              voiceIds: ['female-yujie', 'male-qn-jingying'],
+            },
+          ],
+        }),
+      ),
+    });
+    const listVoices = options.tools.find((tool) => tool.name === 'list_voices')!;
+
+    const result = (await listVoices.execute!('call', {}, undefined)) as {
+      details: { voices: Array<{ binding: string; modelId?: string }> };
+    };
+    expect(result.details.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          binding: 'minimax-tts::female-yujie',
+          modelId: 'speech-2.8-hd',
+        }),
+        expect.objectContaining({
+          binding: 'minimax-tts::male-qn-jingying',
+          modelId: 'speech-2.8-hd',
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain('session-secret');
+
+    const setRoster = options.tools.find((tool) => tool.name === 'set_roster')!;
+    const rosterResult = (await setRoster.execute!(
+      'set-roster',
+      {
+        stageId: 'stage-1',
+        agents: [
+          {
+            id: 'teacher',
+            name: 'Teacher',
+            role: 'teacher',
+            persona: 'Clear and patient.',
+            voice: 'minimax-tts::male-qn-jingying',
+          },
+          { id: 'student', name: 'Student', role: 'student', persona: 'Curious.' },
+        ],
+      },
+      undefined,
+    )) as { isError?: boolean };
+    expect(rosterResult.isError).toBeUndefined();
+    expect(document.stage.generatedAgentConfigs[0]?.voiceConfig).toEqual({
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-hd',
+      voiceId: 'male-qn-jingying',
+    });
+
+    const generateTts = options.tools.find((tool) => tool.name === 'generate_tts')!;
+    const ttsResult = await generateTts.execute!(
+      'generate-tts',
+      { stageId: 'stage-1', order: 1 },
+      undefined,
+    );
+    expect(ttsResult).toMatchObject({
+      details: { available: true, changed: true, generated: 1, failed: [] },
+    });
+    expect(mocks.generateTTS).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'minimax-tts',
+        apiKey: 'session-secret',
+        modelId: 'speech-2.8-hd',
+        voice: 'male-qn-jingying',
+      }),
+      'Hello',
+    );
+    expect(JSON.stringify(ttsResult)).not.toContain('session-secret');
   });
 
   it('registers roster + clip + register_voice tools and both prompt blocks when a registration backend is configured', async () => {
