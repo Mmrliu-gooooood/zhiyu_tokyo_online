@@ -1,4 +1,11 @@
-import { BrowserKVStore, HttpDocumentStore, type HttpDocumentHeadersHook } from '@openmaic/storage';
+import {
+  BrowserKVStore,
+  BrowserAssetStore,
+  HttpAssetStore,
+  HttpDocumentStore,
+  type HttpAssetHeadersHook,
+  type HttpDocumentHeadersHook,
+} from '@openmaic/storage';
 import { HttpRuntimeStore, type HttpRuntimeHeadersHook } from '@openmaic/storage/runtime/http';
 
 import {
@@ -6,8 +13,14 @@ import {
   configureDocumentStorage,
   type DocumentStorageOptions,
 } from '@/lib/document-store/config';
+import {
+  assertAssetPoolStorageConfigurable,
+  configureAssetPoolStorage,
+  type AssetPoolStorageOptions,
+} from '@/lib/media/asset-pool-config';
 import { assertRuntimeStorageConfigurable, configureRuntimeStorage } from '@/lib/runtime/config';
 import { getLearnerKey } from '@/lib/runtime/learner-key';
+import { ServerAssetStoreWithLegacyFallback } from './server-asset-store-with-legacy-fallback';
 
 let deviceKv: BrowserKVStore | undefined;
 let learnerKeyPromise: Promise<string> | undefined;
@@ -59,13 +72,26 @@ if (isBrowserPersistenceEnabled()) {
         validateStage,
       }),
   };
+  const assetOptions: AssetPoolStorageOptions = {
+    store: () =>
+      new ServerAssetStoreWithLegacyFallback(
+        new HttpAssetStore({
+          baseUrl: '/api/persistence',
+          headers: headers satisfies HttpAssetHeadersHook,
+        }),
+        new BrowserAssetStore({ dbName: 'maic-asset-pool' }),
+      ),
+    serverBacked: true,
+  };
   try {
     // All checks are mutation-free. Once they pass, the synchronous configure
     // calls cannot leave only a subset of the persistence seams configured.
     assertRuntimeStorageConfigurable();
     assertDocumentStorageConfigurable();
+    assertAssetPoolStorageConfigurable();
     configureRuntimeStorage(runtimeOptions);
     configureDocumentStorage(documentOptions);
+    configureAssetPoolStorage(assetOptions);
   } catch (error) {
     console.error(
       'FATAL: server-backed persistence bootstrap failed; no storage seam changes were applied',

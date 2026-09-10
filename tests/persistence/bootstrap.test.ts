@@ -33,13 +33,16 @@ describe('persistence client bootstrap', () => {
     expect(assets.isAssetPoolStorageConfigured()).toBe(false);
   });
 
-  it('configures runtime and document HTTP stores without wiring the asset pool', async () => {
+  it('configures runtime, document, and asset HTTP stores under one owner identity', async () => {
     vi.stubEnv('NEXT_PUBLIC_PERSISTENCE', '1');
     vi.stubEnv('NEXT_PUBLIC_PERSISTENCE_TOKEN', 'test-dev-token');
     vi.stubGlobal('window', {});
     vi.stubGlobal('localStorage', memoryStorage());
 
-    const { HttpDocumentStore } = await import('@openmaic/storage');
+    const { HttpAssetStore, HttpDocumentStore } = await import('@openmaic/storage');
+    const { ServerAssetStoreWithLegacyFallback } = await import(
+      '@/lib/persistence/server-asset-store-with-legacy-fallback'
+    );
     const { HttpRuntimeStore } = await import('@openmaic/storage/runtime/http');
     // Importing either seam must structurally run bootstrap before the seam can
     // resolve its default store.
@@ -49,16 +52,23 @@ describe('persistence client bootstrap', () => {
 
     expect(runtime.isRuntimeStorageConfigured()).toBe(true);
     expect(documents.isDocumentStorageConfigured()).toBe(true);
-    expect(assets.isAssetPoolStorageConfigured()).toBe(false);
+    expect(assets.isAssetPoolStorageConfigured()).toBe(true);
 
     const runtimeStore = runtime.getRuntimeStore();
     const documentStore = documents.getDocumentStore();
+    const assetStore = assets.resolveConfiguredAssetPoolStore();
     expect(runtimeStore).toBeInstanceOf(HttpRuntimeStore);
     expect(documentStore).toBeInstanceOf(HttpDocumentStore);
+    expect(assetStore).toBeInstanceOf(ServerAssetStoreWithLegacyFallback);
+    const serverAssetStore = (
+      assetStore as InstanceType<typeof ServerAssetStoreWithLegacyFallback>
+    ).server;
+    expect(serverAssetStore).toBeInstanceOf(HttpAssetStore);
 
     const documentInternals = documentStore as unknown as {
       validateSceneFn: unknown;
       validateStageFn: unknown;
+      headersHook: (context: { method: string; path: string }) => Promise<HeadersInit>;
     };
     expect(documentInternals.validateSceneFn).toBe(documents.validateAppScene);
     expect(documentInternals.validateStageFn).toBe(documents.validateAppStage);
@@ -70,9 +80,28 @@ describe('persistence client bootstrap', () => {
     ).headersHook({ method: 'GET', path: '/runtime/sessions/example' });
     expect(new Headers(runtimeHeaders).get('authorization')).toBe('Bearer test-dev-token');
     expect(new Headers(runtimeHeaders).get('x-learner-key')).toMatch(/^anon:/);
+    const documentHeaders = await documentInternals.headersHook({
+      method: 'GET',
+      path: '/documents/stages/example',
+    });
+    expect(new Headers(documentHeaders).get('authorization')).toBe('Bearer test-dev-token');
+    expect(new Headers(documentHeaders).get('x-learner-key')).toBe(
+      new Headers(runtimeHeaders).get('x-learner-key'),
+    );
+
+    const assetHeaders = await (
+      serverAssetStore as unknown as {
+        headersHook: (context: { method: string; path: string }) => Promise<HeadersInit>;
+      }
+    ).headersHook({ method: 'GET', path: '/assets/ast_example/content' });
+    expect(new Headers(assetHeaders).get('authorization')).toBe('Bearer test-dev-token');
+    expect(new Headers(assetHeaders).get('x-learner-key')).toBe(
+      new Headers(runtimeHeaders).get('x-learner-key'),
+    );
 
     runtime.resetRuntimeStorageForTests();
     documents.resetDocumentStorageForTests();
+    assets.resetAssetPoolStorageForTests();
     expect(runtime.isRuntimeStorageConfigured()).toBe(false);
     expect(documents.isDocumentStorageConfigured()).toBe(false);
     expect(assets.isAssetPoolStorageConfigured()).toBe(false);
@@ -82,7 +111,7 @@ describe('persistence client bootstrap', () => {
     vi.stubEnv('NEXT_PUBLIC_PERSISTENCE', '1');
 
     const runtime = await import('@/lib/runtime/store');
-    const documents = await import('@/lib/document-store');
+    const documents = await import('@/lib/document-store/config');
     const assets = await import('@/lib/media/asset-pool-config');
 
     expect(runtime.isRuntimeStorageConfigured()).toBe(false);
@@ -90,7 +119,7 @@ describe('persistence client bootstrap', () => {
     expect(assets.isAssetPoolStorageConfigured()).toBe(false);
   });
 
-  it('preflights both configured seams so a failure cannot partially configure bootstrap', async () => {
+  it('preflights all configured seams so a failure cannot partially configure bootstrap', async () => {
     vi.stubEnv('NEXT_PUBLIC_PERSISTENCE', '1');
     vi.stubGlobal('window', {});
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -105,5 +134,22 @@ describe('persistence client bootstrap', () => {
     expect(assets.isAssetPoolStorageConfigured()).toBe(false);
     expect(errorSpy).toHaveBeenCalledOnce();
     expect(errorSpy.mock.calls[0]?.[0]).toContain('FATAL');
+  });
+
+  it('preflights the asset seam before configuring runtime or documents', async () => {
+    vi.stubEnv('NEXT_PUBLIC_PERSISTENCE', '1');
+    vi.stubGlobal('window', {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const assets = await import('@/lib/media/asset-pool-config');
+    assets.configureAssetPoolStorage({});
+
+    const runtime = await import('@/lib/runtime/store');
+    const documents = await import('@/lib/document-store/config');
+
+    expect(runtime.isRuntimeStorageConfigured()).toBe(false);
+    expect(documents.isDocumentStorageConfigured()).toBe(false);
+    expect(assets.isAssetPoolStorageConfigured()).toBe(true);
+    expect(errorSpy).toHaveBeenCalled();
+    expect(errorSpy.mock.calls.every((call) => String(call[0]).includes('FATAL'))).toBe(true);
   });
 });
