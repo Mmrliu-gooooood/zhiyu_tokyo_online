@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   generateTTS,
+  TTSProviderTransientError,
   TTSProviderTerminalError,
 } from '@/lib/audio/tts-providers';
 import type { TTSModelConfig } from '@/lib/audio/types';
@@ -41,12 +42,30 @@ describe('TTS explicit terminal responses', () => {
 
     expect(error).toBeInstanceOf(TTSProviderTerminalError);
     expect(error).toMatchObject({
-      code:
-        config.providerId === 'qwen-tts'
-          ? 'QWEN_TTS_ERROR'
-          : 'TTS_PROVIDER_TERMINAL_FAILURE',
+      code: config.providerId === 'qwen-tts' ? 'QWEN_TTS_ERROR' : 'TTS_PROVIDER_TERMINAL_FAILURE',
       safeSummary: 'TTS provider returned an explicit terminal failure.',
       httpStatus: 400,
+    });
+  });
+
+  it.each(providers)('types an explicit $providerId HTTP 503 as transient', async (config) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'temporarily unavailable' } }), {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const error = await generateTTS(config, 'private narration').catch(
+      (failure: unknown) => failure,
+    );
+
+    expect(error).toBeInstanceOf(TTSProviderTransientError);
+    expect(error).toMatchObject({
+      code: 'TTS_PROVIDER_TRANSIENT_FAILURE',
+      safeSummary: 'TTS provider returned an explicit transient failure.',
+      httpStatus: 503,
     });
   });
 
@@ -59,16 +78,16 @@ describe('TTS explicit terminal responses', () => {
       config: providers.find((item) => item.providerId === 'doubao-tts')!,
       body: JSON.stringify({ code: 40000000, message: 'rejected' }),
     },
-  ])('types a successful HTTP response containing a $config.providerId failure', async ({
-    config,
-    body,
-  }) => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }),
-    );
+  ])(
+    'types a successful HTTP response containing a $config.providerId failure',
+    async ({ config, body }) => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
 
-    await expect(generateTTS(config, 'private narration')).rejects.toBeInstanceOf(
-      TTSProviderTerminalError,
-    );
-  });
+      await expect(generateTTS(config, 'private narration')).rejects.toBeInstanceOf(
+        TTSProviderTerminalError,
+      );
+    },
+  );
 });

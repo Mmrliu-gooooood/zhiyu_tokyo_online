@@ -73,4 +73,45 @@ describe('effective session voice directory', () => {
       apiKey: 'session-secret',
     });
   });
+
+  it('keeps same-provider same-voice entries distinct across v2 models', () => {
+    const source = {
+      providerConfigs: [
+        { ...execution, modelId: 'speech-fast' },
+        { ...execution, modelId: 'speech-hd' },
+      ],
+      voiceDirectory: [
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-fast',
+          voiceIds: ['shared-voice'],
+        },
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-hd',
+          voiceIds: ['shared-voice'],
+        },
+      ],
+    };
+
+    expect(
+      sessionVoiceCatalog(source).map(({ binding, modelId }) => ({ binding, modelId })),
+    ).toEqual([
+      {
+        binding: 'minimax-tts::speech-fast::shared-voice',
+        modelId: 'speech-fast',
+      },
+      {
+        binding: 'minimax-tts::speech-hd::shared-voice',
+        modelId: 'speech-hd',
+      },
+    ]);
+    expect(
+      resolveEffectiveSessionVoice(source, {
+        providerId: 'minimax-tts',
+        modelId: 'speech-hd',
+        voiceId: 'shared-voice',
+      }),
+    ).toMatchObject({ modelId: 'speech-hd', voice: 'shared-voice' });
+  });
 });

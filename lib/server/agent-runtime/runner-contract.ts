@@ -11,9 +11,14 @@ export function assembleRunnerTools(
 }
 
 export interface ProCourseRuntimeBoundary {
-  before(toolName: string): { block: true; reason: string } | undefined;
+  before(
+    toolName: string,
+    intent: ProCourseOperationIntent,
+  ): { block: true; reason: string } | undefined;
   after(toolName: string, isError: boolean): { terminate: true } | undefined;
 }
+
+export type ProCourseOperationIntent = 'new-course' | 'existing-course-edit' | 'pptx-import';
 
 /**
  * A claimed Pro run may plan and enqueue a whole course, or perform one
@@ -22,8 +27,6 @@ export interface ProCourseRuntimeBoundary {
  * still allowed for the layout-preserving PPT importer.
  */
 export function createProCourseRuntimeBoundary(): ProCourseRuntimeBoundary {
-  let creatingStage = false;
-  let createdStage = false;
   let sceneReserved = false;
   let sceneCompleted = false;
   let submitReserved = false;
@@ -31,7 +34,7 @@ export function createProCourseRuntimeBoundary(): ProCourseRuntimeBoundary {
   const wholeCourseReason =
     'Complete new courses must be submitted once with submit_course_generation. generate_scene remains available for one targeted page in an existing course; create_stage may be followed by import_pptx.';
   return {
-    before(toolName) {
+    before(toolName, intent) {
       if (toolName === 'submit_course_generation') {
         if (submitReserved || submitted) {
           return { block: true, reason: 'A whole-course generation job was already submitted.' };
@@ -41,13 +44,11 @@ export function createProCourseRuntimeBoundary(): ProCourseRuntimeBoundary {
       }
       if (toolName === 'create_stage') {
         if (submitted || submitReserved) return { block: true, reason: wholeCourseReason };
-        creatingStage = true;
-        return undefined;
+        return intent === 'pptx-import' ? undefined : { block: true, reason: wholeCourseReason };
       }
       if (toolName === 'generate_scene') {
         if (
-          creatingStage ||
-          createdStage ||
+          intent !== 'existing-course-edit' ||
           sceneReserved ||
           sceneCompleted ||
           submitReserved ||
@@ -60,10 +61,7 @@ export function createProCourseRuntimeBoundary(): ProCourseRuntimeBoundary {
       return undefined;
     },
     after(toolName, isError) {
-      if (toolName === 'create_stage') {
-        creatingStage = false;
-        if (!isError) createdStage = true;
-      } else if (toolName === 'generate_scene') {
+      if (toolName === 'generate_scene') {
         sceneReserved = false;
         if (!isError) sceneCompleted = true;
       } else if (toolName === 'submit_course_generation') {

@@ -7,7 +7,6 @@ import {
 } from '@/lib/audio/voice-catalog';
 import { supportsVoiceRegistration } from '@/lib/audio/voice-registration';
 import { getServerTTSProviders, resolveTTSApiKey } from '@/lib/server/provider-config';
-import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
 
 export interface EffectiveSessionVoiceConfig {
   providerId: string;
@@ -45,6 +44,14 @@ export interface EffectiveSessionVoiceSource<
   defaultVoice?: EffectiveVoiceBinding;
 }
 
+export interface EffectiveSessionMediaVoiceConfig {
+  version: 1 | 2;
+  tts?: readonly EffectiveSessionVoiceConfig[];
+  ttsProviders?: readonly EffectiveSessionVoiceConfig[];
+  ttsDefault?: EffectiveVoiceBinding;
+  ttsVoiceDirectory?: readonly EffectiveVoiceDirectoryEntry[];
+}
+
 export interface SessionCatalogVoice extends CatalogVoice {
   modelId?: string;
 }
@@ -63,8 +70,8 @@ function asVoiceSource<T extends EffectiveSessionVoiceConfig>(
 
 /** Preserve v1's exact entries; v2 keeps providers, directory and binding separate. */
 export function mediaConfigVoiceSource(
-  content: MediaConfigSnapshotContent,
-): EffectiveSessionVoiceSource<EffectiveSessionVoiceConfig & Record<string, unknown>> {
+  content: EffectiveSessionMediaVoiceConfig,
+): EffectiveSessionVoiceSource<EffectiveSessionVoiceConfig> {
   if (content.version === 2) {
     return {
       providerConfigs: content.ttsProviders ?? [],
@@ -132,11 +139,95 @@ export function sessionVoiceCatalog(
   registeredVoices: RegisteredVoiceInfo[] = [],
 ): SessionCatalogVoice[] {
   const modelAware = !!asVoiceSource(source).voiceDirectory;
-  const providers = new Map<string, VoiceCatalogProvider>();
   const configs = effectiveSessionVoiceConfigs(source).sort((left, right) => {
     if (!!left.default !== !!right.default) return left.default ? -1 : 1;
     return sortKey(left).localeCompare(sortKey(right));
   });
+
+  if (modelAware) {
+    const providerShells = new Map<string, VoiceCatalogProvider>();
+    const modelsByProvider = new Map<string, Set<string>>();
+    const catalog: SessionCatalogVoice[] = [];
+
+    for (const snapshot of configs) {
+      const builtIn = TTS_PROVIDERS[snapshot.providerId as keyof typeof TTS_PROVIDERS];
+      const models = modelsByProvider.get(snapshot.providerId) ?? new Set<string>();
+      models.add(snapshot.modelId);
+      modelsByProvider.set(snapshot.providerId, models);
+
+      if (builtIn?.excludeFromAgentVoiceCatalog === true) {
+        if (supportsVoiceRegistration(snapshot.providerId)) {
+          providerShells.set(snapshot.providerId, {
+            id: snapshot.providerId,
+            voices: [],
+            ...(builtIn.requiresRegisteredVoice ? { requiresRegisteredVoice: true } : {}),
+          });
+        }
+        continue;
+      }
+
+      providerShells.set(snapshot.providerId, {
+        id: snapshot.providerId,
+        voices: [],
+        ...(builtIn?.requiresRegisteredVoice ? { requiresRegisteredVoice: true } : {}),
+      });
+      const voice = builtIn?.voices.find((candidate) => candidate.id === snapshot.voice) ?? {
+        id: snapshot.voice,
+        name: snapshot.voice,
+        language: 'auto',
+      };
+      catalog.push({
+        ...voice,
+        providerId: snapshot.providerId,
+        modelId: snapshot.modelId,
+        binding: '',
+      });
+    }
+
+    const resolvedSource = asVoiceSource(source);
+    const registeredCatalog = buildVoiceCatalog([...providerShells.values()], registeredVoices, {
+      supportsClone: [...providerShells.values()].some((provider) =>
+        supportsVoiceRegistration(provider.id),
+      ),
+    });
+    for (const voice of registeredCatalog) {
+      const models = [...(modelsByProvider.get(voice.providerId) ?? [])].sort();
+      const defaultModel =
+        resolvedSource.defaultVoice?.providerId === voice.providerId
+          ? resolvedSource.defaultVoice.modelId
+          : undefined;
+      const modelId = defaultModel && models.includes(defaultModel) ? defaultModel : models[0];
+      if (modelId) catalog.push({ ...voice, modelId, binding: '' });
+    }
+
+    const byTuple = new Map<string, SessionCatalogVoice>();
+    for (const voice of catalog) {
+      const tuple = `${voice.providerId}\0${voice.modelId}\0${voice.id}`;
+      if (!byTuple.has(tuple)) byTuple.set(tuple, voice);
+    }
+    const distinct = [...byTuple.values()];
+    const identityCounts = new Map<string, number>();
+    for (const voice of distinct) {
+      const legacyIdentity = `${voice.providerId}\0${voice.id}`;
+      identityCounts.set(legacyIdentity, (identityCounts.get(legacyIdentity) ?? 0) + 1);
+    }
+
+    return distinct
+      .map((voice) => ({
+        ...voice,
+        binding:
+          identityCounts.get(`${voice.providerId}\0${voice.id}`) === 1
+            ? `${voice.providerId}::${voice.id}`
+            : `${voice.providerId}::${voice.modelId}::${voice.id}`,
+      }))
+      .sort((left, right) =>
+        `${left.providerId}\0${left.modelId}\0${left.id}`.localeCompare(
+          `${right.providerId}\0${right.modelId}\0${right.id}`,
+        ),
+      );
+  }
+
+  const providers = new Map<string, VoiceCatalogProvider>();
   const modelByVoice = new Map<string, string>();
   const fallbackModel = new Map<string, string>();
   for (const snapshot of configs) {

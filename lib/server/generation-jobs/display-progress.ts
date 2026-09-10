@@ -111,6 +111,10 @@ function failedStepOf(
   const candidates = steps
     .filter((step) => ['failed', 'uncertain', 'retry_wait', 'cancelled'].includes(step.status))
     .sort((left, right) => {
+      const uncertainTtsPriority =
+        Number(right.status === 'uncertain' && normalizeGenerationDisplayPhase(right) === 'tts') -
+        Number(left.status === 'uncertain' && normalizeGenerationDisplayPhase(left) === 'tts');
+      if (uncertainTtsPriority) return uncertainTtsPriority;
       const errorMatch =
         Number(right.errorCode === lastErrorCode) - Number(left.errorCode === lastErrorCode);
       if (errorMatch) return errorMatch;
@@ -142,7 +146,8 @@ export function projectGenerationDisplayProgress(input: {
   const actionsCompleted = completedOutlines(input.steps, 'actions', currentOutlineIds);
   const contentActive = activeOutlines(input.steps, 'content', currentOutlineIds);
   const actionsActive = activeOutlines(input.steps, 'actions', currentOutlineIds);
-  const failedStep = failedStepOf(input.steps, input.lastErrorCode);
+  const failedStep =
+    input.status === 'cancelled' ? undefined : failedStepOf(input.steps, input.lastErrorCode);
   const activePhases = input.steps
     .filter((step) => step.status === 'running')
     .map((step) => normalizeGenerationDisplayPhase(step));

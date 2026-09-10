@@ -66,6 +66,162 @@ function makeServices(input: GenerationInput = lease.input) {
 }
 
 describe('automatic classroom roster strategy', () => {
+  it('accepts introductory and complex decisions with different valid roster sizes and one teacher', async () => {
+    const introductoryInput: GenerationInput = {
+      ...lease.input,
+      requirements: {
+        requirement:
+          'Introduce one focused concept to a complete beginner with one guided example.',
+        userBio: 'No prior experience.',
+      },
+    };
+    const complexInput: GenerationInput = {
+      ...lease.input,
+      requirements: {
+        requirement:
+          'Teach an experienced team to integrate safety, diagnosis, optimization, and trade-off analysis across a multi-stage system.',
+        userBio: 'Experienced technicians preparing for cross-functional incident leadership.',
+      },
+    };
+    const introductoryPlan: GenerationPlan = {
+      courseTitle: 'One focused concept',
+      languageDirective: 'English',
+      outlines: [
+        {
+          ...plan.outlines[0]!,
+          id: 'introductory-concept',
+          title: 'Recognize the core idea',
+          description: 'Explain and practise one foundational idea.',
+          keyPoints: ['one definition', 'one guided example'],
+          teachingObjective: 'Recognize and explain one foundational concept.',
+          widgetType: undefined,
+          widgetOutline: undefined,
+        },
+      ],
+    };
+    const complexPlan: GenerationPlan = {
+      courseTitle: 'Integrated system incident leadership',
+      languageDirective: 'English',
+      outlines: [
+        {
+          ...plan.outlines[0]!,
+          id: 'integrated-analysis',
+          title: 'Coordinate an integrated response',
+          description: 'Balance safety, diagnosis, optimization, and stakeholder trade-offs.',
+          keyPoints: [
+            'causal diagnosis',
+            'safety constraints',
+            'optimization',
+            'trade-off analysis',
+          ],
+          teachingObjective: 'Synthesize multiple perspectives into a defensible response plan.',
+        },
+      ],
+    };
+    const introductoryServices = makeServices(introductoryInput);
+    const complexServices = makeServices(complexInput);
+    const introductoryCall = vi.fn(async (_systemPrompt: string, _userPrompt: string) =>
+      JSON.stringify({
+        difficulty: {
+          level: 'introductory',
+          rationale: 'A novice is learning one focused concept through one guided example.',
+        },
+        agents: [
+          {
+            id: 'teacher',
+            name: 'Teacher',
+            role: 'teacher',
+            persona: 'Explains the foundational concept and checks comprehension.',
+          },
+          {
+            id: 'learner',
+            name: 'Learner',
+            role: 'student',
+            persona: 'Attempts the guided example and voices beginner misconceptions.',
+          },
+        ],
+      }),
+    );
+    const complexCall = vi.fn(async (_systemPrompt: string, _userPrompt: string) =>
+      JSON.stringify({
+        difficulty: {
+          level: 'complex',
+          rationale:
+            'Experienced learners must integrate four interdependent perspectives and defend trade-offs.',
+        },
+        agents: [
+          {
+            id: 'teacher',
+            name: 'Lead teacher',
+            role: 'teacher',
+            persona: 'Integrates the perspectives and evaluates the final response plan.',
+          },
+          {
+            id: 'safety',
+            name: 'Safety specialist',
+            role: 'assistant',
+            persona: 'Challenges decisions against operational safety constraints.',
+          },
+          {
+            id: 'diagnostician',
+            name: 'Diagnostician',
+            role: 'student',
+            persona: 'Builds and tests the causal fault hypothesis.',
+          },
+          {
+            id: 'optimizer',
+            name: 'Optimizer',
+            role: 'student',
+            persona: 'Evaluates efficiency options and second-order effects.',
+          },
+          {
+            id: 'stakeholder',
+            name: 'Stakeholder',
+            role: 'student',
+            persona: 'Tests whether trade-offs are defensible to affected teams.',
+          },
+        ],
+      }),
+    );
+    vi.spyOn(introductoryServices, 'modelCall').mockResolvedValue({
+      aiCall: introductoryCall,
+      resolved: {} as never,
+    });
+    vi.spyOn(complexServices, 'modelCall').mockResolvedValue({
+      aiCall: complexCall,
+      resolved: {} as never,
+    });
+
+    const introductory = await introductoryServices.agents(introductoryPlan);
+    const complex = await complexServices.agents(complexPlan);
+    if (Array.isArray(introductory) || Array.isArray(complex))
+      throw new Error('Expected versioned automatic decisions');
+
+    expect(introductory.agents).toHaveLength(2);
+    expect(complex.agents).toHaveLength(5);
+    expect(introductory.agents).not.toHaveLength(complex.agents.length);
+    for (const decision of [introductory, complex]) {
+      expect(decision.agents.filter((agent) => agent.role === 'teacher')).toHaveLength(1);
+      expect(decision.difficulty.rationale).not.toHaveLength(0);
+    }
+    expect(introductory.difficulty).toEqual({
+      level: 'introductory',
+      rationale: 'A novice is learning one focused concept through one guided example.',
+    });
+    expect(complex.difficulty).toEqual({
+      level: 'complex',
+      rationale:
+        'Experienced learners must integrate four interdependent perspectives and defend trade-offs.',
+    });
+    expect(introductoryCall.mock.calls[0]?.[1]).toContain(
+      introductoryInput.requirements.requirement,
+    );
+    expect(complexCall.mock.calls[0]?.[1]).toContain(complexInput.requirements.requirement);
+    expect(complexCall.mock.calls[0]?.[1]).toContain(
+      'Synthesize multiple perspectives into a defensible response plan.',
+    );
+  });
+
   it('decides difficulty and 2-5 course-specific roles in one outline-aware call', async () => {
     const services = makeServices();
     const aiCall = vi.fn(async (_systemPrompt: string, _userPrompt: string) =>

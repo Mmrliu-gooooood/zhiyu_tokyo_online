@@ -3,6 +3,7 @@ import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
 import {
   generateTTS,
   TTSConfigurationError,
+  TTSProviderTransientError,
   TTSProviderTerminalError,
   TTSRequestTimeoutError,
 } from '@/lib/audio/tts-providers';
@@ -115,8 +116,8 @@ class MemoryRepository implements PipelineRepository {
     this.completeCount++;
   }
 }
-function setup(repo = new MemoryRepository()) {
-  const execution = new PipelineExecution(repo, lease, new AbortController().signal, {
+function setup(repo = new MemoryRepository(), generationLease = lease) {
+  const execution = new PipelineExecution(repo, generationLease, new AbortController().signal, {
     run: (_kind, _group, _signal, work) => work(),
   });
   const counts = {
@@ -278,8 +279,7 @@ describe('durable worker pipeline', () => {
         expect(repo.failures).toEqual([
           {
             stepKey: 'timeout',
-            code:
-              kind === 'tts' ? 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT' : 'EXTERNAL_RESULT_UNKNOWN',
+            code: kind === 'tts' ? 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT' : 'EXTERNAL_RESULT_UNKNOWN',
             uncertain: true,
             errorSummary:
               kind === 'tts'
@@ -467,7 +467,7 @@ describe('durable worker pipeline', () => {
     );
   });
 
-  it('reads a legacy array roster checkpoint without regenerating it', async () => {
+  it('reuses an old array roster checkpoint with exactly one teacher without regenerating it', async () => {
     const fixture = setup();
     fixture.repo.plans = [outlines[0]!];
     const legacyAgents: AgentInfo[] = [
@@ -492,9 +492,67 @@ describe('durable worker pipeline', () => {
     await runGenerationPipeline(fixture.repo, fixture.execution, fixture.services);
 
     expect(fixture.services.agents).not.toHaveBeenCalled();
-    expect(fixture.repo.stageUpdates.at(-1)?.generatedAgentConfigs).toEqual(
-      expect.arrayContaining(legacyAgents.map((agent) => expect.objectContaining(agent))),
+    const generated = fixture.repo.stageUpdates.at(-1)?.generatedAgentConfigs ?? [];
+    expect(generated.map(({ id, name, role, persona }) => ({ id, name, role, persona }))).toEqual(
+      legacyAgents,
     );
+    expect(generated.filter((agent) => agent.role === 'teacher')).toHaveLength(1);
+  });
+
+  it('preserves a submitted custom roster including presentation and voice configuration', async () => {
+    const customAgents = [
+      {
+        id: 'custom-teacher',
+        name: 'Custom Teacher',
+        role: 'teacher' as const,
+        persona: 'Uses the user-authored teaching method.',
+        avatar: '/avatars/custom-teacher.png',
+        color: '#123456',
+        priority: 42,
+        voiceConfig: {
+          providerId: 'openai-tts',
+          modelId: 'gpt-4o-mini-tts',
+          voiceId: 'alloy',
+        },
+      },
+      {
+        id: 'custom-peer',
+        name: 'Custom Peer',
+        role: 'student' as const,
+        persona: 'Uses the user-authored learner role.',
+        avatar: '/avatars/custom-peer.png',
+        color: '#654321',
+        priority: 17,
+        voiceConfig: {
+          providerId: 'openai-tts',
+          modelId: 'gpt-4o-mini-tts',
+          voiceId: 'verse',
+        },
+      },
+    ];
+    const customLease: GenerationLease = {
+      ...lease,
+      jobId: 'custom-roster-job',
+      stageId: 'custom-roster-stage',
+      input: {
+        ...lease.input,
+        agents: { mode: 'custom', items: customAgents },
+      },
+    };
+    const fixture = setup(new MemoryRepository(), customLease);
+    fixture.repo.plans = [outlines[0]!];
+    fixture.services.agents = vi.fn(async () => customAgents);
+
+    await runGenerationPipeline(fixture.repo, fixture.execution, fixture.services);
+
+    expect(fixture.services.agents).toHaveBeenCalledTimes(1);
+    expect(fixture.repo.checkpoints.get('agents')?.result).toEqual(customAgents);
+    expect(fixture.repo.stageUpdates.at(-1)?.generatedAgentConfigs).toEqual(customAgents);
+    expect(
+      fixture.repo.stageUpdates
+        .at(-1)
+        ?.generatedAgentConfigs?.filter((agent) => agent.role === 'teacher'),
+    ).toHaveLength(1);
   });
 
   it('persists a plan then yields without agents or first-scene generation', async () => {
@@ -685,6 +743,29 @@ describe('durable worker pipeline', () => {
       },
     ]);
     expect(JSON.stringify(repo.failures)).not.toContain('private host');
+  });
+
+  it('classifies a transient TTS response without blindly replaying it', async () => {
+    const { execution, repo } = setup();
+    const cooldown = vi.fn(async () => undefined);
+    execution.quota.cooldown = cooldown;
+
+    await expect(
+      execution.external('tts:o0:a0', {}, 'tts', 'minimax-tts', async () => {
+        throw new TTSProviderTransientError('minimax-tts', 503, 'private provider detail');
+      }),
+    ).rejects.toBeInstanceOf(TTSProviderTransientError);
+
+    expect(cooldown).not.toHaveBeenCalled();
+    expect(repo.failures).toEqual([
+      {
+        stepKey: 'tts:o0:a0',
+        code: 'TTS_PROVIDER_TRANSIENT_FAILURE',
+        uncertain: false,
+        errorSummary: 'TTS provider returned an explicit transient failure.',
+      },
+    ]);
+    expect(JSON.stringify(repo.failures)).not.toContain('private provider detail');
   });
 
   it('bounds speech work independently and joins in-flight calls on failure', async () => {

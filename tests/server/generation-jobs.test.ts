@@ -24,12 +24,20 @@ import { generationConfig } from '@/lib/server/generation-jobs/config';
 import type { Scene } from '@/lib/types/stage';
 
 class TestPool {
+  readonly queries: string[] = [];
   constructor(readonly db: PGlite) {}
   async query<R extends Record<string, unknown>>(sql: string, args?: unknown[]) {
+    this.queries.push(sql);
     return this.db.query<R>(sql, args);
   }
   async connect() {
-    return { query: (sql: string, args?: unknown[]) => this.db.query(sql, args), release() {} };
+    return {
+      query: (sql: string, args?: unknown[]) => {
+        this.queries.push(sql);
+        return this.db.query(sql, args);
+      },
+      release() {},
+    };
   }
 }
 const input = {
@@ -150,6 +158,25 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       active: 0,
       skipped: 0,
     });
+  });
+  it('batches display facts when listing jobs instead of querying each job separately', async () => {
+    await create();
+    await repo.createJob('owner', 'second-list-key', {
+      ...input,
+      requirements: { requirement: 'Second course' },
+    });
+    pool.queries.length = 0;
+
+    const listed = await repo.listJobs('owner');
+
+    expect(listed.jobs).toHaveLength(2);
+    expect(
+      pool.queries.filter((sql) => sql.includes('FROM generation_steps WHERE job_id=ANY')),
+    ).toHaveLength(1);
+    expect(pool.queries.filter((sql) => sql.includes('FROM generation_scenes s'))).toHaveLength(1);
+    expect(
+      pool.queries.filter((sql) => sql.includes('FROM generation_steps WHERE job_id=$1')),
+    ).toHaveLength(0);
   });
   it('projects Pro worker progress into the existing session and links only after success', async () => {
     await pool.query(
@@ -787,6 +814,41 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     ).toBe('uncertain');
     expect((await repo.getJob('owner', lease.jobId))?.status).toBe('cancelled');
   });
+  it('does not project a stale retry error after cancellation while preserving step evidence', async () => {
+    const lease = await claimed();
+    await repo.beginStep(lease, {
+      key: 'content:one',
+      kind: 'content',
+      dependencyHash: 'retryable-content',
+    });
+    await repo.failStep(lease, {
+      stepKey: 'content:one',
+      code: 'CONTENT_PROVIDER_UNAVAILABLE',
+      uncertain: false,
+      retryable: true,
+    });
+    expect((await repo.getJobDetail('owner', lease.jobId)).displayProgress?.failedStep).toEqual({
+      key: 'content:one',
+      phase: 'content',
+      outlineId: 'one',
+      code: 'CONTENT_PROVIDER_UNAVAILABLE',
+    });
+
+    await repo.cancel('owner', lease.jobId, { commandKey: 'cancel-retry-wait' });
+
+    const cancelled = await repo.getJobDetail('owner', lease.jobId);
+    expect(cancelled.status).toBe('cancelled');
+    expect(cancelled.lastErrorCode).toBe('CONTENT_PROVIDER_UNAVAILABLE');
+    expect(cancelled.displayProgress?.failedStep).toBeUndefined();
+    expect(
+      (
+        await pool.query<{ status: string; error_code: string | null }>(
+          'SELECT status,error_code FROM generation_steps WHERE job_id=$1 AND step_key=$2',
+          [lease.jobId, 'content:one'],
+        )
+      ).rows[0],
+    ).toEqual({ status: 'cancelled', error_code: 'CONTENT_PROVIDER_UNAVAILABLE' });
+  });
   it('reaps pure work safely, but never automatically replays an external unknown', async () => {
     const first = await claimed();
     await repo.beginStep(first, { key: 'pure', kind: 'prepare', dependencyHash: 'one' });
@@ -887,6 +949,58 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     expect(stored.rows[0]?.last_error_summary).toBe(
       'TTS provider did not return before the deadline; its result is unknown.',
     );
+  });
+  it('projects concurrent uncertain TTS ahead of the primary failure without losing either error', async () => {
+    const lease = await confirmed();
+    await repo.beginStep(lease, {
+      key: 'tts:one:call:0',
+      kind: 'tts',
+      dependencyHash: 'speech-in-flight',
+      external: true,
+    });
+    await repo.beginStep(lease, {
+      key: 'content:one',
+      kind: 'content',
+      dependencyHash: 'content-failure',
+    });
+
+    await repo.failStep(lease, {
+      stepKey: 'content:one',
+      code: 'CONTENT_GENERATION_FAILED',
+      uncertain: false,
+    });
+
+    const detail = await repo.getJobDetail('owner', lease.jobId);
+    expect(detail.status).toBe('needs_attention');
+    expect(detail.lastErrorCode).toBe('CONTENT_GENERATION_FAILED');
+    expect(detail.displayProgress?.failedStep).toEqual({
+      key: 'tts:one:call:0',
+      phase: 'tts',
+      outlineId: 'one',
+      code: 'EXTERNAL_RESULT_UNKNOWN',
+    });
+    expect(
+      (
+        await pool.query<{ step_key: string; status: string; error_code: string | null }>(
+          `SELECT step_key,status,error_code
+             FROM generation_steps
+            WHERE job_id=$1 AND step_key IN ('content:one','tts:one:call:0')
+            ORDER BY step_key`,
+          [lease.jobId],
+        )
+      ).rows,
+    ).toEqual([
+      {
+        step_key: 'content:one',
+        status: 'failed',
+        error_code: 'CONTENT_GENERATION_FAILED',
+      },
+      {
+        step_key: 'tts:one:call:0',
+        status: 'uncertain',
+        error_code: 'EXTERNAL_RESULT_UNKNOWN',
+      },
+    ]);
   });
   it('projects a scene step failure and resets only its status on retry, preserving ready scenes and content', async () => {
     const initial = await claimed();

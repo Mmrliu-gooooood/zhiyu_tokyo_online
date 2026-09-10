@@ -173,6 +173,30 @@ export class TTSProviderTerminalError extends Error {
   }
 }
 
+export class TTSProviderTransientError extends Error {
+  readonly code = 'TTS_PROVIDER_TRANSIENT_FAILURE';
+  readonly safeSummary = 'TTS provider returned an explicit transient failure.';
+
+  constructor(
+    public readonly provider: string,
+    public readonly httpStatus: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'TTSProviderTransientError';
+  }
+}
+
+function ttsProviderHttpError(
+  provider: string,
+  status: number,
+  message: string,
+): TTSProviderTerminalError | TTSProviderTransientError {
+  return status >= 500
+    ? new TTSProviderTransientError(provider, status, message)
+    : new TTSProviderTerminalError(provider, status, message);
+}
+
 /** Neutral identity for ordinary Qwen TTS failures (never VC-branded). */
 export class QwenTTSError extends TTSProviderTerminalError {
   override readonly code = 'QWEN_TTS_ERROR';
@@ -190,8 +214,7 @@ export class QwenTTSError extends TTSProviderTerminalError {
  */
 export class TTSRequestTimeoutError extends Error {
   readonly code = 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT';
-  readonly safeSummary =
-    'TTS provider did not return before the deadline; its result is unknown.';
+  readonly safeSummary = 'TTS provider did not return before the deadline; its result is unknown.';
 
   constructor(
     public readonly provider: string,
@@ -329,7 +352,7 @@ async function generateOpenAITTS(
   if (!response.ok) {
     throwIfTtsRateLimited('OpenAI', response.status);
     const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'openai-tts',
       response.status,
       `OpenAI TTS API error: ${error.error?.message || response.statusText}`,
@@ -378,7 +401,7 @@ async function generateLemonadeTTS(
 
   if (!response.ok) {
     throwIfTtsRateLimited('Lemonade', response.status);
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'lemonade-tts',
       response.status,
       `Lemonade TTS API error: ${await readTTSApiError(response)}`,
@@ -454,7 +477,7 @@ async function generateVoxCPMTTS(
 
   if (!response.ok) {
     throwIfTtsRateLimited('VoxCPM', response.status);
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'voxcpm-tts',
       response.status,
       `VoxCPM TTS API error: ${await readTTSApiError(response)}`,
@@ -720,7 +743,7 @@ async function generateAzureTTS(
 
   if (!response.ok) {
     throwIfTtsRateLimited('Azure', response.status);
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'azure-tts',
       response.status,
       `Azure TTS API error: ${response.statusText}`,
@@ -773,7 +796,7 @@ async function generateGLMTTS(
     } catch {
       // If not JSON, use the text as is
     }
-    throw new TTSProviderTerminalError('glm-tts', response.status, errorMessage);
+    throw ttsProviderHttpError('glm-tts', response.status, errorMessage);
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -843,6 +866,13 @@ async function generateQwenTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('Qwen', response.status);
     const errorText = await response.text().catch(() => response.statusText);
+    if (response.status >= 500) {
+      throw new TTSProviderTransientError(
+        'qwen-tts',
+        response.status,
+        `Qwen TTS request failed: ${errorText}`,
+      );
+    }
     throw new QwenTTSError(`Qwen TTS request failed: ${errorText}`, response.status);
   }
 
@@ -925,7 +955,7 @@ async function generateMiniMaxTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('MiniMax', response.status);
     const errorText = await response.text().catch(() => response.statusText);
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'minimax-tts',
       response.status,
       `MiniMax TTS API error: ${errorText}`,
@@ -935,7 +965,7 @@ async function generateMiniMaxTTS(
   const data = await response.json();
   const hexAudio = data?.data?.audio;
   if (!hexAudio || typeof hexAudio !== 'string') {
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'minimax-tts',
       response.status,
       `MiniMax TTS error: No audio returned. Response: ${JSON.stringify(data)}`,
@@ -944,7 +974,7 @@ async function generateMiniMaxTTS(
 
   const cleanedHex = hexAudio.trim();
   if (cleanedHex.length % 2 !== 0) {
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'minimax-tts',
       response.status,
       'MiniMax TTS error: invalid hex audio payload length',
@@ -1005,7 +1035,7 @@ async function generateElevenLabsTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('ElevenLabs', response.status);
     const errorText = await response.text().catch(() => response.statusText);
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'elevenlabs-tts',
       response.status,
       `ElevenLabs TTS API error: ${errorText || response.statusText}`,
@@ -1118,7 +1148,7 @@ async function generateDoubaoTTS(
   if (!response.ok) {
     throwIfTtsRateLimited('Doubao', response.status);
     const errorText = await response.text().catch(() => response.statusText);
-    throw new TTSProviderTerminalError(
+    throw ttsProviderHttpError(
       'doubao-tts',
       response.status,
       `Doubao TTS API error (${response.status}): ${errorText}`,

@@ -12,6 +12,7 @@ import {
   DEFAULT_TTS_REQUEST_TIMEOUT_MS,
   resolveTTSRequestTimeoutMs,
   TTSConfigurationError,
+  TTSProviderTransientError,
   TTSProviderTerminalError,
   TTSRequestTimeoutError,
 } from '@/lib/audio/tts-providers';
@@ -258,8 +259,7 @@ export class PipelineExecution {
       } catch (error) {
         if (this.signal.aborted) {
           const reason = this.signal.reason;
-          const leaseLost =
-            reason instanceof Error && reason.message === 'GENERATION_LEASE_LOST';
+          const leaseLost = reason instanceof Error && reason.message === 'GENERATION_LEASE_LOST';
           const interrupted = new ExternalCallInterrupted(
             leaseLost ? 'WORKER_LEASE_LOST' : 'EXTERNAL_CALL_CANCELLED',
             requestDispatched && !responseReceived,
@@ -287,6 +287,20 @@ export class PipelineExecution {
             uncertain: false,
             errorSummary: error.safeSummary,
           });
+          this.stopped.abort(error);
+          throw error;
+        }
+        if (kind === 'tts' && error instanceof TTSProviderTransientError) {
+          await this.repository.failStep(this.lease, {
+            stepKey: key,
+            code: error.code,
+            uncertain: false,
+            errorSummary: error.safeSummary,
+          });
+          // A generic 5xx is transient, but it does not prove that a paid
+          // request was never accepted. Keep its distinct evidence and stop;
+          // only provider-confirmed safe rejections (the 429 path below) are
+          // automatically rescheduled.
           this.stopped.abort(error);
           throw error;
         }
@@ -365,21 +379,21 @@ export class PipelineExecution {
           commitFailure
             ? 'TTS_RESULT_COMMIT_FAILED'
             : persistFailure
-            ? 'TTS_RESULT_PERSIST_FAILED'
-            : timeoutFailure
-            ? error instanceof TTSRequestTimeoutError
-              ? error.code
-              : timeoutCode
-            : undefined,
+              ? 'TTS_RESULT_PERSIST_FAILED'
+              : timeoutFailure
+                ? error instanceof TTSRequestTimeoutError
+                  ? error.code
+                  : timeoutCode
+                : undefined,
           commitFailure
             ? 'TTS result was produced, but its checkpoint could not be committed.'
             : persistFailure
-            ? 'TTS response was received, but its audio asset could not be persisted.'
-            : timeoutFailure
-            ? error instanceof TTSRequestTimeoutError
-              ? error.safeSummary
-              : timeoutSummary
-            : undefined,
+              ? 'TTS response was received, but its audio asset could not be persisted.'
+              : timeoutFailure
+                ? error instanceof TTSRequestTimeoutError
+                  ? error.safeSummary
+                  : timeoutSummary
+                : undefined,
         );
         this.stopped.abort(outcome);
         await this.repository

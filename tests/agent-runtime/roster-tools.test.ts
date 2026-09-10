@@ -556,6 +556,88 @@ describe('list_voices', () => {
     });
   });
 
+  it('binds a model-qualified v2 voice and rejects its ambiguous legacy pair', async () => {
+    mocks.resolveTTSApiKey.mockImplementation(
+      (_id: string, snapshotKey?: string) => snapshotKey || '',
+    );
+    const voiceSource = {
+      providerConfigs: [
+        {
+          providerId: 'minimax-tts',
+          apiKey: 'session-secret',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'speech-fast',
+        },
+        {
+          providerId: 'minimax-tts',
+          apiKey: 'session-secret',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'speech-hd',
+        },
+      ],
+      voiceDirectory: [
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-fast',
+          voiceIds: ['shared-voice'],
+        },
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-hd',
+          voiceIds: ['shared-voice'],
+        },
+      ],
+    };
+
+    const listed = await runTool(makeStore(makeDoc()), 'list_voices', {}, {
+      providerConfigs: voiceSource,
+    } as never);
+    expect(
+      ((listed.details?.voices ?? []) as Array<{ binding: string }>).map((voice) => voice.binding),
+    ).toEqual(['minimax-tts::speech-fast::shared-voice', 'minimax-tts::speech-hd::shared-voice']);
+
+    const store = makeStore(makeDoc());
+    const accepted = await runTool(
+      store,
+      'set_roster',
+      {
+        stageId: 'stage-test',
+        agents: [
+          llmAgent({ voice: 'minimax-tts::speech-hd::shared-voice' }),
+          { name: 'Student', role: 'student', persona: 'Curious.' },
+        ],
+      },
+      { providerConfigs: voiceSource } as never,
+    );
+    expect(accepted.isError).toBeUndefined();
+    expect(
+      (await store.loadDocument('stage-test'))?.stage.generatedAgentConfigs?.[0]?.voiceConfig,
+    ).toEqual({
+      providerId: 'minimax-tts',
+      modelId: 'speech-hd',
+      voiceId: 'shared-voice',
+    });
+
+    const rejected = await runTool(
+      makeStore(makeDoc()),
+      'set_roster',
+      {
+        stageId: 'stage-test',
+        agents: [
+          llmAgent({ voice: 'minimax-tts::shared-voice' }),
+          { name: 'Student', role: 'student', persona: 'Curious.' },
+        ],
+      },
+      { providerConfigs: voiceSource } as never,
+    );
+    expect(rejected).toMatchObject({
+      isError: true,
+      details: { error: 'voice-not-in-catalog' },
+    });
+  });
+
   it('uses the same snapshot boundary for custom, cloned, excluded, and disabled voices', async () => {
     mocks.resolveTTSApiKey.mockImplementation(
       (_id: string, snapshotKey?: string) => snapshotKey || '',

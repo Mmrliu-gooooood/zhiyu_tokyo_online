@@ -181,6 +181,14 @@ export class GenerationJobRepository {
         [job.id, job.plan_revision],
       ),
     ]);
+    return this.projectedViewFromFacts(q, job, steps.rows, scenes.rows);
+  }
+  private async projectedViewFromFacts(
+    q: Queryable,
+    job: JobRow,
+    steps: GenerationDisplayStepFact[],
+    scenes: GenerationDisplaySceneFact[],
+  ): Promise<GenerationJobView> {
     const result = {
       ...view(job),
       displayProgress: projectGenerationDisplayProgress({
@@ -189,8 +197,8 @@ export class GenerationJobRepository {
         totalScenes: job.total_scenes,
         lastErrorCode: job.last_error_code,
         generationInput: job.input_snapshot,
-        steps: steps.rows,
-        scenes: scenes.rows,
+        steps,
+        scenes,
       }),
     };
     if (job.status !== 'queued') return result;
@@ -209,6 +217,36 @@ export class GenerationJobRepository {
           ? 'owner_limit'
           : 'site_limit',
     };
+  }
+  private async projectedViews(q: Queryable, jobs: JobRow[]): Promise<GenerationJobView[]> {
+    if (!jobs.length) return [];
+    const ids = jobs.map((job) => job.id);
+    const [steps, scenes] = await Promise.all([
+      q.query<GenerationDisplayStepFact & { jobId: string }>(
+        `SELECT job_id AS "jobId",step_key AS key,kind,outline_id AS "outlineId",status,error_code AS "errorCode",started_at AS "startedAt"
+         FROM generation_steps WHERE job_id=ANY($1::uuid[])`,
+        [ids],
+      ),
+      q.query<GenerationDisplaySceneFact & { jobId: string }>(
+        `SELECT s.job_id AS "jobId",s.outline_id AS "outlineId",s.status,s.actions
+         FROM generation_scenes s
+         JOIN generation_jobs j ON j.id=s.job_id AND j.plan_revision=s.plan_revision
+         WHERE s.job_id=ANY($1::uuid[]) ORDER BY s.job_id,s.ordinal`,
+        [ids],
+      ),
+    ]);
+    const stepsByJob = Map.groupBy(steps.rows, (step) => step.jobId);
+    const scenesByJob = Map.groupBy(scenes.rows, (scene) => scene.jobId);
+    return Promise.all(
+      jobs.map((job) =>
+        this.projectedViewFromFacts(
+          q,
+          job,
+          stepsByJob.get(job.id) ?? [],
+          scenesByJob.get(job.id) ?? [],
+        ),
+      ),
+    );
   }
   private async event(
     q: Queryable,
@@ -620,8 +658,7 @@ export class GenerationJobRepository {
         `SELECT * FROM generation_jobs WHERE owner_id=$1 ${options.active ? "AND status NOT IN ('succeeded','failed','cancelled')" : ''} AND ($2::text IS NULL OR id::text < $2) ORDER BY id DESC LIMIT $3`,
         [ownerId, options.cursor ?? null, Math.min(100, Math.max(1, options.limit ?? 30))],
       );
-      const jobs: GenerationJobView[] = [];
-      for (const row of rows.rows) jobs.push(await this.projectedView(q, row));
+      const jobs = await this.projectedViews(q, rows.rows);
       return { jobs, cursor: rows.rows.length ? rows.rows.at(-1)!.id : null };
     });
   }
@@ -1426,7 +1463,7 @@ export class GenerationJobRepository {
       );
       if (other.rows.length)
         await q.query(
-          "UPDATE generation_steps SET status='uncertain' WHERE job_id=$1 AND status='running' AND id IN (SELECT step_id FROM generation_attempts WHERE outcome='uncertain')",
+          "UPDATE generation_steps SET status='uncertain',error_code=COALESCE(error_code,'EXTERNAL_RESULT_UNKNOWN') WHERE job_id=$1 AND status='running' AND id IN (SELECT step_id FROM generation_attempts WHERE outcome='uncertain')",
           [lease.jobId],
         );
       await q.query(

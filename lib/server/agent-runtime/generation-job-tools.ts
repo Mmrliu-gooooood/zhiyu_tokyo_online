@@ -12,7 +12,7 @@ import {
   parseGenerationInput,
   validatePlan,
 } from '@/lib/server/generation-jobs/contracts';
-import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
+import type { AgentSessionMediaConfig } from './course-tools';
 import { mediaConfigVoiceSource, resolveEffectiveSessionVoice } from './effective-voice-directory';
 
 const SubmitParams = Type.Object({
@@ -63,7 +63,7 @@ export interface GenerationJobToolDeps {
   modelConfigRef?: GenerationModelRef;
   resolveModelConfigRef?: () => Promise<GenerationModelRef | undefined>;
   mediaConfigRef?: MediaConfigRef;
-  mediaConfig?: MediaConfigSnapshotContent;
+  mediaConfig?: AgentSessionMediaConfig;
   ensureReady?: () => Promise<void>;
   resolveSkillConstraints?: (
     ids: readonly string[],
@@ -125,7 +125,7 @@ function normalizePlannedOutlines(value: readonly unknown[]) {
 }
 
 function frozenMediaIntent(
-  mediaConfig: MediaConfigSnapshotContent | undefined,
+  mediaConfig: AgentSessionMediaConfig | undefined,
   agents: GenerationInput['agents'],
 ): Pick<GenerationInput, 'enableImageGeneration' | 'enableVideoGeneration' | 'media' | 'tts'> {
   if (!mediaConfig) return {};

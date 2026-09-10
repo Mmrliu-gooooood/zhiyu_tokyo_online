@@ -1510,6 +1510,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
             syncGenerationModelSnapshot(meta.ownerId, generationModelSnapshotContent(modelContext))
         : undefined,
       mediaConfigRef: meta.activeMediaConfigRef,
+      mediaConfig,
       ensureReady: () => assertGenerationReady(true),
       resolveSkillConstraints: async (ids) =>
         ids.flatMap((skillId) => {
@@ -1592,7 +1593,15 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         ...(voiceRegistrationEnabled ? VOICE_CLONE_TOOL_NAMES : ['clip_audio']),
       ]),
       ...(plan.kind === 'start' ? {} : { history: modelMessages }),
-      beforeToolCall: (toolContext) => courseRuntimeBoundary.before(toolContext.toolCall.name),
+      beforeToolCall: (toolContext) =>
+        courseRuntimeBoundary.before(
+          toolContext.toolCall.name,
+          meta.existingCourse
+            ? 'existing-course-edit'
+            : activeSkill?.id === 'pptx-import'
+              ? 'pptx-import'
+              : 'new-course',
+        ),
       afterToolCall: (toolContext) => {
         toolCalls += 1;
         if (askUserLatch.shouldTerminate(toolContext.toolCall.name, toolContext.isError)) {
