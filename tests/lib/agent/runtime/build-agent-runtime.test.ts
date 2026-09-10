@@ -69,6 +69,7 @@ const DemoParams = Type.Object({ value: Type.Number() });
 
 function makeAgent(options: {
   tool?: AgentTool<typeof DemoParams>;
+  beforeToolCall?: Parameters<typeof buildAgent>[0]['beforeToolCall'];
   afterToolCall?: Parameters<typeof buildAgent>[0]['afterToolCall'];
   allowedToolNames?: ReadonlySet<string>;
 }) {
@@ -77,6 +78,7 @@ function makeAgent(options: {
     systemPrompt: 'system',
     tools: [options.tool ?? makeTool()],
     allowedToolNames: options.allowedToolNames ?? new Set(['demo']),
+    beforeToolCall: options.beforeToolCall,
     afterToolCall: options.afterToolCall,
   });
 }
@@ -112,6 +114,28 @@ describe('buildAgent shared transport lifecycle', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
     expect(toolOutputType(1)).toBe('text');
+  });
+
+  it('composes a request boundary after the shared allowlist gate', async () => {
+    const execute = vi.fn(async () => ({
+      content: [{ type: 'text' as const, text: 'must not run' }],
+      details: {},
+    }));
+    const beforeToolCall = vi.fn(() => ({
+      block: true as const,
+      reason: 'whole-course boundary',
+    }));
+    useResponses([
+      [toolCall(), finish('tool-calls')],
+      [{ type: 'text-delta', text: 'acknowledged boundary' }, finish('stop')],
+    ]);
+    const agent = makeAgent({ tool: makeTool(execute), beforeToolCall });
+
+    await agent.prompt('start');
+
+    expect(beforeToolCall).toHaveBeenCalledOnce();
+    expect(execute).not.toHaveBeenCalled();
+    expect(toolOutputType(1)).toBe('error-text');
   });
 
   it('makes length plus parsed toolCall terminal and side-effect-free', async () => {

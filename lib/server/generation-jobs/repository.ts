@@ -417,6 +417,13 @@ export class GenerationJobRepository {
         throw new GenerationJobError('GENERATION_REVIEW_ATTENTION_FULL', 503);
       const stageId = input.target?.stageId ?? randomUUID(),
         now = Date.now();
+      if (input.destination?.folderId) {
+        const folder = await q.query<{ id: string }>(
+          'SELECT id FROM document_folders WHERE owner_id=$1 AND id=$2',
+          [ownerId, input.destination.folderId],
+        );
+        if (!folder.rows[0]) throw new GenerationJobError('COURSE_FOLDER_NOT_FOUND', 404);
+      }
       if (input.target) {
         const target = await q.query<{
           owner_id: string;
@@ -475,6 +482,13 @@ export class GenerationJobRepository {
           'INSERT INTO stage_meta(stage_id,owner_id,is_public,generation_complete) VALUES($1,$2,false,false)',
           [stageId, ownerId],
         );
+      }
+      if (input.destination?.folderId) {
+        await q.query('UPDATE document_stages SET folder_id=$2 WHERE id=$1 AND owner_id=$3', [
+          stageId,
+          input.destination.folderId,
+          ownerId,
+        ]);
       }
       await q.query(
         "INSERT INTO generation_jobs(id,stage_id,owner_id,idempotency_key,request_hash,status,pipeline_version,config_version,input_snapshot,review_policy) VALUES($1,$2,$3,$4,$5,'queued',$6,$7,$8::jsonb,$9)",

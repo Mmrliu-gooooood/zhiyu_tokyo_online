@@ -15,6 +15,8 @@ import { GenerationJobRepository } from '@/lib/server/generation-jobs/repository
 import {
   parseGenerationInput,
   canonicalHash,
+  GENERATION_PIPELINE_VERSION,
+  GENERATION_WORKER_PIPELINE_VERSIONS,
   type GenerationLease,
 } from '@/lib/server/generation-jobs/contracts';
 import { PostgresGenerationLimiter } from '@/lib/server/generation-jobs/limiter';
@@ -111,6 +113,35 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   async function create() {
     return repo.createJob('owner', 'create-key', input);
   }
+  it('files a new course only into an owner folder', async () => {
+    await pool.query(
+      `INSERT INTO document_folders(owner_id,id,name,normalized_name,created_at,updated_at)
+       VALUES('owner','owned-folder','Owned','owned',1,1),
+             ('other','foreign-folder','Foreign','foreign',1,1)`,
+    );
+    const job = await repo.createJob('owner', 'filed-course', {
+      ...input,
+      destination: { folderId: 'owned-folder' },
+    });
+    const stored = await pool.query<{ folder_id: string | null }>(
+      'SELECT folder_id FROM document_stages WHERE id=$1',
+      [job.stageId],
+    );
+    expect(stored.rows[0]?.folder_id).toBe('owned-folder');
+
+    await expect(
+      repo.createJob('owner', 'foreign-folder-course', {
+        ...input,
+        destination: { folderId: 'foreign-folder' },
+      }),
+    ).rejects.toThrow('COURSE_FOLDER_NOT_FOUND');
+    await expect(
+      repo.createJob('owner', 'missing-folder-course', {
+        ...input,
+        destination: { folderId: 'missing-folder' },
+      }),
+    ).rejects.toThrow('COURSE_FOLDER_NOT_FOUND');
+  });
   it('keeps the speech total unknown until a non-empty plan has completed actions', async () => {
     const job = await create();
     expect(job.displayProgress?.speech).toEqual({
@@ -487,6 +518,20 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     expect(await repo.claim('future', ['999'])).toBeNull();
     expect(await repo.claim('one')).not.toBeNull();
     expect(await repo.claim('two')).toBeNull();
+  });
+  it('creates v2 jobs while a new worker can safely drain v1 jobs', async () => {
+    expect(GENERATION_PIPELINE_VERSION).toBe('2');
+    expect(GENERATION_WORKER_PIPELINE_VERSIONS).toEqual(['1', '2']);
+    const legacy = await repo.createJob('legacy-owner', 'legacy-job', input);
+    await pool.query("UPDATE generation_jobs SET pipeline_version='1' WHERE id=$1", [legacy.jobId]);
+    const current = await repo.createJob('current-owner', 'current-job', input);
+    const stored = await pool.query<{ id: string; pipeline_version: string }>(
+      'SELECT id,pipeline_version FROM generation_jobs ORDER BY created_at,id',
+    );
+    expect(stored.rows.find((row) => row.id === current.jobId)?.pipeline_version).toBe('2');
+    expect((await repo.claim('compatible', [...GENERATION_WORKER_PIPELINE_VERSIONS]))?.jobId).toBe(
+      legacy.jobId,
+    );
   });
   it('counts only queued work against queue limits and separately blocks review/attention backlog', async () => {
     repo = new GenerationJobRepository(pool, {

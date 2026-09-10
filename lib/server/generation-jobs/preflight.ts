@@ -34,6 +34,10 @@ import { GenerationModelSnapshotStore } from '@/lib/server/generation-model-snap
 import { GenerationSearchSnapshotStore } from '@/lib/server/generation-search-snapshots';
 import { resolveGenerationSearchConfig } from '@/lib/server/generation-pipeline/search';
 import { getStageRoute } from '@/lib/server/model-routes';
+import {
+  mediaConfigVoiceSource,
+  resolveEffectiveSessionVoice,
+} from '@/lib/server/agent-runtime/effective-voice-directory';
 
 export interface BackgroundProviderValidationContext {
   ownerId: string;
@@ -147,12 +151,20 @@ function requireTTSProvider(
   if (!providerId) throw new Error('Unavailable provider');
   assertNotDisabled('tts', providerId);
   if (snapshot?.ttsEnabled === false) throw new Error('Unavailable provider');
-  const config = snapshot?.tts?.find(
-    (candidate) =>
-      candidate.providerId === providerId &&
-      (!modelId || candidate.modelId === modelId) &&
-      (!voice || candidate.voice === voice),
-  );
+  const config = snapshot
+    ? snapshot.version === 2
+      ? resolveEffectiveSessionVoice(mediaConfigVoiceSource(snapshot), {
+          providerId,
+          modelId,
+          voiceId: voice,
+        })
+      : snapshot.tts?.find(
+          (candidate) =>
+            candidate.providerId === providerId &&
+            (!modelId || candidate.modelId === modelId) &&
+            (!voice || candidate.voice === voice),
+        )
+    : undefined;
   if (snapshot?.ttsEnabled === true && !config) throw new Error('Unavailable provider');
   const managed = getServerTTSProviders()[providerId];
   if (managed) {

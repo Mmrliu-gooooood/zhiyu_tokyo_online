@@ -2,7 +2,10 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { SceneOutline } from '@/lib/types/generation';
 
-export const GENERATION_PIPELINE_VERSION = '1';
+/** Latest version stamped on new jobs. Old workers must not claim these jobs. */
+export const GENERATION_PIPELINE_VERSION = '2';
+/** New workers retain compatible readers so queued v1 work can be drained safely. */
+export const GENERATION_WORKER_PIPELINE_VERSIONS = ['1', GENERATION_PIPELINE_VERSION] as const;
 export const GENERATION_SCHEMA_VERSION = 4;
 export class GenerationJobError extends Error {
   constructor(

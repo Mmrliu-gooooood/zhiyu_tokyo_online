@@ -57,7 +57,10 @@ ARG OPENMAIC_SOURCE_REVISION="unknown"
 LABEL org.opencontainers.image.revision=$OPENMAIC_SOURCE_REVISION
 ENV NODE_ENV=production
 RUN apk add --no-cache cairo pango jpeg giflib librsvg
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 worker
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker && \
+    mkdir -p /app/data/usage && \
+    chown -R worker:nodejs /app/data
 COPY --from=worker-builder /app/dist-worker ./dist-worker
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages

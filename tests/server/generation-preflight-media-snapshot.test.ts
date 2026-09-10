@@ -202,6 +202,75 @@ describe('background media snapshot preflight', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('validates v2 role bindings against the complete owner voice directory', async () => {
+    const ref = await store.create('owner-a', {
+      version: 2,
+      imageEnabled: false,
+      videoEnabled: false,
+      ttsEnabled: true,
+      ttsProviders: [
+        {
+          providerId: 'minimax-tts',
+          apiKey: 'client-key',
+          baseUrl: '',
+          enabled: true,
+          requiresApiKey: true,
+          modelId: 'speech-2.8-hd',
+        },
+      ],
+      ttsDefault: {
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voiceId: 'female-yujie',
+      },
+      ttsVoiceDirectory: [
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          voiceIds: ['female-yujie', 'male-qn-jingying'],
+        },
+      ],
+    });
+    const valid = parseGenerationInput({
+      version: 1,
+      requirements: { requirement: 'test' },
+      tts: {
+        enabled: true,
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voice: 'female-yujie',
+        agentVoiceOverrides: {
+          teacher: {
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-hd',
+            voiceId: 'male-qn-jingying',
+          },
+        },
+      },
+      mediaConfigRef: ref,
+    });
+    await expect(
+      validateBackgroundProviders(valid, { ownerId: 'owner-a', queryable }),
+    ).resolves.toBeUndefined();
+
+    const outsideDirectory = parseGenerationInput({
+      ...valid,
+      tts: {
+        ...valid.tts!,
+        agentVoiceOverrides: {
+          teacher: {
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-hd',
+            voiceId: 'not-in-directory',
+          },
+        },
+      },
+    });
+    await expect(
+      validateBackgroundProviders(outsideDirectory, { ownerId: 'owner-a', queryable }),
+    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+  });
+
   it('does not fall back to a server provider when the snapshot explicitly disables TTS', async () => {
     const ref = await store.create('owner-a', {
       version: 1,

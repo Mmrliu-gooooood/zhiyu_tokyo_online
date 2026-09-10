@@ -37,6 +37,10 @@ import { isServerProviderDisabled } from '@/lib/server/provider-config';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 import type { PipelineAssets } from './services';
 import { PipelineExecution, mapBounded } from './execution';
+import {
+  mediaConfigVoiceSource,
+  resolveEffectiveSessionVoice,
+} from '@/lib/server/agent-runtime/effective-voice-directory';
 
 async function download(url: string, signal: AbortSignal, maxBytes: number): Promise<Buffer> {
   const dispatcher = createPinnedFetchAgent();
@@ -254,21 +258,32 @@ export class GenerationMediaServices {
       ? (this.input.tts.agentVoiceOverrides?.[agent.id] ??
         this.input.agents?.items?.find((item) => item.id === agent.id)?.voiceConfig)
       : undefined;
+    const selectedV2Voice =
+      this.mediaConfig?.version === 2
+        ? resolveEffectiveSessionVoice(mediaConfigVoiceSource(this.mediaConfig), {
+            providerId: override?.providerId ?? this.input.tts.providerId,
+            modelId: override?.modelId ?? this.input.tts.modelId,
+            voiceId: override?.voiceId ?? this.input.tts.voice,
+          })
+        : undefined;
+    if (this.mediaConfig?.version === 2 && this.mediaConfig.ttsEnabled === true && !selectedV2Voice)
+      throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
+    const selectedProviderId = (selectedV2Voice?.providerId ??
+      override?.providerId ??
+      defaultProviderId) as TTSProviderId;
     const scene = structuredClone(original);
     scene.actions = (scene.actions ?? []).flatMap((action) => {
-      return splitLongSpeechActions(
-        [action],
-        (override?.providerId ?? defaultProviderId) as TTSProviderId,
-      );
+      return splitLongSpeechActions([action], selectedProviderId);
     });
     await mapBounded(scene.actions, 2, async (action) => {
       if (action.type !== 'speech' || !action.text) return;
-      const providerId = (override?.providerId ?? defaultProviderId) as TTSProviderId;
+      const providerId = selectedProviderId;
       if (providerId === 'browser-native-tts') return;
       if (isServerProviderDisabled('tts', providerId))
         throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
       const voice =
+        selectedV2Voice?.voice ??
         override?.voiceId ??
         this.input.tts!.voice ??
         DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES];
@@ -288,17 +303,22 @@ export class GenerationMediaServices {
           : undefined;
       const key = `tts:${scene.outlineId}:${action.id}`;
       const modelId =
+        selectedV2Voice?.modelId ??
         override?.modelId ??
         this.input.tts!.modelId ??
         DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] ??
         '';
-      const speed = action.speed ?? this.input.tts!.speed;
-      const snapshot = this.mediaConfig?.tts?.find(
-        (candidate) =>
-          candidate.providerId === providerId &&
-          candidate.modelId === modelId &&
-          candidate.voice === voice,
-      );
+      const speed = action.speed ?? this.input.tts!.speed ?? selectedV2Voice?.speed;
+      const snapshot =
+        selectedV2Voice ??
+        (this.mediaConfig?.version === 1
+          ? this.mediaConfig.tts?.find(
+              (candidate) =>
+                candidate.providerId === providerId &&
+                candidate.modelId === modelId &&
+                candidate.voice === voice,
+            )
+          : undefined);
       if (this.mediaConfig?.ttsEnabled === true && (!snapshot || !snapshot.enabled)) {
         throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       }

@@ -33,10 +33,13 @@ describe('worker TTS persistence classification', () => {
 
   it('marks a provider response before persisting audio bytes', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ data: { audio: '0102' }, extra_info: { audio_format: 'mp3' } }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+      new Response(
+        JSON.stringify({ data: { audio: '0102' }, extra_info: { audio_format: 'mp3' } }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
     );
     const failures: unknown[] = [];
     const repository = {
@@ -97,5 +100,89 @@ describe('worker TTS persistence classification', () => {
       },
     ]);
     expect(repository.commitCheckpoint).not.toHaveBeenCalled();
+  });
+
+  it('resolves a v2 role override from the frozen voice directory', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ data: { audio: '0102' }, extra_info: { audio_format: 'mp3' } }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+    const repository = {
+      skipStepWithWarning: vi.fn(),
+      beginStep: vi.fn(async (_current: GenerationLease, step: StepStart) => ({
+        stepId: step.key,
+        attemptId: step.key,
+        requestKey: step.key,
+        status: 'running' as const,
+      })),
+      commitCheckpoint: vi.fn(),
+      failStep: vi.fn(),
+    };
+    const execution = new PipelineExecution(repository, lease, new AbortController().signal, {
+      run: (_kind, _group, _signal, work) => work(),
+    });
+    const assets = { read: vi.fn(), write: vi.fn(async () => 'asset:audio') };
+    const v2Input = {
+      ...input,
+      tts: {
+        ...input.tts,
+        agentVoiceOverrides: {
+          teacher: {
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-hd',
+            voiceId: 'male-qn-jingying',
+          },
+        },
+      },
+    } as const;
+    const media = new GenerationMediaServices(execution, v2Input, assets, {
+      version: 2,
+      ttsEnabled: true,
+      ttsProviders: [
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          enabled: true,
+          requiresApiKey: true,
+          apiKey: 'key',
+          baseUrl: '',
+        },
+      ],
+      ttsDefault: {
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        voiceId: 'female-yujie',
+      },
+      ttsVoiceDirectory: [
+        {
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+          voiceIds: ['female-yujie', 'male-qn-jingying'],
+        },
+      ],
+    });
+    const scene = {
+      id: 'scene',
+      stageId: 'stage',
+      outlineId: 'one',
+      order: 0,
+      title: 'One',
+      type: 'slide',
+      content: { type: 'slide' },
+      actions: [{ id: 'speech', type: 'speech', text: 'Hello' }],
+    } as Scene;
+
+    const result = await media.tts(scene, [
+      { id: 'teacher', name: 'Teacher', role: 'teacher', persona: 'Explains' },
+    ]);
+
+    expect(result.actions?.[0]).toMatchObject({ audioId: 'asset:audio' });
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(String(fetchSpy.mock.calls[0]?.[1]?.body)).toContain('male-qn-jingying');
   });
 });

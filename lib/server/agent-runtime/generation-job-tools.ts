@@ -86,7 +86,7 @@ function progress(job: GenerationJobView) {
 }
 
 function normalizePlannedOutlines(value: readonly unknown[]) {
-  const normalized = value.map((item) => {
+  const normalized: Record<string, unknown>[] = value.map((item) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new GenerationJobError('INVALID_OUTLINE', 400);
     }
@@ -119,16 +119,15 @@ function normalizePlannedOutlines(value: readonly unknown[]) {
     }
     orders.add(item.order as number);
   }
-  return validatePlan(normalized.sort((left, right) => (left.order as number) - (right.order as number)));
+  return validatePlan(
+    normalized.sort((left, right) => (left.order as number) - (right.order as number)),
+  );
 }
 
 function frozenMediaIntent(
   mediaConfig: MediaConfigSnapshotContent | undefined,
   agents: GenerationInput['agents'],
-): Pick<
-  GenerationInput,
-  'enableImageGeneration' | 'enableVideoGeneration' | 'media' | 'tts'
-> {
+): Pick<GenerationInput, 'enableImageGeneration' | 'enableVideoGeneration' | 'media' | 'tts'> {
   if (!mediaConfig) return {};
   const imageEnabled = mediaConfig.imageEnabled ?? !!mediaConfig.image;
   const videoEnabled = mediaConfig.videoEnabled ?? !!mediaConfig.video;
@@ -207,7 +206,11 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         ? await deps.resolveSkillConstraints?.(params.skillIds)
         : undefined;
       if (params.skillIds?.length && skillConstraints?.length !== new Set(params.skillIds).size)
-        return result('One or more requested skills are unavailable or have no enforceable constraints.', { refused: true, code: 'INVALID_GENERATION_SKILL' }, true);
+        return result(
+          'One or more requested skills are unavailable or have no enforceable constraints.',
+          { refused: true, code: 'INVALID_GENERATION_SKILL' },
+          true,
+        );
       const agents: GenerationInput['agents'] = params.agents
         ? { mode: 'custom', items: params.agents }
         : { mode: 'generate' };
@@ -329,7 +332,11 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         ? await deps.repository.getJob(deps.ownerId, params.jobId)
         : await deps.repository.getJobBySession(deps.ownerId, deps.sessionId);
       if (!found || !deps.repository.retry)
-        return result('No retryable course generation job was found for this session.', { found: false }, true);
+        return result(
+          'No retryable course generation job was found for this session.',
+          { found: false },
+          true,
+        );
       if (found.status === 'needs_attention' && params.acknowledged !== true)
         return result(
           'This job has an unknown external result. Explain that retrying may duplicate a paid request and ask the user to confirm before retrying.',

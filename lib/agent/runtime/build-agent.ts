@@ -9,6 +9,8 @@
  */
 import {
   Agent,
+  type BeforeToolCallContext,
+  type BeforeToolCallResult,
   type AfterToolCallContext,
   type AfterToolCallResult,
   type AgentMessage,
@@ -56,6 +58,11 @@ export interface BuildAgentOptions {
   /** Optional Pi message conversion, required when a context transform emits custom roles. */
   convertToLlm?: AgentOptions['convertToLlm'];
   /** Optional request-scoped hook composed with the shared quota hook. */
+  beforeToolCall?: (
+    context: BeforeToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<BeforeToolCallResult | undefined> | BeforeToolCallResult | undefined;
+  /** Optional request-scoped hook composed with the shared quota hook. */
   afterToolCall?: (
     context: AfterToolCallContext,
     signal?: AbortSignal,
@@ -64,6 +71,7 @@ export interface BuildAgentOptions {
 
 export function buildAgent(opts: BuildAgentOptions): Agent {
   const quotaHook = makeQuotaHook({ remaining: () => Number.MAX_SAFE_INTEGER });
+  const allowlistGate = makeAllowlistGate(opts.allowedToolNames);
   const agent = new Agent({
     streamFn: opts.streamFn,
     transformContext: opts.transformContext,
@@ -79,7 +87,11 @@ export function buildAgent(opts: BuildAgentOptions): Agent {
       // conversation in context — without this the agent is stateless per turn.
       ...(opts.history && opts.history.length > 0 ? { messages: opts.history } : {}),
     },
-    beforeToolCall: makeAllowlistGate(opts.allowedToolNames),
+    beforeToolCall: async (context, signal) => {
+      const allowlistResult = await allowlistGate(context);
+      if (allowlistResult?.block) return allowlistResult;
+      return opts.beforeToolCall?.(context, signal);
+    },
     afterToolCall: async (context, signal) => {
       const markerIsError =
         typeof context.result === 'object' &&

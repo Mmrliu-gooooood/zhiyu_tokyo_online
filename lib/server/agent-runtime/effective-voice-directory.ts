@@ -11,12 +11,17 @@ import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snaps
 
 export interface EffectiveSessionVoiceConfig {
   providerId: string;
+  protocol?: 'openai-speech';
   apiKey: string;
+  baseUrl?: string;
   requiresApiKey: boolean;
   enabled: boolean;
   modelId: string;
   voice?: string;
   default?: boolean;
+  speed?: number;
+  format?: string;
+  providerOptions?: Record<string, unknown>;
 }
 
 export interface EffectiveVoiceDirectoryEntry {
@@ -59,9 +64,7 @@ function asVoiceSource<T extends EffectiveSessionVoiceConfig>(
 /** Preserve v1's exact entries; v2 keeps providers, directory and binding separate. */
 export function mediaConfigVoiceSource(
   content: MediaConfigSnapshotContent,
-): EffectiveSessionVoiceSource<
-  EffectiveSessionVoiceConfig & Record<string, unknown>
-> {
+): EffectiveSessionVoiceSource<EffectiveSessionVoiceConfig & Record<string, unknown>> {
   if (content.version === 2) {
     return {
       providerConfigs: content.ttsProviders ?? [],
@@ -77,13 +80,12 @@ export function effectiveSessionVoiceConfigs<T extends EffectiveSessionVoiceConf
   source: readonly T[] | EffectiveSessionVoiceSource<T>,
 ): Array<T & { voice: string }> {
   const resolved = asVoiceSource(source);
-  const providers = resolved.providerConfigs
-    .filter(
-      (config) =>
-        config.enabled &&
-        !getServerTTSProviders()[config.providerId]?.disabled &&
-        (!config.requiresApiKey || !!resolveTTSApiKey(config.providerId, config.apiKey)),
-    );
+  const providers = resolved.providerConfigs.filter(
+    (config) =>
+      config.enabled &&
+      !getServerTTSProviders()[config.providerId]?.disabled &&
+      (!config.requiresApiKey || !!resolveTTSApiKey(config.providerId, config.apiKey)),
+  );
   const available = resolved.voiceDirectory
     ? resolved.voiceDirectory.flatMap((entry) => {
         const config = providers.find(
@@ -97,7 +99,7 @@ export function effectiveSessionVoiceConfigs<T extends EffectiveSessionVoiceConf
           ...(resolved.defaultVoice?.providerId === entry.providerId &&
           resolved.defaultVoice.modelId === entry.modelId &&
           resolved.defaultVoice.voiceId === voice
-            ? { default: true }
+            ? { default: true, speed: resolved.defaultVoice.speed ?? config.speed }
             : {}),
         }));
       })
@@ -139,7 +141,10 @@ export function sessionVoiceCatalog(
   const fallbackModel = new Map<string, string>();
   for (const snapshot of configs) {
     const builtIn = TTS_PROVIDERS[snapshot.providerId as keyof typeof TTS_PROVIDERS];
-    fallbackModel.set(snapshot.providerId, fallbackModel.get(snapshot.providerId) ?? snapshot.modelId);
+    fallbackModel.set(
+      snapshot.providerId,
+      fallbackModel.get(snapshot.providerId) ?? snapshot.modelId,
+    );
     if (builtIn?.excludeFromAgentVoiceCatalog === true) {
       if (supportsVoiceRegistration(snapshot.providerId)) {
         providers.set(snapshot.providerId, { id: snapshot.providerId, voices: [] });

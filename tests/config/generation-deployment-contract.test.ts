@@ -26,9 +26,7 @@ describe('generation deployment contract', () => {
     const compose = read('docker-compose.persistence.yml');
     const envExample = read('.env.example');
 
-    expect(compose).toContain(
-      'TTS_REQUEST_TIMEOUT_MS: ${TTS_REQUEST_TIMEOUT_MS:-120000}',
-    );
+    expect(compose).toContain('TTS_REQUEST_TIMEOUT_MS: ${TTS_REQUEST_TIMEOUT_MS:-120000}');
     expect(compose.match(/^\s*TTS_REQUEST_TIMEOUT_MS:/gm)).toHaveLength(1);
     expect(envExample).toContain('# TTS_REQUEST_TIMEOUT_MS=120000');
     expect(envExample).toContain('worker reserves additional checkpoint commit time');
@@ -41,6 +39,20 @@ describe('generation deployment contract', () => {
     expect(
       dockerfile.match(/LABEL org\.opencontainers\.image\.revision=\$OPENMAIC_SOURCE_REVISION/g),
     ).toHaveLength(2);
+  });
+
+  it('gives the non-root generation worker a writable usage directory', () => {
+    const dockerfile = read('Dockerfile');
+    const workerStage = dockerfile.slice(
+      dockerfile.indexOf('FROM base AS generation-worker'),
+      dockerfile.indexOf('# ---- Stage 3: Builder ----'),
+    );
+
+    expect(workerStage).toContain('mkdir -p /app/data/usage');
+    expect(workerStage).toContain('chown -R worker:nodejs /app/data');
+    expect(workerStage.indexOf('chown -R worker:nodejs /app/data')).toBeLessThan(
+      workerStage.indexOf('USER worker'),
+    );
   });
 
   it('validates the complete web-worker deployment boundary', () => {
