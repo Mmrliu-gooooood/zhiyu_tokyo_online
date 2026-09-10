@@ -43,6 +43,14 @@ const outline = {
   keyPoints: ['Key'],
   order: 0,
 };
+function numberedOutlines(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    ...outline,
+    id: `scene_${index + 1}`,
+    title: `Scene ${index + 1}`,
+    order: index,
+  }));
+}
 describe('generation input whitelist', () => {
   it('rejects secret/base URL/browser asset fields, preserves actual requirements', () => {
     expect(parseGenerationInput(input).requirements.interactiveMode).toBe(true);
@@ -103,6 +111,15 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   async function create() {
     return repo.createJob('owner', 'create-key', input);
   }
+  it('keeps the speech total unknown until a non-empty plan has completed actions', async () => {
+    const job = await create();
+    expect(job.displayProgress?.speech).toEqual({
+      completed: 0,
+      total: null,
+      active: 0,
+      skipped: 0,
+    });
+  });
   it('projects Pro worker progress into the existing session and links only after success', async () => {
     await pool.query(
       "INSERT INTO agent_sessions(id,owner_id,prompt,stage_id,status) VALUES('pro-session','owner','course','stage','succeeded')",
@@ -154,6 +171,213 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     });
     return (await repo.claim('worker'))!;
   }
+  it('projects content checkpoints independently from published scenes and normalizes child calls', async () => {
+    const initial = await claimed();
+    const outlines = numberedOutlines(8);
+    await repo.savePlan(initial, outlines);
+    const review = (await repo.getJob('owner', initial.jobId))!;
+    await repo.confirm('owner', initial.jobId, {
+      commandKey: 'confirm-progress-plan',
+      expectedVersion: review.stateVersion,
+      planRevision: review.planRevision,
+    });
+    const lease = (await repo.claim('progress-worker'))!;
+    for (const current of outlines.slice(0, 3)) {
+      await repo.beginStep(lease, {
+        key: `content:${current.id}`,
+        kind: `content:${current.id}`,
+        dependencyHash: current.id,
+      });
+      await repo.commitCheckpoint(lease, {
+        stepKey: `content:${current.id}`,
+        result: { title: current.title },
+        outlineId: current.id,
+        sceneStatus: 'content_ready',
+        content: { title: current.title },
+      });
+    }
+    await repo.beginStep(lease, {
+      key: 'content:scene_4:call:0',
+      kind: 'llm',
+      dependencyHash: 'scene-4-call',
+    });
+
+    const detail = await repo.getJobDetail('owner', lease.jobId);
+    expect(detail.displayProgress).toEqual({
+      phase: 'content',
+      content: { completed: 3, total: 8, active: 1 },
+      actions: { completed: 0, total: 8, active: 0 },
+      speech: { completed: 0, total: null, active: 0, skipped: 0 },
+      published: { completed: 0, total: 8 },
+    });
+  });
+  it('keeps concurrent content and speech progress when a TTS step needs attention', async () => {
+    const initial = await claimed();
+    const outlines = numberedOutlines(2);
+    await repo.savePlan(initial, outlines);
+    const review = (await repo.getJob('owner', initial.jobId))!;
+    await repo.confirm('owner', initial.jobId, {
+      commandKey: 'confirm-concurrent-plan',
+      expectedVersion: review.stateVersion,
+      planRevision: review.planRevision,
+    });
+    const lease = (await repo.claim('concurrent-worker'))!;
+    await repo.beginStep(lease, {
+      key: 'content:scene_1',
+      kind: 'content:scene_1',
+      dependencyHash: 'content-one',
+    });
+    await repo.commitCheckpoint(lease, {
+      stepKey: 'content:scene_1',
+      result: { title: 'Scene 1' },
+      outlineId: 'scene_1',
+      sceneStatus: 'content_ready',
+      content: { title: 'Scene 1' },
+    });
+    const actions = [{ id: 'speech-1', type: 'speech', text: 'Hello', agentId: 'teacher' }];
+    await repo.beginStep(lease, {
+      key: 'actions:scene_1',
+      kind: 'actions:scene_1',
+      dependencyHash: 'actions-one',
+    });
+    await repo.commitCheckpoint(lease, {
+      stepKey: 'actions:scene_1',
+      result: actions,
+      outlineId: 'scene_1',
+      sceneStatus: 'actions_ready',
+      actions,
+    });
+    await repo.beginStep(lease, {
+      key: 'content:scene_2',
+      kind: 'content:scene_2',
+      dependencyHash: 'content-two',
+    });
+    await repo.beginStep(lease, {
+      key: 'tts:scene_1',
+      kind: 'tts:scene_1',
+      dependencyHash: 'tts-one',
+    });
+
+    const active = await repo.getJobDetail('owner', lease.jobId);
+    expect(active.displayProgress).toEqual({
+      phase: 'tts',
+      content: { completed: 1, total: 2, active: 1 },
+      actions: { completed: 1, total: 2, active: 0 },
+      speech: { completed: 0, total: null, active: 1, skipped: 0 },
+      published: { completed: 0, total: 2 },
+    });
+
+    await repo.failStep(lease, {
+      stepKey: 'tts:scene_1',
+      code: 'EXTERNAL_RESULT_UNKNOWN',
+      uncertain: true,
+    });
+    const stopped = await repo.getJobDetail('owner', lease.jobId);
+    expect(stopped.status).toBe('needs_attention');
+    expect(stopped.displayProgress).toEqual({
+      phase: 'tts',
+      content: { completed: 1, total: 2, active: 0 },
+      actions: { completed: 1, total: 2, active: 0 },
+      speech: { completed: 0, total: null, active: 0, skipped: 0 },
+      published: { completed: 0, total: 2 },
+      failedStep: {
+        key: 'tts:scene_1',
+        phase: 'tts',
+        outlineId: 'scene_1',
+        code: 'EXTERNAL_RESULT_UNKNOWN',
+      },
+    });
+  });
+  it('excludes stale-plan checkpoints and does not count child calls as completed pages', async () => {
+    const initial = await claimed();
+    await repo.beginStep(initial, {
+      key: 'content:stale_scene',
+      kind: 'content:stale_scene',
+      dependencyHash: 'revision-zero',
+    });
+    await repo.commitCheckpoint(initial, {
+      stepKey: 'content:stale_scene',
+      result: { stale: true },
+    });
+    const [current] = numberedOutlines(1);
+    await repo.savePlan(initial, [current]);
+    const review = (await repo.getJob('owner', initial.jobId))!;
+    await repo.confirm('owner', initial.jobId, {
+      commandKey: 'confirm-revised-plan',
+      expectedVersion: review.stateVersion,
+      planRevision: review.planRevision,
+    });
+    const lease = (await repo.claim('revision-worker'))!;
+    await repo.beginStep(lease, {
+      key: 'content:scene_1:call:0',
+      kind: 'llm',
+      dependencyHash: 'child-call',
+    });
+    await repo.commitCheckpoint(lease, {
+      stepKey: 'content:scene_1:call:0',
+      result: { partial: true },
+    });
+    expect((await repo.getJobDetail('owner', lease.jobId)).displayProgress?.content).toEqual({
+      completed: 0,
+      total: 1,
+      active: 0,
+    });
+
+    await repo.beginStep(lease, {
+      key: 'content:scene_1',
+      kind: 'content:scene_1',
+      dependencyHash: 'revision-one',
+    });
+    await repo.commitCheckpoint(lease, {
+      stepKey: 'content:scene_1',
+      result: { current: true },
+      outlineId: 'scene_1',
+      sceneStatus: 'content_ready',
+      content: { current: true },
+    });
+    expect((await repo.getJobDetail('owner', lease.jobId)).displayProgress?.content.completed).toBe(
+      1,
+    );
+  });
+  it('reports discovered speech as skipped when TTS is explicitly disabled', async () => {
+    const job = await repo.createJob('owner', 'tts-disabled', {
+      ...input,
+      tts: { enabled: false },
+    });
+    const initial = (await repo.claim('tts-disabled-plan-worker'))!;
+    const [current] = numberedOutlines(1);
+    await repo.savePlan(initial, [current]);
+    const review = (await repo.getJob('owner', job.jobId))!;
+    await repo.confirm('owner', job.jobId, {
+      commandKey: 'confirm-tts-disabled-plan',
+      expectedVersion: review.stateVersion,
+      planRevision: review.planRevision,
+    });
+    const lease = (await repo.claim('tts-disabled-worker'))!;
+    const actions = [
+      { id: 'speech-1', type: 'speech', text: 'One', agentId: 'teacher' },
+      { id: 'speech-2', type: 'speech', text: 'Two', agentId: 'teacher' },
+    ];
+    await repo.beginStep(lease, {
+      key: 'actions:scene_1',
+      kind: 'actions:scene_1',
+      dependencyHash: 'actions-without-tts',
+    });
+    await repo.commitCheckpoint(lease, {
+      stepKey: 'actions:scene_1',
+      result: actions,
+      outlineId: 'scene_1',
+      sceneStatus: 'actions_ready',
+      actions,
+    });
+
+    expect((await repo.getJobDetail('owner', lease.jobId)).displayProgress?.speech).toEqual({
+      completed: 0,
+      total: 2,
+      active: 0,
+      skipped: 2,
+    });
+  });
   function scene(lease: GenerationLease, id: string): Scene {
     return {
       id,

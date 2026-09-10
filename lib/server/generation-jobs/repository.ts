@@ -13,6 +13,11 @@ import { generationRequestHash } from './config-snapshot';
 import { notifyDurableAgentEvent } from '@/lib/server/agent-runtime/event-notify-bus';
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
 import {
+  projectGenerationDisplayProgress,
+  type GenerationDisplaySceneFact,
+  type GenerationDisplayStepFact,
+} from './display-progress';
+import {
   checkHeavyTaskAdmission,
   checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
@@ -153,7 +158,30 @@ export class GenerationJobRepository {
       : `generation:${job.id}`;
   }
   private async projectedView(q: Queryable, job: JobRow): Promise<GenerationJobView> {
-    const result = view(job);
+    const [steps, scenes] = await Promise.all([
+      q.query<GenerationDisplayStepFact>(
+        `SELECT step_key AS key,kind,outline_id AS "outlineId",status,error_code AS "errorCode",started_at AS "startedAt"
+         FROM generation_steps WHERE job_id=$1`,
+        [job.id],
+      ),
+      q.query<GenerationDisplaySceneFact>(
+        `SELECT outline_id AS "outlineId",status,actions
+         FROM generation_scenes WHERE job_id=$1 AND plan_revision=$2 ORDER BY ordinal`,
+        [job.id, job.plan_revision],
+      ),
+    ]);
+    const result = {
+      ...view(job),
+      displayProgress: projectGenerationDisplayProgress({
+        phase: job.phase,
+        status: job.status,
+        totalScenes: job.total_scenes,
+        lastErrorCode: job.last_error_code,
+        generationInput: job.input_snapshot,
+        steps: steps.rows,
+        scenes: scenes.rows,
+      }),
+    };
     if (job.status !== 'queued') return result;
     const admission = await checkHeavyTaskAdmission(q, {
       ownerId: job.owner_id,
@@ -323,7 +351,7 @@ export class GenerationJobRepository {
       if (found.rows[0]) {
         if (found.rows[0].request_hash !== hash)
           throw new GenerationJobError('IDEMPOTENCY_CONFLICT');
-        return view(found.rows[0]);
+        return this.projectedView(q, found.rows[0]);
       }
       const id = randomUUID();
       const queue = await checkHeavyTaskQueueCapacity(q, {

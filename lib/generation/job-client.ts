@@ -1,8 +1,14 @@
-import type { GenerationInput, GenerationJobView } from '@/lib/server/generation-jobs/contracts';
+import type {
+  GenerationDisplayProgress,
+  GenerationInput,
+  GenerationJobView,
+} from '@/lib/server/generation-jobs/contracts';
 import type { SceneOutline } from '@/lib/types/generation';
 import { nanoid } from 'nanoid';
 
 export interface GenerationJobSnapshot extends GenerationJobView {
+  /** Absent only when reconnecting to a pre-T01 server revision. */
+  displayProgress?: GenerationDisplayProgress;
   queueReason?: 'owner_limit' | 'site_limit' | 'queued' | 'service_unavailable' | null;
   retryAt?: string | null;
   outlines?: SceneOutline[];

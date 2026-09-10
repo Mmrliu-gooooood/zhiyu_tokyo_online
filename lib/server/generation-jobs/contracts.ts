@@ -296,6 +296,29 @@ export type GenerationJobStatus =
   | 'succeeded'
   | 'failed'
   | 'cancelled';
+export type GenerationDisplayPhase =
+  | 'preparing'
+  | 'research'
+  | 'outlines'
+  | 'agents'
+  | 'content'
+  | 'actions'
+  | 'tts'
+  | 'media'
+  | 'finalizing';
+export interface GenerationDisplayProgress {
+  phase: GenerationDisplayPhase;
+  content: { completed: number; total: number; active: number };
+  actions: { completed: number; total: number; active: number };
+  speech: { completed: number; total: number | null; active: number; skipped: number };
+  published: { completed: number; total: number };
+  failedStep?: {
+    key: string;
+    phase: GenerationDisplayPhase;
+    outlineId?: string;
+    code: string;
+  };
+}
 export interface GenerationLease {
   jobId: string;
   stageId: string;
@@ -318,6 +341,8 @@ export interface GenerationJobView {
   totalScenes: number;
   warningCount: number;
   lastErrorCode: string | null;
+  /** Optional while older Web and worker revisions remain supported during rollout. */
+  displayProgress?: GenerationDisplayProgress;
   reviewHold: boolean;
   autoContinueAt: string | null;
   queueReason?: 'queued' | 'owner_limit' | 'site_limit' | 'service_unavailable' | null;
