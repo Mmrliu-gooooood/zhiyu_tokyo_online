@@ -1,7 +1,10 @@
 import { Pool } from 'pg';
 import { ensureDocumentSchema } from '@openmaic/storage/document/pg';
 import { ensureAssetSchema } from '@openmaic/storage/asset/pg';
+import { ensureAgentSessionSchema } from '@openmaic/storage/agent-session/pg';
+import { ensureAgentSessionMaterialSchema } from '@openmaic/storage/material/pg';
 import { ensureSchema } from '@openmaic/storage/runtime/pg';
+import { ensureUserSkillSchema } from '@openmaic/storage/skill/pg';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
 import { migrateGenerationSchema } from '@/lib/server/generation-jobs/migrations';
@@ -19,6 +22,12 @@ async function main() {
     await ensureStageMetaSchema(pool);
     await ensureOwnerMaterialSchema(pool);
     await ensureAssetSchema(pool);
+    // Pro generation and its material scanner share this worker process. A
+    // fresh deployment must provision their durable stores before either
+    // scanner starts; lazy Web initialization is too late for the worker.
+    await ensureAgentSessionSchema(pool);
+    await ensureAgentSessionMaterialSchema(pool);
+    await ensureUserSkillSchema(pool);
     await migrateGenerationSchema(pool);
     console.info('Generation schema migration complete');
   } finally {

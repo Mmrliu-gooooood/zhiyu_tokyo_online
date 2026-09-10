@@ -68,6 +68,20 @@ describe('generation deployment contract', () => {
     );
   });
 
+  it('provisions the Pro runtime stores before the generation worker starts', () => {
+    const migration = read('workers/generation/migrate.ts');
+    const generationMigration = migration.indexOf('await migrateGenerationSchema(pool)');
+
+    for (const initializer of [
+      'await ensureAgentSessionSchema(pool)',
+      'await ensureAgentSessionMaterialSchema(pool)',
+      'await ensureUserSkillSchema(pool)',
+    ]) {
+      expect(migration).toContain(initializer);
+      expect(migration.indexOf(initializer)).toBeLessThan(generationMigration);
+    }
+  });
+
   it('validates the complete web-worker deployment boundary', () => {
     const script = read('scripts/generation-compose.ps1');
 
