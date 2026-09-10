@@ -41,7 +41,7 @@ describe('generation deployment contract', () => {
     ).toHaveLength(2);
   });
 
-  it('uses the optional npm mirror for dependency tarballs, not Corepack metadata', () => {
+  it('uses the optional public npm mirror for Corepack and dependency tarballs', () => {
     const dockerfile = read('Dockerfile');
     const baseStage = dockerfile.slice(0, dockerfile.indexOf('# ---- Stage 2: Dependencies ----'));
     const depsStage = dockerfile.slice(
@@ -49,7 +49,9 @@ describe('generation deployment contract', () => {
       dockerfile.indexOf('# ---- Independent worker'),
     );
 
-    expect(baseStage).not.toContain('COREPACK_NPM_REGISTRY');
+    expect(baseStage).toContain('ARG NPM_REGISTRY=""');
+    expect(baseStage).toContain('COREPACK_NPM_REGISTRY="$npm_registry"');
+    expect(baseStage).toContain('while [ "${npm_registry%/}" != "$npm_registry" ]');
     expect(depsStage).toContain('ARG NPM_REGISTRY');
     expect(depsStage).toContain('pnpm config set registry "$npm_registry"');
   });
