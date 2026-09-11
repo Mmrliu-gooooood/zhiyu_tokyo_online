@@ -6,6 +6,8 @@
  * POST /api/verify-video-provider
  *
  * Headers:
+ *   x-model-source: platform | user | legacy-managed (optional)
+ *   x-platform-default-id: string (required for platform source)
  *   x-video-provider: VideoProviderId (optional, server-configured default)
  *   x-video-model: string (optional)
  *   x-api-key: string (optional, server fallback)
@@ -16,14 +18,7 @@
 
 import { NextRequest } from 'next/server';
 import { testVideoConnectivity } from '@/lib/media/video-providers';
-import {
-  isServerConfiguredProvider,
-  isServerProviderDisabled,
-  resolveVideoApiKey,
-  resolveVideoBaseUrl,
-  resolveVideoModel,
-  resolveServerVideoProviderId,
-} from '@/lib/server/provider-config';
+import { resolveServerVideoProviderId } from '@/lib/server/provider-config';
 import type { VideoProviderId } from '@/lib/media/types';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
@@ -32,26 +27,47 @@ import {
   MediaProviderConfigError,
   parseCustomVideoProviderConfig,
 } from '@/lib/server/media-provider-config';
+import {
+  normalizeProviderSelectionSource,
+  ProviderSelectionError,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('VerifyVideoProvider');
 
 export async function POST(request: NextRequest) {
   try {
-    const requestBody = (await request.clone().json().catch(() => ({}))) as {
+    const requestBody = (await request
+      .clone()
+      .json()
+      .catch(() => ({}))) as {
       providerConfig?: unknown;
     };
+    const source = normalizeProviderSelectionSource(
+      request.headers.get('x-model-source')?.trim() || undefined,
+    );
+    const platformDefaultId = request.headers.get('x-platform-default-id')?.trim() || undefined;
+    if (source !== 'platform' && platformDefaultId) {
+      throw new ProviderSelectionError(
+        'INVALID_MODEL_SOURCE',
+        400,
+        'A platform default ID can only be used with the platform model source',
+      );
+    }
     const providerId = (request.headers.get('x-video-provider')?.trim() ||
-      resolveServerVideoProviderId()) as VideoProviderId;
-    if (!providerId) {
-      return apiError('MISSING_PROVIDER', 400, 'No video provider configured');
-    }
-    // Enforce server precedence: a force-disabled provider is off for everyone,
-    // regardless of any client key/selection — mirror the TTS contract (#665).
-    if (isServerProviderDisabled('video', providerId)) {
-      return apiError('PROVIDER_DISABLED', 403, 'This video provider is disabled by the server');
-    }
+      (source === 'legacy-managed'
+        ? resolveServerVideoProviderId()
+        : undefined)) as VideoProviderId;
     const clientModel = request.headers.get('x-video-model')?.trim() || undefined;
-    if (providerId.startsWith('custom-video-')) {
+    if (source !== 'platform' && providerId?.startsWith('custom-video-')) {
+      // Keep the server-wide disable policy in front of custom-provider
+      // configuration checks, matching the legacy verification behavior.
+      resolveProviderSelection({
+        capability: 'video',
+        source,
+        providerId,
+        modelId: clientModel,
+      });
       const config = parseCustomVideoProviderConfig(
         providerId,
         requestBody.providerConfig,
@@ -64,38 +80,43 @@ export async function POST(request: NextRequest) {
         verification: 'configuration' as const,
       });
     }
-    // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('video', providerId);
-    const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
-    const clientBaseUrl = managed ? undefined : request.headers.get('x-base-url') || undefined;
+    const clientApiKey = request.headers.get('x-api-key') || undefined;
+    const clientBaseUrl = request.headers.get('x-base-url') || undefined;
 
-    if (clientBaseUrl && process.env.NODE_ENV === 'production') {
-      const ssrfError = await validateUrlForSSRF(clientBaseUrl);
+    const selection = resolveProviderSelection({
+      capability: 'video',
+      source,
+      defaultId: platformDefaultId,
+      providerId,
+      modelId: clientModel,
+      apiKey: clientApiKey,
+      baseUrl: clientBaseUrl,
+    });
+    const resolvedProviderId = selection.providerId as VideoProviderId;
+    if (!selection.managed && selection.baseUrl && process.env.NODE_ENV === 'production') {
+      const ssrfError = await validateUrlForSSRF(selection.baseUrl);
       if (ssrfError) {
         return apiError('INVALID_URL', 403, ssrfError);
       }
     }
 
-    const apiKey = resolveVideoApiKey(providerId, clientApiKey);
-    const baseUrl = resolveVideoBaseUrl(providerId, clientBaseUrl);
-
-    if (!apiKey) {
+    if (!selection.apiKey) {
       return apiError('MISSING_API_KEY', 400, 'No API key configured');
     }
 
-    const model = resolveVideoModel(providerId, clientModel);
+    const model = selection.modelId;
     if (!model) {
       return apiError(
         'MISSING_MODEL',
         400,
-        `No model configured for video provider: ${providerId}`,
+        `No model configured for video provider: ${resolvedProviderId}`,
       );
     }
 
     const result = await testVideoConnectivity({
-      providerId,
-      apiKey,
-      baseUrl,
+      providerId: resolvedProviderId,
+      apiKey: selection.apiKey,
+      baseUrl: selection.baseUrl,
       model,
     });
 
@@ -105,6 +126,9 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ message: result.message });
   } catch (err) {
+    if (err instanceof ProviderSelectionError) {
+      return apiError(err.code, err.httpStatus, err.message);
+    }
     if (err instanceof MediaProviderConfigError) {
       return apiError(err.code, err.status, err.message);
     }

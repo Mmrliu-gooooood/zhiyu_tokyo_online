@@ -25,12 +25,37 @@ vi.mock('@/lib/ai/providers', async (importOriginal) => {
   };
 });
 
-vi.mock('@/lib/server/provider-config', () => ({
-  isServerConfiguredProvider: () => mocks.serverManaged,
-  resolveApiKey: (_id: string, clientKey: string) => clientKey || 'server-key',
-  resolveBaseUrl: (_id: string, clientBaseUrl?: string) => clientBaseUrl,
-  resolveProxy: () => undefined,
-}));
+vi.mock('@/lib/server/provider-config', () => {
+  class PlatformDefaultModelError extends Error {
+    constructor(
+      readonly code: string,
+      readonly httpStatus: number,
+      message: string,
+    ) {
+      super(message);
+    }
+  }
+  return {
+    PlatformDefaultModelError,
+    isServerConfiguredProvider: () => mocks.serverManaged,
+    resolveApiKey: (_id: string, clientKey: string) => clientKey || 'server-key',
+    resolveBaseUrl: (_id: string, clientBaseUrl?: string) => clientBaseUrl,
+    resolveProxy: () => undefined,
+    resolvePlatformDefault: (defaultId: string) => ({
+      source: 'platform',
+      defaultId,
+      capability: 'text',
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+      displayName: 'DeepSeek V4.1 Flash',
+      revision: 'revision-1',
+      apiKey: 'platform-key',
+      baseUrl: 'https://platform.example/v1',
+      parameters: {},
+      defaultThinkingConfig: { mode: 'disabled', effort: 'none' },
+    }),
+  };
+});
 
 vi.mock('@/lib/server/ssrf-guard', () => ({
   validateUrlForSSRF: async () => null,
@@ -116,6 +141,103 @@ describe('resolveModel — per-stage resolution order', () => {
     const { resolveModel } = await import('@/lib/server/resolve-model');
     const r = await resolveModel({ stage: 'quiz-grade', modelString: 'anthropic:claude-sonnet-4' });
     expect(r.modelString).toBe('anthropic:claude-sonnet-4');
+  });
+
+  it('exposes invalid source failures as a stable client error', async () => {
+    const { getModelResolutionError, resolveModel } = await import('@/lib/server/resolve-model');
+    let thrown: unknown;
+    try {
+      await resolveModel({ source: 'invalid-source' as 'user' });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(getModelResolutionError(thrown)).toEqual({
+      code: 'INVALID_MODEL_SOURCE',
+      httpStatus: 400,
+      message: 'Invalid model source: invalid-source',
+    });
+  });
+
+  it('expands a stable platform reference before provider parsing and drops client overrides', async () => {
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    const result = await resolveModel({
+      modelString: 'openai:attacker-model',
+      source: 'platform',
+      platformDefaultId: 'zhiyu-default-text',
+      apiKey: 'user-key',
+      baseUrl: 'https://user.example/v1',
+    });
+
+    expect(result).toMatchObject({
+      modelString: 'platform:zhiyu-default-text',
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'revision-1',
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+    });
+    expect(mocks.getModelCalls.at(-1)).toMatchObject({
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+      apiKey: 'platform-key',
+      baseUrl: 'https://platform.example/v1',
+    });
+  });
+
+  it('rejects a stale platform revision before constructing a provider client', async () => {
+    const { getModelResolutionError, resolveModel } = await import('@/lib/server/resolve-model');
+    let thrown: unknown;
+    try {
+      await resolveModel({
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'stale-revision',
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(getModelResolutionError(thrown)).toMatchObject({
+      code: 'PLATFORM_DEFAULT_REVISION_MISMATCH',
+      httpStatus: 409,
+    });
+    expect(mocks.getModelCalls).toHaveLength(0);
+  });
+
+  it('applies the platform default thinking policy and preserves a supported explicit override', async () => {
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    const defaultResult = await resolveModel({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'revision-1',
+    });
+    const explicitResult = await resolveModel({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'revision-1',
+      thinkingConfig: { mode: 'enabled', effort: 'high' },
+    });
+
+    expect(defaultResult.thinkingConfig).toEqual({ mode: 'disabled', effort: 'none' });
+    expect(explicitResult.thinkingConfig).toEqual({ mode: 'enabled', effort: 'high' });
+  });
+
+  it('uses an explicit user key even when the same provider is server configured', async () => {
+    mocks.serverManaged = true;
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    await resolveModel({
+      modelString: 'deepseek:my-model',
+      source: 'user',
+      apiKey: 'user-key',
+      baseUrl: 'https://user.example/v1',
+    });
+
+    expect(mocks.getModelCalls.at(-1)).toMatchObject({
+      providerId: 'deepseek',
+      modelId: 'my-model',
+      apiKey: 'user-key',
+      baseUrl: 'https://user.example/v1',
+    });
   });
 
   it('drops client apiKey/baseUrl/providerType when a stage route overrides the client model', async () => {
@@ -231,6 +353,32 @@ describe('resolveModel — per-stage resolution order', () => {
     const { resolveModel } = await import('@/lib/server/resolve-model');
     const r = await resolveModel({ stage: 'pbl-chat', thinkingConfig: { effort: 'low' } });
     expect(r.thinkingConfig).toEqual({ effort: 'high' });
+  });
+
+  it('uses a routed platform binding default when the route omits thinking', async () => {
+    process.env.MODEL_ROUTES = JSON.stringify({
+      'scene-content': 'platform:zhiyu-default-text',
+    });
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    const r = await resolveModel({
+      stage: 'scene-content',
+      thinkingConfig: { mode: 'enabled', effort: 'high' },
+    });
+
+    expect(r.thinkingConfig).toEqual({ mode: 'disabled', effort: 'none' });
+  });
+
+  it('keeps explicit route thinking ahead of a platform binding default', async () => {
+    process.env.MODEL_ROUTES = JSON.stringify({
+      'scene-content': {
+        model: 'platform:zhiyu-default-text',
+        thinking: { mode: 'enabled', effort: 'high' },
+      },
+    });
+    const { resolveModel } = await import('@/lib/server/resolve-model');
+    const r = await resolveModel({ stage: 'scene-content' });
+
+    expect(r.thinkingConfig).toEqual({ mode: 'enabled', effort: 'high' });
   });
 
   it('route can pass a full thinking config (enabled + budgetTokens)', async () => {

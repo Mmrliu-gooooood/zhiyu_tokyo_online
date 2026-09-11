@@ -48,6 +48,7 @@ import {
 import { dedupeCourseMaterialFiles } from '@/lib/document/course-materials';
 import type { SelectedCourseMaterial } from '@/lib/types/generation';
 import { findModelById, modelIdsMatch } from '@/lib/ai/model-aliases';
+import type { PlatformDefaultCatalogEntry } from '@/lib/types/platform-default-models';
 
 // ─── Constants ───────────────────────────────────────────────
 const MAX_COURSE_MATERIAL_SIZE_MB = 50;
@@ -89,6 +90,9 @@ export function GenerationToolbar({
   const currentModelId = useSettingsStore((s) => s.modelId);
   const providersConfig = useSettingsStore((s) => s.providersConfig);
   const setModel = useSettingsStore((s) => s.setModel);
+  const llmSelection = useSettingsStore((s) => s.llmSelection);
+  const platformDefaults = useSettingsStore((s) => s.platformDefaults);
+  const setPlatformDefault = useSettingsStore((s) => s.setPlatformDefault);
   const thinkingConfigs = useSettingsStore((s) => s.thinkingConfigs);
   const setThinkingConfig = useSettingsStore((s) => s.setThinkingConfig);
   const pdfProviderId = useSettingsStore((s) => s.pdfProviderId);
@@ -139,6 +143,10 @@ export function GenerationToolbar({
   );
   const currentThinkingConfig =
     thinkingConfigs[getThinkingConfigKey(currentProviderId, currentModelId)];
+  const textPlatformDefault = platformDefaults?.entries.find(
+    (entry) => entry.capability === 'text',
+  );
+  const isPlatformDefaultSelected = llmSelection?.source === 'platform';
 
   // Course material handler. `plain-text` is always active alongside the
   // user-selected extractor so txt/md files remain uploadable without
@@ -230,7 +238,7 @@ export function GenerationToolbar({
   return (
     <div className="flex items-center gap-1 flex-wrap">
       {/* ── Model selector ── */}
-      {configuredProviders.length > 0 ? (
+      {configuredProviders.length > 0 || textPlatformDefault ? (
         <ModelSettingsPopover
           configuredProviders={configuredProviders}
           currentProviderId={currentProviderId}
@@ -238,6 +246,13 @@ export function GenerationToolbar({
           currentProviderConfig={currentProviderConfig}
           currentModel={currentModel}
           setModel={setModel}
+          platformDefault={textPlatformDefault}
+          isPlatformDefaultSelected={isPlatformDefaultSelected}
+          onSelectPlatformDefault={() => {
+            if (textPlatformDefault?.available) {
+              setPlatformDefault('text', textPlatformDefault.defaultId);
+            }
+          }}
           thinkingConfig={currentThinkingConfig}
           onThinkingChange={(config) =>
             setThinkingConfig(currentProviderId, currentModelId, config)
@@ -778,6 +793,13 @@ interface ConfiguredProvider {
   models: ModelInfo[];
 }
 
+const PLATFORM_DEFAULT_PICKER_ID = '__zhiyu-platform-default__';
+
+interface PickerProvider extends Omit<ConfiguredProvider, 'id'> {
+  id: ProviderId | typeof PLATFORM_DEFAULT_PICKER_ID;
+  platformDefault?: PlatformDefaultCatalogEntry;
+}
+
 function ModelSettingsPopover({
   configuredProviders,
   currentProviderId,
@@ -785,6 +807,9 @@ function ModelSettingsPopover({
   currentProviderConfig,
   currentModel,
   setModel,
+  platformDefault,
+  isPlatformDefaultSelected,
+  onSelectPlatformDefault,
   thinkingConfig,
   onThinkingChange,
   t,
@@ -795,15 +820,40 @@ function ModelSettingsPopover({
   currentProviderConfig: { name: string; icon?: string } | undefined;
   currentModel?: ModelInfo;
   setModel: (providerId: ProviderId, modelId: string) => void;
+  platformDefault?: PlatformDefaultCatalogEntry;
+  isPlatformDefaultSelected: boolean;
+  onSelectPlatformDefault: () => void;
   thinkingConfig?: ThinkingConfig;
   onThinkingChange: (config: ThinkingConfig | undefined) => void;
   t: (key: string) => string;
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [activeProviderId, setActiveProviderId] = useState<ProviderId>(currentProviderId);
+  const selectedPickerProviderId = isPlatformDefaultSelected
+    ? PLATFORM_DEFAULT_PICKER_ID
+    : currentProviderId;
+  const [activeProviderId, setActiveProviderId] =
+    useState<PickerProvider['id']>(selectedPickerProviderId);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentProvider = configuredProviders.find((provider) => provider.id === currentProviderId);
+  const pickerProviders = useMemo<PickerProvider[]>(() => {
+    const userProviders: PickerProvider[] = configuredProviders.map((provider) => ({
+      ...provider,
+      name: `${t('settings.platformDefault.userProvidedPrefix')} ${provider.name}`,
+    }));
+    if (!platformDefault) return userProviders;
+    return [
+      {
+        id: PLATFORM_DEFAULT_PICKER_ID,
+        name: `ZHIYU ${t('settings.defaultModel')}`,
+        models: [{ id: platformDefault.defaultId, name: platformDefault.displayName }],
+        platformDefault,
+      },
+      ...userProviders,
+    ];
+  }, [configuredProviders, platformDefault, t]);
+  const currentProvider = pickerProviders.find(
+    (provider) => provider.id === selectedPickerProviderId,
+  );
   const searchTerm = searchQuery.trim().toLowerCase();
   const isSearching = searchTerm.length > 0;
   const providerEntries = useMemo(() => {
@@ -812,13 +862,13 @@ function ModelSettingsPopover({
       model.name.toLowerCase().includes(searchTerm) ||
       model.id.toLowerCase().includes(searchTerm);
 
-    return configuredProviders
+    return pickerProviders
       .map((provider) => ({
         provider,
         matchingModels: provider.models.filter(matchesSearch),
       }))
       .filter((entry) => !isSearching || entry.matchingModels.length > 0);
-  }, [configuredProviders, isSearching, searchTerm]);
+  }, [isSearching, pickerProviders, searchTerm]);
 
   const activeProviderVisible = providerEntries.some(
     (entry) => entry.provider.id === activeProviderId,
@@ -843,7 +893,9 @@ function ModelSettingsPopover({
   // Under the #580 invariant this popover only renders when a usable provider
   // exists, which guarantees a concrete model — so the label is always
   // provider / model (no "Select Model" fallback state).
-  const currentModelLabel = currentModel?.name || currentModelId;
+  const currentModelLabel = isPlatformDefaultSelected
+    ? platformDefault?.displayName || currentModelId
+    : currentModel?.name || currentModelId;
   const currentThinkingValue = getThinkingDisplayValue(
     currentModel?.capabilities?.thinking,
     thinkingConfig,
@@ -856,7 +908,7 @@ function ModelSettingsPopover({
       onOpenChange={(nextOpen) => {
         setPopoverOpen(nextOpen);
         if (nextOpen) {
-          setActiveProviderId(currentProviderId);
+          setActiveProviderId(selectedPickerProviderId);
           setSearchQuery('');
         }
       }}
@@ -891,7 +943,9 @@ function ModelSettingsPopover({
           </PopoverTrigger>
         </TooltipTrigger>
         <TooltipContent>
-          {`${currentProviderConfig?.name || currentProviderId} / ${currentModelId}`}
+          {`${currentProviderName} / ${
+            isPlatformDefaultSelected ? platformDefault?.displayName : currentModelId
+          }`}
         </TooltipContent>
       </Tooltip>
 
@@ -915,7 +969,7 @@ function ModelSettingsPopover({
               ) : (
                 providerEntries.map(({ provider, matchingModels }) => {
                   const isActive = activeProvider?.id === provider.id;
-                  const isCurrent = currentProviderId === provider.id;
+                  const isCurrent = selectedPickerProviderId === provider.id;
                   return (
                     <button
                       key={provider.id}
@@ -961,7 +1015,7 @@ function ModelSettingsPopover({
                     onChange={(event) => {
                       const nextSearch = event.target.value;
                       setSearchQuery(nextSearch);
-                      if (!nextSearch.trim()) setActiveProviderId(currentProviderId);
+                      if (!nextSearch.trim()) setActiveProviderId(selectedPickerProviderId);
                     }}
                     placeholder={t('settings.searchModels')}
                     className="h-8 pl-8 text-xs"
@@ -977,17 +1031,24 @@ function ModelSettingsPopover({
                 </div>
               ) : (
                 visibleModelEntries.map(({ provider, model }) => {
-                  const isSelected =
-                    currentProviderId === provider.id && currentModelId === model.id;
+                  const isPlatformEntry = provider.id === PLATFORM_DEFAULT_PICKER_ID;
+                  const isSelected = isPlatformEntry
+                    ? isPlatformDefaultSelected
+                    : currentProviderId === provider.id && currentModelId === model.id;
+                  const canSelect =
+                    !isPlatformEntry || provider.platformDefault?.available === true;
                   const selectModel = () => {
+                    if (!canSelect) return;
                     setActiveProviderId(provider.id);
-                    setModel(provider.id, model.id);
+                    if (isPlatformEntry) onSelectPlatformDefault();
+                    else setModel(provider.id as ProviderId, model.id);
                   };
                   return (
                     <div
                       key={`${provider.id}:${model.id}`}
                       role="button"
-                      tabIndex={0}
+                      tabIndex={canSelect ? 0 : -1}
+                      aria-disabled={!canSelect}
                       onClick={selectModel}
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -996,9 +1057,11 @@ function ModelSettingsPopover({
                       }}
                       className={cn(
                         'mb-1 flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left transition-colors',
-                        isSelected
-                          ? 'bg-primary/10 text-primary ring-1 ring-primary dark:bg-primary/15'
-                          : 'hover:bg-muted/60',
+                        !canSelect
+                          ? 'cursor-not-allowed opacity-50'
+                          : isSelected
+                            ? 'bg-primary/10 text-primary ring-1 ring-primary dark:bg-primary/15'
+                            : 'hover:bg-muted/60',
                       )}
                     >
                       <div className="min-w-0 flex-1">

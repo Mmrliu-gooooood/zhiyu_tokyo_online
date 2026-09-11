@@ -7,7 +7,10 @@ import {
   getServerVideoProviders,
   getServerWebSearchProviders,
   getParallelSceneConcurrency,
+  getPlatformDefaultCatalog,
+  isPlatformDefaultBackingProvider,
 } from '@/lib/server/provider-config';
+import type { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
 import {
@@ -17,16 +20,36 @@ import {
 
 const log = createLogger('ServerProviders');
 
-export async function GET() {
+function userProviderProjection<T extends object>(
+  section: 'providers' | 'image' | 'video' | 'tts',
+  providers: Record<string, T>,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(providers).filter(
+      ([providerId, info]) =>
+        !isPlatformDefaultBackingProvider(section, providerId) ||
+        ('disabled' in info && info.disabled === true),
+    ),
+  );
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const catalogVersion = request.nextUrl.searchParams.get('catalogVersion');
+    const version2 = catalogVersion === '2';
+    const providers = getServerProviders();
+    const tts = getServerTTSProviders();
+    const image = getServerImageProviders();
+    const video = getServerVideoProviders();
     return apiSuccess({
-      providers: getServerProviders(),
-      tts: getServerTTSProviders(),
+      providers: version2 ? userProviderProjection('providers', providers) : providers,
+      tts: version2 ? userProviderProjection('tts', tts) : tts,
       asr: getServerASRProviders(),
       pdf: getServerPDFProviders(),
-      image: getServerImageProviders(),
-      video: getServerVideoProviders(),
+      image: version2 ? userProviderProjection('image', image) : image,
+      video: version2 ? userProviderProjection('video', video) : video,
       webSearch: getServerWebSearchProviders(),
+      ...(version2 ? { platformDefaults: getPlatformDefaultCatalog() } : {}),
       generation: {
         parallelSceneConcurrency: getParallelSceneConcurrency(),
         background: backgroundGenerationEnabled()

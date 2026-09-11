@@ -27,6 +27,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { TTSProviderId } from '@/lib/audio/types';
 import type { ProviderWithVoices } from '@/lib/audio/voice-resolver';
+import {
+  platformTTSRequestFields,
+  withPlatformTTSAvailability,
+} from '@/lib/audio/platform-tts-selection';
 
 function matchesVoiceQuery(value: string | undefined, query: string): boolean {
   return !!value?.toLowerCase().includes(query);
@@ -159,6 +163,7 @@ function AgentVoicePill({
           body: JSON.stringify({
             text: previewText,
             audioId: 'voice-preview',
+            modelSource: 'user',
             ttsProviderId: providerId,
             ttsModelId: modelId || providerConfig?.modelId,
             ttsVoice: voiceId,
@@ -184,16 +189,7 @@ function AgentVoicePill({
         setPreviewingId(null);
       }
     },
-    [
-      agent.name,
-      agent.persona,
-      agent.role,
-      locale,
-      previewingId,
-      stopPreview,
-      t,
-      ttsProvidersConfig,
-    ],
+    [agent, locale, previewingId, stopPreview, t, ttsProvidersConfig],
   );
 
   // Cleanup on unmount
@@ -295,6 +291,7 @@ function AgentVoicePill({
                           // default agent records are reset from code on every
                           // load and would drop the pick.
                           setAgentVoiceOverride(agent.id, {
+                            source: 'user',
                             providerId: provider.providerId,
                             modelId: group.modelId || undefined,
                             voiceId: voice.id,
@@ -361,6 +358,8 @@ function TeacherVoicePill({
   const setTTSVoice = useSettingsStore((s) => s.setTTSVoice);
   const setTTSProviderConfig = useSettingsStore((s) => s.setTTSProviderConfig);
   const ttsProvidersConfig = useSettingsStore((s) => s.ttsProvidersConfig);
+  const ttsSelection = useSettingsStore((s) => s.ttsSelection);
+  const platformDefaults = useSettingsStore((s) => s.platformDefaults);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [voiceQuery, setVoiceQuery] = useState('');
   const [previewingId, setPreviewingId] = useState<string | null>(null);
@@ -434,20 +433,37 @@ function TeacherVoicePill({
           voiceId,
           language: locale,
         });
+        const platformEntry =
+          ttsSelection?.source === 'platform'
+            ? platformDefaults?.entries.find(
+                (entry) => entry.capability === 'tts' && entry.defaultId === ttsSelection.defaultId,
+              )
+            : undefined;
+        const requestSelection = platformTTSRequestFields(
+          ttsSelection,
+          providerId,
+          ttsProviderId,
+          modelId || providerConfig?.modelId,
+          platformEntry?.modelId,
+        );
+        const platform = requestSelection.modelSource === 'platform';
         const res = await fetch('/api/generate/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: previewText,
             audioId: 'voice-preview',
-            ttsProviderId: providerId,
-            ttsModelId: modelId || providerConfig?.modelId,
+            ...requestSelection,
+            ...(platform
+              ? {}
+              : {
+                  ttsProviderId: providerId,
+                  ttsModelId: modelId || providerConfig?.modelId,
+                  ttsApiKey: providerConfig?.apiKey,
+                  ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
+                }),
             ttsVoice: voiceId,
             ttsSpeed: 1,
-            ttsApiKey: providerConfig?.apiKey,
-            // Managed providers resolve their base URL server-side; only send
-            // the client's own base URL (custom providers).
-            ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
             ttsProviderOptions: providerOptions,
           }),
           signal: controller.signal,
@@ -464,7 +480,16 @@ function TeacherVoicePill({
         setPreviewingId(null);
       }
     },
-    [locale, previewingId, stopPreview, t, ttsProvidersConfig],
+    [
+      locale,
+      platformDefaults,
+      previewingId,
+      stopPreview,
+      t,
+      ttsProviderId,
+      ttsProvidersConfig,
+      ttsSelection,
+    ],
   );
 
   useEffect(() => () => stopPreview(), [stopPreview]);
@@ -621,6 +646,8 @@ export function AgentBar() {
   const setAgentSelectionIsUserSet = useSettingsStore((s) => s.setAgentSelectionIsUserSet);
   const ttsProvidersConfig = useSettingsStore((s) => s.ttsProvidersConfig);
   const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
+  const ttsSelection = useSettingsStore((s) => s.ttsSelection);
+  const platformDefaults = useSettingsStore((s) => s.platformDefaults);
 
   const [open, setOpen] = useState(false);
   const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -644,8 +671,13 @@ export function AgentBar() {
 
   // Single source of truth for selectable provider+voice options (enabled
   // providers + opt-in browser-native), shared with discussion TTS (#665).
-  const availableProviders = getSelectableProvidersWithVoices(
+  const effectiveTTSProvidersConfig = withPlatformTTSAvailability(
     ttsProvidersConfig,
+    ttsSelection,
+    platformDefaults,
+  );
+  const availableProviders = getSelectableProvidersWithVoices(
+    effectiveTTSProvidersConfig,
     voiceProfiles,
     browserVoices,
   );

@@ -8,6 +8,7 @@ import { validateBackgroundProviders } from '@/lib/server/generation-jobs/prefli
 
 vi.mock('@/lib/server/resolve-model', () => ({
   resolveModel: async () => ({ providerId: 'openai', modelId: 'gpt-test', apiKey: 'server-key' }),
+  getModelResolutionError: () => undefined,
 }));
 vi.mock('@/lib/server/provider-config', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/server/provider-config')>()),

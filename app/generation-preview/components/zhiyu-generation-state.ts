@@ -1,5 +1,9 @@
 import type { GenerationCanonicalPhase } from '../generation-session-runtime';
-import type { GenerationDisplayProgress } from '@/lib/server/generation-jobs/contracts';
+import type {
+  GenerationDisplayProgress,
+  GenerationJobStatus,
+} from '@/lib/server/generation-jobs/contracts';
+import { projectGenerationJobDisplay } from '@/lib/generation/job-display';
 
 export type ZhiyuGenerationStatus = 'done' | 'active' | 'pending' | 'error';
 
@@ -13,7 +17,7 @@ export type ZhiyuGenerationStep = {
 export type GenerationJobPresentation = {
   titleKey: string;
   detailKey: string;
-  detailValues?: Record<string, number>;
+  detailValues?: Record<string, number | string>;
   terminal: boolean;
 };
 
@@ -33,17 +37,13 @@ function legacyActivePhase(job: BackgroundGenerationSnapshot): string {
   ).toLowerCase();
 }
 
-export function projectBackgroundGenerationSnapshot(
-  job: BackgroundGenerationSnapshot,
-): {
+export function projectBackgroundGenerationSnapshot(job: BackgroundGenerationSnapshot): {
   canonicalPhase: GenerationCanonicalPhase;
   stepId: 'outline' | 'web-search' | 'agent-generation' | 'slide-content' | 'actions';
   generatedContentCount: number;
 } {
   const displayPhase =
-    job.displayProgress?.failedStep?.phase ??
-    job.displayProgress?.phase ??
-    legacyActivePhase(job);
+    job.displayProgress?.failedStep?.phase ?? job.displayProgress?.phase ?? legacyActivePhase(job);
   const canonicalPhase: GenerationCanonicalPhase =
     job.status === 'succeeded'
       ? 'completed'
@@ -97,6 +97,12 @@ export function projectGenerationJobPresentation(input: {
   cancelling?: boolean;
   cancelError?: Error | null;
 }): GenerationJobPresentation {
+  const display = input.job
+    ? projectGenerationJobDisplay({
+        ...input.job,
+        status: input.job.status as GenerationJobStatus,
+      })
+    : null;
   if (input.job?.status === 'failed' && input.job.lastErrorCode === 'QUEUE_WAIT_EXPIRED') {
     return {
       titleKey: 'generation.statusQueueExpired',
@@ -139,9 +145,7 @@ export function projectGenerationJobPresentation(input: {
     const progress = input.job.displayProgress;
     const failedStep = progress.failedStep!;
     const failedOutlineIndex = failedStep.outlineId
-      ? (input.job.outlines?.findIndex(
-          (outline) => outline.id === failedStep.outlineId,
-        ) ?? -1)
+      ? (input.job.outlines?.findIndex((outline) => outline.id === failedStep.outlineId) ?? -1)
       : -1;
     return {
       titleKey: 'generation.statusSpeechNeedsAttention',
@@ -158,6 +162,31 @@ export function projectGenerationJobPresentation(input: {
     };
   }
   if (input.job?.status === 'needs_attention') {
+    const pageList = (outlineIds: Array<string | undefined>) =>
+      [
+        ...new Set(
+          outlineIds
+            .map(
+              (outlineId) =>
+                (input.job?.outlines?.findIndex((outline) => outline.id === outlineId) ?? -1) + 1,
+            )
+            .filter((page) => page > 0),
+        ),
+      ].join(', ');
+    const triggerPages = pageList(display?.triggerIssues.map((issue) => issue.outlineId) ?? []);
+    const unknownPages = pageList(display?.unknownIssues.map((issue) => issue.outlineId) ?? []);
+    if (triggerPages && unknownPages) {
+      return {
+        titleKey: 'generation.statusNeedsAttention',
+        detailKey: 'generation.statusNeedsAttentionTriggerUnknownDesc',
+        detailValues: {
+          triggerPages,
+          triggerCode: display?.triggerIssues[0]?.code ?? 'GENERATION_FAILED',
+          unknownPages,
+        },
+        terminal: true,
+      };
+    }
     return {
       titleKey: 'generation.statusNeedsAttention',
       detailKey: 'generation.statusNeedsAttentionDesc',
@@ -232,8 +261,9 @@ export function projectGenerationJobPresentation(input: {
     return {
       titleKey: 'generation.statusRetryWait',
       detailKey: input.job.retryAt
-        ? 'generation.statusRetryScheduledDesc'
+        ? 'generation.statusRetryScheduledAtDesc'
         : 'generation.statusRetryWaitDesc',
+      ...(input.job.retryAt ? { detailValues: { time: input.job.retryAt } } : {}),
       terminal: false,
     };
   }

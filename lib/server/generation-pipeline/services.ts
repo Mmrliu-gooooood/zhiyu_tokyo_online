@@ -82,7 +82,13 @@ export class GenerationServices {
     key: string,
   ): Promise<{ aiCall: AICallFn; resolved: Awaited<ReturnType<typeof resolveModel>> }> {
     await this.modelContext?.assertActive?.();
-    const resolved = await resolveModel({ ...this.input.model, ...this.modelContext, stage });
+    const modelInput = { ...this.input.model, ...this.modelContext };
+    const thinkingConfig = this.modelContext?.thinkingConfig ?? this.input.model?.thinkingConfig;
+    const resolved = await resolveModel({
+      ...modelInput,
+      ...(thinkingConfig ? { thinkingConfig } : {}),
+      stage,
+    });
     if (isProviderKeyRequired(resolved.providerId) && !resolved.apiKey)
       throw new Error('PROVIDER_NOT_CONFIGURED');
     let callIndex = 0;
@@ -143,6 +149,11 @@ export class GenerationServices {
             );
             return result.text;
           },
+          false,
+          {
+            retryPreSendDns: true,
+            hostname: resolved.baseUrl ? new URL(resolved.baseUrl).hostname : undefined,
+          },
         );
       } catch (error) {
         failure = error;
@@ -173,7 +184,7 @@ export class GenerationServices {
       { query: query.query, provider: config.providerId },
       'llm',
       config.providerId,
-      async (signal) => {
+      async (signal, lifecycle) => {
         signal.throwIfAborted();
         const optionalSearch = !!this.input.searchConfigRef && this.input.source?.kind !== 'pro';
         try {
@@ -187,6 +198,7 @@ export class GenerationServices {
         } catch (error) {
           signal.throwIfAborted();
           if (!optionalSearch || isAbortError(error)) throw error;
+          lifecycle.reportDnsFailure(error);
           // Persist an empty result once, so resuming this course never repeats
           // an optional failed search. Do not log provider errors or credentials.
           log.warn(

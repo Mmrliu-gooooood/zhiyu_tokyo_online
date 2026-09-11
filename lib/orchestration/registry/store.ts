@@ -199,6 +199,9 @@ export function applyGeneratedAgentsToRegistry(
       ...(voiceConfig && isKnownTTSProviderId(voiceConfig.providerId)
         ? {
             voiceConfig: {
+              ...(voiceConfig.source ? { source: voiceConfig.source } : {}),
+              ...(voiceConfig.defaultId ? { defaultId: voiceConfig.defaultId } : {}),
+              ...(voiceConfig.revision ? { revision: voiceConfig.revision } : {}),
               providerId: voiceConfig.providerId,
               ...(voiceConfig.modelId ? { modelId: voiceConfig.modelId } : {}),
               voiceId: voiceConfig.voiceId,

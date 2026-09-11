@@ -2,7 +2,17 @@
 services:
   openmaic:
     volumes:
-      - ./server-providers.yml:/app/server-providers.yml:ro
+      - type: bind
+        source: ./server-providers.yml
+        target: /app/server-providers.yml
+        read_only: true
+        bind:
+          create_host_path: false
   generation-worker:
     volumes:
-      - ./server-providers.yml:/app/server-providers.yml:ro
+      - type: bind
+        source: ./server-providers.yml
+        target: /app/server-providers.yml
+        read_only: true
+        bind:
+          create_host_path: false

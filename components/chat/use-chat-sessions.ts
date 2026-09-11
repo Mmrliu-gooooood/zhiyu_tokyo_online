@@ -170,6 +170,8 @@ export type ChatRequestTemplate = {
   baseUrl?: string;
   model?: string;
   providerType?: string;
+  modelSource?: 'platform' | 'user' | 'legacy-managed';
+  platformDefaultId?: string;
   thinkingConfig?: ThinkingConfig;
   directorState?: DirectorState;
   piSessionBoundary?: PiSessionBoundaryContext;
@@ -1305,6 +1307,8 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
           baseUrl: requestTemplate.baseUrl,
           model: requestTemplate.model,
           providerType: requestTemplate.providerType,
+          modelSource: requestTemplate.modelSource,
+          platformDefaultId: requestTemplate.platformDefaultId,
           thinkingConfig: requestTemplate.thinkingConfig,
         },
         {
@@ -1694,8 +1698,10 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             },
             apiKey: mc.apiKey,
             baseUrl: mc.baseUrl,
-            model: mc.modelString,
+            model: mc.source === 'platform' ? undefined : mc.modelString,
             providerType: mc.providerType,
+            modelSource: mc.source,
+            platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
             thinkingConfig: mc.thinkingConfig,
             directorState: session.directorState,
           },
@@ -1901,8 +1907,10 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             },
             apiKey: mc.apiKey,
             baseUrl: mc.baseUrl,
-            model: mc.modelString,
+            model: mc.source === 'platform' ? undefined : mc.modelString,
             providerType: mc.providerType,
+            modelSource: mc.source,
+            platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
             thinkingConfig: mc.thinkingConfig,
             directorState: existingSession?.directorState,
             ...(options.elementReference ? { elementReference: options.elementReference } : {}),
@@ -2037,8 +2045,10 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             },
             apiKey: mc.apiKey,
             baseUrl: mc.baseUrl,
-            model: mc.modelString,
+            model: mc.source === 'platform' ? undefined : mc.modelString,
             providerType: mc.providerType,
+            modelSource: mc.source,
+            platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
             thinkingConfig: mc.thinkingConfig,
           },
           controller,

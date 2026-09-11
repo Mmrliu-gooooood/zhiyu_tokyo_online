@@ -81,6 +81,84 @@ describe('generation input whitelist', () => {
   });
   it('hashes canonical JSON without depending on property insertion order', () =>
     expect(canonicalHash({ a: 1, b: 2 })).toBe(canonicalHash({ b: 2, a: 1 })));
+  it('enforces source ownership on agent voice bindings', () => {
+    const withVoice = (voiceConfig: Record<string, unknown>) => ({
+      ...input,
+      agents: {
+        mode: 'custom' as const,
+        items: [
+          {
+            id: 'teacher',
+            name: 'Teacher',
+            role: 'teacher',
+            persona: 'Guide the class',
+            voiceConfig,
+          },
+        ],
+      },
+    });
+
+    expect(() =>
+      parseGenerationInput(
+        withVoice({
+          source: 'platform',
+          providerId: 'minimax-tts',
+          voiceId: 'voice-a',
+        }),
+      ),
+    ).toThrow('INVALID_GENERATION_INPUT');
+    expect(() =>
+      parseGenerationInput(
+        withVoice({
+          source: 'user',
+          defaultId: 'zhiyu-default-tts',
+          providerId: 'minimax-tts',
+          voiceId: 'voice-a',
+        }),
+      ),
+    ).toThrow('INVALID_GENERATION_INPUT');
+    expect(
+      parseGenerationInput(
+        withVoice({
+          source: 'platform',
+          defaultId: 'zhiyu-default-tts',
+          revision: 'revision-a',
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-turbo',
+          voiceId: 'voice-a',
+        }),
+      ).agents?.items?.[0]?.voiceConfig,
+    ).toMatchObject({ source: 'platform', defaultId: 'zhiyu-default-tts' });
+  });
+  it('requires a revision-bound owner snapshot for a platform background model', () => {
+    expect(() =>
+      parseGenerationInput({
+        ...input,
+        model: { source: 'platform', defaultId: 'zhiyu-default-text' },
+      }),
+    ).toThrow('INVALID_GENERATION_INPUT');
+    expect(() =>
+      parseGenerationInput({
+        ...input,
+        model: {
+          source: 'platform',
+          defaultId: 'zhiyu-default-text',
+          revision: 'revision-a',
+        },
+      }),
+    ).toThrow('INVALID_GENERATION_INPUT');
+    expect(
+      parseGenerationInput({
+        ...input,
+        model: {
+          source: 'platform',
+          defaultId: 'zhiyu-default-text',
+          revision: 'revision-a',
+        },
+        modelConfigRef: { id: '00000000-0000-4000-8000-000000000001', revision: 1 },
+      }).model,
+    ).toMatchObject({ source: 'platform', revision: 'revision-a' });
+  });
 });
 describe('generation admission configuration', () => {
   it('starts with the confirmed site queue and execution limits and permits an explicit two-slot trial', () => {
@@ -344,6 +422,14 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
         outlineId: 'scene_1',
         code: 'EXTERNAL_RESULT_UNKNOWN',
       },
+      issues: [
+        {
+          outlineId: 'scene_1',
+          phase: 'tts',
+          code: 'EXTERNAL_RESULT_UNKNOWN',
+          state: 'unknown',
+        },
+      ],
     });
   });
   it('excludes stale-plan checkpoints and does not count child calls as completed pages', async () => {
@@ -979,6 +1065,20 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       outlineId: 'one',
       code: 'EXTERNAL_RESULT_UNKNOWN',
     });
+    expect(detail.displayProgress?.issues).toEqual([
+      {
+        outlineId: 'one',
+        phase: 'tts',
+        code: 'EXTERNAL_RESULT_UNKNOWN',
+        state: 'unknown',
+      },
+      {
+        outlineId: 'one',
+        phase: 'content',
+        code: 'CONTENT_GENERATION_FAILED',
+        state: 'failed',
+      },
+    ]);
     expect(
       (
         await pool.query<{ step_key: string; status: string; error_code: string | null }>(

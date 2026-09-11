@@ -51,7 +51,11 @@ export {
   type DocumentHttpAuthenticate,
   type DocumentHttpAuthorize,
   type DocumentHttpHandlerOptions,
+  type DocumentHttpMapStoreConflict,
   type DocumentHttpPrincipal,
+  type DocumentHttpStoreConflict,
+  type DocumentHttpStoreErrorContext,
+  type DocumentHttpStoreOperation,
 } from './document.js';
 
 export interface RuntimeHttpPrincipal {
@@ -705,7 +709,10 @@ export function createRuntimeHttpHandler(
 export interface StorageHttpHandlerOptions
   extends
     RuntimeHttpHandlerOptions,
-    Pick<DocumentHttpHandlerOptions, 'authorizeDocuments' | 'validateScene' | 'validateStage'>,
+    Pick<
+      DocumentHttpHandlerOptions,
+      'authorizeDocuments' | 'validateScene' | 'validateStage' | 'mapStoreConflict'
+    >,
     Pick<
       AssetHttpHandlerOptions,
       | 'authorizeAssets'
@@ -745,6 +752,9 @@ export function createStorageHttpHandler<
           ...(options.validateScene === undefined ? {} : { validateScene: options.validateScene }),
           ...(options.validateStage === undefined ? {} : { validateStage: options.validateStage }),
           ...(options.maxBodyBytes === undefined ? {} : { maxBodyBytes: options.maxBodyBytes }),
+          ...(options.mapStoreConflict === undefined
+            ? {}
+            : { mapStoreConflict: options.mapStoreConflict }),
         });
   const assets =
     options.assetStore === undefined

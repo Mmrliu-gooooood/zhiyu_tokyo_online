@@ -1,13 +1,14 @@
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
 import { IDBFactory } from 'fake-indexeddb';
 import { DSL_VERSION_KEY } from '@openmaic/dsl';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { BrowserDocumentStore } from '../src/document/browser.js';
 import { DocumentVersionError } from '../src/document/types.js';
 import { HttpDocumentStore, HttpDocumentStoreError } from '../src/document/http.js';
 import type { StageValidator } from '../src/document/types.js';
 import { BrowserRuntimeStore } from '../src/runtime/browser.js';
 import { createStorageHttpHandler } from '../src/server/index.js';
+import type { DocumentHttpMapStoreConflict } from '../src/server/document.js';
 import { makeDocument, runDocumentStoreContract, slideScene } from './document-contract.js';
 
 const BASE_URL = 'http://storage-reference.invalid';
@@ -93,7 +94,11 @@ async function reStampStage(
 let harnessDb = 0;
 function makeHarness(
   authorizeDocuments: () => boolean = () => true,
-  options: { maxBodyBytes?: number; validateStage?: StageValidator } = {},
+  options: {
+    maxBodyBytes?: number;
+    validateStage?: StageValidator;
+    mapStoreConflict?: DocumentHttpMapStoreConflict;
+  } = {},
 ) {
   const idb = new IDBFactory();
   const dbName = `http-document-contract-${harnessDb++}`;
@@ -109,6 +114,9 @@ function makeHarness(
     authorizeDocuments: async () => authorizeDocuments(),
     ...(options.maxBodyBytes === undefined ? {} : { maxBodyBytes: options.maxBodyBytes }),
     ...(options.validateStage === undefined ? {} : { validateStage: options.validateStage }),
+    ...(options.mapStoreConflict === undefined
+      ? {}
+      : { mapStoreConflict: options.mapStoreConflict }),
   });
   const fetch = handlerFetch(handler);
   return {
@@ -155,6 +163,23 @@ describe('HttpDocumentStore contract mapping', () => {
       name: 'HttpDocumentStoreError',
       status: 403,
       code: 'FORBIDDEN_DOCUMENTS',
+    });
+  });
+
+  test('retains a server request id on typed failures', async () => {
+    const client = new HttpDocumentStore({
+      baseUrl: BASE_URL,
+      fetch: async () =>
+        Response.json(
+          { error: { code: 'SERVER_OWNED_GENERATION', message: 'write conflict' } },
+          { status: 409, headers: { 'x-request-id': 'request-409' } },
+        ),
+    });
+
+    await expect(client.listDocuments()).rejects.toMatchObject({
+      status: 409,
+      code: 'SERVER_OWNED_GENERATION',
+      requestId: 'request-409',
     });
   });
 
@@ -327,5 +352,59 @@ describe('HttpDocumentStore contract mapping', () => {
       code: 'VALIDATION_FAILED',
       details,
     });
+  });
+
+  test('maps an explicitly recognized application store conflict to typed 409', async () => {
+    const applicationConflict = new Error('private application error');
+    const contexts: unknown[] = [];
+    const { client, documents } = makeHarness(() => true, {
+      mapStoreConflict: (error, context) => {
+        contexts.push(context);
+        return error === applicationConflict
+          ? { code: 'SERVER_OWNED_GENERATION', message: 'generation owns the document' }
+          : undefined;
+      },
+    });
+    await client.saveDocument(makeDocument());
+    vi.spyOn(documents, 'putStage').mockRejectedValueOnce(applicationConflict);
+
+    await expect(
+      client.putStage('stage-1', {
+        id: 'stage-1',
+        name: 'Rejected edit',
+        createdAt: 1,
+        updatedAt: 2,
+      }),
+    ).rejects.toMatchObject({
+      name: 'HttpDocumentStoreError',
+      status: 409,
+      code: 'SERVER_OWNED_GENERATION',
+    });
+    expect(contexts).toEqual([
+      expect.objectContaining({ operation: 'putStage', stageId: 'stage-1' }),
+    ]);
+  });
+
+  test('does not trust arbitrary status and code fields without an explicit mapping', async () => {
+    const { client, documents } = makeHarness();
+    await client.saveDocument(makeDocument());
+    vi.spyOn(documents, 'putStage').mockRejectedValueOnce(
+      Object.assign(new Error('do not expose me'), {
+        status: 409,
+        httpStatus: 409,
+        code: 'SERVER_OWNED_GENERATION',
+      }),
+    );
+    const internalError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(
+      client.putStage('stage-1', {
+        id: 'stage-1',
+        name: 'Rejected edit',
+        createdAt: 1,
+        updatedAt: 2,
+      }),
+    ).rejects.toMatchObject({ status: 500, code: 'INTERNAL_ERROR' });
+    internalError.mockRestore();
   });
 });

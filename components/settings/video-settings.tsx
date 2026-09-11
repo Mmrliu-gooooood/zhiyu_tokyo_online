@@ -98,6 +98,7 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
         headers: {
           'x-video-provider': selectedProviderId,
           'x-video-model': testModelId,
+          'x-model-source': 'user',
           'Content-Type': 'application/json',
           'x-api-key': currentConfig?.apiKey || '',
           'x-base-url': currentConfig?.baseUrl || '',

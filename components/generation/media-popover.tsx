@@ -62,6 +62,8 @@ const VIDEO_PROVIDER_ICONS: Record<string, string> = {
 };
 
 type TabId = 'image' | 'video' | 'tts' | 'asr';
+const PLATFORM_IMAGE_GROUP_ID = '__zhiyu-platform-image__';
+const PLATFORM_VIDEO_GROUP_ID = '__zhiyu-platform-video__';
 
 const TABS: Array<{ id: TabId; icon: LucideIcon; label: string }> = [
   { id: 'image', icon: ImageIcon, label: 'Image' },
@@ -102,12 +104,16 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
   const imageProvidersConfig = useSettingsStore((s) => s.imageProvidersConfig);
   const setImageProvider = useSettingsStore((s) => s.setImageProvider);
   const setImageModelId = useSettingsStore((s) => s.setImageModelId);
+  const imageSelection = useSettingsStore((s) => s.imageSelection);
 
   const videoProviderId = useSettingsStore((s) => s.videoProviderId);
   const videoModelId = useSettingsStore((s) => s.videoModelId);
   const videoProvidersConfig = useSettingsStore((s) => s.videoProvidersConfig);
   const setVideoProvider = useSettingsStore((s) => s.setVideoProvider);
   const setVideoModelId = useSettingsStore((s) => s.setVideoModelId);
+  const videoSelection = useSettingsStore((s) => s.videoSelection);
+  const platformDefaults = useSettingsStore((s) => s.platformDefaults);
+  const setPlatformDefault = useSettingsStore((s) => s.setPlatformDefault);
 
   const asrProviderId = useSettingsStore((s) => s.asrProviderId);
   const asrLanguage = useSettingsStore((s) => s.asrLanguage);
@@ -152,52 +158,72 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
   );
 
   // ─── Grouped select data (only available providers) ───
-  const imageGroups = useMemo(
-    () =>
-      listImageProviders(IMAGE_PROVIDERS, imageProvidersConfig)
-        .filter((p) => isImageProviderAvailable(p.id, IMAGE_PROVIDERS, imageProvidersConfig))
-        .map((p) => {
-          const items =
-            p.id === 'comfyui-image'
-              ? comfyWorkflows
-              : p.isBuiltIn === false
-                ? p.models
-                : providerModels(p.models, imageProvidersConfig[p.id]);
+  const imageGroups = useMemo(() => {
+    const userGroups = listImageProviders(IMAGE_PROVIDERS, imageProvidersConfig)
+      .filter((p) => isImageProviderAvailable(p.id, IMAGE_PROVIDERS, imageProvidersConfig))
+      .map((p) => {
+        const items =
+          p.id === 'comfyui-image'
+            ? comfyWorkflows
+            : p.isBuiltIn === false
+              ? p.models
+              : providerModels(p.models, imageProvidersConfig[p.id]);
 
-          return {
-            groupId: p.id,
-            groupName: p.name,
-            groupIcon: IMAGE_PROVIDER_ICONS[p.id],
-            available: true,
-            // Map to a consistent format here
-            items: items.map((m) => ({
-              id: m.id,
-              name: m.name,
-            })),
-          };
-        }),
-    [imageProvidersConfig, comfyWorkflows],
-  );
-
-  const videoGroups = useMemo(
-    () =>
-      listVideoProviders(VIDEO_PROVIDERS, videoProvidersConfig)
-        .filter((p) => isVideoProviderAvailable(p.id, VIDEO_PROVIDERS, videoProvidersConfig))
-        .map((p) => ({
+        return {
           groupId: p.id,
-          groupName: p.name,
-          groupIcon: VIDEO_PROVIDER_ICONS[p.id],
+          groupName: `${t('settings.platformDefault.userProvidedPrefix')} ${p.name}`,
+          groupIcon: IMAGE_PROVIDER_ICONS[p.id],
           available: true,
-          items: (p.isBuiltIn === false
-            ? p.models
-            : providerModels(p.models, videoProvidersConfig[p.id])
-          ).map((m) => ({
+          // Map to a consistent format here
+          items: items.map((m) => ({
             id: m.id,
             name: m.name,
           })),
+        };
+      });
+    const platform = platformDefaults?.entries.find((entry) => entry.capability === 'image');
+    return platform
+      ? [
+          {
+            groupId: PLATFORM_IMAGE_GROUP_ID,
+            groupName: `ZHIYU ${t('settings.defaultModel')}`,
+            available: platform.available,
+            items: [{ id: platform.defaultId, name: platform.displayName }],
+          },
+          ...userGroups,
+        ]
+      : userGroups;
+  }, [imageProvidersConfig, comfyWorkflows, platformDefaults, t]);
+
+  const videoGroups = useMemo(() => {
+    const userGroups = listVideoProviders(VIDEO_PROVIDERS, videoProvidersConfig)
+      .filter((p) => isVideoProviderAvailable(p.id, VIDEO_PROVIDERS, videoProvidersConfig))
+      .map((p) => ({
+        groupId: p.id,
+        groupName: `${t('settings.platformDefault.userProvidedPrefix')} ${p.name}`,
+        groupIcon: VIDEO_PROVIDER_ICONS[p.id],
+        available: true,
+        items: (p.isBuiltIn === false
+          ? p.models
+          : providerModels(p.models, videoProvidersConfig[p.id])
+        ).map((m) => ({
+          id: m.id,
+          name: m.name,
         })),
-    [videoProvidersConfig],
-  );
+      }));
+    const platform = platformDefaults?.entries.find((entry) => entry.capability === 'video');
+    return platform
+      ? [
+          {
+            groupId: PLATFORM_VIDEO_GROUP_ID,
+            groupName: `ZHIYU ${t('settings.defaultModel')}`,
+            available: platform.available,
+            items: [{ id: platform.defaultId, name: platform.displayName }],
+          },
+          ...userGroups,
+        ]
+      : userGroups;
+  }, [platformDefaults, t, videoProvidersConfig]);
 
   // ASR: built-in + custom providers
   const asrGroups = useMemo(() => {
@@ -307,9 +333,17 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
             >
               <GroupedSelect
                 groups={imageGroups}
-                selectedGroupId={imageProviderId}
-                selectedItemId={imageModelId}
+                selectedGroupId={
+                  imageSelection?.source === 'platform' ? PLATFORM_IMAGE_GROUP_ID : imageProviderId
+                }
+                selectedItemId={
+                  imageSelection?.source === 'platform' ? imageSelection.defaultId : imageModelId
+                }
                 onSelect={(gid, iid) => {
+                  if (gid === PLATFORM_IMAGE_GROUP_ID) {
+                    setPlatformDefault('image', iid as 'zhiyu-default-image');
+                    return;
+                  }
                   setImageProvider(gid as ImageProviderId);
                   setImageModelId(iid);
                 }}
@@ -326,9 +360,17 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
             >
               <GroupedSelect
                 groups={videoGroups}
-                selectedGroupId={videoProviderId}
-                selectedItemId={videoModelId}
+                selectedGroupId={
+                  videoSelection?.source === 'platform' ? PLATFORM_VIDEO_GROUP_ID : videoProviderId
+                }
+                selectedItemId={
+                  videoSelection?.source === 'platform' ? videoSelection.defaultId : videoModelId
+                }
                 onSelect={(gid, iid) => {
+                  if (gid === PLATFORM_VIDEO_GROUP_ID) {
+                    setPlatformDefault('video', iid as 'zhiyu-default-video');
+                    return;
+                  }
                   setVideoProvider(gid as VideoProviderId);
                   setVideoModelId(iid);
                 }}

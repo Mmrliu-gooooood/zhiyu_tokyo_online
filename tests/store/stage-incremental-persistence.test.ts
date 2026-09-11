@@ -1,19 +1,21 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { fullSave, incrementalSave } = vi.hoisted(() => ({
+const { fullSave, incrementalSave, loadStage } = vi.hoisted(() => ({
   fullSave: vi.fn().mockResolvedValue(undefined),
   incrementalSave: vi.fn().mockResolvedValue(undefined),
+  loadStage: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('@/lib/utils/stage-storage', () => ({
   saveStageData: (...args: unknown[]) => fullSave(...args),
   saveStageDataIncremental: (...args: unknown[]) => incrementalSave(...args),
-  loadStageData: vi.fn().mockResolvedValue(null),
+  loadStageData: (...args: unknown[]) => loadStage(...args),
 }));
 
 import { flushStageSave, restorePendingStageChanges, useStageStore } from '@/lib/store/stage';
 import { clearAssetPool, getAssetPool } from '@/lib/media/asset-pool';
+import { HttpDocumentStoreError } from '@openmaic/storage';
 import type { ChatSession } from '@/lib/types/chat';
 import type { Scene, Stage } from '@/lib/types/stage';
 
@@ -51,6 +53,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   fullSave.mockReset().mockResolvedValue(undefined);
   incrementalSave.mockReset().mockResolvedValue(undefined);
+  loadStage.mockReset().mockResolvedValue(null);
   useStageStore.getState().clearStore();
   useStageStore.setState({
     stage: stage(),
@@ -157,6 +160,104 @@ describe('incremental stage flush', () => {
 
     expect(incrementalSave).toHaveBeenCalledTimes(2);
     expect(incrementalSave.mock.calls[1]![1]).toEqual([{ kind: 'scene', sceneId: 'scene-1' }]);
+  });
+
+  it('drops refused document dirt and requests authoritative sync without an infinite retry', async () => {
+    incrementalSave.mockRejectedValueOnce(
+      new HttpDocumentStoreError(
+        409,
+        'SERVER_OWNED_GENERATION',
+        'generation owns the document',
+        undefined,
+        'request-conflict-1',
+      ),
+    );
+    const syncBefore = useStageStore.getState().stageSyncRequest;
+    loadStage.mockResolvedValueOnce({
+      stage: stage(),
+      scenes: [{ ...scene('scene-1'), title: 'authoritative checkpoint' }, scene('scene-2')],
+      currentSceneId: 'scene-1',
+      chats: [],
+      outline: {
+        outlines: [],
+        generationComplete: false,
+        producer: 'server-job',
+        producerKind: 'course-worker',
+      },
+    });
+    useStageStore.getState().updateScene('scene-1', { title: 'must not replay' });
+
+    await expect(flushStageSave()).resolves.toBeUndefined();
+    expect(useStageStore.getState().stageSyncRequest).toBe(syncBefore + 1);
+    await vi.waitFor(() =>
+      expect(useStageStore.getState().scenes[0]?.title).toBe('authoritative checkpoint'),
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(incrementalSave).toHaveBeenCalledOnce();
+  });
+
+  it('preserves device/runtime dirt when a document write is server-owned', async () => {
+    incrementalSave
+      .mockRejectedValueOnce(
+        new HttpDocumentStoreError(409, 'SERVER_OWNED_GENERATION', 'generation owns the document'),
+      )
+      .mockResolvedValueOnce({ failedChanges: [] });
+    useStageStore.getState().updateScene('scene-1', { title: 'discard this edit' });
+    useStageStore.getState().setCurrentSceneId('scene-2');
+
+    await flushStageSave();
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(incrementalSave).toHaveBeenCalledTimes(2);
+    expect(incrementalSave.mock.calls[1]![1]).toEqual([{ kind: 'currentScene' }]);
+  });
+
+  it('keeps pending chat payload intact across the authoritative document refresh', async () => {
+    const pendingChat: ChatSession = {
+      id: 'chat-conflict',
+      type: 'qa',
+      title: 'Pending chat',
+      status: 'idle',
+      messages: [],
+      config: { agentIds: [] },
+      toolCalls: [],
+      pendingToolCalls: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    loadStage.mockResolvedValueOnce({
+      stage: stage(),
+      scenes: [{ ...scene('scene-1'), title: 'authoritative after conflict' }, scene('scene-2')],
+      currentSceneId: 'scene-1',
+      // Deliberately stale: the document reconciliation must not own chats.
+      chats: [],
+      chatSnapshot: { sessions: [], restoreMarker: null },
+      outline: {
+        outlines: [],
+        generationComplete: false,
+        producer: 'server-job',
+        producerKind: 'course-worker',
+      },
+    });
+    incrementalSave
+      .mockRejectedValueOnce(
+        new HttpDocumentStoreError(409, 'SERVER_OWNED_GENERATION', 'generation owns the document'),
+      )
+      .mockResolvedValueOnce({ failedChanges: [] });
+    useStageStore.getState().updateScene('scene-1', { title: 'refused edit' });
+    useStageStore.getState().setChats([pendingChat]);
+
+    await flushStageSave();
+    await vi.waitFor(() =>
+      expect(useStageStore.getState().scenes[0]?.title).toBe('authoritative after conflict'),
+    );
+    expect(useStageStore.getState().chats).toEqual([pendingChat]);
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(incrementalSave).toHaveBeenCalledTimes(2);
+    expect(incrementalSave.mock.calls[1]![1]).toEqual([{ kind: 'chats' }]);
+    expect(incrementalSave.mock.calls[1]![2]).toMatchObject({ chats: [pendingChat] });
   });
 
   it('drains a mutation that lands between concurrent flush calls', async () => {

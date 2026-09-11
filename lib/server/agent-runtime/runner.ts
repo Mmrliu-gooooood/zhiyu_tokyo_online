@@ -23,7 +23,7 @@ import { parseCourseRefs, type CourseRef } from '@/lib/workbench/course-refs';
 import { parseElementRefs, type ElementRef } from '@/lib/workbench/element-refs';
 import type { Scene, SlideContent } from '@/lib/types/stage';
 
-import { resolveAgentDriverModel } from './agent-driver-model';
+import { AGENT_DRIVER_STAGE, resolveAgentDriverModel } from './agent-driver-model';
 import { loadModelConnection } from './model-connections';
 import { preflightProModel } from './model-preflight';
 import { isModelConfigurationError, safeModelError } from './model-errors';
@@ -1330,6 +1330,12 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       throw new Error(modelReadiness.error);
     }
     const driver = await resolveAgentDriverModel(modelContext);
+    let driverHostname = 'unknown';
+    try {
+      driverHostname = new URL(driver.connection.baseUrl ?? '').hostname || 'unknown';
+    } catch {
+      // Diagnostics deliberately retain only the parsed hostname.
+    }
     const streamFn = createCallLlmStreamFn({
       languageModel: driver.connection.model,
       maxOutputTokens: driver.wireMaxOutputTokens,
@@ -1340,6 +1346,12 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       beforeCall: modelContext?.assertActive,
       maxRetries: 0,
       formatError: safeModelError,
+      retryPreSendDns: true,
+      dnsDiagnostic: {
+        providerId: driver.connection.providerId,
+        hostname: driverHostname,
+        step: AGENT_DRIVER_STAGE,
+      },
     });
     let questionEmitted = false;
     const askUserTool = buildAskUserTool({

@@ -135,7 +135,7 @@ export function ProviderConfigPanel({
     try {
       const response = await fetch('/api/verify-model', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-model-source': 'user' },
         body: JSON.stringify(
           createVerifyModelRequest({
             providerId: provider.id,
@@ -172,7 +172,7 @@ export function ProviderConfigPanel({
     try {
       const response = await fetch('/api/provider/probe-models', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-model-source': 'user' },
         body: JSON.stringify({ baseUrl: effectiveBaseUrl, apiKey, modelsUrl }),
       });
       const data = await response.json();

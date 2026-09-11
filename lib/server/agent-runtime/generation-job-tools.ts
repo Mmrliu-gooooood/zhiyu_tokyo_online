@@ -148,18 +148,34 @@ function frozenMediaIntent(
     media: {
       ...(imageEnabled && mediaConfig.image
         ? {
-            image: {
-              providerId: mediaConfig.image.providerId,
-              modelId: mediaConfig.image.modelId,
-            },
+            image:
+              mediaConfig.image.source === 'platform'
+                ? {
+                    source: mediaConfig.image.source,
+                    defaultId: mediaConfig.image.defaultId,
+                    revision: mediaConfig.image.revision,
+                  }
+                : {
+                    source: mediaConfig.image.source ?? ('legacy-managed' as const),
+                    providerId: mediaConfig.image.providerId,
+                    modelId: mediaConfig.image.modelId,
+                  },
           }
         : {}),
       ...(videoEnabled && mediaConfig.video
         ? {
-            video: {
-              providerId: mediaConfig.video.providerId,
-              modelId: mediaConfig.video.modelId,
-            },
+            video:
+              mediaConfig.video.source === 'platform'
+                ? {
+                    source: mediaConfig.video.source,
+                    defaultId: mediaConfig.video.defaultId,
+                    revision: mediaConfig.video.revision,
+                  }
+                : {
+                    source: mediaConfig.video.source ?? ('legacy-managed' as const),
+                    providerId: mediaConfig.video.providerId,
+                    modelId: mediaConfig.video.modelId,
+                  },
           }
         : {}),
     },
@@ -167,8 +183,10 @@ function frozenMediaIntent(
       ttsEnabled && defaultVoice
         ? {
             enabled: true,
-            providerId: defaultVoice.providerId,
-            modelId: defaultVoice.modelId,
+            source: defaultVoice.source ?? ('legacy-managed' as const),
+            ...(defaultVoice.source === 'platform'
+              ? { defaultId: defaultVoice.defaultId, revision: defaultVoice.revision }
+              : { providerId: defaultVoice.providerId, modelId: defaultVoice.modelId }),
             voice: defaultVoice.voice,
             speed: defaultVoice.speed,
             ...(agentVoiceOverrides && Object.keys(agentVoiceOverrides).length

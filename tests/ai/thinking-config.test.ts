@@ -90,7 +90,7 @@ describe('thinking config metadata', () => {
     );
     expect(googleModels).toContain('gemini-3.1-pro-preview');
     expect(googleModels).not.toContain('gemini-3-pro-preview');
-    expect(deepseekModels).toEqual(['deepseek-v4-pro', 'deepseek-v4-flash']);
+    expect(deepseekModels).toEqual(['deepseek-flash', 'deepseek-v4-pro', 'deepseek-v4-flash']);
     expect(hunyuanModels).toEqual(['hy3-preview']);
     expect(minimaxModels).toEqual(['MiniMax-M3', 'MiniMax-M2.7']);
     expect(siliconflowModels).not.toContain('MiniMaxAI/MiniMax-M2');

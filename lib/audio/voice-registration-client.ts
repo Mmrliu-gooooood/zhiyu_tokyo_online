@@ -57,6 +57,7 @@ export async function registerVoiceFromReference(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      modelSource: 'user',
       providerId,
       voiceId: params.name.trim(),
       referenceAudioBase64,
@@ -86,7 +87,13 @@ export async function deleteRegisteredVoice(
     const res = await fetch('/api/generate/voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ providerId, voiceId, action: 'delete', ...request }),
+      body: JSON.stringify({
+        modelSource: 'user',
+        providerId,
+        voiceId,
+        action: 'delete',
+        ...request,
+      }),
     });
     const data = (await res.json().catch(() => ({}))) as { vendorDeleted?: unknown };
     return res.ok && data.vendorDeleted === true;
@@ -160,6 +167,7 @@ async function registerOnce(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      modelSource: 'user',
       providerId,
       voiceId,
       descriptor: params.voiceDesign,

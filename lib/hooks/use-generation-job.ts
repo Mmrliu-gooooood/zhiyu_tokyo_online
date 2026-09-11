@@ -8,6 +8,11 @@ import { useStageStore } from '@/lib/store/stage';
 import { isStageDeleted } from '@/lib/utils/deleted-stages';
 import { migrateScene } from '@/lib/edit/slide-schema';
 import type { AppDocument, AppDocumentOutline } from '@/lib/document-store';
+import type { SceneOutline } from '@/lib/types/generation';
+import {
+  projectGenerationJobDisplay,
+  type GenerationJobDisplayProjection,
+} from '@/lib/generation/job-display';
 import {
   diffStageManifest,
   fetchScenesByIds,
@@ -22,6 +27,30 @@ import {
   observeGenerationJob,
   type GenerationJobSnapshot,
 } from '@/lib/generation/job-client';
+
+export function projectClassroomGenerationSnapshot(
+  job: Pick<GenerationJobSnapshot, 'status' | 'retryAt' | 'displayProgress' | 'scenes'>,
+  outlines: SceneOutline[],
+): {
+  display: GenerationJobDisplayProjection;
+  generationStatus: 'generating' | 'paused' | 'completed' | 'error';
+  failedOutlines: SceneOutline[];
+} {
+  const display = projectGenerationJobDisplay(job);
+  const affected = new Set(display.affectedOutlineIds);
+  return {
+    display,
+    generationStatus:
+      job.status === 'succeeded'
+        ? 'completed'
+        : display.stopped
+          ? 'error'
+          : ['awaiting_confirmation', 'retry_wait', 'cancelled'].includes(job.status)
+            ? 'paused'
+            : 'generating',
+    failedOutlines: display.stopped ? outlines.filter((outline) => affected.has(outline.id)) : [],
+  };
+}
 
 /** Read projection only: preserves playback, chat and edit state, never schedules a save. */
 export function hydrateGenerationDocument(stageId: string, document: AppDocument): boolean {
@@ -148,6 +177,10 @@ export function useClassroomGenerationJob(stageId: string, enabled: boolean) {
   const router = useRouter();
   const jobRef = useRef<GenerationJobSnapshot | null>(null);
   const retryInFlightRef = useRef<Promise<void> | null>(null);
+  const [displayObservation, setDisplayObservation] = useState<{
+    jobId: string;
+    display: GenerationJobDisplayProjection;
+  } | null>(null);
   const producerRef = useStageStore((state) =>
     state.stage?.id === stageId ? state.outlineProducerRef : null,
   );
@@ -164,6 +197,11 @@ export function useClassroomGenerationJob(stageId: string, enabled: boolean) {
       async (job) => {
         if (!active) return;
         jobRef.current = job;
+        const initialProjection = projectClassroomGenerationSnapshot(
+          job,
+          job.outlines ?? useStageStore.getState().outlines,
+        );
+        setDisplayObservation({ jobId: job.jobId, display: initialProjection.display });
         if (
           ['awaiting_confirmation', 'failed', 'needs_attention'].includes(job.status) &&
           job.readyScenes === 0
@@ -215,21 +253,11 @@ export function useClassroomGenerationJob(stageId: string, enabled: boolean) {
           baseline = manifest.manifest;
           hasPublishedBaseline = job.readyScenes > 0;
           const state = useStageStore.getState();
-          const failedIds = new Set(
-            job.scenes
-              ?.filter((scene) => ['failed', 'needs_attention'].includes(scene.status))
-              .map((scene) => scene.outlineId),
-          );
+          const projection = projectClassroomGenerationSnapshot(job, state.outlines);
+          setDisplayObservation({ jobId: job.jobId, display: projection.display });
           useStageStore.setState({
-            generationStatus:
-              job.status === 'succeeded'
-                ? 'completed'
-                : ['failed', 'needs_attention'].includes(job.status)
-                  ? 'error'
-                  : ['awaiting_confirmation', 'cancelled'].includes(job.status)
-                    ? 'paused'
-                    : 'generating',
-            failedOutlines: state.outlines.filter((outline) => failedIds.has(outline.id)),
+            generationStatus: projection.generationStatus,
+            failedOutlines: projection.failedOutlines,
           });
         }
       },
@@ -256,5 +284,10 @@ export function useClassroomGenerationJob(stageId: string, enabled: boolean) {
     retryInFlightRef.current = pending;
     return pending;
   }, [stageId]);
-  return producerKind === 'course-worker' ? retry : null;
+  return producerKind === 'course-worker'
+    ? {
+        retry,
+        display: displayObservation?.jobId === producerRef ? displayObservation.display : null,
+      }
+    : null;
 }

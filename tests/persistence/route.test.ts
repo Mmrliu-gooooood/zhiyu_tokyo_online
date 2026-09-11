@@ -26,9 +26,14 @@ describe('embedded persistence route', () => {
     vi.stubEnv('DATABASE_URL', '');
     const { GET } = await import('@/app/api/persistence/[...path]/route');
 
-    const response = await GET(new Request('http://localhost/api/persistence/runtime/sessions'));
+    const response = await GET(
+      new Request('http://localhost/api/persistence/runtime/sessions', {
+        headers: { 'x-request-id': 'persistence-not-configured' },
+      }),
+    );
 
     expect(response.status).toBe(404);
+    expect(response.headers.get('x-request-id')).toBe('persistence-not-configured');
     await expect(response.json()).resolves.toEqual({
       error: {
         code: 'PERSISTENCE_NOT_CONFIGURED',

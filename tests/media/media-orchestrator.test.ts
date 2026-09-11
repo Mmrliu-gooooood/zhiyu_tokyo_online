@@ -408,6 +408,43 @@ describe('classic media orchestrator', () => {
     expect(mocks.mediaPut).not.toHaveBeenCalled();
   });
 
+  it('sends platform image intent without the same-provider user credentials', async () => {
+    mocks.settings.mockReturnValue({
+      imageGenerationEnabled: true,
+      videoGenerationEnabled: false,
+      imageSelection: { source: 'platform', defaultId: 'zhiyu-default-image' },
+      imageProviderId: 'minimax-image',
+      imageModelId: 'must-not-leak-model',
+      imageProvidersConfig: {
+        'minimax-image': {
+          apiKey: 'must-not-leak-key',
+          baseUrl: 'https://must-not-leak.example.com',
+        },
+      },
+      videoProviderId: '',
+      videoModelId: '',
+      videoProvidersConfig: {},
+    });
+    serveImage();
+
+    await generateMediaForOutlines(
+      [outlineWith({ type: 'image', prompt: 'Platform image', elementId: imageRef })],
+      stageId,
+    );
+
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers).toMatchObject({
+      'x-model-source': 'platform',
+      'x-platform-default-id': 'zhiyu-default-image',
+      'x-image-provider': '',
+      'x-image-model': '',
+      'x-api-key': '',
+      'x-base-url': '',
+    });
+    expect(JSON.stringify(init)).not.toContain('must-not-leak');
+  });
+
   it('does not import the asset pool or document mutation seams', () => {
     const source = readFileSync(join(process.cwd(), 'lib/media/media-orchestrator.ts'), 'utf8');
     expect(source).not.toMatch(/from ['"]@\/lib\/media\/asset-pool['"]/);

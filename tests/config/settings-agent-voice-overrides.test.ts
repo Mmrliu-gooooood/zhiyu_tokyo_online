@@ -72,14 +72,24 @@ describe('agentVoiceOverrides', () => {
     });
     setAgentVoiceOverride('default-2', { providerId: 'qwen-tts', voiceId: 'Serena' });
     expect(store.getState().agentVoiceOverrides).toEqual({
-      'default-2': { providerId: 'qwen-tts', voiceId: 'Serena' },
-      'default-3': { providerId: 'qwen-tts', modelId: 'qwen3-tts-flash', voiceId: 'Cherry' },
+      'default-2': { source: 'user', providerId: 'qwen-tts', voiceId: 'Serena' },
+      'default-3': {
+        source: 'user',
+        providerId: 'qwen-tts',
+        modelId: 'qwen3-tts-flash',
+        voiceId: 'Cherry',
+      },
     });
 
     // undefined deletes — the symmetric way back to deterministic auto-assignment
     setAgentVoiceOverride('default-2', undefined);
     expect(store.getState().agentVoiceOverrides).toEqual({
-      'default-3': { providerId: 'qwen-tts', modelId: 'qwen3-tts-flash', voiceId: 'Cherry' },
+      'default-3': {
+        source: 'user',
+        providerId: 'qwen-tts',
+        modelId: 'qwen3-tts-flash',
+        voiceId: 'Cherry',
+      },
     });
 
     // The write must actually reach storage (would break if a future
@@ -87,7 +97,12 @@ describe('agentVoiceOverrides', () => {
     // merely existing: hydration may already have left one there.
     await vi.waitFor(async () => {
       expect((await readPersistedState()).agentVoiceOverrides).toEqual({
-        'default-3': { providerId: 'qwen-tts', modelId: 'qwen3-tts-flash', voiceId: 'Cherry' },
+        'default-3': {
+          source: 'user',
+          providerId: 'qwen-tts',
+          modelId: 'qwen3-tts-flash',
+          voiceId: 'Cherry',
+        },
       });
     });
   });
@@ -98,7 +113,7 @@ describe('agentVoiceOverrides', () => {
       agentSelectionIsUserSet: true,
     });
     expect(store.getState().agentVoiceOverrides).toEqual({
-      'default-2': { providerId: 'qwen-tts', voiceId: 'Dylan' },
+      'default-2': { source: 'user', providerId: 'qwen-tts', voiceId: 'Dylan' },
     });
     expect(store.getState().agentSelectionIsUserSet).toBe(true);
   });

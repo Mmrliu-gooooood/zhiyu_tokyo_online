@@ -8,6 +8,22 @@ x-generation-environment: &generation-environment
   GENERATION_MODEL_ENCRYPTION_KEY: ${GENERATION_MODEL_ENCRYPTION_KEY:?Persistent 32-byte hex generation model snapshot key required}
   DEFAULT_MODEL: ${DEFAULT_MODEL:-}
   MODEL_ROUTES: ${MODEL_ROUTES:-}
+  ZHIYU_DEFAULT_TEXT_MODEL: ${ZHIYU_DEFAULT_TEXT_MODEL:-}
+  ZHIYU_DEFAULT_TEXT_DISPLAY_NAME: ${ZHIYU_DEFAULT_TEXT_DISPLAY_NAME:-}
+  ZHIYU_DEFAULT_TEXT_ENABLED: ${ZHIYU_DEFAULT_TEXT_ENABLED:-}
+  ZHIYU_DEFAULT_TEXT_THINKING_MODE: ${ZHIYU_DEFAULT_TEXT_THINKING_MODE:-disabled}
+  ZHIYU_DEFAULT_TEXT_THINKING_EFFORT: ${ZHIYU_DEFAULT_TEXT_THINKING_EFFORT:-none}
+  ZHIYU_DEFAULT_IMAGE_MODEL: ${ZHIYU_DEFAULT_IMAGE_MODEL:-}
+  ZHIYU_DEFAULT_IMAGE_DISPLAY_NAME: ${ZHIYU_DEFAULT_IMAGE_DISPLAY_NAME:-}
+  ZHIYU_DEFAULT_IMAGE_ENABLED: ${ZHIYU_DEFAULT_IMAGE_ENABLED:-}
+  ZHIYU_DEFAULT_VIDEO_MODEL: ${ZHIYU_DEFAULT_VIDEO_MODEL:-}
+  ZHIYU_DEFAULT_VIDEO_DISPLAY_NAME: ${ZHIYU_DEFAULT_VIDEO_DISPLAY_NAME:-}
+  ZHIYU_DEFAULT_VIDEO_ENABLED: ${ZHIYU_DEFAULT_VIDEO_ENABLED:-}
+  ZHIYU_DEFAULT_TTS_MODEL: ${ZHIYU_DEFAULT_TTS_MODEL:-}
+  ZHIYU_DEFAULT_TTS_DISPLAY_NAME: ${ZHIYU_DEFAULT_TTS_DISPLAY_NAME:-}
+  ZHIYU_DEFAULT_TTS_ENABLED: ${ZHIYU_DEFAULT_TTS_ENABLED:-}
+  ZHIYU_DEFAULTS_REVISION: ${ZHIYU_DEFAULTS_REVISION:-1}
+  ZHIYU_DEFAULTS_REVISION_SECRET: ${ZHIYU_DEFAULTS_REVISION_SECRET:-}
   GENERATION_BACKGROUND_ENABLED: ${GENERATION_BACKGROUND_ENABLED:-0}
   GENERATION_ACCEPTING_JOBS: ${GENERATION_ACCEPTING_JOBS:-0}
   APP_HEAVY_TASK_LIMIT: ${APP_HEAVY_TASK_LIMIT:-1}
@@ -182,6 +198,17 @@ services:
     image: postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
     environment:
       POSTGRES_PASSWORD: ${PERSISTENCE_POSTGRES_PASSWORD:?Use the verified existing role password}
+  usage-init:
+    image: node:22-alpine
+    profiles: [server-persistence]
+    user: '0:0'
+    command:
+      - sh
+      - -c
+      - mkdir -p /data/usage && chown 1001:65533 /data/usage && chmod 0770 /data/usage
+    volumes:
+      - openmaic-data:/data
+    restart: 'no'
   openmaic:
     image: zhiyu:latest
     container_name: zhiyu
@@ -211,6 +238,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      usage-init:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -242,6 +271,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      usage-init:
+        condition: service_completed_successfully
+    volumes:
+      - openmaic-data:/app/data
     networks: [default]
     restart: unless-stopped
     stop_grace_period: 45s

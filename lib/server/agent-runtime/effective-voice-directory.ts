@@ -7,8 +7,12 @@ import {
 } from '@/lib/audio/voice-catalog';
 import { supportsVoiceRegistration } from '@/lib/audio/voice-registration';
 import { getServerTTSProviders, resolveTTSApiKey } from '@/lib/server/provider-config';
+import { resolveProviderSelection } from '@/lib/server/resolve-provider-selection';
 
 export interface EffectiveSessionVoiceConfig {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
   providerId: string;
   protocol?: 'openai-speech';
   apiKey: string;
@@ -24,12 +28,18 @@ export interface EffectiveSessionVoiceConfig {
 }
 
 export interface EffectiveVoiceDirectoryEntry {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
   providerId: string;
   modelId: string;
   voiceIds: readonly string[];
 }
 
 export interface EffectiveVoiceBinding {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
   providerId: string;
   modelId: string;
   voiceId: string;
@@ -45,19 +55,59 @@ export interface EffectiveSessionVoiceSource<
 }
 
 export interface EffectiveSessionMediaVoiceConfig {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   tts?: readonly EffectiveSessionVoiceConfig[];
-  ttsProviders?: readonly EffectiveSessionVoiceConfig[];
-  ttsDefault?: EffectiveVoiceBinding;
-  ttsVoiceDirectory?: readonly EffectiveVoiceDirectoryEntry[];
+  ttsProviders?: readonly (
+    | EffectiveSessionVoiceConfig
+    | {
+        source: 'platform';
+        defaultId: string;
+        revision?: string;
+        speed?: number;
+        format?: string;
+      }
+  )[];
+  ttsDefault?:
+    | EffectiveVoiceBinding
+    | {
+        source: 'platform';
+        defaultId: string;
+        revision?: string;
+        voiceId: string;
+        speed?: number;
+      };
+  ttsVoiceDirectory?: readonly (
+    | EffectiveVoiceDirectoryEntry
+    | {
+        source: 'platform';
+        defaultId: string;
+        revision?: string;
+        voiceIds: readonly string[];
+      }
+  )[];
 }
 
 export interface SessionCatalogVoice extends CatalogVoice {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
   modelId?: string;
 }
 
 function sortKey(config: EffectiveSessionVoiceConfig) {
-  return `${config.providerId}\0${config.modelId}\0${config.voice ?? ''}`;
+  return `${selectionKey(config)}\0${config.voice ?? ''}`;
+}
+
+function selectionKey(config: {
+  source?: string;
+  defaultId?: string;
+  revision?: string;
+  providerId?: string;
+  modelId?: string;
+}): string {
+  return config.source === 'platform'
+    ? `platform\0${config.defaultId ?? ''}\0${config.revision ?? ''}`
+    : `${config.source ?? 'legacy-managed'}\0${config.providerId ?? ''}\0${config.modelId ?? ''}`;
 }
 
 function asVoiceSource<T extends EffectiveSessionVoiceConfig>(
@@ -74,9 +124,52 @@ export function mediaConfigVoiceSource(
 ): EffectiveSessionVoiceSource<EffectiveSessionVoiceConfig> {
   if (content.version === 2) {
     return {
-      providerConfigs: content.ttsProviders ?? [],
-      voiceDirectory: content.ttsVoiceDirectory,
-      defaultVoice: content.ttsDefault,
+      providerConfigs: (content.ttsProviders ?? []) as readonly EffectiveSessionVoiceConfig[],
+      voiceDirectory: content.ttsVoiceDirectory as
+        | readonly EffectiveVoiceDirectoryEntry[]
+        | undefined,
+      defaultVoice: content.ttsDefault as EffectiveVoiceBinding | undefined,
+    };
+  }
+  if (content.version === 3) {
+    const providerConfigs = (content.ttsProviders ?? []).map((config) => {
+      if (config.source !== 'platform') return config;
+      const resolved = resolveProviderSelection({
+        capability: 'tts',
+        source: config.source,
+        defaultId: config.defaultId,
+      });
+      if (config.revision !== resolved.revision) throw new Error('MEDIA_CONFIG_CHANGED');
+      return {
+        ...config,
+        providerId: resolved.providerId,
+        modelId: resolved.modelId ?? '',
+        apiKey: resolved.apiKey,
+        baseUrl: resolved.baseUrl,
+        enabled: true,
+        requiresApiKey: true,
+      };
+    }) as EffectiveSessionVoiceConfig[];
+    const resolveIdentity = <T extends { source?: string; defaultId?: string; revision?: string }>(
+      value: T,
+    ) => {
+      if (value.source !== 'platform') return value;
+      const resolved = resolveProviderSelection({
+        capability: 'tts',
+        source: value.source,
+        defaultId: value.defaultId,
+      });
+      if (value.revision !== resolved.revision) throw new Error('MEDIA_CONFIG_CHANGED');
+      return { ...value, providerId: resolved.providerId, modelId: resolved.modelId ?? '' };
+    };
+    return {
+      providerConfigs,
+      voiceDirectory: content.ttsVoiceDirectory?.map(resolveIdentity) as
+        | EffectiveVoiceDirectoryEntry[]
+        | undefined,
+      defaultVoice: content.ttsDefault
+        ? (resolveIdentity(content.ttsDefault) as EffectiveVoiceBinding)
+        : undefined,
     };
   }
   return { providerConfigs: content.tts ?? [] };
@@ -91,20 +184,22 @@ export function effectiveSessionVoiceConfigs<T extends EffectiveSessionVoiceConf
     (config) =>
       config.enabled &&
       !getServerTTSProviders()[config.providerId]?.disabled &&
-      (!config.requiresApiKey || !!resolveTTSApiKey(config.providerId, config.apiKey)),
+      (!config.requiresApiKey ||
+        !!(config.source === 'user'
+          ? config.apiKey
+          : resolveTTSApiKey(config.providerId, config.apiKey))),
   );
   const available = resolved.voiceDirectory
     ? resolved.voiceDirectory.flatMap((entry) => {
         const config = providers.find(
-          (candidate) =>
-            candidate.providerId === entry.providerId && candidate.modelId === entry.modelId,
+          (candidate) => selectionKey(candidate) === selectionKey(entry),
         );
         if (!config) return [];
         return entry.voiceIds.map((voice) => ({
           ...config,
           voice,
-          ...(resolved.defaultVoice?.providerId === entry.providerId &&
-          resolved.defaultVoice.modelId === entry.modelId &&
+          ...(resolved.defaultVoice &&
+          selectionKey(resolved.defaultVoice) === selectionKey(entry) &&
           resolved.defaultVoice.voiceId === voice
             ? { default: true, speed: resolved.defaultVoice.speed ?? config.speed }
             : {}),
@@ -117,12 +212,31 @@ export function effectiveSessionVoiceConfigs<T extends EffectiveSessionVoiceConf
 /** Resolve a roster binding or the explicit session default from the same directory. */
 export function resolveEffectiveSessionVoice<T extends EffectiveSessionVoiceConfig>(
   source: readonly T[] | EffectiveSessionVoiceSource<T>,
-  binding?: { providerId?: string; modelId?: string; voiceId?: string },
+  binding?: {
+    source?: 'platform' | 'user' | 'legacy-managed';
+    defaultId?: string;
+    revision?: string;
+    providerId?: string;
+    modelId?: string;
+    voiceId?: string;
+  },
 ): (T & { voice: string }) | undefined {
   const available = effectiveSessionVoiceConfigs(source);
-  if (binding?.providerId) {
+  if (binding?.source === 'platform') {
+    if (!binding.defaultId) return undefined;
     return available.find(
       (config) =>
+        config.source === binding.source &&
+        config.defaultId === binding.defaultId &&
+        (!binding.revision || config.revision === binding.revision) &&
+        (!binding.voiceId || config.voice === binding.voiceId),
+    );
+  }
+  if (binding?.providerId) {
+    const bindingSource = binding.source ?? 'legacy-managed';
+    return available.find(
+      (config) =>
+        (config.source ?? 'legacy-managed') === bindingSource &&
         config.providerId === binding.providerId &&
         (!binding.modelId || config.modelId === binding.modelId) &&
         (!binding.voiceId || config.voice === binding.voiceId),
@@ -178,6 +292,9 @@ export function sessionVoiceCatalog(
       };
       catalog.push({
         ...voice,
+        ...(snapshot.source ? { source: snapshot.source } : {}),
+        ...(snapshot.defaultId ? { defaultId: snapshot.defaultId } : {}),
+        ...(snapshot.revision ? { revision: snapshot.revision } : {}),
         providerId: snapshot.providerId,
         modelId: snapshot.modelId,
         binding: '',
@@ -197,12 +314,23 @@ export function sessionVoiceCatalog(
           ? resolvedSource.defaultVoice.modelId
           : undefined;
       const modelId = defaultModel && models.includes(defaultModel) ? defaultModel : models[0];
-      if (modelId) catalog.push({ ...voice, modelId, binding: '' });
+      const identity = configs.find(
+        (config) => config.providerId === voice.providerId && config.modelId === modelId,
+      );
+      if (modelId)
+        catalog.push({
+          ...voice,
+          ...(identity?.source ? { source: identity.source } : {}),
+          ...(identity?.defaultId ? { defaultId: identity.defaultId } : {}),
+          ...(identity?.revision ? { revision: identity.revision } : {}),
+          modelId,
+          binding: '',
+        });
     }
 
     const byTuple = new Map<string, SessionCatalogVoice>();
     for (const voice of catalog) {
-      const tuple = `${voice.providerId}\0${voice.modelId}\0${voice.id}`;
+      const tuple = `${selectionKey(voice)}\0${voice.id}`;
       if (!byTuple.has(tuple)) byTuple.set(tuple, voice);
     }
     const distinct = [...byTuple.values()];
@@ -216,9 +344,11 @@ export function sessionVoiceCatalog(
       .map((voice) => ({
         ...voice,
         binding:
-          identityCounts.get(`${voice.providerId}\0${voice.id}`) === 1
-            ? `${voice.providerId}::${voice.id}`
-            : `${voice.providerId}::${voice.modelId}::${voice.id}`,
+          voice.source === 'platform' && voice.defaultId
+            ? `platform::${voice.defaultId}::${voice.id}`
+            : identityCounts.get(`${voice.providerId}\0${voice.id}`) === 1
+              ? `${voice.providerId}::${voice.id}`
+              : `${voice.providerId}::${voice.modelId}::${voice.id}`,
       }))
       .sort((left, right) =>
         `${left.providerId}\0${left.modelId}\0${left.id}`.localeCompare(

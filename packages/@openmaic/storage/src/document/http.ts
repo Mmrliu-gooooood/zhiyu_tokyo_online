@@ -48,6 +48,7 @@ export class HttpDocumentStoreError extends Error {
     readonly code: string,
     message: string,
     readonly details?: unknown,
+    readonly requestId?: string,
   ) {
     super(message);
     this.name = 'HttpDocumentStoreError';
@@ -187,7 +188,13 @@ export class HttpDocumentStore<
           typeof details?.storedVersion === 'string' ? details.storedVersion : undefined;
         throw new DocumentVersionError(versionErrorStageId, 'future', storedVersion, message);
       }
-      throw new HttpDocumentStoreError(response.status, code, message, errorBody?.error?.details);
+      throw new HttpDocumentStoreError(
+        response.status,
+        code,
+        message,
+        errorBody?.error?.details,
+        response.headers.get('x-request-id') ?? undefined,
+      );
     }
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;

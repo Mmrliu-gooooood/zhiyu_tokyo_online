@@ -18,7 +18,7 @@ import { isProviderKeyRequired } from '@/lib/ai/providers';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { resolveModel } from '@/lib/server/resolve-model';
+import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
 import type { ThinkingConfig } from '@/lib/types/provider';
 const log = createLogger('Chat API');
 
@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
       apiKey: body.apiKey,
       baseUrl: body.baseUrl,
       providerType: body.providerType,
+      source: body.modelSource,
+      platformDefaultId: body.platformDefaultId,
       // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
       // wins, an unrouted one honors this client thinking (see resolve-model.ts).
       thinkingConfig: body.thinkingConfig ?? body.thinking,
@@ -198,6 +200,10 @@ export async function POST(req: NextRequest) {
       `Chat request failed [model=${chatModel ?? 'unknown'}, messages=${chatMessageCount ?? 0}]:`,
       error,
     );
+    const resolutionError = getModelResolutionError(error);
+    if (resolutionError) {
+      return apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message);
+    }
     return apiError(
       'INTERNAL_ERROR',
       500,

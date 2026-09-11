@@ -29,6 +29,24 @@ describe('Home connection synchronization', () => {
     expect(JSON.parse(request.mock.calls[0][1].body)).toEqual(config);
     expect([...saved.values()].join()).not.toContain('private-key');
   });
+  it('sends a platform connection as a stable reference without local provider details', async () => {
+    request.mockResolvedValue(Response.json({ ref }));
+    await syncProModelConnection({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+      modelString: 'deepseek:must-not-leak-model',
+      apiKey: 'must-not-leak-key',
+      baseUrl: 'https://must-not-leak.example.com',
+      thinkingConfig: { mode: 'disabled', effort: 'none' },
+    });
+    expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+      thinkingConfig: { mode: 'disabled', effort: 'none' },
+    });
+  });
   it('recovers a stale ref once by syncing the current Home config as a new connection', async () => {
     saved.set('openmaic:pro-model-ref', JSON.stringify(ref));
     request.mockResolvedValueOnce(

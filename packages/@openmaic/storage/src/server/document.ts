@@ -32,6 +32,36 @@ export type DocumentHttpAuthorize = (
   req: IncomingMessage,
 ) => boolean | Promise<boolean>;
 
+export type DocumentHttpStoreOperation =
+  | 'saveDocument'
+  | 'deleteDocument'
+  | 'putStage'
+  | 'putScene'
+  | 'deleteScene';
+
+export interface DocumentHttpStoreErrorContext {
+  operation: DocumentHttpStoreOperation;
+  stageId: string;
+  sceneId?: string;
+}
+
+/**
+ * Public identity for an application-owned write conflict. The storage
+ * handler fixes the HTTP status at 409: applications can opt a precisely
+ * recognized exception into this seam, but cannot use it as a generic
+ * arbitrary-status/error-field passthrough.
+ */
+export interface DocumentHttpStoreConflict {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
+export type DocumentHttpMapStoreConflict = (
+  error: unknown,
+  context: DocumentHttpStoreErrorContext,
+) => DocumentHttpStoreConflict | undefined;
+
 export interface DocumentHttpHandlerOptions {
   authenticate: DocumentHttpAuthenticate;
   /** Defaults to allowing any authenticated principal. */
@@ -42,6 +72,8 @@ export interface DocumentHttpHandlerOptions {
   validateStage?: StageValidator;
   /** Maximum JSON request-body size in bytes. Defaults to 32 MiB. */
   maxBodyBytes?: number;
+  /** Explicit application boundary for recognized backing-store conflicts. */
+  mapStoreConflict?: DocumentHttpMapStoreConflict;
 }
 
 interface ErrorBody {
@@ -282,7 +314,11 @@ function classifyStoreError(error: unknown): never {
   throw error;
 }
 
-function mappedError(error: unknown): { status: number; body: ErrorBody } {
+function mappedError(
+  error: unknown,
+  mapStoreConflict?: DocumentHttpMapStoreConflict,
+  context?: DocumentHttpStoreErrorContext,
+): { status: number; body: ErrorBody } {
   if (error instanceof DocumentHttpError) {
     return {
       status: error.status,
@@ -295,12 +331,62 @@ function mappedError(error: unknown): { status: number; body: ErrorBody } {
       },
     };
   }
+  let conflict: DocumentHttpStoreConflict | undefined;
+  try {
+    conflict = context === undefined ? undefined : mapStoreConflict?.(error, context);
+  } catch {
+    // A faulty application classifier cannot turn an unknown exception into a
+    // public response or prevent the handler from returning its safe 500.
+    conflict = undefined;
+  }
+  if (conflict !== undefined) {
+    return {
+      status: 409,
+      body: {
+        error: {
+          code: conflict.code,
+          message: conflict.message,
+          ...(conflict.details === undefined ? {} : { details: conflict.details }),
+        },
+      },
+    };
+  }
   return {
     status: 500,
     body: {
       error: { code: 'INTERNAL_ERROR', message: '@openmaic/storage: internal server error' },
     },
   };
+}
+
+function storeErrorContext(req: IncomingMessage): DocumentHttpStoreErrorContext | undefined {
+  let parts: string[];
+  try {
+    parts = new URL(req.url ?? '/', 'http://documents.invalid').pathname
+      .split('/')
+      .filter((part, index) => index !== 0 || part !== '')
+      .map((part) => decodeURIComponent(part));
+  } catch {
+    return undefined;
+  }
+  if (parts[0] !== 'documents' || parts.length < 2) return undefined;
+  const stageId = parts[1]!;
+  const method = req.method ?? 'GET';
+  if (parts.length === 2 && method === 'PUT') {
+    return { operation: 'saveDocument', stageId };
+  }
+  if (parts.length === 2 && method === 'DELETE') {
+    return { operation: 'deleteDocument', stageId };
+  }
+  if (parts.length === 3 && parts[2] === 'stage' && method === 'PUT') {
+    return { operation: 'putStage', stageId };
+  }
+  if (parts.length === 4 && parts[2] === 'scenes') {
+    const operation =
+      method === 'PUT' ? 'putScene' : method === 'DELETE' ? 'deleteScene' : undefined;
+    return operation === undefined ? undefined : { operation, stageId, sceneId: parts[3]! };
+  }
+  return undefined;
 }
 
 async function route<TScene extends SceneLike, TStage extends Stage>(
@@ -443,10 +529,10 @@ export function createDocumentHttpHandler<
         res.destroy(error instanceof Error ? error : undefined);
         return;
       }
-      if (!(error instanceof DocumentHttpError) || error.status >= 500) {
+      const mapped = mappedError(error, options.mapStoreConflict, storeErrorContext(req));
+      if (mapped.status >= 500) {
         console.error('@openmaic/storage: Document HTTP handler internal error', error);
       }
-      const mapped = mappedError(error);
       sendJson(res, mapped.status, mapped.body);
     });
   };

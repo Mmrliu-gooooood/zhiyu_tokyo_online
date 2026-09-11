@@ -1,4 +1,5 @@
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 
 import {
@@ -15,6 +16,7 @@ import {
   type DocumentAccess,
 } from '@/lib/persistence/document-access';
 import { createOwnerBoundDocumentStore } from '@/lib/persistence/owner-bound-document-store';
+import { createPersistenceDocumentConflictMapper } from '@/lib/persistence/document-http-conflicts';
 import { authenticatePersistenceRequest } from '@/lib/persistence/server-auth';
 import {
   getServerPersistenceProvider,
@@ -78,6 +80,7 @@ async function createPersistenceHandler(
   connectionString: string,
   ownerId: string,
   access: DocumentAccess,
+  requestId: string,
   poolFactory?: PersistencePoolFactory,
 ): Promise<RequestListener> {
   const { pool, runtimeStore, assetStore } = await getServerPersistenceProvider(
@@ -114,6 +117,7 @@ async function createPersistenceHandler(
     validateScene: validateAppScene,
     validateStage: validateAppStage,
     payloadValidators: APP_RUNTIME_PAYLOAD_VALIDATORS,
+    mapStoreConflict: createPersistenceDocumentConflictMapper(requestId),
     assetStore,
     ...(byteEgress === undefined ? {} : { byteEgress }),
   });
@@ -262,23 +266,42 @@ interface PersistenceRequestDeps {
   poolFactory?: PersistencePoolFactory;
 }
 
+const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+
+function persistenceRequestId(request: Request): string {
+  const supplied = request.headers.get('x-request-id');
+  return supplied !== null && SAFE_REQUEST_ID.test(supplied) ? supplied : randomUUID();
+}
+
+function withPersistenceRequestId(response: Response, requestId: string): Response {
+  response.headers.set('x-request-id', requestId);
+  return response;
+}
+
 export async function handlePersistenceRequest(
   request: Request,
   deps: PersistenceRequestDeps = {},
 ): Promise<Response> {
+  const requestId = persistenceRequestId(request);
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    return jsonError(404, 'PERSISTENCE_NOT_CONFIGURED', 'server persistence not configured');
+    return withPersistenceRequestId(
+      jsonError(404, 'PERSISTENCE_NOT_CONFIGURED', 'server persistence not configured'),
+      requestId,
+    );
   }
   if (!process.env.PERSISTENCE_DEV_TOKEN) {
-    return jsonError(
-      503,
-      'PERSISTENCE_DEV_TOKEN_MISSING',
-      'server persistence requires PERSISTENCE_DEV_TOKEN (development auth only)',
+    return withPersistenceRequestId(
+      jsonError(
+        503,
+        'PERSISTENCE_DEV_TOKEN_MISSING',
+        'server persistence requires PERSISTENCE_DEV_TOKEN (development auth only)',
+      ),
+      requestId,
     );
   }
 
-  return withRequestOwnerId(request, async (ownerId, responseHeaders) => {
+  const response = await withRequestOwnerId(request, async (ownerId, responseHeaders) => {
     try {
       const path = routeRelativePath(request);
       const action = parseDocumentAction(request.method, path);
@@ -302,7 +325,13 @@ export async function handlePersistenceRequest(
         access === 'not-found'
           ? jsonError(404, 'DOCUMENT_NOT_FOUND', '@openmaic/storage: document not found')
           : await runNodeHandler(
-              await createPersistenceHandler(connectionString, ownerId, access, deps.poolFactory),
+              await createPersistenceHandler(
+                connectionString,
+                ownerId,
+                access,
+                requestId,
+                deps.poolFactory,
+              ),
               request,
             );
       for (const [name, value] of responseHeaders.entries()) response.headers.append(name, value);
@@ -318,4 +347,5 @@ export async function handlePersistenceRequest(
       return response;
     }
   });
+  return withPersistenceRequestId(response, requestId);
 }

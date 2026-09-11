@@ -20,7 +20,7 @@ import {
 } from '@/lib/chat/pi/config';
 import { runPiDirectorLoop } from '@/lib/chat/pi/director-loop';
 import type { SendEvent } from '@/lib/chat/pi/types';
-import { resolveModel } from '@/lib/server/resolve-model';
+import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
 import { apiError } from '@/lib/server/api-response';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { StatelessChatRequest } from '@/lib/types/chat';
@@ -101,6 +101,8 @@ export async function POST(req: NextRequest) {
       apiKey: body.apiKey,
       baseUrl: body.baseUrl,
       providerType: body.providerType,
+      source: body.modelSource,
+      platformDefaultId: body.platformDefaultId,
       // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
       // wins, an unrouted one honors this client thinking (see resolve-model.ts).
       thinkingConfig: body.thinkingConfig ?? body.thinking,
@@ -296,6 +298,10 @@ export async function POST(req: NextRequest) {
       `Pi chat request failed [model=${chatModel ?? 'unknown'}, messages=${chatMessageCount ?? 0}]:`,
       error,
     );
+    const resolutionError = getModelResolutionError(error);
+    if (resolutionError) {
+      return apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message);
+    }
     return apiError(
       'INTERNAL_ERROR',
       500,

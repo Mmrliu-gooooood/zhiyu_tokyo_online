@@ -35,6 +35,7 @@ import {
   type ToolSet,
 } from 'ai';
 import { streamLLM } from '@/lib/ai/llm';
+import { createLogger } from '@/lib/logger';
 import { normalizeUsage } from '@/lib/usage/normalize';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import {
@@ -42,6 +43,23 @@ import {
   emitToolCallProviderOptions,
   type ToolCallProviderMetadata,
 } from './provider-metadata';
+
+const log = createLogger('AgentStream');
+const DNS_LOCAL_RETRY_DELAYS_MS = [1_000, 3_000] as const;
+
+function requestNotSentDnsCode(error: unknown): 'EAI_AGAIN' | 'ENOTFOUND' | undefined {
+  let current = error;
+  for (let depth = 0; depth < 6 && current && typeof current === 'object'; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    if (code === 'EAI_AGAIN' || code === 'ENOTFOUND') return code;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+function diagnosticToken(value: string | undefined, fallback: string): string {
+  return value && /^[a-zA-Z0-9_.:-]{1,200}$/.test(value) ? value : fallback;
+}
 
 /**
  * Local re-implementation of pi-ai's `AssistantMessageEventStream` queue. pi
@@ -155,6 +173,12 @@ export interface CallLlmStreamFnOptions {
   source?: string;
   /** Optional abort signal forwarded to the underlying streamLLM call. */
   abortSignal?: AbortSignal;
+  /** Retry only a single provider request proven unsent by DNS resolution failure. */
+  retryPreSendDns?: boolean;
+  /** Redacted identifiers only; URLs, credentials and prompts must never be passed here. */
+  dnsDiagnostic?: { providerId?: string; hostname?: string; step?: string };
+  /** Test seam; production uses the fixed 1s/3s bounded backoff. */
+  dnsRetryDelaysMs?: readonly [number, number];
 }
 
 /**
@@ -281,6 +305,7 @@ async function pump(
   const mapper = createPartMapper(partial, (event) => stream.push(event));
   let settled = false;
   let cleanupAbortListeners = () => {};
+  let activeAbortSignal: AbortSignal | undefined;
 
   const setUsage = (rawUsage: LanguageModelUsage | undefined): void => {
     const usage = normalizeUsage(rawUsage);
@@ -381,6 +406,7 @@ async function pump(
     }
 
     const combinedAbort = combineAbortSignals(abortSources);
+    activeAbortSignal = combinedAbort.signal;
     const onAbort = () => {
       settleError('aborted', combinedAbort.signal?.reason);
     };
@@ -401,54 +427,138 @@ async function pump(
       : opts.maxOutputTokens && requestedMaxTokens
         ? Math.min(opts.maxOutputTokens, requestedMaxTokens)
         : (requestedMaxTokens ?? opts.maxOutputTokens);
-    await opts.beforeCall?.();
-    const result = await streamLLM(
-      {
-        model: opts.languageModel,
-        system: context.systemPrompt,
-        messages: toModelMessages(context.messages, {
-          includeReasoning:
-            typeof opts.languageModel !== 'string' &&
-            opts.languageModel.provider === 'kimi.chat' &&
-            opts.languageModel.modelId === 'kimi-k3',
-        }),
-        tools: toAiTools(context.tools ?? []),
-        toolChoice: 'auto',
-        // pi's loop owns multi-step; one LLM turn per streamFn call.
-        stopWhen: stepCountIs(1),
-        maxOutputTokens,
-        ...(opts.maxRetries === undefined ? {} : { maxRetries: opts.maxRetries }),
-        abortSignal: combinedAbort.signal,
-      },
-      opts.source ?? 'maic-agent',
-      opts.thinkingConfig,
-    );
-
-    for await (const part of result.fullStream as AsyncIterable<Record<string, unknown>>) {
-      if (settled) break;
-      if (part.type === 'finish') {
-        settleFinish(
-          part.finishReason as FinishReason | undefined,
-          part.totalUsage as LanguageModelUsage | undefined,
+    const requestedRetryDelays = opts.dnsRetryDelaysMs ?? DNS_LOCAL_RETRY_DELAYS_MS;
+    const firstRequestedDelay = Number.isFinite(requestedRetryDelays[0])
+      ? requestedRetryDelays[0]
+      : DNS_LOCAL_RETRY_DELAYS_MS[0];
+    const secondRequestedDelay = Number.isFinite(requestedRetryDelays[1])
+      ? requestedRetryDelays[1]
+      : DNS_LOCAL_RETRY_DELAYS_MS[1];
+    const firstRetryDelay = Math.max(0, Math.min(10_000, firstRequestedDelay));
+    // Enforce the contract at runtime even if an untyped caller bypasses the
+    // tuple: exactly two retries and no more than ten seconds total waiting.
+    const retryDelays = [
+      firstRetryDelay,
+      Math.max(0, Math.min(10_000 - firstRetryDelay, secondRequestedDelay)),
+    ] as const;
+    let providerOutputObserved = false;
+    for (let attempt = 1; !settled; attempt += 1) {
+      await opts.beforeCall?.();
+      let retryError: unknown;
+      try {
+        const result = streamLLM(
+          {
+            model: opts.languageModel,
+            system: context.systemPrompt,
+            messages: toModelMessages(context.messages, {
+              includeReasoning:
+                typeof opts.languageModel !== 'string' &&
+                opts.languageModel.provider === 'kimi.chat' &&
+                opts.languageModel.modelId === 'kimi-k3',
+            }),
+            tools: toAiTools(context.tools ?? []),
+            toolChoice: 'auto',
+            // pi's loop owns multi-step; one LLM turn per streamFn call.
+            stopWhen: stepCountIs(1),
+            maxOutputTokens,
+            ...(opts.maxRetries === undefined ? {} : { maxRetries: opts.maxRetries }),
+            abortSignal: combinedAbort.signal,
+          },
+          opts.source ?? 'maic-agent',
+          opts.thinkingConfig,
         );
+
+        for await (const part of result.fullStream as AsyncIterable<Record<string, unknown>>) {
+          if (settled) break;
+          if (part.type === 'finish') {
+            providerOutputObserved = true;
+            settleFinish(
+              part.finishReason as FinishReason | undefined,
+              part.totalUsage as LanguageModelUsage | undefined,
+            );
+            break;
+          }
+          if (part.type === 'abort') {
+            settleError('aborted', part.reason);
+            break;
+          }
+          if (part.type === 'error') {
+            retryError = part.error;
+            break;
+          }
+          if (part.type !== 'start' && part.type !== 'start-step') {
+            providerOutputObserved = true;
+          }
+          mapper.handle(part);
+        }
+      } catch (error) {
+        retryError = error;
+      }
+
+      if (settled) break;
+      const dnsCode = requestNotSentDnsCode(retryError);
+      const delayMs = retryDelays[attempt - 1];
+      const willRetry =
+        opts.retryPreSendDns === true &&
+        !providerOutputObserved &&
+        !combinedAbort.signal?.aborted &&
+        dnsCode !== undefined &&
+        delayMs !== undefined;
+      if (dnsCode && opts.retryPreSendDns && !providerOutputObserved) {
+        log.warn(
+          JSON.stringify({
+            event: 'provider_outbound_dns_failure',
+            providerId: diagnosticToken(opts.dnsDiagnostic?.providerId, 'unknown'),
+            hostname: diagnosticToken(opts.dnsDiagnostic?.hostname, 'unknown'),
+            step: diagnosticToken(opts.dnsDiagnostic?.step, 'agent-turn'),
+            dnsCode,
+            requestSent: false,
+            responseReceived: false,
+            attempt,
+            willRetry,
+          }),
+        );
+      }
+      if (!willRetry) {
+        if (combinedAbort.signal?.aborted) {
+          settleError('aborted', combinedAbort.signal.reason);
+        } else if (retryError !== undefined) {
+          settleError('error', opts.formatError ? opts.formatError(retryError) : retryError);
+        } else {
+          settleError('error', 'LLM stream ended without a terminal event');
+        }
         break;
       }
-      if (part.type === 'abort') {
-        settleError('aborted', part.reason);
-        break;
-      }
-      if (part.type === 'error') {
-        settleError('error', opts.formatError ? opts.formatError(part.error) : part.error);
-        break;
-      }
-      mapper.handle(part);
+      await waitForRetry(delayMs, combinedAbort.signal);
     }
-    if (!settled) settleError('error', 'LLM stream ended without a terminal event');
   } catch (err) {
-    settleError('error', opts.formatError ? opts.formatError(err) : err);
+    settleError(
+      activeAbortSignal?.aborted ? 'aborted' : 'error',
+      activeAbortSignal?.aborted
+        ? activeAbortSignal.reason
+        : opts.formatError
+          ? opts.formatError(err)
+          : err,
+    );
   } finally {
     cleanupAbortListeners();
   }
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal | undefined): Promise<void> {
+  if (signal?.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    timer.unref?.();
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 function errorMessage(error: unknown, fallback: string): string {

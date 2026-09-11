@@ -5,6 +5,7 @@ import { getServerPersistenceProvider } from '@/lib/persistence/server-provider'
 import { nodePostgresTransaction } from '@/lib/server/agent-runtime/store';
 import { MediaConfigRefSchema, type MediaConfigRef } from '@/lib/server/generation-jobs/contracts';
 import { assertGenerationSchema } from '@/lib/server/generation-jobs/migrations';
+import { PlatformDefaultModelError, resolvePlatformDefault } from '@/lib/server/provider-config';
 
 export class MediaConfigSnapshotError extends Error {
   constructor(
@@ -16,8 +17,8 @@ export class MediaConfigSnapshotError extends Error {
   }
 }
 
-export const MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION = 2;
-const SUPPORTED_MEDIA_CONFIG_SNAPSHOT_VERSIONS = new Set([1, 2]);
+export const MEDIA_CONFIG_SNAPSHOT_SCHEMA_VERSION = 3;
+const SUPPORTED_MEDIA_CONFIG_SNAPSHOT_VERSIONS = new Set([1, 2, 3]);
 
 const providerInstanceId = z
   .string()
@@ -274,7 +275,10 @@ const MediaConfigSnapshotV2Schema = z
     for (const config of value.ttsProviders ?? []) {
       const key = `${config.providerId}\0${config.modelId}`;
       if (providerKeys.has(key)) {
-        context.addIssue({ code: 'custom', message: 'Duplicate TTS provider/model execution config' });
+        context.addIssue({
+          code: 'custom',
+          message: 'Duplicate TTS provider/model execution config',
+        });
       }
       providerKeys.add(key);
     }
@@ -295,7 +299,158 @@ const MediaConfigSnapshotV2Schema = z
         (entry) => `${entry.providerId}\0${entry.modelId}` === key,
       );
       if (!providerKeys.has(key) || !directory?.voiceIds.includes(value.ttsDefault.voiceId)) {
-        context.addIssue({ code: 'custom', message: 'Default voice is outside the voice directory' });
+        context.addIssue({
+          code: 'custom',
+          message: 'Default voice is outside the voice directory',
+        });
+      }
+    }
+  })
+  .refine(
+    (value) =>
+      value.image ||
+      value.video ||
+      value.ttsProviders?.length ||
+      value.imageEnabled !== undefined ||
+      value.videoEnabled !== undefined ||
+      value.ttsEnabled !== undefined,
+    { message: 'At least one media provider configuration or explicit intent is required' },
+  );
+
+const source = z.enum(['user', 'legacy-managed']);
+const platformSelection = z
+  .object({
+    source: z.literal('platform'),
+    defaultId: providerInstanceId,
+    revision: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+function sourcefulConfig<T extends z.ZodType>(schema: T, protocol: z.ZodType) {
+  return z
+    .object({
+      source,
+      providerId: providerInstanceId,
+      protocol: protocol.optional(),
+      apiKey,
+      baseUrl: z.union([baseUrl, z.literal('')]),
+      requiresApiKey: z.boolean().optional().default(true),
+      enabled: z.boolean().optional().default(true),
+      modelId: optionalBuiltInModelId,
+    })
+    .strict()
+    .superRefine((value, context) => {
+      const { source: _source, ...legacy } = value;
+      const parsed = schema.safeParse(legacy);
+      if (!parsed.success) {
+        context.addIssue({ code: 'custom', message: 'Invalid media provider configuration' });
+      }
+    });
+}
+
+const sourcefulImageConfig = sourcefulConfig(
+  imageConfig,
+  z.enum(['openai-images', 'siliconflow-images', 'openrouter-images']),
+);
+const sourcefulVideoConfig = sourcefulConfig(
+  videoConfig,
+  z.enum(['siliconflow-video', 'openrouter-video']),
+);
+const sourcefulTtsProviderConfig = z
+  .object({
+    source,
+    providerId: providerInstanceId,
+    protocol: z.literal('openai-speech').optional(),
+    apiKey,
+    baseUrl: z.union([baseUrl, z.literal('')]),
+    requiresApiKey: z.boolean().optional().default(true),
+    enabled: z.boolean().optional().default(true),
+    modelId: optionalBuiltInModelId,
+    ...ttsExecutionOptions,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const { source: _source, ...legacy } = value;
+    const parsed = ttsProviderConfig.safeParse(legacy);
+    if (!parsed.success) {
+      context.addIssue({ code: 'custom', message: 'Invalid TTS provider configuration' });
+    }
+  });
+const platformTtsProviderConfig = platformSelection.extend(ttsExecutionOptions).strict();
+const v3TtsProviderConfig = z.union([platformTtsProviderConfig, sourcefulTtsProviderConfig]);
+const userVoiceIdentity = z
+  .object({
+    source,
+    providerId: providerInstanceId,
+    modelId,
+  })
+  .strict();
+const v3TtsVoiceBinding = z.union([
+  platformSelection.extend({
+    voiceId: z.string().trim().min(1).max(500),
+    speed: z.number().min(0.25).max(4),
+  }),
+  userVoiceIdentity.extend({
+    voiceId: z.string().trim().min(1).max(500),
+    speed: z.number().min(0.25).max(4),
+  }),
+]);
+const v3TtsVoiceDirectoryEntry = z.union([
+  platformSelection.extend({
+    voiceIds: z.array(z.string().trim().min(1).max(500)).min(1).max(1_000),
+  }),
+  userVoiceIdentity.extend({
+    voiceIds: z.array(z.string().trim().min(1).max(500)).min(1).max(1_000),
+  }),
+]);
+type SourcefulVoiceIdentity = z.infer<typeof platformSelection> | z.infer<typeof userVoiceIdentity>;
+const selectionKey = (value: SourcefulVoiceIdentity): string =>
+  value.source === 'platform'
+    ? `${value.source}\0${value.defaultId}\0${value.revision ?? ''}`
+    : `${value.source}\0${value.providerId}\0${value.modelId}`;
+
+const MediaConfigSnapshotV3Schema = z
+  .object({
+    version: z.literal(3),
+    imageEnabled: z.boolean().optional(),
+    videoEnabled: z.boolean().optional(),
+    ttsEnabled: z.boolean().optional(),
+    image: z.union([platformSelection, sourcefulImageConfig]).optional(),
+    video: z.union([platformSelection, sourcefulVideoConfig]).optional(),
+    tts: z.never().optional(),
+    ttsProviders: z.array(v3TtsProviderConfig).max(100).optional(),
+    ttsDefault: v3TtsVoiceBinding.optional(),
+    ttsVoiceDirectory: z.array(v3TtsVoiceDirectoryEntry).max(100).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const providerKeys = new Set<string>();
+    for (const config of value.ttsProviders ?? []) {
+      const key = selectionKey(config);
+      if (providerKeys.has(key)) {
+        context.addIssue({ code: 'custom', message: 'Duplicate TTS selection execution config' });
+      }
+      providerKeys.add(key);
+    }
+    const directoryKeys = new Set<string>();
+    for (const entry of value.ttsVoiceDirectory ?? []) {
+      const key = selectionKey(entry);
+      if (!providerKeys.has(key)) {
+        context.addIssue({ code: 'custom', message: 'Voice directory has no execution config' });
+      }
+      if (directoryKeys.has(key) || new Set(entry.voiceIds).size !== entry.voiceIds.length) {
+        context.addIssue({ code: 'custom', message: 'Duplicate voice directory entry' });
+      }
+      directoryKeys.add(key);
+    }
+    if (value.ttsDefault) {
+      const key = selectionKey(value.ttsDefault);
+      const directory = value.ttsVoiceDirectory?.find((entry) => selectionKey(entry) === key);
+      if (!providerKeys.has(key) || !directory?.voiceIds.includes(value.ttsDefault.voiceId)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Default voice is outside the voice directory',
+        });
       }
     }
   })
@@ -313,6 +468,7 @@ const MediaConfigSnapshotV2Schema = z
 export const MediaConfigSnapshotContentSchema = z.discriminatedUnion('version', [
   MediaConfigSnapshotV1Schema,
   MediaConfigSnapshotV2Schema,
+  MediaConfigSnapshotV3Schema,
 ]);
 export type MediaConfigSnapshotContent = z.infer<typeof MediaConfigSnapshotContentSchema>;
 
@@ -393,19 +549,50 @@ function unseal(
 function parseContent(value: unknown): MediaConfigSnapshotContent {
   const parsed = MediaConfigSnapshotContentSchema.safeParse(value);
   if (!parsed.success) throw new MediaConfigSnapshotError('MEDIA_CONFIG_INVALID');
+  if (parsed.data.version === 3) {
+    const bindPlatform = (
+      selection: { source: 'platform'; defaultId: string; revision?: string },
+      capability: 'image' | 'video' | 'tts',
+    ) => {
+      try {
+        const binding = resolvePlatformDefault(selection.defaultId, capability);
+        if (selection.revision && selection.revision !== binding.revision) {
+          throw new MediaConfigSnapshotError('MEDIA_CONFIG_CHANGED', 409);
+        }
+        selection.revision = binding.revision;
+      } catch (error) {
+        if (error instanceof MediaConfigSnapshotError) throw error;
+        if (error instanceof PlatformDefaultModelError) {
+          throw new MediaConfigSnapshotError(error.code, error.httpStatus);
+        }
+        throw error;
+      }
+    };
+    if (parsed.data.image?.source === 'platform') bindPlatform(parsed.data.image, 'image');
+    if (parsed.data.video?.source === 'platform') bindPlatform(parsed.data.video, 'video');
+    for (const selection of parsed.data.ttsProviders ?? []) {
+      if (selection.source === 'platform') bindPlatform(selection, 'tts');
+    }
+    if (parsed.data.ttsDefault?.source === 'platform') bindPlatform(parsed.data.ttsDefault, 'tts');
+    for (const selection of parsed.data.ttsVoiceDirectory ?? []) {
+      if (selection.source === 'platform') bindPlatform(selection, 'tts');
+    }
+  }
   for (const config of [
     parsed.data.image,
     parsed.data.video,
     ...(parsed.data.tts ?? []),
     ...(parsed.data.ttsProviders ?? []),
   ]) {
-    const isCustom = config?.providerId.startsWith('custom-');
-    if (config?.requiresApiKey && !config.apiKey.trim() && !isCustom) {
+    if (!config || !('providerId' in config)) continue;
+    const isCustom = config.providerId.startsWith('custom-');
+    const isExplicitUser = 'source' in config && config.source === 'user';
+    if (config.requiresApiKey && !config.apiKey.trim() && !isCustom && !isExplicitUser) {
       // A built-in provider may be server-managed; the authoritative key check
       // happens after the owner-scoped snapshot is loaded by the consumer.
       continue;
     }
-    if (config?.requiresApiKey && !config.apiKey.trim()) {
+    if (config.requiresApiKey && !config.apiKey.trim()) {
       throw new MediaConfigSnapshotError('MEDIA_CONFIG_KEY_REQUIRED');
     }
   }
@@ -414,11 +601,11 @@ function parseContent(value: unknown): MediaConfigSnapshotContent {
 
 function providerInstanceIds(content: MediaConfigSnapshotContent): string[] {
   return [
-    content.image?.providerId,
-    content.video?.providerId,
+    content.image && 'providerId' in content.image ? content.image.providerId : undefined,
+    content.video && 'providerId' in content.video ? content.video.providerId : undefined,
     ...(content.tts ?? []).map((v) => v.providerId),
-    ...(content.ttsProviders ?? []).map((v) => v.providerId),
-    ...(content.ttsVoiceDirectory ?? []).map((v) => v.providerId),
+    ...(content.ttsProviders ?? []).map((v) => ('providerId' in v ? v.providerId : undefined)),
+    ...(content.ttsVoiceDirectory ?? []).map((v) => ('providerId' in v ? v.providerId : undefined)),
   ]
     .filter((value): value is string => !!value)
     .filter((value, index, all) => all.indexOf(value) === index)

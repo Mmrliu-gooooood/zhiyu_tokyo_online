@@ -35,6 +35,11 @@ import {
 import { QwenVoiceCloneError, qwenVoiceCloneErrorMessage } from '@/lib/audio/qwen-voice-clone';
 import { InvalidReferenceAudioError } from '@/lib/audio/wav-validate';
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
+import { TTS_PROVIDERS } from '@/lib/audio/constants';
+import {
+  ProviderSelectionError,
+  normalizeProviderSelectionSource,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('Voice Registration API');
 
@@ -95,11 +100,25 @@ async function handlePost(req: NextRequest, admissionSignal: AbortSignal) {
       ttsApiKey?: string;
       ttsBaseUrl?: string;
       ttsModelId?: string;
+      modelSource?: string;
       action?: 'register' | 'delete';
     };
     providerId = typeof body.providerId === 'string' ? body.providerId : undefined;
+    const modelSource = normalizeProviderSelectionSource(body.modelSource);
     voiceId = typeof body.voiceId === 'string' ? body.voiceId.trim() : undefined;
     const design = normalizeVoiceDesign(body.descriptor);
+
+    // The released platform TTS default uses a preset voice and never enrolls
+    // account-scoped voices through this browser endpoint. Rejecting the source
+    // prevents a caller from treating `platform` as permission to borrow an
+    // arbitrary same-named managed provider key.
+    if (modelSource === 'platform') {
+      return apiError(
+        'INVALID_MODEL_SOURCE',
+        400,
+        'Platform default voices cannot be registered through this endpoint',
+      );
+    }
 
     if (!providerId) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'providerId is required');
@@ -131,7 +150,7 @@ async function handlePost(req: NextRequest, admissionSignal: AbortSignal) {
     }
 
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('tts', providerId);
+    const managed = modelSource === 'user' ? false : isServerConfiguredProvider('tts', providerId);
     const clientBaseUrl = managed ? undefined : body.ttsBaseUrl || undefined;
     if (clientBaseUrl) {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);
@@ -140,8 +159,14 @@ async function handlePost(req: NextRequest, admissionSignal: AbortSignal) {
       }
     }
 
-    const apiKey = resolveTTSApiKey(providerId, managed ? undefined : body.ttsApiKey || undefined);
-    const baseUrl = resolveTTSBaseUrl(providerId, clientBaseUrl);
+    const apiKey =
+      modelSource === 'user'
+        ? body.ttsApiKey || ''
+        : resolveTTSApiKey(providerId, managed ? undefined : body.ttsApiKey || undefined);
+    const baseUrl =
+      modelSource === 'user'
+        ? clientBaseUrl || TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS]?.defaultBaseUrl
+        : resolveTTSBaseUrl(providerId, clientBaseUrl);
     if (!baseUrl) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'TTS base URL is required');
     }
@@ -152,7 +177,9 @@ async function handlePost(req: NextRequest, admissionSignal: AbortSignal) {
       model:
         providerId === 'qwen-tts'
           ? resolveQwenVoiceCloneModel()
-          : resolveTTSModel(providerId, body.ttsModelId),
+          : modelSource === 'user'
+            ? body.ttsModelId
+            : resolveTTSModel(providerId, body.ttsModelId),
     };
 
     if (deleting) {
@@ -250,6 +277,9 @@ async function handlePost(req: NextRequest, admissionSignal: AbortSignal) {
     }
     if (error instanceof InvalidReferenceAudioError) {
       return apiError(error.code, 400, error.message);
+    }
+    if (error instanceof ProviderSelectionError) {
+      return apiError(error.code, error.httpStatus, error.message);
     }
     if (deadline.signal.aborted) {
       return apiError('QWEN_VC_TIMEOUT', 504, 'The voice registration request timed out.');

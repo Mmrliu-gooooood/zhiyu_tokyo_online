@@ -6,6 +6,8 @@
  * POST /api/verify-image-provider
  *
  * Headers:
+ *   x-model-source: platform | user | legacy-managed (optional)
+ *   x-platform-default-id: string (required for platform source)
  *   x-image-provider: ImageProviderId (optional, server-configured default)
  *   x-image-model: string (optional)
  *   x-api-key: string (optional, server fallback)
@@ -16,14 +18,7 @@
 
 import { NextRequest } from 'next/server';
 import { IMAGE_PROVIDERS, testImageConnectivity } from '@/lib/media/image-providers';
-import {
-  isServerConfiguredProvider,
-  isServerProviderDisabled,
-  resolveImageApiKey,
-  resolveImageBaseUrl,
-  resolveImageModel,
-  resolveServerImageProviderId,
-} from '@/lib/server/provider-config';
+import { resolveServerImageProviderId } from '@/lib/server/provider-config';
 import type { ImageProviderId } from '@/lib/media/types';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
@@ -32,6 +27,11 @@ import {
   MediaProviderConfigError,
   parseCustomImageProviderConfig,
 } from '@/lib/server/media-provider-config';
+import {
+  normalizeProviderSelectionSource,
+  ProviderSelectionError,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('VerifyImageProvider');
 
@@ -42,21 +42,37 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    const requestBody = (await request.clone().json().catch(() => ({}))) as {
+    const requestBody = (await request
+      .clone()
+      .json()
+      .catch(() => ({}))) as {
       providerConfig?: unknown;
     };
+    const source = normalizeProviderSelectionSource(
+      request.headers.get('x-model-source')?.trim() || undefined,
+    );
+    const platformDefaultId = request.headers.get('x-platform-default-id')?.trim() || undefined;
+    if (source !== 'platform' && platformDefaultId) {
+      throw new ProviderSelectionError(
+        'INVALID_MODEL_SOURCE',
+        400,
+        'A platform default ID can only be used with the platform model source',
+      );
+    }
     const providerId = (request.headers.get('x-image-provider')?.trim() ||
-      resolveServerImageProviderId()) as ImageProviderId;
-    if (!providerId) {
-      return apiError('MISSING_PROVIDER', 400, 'No image provider configured');
-    }
-    // Enforce server precedence: a force-disabled provider is off for everyone,
-    // regardless of any client key/selection — mirror the TTS contract (#665).
-    if (isServerProviderDisabled('image', providerId)) {
-      return apiError('PROVIDER_DISABLED', 403, 'This image provider is disabled by the server');
-    }
+      (source === 'legacy-managed'
+        ? resolveServerImageProviderId()
+        : undefined)) as ImageProviderId;
     const clientModel = request.headers.get('x-image-model')?.trim() || undefined;
-    if (providerId.startsWith('custom-image-')) {
+    if (source !== 'platform' && providerId?.startsWith('custom-image-')) {
+      // Keep the server-wide disable policy in front of custom-provider
+      // configuration checks, matching the legacy verification behavior.
+      resolveProviderSelection({
+        capability: 'image',
+        source,
+        providerId,
+        modelId: clientModel,
+      });
       const config = parseCustomImageProviderConfig(
         providerId,
         requestBody.providerConfig,
@@ -69,41 +85,46 @@ export async function POST(request: NextRequest) {
         verification: 'configuration' as const,
       });
     }
-    // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('image', providerId);
-    const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
-    const clientBaseUrl = managed ? undefined : request.headers.get('x-base-url') || undefined;
+    const clientApiKey = request.headers.get('x-api-key') || undefined;
+    const clientBaseUrl = request.headers.get('x-base-url') || undefined;
 
-    if (clientBaseUrl && process.env.NODE_ENV === 'production') {
-      const ssrfError = await validateUrlForSSRF(clientBaseUrl);
+    const selection = resolveProviderSelection({
+      capability: 'image',
+      source,
+      defaultId: platformDefaultId,
+      providerId,
+      modelId: clientModel,
+      apiKey: clientApiKey,
+      baseUrl: clientBaseUrl,
+    });
+    const resolvedProviderId = selection.providerId as ImageProviderId;
+    if (!selection.managed && selection.baseUrl && process.env.NODE_ENV === 'production') {
+      const ssrfError = await validateUrlForSSRF(selection.baseUrl);
       if (ssrfError) {
         return apiError('INVALID_URL', 403, ssrfError);
       }
     }
 
-    const apiKey = resolveImageApiKey(providerId, clientApiKey);
-    const baseUrl = resolveImageBaseUrl(providerId, clientBaseUrl);
-
-    const provider = IMAGE_PROVIDERS[providerId];
-    if (provider?.requiresApiKey && !apiKey) {
+    const provider = IMAGE_PROVIDERS[resolvedProviderId];
+    if (provider?.requiresApiKey && !selection.apiKey) {
       return apiError('MISSING_API_KEY', 400, 'No API key configured');
     }
 
-    const model = resolveImageModel(providerId, clientModel);
+    const model = selection.modelId;
     // Workflow-based providers (e.g. comfyui-image) have no model catalog and
     // need no model; everyone else must resolve one.
     if (!model && provider?.models && provider.models.length > 0) {
       return apiError(
         'MISSING_MODEL',
         400,
-        `No model configured for image provider: ${providerId}`,
+        `No model configured for image provider: ${resolvedProviderId}`,
       );
     }
 
     const result = await testImageConnectivity({
-      providerId,
-      apiKey,
-      baseUrl,
+      providerId: resolvedProviderId,
+      apiKey: selection.apiKey,
+      baseUrl: selection.baseUrl,
       model,
     });
 
@@ -113,6 +134,9 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ message: result.message });
   } catch (err) {
+    if (err instanceof ProviderSelectionError) {
+      return apiError(err.code, err.httpStatus, err.message);
+    }
     if (err instanceof MediaProviderConfigError) {
       return apiError(err.code, err.status, err.message);
     }

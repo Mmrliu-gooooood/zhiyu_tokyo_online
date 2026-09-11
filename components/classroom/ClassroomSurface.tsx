@@ -81,7 +81,7 @@ export function ClassroomSurface({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const retryBackgroundJob = useClassroomGenerationJob(classroomId, !loading && !error);
+  const backgroundGeneration = useClassroomGenerationJob(classroomId, !loading && !error);
   /**
    * The load resolved and no source has this course. A TERMINAL state, kept
    * separate from `error`: an error offers a retry, and there is nothing here
@@ -106,7 +106,7 @@ export function ClassroomSurface({
   });
   const retrySingleOutline = async (outlineId: string) => {
     try {
-      if (retryBackgroundJob) await retryBackgroundJob();
+      if (backgroundGeneration) await backgroundGeneration.retry();
       else await retryLocalOutline(outlineId);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
@@ -404,7 +404,11 @@ export function ClassroomSurface({
               }
             />
           ) : (
-            <Stage classroomId={classroomId} onRetryOutline={retrySingleOutline} />
+            <Stage
+              classroomId={classroomId}
+              onRetryOutline={retrySingleOutline}
+              generationJobDisplay={backgroundGeneration?.display}
+            />
           )}
         </div>
       </MediaStageProvider>

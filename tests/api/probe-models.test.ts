@@ -16,11 +16,14 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-async function postProbeModels(body: Record<string, unknown>) {
+async function postProbeModels(
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+) {
   const { POST } = await import('@/app/api/provider/probe-models/route');
   const request = new Request('http://localhost/api/provider/probe-models', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
   return POST(request as unknown as NextRequest);
@@ -139,5 +142,26 @@ describe('POST /api/provider/probe-models', () => {
       errorCode: 'INVALID_REQUEST',
       error: 'This provider does not expose a model list',
     });
+  });
+
+  it('does not send platform credentials or client overrides through model probing', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await postProbeModels(
+      {
+        baseUrl: 'https://attacker.example/v1',
+        apiKey: 'attacker-key',
+      },
+      {
+        'x-model-source': 'platform',
+        'x-platform-default-id': 'zhiyu-default-text',
+      },
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ errorCode: 'INVALID_MODEL_SOURCE' });
+    expect(mocks.validateUrlForSSRF).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

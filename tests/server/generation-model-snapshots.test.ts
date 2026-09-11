@@ -7,6 +7,7 @@ import { ensureAssetSchema } from '@openmaic/storage/asset/pg';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
 import {
   GenerationModelSnapshotStore,
+  generationModelSnapshotContent,
   type GenerationModelSnapshotContent,
 } from '@/lib/server/generation-model-snapshots';
 
@@ -23,6 +24,36 @@ describe('generation model snapshots', () => {
     api: 'openai-completions',
     thinkingConfig: { mode: 'disabled', effort: 'none' },
   };
+
+  it('serializes platform intent without provider credentials or concrete model ids', () => {
+    expect(
+      generationModelSnapshotContent({
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        modelString: 'deepseek:must-not-leak',
+        apiKey: 'must-not-leak',
+        baseUrl: 'https://must-not-leak.example.com',
+        thinkingConfig: { mode: 'disabled', effort: 'none' },
+      }),
+    ).toEqual({
+      version: 2,
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+      thinkingConfig: { mode: 'disabled', effort: 'none' },
+    });
+  });
+
+  it('rejects non-text platform defaults at the text model snapshot boundary', () => {
+    expect(() =>
+      generationModelSnapshotContent({
+        source: 'platform',
+        defaultId: 'zhiyu-default-image',
+        revision: 'image-r1',
+      }),
+    ).toThrow('GENERATION_MODEL_INVALID');
+  });
 
   beforeEach(async () => {
     vi.stubEnv('GENERATION_MODEL_ENCRYPTION_KEY', '11'.repeat(32));
@@ -54,6 +85,19 @@ describe('generation model snapshots', () => {
       [ref.id],
     );
     expect(row.rows[0]?.ciphertext).not.toContain('private-key');
+  });
+
+  it('continues to load platform v2 snapshots created before thinking policy was added', async () => {
+    const store = new GenerationModelSnapshotStore(pool);
+    const legacyPlatform = {
+      version: 2 as const,
+      source: 'platform' as const,
+      defaultId: 'zhiyu-default-text' as const,
+      revision: 'text-r1',
+    };
+    const ref = await store.create(owner, legacyPlatform);
+
+    await expect(store.load(owner, ref)).resolves.toEqual(legacyPlatform);
   });
 
   it('does not let a foreign owner revoke a snapshot', async () => {
@@ -96,7 +140,12 @@ describe('generation model snapshots', () => {
       code: 'GENERATION_MODEL_SNAPSHOT_UNAVAILABLE',
     });
     expect(
-      (await pool.query('SELECT id FROM generation_jobs WHERE input_snapshot->\'modelConfigRef\'->>\'id\'=$1', [ref.id])).rows,
+      (
+        await pool.query(
+          "SELECT id FROM generation_jobs WHERE input_snapshot->'modelConfigRef'->>'id'=$1",
+          [ref.id],
+        )
+      ).rows,
     ).toHaveLength(0);
   });
 

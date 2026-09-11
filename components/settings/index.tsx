@@ -29,6 +29,7 @@ import {
   Plus,
   CreditCard,
   Sparkles,
+  Cloud,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { useSettingsStore } from '@/lib/store/settings';
@@ -37,8 +38,9 @@ import { type ProviderId } from '@/lib/ai/providers';
 import { PROVIDERS, MONO_LOGO_PROVIDERS } from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
 import { createCustomProviderSettings, getProviderTypeLabel, modelInfoFromId } from './utils';
-import { ProviderList } from './provider-list';
+import { browseProviderDetails, ProviderList } from './provider-list';
 import { ProviderConfigPanel } from './provider-config-panel';
+import { PlatformDefaultListEntry, PlatformDefaultPanel } from './platform-default-panel';
 import { PDFSettings } from './pdf-settings';
 import { PDF_PROVIDERS } from '@/lib/pdf/constants';
 import type { PDFProviderId } from '@/lib/pdf/types';
@@ -68,6 +70,7 @@ import { listImageProviders, listVideoProviders } from '@/lib/media/provider-cat
 import { isCustomTTSProvider, isCustomASRProvider } from '@/lib/audio/types';
 import { resolveASRProviderName, resolveTTSProviderName } from '@/lib/audio/provider-display';
 import type { SettingsSection, EditingModel } from '@/lib/types/settings';
+import type { PlatformDefaultCapability } from '@/lib/types/platform-default-models';
 
 // ─── Provider List Column (reusable) ───
 function ProviderListColumn<T extends string>({
@@ -79,6 +82,8 @@ function ProviderListColumn<T extends string>({
   t,
   onAdd,
   addLabel,
+  platformDefaultSelected = false,
+  onSelectPlatformDefault,
 }: {
   providers: Array<{ id: T; name: string; icon?: string }>;
   configs: Record<string, { isServerConfigured?: boolean }>;
@@ -88,17 +93,26 @@ function ProviderListColumn<T extends string>({
   t: (key: string) => string;
   onAdd?: () => void;
   addLabel?: string;
+  platformDefaultSelected?: boolean;
+  onSelectPlatformDefault?: () => void;
 }) {
   return (
     <div className="flex-shrink-0 bg-background flex flex-col" style={{ width }}>
       <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        {onSelectPlatformDefault && (
+          <PlatformDefaultListEntry
+            selected={platformDefaultSelected}
+            onSelect={onSelectPlatformDefault}
+          />
+        )}
         {providers.map((provider) => (
           <button
+            type="button"
             key={provider.id}
             onClick={() => onSelect(provider.id)}
             className={cn(
               'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all border text-left',
-              selectedId === provider.id
+              !platformDefaultSelected && selectedId === provider.id
                 ? 'bg-primary/5 border-primary/50 shadow-sm'
                 : 'border-transparent hover:bg-muted/50',
             )}
@@ -231,12 +245,18 @@ export function SettingsDialog({
   const ttsProvidersConfig = useSettingsStore((state) => state.ttsProvidersConfig);
   const asrProviderId = useSettingsStore((state) => state.asrProviderId);
   const asrProvidersConfig = useSettingsStore((state) => state.asrProvidersConfig);
+  const platformDefaults = useSettingsStore((state) => state.platformDefaults);
+  const platformDefaultsStatus = useSettingsStore((state) => state.platformDefaultsStatus);
+  const llmSelection = useSettingsStore((state) => state.llmSelection);
+  const imageSelection = useSettingsStore((state) => state.imageSelection);
+  const videoSelection = useSettingsStore((state) => state.videoSelection);
+  const ttsSelection = useSettingsStore((state) => state.ttsSelection);
 
   // Store actions
   const setProviderConfig = useSettingsStore((state) => state.setProviderConfig);
   const setProvidersConfig = useSettingsStore((state) => state.setProvidersConfig);
-  const setTTSProvider = useSettingsStore((state) => state.setTTSProvider);
   const setASRProvider = useSettingsStore((state) => state.setASRProvider);
+  const setPlatformDefault = useSettingsStore((state) => state.setPlatformDefault);
 
   // Navigation
   const [activeSection, setActiveSection] = useState<SettingsSection>('providers');
@@ -246,6 +266,15 @@ export function SettingsDialog({
     useState<WebSearchProviderId>(webSearchProviderId);
   const [imagePanelId, setSelectedImageProviderId] = useState<ImageProviderId>(imageProviderId);
   const [videoPanelId, setSelectedVideoProviderId] = useState<VideoProviderId>(videoProviderId);
+  const [ttsPanelId, setTTSPanelId] = useState<TTSProviderId>(ttsProviderId);
+  const [platformDefaultPanels, setPlatformDefaultPanels] = useState<
+    Record<PlatformDefaultCapability, boolean>
+  >({
+    text: llmSelection.source === 'platform',
+    image: imageSelection.source === 'platform',
+    video: videoSelection.source === 'platform',
+    tts: ttsSelection.source === 'platform',
+  });
   const imageProviders = listImageProviders(IMAGE_PROVIDERS, imageProvidersConfig);
   const videoProviders = listVideoProviders(VIDEO_PROVIDERS, videoProvidersConfig);
   // The panel needs a display selection even when generation has no active provider.
@@ -271,6 +300,29 @@ export function SettingsDialog({
       setActiveSection(initialSection);
     }
   }, [open, initialSection]);
+
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync the visible detail with persisted selections whenever the dialog opens or a selection changes.
+    setPlatformDefaultPanels({
+      text: llmSelection.source === 'platform',
+      image: imageSelection.source === 'platform',
+      video: videoSelection.source === 'platform',
+      tts: ttsSelection.source === 'platform',
+    });
+  }, [
+    open,
+    llmSelection.source,
+    imageSelection.source,
+    videoSelection.source,
+    ttsSelection.source,
+  ]);
+
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore the persisted TTS provider as the detail target when the dialog opens or the explicit selection changes.
+    setTTSPanelId(ttsProviderId);
+  }, [open, ttsProviderId]);
 
   // Model editing state
   const [editingModel, setEditingModel] = useState<EditingModel | null>(null);
@@ -360,7 +412,36 @@ export function SettingsDialog({
   };
 
   const handleProviderSelect = (pid: ProviderId) => {
+    setPlatformDefaultPanels((panels) => ({ ...panels, text: false }));
     setSelectedProviderId(pid);
+  };
+
+  const showPlatformDefault = (capability: PlatformDefaultCapability) => {
+    setPlatformDefaultPanels((panels) => ({ ...panels, [capability]: true }));
+  };
+
+  const hidePlatformDefault = (capability: PlatformDefaultCapability) => {
+    setPlatformDefaultPanels((panels) => ({ ...panels, [capability]: false }));
+  };
+
+  const getPlatformDefault = (capability: PlatformDefaultCapability) =>
+    platformDefaults?.entries.find((entry) => entry.capability === capability);
+
+  const isPlatformDefaultSelected = (capability: PlatformDefaultCapability) => {
+    const entry = getPlatformDefault(capability);
+    const selection =
+      capability === 'text'
+        ? llmSelection
+        : capability === 'image'
+          ? imageSelection
+          : capability === 'video'
+            ? videoSelection
+            : ttsSelection;
+    return (
+      entry !== undefined &&
+      selection.source === 'platform' &&
+      selection.defaultId === entry.defaultId
+    );
   };
 
   const handleProviderConfigChange = (
@@ -580,6 +661,21 @@ export function SettingsDialog({
 
   // Get header content based on section
   const getHeaderContent = () => {
+    const platformCapability =
+      activeSection === 'providers'
+        ? 'text'
+        : activeSection === 'image' || activeSection === 'video' || activeSection === 'tts'
+          ? activeSection
+          : null;
+    if (platformCapability && platformDefaultPanels[platformCapability]) {
+      return (
+        <>
+          <Cloud className="h-7 w-7 text-primary" aria-hidden="true" />
+          <h2 className="text-lg font-semibold">{t('settings.defaultModel')}</h2>
+        </>
+      );
+    }
+
     switch (activeSection) {
       case 'general':
         return <h2 className="text-lg font-semibold">{t('settings.systemSettings')}</h2>;
@@ -725,7 +821,7 @@ export function SettingsDialog({
         );
       }
       case 'tts': {
-        const ttsIcon = TTS_PROVIDERS[ttsProviderId as keyof typeof TTS_PROVIDERS]?.icon;
+        const ttsIcon = TTS_PROVIDERS[ttsPanelId as keyof typeof TTS_PROVIDERS]?.icon;
         return (
           <>
             {ttsIcon ? (
@@ -740,7 +836,7 @@ export function SettingsDialog({
             ) : (
               <Volume2 className="h-6 w-6 text-muted-foreground" />
             )}
-            <h2 className="text-lg font-semibold">{getTTSProviderName(ttsProviderId, t)}</h2>
+            <h2 className="text-lg font-semibold">{getTTSProviderName(ttsPanelId, t)}</h2>
           </>
         );
       }
@@ -989,6 +1085,8 @@ export function SettingsDialog({
                   onSelect={handleProviderSelect}
                   onAddProvider={() => setShowAddProviderDialog(true)}
                   width={providerListWidth}
+                  platformDefaultSelected={platformDefaultPanels.text}
+                  onSelectPlatformDefault={() => showPlatformDefault('text')}
                 />
                 <div
                   onMouseDown={(e) => handleResizeStart(e, 'providerList')}
@@ -1050,11 +1148,16 @@ export function SettingsDialog({
                   }))}
                   configs={imageProvidersConfig}
                   selectedId={selectedImageProviderId}
-                  onSelect={setSelectedImageProviderId}
                   onAdd={() => setAddMediaKind('image')}
                   addLabel={t('settings.addProvider')}
                   width={providerListWidth}
                   t={t}
+                  platformDefaultSelected={platformDefaultPanels.image}
+                  onSelectPlatformDefault={() => showPlatformDefault('image')}
+                  onSelect={(id) => {
+                    hidePlatformDefault('image');
+                    setSelectedImageProviderId(id);
+                  }}
                 />
                 <div
                   onMouseDown={(e) => handleResizeStart(e, 'providerList')}
@@ -1075,11 +1178,16 @@ export function SettingsDialog({
                   }))}
                   configs={videoProvidersConfig}
                   selectedId={selectedVideoProviderId}
-                  onSelect={setSelectedVideoProviderId}
                   onAdd={() => setAddMediaKind('video')}
                   addLabel={t('settings.addProvider')}
                   width={providerListWidth}
                   t={t}
+                  platformDefaultSelected={platformDefaultPanels.video}
+                  onSelectPlatformDefault={() => showPlatformDefault('video')}
+                  onSelect={(id) => {
+                    hidePlatformDefault('video');
+                    setSelectedVideoProviderId(id);
+                  }}
                 />
                 <div
                   onMouseDown={(e) => handleResizeStart(e, 'providerList')}
@@ -1108,11 +1216,15 @@ export function SettingsDialog({
                       })),
                   ]}
                   configs={ttsProvidersConfig}
-                  selectedId={ttsProviderId}
-                  onSelect={setTTSProvider}
+                  selectedId={ttsPanelId}
+                  onSelect={(id) =>
+                    browseProviderDetails(id, setTTSPanelId, () => hidePlatformDefault('tts'))
+                  }
                   width={providerListWidth}
                   t={t}
                   onAdd={() => setShowAddTTSProviderDialog(true)}
+                  platformDefaultSelected={platformDefaultPanels.tts}
+                  onSelectPlatformDefault={() => showPlatformDefault('tts')}
                 />
                 <div
                   onMouseDown={(e) => handleResizeStart(e, 'providerList')}
@@ -1198,33 +1310,48 @@ export function SettingsDialog({
 
                 {activeSection === 'token-plan' && <TokenPlanSettings />}
 
-                {activeSection === 'providers' && selectedProvider && (
-                  <ProviderConfigPanel
-                    provider={selectedProvider}
-                    initialApiKey={providersConfig[selectedProviderId]?.apiKey || ''}
-                    initialBaseUrl={providersConfig[selectedProviderId]?.baseUrl || ''}
-                    initialRequiresApiKey={
-                      providersConfig[selectedProviderId]?.requiresApiKey ?? true
-                    }
-                    providersConfig={providersConfig}
-                    onConfigChange={(apiKey, baseUrl, requiresApiKey) =>
-                      handleProviderConfigChange(
-                        selectedProviderId,
-                        apiKey,
-                        baseUrl,
-                        requiresApiKey,
-                      )
-                    }
-                    onSave={handleProviderConfigSave}
-                    onEditModel={(index) => handleEditModel(selectedProviderId, index)}
-                    onDeleteModel={(index) => handleDeleteModel(selectedProviderId, index)}
-                    onAddModel={handleAddModel}
-                    onModelsFetched={(ids) => handleModelsFetched(selectedProviderId, ids)}
-                    modelsUrl={providersConfig[selectedProviderId]?.modelsUrl}
-                    onResetToDefault={() => handleResetProvider(selectedProviderId)}
-                    isBuiltIn={providersConfig[selectedProviderId]?.isBuiltIn ?? true}
+                {activeSection === 'providers' && platformDefaultPanels.text && (
+                  <PlatformDefaultPanel
+                    capability="text"
+                    entry={getPlatformDefault('text')}
+                    catalogStatus={platformDefaultsStatus}
+                    isSelected={isPlatformDefaultSelected('text')}
+                    onUse={() => {
+                      const entry = getPlatformDefault('text');
+                      if (entry) setPlatformDefault('text', entry.defaultId);
+                    }}
                   />
                 )}
+
+                {activeSection === 'providers' &&
+                  !platformDefaultPanels.text &&
+                  selectedProvider && (
+                    <ProviderConfigPanel
+                      provider={selectedProvider}
+                      initialApiKey={providersConfig[selectedProviderId]?.apiKey || ''}
+                      initialBaseUrl={providersConfig[selectedProviderId]?.baseUrl || ''}
+                      initialRequiresApiKey={
+                        providersConfig[selectedProviderId]?.requiresApiKey ?? true
+                      }
+                      providersConfig={providersConfig}
+                      onConfigChange={(apiKey, baseUrl, requiresApiKey) =>
+                        handleProviderConfigChange(
+                          selectedProviderId,
+                          apiKey,
+                          baseUrl,
+                          requiresApiKey,
+                        )
+                      }
+                      onSave={handleProviderConfigSave}
+                      onEditModel={(index) => handleEditModel(selectedProviderId, index)}
+                      onDeleteModel={(index) => handleDeleteModel(selectedProviderId, index)}
+                      onAddModel={handleAddModel}
+                      onModelsFetched={(ids) => handleModelsFetched(selectedProviderId, ids)}
+                      modelsUrl={providersConfig[selectedProviderId]?.modelsUrl}
+                      onResetToDefault={() => handleResetProvider(selectedProviderId)}
+                      isBuiltIn={providersConfig[selectedProviderId]?.isBuiltIn ?? true}
+                    />
+                  )}
 
                 {activeSection === 'pdf' && (
                   <PDFSettings selectedProviderId={selectedPdfProviderId} />
@@ -1232,19 +1359,57 @@ export function SettingsDialog({
                 {activeSection === 'web-search' && (
                   <WebSearchSettings selectedProviderId={selectedWebSearchProviderId} />
                 )}
-                {activeSection === 'image' && (
+                {activeSection === 'image' && platformDefaultPanels.image && (
+                  <PlatformDefaultPanel
+                    capability="image"
+                    entry={getPlatformDefault('image')}
+                    catalogStatus={platformDefaultsStatus}
+                    isSelected={isPlatformDefaultSelected('image')}
+                    onUse={() => {
+                      const entry = getPlatformDefault('image');
+                      if (entry) setPlatformDefault('image', entry.defaultId);
+                    }}
+                  />
+                )}
+                {activeSection === 'image' && !platformDefaultPanels.image && (
                   <ImageSettings
                     key={selectedImageProviderId}
                     selectedProviderId={selectedImageProviderId}
                   />
                 )}
-                {activeSection === 'video' && (
+                {activeSection === 'video' && platformDefaultPanels.video && (
+                  <PlatformDefaultPanel
+                    capability="video"
+                    entry={getPlatformDefault('video')}
+                    catalogStatus={platformDefaultsStatus}
+                    isSelected={isPlatformDefaultSelected('video')}
+                    onUse={() => {
+                      const entry = getPlatformDefault('video');
+                      if (entry) setPlatformDefault('video', entry.defaultId);
+                    }}
+                  />
+                )}
+                {activeSection === 'video' && !platformDefaultPanels.video && (
                   <VideoSettings
                     key={selectedVideoProviderId}
                     selectedProviderId={selectedVideoProviderId}
                   />
                 )}
-                {activeSection === 'tts' && <TTSSettings selectedProviderId={ttsProviderId} />}
+                {activeSection === 'tts' && platformDefaultPanels.tts && (
+                  <PlatformDefaultPanel
+                    capability="tts"
+                    entry={getPlatformDefault('tts')}
+                    catalogStatus={platformDefaultsStatus}
+                    isSelected={isPlatformDefaultSelected('tts')}
+                    onUse={() => {
+                      const entry = getPlatformDefault('tts');
+                      if (entry) setPlatformDefault('tts', entry.defaultId);
+                    }}
+                  />
+                )}
+                {activeSection === 'tts' && !platformDefaultPanels.tts && (
+                  <TTSSettings selectedProviderId={ttsPanelId} />
+                )}
                 {activeSection === 'asr' && <ASRSettings selectedProviderId={asrProviderId} />}
               </div>
 

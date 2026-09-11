@@ -29,6 +29,10 @@ import type { CourseToolDeps } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { errorResult, MEDIA_TOOL_ERROR_REASONS } from './media-tool-result';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
+import {
+  platformVideoExecutionOptions,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('AgentGenerateVideo');
 
@@ -248,13 +252,35 @@ export function hasConfiguredVideoGeneration(deps: Partial<GenerateVideoToolDeps
   if (deps.mediaConfig?.videoEnabled === false) return false;
   const selected = deps.mediaConfig?.video;
   if (selected) {
+    if (selected.source === 'platform') {
+      try {
+        const resolved = resolveProviderSelection({
+          capability: 'video',
+          source: selected.source,
+          defaultId: selected.defaultId,
+        });
+        return selected.revision === resolved.revision && !!resolved.apiKey && !!resolved.modelId;
+      } catch {
+        return false;
+      }
+    }
     if (!selected.enabled || isServerProviderDisabled('video', selected.providerId)) return false;
-    const apiKey = resolveVideoApiKey(selected.providerId, selected.apiKey);
-    const model = resolveVideoModel(selected.providerId, selected.modelId);
-    const requiresApiKey =
-      VIDEO_PROVIDERS[selected.providerId as keyof typeof VIDEO_PROVIDERS]?.requiresApiKey ??
-      selected.requiresApiKey;
-    return (!requiresApiKey || !!apiKey) && !!model;
+    try {
+      const resolved = resolveProviderSelection({
+        capability: 'video',
+        source: selected.source,
+        providerId: selected.providerId,
+        modelId: selected.modelId,
+        apiKey: selected.apiKey,
+        baseUrl: selected.baseUrl,
+      });
+      const requiresApiKey =
+        VIDEO_PROVIDERS[selected.providerId as keyof typeof VIDEO_PROVIDERS]?.requiresApiKey ??
+        selected.requiresApiKey;
+      return (!requiresApiKey || !!resolved.apiKey) && !!resolved.modelId;
+    } catch {
+      return false;
+    }
   }
   const getConfigured = deps.getConfiguredVideoProviders ?? getServerVideoProviders;
   const resolveConfig = deps.resolveVideoProviderConfig ?? defaultResolveVideoProviderConfig;
@@ -275,11 +301,33 @@ export function buildGenerateVideoTool(
   const resolveSnapshotConfig = (): VideoGenerationConfig | undefined => {
     const selected = deps.mediaConfig?.video;
     if (!selected) return undefined;
+    if (selected.source === 'platform') {
+      const resolved = resolveProviderSelection({
+        capability: 'video',
+        source: selected.source,
+        defaultId: selected.defaultId,
+      });
+      if (selected.revision !== resolved.revision) throw new Error('MEDIA_CONFIG_CHANGED');
+      return {
+        providerId: resolved.providerId as VideoProviderId,
+        apiKey: resolved.apiKey,
+        baseUrl: resolved.baseUrl,
+        model: resolved.modelId,
+      };
+    }
+    const resolved = resolveProviderSelection({
+      capability: 'video',
+      source: selected.source,
+      providerId: selected.providerId,
+      modelId: selected.modelId,
+      apiKey: selected.apiKey,
+      baseUrl: selected.baseUrl,
+    });
     return {
       providerId: selected.providerId,
-      apiKey: resolveVideoApiKey(selected.providerId, selected.apiKey),
-      baseUrl: resolveVideoBaseUrl(selected.providerId, selected.baseUrl),
-      model: resolveVideoModel(selected.providerId, selected.modelId),
+      apiKey: resolved.apiKey,
+      baseUrl: resolved.baseUrl,
+      model: resolved.modelId,
       ...(selected.protocol ? { protocol: selected.protocol } : {}),
       requiresApiKey: selected.requiresApiKey,
     } as VideoGenerationConfig;
@@ -300,14 +348,15 @@ export function buildGenerateVideoTool(
       const stageId = params.stageId;
 
       const selected = deps.mediaConfig?.video;
+      const selectedConfig = resolveSnapshotConfig();
       const configured = selected ? {} : getConfigured();
       const providerId =
-        selected?.providerId ??
+        selectedConfig?.providerId ??
         configuredProviderIds(configured).find((id) => {
           const provider = VIDEO_PROVIDERS[id];
           return !provider.requiresApiKey || !!resolveConfig(id).apiKey;
         });
-      if (selected && !selected.enabled) {
+      if (selected && selected.source !== 'platform' && !selected.enabled) {
         return errorResult('Video generation is unavailable.', {
           stageId,
           reason: MEDIA_TOOL_ERROR_REASONS.providerDisabled,
@@ -338,7 +387,7 @@ export function buildGenerateVideoTool(
         });
       }
 
-      const providerConfig = resolveSnapshotConfig() ?? resolveConfig(providerId);
+      const providerConfig = selectedConfig ?? resolveConfig(providerId);
       const customProvider = String(providerId).startsWith('custom-video-');
       const requiresApiKey =
         VIDEO_PROVIDERS[providerId as keyof typeof VIDEO_PROVIDERS]?.requiresApiKey ??
@@ -368,8 +417,18 @@ export function buildGenerateVideoTool(
       const normalized = normalizeVideoOptions(providerId, {
         prompt,
         ...(params.aspectRatio ? { aspectRatio: params.aspectRatio } : {}),
-        ...(params.durationSec ? { duration: params.durationSec } : {}),
-        ...(params.resolution ? { resolution: params.resolution } : {}),
+        ...(selected?.source === 'platform'
+          ? platformVideoExecutionOptions(
+              resolveProviderSelection({
+                capability: 'video',
+                source: selected.source,
+                defaultId: selected.defaultId,
+              }),
+            )
+          : {
+              ...(params.durationSec ? { duration: params.durationSec } : {}),
+              ...(params.resolution ? { resolution: params.resolution } : {}),
+            }),
         stageId,
       });
       const timeoutMs = deps.timeoutMs ?? GENERATE_VIDEO_TIMEOUT_MS;

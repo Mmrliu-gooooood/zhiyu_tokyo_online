@@ -7,7 +7,7 @@ import {
   isServerProviderDisabled,
 } from '@/lib/server/provider-config';
 import type { Queryable } from '@openmaic/storage/document/pg';
-import { resolveModel } from '@/lib/server/resolve-model';
+import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
 import { isProviderKeyRequired } from '@/lib/ai/providers';
 import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
@@ -38,6 +38,7 @@ import {
   mediaConfigVoiceSource,
   resolveEffectiveSessionVoice,
 } from '@/lib/server/agent-runtime/effective-voice-directory';
+import { resolveProviderSelection } from '@/lib/server/resolve-provider-selection';
 
 export interface BackgroundProviderValidationContext {
   ownerId: string;
@@ -59,19 +60,45 @@ function requireImageProvider(
   input: GenerationInput,
   snapshot: MediaConfigSnapshotContent | undefined,
 ): void {
-  const selected = input.media?.image;
-  if (!selected) throw new Error('Unavailable provider');
+  const intent = input.media?.image;
+  if (!intent) throw new Error('Unavailable provider');
+  if ('source' in intent && intent.source === 'platform') {
+    const resolved = resolveProviderSelection({
+      capability: 'image',
+      source: intent.source,
+      defaultId: intent.defaultId,
+    });
+    const config = snapshot?.image;
+    if (
+      snapshot?.imageEnabled === false ||
+      !config ||
+      !('source' in config) ||
+      config.source !== 'platform' ||
+      config.defaultId !== intent.defaultId ||
+      (intent.revision && intent.revision !== resolved.revision) ||
+      ('revision' in config && config.revision !== resolved.revision)
+    ) {
+      throw new Error('Unavailable provider');
+    }
+    return;
+  }
+  if (!('providerId' in intent)) throw new Error('Unavailable provider');
+  const selected = intent;
   assertNotDisabled('image', selected.providerId);
   if (snapshot?.imageEnabled === false) throw new Error('Unavailable provider');
   const config = snapshot?.image;
   if (
     snapshot?.imageEnabled === true &&
-    (!config || config.providerId !== selected.providerId || config.modelId !== selected.modelId)
+    (!config ||
+      !('providerId' in config) ||
+      config.providerId !== selected.providerId ||
+      config.modelId !== selected.modelId)
   ) {
     throw new Error('Unavailable provider');
   }
+  const userOwned = 'source' in selected && selected.source === 'user';
   const managed = getServerImageProviders()[selected.providerId];
-  if (managed) {
+  if (managed && !userOwned) {
     if (
       managed.disabled ||
       (managed.models?.length && !managed.models.includes(selected.modelId))
@@ -80,7 +107,12 @@ function requireImageProvider(
     }
     return;
   }
-  if (!config || config.providerId !== selected.providerId || config.modelId !== selected.modelId) {
+  if (
+    !config ||
+    !('providerId' in config) ||
+    config.providerId !== selected.providerId ||
+    config.modelId !== selected.modelId
+  ) {
     throw new Error('Unavailable provider');
   }
   if (selected.providerId.startsWith('custom-image-')) {
@@ -93,10 +125,14 @@ function requireImageProvider(
   }
   const provider = IMAGE_PROVIDERS[selected.providerId as keyof typeof IMAGE_PROVIDERS];
   if (!provider || !config.enabled) throw new Error('Unavailable provider');
-  if (provider.requiresApiKey && !resolveImageApiKey(selected.providerId, config.apiKey)) {
+  const apiKey = userOwned ? config.apiKey : resolveImageApiKey(selected.providerId, config.apiKey);
+  if (provider.requiresApiKey && !apiKey) {
     throw new Error('Unavailable provider');
   }
-  if (provider.models.length && !resolveImageModel(selected.providerId, selected.modelId)) {
+  if (
+    provider.models.length &&
+    !(userOwned ? selected.modelId : resolveImageModel(selected.providerId, selected.modelId))
+  ) {
     throw new Error('Unavailable provider');
   }
 }
@@ -105,23 +141,54 @@ function requireVideoProvider(
   input: GenerationInput,
   snapshot: MediaConfigSnapshotContent | undefined,
 ): void {
-  const selected = input.media?.video;
-  if (!selected) throw new Error('Unavailable provider');
+  const intent = input.media?.video;
+  if (!intent) throw new Error('Unavailable provider');
+  if ('source' in intent && intent.source === 'platform') {
+    const resolved = resolveProviderSelection({
+      capability: 'video',
+      source: intent.source,
+      defaultId: intent.defaultId,
+    });
+    const config = snapshot?.video;
+    if (
+      snapshot?.videoEnabled === false ||
+      !config ||
+      !('source' in config) ||
+      config.source !== 'platform' ||
+      config.defaultId !== intent.defaultId ||
+      (intent.revision && intent.revision !== resolved.revision) ||
+      ('revision' in config && config.revision !== resolved.revision)
+    ) {
+      throw new Error('Unavailable provider');
+    }
+    return;
+  }
+  if (!('providerId' in intent)) throw new Error('Unavailable provider');
+  const selected = intent;
   assertNotDisabled('video', selected.providerId);
   if (snapshot?.videoEnabled === false) throw new Error('Unavailable provider');
   const config = snapshot?.video;
   if (
     snapshot?.videoEnabled === true &&
-    (!config || config.providerId !== selected.providerId || config.modelId !== selected.modelId)
+    (!config ||
+      !('providerId' in config) ||
+      config.providerId !== selected.providerId ||
+      config.modelId !== selected.modelId)
   ) {
     throw new Error('Unavailable provider');
   }
+  const userOwned = 'source' in selected && selected.source === 'user';
   const managed = getServerVideoProviders()[selected.providerId];
-  if (managed) {
+  if (managed && !userOwned) {
     if (managed.disabled) throw new Error('Unavailable provider');
     return;
   }
-  if (!config || config.providerId !== selected.providerId || config.modelId !== selected.modelId) {
+  if (
+    !config ||
+    !('providerId' in config) ||
+    config.providerId !== selected.providerId ||
+    config.modelId !== selected.modelId
+  ) {
     throw new Error('Unavailable provider');
   }
   if (selected.providerId.startsWith('custom-video-')) {
@@ -134,25 +201,63 @@ function requireVideoProvider(
   }
   const provider = VIDEO_PROVIDERS[selected.providerId as keyof typeof VIDEO_PROVIDERS];
   if (!provider || !config.enabled) throw new Error('Unavailable provider');
-  if (provider.requiresApiKey && !resolveVideoApiKey(selected.providerId, config.apiKey)) {
+  const apiKey = userOwned ? config.apiKey : resolveVideoApiKey(selected.providerId, config.apiKey);
+  if (provider.requiresApiKey && !apiKey) {
     throw new Error('Unavailable provider');
   }
-  if (provider.models.length && !resolveVideoModel(selected.providerId, selected.modelId)) {
+  if (
+    provider.models.length &&
+    !(userOwned ? selected.modelId : resolveVideoModel(selected.providerId, selected.modelId))
+  ) {
     throw new Error('Unavailable provider');
   }
 }
 
 function requireTTSProvider(
-  providerId: string | undefined,
-  modelId: string | undefined,
+  selection: {
+    source?: 'platform' | 'user' | 'legacy-managed';
+    defaultId?: string;
+    revision?: string;
+    providerId?: string;
+    modelId?: string;
+  },
   voice: string | undefined,
   snapshot: MediaConfigSnapshotContent | undefined,
 ): void {
+  if (selection.source === 'platform') {
+    if (!selection.defaultId || snapshot?.version !== 3 || snapshot.ttsEnabled === false) {
+      throw new Error('Unavailable provider');
+    }
+    const resolved = resolveProviderSelection({
+      capability: 'tts',
+      source: selection.source,
+      defaultId: selection.defaultId,
+      voiceId: voice,
+    });
+    const provider = snapshot.ttsProviders?.find(
+      (candidate) => candidate.source === 'platform' && candidate.defaultId === selection.defaultId,
+    );
+    const directory = snapshot.ttsVoiceDirectory?.find(
+      (candidate) => candidate.source === 'platform' && candidate.defaultId === selection.defaultId,
+    );
+    if (
+      !provider ||
+      !directory ||
+      (voice && !directory.voiceIds.includes(voice)) ||
+      (selection.revision && selection.revision !== resolved.revision) ||
+      (provider.source === 'platform' ? provider.revision : undefined) !== resolved.revision ||
+      (directory.source === 'platform' ? directory.revision : undefined) !== resolved.revision
+    ) {
+      throw new Error('Unavailable provider');
+    }
+    return;
+  }
+  const { providerId, modelId } = selection;
   if (!providerId) throw new Error('Unavailable provider');
   assertNotDisabled('tts', providerId);
   if (snapshot?.ttsEnabled === false) throw new Error('Unavailable provider');
   const config = snapshot
-    ? snapshot.version === 2
+    ? snapshot.version === 2 || snapshot.version === 3
       ? resolveEffectiveSessionVoice(mediaConfigVoiceSource(snapshot), {
           providerId,
           modelId,
@@ -166,8 +271,9 @@ function requireTTSProvider(
         )
     : undefined;
   if (snapshot?.ttsEnabled === true && !config) throw new Error('Unavailable provider');
+  const userOwned = selection.source === 'user';
   const managed = getServerTTSProviders()[providerId];
-  if (managed) {
+  if (managed && !userOwned) {
     if (managed.disabled) throw new Error('Unavailable provider');
     return;
   }
@@ -181,10 +287,11 @@ function requireTTSProvider(
   }
   const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
   if (!provider || !config.enabled) throw new Error('Unavailable provider');
-  if (provider.requiresApiKey && !resolveTTSApiKey(providerId, config.apiKey)) {
+  const apiKey = userOwned ? config.apiKey : resolveTTSApiKey(providerId, config.apiKey);
+  if (provider.requiresApiKey && !apiKey) {
     throw new Error('Unavailable provider');
   }
-  if (!resolveTTSModel(providerId, config.modelId, config.voice)) {
+  if (!(userOwned ? config.modelId : resolveTTSModel(providerId, config.modelId, config.voice))) {
     throw new Error('Unavailable provider');
   }
 }
@@ -217,12 +324,23 @@ export async function validateBackgroundProviders(
             throw new Error('Model snapshot context unavailable');
           })()
       : undefined;
-    if (
-      modelSnapshot &&
-      input.model?.modelString &&
-      input.model.modelString !== modelSnapshot.modelString
-    ) {
-      throw new Error('Model snapshot does not match the selected model');
+    if (modelSnapshot && input.model) {
+      const inputSource = input.model.source ?? 'legacy-managed';
+      const snapshotSource = modelSnapshot.version === 2 ? modelSnapshot.source : 'legacy-managed';
+      const samePlatform =
+        inputSource === 'platform' &&
+        modelSnapshot.version === 2 &&
+        modelSnapshot.source === 'platform' &&
+        input.model.defaultId === modelSnapshot.defaultId &&
+        input.model.revision === modelSnapshot.revision;
+      const sameConcrete =
+        inputSource !== 'platform' &&
+        snapshotSource === inputSource &&
+        'modelString' in modelSnapshot &&
+        (!input.model.modelString || input.model.modelString === modelSnapshot.modelString);
+      if (!samePlatform && !sameConcrete) {
+        throw new Error('Model snapshot does not match the selected model');
+      }
     }
     const providers = getServerProviders();
     for (const stage of [
@@ -244,10 +362,20 @@ export async function validateBackgroundProviders(
       const ownerConfigured =
         modelSnapshot &&
         !getStageRoute(stage) &&
-        resolved.modelString === modelSnapshot.modelString;
+        (resolved.source === 'platform'
+          ? modelSnapshot.version === 2 &&
+            modelSnapshot.source === 'platform' &&
+            resolved.defaultId === modelSnapshot.defaultId &&
+            resolved.revision === modelSnapshot.revision
+          : 'modelString' in modelSnapshot &&
+            resolved.source ===
+              (modelSnapshot.version === 2 ? modelSnapshot.source : 'legacy-managed') &&
+            resolved.modelString === modelSnapshot.modelString);
       if (
-        (!managed && !ownerConfigured) ||
-        (managed?.models?.length && !managed.models.includes(resolved.modelId)) ||
+        (!managed && !ownerConfigured && resolved.source !== 'platform') ||
+        (resolved.source !== 'platform' &&
+          managed?.models?.length &&
+          !managed.models.includes(resolved.modelId)) ||
         (isProviderKeyRequired(resolved.providerId) && !resolved.apiKey)
       )
         throw new Error('Unavailable provider');
@@ -259,10 +387,10 @@ export async function validateBackgroundProviders(
       if (!id || !available[id] || available[id].disabled) throw new Error('Unavailable provider');
     };
     if (input.tts?.enabled && input.tts.providerId !== 'browser-native-tts') {
-      requireTTSProvider(input.tts.providerId, input.tts.modelId, input.tts.voice, mediaSnapshot);
+      requireTTSProvider(input.tts, input.tts.voice, mediaSnapshot);
       for (const voice of Object.values(input.tts.agentVoiceOverrides ?? {})) {
         if (voice.providerId !== 'browser-native-tts') {
-          requireTTSProvider(voice.providerId, voice.modelId, voice.voiceId, mediaSnapshot);
+          requireTTSProvider(voice, voice.voiceId, mediaSnapshot);
         }
       }
     }
@@ -280,7 +408,11 @@ export async function validateBackgroundProviders(
         requireProvider(input.webSearch?.providerId, getServerWebSearchProviders());
       }
     }
-  } catch {
+  } catch (error) {
+    const resolutionError = getModelResolutionError(error);
+    if (resolutionError) {
+      throw new GenerationJobError(resolutionError.code, resolutionError.httpStatus);
+    }
     throw new GenerationJobError('BACKGROUND_PROVIDER_UNAVAILABLE', 422);
   }
 }

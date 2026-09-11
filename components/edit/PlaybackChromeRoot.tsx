@@ -110,6 +110,9 @@ export interface PlaybackChromeRootHandle {
 
 interface PlaybackChromeRootProps {
   readonly onRetryOutline?: (outlineId: string) => Promise<void>;
+  readonly generationJobDisplay?:
+    | import('@/lib/generation/job-display').GenerationJobDisplayProjection
+    | null;
   /** Whether the Pro Switch in Header should be enabled. */
   readonly canEnterProMode?: boolean;
   /** Pro Switch click handler — parent coordinates teardown + mode flip. */
@@ -133,6 +136,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
   function PlaybackChromeRoot(
     {
       onRetryOutline,
+      generationJobDisplay,
       canEnterProMode,
       onEnterProMode,
       proModeActive,
@@ -1727,6 +1731,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
           onCollapseChange={handleSceneRailPresentationChange}
           onSceneSelect={gatedSceneSwitch}
           onRetryOutline={onRetryOutline}
+          generationJobDisplay={generationJobDisplay}
           isCourseComplete={isCourseComplete}
           hidden={isPresenting}
         />
@@ -1737,6 +1742,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         isCourseComplete,
         isPresenting,
         onRetryOutline,
+        generationJobDisplay,
         presentedSidebarCollapsed,
       ],
     );

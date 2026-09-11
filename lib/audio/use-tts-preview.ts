@@ -6,10 +6,12 @@ import {
   isBrowserTTSAbortError,
   playBrowserTTSPreview,
 } from '@/lib/audio/browser-tts-preview';
+import type { ModelSelection } from '@/lib/types/platform-default-models';
 
 export interface TTSPreviewOptions {
   text: string;
   providerId: string;
+  selection?: ModelSelection;
   modelId?: string;
   voice: string;
   speed: number;
@@ -93,16 +95,27 @@ export function useTTSPreview() {
         }
 
         // API-based TTS
+        const selection = options.selection ?? {
+          source: 'user' as const,
+          providerId: options.providerId,
+          modelId: options.modelId,
+        };
+        const platform = selection.source === 'platform';
         const body: Record<string, unknown> = {
           text: options.text,
           audioId: 'preview',
-          ttsProviderId: options.providerId,
-          ttsModelId: options.modelId,
+          modelSource: selection.source,
+          ...(platform
+            ? { platformDefaultId: selection.defaultId }
+            : {
+                ttsProviderId: options.providerId,
+                ttsModelId: options.modelId,
+              }),
           ttsVoice: options.voice,
           ttsSpeed: options.speed,
         };
-        if (options.apiKey?.trim()) body.ttsApiKey = options.apiKey;
-        if (options.baseUrl?.trim()) body.ttsBaseUrl = options.baseUrl;
+        if (!platform && options.apiKey?.trim()) body.ttsApiKey = options.apiKey;
+        if (!platform && options.baseUrl?.trim()) body.ttsBaseUrl = options.baseUrl;
         if (options.providerOptions) body.ttsProviderOptions = options.providerOptions;
 
         const res = await fetch('/api/generate/tts', {

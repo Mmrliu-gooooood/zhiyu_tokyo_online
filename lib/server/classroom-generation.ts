@@ -28,10 +28,12 @@ import { formatSearchResultsAsContext, searchWeb } from '@/lib/web-search';
 import type { BaiduSubSources, WebSearchProviderId } from '@/lib/web-search/types';
 import { persistClassroom } from '@/lib/server/classroom-storage';
 import {
+  classroomMediaSelectionsFromSnapshot,
   generateMediaForClassroom,
   replaceMediaPlaceholders,
   generateTTSForClassroom,
 } from '@/lib/server/classroom-media-generation';
+import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
 import { buildVideoManifestFromOutlines } from '@/lib/media/video-manifest';
 import type { UserRequirements } from '@/lib/types/generation';
 import type { Scene, Stage } from '@/lib/types/stage';
@@ -57,6 +59,8 @@ export interface GenerateClassroomInput {
   enableVideoGeneration?: boolean;
   enableTTS?: boolean;
   agentMode?: 'default' | 'generate';
+  /** Owner-loaded/decrypted server snapshot; never accepted directly from browser JSON. */
+  mediaConfig?: MediaConfigSnapshotContent;
 }
 
 export type ClassroomGenerationStep =
@@ -657,6 +661,9 @@ export async function generateClassroom(
   }
 
   const scenes = store.getState().scenes;
+  const mediaSelections = input.mediaConfig
+    ? classroomMediaSelectionsFromSnapshot(input.mediaConfig)
+    : undefined;
   log.info(`Pipeline complete: ${scenes.length} scenes generated`);
 
   if (scenes.length === 0) {
@@ -674,7 +681,12 @@ export async function generateClassroom(
     });
 
     try {
-      const mediaMap = await generateMediaForClassroom(outlines, stageId, options.baseUrl);
+      const mediaMap = await generateMediaForClassroom(
+        outlines,
+        stageId,
+        options.baseUrl,
+        mediaSelections,
+      );
       replaceMediaPlaceholders(scenes, mediaMap);
       log.info(`Media generation complete: ${Object.keys(mediaMap).length} files`);
     } catch (err) {
@@ -693,7 +705,7 @@ export async function generateClassroom(
     });
 
     try {
-      await generateTTSForClassroom(scenes, stageId, options.baseUrl);
+      await generateTTSForClassroom(scenes, stageId, options.baseUrl, mediaSelections?.tts);
       log.info('TTS generation complete');
     } catch (err) {
       log.warn('TTS generation phase failed, continuing:', err);

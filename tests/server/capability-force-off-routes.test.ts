@@ -77,6 +77,7 @@ function clearCapabilityEnv() {
     delete process.env[`${prefix}_MODELS`];
     delete process.env[`${prefix}_ENABLED`];
   }
+  delete process.env.ZHIYU_DEFAULTS_REVISION_SECRET;
 }
 
 function jsonRequest(
@@ -119,6 +120,38 @@ describe('capability force-off route guards (#665)', () => {
   });
 
   describe('image', () => {
+    it('uses the platform image binding and ignores same-vendor client overrides', async () => {
+      vi.stubEnv('IMAGE_MINIMAX_API_KEY', 'platform-image-key');
+      vi.stubEnv('IMAGE_MINIMAX_BASE_URL', 'https://platform.example/v1');
+      vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
+      const { POST } = await import('@/app/api/generate/image/route');
+      const res = await POST(
+        jsonRequest(
+          'http://localhost/api/generate/image',
+          { prompt: 'a cat' },
+          {
+            'x-model-source': 'platform',
+            'x-platform-default-id': 'zhiyu-default-image',
+            'x-image-provider': 'minimax-image',
+            'x-image-model': 'user-model',
+            'x-api-key': 'user-key',
+            'x-base-url': 'https://user.example/v1',
+          },
+        ),
+      );
+
+      expect(res.status).toBe(200);
+      expect(mocks.generateImage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerId: 'minimax-image',
+          model: 'image-01',
+          apiKey: 'platform-image-key',
+          baseUrl: 'https://platform.example/v1',
+        }),
+        expect.objectContaining({ prompt: 'a cat' }),
+      );
+    });
+
     it('POST /api/generate/image returns 403 PROVIDER_DISABLED for a force-disabled provider', async () => {
       vi.stubEnv('IMAGE_OPENAI_API_KEY', 'sk-img');
       vi.stubEnv('IMAGE_OPENAI_ENABLED', 'false');
@@ -192,6 +225,53 @@ describe('capability force-off route guards (#665)', () => {
   });
 
   describe('video', () => {
+    it('enforces the platform MiniMax 768P / 6-second low-cost request', async () => {
+      vi.stubEnv('VIDEO_MINIMAX_API_KEY', 'platform-video-key');
+      vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
+      const { POST } = await import('@/app/api/generate/video/route');
+      const res = await POST(
+        jsonRequest(
+          'http://localhost/api/generate/video',
+          { prompt: 'a cat' },
+          {
+            'x-model-source': 'platform',
+            'x-platform-default-id': 'zhiyu-default-video',
+            'x-api-key': 'user-key',
+          },
+        ),
+      );
+
+      expect(res.status).toBe(200);
+      expect(mocks.generateVideo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerId: 'minimax-video',
+          model: 'MiniMax-Hailuo-2.3',
+          apiKey: 'platform-video-key',
+        }),
+        expect.objectContaining({ duration: 6, resolution: '720p' }),
+      );
+    });
+
+    it('rejects a more expensive platform video specification', async () => {
+      vi.stubEnv('VIDEO_MINIMAX_API_KEY', 'platform-video-key');
+      vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
+      const { POST } = await import('@/app/api/generate/video/route');
+      const res = await POST(
+        jsonRequest(
+          'http://localhost/api/generate/video',
+          { prompt: 'a cat', duration: 10, resolution: '1080p' },
+          {
+            'x-model-source': 'platform',
+            'x-platform-default-id': 'zhiyu-default-video',
+          },
+        ),
+      );
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ errorCode: 'INVALID_REQUEST' });
+      expect(mocks.generateVideo).not.toHaveBeenCalled();
+    });
+
     it('POST /api/generate/video returns 403 PROVIDER_DISABLED for a force-disabled provider', async () => {
       vi.stubEnv('VIDEO_GROK_API_KEY', 'xai-video');
       vi.stubEnv('VIDEO_GROK_ENABLED', 'false');

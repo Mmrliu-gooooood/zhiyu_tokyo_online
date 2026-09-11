@@ -32,7 +32,7 @@ describe('media config snapshot client', () => {
     );
 
     expect(snapshot).toMatchObject({
-      version: 2,
+      version: 3,
       ttsDefault: {
         providerId: 'minimax-tts',
         modelId: 'speech-2.8-hd',
@@ -156,7 +156,7 @@ describe('media config snapshot client', () => {
         }),
       ),
     ).toEqual({
-      version: 2,
+      version: 3,
       imageEnabled: false,
       videoEnabled: false,
       ttsEnabled: false,
@@ -205,7 +205,7 @@ describe('media config snapshot client', () => {
     );
 
     expect(snapshot).toMatchObject({
-      version: 2,
+      version: 3,
       imageEnabled: true,
       videoEnabled: true,
       ttsEnabled: true,
@@ -234,6 +234,56 @@ describe('media config snapshot client', () => {
         speed: expect.any(Number),
       },
     });
+  });
+
+  it('stores platform defaults by stable reference without user credentials or endpoints', () => {
+    const state = useSettingsStore.getState();
+    const snapshot = buildMediaConfigSnapshot(
+      settings({
+        imageGenerationEnabled: true,
+        videoGenerationEnabled: true,
+        ttsEnabled: true,
+        imageSelection: { source: 'platform', defaultId: 'zhiyu-default-image' },
+        videoSelection: { source: 'platform', defaultId: 'zhiyu-default-video' },
+        ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+        imageProviderId: 'minimax-image',
+        videoProviderId: 'minimax-video',
+        ttsProviderId: 'minimax-tts',
+        imageProvidersConfig: {
+          ...state.imageProvidersConfig,
+          'minimax-image': {
+            ...state.imageProvidersConfig['minimax-image'],
+            apiKey: 'must-not-leak-image',
+            baseUrl: 'https://user-image.example.com',
+          },
+        },
+        videoProvidersConfig: {
+          ...state.videoProvidersConfig,
+          'minimax-video': {
+            ...state.videoProvidersConfig['minimax-video'],
+            apiKey: 'must-not-leak-video',
+            baseUrl: 'https://user-video.example.com',
+          },
+        },
+        ttsProvidersConfig: {
+          ...state.ttsProvidersConfig,
+          'minimax-tts': {
+            ...state.ttsProvidersConfig['minimax-tts'],
+            apiKey: 'must-not-leak-tts',
+            baseUrl: 'https://user-tts.example.com',
+          },
+        },
+      }),
+    );
+
+    expect(snapshot).toMatchObject({
+      version: 3,
+      image: { source: 'platform', defaultId: 'zhiyu-default-image' },
+      video: { source: 'platform', defaultId: 'zhiyu-default-video' },
+      ttsProviders: [{ source: 'platform', defaultId: 'zhiyu-default-tts' }],
+      ttsDefault: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+    });
+    expect(JSON.stringify(snapshot)).not.toMatch(/must-not-leak|user-(image|video|tts)/);
   });
 
   it('preserves an explicit local disable for built-in providers', () => {

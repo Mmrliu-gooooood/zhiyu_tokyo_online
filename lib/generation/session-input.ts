@@ -17,6 +17,14 @@ export interface GenerationUploadedAsset {
   digest: string;
 }
 
+function platformRevision(
+  settings: ReturnType<typeof useSettingsStore.getState>,
+  defaultId: string,
+) {
+  return settings.platformDefaults?.entries.find((entry) => entry.defaultId === defaultId)
+    ?.revision;
+}
+
 function rejectClientProvider(config?: {
   apiKey?: string;
   baseUrl?: string;
@@ -42,6 +50,21 @@ export async function buildGenerationJobInput(
 ): Promise<GenerationInput> {
   const settings = useSettingsStore.getState();
   const model = getCurrentModelConfig();
+  const imageSelection = settings.imageSelection ?? {
+    source: 'user' as const,
+    providerId: settings.imageProviderId,
+    modelId: settings.imageModelId,
+  };
+  const videoSelection = settings.videoSelection ?? {
+    source: 'user' as const,
+    providerId: settings.videoProviderId,
+    modelId: settings.videoModelId,
+  };
+  const ttsSelection = settings.ttsSelection ?? {
+    source: 'user' as const,
+    providerId: settings.ttsProviderId,
+    modelId: settings.ttsProvidersConfig[settings.ttsProviderId]?.modelId,
+  };
   if (resolveSessionDocumentSources(session).length)
     rejectClientProvider(session.pdfProviderConfig);
   if (session.sceneOutlines?.length || session.researchContext) {
@@ -66,7 +89,7 @@ export async function buildGenerationJobInput(
       )
     : undefined;
   const modelConfigRef =
-    model.apiKey?.trim() || model.baseUrl?.trim()
+    model.source === 'platform' || model.apiKey?.trim() || model.baseUrl?.trim()
       ? await syncGenerationModelSnapshot(model, signal)
       : undefined;
   const selected = settings.selectedAgentIds
@@ -171,7 +194,18 @@ export async function buildGenerationJobInput(
     version: 1,
     requirements: session.requirements,
     locale,
-    model: { modelString: model.modelString, thinkingConfig: model.thinkingConfig },
+    model:
+      model.source === 'platform'
+        ? {
+            source: model.source,
+            defaultId: model.defaultId,
+            revision: model.revision,
+          }
+        : {
+            source: model.source,
+            modelString: model.modelString,
+            thinkingConfig: model.thinkingConfig,
+          },
     ...(modelConfigRef ? { modelConfigRef } : {}),
     ...(searchConfigRef ? { searchConfigRef } : {}),
     materials: { text: session.pdfText || undefined, sources, images },
@@ -182,10 +216,30 @@ export async function buildGenerationJobInput(
     enableVideoGeneration: settings.videoGenerationEnabled,
     media: {
       image: settings.imageGenerationEnabled
-        ? { providerId: settings.imageProviderId, modelId: settings.imageModelId }
+        ? imageSelection.source === 'platform'
+          ? {
+              source: imageSelection.source,
+              defaultId: imageSelection.defaultId,
+              revision: platformRevision(settings, imageSelection.defaultId),
+            }
+          : {
+              source: imageSelection.source,
+              providerId: settings.imageProviderId,
+              modelId: settings.imageModelId,
+            }
         : undefined,
       video: settings.videoGenerationEnabled
-        ? { providerId: settings.videoProviderId, modelId: settings.videoModelId }
+        ? videoSelection.source === 'platform'
+          ? {
+              source: videoSelection.source,
+              defaultId: videoSelection.defaultId,
+              revision: platformRevision(settings, videoSelection.defaultId),
+            }
+          : {
+              source: videoSelection.source,
+              providerId: settings.videoProviderId,
+              modelId: settings.videoModelId,
+            }
         : undefined,
     },
     ...(mediaConfigRef ? { mediaConfigRef } : {}),
@@ -198,8 +252,16 @@ export async function buildGenerationJobInput(
     tts: settings.ttsEnabled
       ? {
           enabled: settings.ttsEnabled,
-          providerId: settings.ttsProviderId,
-          modelId: settings.ttsProvidersConfig[settings.ttsProviderId]?.modelId,
+          source: ttsSelection.source,
+          ...(ttsSelection.source === 'platform'
+            ? {
+                defaultId: ttsSelection.defaultId,
+                revision: platformRevision(settings, ttsSelection.defaultId),
+              }
+            : {
+                providerId: settings.ttsProviderId,
+                modelId: settings.ttsProvidersConfig[settings.ttsProviderId]?.modelId,
+              }),
           voice: settings.ttsVoice,
           speed: settings.ttsSpeed,
           agentVoiceOverrides: settings.agentVoiceOverrides,

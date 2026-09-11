@@ -272,26 +272,36 @@ async function callImageApi(
 ): Promise<{ url: string; ossUrl?: string; mimeType?: string }> {
   const settings = useSettingsStore.getState();
   const providerConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
+  const selection = settings.imageSelection ?? {
+    source: 'user' as const,
+    providerId: settings.imageProviderId,
+    modelId: settings.imageModelId,
+  };
+  const platform = selection.source === 'platform';
 
   const response = await fetch('/api/generate/image', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-image-provider': settings.imageProviderId || '',
-      'x-image-model': settings.imageModelId || '',
-      'x-api-key': settings.imageProviderId.startsWith('custom-image-')
-        ? ''
-        : providerConfig?.apiKey || '',
-      'x-base-url': settings.imageProviderId.startsWith('custom-image-')
-        ? ''
-        : providerConfig?.baseUrl || '',
+      'x-model-source': selection.source,
+      'x-platform-default-id': platform ? selection.defaultId : '',
+      'x-image-provider': platform ? '' : settings.imageProviderId || '',
+      'x-image-model': platform ? '' : settings.imageModelId || '',
+      'x-api-key':
+        platform || settings.imageProviderId.startsWith('custom-image-')
+          ? ''
+          : providerConfig?.apiKey || '',
+      'x-base-url':
+        platform || settings.imageProviderId.startsWith('custom-image-')
+          ? ''
+          : providerConfig?.baseUrl || '',
     },
     body: JSON.stringify({
       prompt: req.prompt,
       aspectRatio: req.aspectRatio,
       style: req.style,
       stageId,
-      ...(String(settings.imageProviderId).startsWith('custom-image-')
+      ...(!platform && String(settings.imageProviderId).startsWith('custom-image-')
         ? {
             providerConfig: {
               id: settings.imageProviderId,
@@ -343,24 +353,34 @@ async function callVideoApi(
 }> {
   const settings = useSettingsStore.getState();
   const providerConfig = settings.videoProvidersConfig?.[settings.videoProviderId];
+  const selection = settings.videoSelection ?? {
+    source: 'user' as const,
+    providerId: settings.videoProviderId,
+    modelId: settings.videoModelId,
+  };
+  const platform = selection.source === 'platform';
 
   const response = await fetch('/api/generate/video', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-video-provider': settings.videoProviderId || '',
-      'x-video-model': settings.videoModelId || '',
-      'x-api-key': settings.videoProviderId.startsWith('custom-video-')
-        ? ''
-        : providerConfig?.apiKey || '',
-      'x-base-url': settings.videoProviderId.startsWith('custom-video-')
-        ? ''
-        : providerConfig?.baseUrl || '',
+      'x-model-source': selection.source,
+      'x-platform-default-id': platform ? selection.defaultId : '',
+      'x-video-provider': platform ? '' : settings.videoProviderId || '',
+      'x-video-model': platform ? '' : settings.videoModelId || '',
+      'x-api-key':
+        platform || settings.videoProviderId.startsWith('custom-video-')
+          ? ''
+          : providerConfig?.apiKey || '',
+      'x-base-url':
+        platform || settings.videoProviderId.startsWith('custom-video-')
+          ? ''
+          : providerConfig?.baseUrl || '',
     },
     body: JSON.stringify({
       prompt: req.prompt,
       aspectRatio: req.aspectRatio,
-      ...(String(settings.videoProviderId).startsWith('custom-video-')
+      ...(!platform && String(settings.videoProviderId).startsWith('custom-video-')
         ? {
             providerConfig: {
               id: settings.videoProviderId,

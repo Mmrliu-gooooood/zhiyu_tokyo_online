@@ -52,7 +52,7 @@ import type {
   UserRequirements,
 } from '@/lib/types/generation';
 import { useSettingsStore } from '@/lib/store/settings';
-import { hasUsableLLMProvider } from '@/lib/store/settings-validation';
+import { hasUsableLLMSelection } from '@/lib/store/settings-validation';
 import { useUserProfileStore, AVATAR_OPTIONS } from '@/lib/store/user-profile';
 import {
   StageListItem,
@@ -180,7 +180,9 @@ function HomePage() {
   // invariant). Gate generation on this single condition (state A vs B)
   // instead of inspecting modelId directly.
   const providersConfig = useSettingsStore((s) => s.providersConfig);
-  const hasUsableProvider = hasUsableLLMProvider(providersConfig);
+  const platformDefaults = useSettingsStore((s) => s.platformDefaults);
+  const llmSelection = useSettingsStore((s) => s.llmSelection);
+  const hasUsableProvider = hasUsableLLMSelection(providersConfig, platformDefaults, llmSelection);
   const [recentOpen, setRecentOpen] = useState(true);
   const persistRecentOpen = (next: boolean) => {
     setRecentOpen(next);

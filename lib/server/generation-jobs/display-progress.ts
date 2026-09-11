@@ -1,4 +1,5 @@
 import type {
+  GenerationDisplayIssue,
   GenerationDisplayPhase,
   GenerationDisplayProgress,
   GenerationInput,
@@ -131,6 +132,32 @@ function failedStepOf(
   };
 }
 
+function issuesOf(steps: GenerationDisplayStepFact[]): GenerationDisplayIssue[] {
+  const issues = new Map<string, GenerationDisplayIssue>();
+  for (const step of [...steps].sort(
+    (left, right) =>
+      new Date(left.startedAt ?? 0).getTime() - new Date(right.startedAt ?? 0).getTime(),
+  )) {
+    if (!['failed', 'uncertain', 'retry_wait', 'cancelled'].includes(step.status)) continue;
+    const outlineId = outlineIdOf(step);
+    const state: GenerationDisplayIssue['state'] =
+      step.status === 'uncertain'
+        ? 'unknown'
+        : (step.status as Exclude<GenerationDisplayIssue['state'], 'unknown'>);
+    const code = step.errorCode ?? (state === 'unknown' ? 'EXTERNAL_RESULT_UNKNOWN' : null);
+    if (!code) continue;
+    const issue = {
+      ...(outlineId ? { outlineId } : {}),
+      phase: normalizeGenerationDisplayPhase(step),
+      code,
+      state,
+    } satisfies GenerationDisplayIssue;
+    const identity = `${outlineId ?? step.key}:${issue.phase}:${state}:${code}`;
+    if (!issues.has(identity)) issues.set(identity, issue);
+  }
+  return [...issues.values()];
+}
+
 export function projectGenerationDisplayProgress(input: {
   phase: string;
   status: GenerationJobStatus;
@@ -148,6 +175,7 @@ export function projectGenerationDisplayProgress(input: {
   const actionsActive = activeOutlines(input.steps, 'actions', currentOutlineIds);
   const failedStep =
     input.status === 'cancelled' ? undefined : failedStepOf(input.steps, input.lastErrorCode);
+  const issues = input.status === 'cancelled' ? [] : issuesOf(input.steps);
   const activePhases = input.steps
     .filter((step) => step.status === 'running')
     .map((step) => normalizeGenerationDisplayPhase(step));
@@ -212,5 +240,6 @@ export function projectGenerationDisplayProgress(input: {
       total,
     },
     ...(failedStep ? { failedStep } : {}),
+    ...(issues.length ? { issues } : {}),
   };
 }

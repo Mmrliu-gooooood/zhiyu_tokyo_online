@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Queryable } from '@openmaic/storage/document/pg';
 import {
   MediaConfigSnapshotStore,
+  MediaConfigSnapshotContentSchema,
   type MediaConfigSnapshotContent,
 } from '@/lib/server/media-config-snapshots';
 import { GENERATION_MIGRATION_2 } from '@/lib/server/generation-jobs/migrations';
@@ -46,6 +47,23 @@ describe('encrypted media configuration snapshots', () => {
   let db: PGlite;
   let queryable: Queryable;
   let store: MediaConfigSnapshotStore;
+
+  it('accepts stable platform references and rejects mixed platform credentials', () => {
+    const platform = {
+      version: 3,
+      imageEnabled: true,
+      videoEnabled: false,
+      ttsEnabled: false,
+      image: { source: 'platform', defaultId: 'zhiyu-default-image', revision: 'image-r1' },
+    };
+    expect(MediaConfigSnapshotContentSchema.safeParse(platform).success).toBe(true);
+    expect(
+      MediaConfigSnapshotContentSchema.safeParse({
+        ...platform,
+        image: { ...platform.image, apiKey: 'must-not-be-accepted' },
+      }).success,
+    ).toBe(false);
+  });
 
   beforeEach(async () => {
     vi.stubEnv('MEDIA_CONFIG_ENCRYPTION_KEY', 'ab'.repeat(32));
@@ -99,9 +117,7 @@ describe('encrypted media configuration snapshots', () => {
         voiceId: 'voice-1',
         speed: 1,
       },
-      ttsVoiceDirectory: [
-        { providerId: 'custom-tts-private', modelId: 'tts-model', voiceIds },
-      ],
+      ttsVoiceDirectory: [{ providerId: 'custom-tts-private', modelId: 'tts-model', voiceIds }],
     } as const;
 
     const v2Ref = await store.create('owner-a', v2);
@@ -190,6 +206,24 @@ describe('encrypted media configuration snapshots', () => {
         }),
       ).toThrow('INVALID_GENERATION_INPUT');
     }
+  });
+
+  it('rejects a source=user built-in provider that requires a key but has none', async () => {
+    await expect(
+      store.create('owner-a', {
+        version: 3,
+        imageEnabled: true,
+        image: {
+          source: 'user',
+          providerId: 'minimax-image',
+          apiKey: '',
+          baseUrl: '',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'image-01',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'MEDIA_CONFIG_KEY_REQUIRED' });
   });
 
   it('accepts strict built-in provider branches and preserves provider-specific TTS options', async () => {

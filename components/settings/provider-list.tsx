@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type { ProviderId, ProviderConfig } from '@/lib/ai/providers';
 import { MONO_LOGO_PROVIDERS } from '@/lib/ai/providers';
+import { PlatformDefaultListEntry } from './platform-default-panel';
 
 interface ProviderWithServerInfo extends ProviderConfig {
   isServerConfigured?: boolean;
@@ -17,6 +18,17 @@ interface ProviderListProps {
   onSelect: (providerId: ProviderId) => void;
   onAddProvider: () => void;
   width?: number;
+  platformDefaultSelected?: boolean;
+  onSelectPlatformDefault?: () => void;
+}
+
+export function browseProviderDetails<T extends string>(
+  providerId: T,
+  onBrowse: (id: T) => void,
+  onLeavePlatformDefault: () => void,
+) {
+  onLeavePlatformDefault();
+  onBrowse(providerId);
 }
 
 export function ProviderList({
@@ -25,6 +37,8 @@ export function ProviderList({
   onSelect,
   onAddProvider,
   width,
+  platformDefaultSelected = false,
+  onSelectPlatformDefault,
 }: ProviderListProps) {
   const { t } = useI18n();
 
@@ -39,13 +53,20 @@ export function ProviderList({
   return (
     <div className="flex-shrink-0 bg-background flex flex-col" style={{ width: width ?? 192 }}>
       <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        {onSelectPlatformDefault && (
+          <PlatformDefaultListEntry
+            selected={platformDefaultSelected}
+            onSelect={onSelectPlatformDefault}
+          />
+        )}
         {providers.map((provider) => (
           <button
+            type="button"
             key={provider.id}
             onClick={() => onSelect(provider.id)}
             className={cn(
               'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all border text-left',
-              selectedProviderId === provider.id
+              !platformDefaultSelected && selectedProviderId === provider.id
                 ? 'bg-primary/5 border-primary/50 shadow-sm'
                 : 'border-transparent hover:bg-muted/50',
             )}

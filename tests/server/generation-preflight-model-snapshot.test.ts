@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   managed: {} as Record<string, { models?: string[]; apiKey?: string }>,
 }));
 vi.mock('@/lib/server/provider-config', () => ({
+  PlatformDefaultModelError: class PlatformDefaultModelError extends Error {},
   getServerProviders: () => state.managed,
   getServerTTSProviders: () => ({}),
   getServerImageProviders: () => ({}),
@@ -90,6 +91,24 @@ describe('background model snapshot preflight with real model resolution', () =>
     state.managed.openai = { apiKey: 'server-key' };
     const value = await input();
     value.model = { modelString: 'openai:gpt-4.1-mini' };
+    await expect(validate(value)).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+  });
+
+  it('rejects a user input paired with a legacy-managed snapshot for the same model', async () => {
+    const modelConfigRef = await store.create('owner-a', {
+      version: 2,
+      source: 'legacy-managed',
+      modelString: 'openai:gpt-4.1',
+      apiKey: 'owner-key',
+      providerType: 'openai',
+    });
+    const value = parseGenerationInput({
+      version: 1,
+      requirements: { requirement: 'Course' },
+      model: { source: 'user', modelString: 'openai:gpt-4.1' },
+      modelConfigRef,
+    });
+
     await expect(validate(value)).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
   });
 

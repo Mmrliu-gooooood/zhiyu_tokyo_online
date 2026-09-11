@@ -1,4 +1,5 @@
 import { canonicalHash } from '@/lib/server/generation-jobs/contracts';
+import { setTimeout as sleep } from 'node:timers/promises';
 import type {
   GenerationLease,
   StepReceipt,
@@ -74,12 +75,54 @@ export class ProviderRetryScheduled extends Error {
   }
 }
 
-/** DNS resolution failures prove that no HTTP request reached the provider. */
+/** Locate the bounded DNS failure codes used by the single-request retry seam. */
 function requestNotSentTransportCode(error: unknown): 'EAI_AGAIN' | 'ENOTFOUND' | undefined {
   let current = error;
   for (let depth = 0; depth < 6 && current && typeof current === 'object'; depth += 1) {
     const code = (current as { code?: unknown }).code;
     if (code === 'EAI_AGAIN' || code === 'ENOTFOUND') return code;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+const DNS_LOCAL_RETRY_DELAYS_MS = [1_000, 3_000] as const;
+
+export interface ExternalCallDiagnostic {
+  event: 'provider_outbound_dns_failure';
+  providerId: string;
+  hostname: string;
+  step: string;
+  dnsCode: 'EAI_AGAIN' | 'ENOTFOUND';
+  requestSent: false | 'unknown';
+  responseReceived: boolean;
+  elapsedMs: number;
+  attempt: number;
+  willRetry: boolean;
+}
+
+export interface ExternalRequestOptions {
+  /** Enable only when `work` contains exactly one provider HTTP request. */
+  retryPreSendDns?: boolean;
+  /** Pre-redacted provider endpoint hostname; URLs and credentials are rejected. */
+  hostname?: string;
+}
+
+function diagnosticToken(value: string, fallback: string): string {
+  return /^[a-zA-Z0-9_.:-]{1,200}$/.test(value) ? value : fallback;
+}
+
+function diagnosticHostname(value: unknown): string | undefined {
+  return typeof value === 'string' && /^(?=.{1,253}$)[a-zA-Z0-9.:[\]-]+$/.test(value)
+    ? value
+    : undefined;
+}
+
+function requestHostname(error: unknown): string | undefined {
+  let current = error;
+  for (let depth = 0; depth < 6 && current && typeof current === 'object'; depth += 1) {
+    const hostname = diagnosticHostname((current as { hostname?: unknown }).hostname);
+    if (hostname) return hostname;
     current = (current as { cause?: unknown }).cause;
   }
   return undefined;
@@ -120,6 +163,8 @@ export interface QuotaGate {
 
 export interface ExternalCallLifecycle {
   markResponseReceived(): void;
+  /** Report a swallowed DNS failure without exposing the error or request data. */
+  reportDnsFailure(error: unknown, hostname?: string): void;
 }
 
 export class PipelineExecution {
@@ -130,6 +175,7 @@ export class PipelineExecution {
     readonly lease: GenerationLease,
     signal: AbortSignal,
     readonly quota: QuotaGate,
+    readonly report?: (diagnostic: ExternalCallDiagnostic) => void,
   ) {
     this.signal = AbortSignal.any([signal, this.stopped.signal]);
   }
@@ -196,6 +242,7 @@ export class PipelineExecution {
     group: string,
     work: (signal: AbortSignal, lifecycle: ExternalCallLifecycle) => Promise<T>,
     optionalMedia: true,
+    options?: ExternalRequestOptions,
   ): Promise<T | null>;
   external<T>(
     key: string,
@@ -204,14 +251,16 @@ export class PipelineExecution {
     group: string,
     work: (signal: AbortSignal, lifecycle: ExternalCallLifecycle) => Promise<T>,
     optionalMedia?: false,
+    options?: ExternalRequestOptions,
   ): Promise<T>;
   async external<T>(
     key: string,
     dependency: unknown,
     kind: QuotaKind,
-    _group: string,
+    group: string,
     work: (signal: AbortSignal, lifecycle: ExternalCallLifecycle) => Promise<T>,
     optionalMedia = false,
+    options: ExternalRequestOptions = {},
   ): Promise<T | null> {
     return this.quota.run(kind, 'deployment', this.signal, async () => {
       this.signal.throwIfAborted();
@@ -238,16 +287,33 @@ export class PipelineExecution {
       let requestDispatched = false;
       let responseReceived = false;
       let commitStarted = false;
+      const externalStartedAt = Date.now();
       const lifecycle: ExternalCallLifecycle = {
         markResponseReceived: () => {
           responseReceived = true;
+        },
+        reportDnsFailure: (error, hostname) => {
+          const dnsCode = requestNotSentTransportCode(error);
+          if (!dnsCode) return;
+          this.report?.({
+            event: 'provider_outbound_dns_failure',
+            providerId: diagnosticToken(group, 'unknown'),
+            hostname: diagnosticHostname(hostname) ?? requestHostname(error) ?? 'unknown',
+            step: diagnosticToken(key, 'execution'),
+            dnsCode,
+            requestSent: 'unknown',
+            responseReceived,
+            elapsedMs: Math.max(0, Math.round(Date.now() - externalStartedAt)),
+            attempt: 1,
+            willRetry: false,
+          });
         },
       };
       try {
         // Race even adapters lacking AbortSignal support. They may still finish
         // remotely, but they cannot keep the Worker lease alive indefinitely or
         // commit late results. Signal-aware adapters also stop their local I/O.
-        const invoke = () => {
+        const invokeOnce = () => {
           requestDispatched = true;
           return kind === 'media' && receipt.attemptId && this.repository.recordProviderRequest
             ? withPolledTaskPersistence(
@@ -262,6 +328,41 @@ export class PipelineExecution {
                 () => work(callSignal, lifecycle),
               )
             : work(callSignal, lifecycle);
+        };
+        const invoke = async () => {
+          for (let attempt = 1; ; attempt += 1) {
+            const startedAt = Date.now();
+            try {
+              return await invokeOnce();
+            } catch (error) {
+              const dnsCode = requestNotSentTransportCode(error);
+              const eligible =
+                options.retryPreSendDns === true &&
+                kind === 'llm' &&
+                !callSignal.aborted &&
+                !responseReceived &&
+                dnsCode !== undefined;
+              if (!eligible) throw error;
+
+              const delayMs = DNS_LOCAL_RETRY_DELAYS_MS[attempt - 1];
+              const willRetry = delayMs !== undefined;
+              this.report?.({
+                event: 'provider_outbound_dns_failure',
+                providerId: diagnosticToken(group, 'unknown'),
+                hostname:
+                  diagnosticHostname(options.hostname) ?? requestHostname(error) ?? 'unknown',
+                step: diagnosticToken(key, 'execution'),
+                dnsCode,
+                requestSent: false,
+                responseReceived: false,
+                elapsedMs: Math.max(0, Math.round(Date.now() - startedAt)),
+                attempt,
+                willRetry,
+              });
+              if (!willRetry) throw error;
+              await sleep(delayMs, undefined, { signal: callSignal });
+            }
+          }
         };
         const result = await raceWithAbort(callSignal, () =>
           kind === 'llm' ? runWithGenerationQuota(invoke) : invoke(),
@@ -320,21 +421,23 @@ export class PipelineExecution {
           throw error;
         }
         const requestNotSentCode = requestNotSentTransportCode(error);
-        // Media adapters may submit a paid task and only then hit DNS while
-        // polling/downloading, so their DNS failures must remain unknown.
-        if (kind !== 'media' && !callSignal.aborted && !responseReceived && requestNotSentCode) {
-          await this.repository.failStep(this.lease, {
-            stepKey: key,
-            code: 'PROVIDER_REQUEST_NOT_SENT',
-            uncertain: false,
-            errorSummary: 'Provider request was not sent because DNS resolution failed.',
-            retryable: true,
-            retryAfterMs: 5000,
+        if (requestNotSentCode && !(options.retryPreSendDns === true && kind === 'llm')) {
+          this.report?.({
+            event: 'provider_outbound_dns_failure',
+            providerId: diagnosticToken(group, 'unknown'),
+            hostname: diagnosticHostname(options.hostname) ?? requestHostname(error) ?? 'unknown',
+            step: diagnosticToken(key, 'execution'),
+            dnsCode: requestNotSentCode,
+            requestSent: 'unknown',
+            responseReceived,
+            elapsedMs: Math.max(0, Math.round(Date.now() - externalStartedAt)),
+            attempt: 1,
+            willRetry: false,
           });
-          const retry = new ProviderRetryScheduled('PROVIDER_REQUEST_NOT_SENT', key);
-          this.stopped.abort(retry);
-          throw retry;
         }
+        // Local DNS retries deliberately remain inside this attempt. Once they
+        // are exhausted, use the same unknown-result/needs_attention path as
+        // every other ambiguous provider failure; never schedule task replay.
         // Only provider-confirmed rejection or terminal failure can downgrade an
         // optional image/video. Lost responses and download failures stay unknown.
         if (

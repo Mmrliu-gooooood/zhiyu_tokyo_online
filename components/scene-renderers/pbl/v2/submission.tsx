@@ -452,9 +452,13 @@ export function PBLV2SubmissionPanel({
         });
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
-          'x-model': modelConfig.modelString || '',
-          'x-api-key': modelConfig.apiKey || '',
+          'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString || '',
+          'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey || '',
+          'x-model-source': modelConfig.source,
         };
+        if (modelConfig.source === 'platform' && modelConfig.defaultId) {
+          headers['x-platform-default-id'] = modelConfig.defaultId;
+        }
         if (modelConfig.baseUrl) headers['x-base-url'] = modelConfig.baseUrl;
         if (modelConfig.providerType) headers['x-provider-type'] = modelConfig.providerType;
         try {

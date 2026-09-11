@@ -15,6 +15,22 @@ import {
   isQwenVoiceCloneModel,
   TTS_PROVIDERS,
 } from '@/lib/audio/constants';
+import {
+  PLATFORM_DEFAULT_DEFINITIONS,
+  findPlatformDefaultDefinition,
+  isVerifiedPlatformDefaultModel,
+  platformDefaultRevision,
+  resolvePlatformDefaultDefinition,
+  toPublicPlatformDefault,
+  type PlatformDefaultOverride,
+} from '@/lib/server/platform-default-models';
+import type {
+  PlatformDefaultCapability,
+  PlatformDefaultCatalog,
+  PlatformDefaultId,
+  PlatformDefaultParameters,
+} from '@/lib/types/platform-default-models';
+import type { ThinkingConfig } from '@/lib/types/provider';
 
 const log = createLogger('ServerProviderConfig');
 
@@ -49,6 +65,11 @@ interface ServerConfig {
   webSearch: Record<string, ServerProviderEntry>;
   /** Provider IDs the operator force-disabled per capability section (server precedence). */
   disabled: Record<CapabilitySection, Set<string>>;
+  platformDefaultOverrides: Record<string, PlatformDefaultOverride>;
+  /** Optional non-secret operational epoch shared by web and worker. */
+  platformDefaultsRevision: string;
+  /** Shared HMAC key; keeps credential-sensitive revisions opaque to clients. */
+  platformDefaultsRevisionSecret: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,19 +222,37 @@ type YamlData = Partial<{
   image: Record<string, Partial<ServerProviderEntry>>;
   video: Record<string, Partial<ServerProviderEntry>>;
   'web-search': Record<string, Partial<ServerProviderEntry>>;
+  platformDefaults: Record<string, PlatformDefaultOverride>;
+  'platform-defaults': Record<string, PlatformDefaultOverride>;
 }>;
 
-function loadYamlFile(filename: string): YamlData {
+interface LoadedYamlFile {
+  data: YamlData;
+  source: `yaml:${string}` | 'environment';
+}
+
+function loadYamlFile(filename: string): LoadedYamlFile {
   try {
     const filePath = path.join(process.cwd(), filename);
-    if (!fs.existsSync(filePath)) return {};
+    if (!fs.existsSync(filePath)) return { data: {}, source: 'environment' };
+    if (!fs.statSync(filePath).isFile()) {
+      log.warn(
+        `[ServerProviderConfig] ${filename} is not a regular file; using environment configuration`,
+      );
+      return { data: {}, source: 'environment' };
+    }
     const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed = yaml.load(raw) as Record<string, unknown> | null;
-    if (!parsed || typeof parsed !== 'object') return {};
-    return parsed as YamlData;
+    if (!parsed || typeof parsed !== 'object') {
+      return { data: {}, source: `yaml:${filename}` };
+    }
+    return { data: parsed as YamlData, source: `yaml:${filename}` };
   } catch (e) {
-    log.warn(`[ServerProviderConfig] Failed to load ${filename}:`, e);
-    return {};
+    log.warn(
+      `[ServerProviderConfig] Failed to load ${filename}; using environment configuration:`,
+      e,
+    );
+    return { data: {}, source: 'environment' };
   }
 }
 
@@ -530,10 +569,16 @@ function buildConfig(yamlData: YamlData): ServerConfig {
       keylessProviders: new Set(['brave', 'searxng']),
     }),
     disabled: collectDisabledProviders(yamlData),
+    platformDefaultOverrides: yamlData.platformDefaults || yamlData['platform-defaults'] || {},
+    platformDefaultsRevision: process.env.ZHIYU_DEFAULTS_REVISION?.trim() || '1',
+    platformDefaultsRevisionSecret:
+      process.env.ZHIYU_DEFAULTS_REVISION_SECRET?.trim() ||
+      process.env.GENERATION_MODEL_ENCRYPTION_KEY?.trim() ||
+      '',
   };
 }
 
-function logConfig(config: ServerConfig, label: string): void {
+function logConfig(config: ServerConfig, source: LoadedYamlFile['source']): void {
   const counts = [
     Object.keys(config.providers).length,
     Object.keys(config.tts).length,
@@ -543,22 +588,173 @@ function logConfig(config: ServerConfig, label: string): void {
     Object.keys(config.video).length,
     Object.keys(config.webSearch).length,
   ];
-  if (counts.some((c) => c > 0)) {
-    log.info(
-      `[ServerProviderConfig] Loaded (${label}): ${counts[0]} LLM, ${counts[1]} TTS, ${counts[2]} ASR, ${counts[3]} PDF, ${counts[4]} Image, ${counts[5]} Video, ${counts[6]} WebSearch providers`,
-    );
-  }
+  log.info(
+    `[ServerProviderConfig] Loaded from ${source}: ${counts[0]} LLM, ${counts[1]} TTS, ${counts[2]} ASR, ${counts[3]} PDF, ${counts[4]} Image, ${counts[5]} Video, ${counts[6]} WebSearch providers`,
+  );
 }
 
 function getConfig(): ServerConfig {
   const cached = _configs.get('');
   if (cached) return cached;
 
-  const yamlData = loadYamlFile(DEFAULT_FILENAME);
-  const config = buildConfig(yamlData);
-  logConfig(config, DEFAULT_FILENAME);
+  const loaded = loadYamlFile(DEFAULT_FILENAME);
+  const config = buildConfig(loaded.data);
+  logConfig(config, loaded.source);
   _configs.set('', config);
   return config;
+}
+
+export class PlatformDefaultModelError extends Error {
+  readonly code:
+    | 'PLATFORM_DEFAULT_NOT_FOUND'
+    | 'PLATFORM_DEFAULT_CAPABILITY_MISMATCH'
+    | 'PLATFORM_DEFAULT_DISABLED'
+    | 'PLATFORM_DEFAULT_NOT_CONFIGURED';
+  readonly httpStatus: number;
+
+  constructor(code: PlatformDefaultModelError['code'], message: string, httpStatus: number) {
+    super(message);
+    this.name = 'PlatformDefaultModelError';
+    this.code = code;
+    this.httpStatus = httpStatus;
+  }
+}
+
+export interface ResolvedPlatformDefault {
+  source: 'platform';
+  defaultId: PlatformDefaultId;
+  capability: PlatformDefaultCapability;
+  providerId: string;
+  modelId: string;
+  displayName: string;
+  revision: string;
+  apiKey: string;
+  baseUrl?: string;
+  proxy?: string;
+  parameters: PlatformDefaultParameters;
+  defaultThinkingConfig?: ThinkingConfig;
+}
+
+function getPlatformDefaultRuntime(defaultId: string) {
+  const definition = findPlatformDefaultDefinition(defaultId);
+  if (!definition) return undefined;
+  const cfg = getConfig();
+  const resolved = resolvePlatformDefaultDefinition(
+    definition,
+    cfg.platformDefaultOverrides[defaultId],
+  );
+  const provider = cfg[resolved.section][resolved.providerId];
+  const disabled =
+    resolved.section === 'providers'
+      ? false
+      : cfg.disabled[resolved.section as CapabilitySection].has(resolved.providerId);
+  const apiKey = provider?.apiKey || '';
+  const baseUrl =
+    provider?.baseUrl ||
+    (resolved.section === 'tts'
+      ? TTS_PROVIDERS[resolved.providerId as keyof typeof TTS_PROVIDERS]?.defaultBaseUrl
+      : undefined);
+  const revision = cfg.platformDefaultsRevisionSecret
+    ? platformDefaultRevision(
+        {
+          defaultId: resolved.defaultId,
+          capability: resolved.capability,
+          providerId: resolved.providerId,
+          modelId: resolved.modelId,
+          parameters: resolved.parameters,
+          defaultThinkingConfig: resolved.defaultThinkingConfig,
+          enabled: resolved.enabled,
+          apiKey,
+          baseUrl,
+          proxy: provider?.proxy,
+          deploymentRevision: cfg.platformDefaultsRevision,
+        },
+        cfg.platformDefaultsRevisionSecret,
+      )
+    : 'revision-secret-required';
+  const verifiedModel = isVerifiedPlatformDefaultModel(resolved);
+  return {
+    definition: resolved,
+    provider,
+    apiKey,
+    baseUrl,
+    disabled,
+    configured: Boolean(provider && apiKey && verifiedModel && cfg.platformDefaultsRevisionSecret),
+    revision,
+  };
+}
+
+/** Public, secret-free ZHIYU default-model catalog. */
+export function getPlatformDefaultCatalog(): PlatformDefaultCatalog {
+  return {
+    version: 2,
+    entries: PLATFORM_DEFAULT_DEFINITIONS.map((entry) => {
+      const runtime = getPlatformDefaultRuntime(entry.defaultId)!;
+      return toPublicPlatformDefault(runtime.definition, runtime);
+    }),
+  };
+}
+
+/**
+ * Resolve a stable ZHIYU default reference to one immutable runtime binding.
+ * Client model/key/address fields are intentionally absent from this API.
+ */
+export function resolvePlatformDefault(
+  defaultId: string,
+  capability?: PlatformDefaultCapability,
+): ResolvedPlatformDefault {
+  const runtime = getPlatformDefaultRuntime(defaultId);
+  if (!runtime) {
+    throw new PlatformDefaultModelError(
+      'PLATFORM_DEFAULT_NOT_FOUND',
+      `Unknown platform default: ${defaultId}`,
+      400,
+    );
+  }
+  if (capability && runtime.definition.capability !== capability) {
+    throw new PlatformDefaultModelError(
+      'PLATFORM_DEFAULT_CAPABILITY_MISMATCH',
+      `Platform default ${defaultId} cannot be used for ${capability}`,
+      400,
+    );
+  }
+  if (!runtime.definition.enabled || runtime.disabled) {
+    throw new PlatformDefaultModelError(
+      'PLATFORM_DEFAULT_DISABLED',
+      `Platform default ${defaultId} is disabled`,
+      403,
+    );
+  }
+  if (!runtime.configured) {
+    throw new PlatformDefaultModelError(
+      'PLATFORM_DEFAULT_NOT_CONFIGURED',
+      `Platform default ${defaultId} is not configured`,
+      503,
+    );
+  }
+  return {
+    source: 'platform',
+    defaultId: runtime.definition.defaultId,
+    capability: runtime.definition.capability,
+    providerId: runtime.definition.providerId,
+    modelId: runtime.definition.modelId,
+    displayName: runtime.definition.displayName,
+    revision: runtime.revision,
+    apiKey: runtime.apiKey,
+    baseUrl: runtime.baseUrl,
+    proxy: runtime.provider?.proxy,
+    parameters: runtime.definition.parameters,
+    defaultThinkingConfig: runtime.definition.defaultThinkingConfig,
+  };
+}
+
+export function isPlatformDefaultBackingProvider(
+  section: 'providers' | 'image' | 'video' | 'tts',
+  providerId: string,
+): boolean {
+  return PLATFORM_DEFAULT_DEFINITIONS.some(
+    (entry) => entry.section === section && entry.providerId === providerId,
+  );
 }
 
 // ---------------------------------------------------------------------------

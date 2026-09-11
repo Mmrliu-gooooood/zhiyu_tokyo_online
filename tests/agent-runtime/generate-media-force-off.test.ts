@@ -146,4 +146,28 @@ describe('agent media tool force-off defense in depth (#665)', () => {
     // force-disabled, so the gate must not register the tool.
     expect(hasConfiguredVideoGeneration()).toBe(false);
   });
+
+  it('video: the capability gate fails closed when a legacy selection cannot be resolved', async () => {
+    vi.stubEnv('VIDEO_MINIMAX_API_KEY', 'minimax-platform-key');
+    const { hasConfiguredVideoGeneration } =
+      await import('@/lib/server/agent-runtime/generate-video');
+
+    expect(
+      hasConfiguredVideoGeneration({
+        mediaConfig: {
+          version: 3,
+          videoEnabled: true,
+          video: {
+            source: 'legacy-managed',
+            providerId: 'minimax-video',
+            apiKey: '',
+            baseUrl: '',
+            requiresApiKey: true,
+            enabled: true,
+            modelId: 'unapproved-model',
+          },
+        },
+      }),
+    ).toBe(false);
+  });
 });

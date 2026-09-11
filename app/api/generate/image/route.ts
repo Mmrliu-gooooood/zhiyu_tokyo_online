@@ -24,11 +24,7 @@ import {
   IMAGE_PROVIDERS,
 } from '@/lib/media/image-providers';
 import {
-  isServerConfiguredProvider,
   isServerProviderDisabled,
-  resolveImageApiKey,
-  resolveImageBaseUrl,
-  resolveImageModel,
   resolveServerImageProviderId,
 } from '@/lib/server/provider-config';
 import type { ImageProviderId, ImageGenerationOptions } from '@/lib/media/types';
@@ -41,6 +37,11 @@ import {
 } from '@/lib/server/media-provider-config';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
+import {
+  ProviderSelectionError,
+  normalizeProviderSelectionSource,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('ImageGeneration API');
 
@@ -70,17 +71,21 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
 
     // The client may express no provider preference (empty header) — fall back
     // to the first server-configured image provider, else fail loud.
-    const providerId = (request.headers.get('x-image-provider')?.trim() ||
-      resolveServerImageProviderId()) as ImageProviderId;
-    if (!providerId) {
+    const modelSource = normalizeProviderSelectionSource(
+      request.headers.get('x-model-source')?.trim() || undefined,
+    );
+    const platformDefaultId = request.headers.get('x-platform-default-id')?.trim() || undefined;
+    let providerId = (request.headers.get('x-image-provider')?.trim() ||
+      (modelSource === 'platform' ? undefined : resolveServerImageProviderId())) as ImageProviderId;
+    if (!providerId && modelSource !== 'platform') {
       return apiError('MISSING_PROVIDER', 400, 'No image provider configured');
     }
     // Enforce server precedence: a force-disabled provider is off for everyone,
     // regardless of any client key/selection — mirror the TTS contract (#665).
-    if (isServerProviderDisabled('image', providerId)) {
+    if (providerId && isServerProviderDisabled('image', providerId)) {
       return apiError('PROVIDER_DISABLED', 403, 'This image provider is disabled by the server');
     }
-    if (String(providerId).startsWith('custom-image-')) {
+    if (modelSource !== 'platform' && String(providerId).startsWith('custom-image-')) {
       const runtimeConfig = parseCustomImageProviderConfig(
         providerId,
         providerConfig,
@@ -110,12 +115,25 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
       });
       return apiSuccess({ result });
     }
-    // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('image', providerId);
-    const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
-    const clientBaseUrl = managed ? undefined : request.headers.get('x-base-url') || undefined;
-    const clientModel = request.headers.get('x-image-model')?.trim() || undefined;
-
+    const selection = resolveProviderSelection({
+      capability: 'image',
+      source: modelSource,
+      defaultId: platformDefaultId,
+      providerId,
+      modelId: request.headers.get('x-image-model')?.trim() || undefined,
+      apiKey: request.headers.get('x-api-key') || undefined,
+      baseUrl: request.headers.get('x-base-url') || undefined,
+    });
+    providerId = selection.providerId as ImageProviderId;
+    const requestedCount = (requestBody as { n?: unknown }).n;
+    if (selection.source === 'platform' && requestedCount !== undefined && requestedCount !== 1) {
+      return apiError(
+        'INVALID_REQUEST',
+        400,
+        'The ZHIYU default image model supports exactly one image per request',
+      );
+    }
+    const clientBaseUrl = selection.managed ? undefined : selection.baseUrl;
     if (clientBaseUrl && process.env.NODE_ENV === 'production') {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);
       if (ssrfError) {
@@ -123,7 +141,7 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
       }
     }
 
-    const apiKey = resolveImageApiKey(providerId, clientApiKey);
+    const apiKey = selection.apiKey;
     const provider = IMAGE_PROVIDERS[providerId];
     if (provider?.requiresApiKey && !apiKey) {
       return apiError(
@@ -133,13 +151,13 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
       );
     }
 
-    const baseUrl = resolveImageBaseUrl(providerId, clientBaseUrl);
+    const baseUrl = selection.baseUrl;
 
     // A managed provider may pin its model list server-side
     // (IMAGE_<PREFIX>_MODELS): an allowlisted client choice wins, otherwise the
     // first pinned entry is the managed default; unmanaged providers use the
     // client header directly.
-    const model = resolveImageModel(providerId, clientModel);
+    const model = selection.modelId;
     // Workflow-based providers (e.g. comfyui-image) have no model catalog and
     // need no model; everyone else must resolve one.
     if (!model && provider?.models && provider.models.length > 0) {
@@ -174,6 +192,9 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
 
     return apiSuccess({ result });
   } catch (error) {
+    if (error instanceof ProviderSelectionError) {
+      return apiError(error.code, error.httpStatus, error.message);
+    }
     if (error instanceof MediaProviderConfigError) {
       return apiError(error.code, error.status, error.message);
     }

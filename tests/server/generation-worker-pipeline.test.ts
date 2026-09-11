@@ -18,6 +18,7 @@ import {
   UnknownExternalOutcome,
   EXTERNAL_CALL_DEADLINES_MS,
   mapBounded,
+  type ExternalCallDiagnostic,
 } from '@/lib/server/generation-pipeline/execution';
 import {
   runGenerationPipeline,
@@ -600,36 +601,219 @@ describe('durable worker pipeline', () => {
   });
 
   it.each(['EAI_AGAIN', 'ENOTFOUND'] as const)(
-    'classifies nested %s DNS failures as safely retryable before send',
+    'bounds nested %s DNS retries before protecting the result as unknown',
     async (code) => {
-      const { execution, repo } = setup();
-      const cause = Object.assign(new Error('private hostname'), { code });
-      const wrapped = Object.assign(new Error('provider transport failed'), { cause });
+      vi.useFakeTimers();
+      try {
+        const { execution, repo } = setup();
+        const cause = Object.assign(new Error('private hostname'), { code });
+        const wrapped = Object.assign(new Error('provider transport failed'), { cause });
+        let calls = 0;
+        const result = execution
+          .external(
+            'agents:call:0',
+            {},
+            'llm',
+            'provider',
+            async () => {
+              calls += 1;
+              throw wrapped;
+            },
+            false,
+            { retryPreSendDns: true, hostname: 'models.example.test' },
+          )
+          .catch((error) => error);
 
-      await expect(
-        execution.external('agents:call:0', {}, 'llm', 'provider', async () => {
-          throw wrapped;
-        }),
-      ).rejects.toMatchObject({
-        name: 'ProviderRetryScheduled',
-        code: 'PROVIDER_REQUEST_NOT_SENT',
-        phase: 'agents:call:0',
-      });
-      expect(repo.failures).toEqual([
-        {
-          stepKey: 'agents:call:0',
-          code: 'PROVIDER_REQUEST_NOT_SENT',
-          uncertain: false,
-          errorSummary: 'Provider request was not sent because DNS resolution failed.',
-          retryable: true,
-          retryAfterMs: 5000,
-        },
-      ]);
+        await vi.advanceTimersByTimeAsync(4_000);
+        expect(await result).toBeInstanceOf(UnknownExternalOutcome);
+        expect(calls).toBe(3);
+        expect(repo.failures).toEqual([
+          expect.objectContaining({ code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true }),
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
     },
   );
 
-  it('keeps a media DNS failure unknown because a paid task may already exist', async () => {
+  it('retries one opted-in LLM request locally at most twice without opening a new step', async () => {
+    vi.useFakeTimers();
+    try {
+      const repo = new MemoryRepository();
+      const begin = vi.spyOn(repo, 'beginStep');
+      const diagnostics: ExternalCallDiagnostic[] = [];
+      const execution = new PipelineExecution(
+        repo,
+        lease,
+        new AbortController().signal,
+        { run: (_kind, _group, _signal, work) => work() },
+        (event) => diagnostics.push(event),
+      );
+      let calls = 0;
+      const result = execution.external(
+        'actions:o7:call:0',
+        {},
+        'llm',
+        'deepseek',
+        async () => {
+          calls += 1;
+          if (calls < 3) {
+            throw Object.assign(new Error('must not log sk-private or prompt text'), {
+              code: calls === 1 ? 'EAI_AGAIN' : 'ENOTFOUND',
+              hostname: 'api.deepseek.com',
+            });
+          }
+          return 'ok';
+        },
+        false,
+        { retryPreSendDns: true, hostname: 'api.deepseek.com' },
+      );
+
+      await vi.advanceTimersByTimeAsync(4_000);
+      await expect(result).resolves.toBe('ok');
+      expect(calls).toBe(3);
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(repo.failures).toEqual([]);
+      expect(diagnostics).toEqual([
+        expect.objectContaining({
+          providerId: 'deepseek',
+          hostname: 'api.deepseek.com',
+          step: 'actions:o7:call:0',
+          dnsCode: 'EAI_AGAIN',
+          requestSent: false,
+          responseReceived: false,
+          attempt: 1,
+          willRetry: true,
+        }),
+        expect.objectContaining({ dnsCode: 'ENOTFOUND', attempt: 2, willRetry: true }),
+      ]);
+      expect(JSON.stringify(diagnostics)).not.toMatch(/sk-private|prompt text/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('exhausts bounded DNS retries without scheduling task-level replay', async () => {
+    vi.useFakeTimers();
+    try {
+      const repo = new MemoryRepository();
+      const diagnostics: ExternalCallDiagnostic[] = [];
+      const execution = new PipelineExecution(
+        repo,
+        lease,
+        new AbortController().signal,
+        { run: (_kind, _group, _signal, work) => work() },
+        (event) => diagnostics.push(event),
+      );
+      let calls = 0;
+      const result = execution
+        .external(
+          'agents:call:0',
+          {},
+          'llm',
+          'provider',
+          async () => {
+            calls += 1;
+            throw Object.assign(new Error('private endpoint'), { code: 'EAI_AGAIN' });
+          },
+          false,
+          { retryPreSendDns: true, hostname: 'models.example.test' },
+        )
+        .catch((error) => error);
+
+      await vi.advanceTimersByTimeAsync(4_000);
+      expect(await result).toBeInstanceOf(UnknownExternalOutcome);
+      expect(calls).toBe(3);
+      expect(diagnostics.map(({ attempt, willRetry }) => ({ attempt, willRetry }))).toEqual([
+        { attempt: 1, willRetry: true },
+        { attempt: 2, willRetry: true },
+        { attempt: 3, willRetry: false },
+      ]);
+      expect(repo.failures).toEqual([
+        expect.objectContaining({ code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never retries a DNS error after a response was received', async () => {
     const { execution, repo } = setup();
+    let calls = 0;
+    const error = await execution
+      .external(
+        'actions:o7:call:0',
+        {},
+        'llm',
+        'provider',
+        async (_signal, lifecycle) => {
+          calls += 1;
+          lifecycle.markResponseReceived();
+          throw Object.assign(new Error('stream disconnected'), { code: 'EAI_AGAIN' });
+        },
+        false,
+        { retryPreSendDns: true, hostname: 'models.example.test' },
+      )
+      .catch((failure) => failure);
+
+    expect(error).toBeInstanceOf(UnknownExternalOutcome);
+    expect(calls).toBe(1);
+    expect(repo.failures).toEqual([
+      expect.objectContaining({ code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true }),
+    ]);
+  });
+
+  it('does not apply the single-request DNS retry policy to TTS download failures', async () => {
+    const repo = new MemoryRepository();
+    const diagnostics: ExternalCallDiagnostic[] = [];
+    const execution = new PipelineExecution(
+      repo,
+      lease,
+      new AbortController().signal,
+      { run: (_kind, _group, _signal, work) => work() },
+      (event) => diagnostics.push(event),
+    );
+    let calls = 0;
+    const error = await execution
+      .external(
+        'tts:o7:a0',
+        {},
+        'tts',
+        'provider',
+        async () => {
+          calls += 1;
+          throw Object.assign(new Error('download hostname'), { code: 'ENOTFOUND' });
+        },
+        false,
+        { retryPreSendDns: true, hostname: 'media.example.test' },
+      )
+      .catch((failure) => failure);
+
+    expect(error).toBeInstanceOf(UnknownExternalOutcome);
+    expect(calls).toBe(1);
+    expect(repo.failures).toEqual([
+      expect.objectContaining({ code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true }),
+    ]);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        dnsCode: 'ENOTFOUND',
+        requestSent: 'unknown',
+        responseReceived: false,
+        willRetry: false,
+      }),
+    ]);
+  });
+
+  it('keeps a media DNS failure unknown because a paid task may already exist', async () => {
+    const repo = new MemoryRepository();
+    const diagnostics: ExternalCallDiagnostic[] = [];
+    const execution = new PipelineExecution(
+      repo,
+      lease,
+      new AbortController().signal,
+      { run: (_kind, _group, _signal, work) => work() },
+      (event) => diagnostics.push(event),
+    );
     const dnsFailure = Object.assign(new Error('private poll hostname'), { code: 'EAI_AGAIN' });
 
     await expect(
@@ -644,6 +828,14 @@ describe('durable worker pipeline', () => {
         uncertain: true,
         errorSummary: 'External provider result is unknown.',
       },
+    ]);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        dnsCode: 'EAI_AGAIN',
+        requestSent: 'unknown',
+        responseReceived: false,
+        willRetry: false,
+      }),
     ]);
   });
 

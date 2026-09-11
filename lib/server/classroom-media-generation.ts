@@ -19,14 +19,6 @@ import {
   getServerImageProviders,
   getServerVideoProviders,
   getServerTTSProviders,
-  resolveImageApiKey,
-  resolveImageBaseUrl,
-  resolveImageModel,
-  resolveVideoApiKey,
-  resolveVideoBaseUrl,
-  resolveVideoModel,
-  resolveTTSApiKey,
-  resolveTTSBaseUrl,
 } from '@/lib/server/provider-config';
 import type { SceneOutline } from '@/lib/types/generation';
 import type { Scene } from '@/lib/types/stage';
@@ -37,8 +29,83 @@ import type { TTSProviderId } from '@/lib/audio/types';
 import { splitLongSpeechActions } from '@/lib/audio/tts-utils';
 import { isGeneratedMediaPlaceholder } from '@/lib/media/media-ref';
 import { VOXCPM_AUTO_VOICE_ID, VOXCPM_TTS_PROVIDER_ID } from '@/lib/audio/voxcpm';
+import {
+  platformImageExecutionOptions,
+  platformVideoExecutionOptions,
+  resolveProviderSelection,
+  type ResolvedProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
+import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
+import {
+  mediaConfigVoiceSource,
+  resolveEffectiveSessionVoice,
+} from '@/lib/server/agent-runtime/effective-voice-directory';
 
 const log = createLogger('ClassroomMedia');
+
+export interface ClassroomMediaSelection {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
+  providerId?: string;
+  modelId?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  voiceId?: string;
+}
+
+export interface ClassroomMediaSelections {
+  image?: ClassroomMediaSelection;
+  video?: ClassroomMediaSelection;
+  tts?: ClassroomMediaSelection;
+}
+
+function snapshotSelection(config?: {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
+  providerId?: string;
+  modelId?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  voice?: string;
+}): ClassroomMediaSelection | undefined {
+  if (!config) return undefined;
+  if (config.source === 'platform' && config.defaultId) {
+    return {
+      source: config.source,
+      defaultId: config.defaultId,
+      ...(config.revision ? { revision: config.revision } : {}),
+      ...(config.voice ? { voiceId: config.voice } : {}),
+    };
+  }
+  if (!config.providerId) return undefined;
+  return {
+    source:
+      config.source ??
+      (config.apiKey?.trim() || config.baseUrl?.trim() ? 'user' : 'legacy-managed'),
+    providerId: config.providerId,
+    modelId: config.modelId,
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+    ...(config.voice ? { voiceId: config.voice } : {}),
+  };
+}
+
+/** Translate one already owner-loaded encrypted snapshot into old classroom execution intent. */
+export function classroomMediaSelectionsFromSnapshot(
+  snapshot: MediaConfigSnapshotContent,
+): ClassroomMediaSelections {
+  const voice =
+    snapshot.ttsEnabled === false
+      ? undefined
+      : resolveEffectiveSessionVoice(mediaConfigVoiceSource(snapshot));
+  return {
+    ...(snapshot.imageEnabled === false ? {} : { image: snapshotSelection(snapshot.image) }),
+    ...(snapshot.videoEnabled === false ? {} : { video: snapshotSelection(snapshot.video) }),
+    ...(voice ? { tts: snapshotSelection(voice) } : {}),
+  };
+}
 
 /**
  * The classroom JSON payload is a pre-conversion transport, not a persisted
@@ -85,6 +152,7 @@ export async function generateMediaForClassroom(
   outlines: SceneOutline[],
   classroomId: string,
   baseUrl: string,
+  selections: ClassroomMediaSelections = {},
 ): Promise<Record<string, string>> {
   const mediaDir = path.join(CLASSROOMS_DIR, classroomId, 'media');
   await ensureDir(mediaDir);
@@ -102,34 +170,63 @@ export async function generateMediaForClassroom(
     .filter(([, info]) => !info.disabled)
     .map(([id]) => id);
 
+  const resolveSelection = (
+    capability: 'image' | 'video',
+    selection: ClassroomMediaSelection | undefined,
+    fallbackProviderId: string | undefined,
+  ): ResolvedProviderSelection | undefined => {
+    if (!selection && !fallbackProviderId) return undefined;
+    const providerId = selection?.providerId ?? fallbackProviderId;
+    const catalogModel =
+      capability === 'image'
+        ? IMAGE_PROVIDERS[providerId as keyof typeof IMAGE_PROVIDERS]?.models?.[0]?.id
+        : VIDEO_PROVIDERS[providerId as keyof typeof VIDEO_PROVIDERS]?.models?.[0]?.id;
+    const resolved = resolveProviderSelection({
+      capability,
+      source: selection?.source,
+      defaultId: selection?.defaultId,
+      providerId,
+      modelId: selection?.modelId ?? catalogModel,
+      apiKey: selection?.apiKey,
+      baseUrl: selection?.baseUrl,
+    });
+    if (selection?.revision && selection.revision !== resolved.revision) {
+      throw new Error('MEDIA_CONFIG_CHANGED');
+    }
+    return resolved;
+  };
+  const imageSelection = resolveSelection('image', selections.image, imageProviderIds[0]);
+  const videoSelection = resolveSelection('video', selections.video, videoProviderIds[0]);
   const mediaMap: Record<string, string> = {};
 
   // Separate image and video requests, generate each type sequentially
   // but run the two types in parallel (providers often have limited concurrency).
-  const imageRequests = requests.filter((r) => r.type === 'image' && imageProviderIds.length > 0);
-  const videoRequests = requests.filter((r) => r.type === 'video' && videoProviderIds.length > 0);
+  const imageRequests = requests.filter((r) => r.type === 'image' && !!imageSelection);
+  const videoRequests = requests.filter((r) => r.type === 'video' && !!videoSelection);
 
   const generateImages = async () => {
     for (const req of imageRequests) {
       try {
-        const providerId = imageProviderIds[0] as ImageProviderId;
-        const apiKey = resolveImageApiKey(providerId);
+        const providerId = imageSelection!.providerId as ImageProviderId;
+        const apiKey = imageSelection!.apiKey;
         const providerConfig = IMAGE_PROVIDERS[providerId];
         if (providerConfig?.requiresApiKey && !apiKey) {
           log.warn(`No API key for image provider "${providerId}", skipping ${req.elementId}`);
           continue;
         }
-        // No client model here — the server-side `IMAGE_<PREFIX>_MODELS` pin
-        // (first entry) is authoritative when set; otherwise fall back to the
-        // first catalog model so key-only deployments keep generating. This
-        // path is internal (no HTTP response to fail loud with), so the
-        // adapter's requireModel must stay a backstop, never the primary
-        // failure mode.
-        const model = resolveImageModel(providerId) ?? providerConfig?.models?.[0]?.id;
+        // Selection resolution above is the sole source of provider, model,
+        // endpoint and credentials for this outbound request.
+        const model = imageSelection!.modelId;
 
         const result = await generateImage(
-          { providerId, apiKey, baseUrl: resolveImageBaseUrl(providerId), model },
-          { prompt: req.prompt, aspectRatio: req.aspectRatio || '16:9' },
+          { providerId, apiKey, baseUrl: imageSelection!.baseUrl, model },
+          {
+            prompt: req.prompt,
+            aspectRatio: req.aspectRatio || '16:9',
+            ...(imageSelection!.source === 'platform'
+              ? platformImageExecutionOptions(imageSelection!)
+              : {}),
+          },
         );
 
         let buf: Buffer;
@@ -159,28 +256,26 @@ export async function generateMediaForClassroom(
   const generateVideos = async () => {
     for (const req of videoRequests) {
       try {
-        const providerId = videoProviderIds[0] as VideoProviderId;
-        const apiKey = resolveVideoApiKey(providerId);
+        const providerId = videoSelection!.providerId as VideoProviderId;
+        const apiKey = videoSelection!.apiKey;
         if (!apiKey) {
           log.warn(`No API key for video provider "${providerId}", skipping ${req.elementId}`);
           continue;
         }
-        // No client model here — the server-side `VIDEO_<PREFIX>_MODELS` pin
-        // (first entry) is authoritative when set; otherwise fall back to the
-        // first catalog model so key-only deployments keep generating. This
-        // path is internal (no HTTP response to fail loud with), so the
-        // adapter's requireModel must stay a backstop, never the primary
-        // failure mode.
-        const providerConfig = VIDEO_PROVIDERS[providerId];
-        const model = resolveVideoModel(providerId) ?? providerConfig?.models?.[0]?.id;
+        // Selection resolution above is the sole source of provider, model,
+        // endpoint and credentials for this outbound request.
+        const model = videoSelection!.modelId;
 
         const normalized = normalizeVideoOptions(providerId, {
           prompt: req.prompt,
           aspectRatio: (req.aspectRatio as '16:9' | '4:3' | '1:1' | '9:16') || '16:9',
+          ...(videoSelection!.source === 'platform'
+            ? platformVideoExecutionOptions(videoSelection!)
+            : {}),
         });
 
         const result = await generateVideo(
-          { providerId, apiKey, baseUrl: resolveVideoBaseUrl(providerId), model },
+          { providerId, apiKey, baseUrl: videoSelection!.baseUrl, model },
           normalized,
         );
 
@@ -255,6 +350,7 @@ export async function generateTTSForClassroom(
   scenes: Scene[],
   classroomId: string,
   baseUrl: string,
+  selection?: ClassroomMediaSelection,
 ): Promise<void> {
   const audioDir = path.join(CLASSROOMS_DIR, classroomId, 'audio');
   await ensureDir(audioDir);
@@ -264,20 +360,40 @@ export async function generateTTSForClassroom(
   const ttsProviderIds = Object.entries(getServerTTSProviders())
     .filter(([id, info]) => id !== 'browser-native-tts' && !info.disabled)
     .map(([id]) => id);
-  if (ttsProviderIds.length === 0) {
+  if (!selection && ttsProviderIds.length === 0) {
     log.warn('No server TTS provider configured, skipping TTS generation');
     return;
   }
 
-  const providerId = ttsProviderIds[0] as TTSProviderId;
-  const apiKey = resolveTTSApiKey(providerId);
+  const fallbackProviderId = ttsProviderIds[0] as TTSProviderId | undefined;
+  const requestedProviderId = selection?.providerId ?? fallbackProviderId;
+  const resolved = resolveProviderSelection({
+    capability: 'tts',
+    source: selection?.source,
+    defaultId: selection?.defaultId,
+    providerId: requestedProviderId,
+    modelId:
+      selection?.modelId ??
+      DEFAULT_TTS_MODELS[requestedProviderId as keyof typeof DEFAULT_TTS_MODELS],
+    apiKey: selection?.apiKey,
+    baseUrl: selection?.baseUrl,
+    voiceId: selection?.voiceId,
+  });
+  if (selection?.revision && selection.revision !== resolved.revision) {
+    throw new Error('MEDIA_CONFIG_CHANGED');
+  }
+  const providerId = resolved.providerId as TTSProviderId;
+  const apiKey = resolved.apiKey;
   const ttsProvider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
   if (ttsProvider?.requiresApiKey && !apiKey) {
     log.warn(`No API key for TTS provider "${providerId}", skipping TTS generation`);
     return;
   }
-  const ttsBaseUrl = resolveTTSBaseUrl(providerId) || ttsProvider?.defaultBaseUrl;
-  const voice = DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] || 'default';
+  const ttsBaseUrl = resolved.baseUrl || ttsProvider?.defaultBaseUrl;
+  const voice =
+    (resolved.source === 'platform' ? resolved.platformParameters?.ttsVoice : selection?.voiceId) ||
+    DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] ||
+    'default';
   const format = ttsProvider?.supportedFormats?.[0] || 'mp3';
   if (providerId === VOXCPM_TTS_PROVIDER_ID && voice === VOXCPM_AUTO_VOICE_ID) {
     log.warn('VoxCPM Auto Voice requires agent context; skipping server-side TTS generation');
@@ -306,7 +422,10 @@ export async function generateTTSForClassroom(
         const result = await generateTTS(
           {
             providerId,
-            modelId: DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '',
+            modelId:
+              resolved.modelId ||
+              DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] ||
+              '',
             apiKey,
             baseUrl: ttsBaseUrl,
             voice,

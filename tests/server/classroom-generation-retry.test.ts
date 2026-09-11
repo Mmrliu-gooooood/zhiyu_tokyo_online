@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { containPBLGenerationError, generateClassroom } from '@/lib/server/classroom-generation';
+import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
 
 const mocks = vi.hoisted(() => ({
   resolveModel: vi.fn(),
@@ -11,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   createSceneWithActions: vi.fn(),
   persistClassroom: vi.fn(),
   callLLM: vi.fn(),
+  generateMediaForClassroom: vi.fn(),
+  replaceMediaPlaceholders: vi.fn(),
+  generateTTSForClassroom: vi.fn(),
 }));
 const PBLGenerationErrorMock = vi.hoisted(
   () =>
@@ -55,6 +59,13 @@ vi.mock('@/lib/server/scene-generation', () => ({
 
 vi.mock('@/lib/server/classroom-storage', () => ({
   persistClassroom: mocks.persistClassroom,
+}));
+
+vi.mock('@/lib/server/classroom-media-generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/server/classroom-media-generation')>()),
+  generateMediaForClassroom: mocks.generateMediaForClassroom,
+  replaceMediaPlaceholders: mocks.replaceMediaPlaceholders,
+  generateTTSForClassroom: mocks.generateTTSForClassroom,
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -141,6 +152,8 @@ describe('classroom scene generation retries', () => {
       scenesCount: scenes.length,
       createdAt: '2026-06-22T00:00:00.000Z',
     }));
+    mocks.generateMediaForClassroom.mockResolvedValue({});
+    mocks.generateTTSForClassroom.mockResolvedValue(undefined);
   });
 
   it('retries an empty scene content result before skipping the scene', async () => {
@@ -184,6 +197,101 @@ describe('classroom scene generation retries', () => {
       'generate-classroom-scene',
       undefined,
       thinkingConfig,
+    );
+  });
+
+  it('forwards the owner-loaded media snapshot selections to legacy classroom media calls', async () => {
+    mocks.generateSceneContent.mockResolvedValue(slideContent);
+    const mediaConfig: MediaConfigSnapshotContent = {
+      version: 3,
+      imageEnabled: true,
+      videoEnabled: true,
+      ttsEnabled: true,
+      image: {
+        source: 'platform',
+        defaultId: 'zhiyu-default-image',
+        revision: 'image-r1',
+      },
+      video: {
+        source: 'user',
+        providerId: 'minimax-video',
+        modelId: 'owner-video',
+        apiKey: 'owner-video-key',
+        baseUrl: 'https://owner-video.example',
+        enabled: true,
+        requiresApiKey: true,
+      },
+      ttsProviders: [
+        {
+          source: 'user',
+          providerId: 'minimax-tts',
+          modelId: 'owner-tts',
+          apiKey: 'owner-tts-key',
+          baseUrl: 'https://owner-tts.example',
+          enabled: true,
+          requiresApiKey: true,
+        },
+      ],
+      ttsDefault: {
+        source: 'user',
+        providerId: 'minimax-tts',
+        modelId: 'owner-tts',
+        voiceId: 'female-yujie',
+        speed: 1,
+      },
+      ttsVoiceDirectory: [
+        {
+          source: 'user',
+          providerId: 'minimax-tts',
+          modelId: 'owner-tts',
+          voiceIds: ['female-yujie'],
+        },
+      ],
+    };
+
+    await generateClassroom(
+      {
+        requirement: 'Teach retry basics',
+        enableImageGeneration: true,
+        enableVideoGeneration: true,
+        enableTTS: true,
+        mediaConfig,
+      },
+      { baseUrl: 'http://localhost' },
+    );
+
+    expect(mocks.generateMediaForClassroom).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(String),
+      'http://localhost',
+      {
+        image: {
+          source: 'platform',
+          defaultId: 'zhiyu-default-image',
+          revision: 'image-r1',
+        },
+        video: {
+          source: 'user',
+          providerId: 'minimax-video',
+          modelId: 'owner-video',
+          apiKey: 'owner-video-key',
+          baseUrl: 'https://owner-video.example',
+        },
+        tts: {
+          source: 'user',
+          providerId: 'minimax-tts',
+          modelId: 'owner-tts',
+          apiKey: 'owner-tts-key',
+          baseUrl: 'https://owner-tts.example',
+          voiceId: 'female-yujie',
+        },
+      },
+    );
+    expect(mocks.generateTTSForClassroom).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(String),
+      'http://localhost',
+      expect.objectContaining({ source: 'user', apiKey: 'owner-tts-key' }),
     );
   });
 

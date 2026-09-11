@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { useCanvasStore, useStageStore } from '@/lib/store';
 import { PENDING_SCENE_ID } from '@/lib/store/stage';
-import { isCurrentSceneEditable, resolveStageChromeMode } from '@/lib/edit/stage-mode';
+import {
+  canEditStageDocument,
+  isCurrentSceneEditable,
+  resolveStageChromeMode,
+} from '@/lib/edit/stage-mode';
 import { sceneEditorRegistry } from '@/lib/edit/scene-editor-registry';
 import type { SceneEditorSurface } from '@/lib/edit/scene-editor-surface';
 import type { SceneType } from '@/lib/types/stage';
@@ -85,6 +89,46 @@ describe('isCurrentSceneEditable', () => {
         hasCurrentScene: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe('canEditStageDocument', () => {
+  test('disables write-producing edit chrome while server generation owns the document', () => {
+    expect(
+      canEditStageDocument({
+        isOwner: true,
+        readOnly: false,
+        serverOwned: true,
+        generationStatus: 'generating',
+      }),
+    ).toBe(false);
+    expect(
+      canEditStageDocument({
+        isOwner: true,
+        readOnly: false,
+        serverOwned: true,
+        generationStatus: 'paused',
+      }),
+    ).toBe(false);
+  });
+
+  test('keeps completed server courses and ordinary owner documents editable', () => {
+    expect(
+      canEditStageDocument({
+        isOwner: true,
+        readOnly: false,
+        serverOwned: true,
+        generationStatus: 'completed',
+      }),
+    ).toBe(true);
+    expect(
+      canEditStageDocument({
+        isOwner: true,
+        readOnly: false,
+        serverOwned: false,
+        generationStatus: 'generating',
+      }),
+    ).toBe(true);
   });
 });
 

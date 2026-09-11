@@ -9,7 +9,7 @@ import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { getModelResolutionError, resolveModelFromRequest } from '@/lib/server/resolve-model';
 const log = createLogger('Quiz Grade');
 
 interface GradeRequest {
@@ -108,6 +108,9 @@ ${commentPrompt ? `Grading guidance: ${commentPrompt}\n` : ''}Student answer: ${
       `Quiz grading failed [question="${questionSnippet ?? 'unknown'}...", points=${resolvedPoints ?? 'unknown'}]:`,
       error,
     );
-    return apiError('INTERNAL_ERROR', 500, 'Failed to grade answer');
+    const resolutionError = getModelResolutionError(error);
+    return resolutionError
+      ? apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message)
+      : apiError('INTERNAL_ERROR', 500, 'Failed to grade answer');
   }
 }

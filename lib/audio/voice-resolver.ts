@@ -24,6 +24,9 @@ export interface ResolvedVoice {
   providerId: TTSProviderId;
   modelId?: string;
   voiceId: string;
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
 }
 
 /** A user-picked voice for one agent (same shape as AgentConfig.voiceConfig). */
@@ -31,12 +34,27 @@ export interface AgentVoiceOverride {
   providerId: TTSProviderId;
   modelId?: string;
   voiceId: string;
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
 }
 
 /** Persisted per-agent voice picks, keyed by agent id (settings store). */
 export type AgentVoiceOverrides = Record<string, AgentVoiceOverride>;
 
 type ProviderConfigMap = Record<string, TTSEnablementConfig | undefined>;
+
+function voiceSourceFields(choice: {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
+}) {
+  return {
+    ...(choice.source ? { source: choice.source } : {}),
+    ...(choice.defaultId ? { defaultId: choice.defaultId } : {}),
+    ...(choice.revision ? { revision: choice.revision } : {}),
+  };
+}
 
 /** Prefer a persisted narrator binding, retaining the global fallback when it is unusable. */
 export function resolveNarratorVoiceBinding(
@@ -52,6 +70,7 @@ export function resolveNarratorVoiceBinding(
     // Qwen clone IDs are account-scoped but self-contained: local IndexedDB is
     // not an authority. Catalog voices remain validated against the catalog.
     return {
+      ...voiceSourceFields(bound),
       providerId: bound.providerId,
       modelId: resolveTTSModelForVoice(bound.providerId, bound.voiceId, bound.modelId),
       voiceId: bound.voiceId,
@@ -100,7 +119,12 @@ export function resolveAgentVoice(
     // first-class provider only when present in the enabled list.
     if (choice.providerId === 'browser-native-tts') {
       if (enabledProviders.some((p) => p.providerId === 'browser-native-tts')) {
-        return { providerId: choice.providerId, modelId: choice.modelId, voiceId: choice.voiceId };
+        return {
+          ...voiceSourceFields(choice),
+          providerId: choice.providerId,
+          modelId: choice.modelId,
+          voiceId: choice.voiceId,
+        };
       }
       continue;
     }
@@ -110,6 +134,7 @@ export function resolveAgentVoice(
       const catalogVoice = isQwenCatalogVoice(choice.voiceId);
       if (catalogVoice || choice.voiceId.trim()) {
         return {
+          ...voiceSourceFields(choice),
           providerId: choice.providerId,
           modelId: resolveTTSModelForVoice(choice.providerId, choice.voiceId, choice.modelId),
           voiceId: choice.voiceId,
@@ -137,6 +162,7 @@ export function resolveAgentVoice(
       staleModelCanUseDefault;
     if (allVoiceIds.has(choice.voiceId) && modelCompatible) {
       return {
+        ...voiceSourceFields(choice),
         providerId: choice.providerId,
         ...(matchingModelGroup ? { modelId: choice.modelId } : {}),
         voiceId: choice.voiceId,

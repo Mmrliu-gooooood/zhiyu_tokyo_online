@@ -21,11 +21,7 @@ import { NextRequest } from 'next/server';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import { generateVideo, normalizeVideoOptions } from '@/lib/media/video-providers';
 import {
-  isServerConfiguredProvider,
   isServerProviderDisabled,
-  resolveVideoApiKey,
-  resolveVideoBaseUrl,
-  resolveVideoModel,
   resolveServerVideoProviderId,
 } from '@/lib/server/provider-config';
 import type { VideoProviderId, VideoGenerationOptions } from '@/lib/media/types';
@@ -38,6 +34,11 @@ import {
 } from '@/lib/server/media-provider-config';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
+import {
+  ProviderSelectionError,
+  normalizeProviderSelectionSource,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('VideoGeneration API');
 
@@ -62,17 +63,21 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
 
     // The client may express no provider preference (empty header) — fall back
     // to the first server-configured video provider, else fail loud.
-    const providerId = (request.headers.get('x-video-provider')?.trim() ||
-      resolveServerVideoProviderId()) as VideoProviderId;
-    if (!providerId) {
+    const modelSource = normalizeProviderSelectionSource(
+      request.headers.get('x-model-source')?.trim() || undefined,
+    );
+    const platformDefaultId = request.headers.get('x-platform-default-id')?.trim() || undefined;
+    let providerId = (request.headers.get('x-video-provider')?.trim() ||
+      (modelSource === 'platform' ? undefined : resolveServerVideoProviderId())) as VideoProviderId;
+    if (!providerId && modelSource !== 'platform') {
       return apiError('MISSING_PROVIDER', 400, 'No video provider configured');
     }
     // Enforce server precedence: a force-disabled provider is off for everyone,
     // regardless of any client key/selection — mirror the TTS contract (#665).
-    if (isServerProviderDisabled('video', providerId)) {
+    if (providerId && isServerProviderDisabled('video', providerId)) {
       return apiError('PROVIDER_DISABLED', 403, 'This video provider is disabled by the server');
     }
-    if (String(providerId).startsWith('custom-video-')) {
+    if (modelSource !== 'platform' && String(providerId).startsWith('custom-video-')) {
       const runtimeConfig = parseCustomVideoProviderConfig(
         providerId,
         providerConfig,
@@ -108,11 +113,17 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
       });
       return apiSuccess({ result });
     }
-    // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('video', providerId);
-    const clientApiKey = managed ? undefined : request.headers.get('x-api-key') || undefined;
-    const clientBaseUrl = managed ? undefined : request.headers.get('x-base-url') || undefined;
-    const clientModel = request.headers.get('x-video-model')?.trim() || undefined;
+    const selection = resolveProviderSelection({
+      capability: 'video',
+      source: modelSource,
+      defaultId: platformDefaultId,
+      providerId,
+      modelId: request.headers.get('x-video-model')?.trim() || undefined,
+      apiKey: request.headers.get('x-api-key') || undefined,
+      baseUrl: request.headers.get('x-base-url') || undefined,
+    });
+    providerId = selection.providerId as VideoProviderId;
+    const clientBaseUrl = selection.managed ? undefined : selection.baseUrl;
 
     if (clientBaseUrl && process.env.NODE_ENV === 'production') {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);
@@ -121,7 +132,7 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
       }
     }
 
-    const apiKey = resolveVideoApiKey(providerId, clientApiKey);
+    const apiKey = selection.apiKey;
     if (!apiKey) {
       return apiError(
         'MISSING_API_KEY',
@@ -130,19 +141,39 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
       );
     }
 
-    const baseUrl = resolveVideoBaseUrl(providerId, clientBaseUrl);
+    const baseUrl = selection.baseUrl;
 
     // A managed provider may pin its model list server-side
     // (VIDEO_<PREFIX>_MODELS): an allowlisted client choice wins, otherwise the
     // first pinned entry is the managed default; unmanaged providers use the
     // client header directly.
-    const model = resolveVideoModel(providerId, clientModel);
+    const model = selection.modelId;
     if (!model) {
       return apiError(
         'MISSING_MODEL',
         400,
         `No model configured for video provider: ${providerId}`,
       );
+    }
+
+    if (selection.source === 'platform') {
+      if (body.duration !== undefined && body.duration !== 6) {
+        return apiError(
+          'INVALID_REQUEST',
+          400,
+          'The ZHIYU default video model supports 6-second requests',
+        );
+      }
+      if (body.resolution !== undefined && body.resolution !== '720p') {
+        return apiError(
+          'INVALID_REQUEST',
+          400,
+          'The ZHIYU default video model supports the 768P output tier',
+        );
+      }
+      body.duration = 6;
+      // The shared internal label 720p maps to MiniMax 768P in the adapter.
+      body.resolution = '720p';
     }
 
     // Normalize options against provider capabilities
@@ -170,6 +201,9 @@ async function handlePost(request: NextRequest, signal: AbortSignal) {
 
     return apiSuccess({ result });
   } catch (error) {
+    if (error instanceof ProviderSelectionError) {
+      return apiError(error.code, error.httpStatus, error.message);
+    }
     if (error instanceof MediaProviderConfigError) {
       return apiError(error.code, error.status, error.message);
     }

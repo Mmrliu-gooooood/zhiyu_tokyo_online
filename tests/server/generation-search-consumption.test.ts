@@ -4,6 +4,7 @@ import type { GenerationSearchSnapshotContent } from '@/lib/server/generation-se
 import {
   PipelineExecution,
   type CheckpointRepository,
+  type ExternalCallDiagnostic,
 } from '@/lib/server/generation-pipeline/execution';
 import { GenerationServices } from '@/lib/server/generation-pipeline/services';
 import { resolveGenerationSearchConfig } from '@/lib/server/generation-pipeline/search';
@@ -43,6 +44,7 @@ const input: GenerationInput = {
 
 function service(value = input, config: GenerationSearchSnapshotContent | undefined = snapshot) {
   const persisted: unknown[] = [];
+  const diagnostics: ExternalCallDiagnostic[] = [];
   const repository: CheckpointRepository = {
     skipStepWithWarning: async () => {},
     beginStep: async (_lease, step) => {
@@ -72,9 +74,13 @@ function service(value = input, config: GenerationSearchSnapshotContent | undefi
     planRevision: 1,
     input: value,
   };
-  const execution = new PipelineExecution(repository, lease, new AbortController().signal, {
-    run: (_kind, _group, _signal, work) => work(),
-  });
+  const execution = new PipelineExecution(
+    repository,
+    lease,
+    new AbortController().signal,
+    { run: (_kind, _group, _signal, work) => work() },
+    (diagnostic) => diagnostics.push(diagnostic),
+  );
   const assets = {
     read: async () => ({ bytes: new Uint8Array(), mimeType: 'text/plain' }),
     write: async () => 'unused',
@@ -82,6 +88,7 @@ function service(value = input, config: GenerationSearchSnapshotContent | undefi
   return {
     services: new GenerationServices(execution, value, assets, undefined, config),
     persisted,
+    diagnostics,
   };
 }
 
@@ -114,6 +121,30 @@ describe('background generation search snapshot consumption', () => {
     expect(mocks.search).toHaveBeenCalledTimes(1);
     expect(persisted).toContainEqual({ stepKey: 'research:search', result: '' });
     expect(JSON.stringify(persisted)).not.toContain('uncertain');
+  });
+
+  it('reports an optional web-search DNS failure without claiming it was pre-send', async () => {
+    mocks.search.mockRejectedValue(
+      Object.assign(new Error('must not appear: secret query and token'), {
+        code: 'ENOTFOUND',
+        hostname: 'search.example.test',
+      }),
+    );
+    const { services, diagnostics } = service();
+
+    await expect(services.research()).resolves.toBe('');
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        providerId: 'bocha',
+        hostname: 'search.example.test',
+        step: 'research:search',
+        dnsCode: 'ENOTFOUND',
+        requestSent: 'unknown',
+        responseReceived: false,
+        willRetry: false,
+      }),
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toMatch(/secret query|token/);
   });
 
   it('keeps Pro search failures on their original failure path', async () => {

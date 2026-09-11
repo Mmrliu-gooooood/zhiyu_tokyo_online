@@ -28,6 +28,7 @@ import { LLM_STAGES } from '@/lib/server/model-routes';
 import {
   isServerConfiguredProvider,
   LLM_ENV_MAP,
+  getPlatformDefaultCatalog,
   resolveApiKey,
 } from '@/lib/server/provider-config';
 import type { ProviderId } from '@/lib/types/provider';
@@ -64,6 +65,18 @@ function routeModel(value: unknown): string | undefined {
  * client-supplied key still works and a missing server key is only a note.
  */
 function checkModelString(model: string, where: string, routed: boolean): void {
+  if (model.startsWith('platform:')) {
+    const defaultId = model.slice('platform:'.length);
+    const entry = getPlatformDefaultCatalog().entries.find(
+      (candidate) => candidate.defaultId === defaultId && candidate.capability === 'text',
+    );
+    if (!entry) {
+      warn(`Unknown platform default "${defaultId}" in ${where}.`);
+    } else if (!entry.available) {
+      warn(`Platform default "${defaultId}" in ${where} is ${entry.status}.`);
+    }
+    return;
+  }
   const colonIndex = model.indexOf(':');
   if (colonIndex <= 0) {
     warnBareModelIdDeprecation(model, where);

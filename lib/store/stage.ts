@@ -25,6 +25,7 @@ import type { DocumentProducer } from '@/lib/document-store/persistence-types';
 import { canGenerateLocally } from '@/lib/generation/ownership';
 import type { PendingChange, StageStoreData, StaleDroppedSave } from '@/lib/utils/stage-storage';
 import { collectStageAssetRefs } from '@/lib/media/collect-stage-asset-refs';
+import { HttpDocumentStoreError } from '@openmaic/storage';
 import {
   isStageDeleted,
   isStageDeletionInFlight,
@@ -61,6 +62,83 @@ const DEPARTING_STAGE_RETRY_DELAY_MS = 100;
 const SAVE_DEBOUNCE_MS = 500;
 const SAVE_BACKOFF_MAX_MS = 30_000;
 let consecutiveFlushFailures = 0;
+
+const DOCUMENT_CHANGE_KINDS = new Set<PendingChange['kind']>([
+  'scene',
+  'structure',
+  'stage',
+  'outline',
+]);
+
+function isServerOwnedGenerationConflict(error: unknown): error is HttpDocumentStoreError {
+  return (
+    error instanceof HttpDocumentStoreError &&
+    error.status === 409 &&
+    error.code === 'SERVER_OWNED_GENERATION'
+  );
+}
+
+function handleServerOwnedGenerationConflict(stageId: string, error: HttpDocumentStoreError): void {
+  if (pendingStageId === stageId) {
+    // The generation job is authoritative. Do not replay document edits that
+    // the server explicitly refused; cursor/chat dirt uses independent stores
+    // and remains queued for its ordinary retry path.
+    for (const [key, entry] of pendingChanges) {
+      if (DOCUMENT_CHANGE_KINDS.has(entry.change.kind)) pendingChanges.delete(key);
+    }
+  }
+  if (useStageStore.getState().stage?.id === stageId) {
+    useStageStore.setState((state) => ({ stageSyncRequest: state.stageSyncRequest + 1 }));
+  }
+  log.warn('Server-owned generation rejected a document write; requested authoritative sync', {
+    requestId: error.requestId,
+    stageId,
+    operation: 'stage-persistence',
+    code: error.code,
+  });
+  void refreshServerOwnedStageFromAuthority(stageId).catch(() => {
+    // Keep the failure redacted. The active job observer/freshness stream can
+    // still converge on a later checkpoint without turning this into a write
+    // retry or exposing a transport payload in logs.
+    log.warn('Authoritative refresh after document conflict failed', {
+      requestId: error.requestId,
+      stageId,
+      operation: 'loadDocument',
+      code: error.code,
+    });
+  });
+}
+
+async function refreshServerOwnedStageFromAuthority(stageId: string): Promise<void> {
+  stageStorageModulePromise ??= import('@/lib/utils/stage-storage');
+  const { loadStageData } = await stageStorageModulePromise;
+  const data = await loadStageData(stageId);
+  if (data === null || useStageStore.getState().stage?.id !== stageId) return;
+
+  const scenes = await hydratePBLScenesFromRuntime(stageId, data.scenes.map(migrateScene));
+  const current = useStageStore.getState();
+  if (current.stage?.id !== stageId) return;
+  const outline = data.outline;
+  const retainedCurrentScene = scenes.some((scene) => scene.id === current.currentSceneId)
+    ? current.currentSceneId
+    : data.currentSceneId;
+  useStageStore.setState({
+    stage: data.stage,
+    scenes,
+    currentSceneId: retainedCurrentScene,
+    // Runtime/chat persistence is an independent authority. In particular, a
+    // document conflict may have left `{kind:'chats'}` queued for the next
+    // round; replacing it from this document refresh would make that round
+    // persist the stale replacement and lose the user's pending messages.
+    chats: current.chats,
+    chatSnapshot: current.chatSnapshot,
+    outlines: outline?.outlines ?? [],
+    generationComplete: outline?.generationComplete ?? false,
+    outlineProducer: outline?.producer ?? 'client',
+    outlineProducerRef: outline?.producerRef ?? null,
+    outlineProducerKind: outline?.producerKind ?? null,
+  });
+}
 
 function nextSaveDelayMs(): number {
   if (consecutiveFlushFailures === 0) return SAVE_DEBOUNCE_MS;
@@ -961,6 +1039,10 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
 
       return true;
     } catch (error) {
+      if (isServerOwnedGenerationConflict(error)) {
+        handleServerOwnedGenerationConflict(stage.id, error);
+        return false;
+      }
       log.error('Failed to save to storage:', error);
       return false;
     }
@@ -1221,6 +1303,15 @@ function startFlushRound(): FlushRound | null {
       recordFlushOutcome(failedKeys.size > 0);
       return failedKeys;
     } catch (error) {
+      if (isServerOwnedGenerationConflict(error)) {
+        handleServerOwnedGenerationConflict(stageId, error);
+        recordFlushOutcome(false);
+        return new Set(
+          [...dirtySnapshot]
+            .filter(([, entry]) => !DOCUMENT_CHANGE_KINDS.has(entry.change.kind))
+            .map(([key]) => key),
+        );
+      }
       log.error(`Failed to flush pending stage changes for ${stageId}:`, error);
       recordFlushOutcome(true);
       throw error;

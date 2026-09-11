@@ -1,10 +1,52 @@
-param([ValidateSet('check','build','migrate','start-app','start-worker','stop-worker','status')][string]$Action = 'check')
+param(
+  [ValidateSet('check','build','migrate','start-app','start-worker','stop-worker','status')]
+  [string]$Action = 'check',
+  [switch]$AllowDirty,
+  [switch]$UseHostBuildNetwork,
+  [string]$NpmRegistryOverride = ''
+)
 $ErrorActionPreference = 'Stop'
 
+if ($UseHostBuildNetwork -and $Action -ne 'build') {
+  throw 'UseHostBuildNetwork is valid only with -Action build.'
+}
+
+if ($NpmRegistryOverride) {
+  $registryUri = $null
+  if (-not [Uri]::TryCreate($NpmRegistryOverride, [UriKind]::Absolute, [ref]$registryUri) -or $registryUri.Scheme -ne 'https') {
+    throw 'NpmRegistryOverride must be an absolute HTTPS URL.'
+  }
+}
+
 function Get-SourceRevision {
-  $revision = (& git rev-parse HEAD 2>$null)
-  if ($LASTEXITCODE -ne 0 -or -not $revision) { throw 'Unable to resolve the source revision.' }
-  return ($revision -join '').Trim()
+  $headOutput = (& git rev-parse HEAD 2>$null)
+  if ($LASTEXITCODE -ne 0 -or -not $headOutput) { throw 'Unable to resolve the source revision.' }
+  $headRevision = ($headOutput -join '').Trim()
+  $trackedChanges = @(& git status --porcelain --untracked-files=no)
+  $runtimeUntracked = @(
+    & git ls-files --others --exclude-standard -- app components lib packages public scripts workers '*.json' '*.mjs' '*.ts' '*.yml' '*.yaml'
+  ) | Sort-Object -Unique
+  if ($trackedChanges.Count -eq 0 -and $runtimeUntracked.Count -eq 0) { return $headRevision }
+  if (-not $AllowDirty) {
+    throw 'The source tree has build-relevant changes. Re-run with -AllowDirty to label an explicit content-fingerprinted worktree build.'
+  }
+
+  $material = New-Object System.Text.StringBuilder
+  [void]$material.AppendLine($headRevision)
+  [void]$material.AppendLine(((& git diff --binary --no-ext-diff HEAD -- .) -join "`n"))
+  foreach ($path in $runtimeUntracked) {
+    $objectId = ((& git hash-object -- $path) -join '').Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $objectId) { throw "Unable to fingerprint untracked build input $path." }
+    [void]$material.AppendLine("$path`t$objectId")
+  }
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $digest = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($material.ToString()))
+  } finally {
+    $sha256.Dispose()
+  }
+  $fingerprint = ([System.BitConverter]::ToString($digest)).Replace('-', '').ToLowerInvariant().Substring(0, 16)
+  return "worktree-$($headRevision.Substring(0, 12))-$fingerprint"
 }
 
 function Get-ReleaseImageRecord([string]$ImageName, [string]$ExpectedRevision) {
@@ -62,7 +104,23 @@ foreach ($key in $keys) {
   if ([Environment]::GetEnvironmentVariable($key, 'Process')) { throw "Unset the shell override $key before deployment; .env.local must be authoritative." }
 }
 $prefix = @('compose','-p','openmaic-main','--env-file','.env.local','-f','docker-compose.yml','-f','docker-compose.persistence.yml','--profile','server-persistence')
-if (Test-Path -LiteralPath 'server-providers.yml') { $prefix += @('-f','docker-compose.providers.yml') }
+if ($UseHostBuildNetwork) {
+  $prefix += @('-f','docker-compose.build-host.yml')
+}
+if (Test-Path -LiteralPath 'server-providers.yml' -PathType Leaf) {
+  $prefix += @('-f','docker-compose.providers.yml')
+} elseif (Test-Path -LiteralPath 'server-providers.yml' -PathType Container) {
+  throw 'server-providers.yml must be a regular file, but a directory exists at that path. Move it aside after inspection or replace it with a validated YAML file.'
+} elseif (Test-Path -LiteralPath 'server-providers.yml') {
+  throw 'server-providers.yml must be a regular file when present.'
+}
+
+function Initialize-UsageDirectory {
+  & docker @prefix run --rm --no-deps usage-init
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Unable to initialize the shared usage directory for uid 1001/gid 65533.'
+  }
+}
 $raw = & docker @prefix config --format json 2>$null
 if ($LASTEXITCODE -ne 0) { throw 'Compose validation failed. Check required .env.local keys without printing secrets.' }
 $config = ($raw -join "`n") | ConvertFrom-Json
@@ -72,6 +130,12 @@ if ($workerService.image -ne 'zhiyu-worker:latest' -or $workerService.build.targ
 $pgVolume = $config.volumes.'openmaic-postgres'
 $appVolume = $config.volumes.'openmaic-data'
 if ($pgVolume.name -ne 'openmaic-main_openmaic-postgres' -or -not $pgVolume.external -or $appVolume.name -ne 'openmaic-main_openmaic-data' -or -not $appVolume.external) { throw 'Original external volume identity mismatch.' }
+$usageInitService = $config.services.'usage-init'
+$appDataMount = @($config.services.openmaic.volumes | Where-Object { $_.target -eq '/app/data' })
+$workerDataMount = @($workerService.volumes | Where-Object { $_.target -eq '/app/data' })
+$usageInitMount = @($usageInitService.volumes | Where-Object { $_.target -eq '/data' })
+if (-not $usageInitService -or $appDataMount.Count -ne 1 -or $workerDataMount.Count -ne 1 -or $usageInitMount.Count -ne 1) { throw 'Web, worker and usage initializer must each mount the shared data volume exactly once.' }
+if ($appDataMount[0].source -ne 'openmaic-data' -or $workerDataMount[0].source -ne 'openmaic-data' -or $usageInitMount[0].source -ne 'openmaic-data') { throw 'Web, worker and usage initializer must share the verified openmaic-data volume.' }
 foreach ($volume in @($pgVolume.name,$appVolume.name)) {
   & docker volume inspect $volume --format '{{.Name}}' | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Original volume is missing; refusing to create a replacement.' }
@@ -97,21 +161,24 @@ if ($config.services.openmaic.ports[0].host_ip -ne '127.0.0.1') { throw 'This de
 switch ($Action) {
   'check' { Write-Output 'Compose, worker, external volumes, shared database and snapshot keys, build flags, and rollout gates validated.'; return }
   'build' {
-    $trackedChanges = & git status --porcelain --untracked-files=no
-    if ($trackedChanges) { throw 'Commit tracked changes before building release images.' }
     $revision = Get-SourceRevision
-    & docker @prefix build --build-arg "OPENMAIC_SOURCE_REVISION=$revision" openmaic generation-worker
+    $buildArgs = @('build','--build-arg',"OPENMAIC_SOURCE_REVISION=$revision")
+    if ($NpmRegistryOverride) { $buildArgs += @('--build-arg',"NPM_REGISTRY=$NpmRegistryOverride") }
+    $buildArgs += @('openmaic','generation-worker')
+    & docker @prefix @buildArgs
     if ($LASTEXITCODE -ne 0) { throw 'Release image build failed.' }
     Write-ReleaseImageRecords $revision
   }
   'migrate' {
     [void](Get-ReleaseImageRecord 'zhiyu-worker:latest' (Get-SourceRevision))
+    Initialize-UsageDirectory
     & docker @prefix run --rm --no-deps generation-worker node dist-worker/migrate.mjs
   }
   'start-app' {
     $revision = Get-SourceRevision
     [void](Get-ReleaseImageRecord 'zhiyu:latest' $revision)
     [void](Get-ReleaseImageRecord 'zhiyu-worker:latest' $revision)
+    Initialize-UsageDirectory
     # The app and PRO runtime both consume encrypted media snapshots. Apply the
     # additive schema before cutover so startup never depends on an operator
     # remembering a separate migration command.
@@ -140,6 +207,7 @@ switch ($Action) {
   'start-worker' {
     $revision = Get-SourceRevision
     [void](Get-ReleaseImageRecord 'zhiyu-worker:latest' $revision)
+    Initialize-UsageDirectory
     & docker @prefix up -d --no-deps generation-worker
     if ($LASTEXITCODE -ne 0) { throw 'Generation worker deployment failed.' }
     Wait-GenerationWorkerHealthy

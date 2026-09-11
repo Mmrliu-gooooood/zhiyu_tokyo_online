@@ -49,9 +49,48 @@ const image = z
     visionPriority: z.number().optional(),
   })
   .strict();
-const voice = z
-  .object({ providerId: ref, modelId: ref.optional(), voiceId: z.string().max(200) })
+const voiceFields = {
+  providerId: ref,
+  modelId: ref.optional(),
+  voiceId: z.string().max(200),
+};
+const voice = z.union([
+  z
+    .object({
+      source: z.literal('platform'),
+      defaultId: ref,
+      revision: z.string().min(1).max(500).optional(),
+      ...voiceFields,
+    })
+    .strict(),
+  z
+    .object({
+      source: z.enum(['user', 'legacy-managed']),
+      ...voiceFields,
+    })
+    .strict(),
+  // v1 client compatibility: source-less bindings remain non-platform.
+  z.object(voiceFields).strict(),
+]);
+const platformSelection = z
+  .object({
+    source: z.literal('platform'),
+    defaultId: ref,
+    revision: z.string().min(1).max(500).optional(),
+  })
   .strict();
+const mediaSelection = z.union([
+  platformSelection,
+  z
+    .object({
+      source: z.enum(['user', 'legacy-managed']),
+      providerId: ref,
+      modelId: ref,
+    })
+    .strict(),
+  // v1 client compatibility.
+  z.object({ providerId: ref, modelId: ref }).strict(),
+]);
 const agent = z
   .object({
     id: ref,
@@ -79,6 +118,9 @@ export const GenerationInputSchema = z
       .strict(),
     model: z
       .object({
+        source: z.enum(['platform', 'user', 'legacy-managed']).optional(),
+        defaultId: ref.optional(),
+        revision: z.string().min(1).max(500).optional(),
         modelString: ref.optional(),
         thinkingConfig: z
           .object({
@@ -94,6 +136,17 @@ export const GenerationInputSchema = z
         configVersion: ref.optional(),
       })
       .strict()
+      .superRefine((value, context) => {
+        if (value.source === 'platform' && !value.defaultId) {
+          context.addIssue({ code: 'custom', message: 'Platform model requires defaultId' });
+        }
+        if (value.source === 'platform' && !value.revision) {
+          context.addIssue({ code: 'custom', message: 'Platform model requires revision' });
+        }
+        if (value.source !== 'platform' && value.defaultId) {
+          context.addIssue({ code: 'custom', message: 'Only platform models may use defaultId' });
+        }
+      })
       .optional(),
     locale: z.string().max(100).optional(),
     languageDirective: text.optional(),
@@ -141,8 +194,8 @@ export const GenerationInputSchema = z
     webSearch: z.object({ providerId: ref, modelId: ref.optional() }).strict().optional(),
     media: z
       .object({
-        image: z.object({ providerId: ref, modelId: ref }).strict().optional(),
-        video: z.object({ providerId: ref, modelId: ref }).strict().optional(),
+        image: mediaSelection.optional(),
+        video: mediaSelection.optional(),
       })
       .strict()
       .optional(),
@@ -183,6 +236,9 @@ export const GenerationInputSchema = z
     tts: z
       .object({
         enabled: z.boolean(),
+        source: z.enum(['platform', 'user', 'legacy-managed']).optional(),
+        defaultId: ref.optional(),
+        revision: z.string().min(1).max(500).optional(),
         providerId: ref.optional(),
         modelId: ref.optional(),
         voice: z.string().max(200).optional(),
@@ -190,6 +246,14 @@ export const GenerationInputSchema = z
         agentVoiceOverrides: z.record(z.string(), voice).optional(),
       })
       .strict()
+      .superRefine((value, context) => {
+        if (value.source === 'platform' && !value.defaultId) {
+          context.addIssue({ code: 'custom', message: 'Platform TTS requires defaultId' });
+        }
+        if (value.source !== 'platform' && value.defaultId) {
+          context.addIssue({ code: 'custom', message: 'Only platform TTS may use defaultId' });
+        }
+      })
       .optional(),
     budget: z
       .object({
@@ -199,7 +263,12 @@ export const GenerationInputSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.model?.source === 'platform' && !value.modelConfigRef) {
+      context.addIssue({ code: 'custom', message: 'Platform model requires modelConfigRef' });
+    }
+  });
 export type GenerationInput = z.infer<typeof GenerationInputSchema>;
 export function parseGenerationInput(value: unknown): GenerationInput {
   if (Buffer.byteLength(JSON.stringify(value) ?? '') > 1_048_576)
@@ -322,6 +391,14 @@ export interface GenerationDisplayProgress {
     outlineId?: string;
     code: string;
   };
+  /** Complete, sanitized failure facts for status UIs; older snapshots may omit this field. */
+  issues?: GenerationDisplayIssue[];
+}
+export interface GenerationDisplayIssue {
+  outlineId?: string;
+  phase: GenerationDisplayPhase;
+  code: string;
+  state: 'failed' | 'retry_wait' | 'unknown' | 'cancelled';
 }
 export interface GenerationLease {
   jobId: string;

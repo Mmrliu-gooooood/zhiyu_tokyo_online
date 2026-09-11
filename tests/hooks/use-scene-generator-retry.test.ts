@@ -289,6 +289,94 @@ describe('browser scene generation retry wrappers', () => {
     );
   });
 
+  it('sends a platform TTS stable reference without browser credentials', async () => {
+    mocks.settingsState.mockReturnValue({
+      ...mocks.settingsState(),
+      ttsProviderId: 'minimax-tts',
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-tts',
+            capability: 'tts',
+            providerId: 'minimax-tts',
+            available: true,
+          },
+        ],
+      },
+      ttsProvidersConfig: {
+        'minimax-tts': { apiKey: 'user-key-must-not-leak', modelId: 'speech-2.8-hd' },
+      },
+      ttsVoice: 'male-qn-qingse',
+    });
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, base64: btoa('platform-audio'), format: 'wav' }),
+    );
+
+    await expect(generateAndStoreTTS('platform-tts', 'Hello')).resolves.toBe('platform-tts');
+
+    const body = JSON.parse(String(mockFetch.mock.calls[0][1]?.body));
+    expect(body).toMatchObject({
+      modelSource: 'platform',
+      platformDefaultId: 'zhiyu-default-tts',
+      ttsVoice: 'male-qn-qingse',
+    });
+    expect(body).not.toHaveProperty('ttsApiKey');
+    expect(body).not.toHaveProperty('ttsModelId');
+    expect(body).not.toHaveProperty('ttsProviderId');
+  });
+
+  it('keeps an explicit user narrator binding on user credentials when the global default is same-vendor', async () => {
+    mocks.settingsState.mockReturnValue({
+      ...mocks.settingsState(),
+      ttsProviderId: 'minimax-tts',
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-tts',
+            capability: 'tts',
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-turbo',
+            available: true,
+            revision: 'platform-r1',
+          },
+        ],
+      },
+      ttsProvidersConfig: {
+        'minimax-tts': { apiKey: 'user-minimax-key', modelId: 'speech-2.8-turbo' },
+      },
+      ttsVoice: 'male-qn-qingse',
+    });
+    mocks.pickNarratorAgent.mockReturnValue({
+      id: 'teacher-user-minimax',
+      role: 'teacher',
+      voiceConfig: {
+        source: 'user',
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-turbo',
+        voiceId: 'user-role-voice',
+      },
+    });
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, base64: btoa('user-audio'), format: 'wav' }),
+    );
+
+    await expect(generateAndStoreTTS('user-role-tts', 'Hello')).resolves.toBe('user-role-tts');
+
+    const body = JSON.parse(String(mockFetch.mock.calls[0][1]?.body));
+    expect(body).toMatchObject({
+      modelSource: 'user',
+      ttsProviderId: 'minimax-tts',
+      ttsModelId: 'speech-2.8-turbo',
+      ttsApiKey: 'user-minimax-key',
+      ttsVoice: 'user-role-voice',
+    });
+    expect(body).not.toHaveProperty('platformDefaultId');
+  });
+
   it('falls back once from a missing narrator clone to the global voice', async () => {
     mocks.settingsState.mockReturnValue({
       ...mocks.settingsState(),

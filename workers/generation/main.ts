@@ -71,7 +71,13 @@ async function main() {
               signal,
               AbortSignal.timeout(lease.input.budget?.activeMs ?? 3_600_000),
             ]);
-            const execution = new PipelineExecution(repository, lease, budgetSignal, limiter);
+            const execution = new PipelineExecution(
+              repository,
+              lease,
+              budgetSignal,
+              limiter,
+              (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
+            );
             const assets = {
               read: (id: string) => repository.readAsset(lease.ownerId, id),
               write: (logicalKey: string, bytes: Uint8Array, mimeType: string) =>

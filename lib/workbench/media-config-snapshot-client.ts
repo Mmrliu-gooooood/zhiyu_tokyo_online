@@ -1,23 +1,29 @@
 import type { MediaConfigRef } from '@/lib/server/generation-jobs/contracts';
 import type { SettingsState } from '@/lib/store/settings';
 import { TTS_PROVIDERS } from '@/lib/audio/constants';
+import type { ModelSelection } from '@/lib/types/platform-default-models';
 
 const REVOKE_KEY = 'openmaic:media-config-revoke-pending';
 let pendingRevocation: Promise<void> | undefined;
 
-interface SnapshotTtsProviderConfig extends Record<string, unknown> {
-  providerId: string;
-  modelId: string;
-}
+type SnapshotSelection =
+  | { source: 'platform'; defaultId: string; revision?: string }
+  | { source: 'user' | 'legacy-managed'; providerId: string; modelId: string };
 
-interface SnapshotVoiceDirectoryEntry {
-  providerId: string;
-  modelId: string;
+type SnapshotTtsProviderConfig = Record<string, unknown> & {
+  source?: SnapshotSelection['source'];
+  defaultId?: string;
+  revision?: string;
+  providerId?: string;
+  modelId?: string;
+};
+
+type SnapshotVoiceDirectoryEntry = Partial<SnapshotSelection> & {
   voiceIds: string[];
-}
+};
 
 interface SnapshotConfig {
-  version: 2;
+  version: 2 | 3;
   imageEnabled: boolean;
   videoEnabled: boolean;
   ttsEnabled: boolean;
@@ -26,19 +32,33 @@ interface SnapshotConfig {
   /** Provider/model execution credentials, stored once per provider/model. */
   ttsProviders?: SnapshotTtsProviderConfig[];
   /** Narration fallback is intent, not an execution credential. */
-  ttsDefault?: SnapshotVoiceBinding & { modelId: string; speed: number };
+  ttsDefault?: Record<string, unknown> & { voiceId: string; speed: number };
   /** Bindable voice ids grouped by their authorized provider/model. */
   ttsVoiceDirectory?: SnapshotVoiceDirectoryEntry[];
 }
 
-interface SnapshotVoiceBinding {
+type SnapshotVoiceBinding = {
   providerId: string;
   modelId?: string;
   voiceId: string;
-}
+  selection?: ModelSelection;
+};
 
 function effectiveBaseUrl(config: { baseUrl?: string; customDefaultBaseUrl?: string }): string {
   return config.baseUrl?.trim() || config.customDefaultBaseUrl?.trim() || '';
+}
+
+function platformSelection(
+  settings: SettingsState,
+  selection: Extract<ModelSelection, { source: 'platform' }>,
+): SnapshotSelection {
+  return {
+    source: 'platform',
+    defaultId: selection.defaultId,
+    revision: settings.platformDefaults?.entries.find(
+      (entry) => entry.defaultId === selection.defaultId,
+    )?.revision,
+  };
 }
 
 /** Freeze the user's media intent and only the provider configurations referenced by the next run. */
@@ -46,8 +66,25 @@ export function buildMediaConfigSnapshot(
   settings: SettingsState,
   roleVoices: readonly SnapshotVoiceBinding[] = [],
 ): SnapshotConfig | undefined {
+  const version =
+    settings.imageSelection || settings.videoSelection || settings.ttsSelection ? 3 : 2;
+  const imageSelection: ModelSelection = settings.imageSelection ?? {
+    source: 'user',
+    providerId: settings.imageProviderId,
+    modelId: settings.imageModelId,
+  };
+  const videoSelection: ModelSelection = settings.videoSelection ?? {
+    source: 'user',
+    providerId: settings.videoProviderId,
+    modelId: settings.videoModelId,
+  };
+  const ttsSelection: ModelSelection = settings.ttsSelection ?? {
+    source: 'user',
+    providerId: settings.ttsProviderId,
+    modelId: settings.ttsProvidersConfig[settings.ttsProviderId]?.modelId,
+  };
   const snapshot: SnapshotConfig = {
-    version: 2,
+    version,
     imageEnabled: settings.imageGenerationEnabled,
     videoEnabled: settings.videoGenerationEnabled,
     ttsEnabled: settings.ttsEnabled,
@@ -55,32 +92,40 @@ export function buildMediaConfigSnapshot(
 
   if (settings.imageGenerationEnabled) {
     const config = settings.imageProvidersConfig[settings.imageProviderId];
-    snapshot.image = {
-      providerId: settings.imageProviderId,
-      ...(settings.imageProviderId.startsWith('custom-image-')
-        ? { protocol: config?.protocol }
-        : {}),
-      apiKey: config?.apiKey || '',
-      baseUrl: effectiveBaseUrl(config ?? {}),
-      enabled: config?.enabled ?? false,
-      requiresApiKey: config?.requiresApiKey ?? true,
-      modelId: settings.imageModelId,
-    };
+    snapshot.image =
+      imageSelection.source === 'platform'
+        ? platformSelection(settings, imageSelection)
+        : {
+            ...(version === 3 ? { source: imageSelection.source } : {}),
+            providerId: settings.imageProviderId,
+            ...(settings.imageProviderId.startsWith('custom-image-')
+              ? { protocol: config?.protocol }
+              : {}),
+            apiKey: config?.apiKey || '',
+            baseUrl: effectiveBaseUrl(config ?? {}),
+            enabled: config?.enabled ?? false,
+            requiresApiKey: config?.requiresApiKey ?? true,
+            modelId: settings.imageModelId,
+          };
   }
 
   if (settings.videoGenerationEnabled) {
     const config = settings.videoProvidersConfig[settings.videoProviderId];
-    snapshot.video = {
-      providerId: settings.videoProviderId,
-      ...(settings.videoProviderId.startsWith('custom-video-')
-        ? { protocol: config?.protocol }
-        : {}),
-      apiKey: config?.apiKey || '',
-      baseUrl: effectiveBaseUrl(config ?? {}),
-      enabled: config?.enabled ?? false,
-      requiresApiKey: config?.requiresApiKey ?? true,
-      modelId: settings.videoModelId,
-    };
+    snapshot.video =
+      videoSelection.source === 'platform'
+        ? platformSelection(settings, videoSelection)
+        : {
+            ...(version === 3 ? { source: videoSelection.source } : {}),
+            providerId: settings.videoProviderId,
+            ...(settings.videoProviderId.startsWith('custom-video-')
+              ? { protocol: config?.protocol }
+              : {}),
+            apiKey: config?.apiKey || '',
+            baseUrl: effectiveBaseUrl(config ?? {}),
+            enabled: config?.enabled ?? false,
+            requiresApiKey: config?.requiresApiKey ?? true,
+            modelId: settings.videoModelId,
+          };
   }
 
   const ttsProviders = new Map<string, SnapshotTtsProviderConfig>();
@@ -91,27 +136,53 @@ export function buildMediaConfigSnapshot(
     voice: string,
     speed: number,
     isDefault = false,
+    explicitSelection?: ModelSelection,
   ) => {
     if (providerId === 'browser-native-tts') return;
     const config =
       settings.ttsProvidersConfig[providerId as keyof typeof settings.ttsProvidersConfig];
     const builtIn = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
-    const resolvedModelId =
-      modelId?.trim() || config?.modelId || builtIn?.defaultModelId || '';
-    const item: SnapshotTtsProviderConfig = {
-      providerId,
-      ...(providerId.startsWith('custom-tts-')
-        ? { protocol: config?.protocol ?? 'openai-speech' }
-        : {}),
-      apiKey: config?.apiKey || '',
-      baseUrl: effectiveBaseUrl(config ?? {}),
-      enabled: config?.enabled ?? false,
-      requiresApiKey: config?.requiresApiKey ?? builtIn?.requiresApiKey ?? true,
-      modelId: resolvedModelId,
-      speed,
-      ...(config?.providerOptions ? { providerOptions: config.providerOptions } : {}),
-    };
-    const key = `${providerId}\0${resolvedModelId}`;
+    const resolvedModelId = modelId?.trim() || config?.modelId || builtIn?.defaultModelId || '';
+    const platformEntry =
+      ttsSelection.source === 'platform'
+        ? settings.platformDefaults?.entries.find(
+            (entry) => entry.capability === 'tts' && entry.defaultId === ttsSelection.defaultId,
+          )
+        : undefined;
+    const inheritedSelection =
+      ttsSelection.source === 'platform' &&
+      providerId === platformEntry?.providerId &&
+      resolvedModelId === platformEntry.modelId
+        ? ttsSelection
+        : undefined;
+    const selection = explicitSelection ?? inheritedSelection;
+    const identity: SnapshotSelection =
+      selection?.source === 'platform'
+        ? platformSelection(settings, selection)
+        : {
+            source: selection?.source ?? 'user',
+            providerId,
+            modelId: resolvedModelId,
+          };
+    const item: SnapshotTtsProviderConfig =
+      identity.source === 'platform'
+        ? { ...identity, speed }
+        : {
+            ...(version === 3 ? identity : { providerId, modelId: resolvedModelId }),
+            ...(providerId.startsWith('custom-tts-')
+              ? { protocol: config?.protocol ?? 'openai-speech' }
+              : {}),
+            apiKey: config?.apiKey || '',
+            baseUrl: effectiveBaseUrl(config ?? {}),
+            enabled: config?.enabled ?? false,
+            requiresApiKey: config?.requiresApiKey ?? builtIn?.requiresApiKey ?? true,
+            speed,
+            ...(config?.providerOptions ? { providerOptions: config.providerOptions } : {}),
+          };
+    const key =
+      version === 3 && identity.source === 'platform'
+        ? `${identity.source}\0${identity.defaultId}\0${identity.revision ?? ''}`
+        : `${version === 3 ? `${identity.source}\0` : ''}${providerId}\0${resolvedModelId}`;
     ttsProviders.set(key, item);
     const voices = voiceDirectory.get(key) ?? new Set<string>();
     for (const preset of builtIn?.voices ?? []) voices.add(preset.id);
@@ -119,8 +190,7 @@ export function buildMediaConfigSnapshot(
     voiceDirectory.set(key, voices);
     if (isDefault) {
       snapshot.ttsDefault = {
-        providerId,
-        modelId: resolvedModelId,
+        ...(version === 3 ? identity : { providerId, modelId: resolvedModelId }),
         voiceId: voice,
         speed,
       };
@@ -133,20 +203,44 @@ export function buildMediaConfigSnapshot(
       settings.ttsVoice,
       settings.ttsSpeed,
       true,
+      ttsSelection,
     );
     for (const voice of roleVoices) {
-      addTts(voice.providerId, voice.modelId, voice.voiceId, settings.ttsSpeed);
+      addTts(
+        voice.providerId,
+        voice.modelId,
+        voice.voiceId,
+        settings.ttsSpeed,
+        false,
+        voice.selection,
+      );
     }
   }
   if (ttsProviders.size) {
     snapshot.ttsProviders = [...ttsProviders.values()];
     snapshot.ttsVoiceDirectory = [...ttsProviders.keys()].map((key) => {
-      const [providerId, modelId] = key.split('\0');
-      return {
-        providerId: providerId!,
-        modelId: modelId!,
-        voiceIds: [...(voiceDirectory.get(key) ?? [])],
-      };
+      const provider = ttsProviders.get(key)!;
+      if (version === 2) {
+        const [, providerId, modelId] = `\0${key}`.split('\0').slice(-3);
+        return {
+          providerId: providerId!,
+          modelId: modelId!,
+          voiceIds: [...(voiceDirectory.get(key) ?? [])],
+        } as SnapshotVoiceDirectoryEntry;
+      }
+      const identity: SnapshotSelection =
+        provider.source === 'platform'
+          ? {
+              source: provider.source,
+              defaultId: provider.defaultId!,
+              ...(provider.revision ? { revision: String(provider.revision) } : {}),
+            }
+          : {
+              source: provider.source!,
+              providerId: provider.providerId!,
+              modelId: provider.modelId!,
+            };
+      return { ...identity, voiceIds: [...(voiceDirectory.get(key) ?? [])] };
     });
   }
 

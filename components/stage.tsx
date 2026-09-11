@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { useStageStore } from '@/lib/store';
 import {
+  canEditStageDocument,
   isCurrentSceneEditable,
   isHostedSceneEditable,
   resolveStageChromeMode,
@@ -26,6 +27,7 @@ import { useWorkbenchStore } from '@/lib/workbench/session-store';
 import { useWorkbenchPanelState } from '@/lib/workbench/panel-context';
 import { workspaceHref } from '@/lib/workbench/workspace-panes';
 import { exitProPlaybackToStandalone } from '@/lib/workbench/pro-playback-exit';
+import type { GenerationJobDisplayProjection } from '@/lib/generation/job-display';
 
 /**
  * Stage — top-level classroom container. Standalone classrooms dispatch
@@ -58,9 +60,11 @@ import { exitProPlaybackToStandalone } from '@/lib/workbench/pro-playback-exit';
 export function Stage({
   classroomId,
   onRetryOutline,
+  generationJobDisplay,
 }: {
   classroomId?: string;
   onRetryOutline?: (outlineId: string) => Promise<void>;
+  generationJobDisplay?: GenerationJobDisplayProjection | null;
 }) {
   const { mode, setMode, scenes, currentSceneId, generatingOutlines, stage } = useStageStore();
   const router = useRouter();
@@ -93,7 +97,14 @@ export function Stage({
   // server-backed mode — their saves would not pass the owner check anyway.
   const isOwner = useStageStore((s) => s.isOwner);
   const readOnly = useStageStore((s) => s.readOnly);
-  const canEditOwnedStage = isOwner && !readOnly;
+  const outlineProducer = useStageStore((s) => s.outlineProducer);
+  const generationStatus = useStageStore((s) => s.generationStatus);
+  const canEditOwnedStage = canEditStageDocument({
+    isOwner,
+    readOnly,
+    serverOwned: outlineProducer === 'server-job',
+    generationStatus,
+  });
 
   // Hosted by the Pro workspace's classroom pane. Ambient rather than a prop
   // because `Stage` is built by `ClassroomSurface`, which is mounted by both
@@ -343,6 +354,7 @@ export function Stage({
           <PlaybackChromeRoot
             ref={playbackRef}
             onRetryOutline={onRetryOutline}
+            generationJobDisplay={generationJobDisplay}
             canEnterProMode={workbenchPlayback || isEditable}
             onEnterProMode={chromeToggleHandler}
             proModeActive={hosted && workbenchPlayback}

@@ -454,22 +454,42 @@ function GenerationPreviewContent() {
     const settings = useSettingsStore.getState();
     const imageProviderConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
     const videoProviderConfig = settings.videoProvidersConfig?.[settings.videoProviderId];
+    const imageSelection = settings.imageSelection ?? {
+      source: 'user' as const,
+      providerId: settings.imageProviderId,
+      modelId: settings.imageModelId,
+    };
+    const videoSelection = settings.videoSelection ?? {
+      source: 'user' as const,
+      providerId: settings.videoProviderId,
+      modelId: settings.videoModelId,
+    };
+    const imageIsPlatform = imageSelection.source === 'platform';
+    const videoIsPlatform = videoSelection.source === 'platform';
     return {
       'Content-Type': 'application/json',
-      'x-model': modelConfig.modelString,
-      'x-api-key': modelConfig.apiKey,
-      'x-base-url': modelConfig.baseUrl,
-      'x-provider-type': modelConfig.providerType || '',
+      'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString,
+      'x-model-source': modelConfig.source,
+      'x-platform-default-id': modelConfig.defaultId || '',
+      'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey,
+      'x-base-url': modelConfig.source === 'platform' ? '' : modelConfig.baseUrl,
+      'x-provider-type': modelConfig.source === 'platform' ? '' : modelConfig.providerType || '',
       // Image generation provider
-      'x-image-provider': settings.imageProviderId || '',
-      'x-image-model': settings.imageModelId || '',
-      'x-image-api-key': imageProviderConfig?.apiKey || '',
-      'x-image-base-url': imageProviderConfig?.baseUrl || '',
+      'x-image-provider': imageIsPlatform ? '' : settings.imageProviderId || '',
+      'x-image-model': imageIsPlatform ? '' : settings.imageModelId || '',
+      'x-image-model-source': imageSelection.source,
+      'x-image-platform-default-id':
+        imageSelection.source === 'platform' ? imageSelection.defaultId : '',
+      'x-image-api-key': imageIsPlatform ? '' : imageProviderConfig?.apiKey || '',
+      'x-image-base-url': imageIsPlatform ? '' : imageProviderConfig?.baseUrl || '',
       // Video generation provider
-      'x-video-provider': settings.videoProviderId || '',
-      'x-video-model': settings.videoModelId || '',
-      'x-video-api-key': videoProviderConfig?.apiKey || '',
-      'x-video-base-url': videoProviderConfig?.baseUrl || '',
+      'x-video-provider': videoIsPlatform ? '' : settings.videoProviderId || '',
+      'x-video-model': videoIsPlatform ? '' : settings.videoModelId || '',
+      'x-video-model-source': videoSelection.source,
+      'x-video-platform-default-id':
+        videoSelection.source === 'platform' ? videoSelection.defaultId : '',
+      'x-video-api-key': videoIsPlatform ? '' : videoProviderConfig?.apiKey || '',
+      'x-video-base-url': videoIsPlatform ? '' : videoProviderConfig?.baseUrl || '',
       // Media generation toggles
       'x-image-generation-enabled': String(settings.imageGenerationEnabled ?? false),
       'x-video-generation-enabled': String(settings.videoGenerationEnabled ?? false),

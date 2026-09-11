@@ -105,7 +105,9 @@ describe('OpenAI provider defaults', () => {
     }) as typeof fetch;
     try {
       getModel({ providerId: 'grok', modelId: 'grok-4.3', apiKey: 'test' });
-      const compatFetch = (openAiMock.createOpenAI.mock.calls.at(-1)?.[0] as { fetch: typeof fetch }).fetch;
+      const compatFetch = (
+        openAiMock.createOpenAI.mock.calls.at(-1)?.[0] as { fetch: typeof fetch }
+      ).fetch;
       const request = (marker: string) =>
         compatFetch('https://example.test/v1/chat/completions', {
           method: 'POST',
@@ -115,8 +117,12 @@ describe('OpenAI provider defaults', () => {
         thinkingContext.run({ mode: 'disabled', effort: 'none' }, () => request('disabled')),
         thinkingContext.run({ mode: 'enabled', effort: 'high' }, () => request('enabled')),
       ]);
-      expect(captured.find((body) => body.marker === 'disabled')).toMatchObject({ reasoning_effort: 'none' });
-      expect(captured.find((body) => body.marker === 'enabled')).toMatchObject({ reasoning_effort: 'high' });
+      expect(captured.find((body) => body.marker === 'disabled')).toMatchObject({
+        reasoning_effort: 'none',
+      });
+      expect(captured.find((body) => body.marker === 'enabled')).toMatchObject({
+        reasoning_effort: 'high',
+      });
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -617,6 +623,12 @@ describe('OpenAI provider defaults', () => {
       'deepseek-v4-pro',
       { mode: 'enabled', effort: 'max' },
       { thinking: { type: 'enabled' }, reasoning_effort: 'max' },
+    ],
+    [
+      'deepseek',
+      'deepseek-flash',
+      { mode: 'disabled', effort: 'none' },
+      { thinking: { type: 'disabled' } },
     ],
     [
       'qwen',

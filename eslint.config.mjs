@@ -725,6 +725,9 @@ const eslintConfig = defineConfig([
       'lib/**/*.{ts,tsx,js,jsx,mjs,cjs}',
     ],
     ignores: [
+      // The unified entry point may load its own accounting modules lazily and
+      // is the only production location allowed to reach the AI SDK directly.
+      'lib/ai/llm.ts',
       'app/api/**',
       'lib/server/**',
       'lib/choreography/**',

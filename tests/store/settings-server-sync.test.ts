@@ -211,6 +211,25 @@ interface MockServerResponse {
   image?: Record<string, { baseUrl?: string; disabled?: boolean }>;
   video?: Record<string, { baseUrl?: string; disabled?: boolean }>;
   webSearch?: Record<string, { baseUrl?: string; disabled?: boolean }>;
+  platformDefaults?: {
+    version: 2;
+    entries: Array<{
+      defaultId:
+        | 'zhiyu-default-text'
+        | 'zhiyu-default-image'
+        | 'zhiyu-default-video'
+        | 'zhiyu-default-tts';
+      capability: 'text' | 'image' | 'video' | 'tts';
+      providerId: string;
+      providerName: string;
+      modelId: string;
+      displayName: string;
+      available: boolean;
+      status: 'available' | 'not_configured' | 'disabled';
+      revision: string;
+      parameters: Record<string, unknown>;
+    }>;
+  };
 }
 
 function mockServerResponse(overrides: MockServerResponse = {}) {
@@ -2041,5 +2060,319 @@ describe('custom image/video provider core', () => {
       isBuiltIn: true,
       customModels: [{ id: 'seedream-custom', name: 'Seedream Custom' }],
     });
+  });
+
+  it('initializes a fresh account from the four available platform defaults', async () => {
+    const store = await getStore();
+    mockServerResponse({
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-text',
+            capability: 'text',
+            providerId: 'deepseek',
+            providerName: 'DeepSeek',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            status: 'available',
+            revision: 'text-r1',
+            parameters: {},
+          },
+          {
+            defaultId: 'zhiyu-default-image',
+            capability: 'image',
+            providerId: 'minimax-image',
+            providerName: 'MiniMax',
+            modelId: 'image-01',
+            displayName: 'MiniMax Image-01',
+            available: true,
+            status: 'available',
+            revision: 'image-r1',
+            parameters: { imageCount: 1 },
+          },
+          {
+            defaultId: 'zhiyu-default-video',
+            capability: 'video',
+            providerId: 'minimax-video',
+            providerName: 'MiniMax',
+            modelId: 'MiniMax-Hailuo-2.3',
+            displayName: 'MiniMax Hailuo 2.3',
+            available: true,
+            status: 'available',
+            revision: 'video-r1',
+            parameters: { videoResolution: '768P', videoDurationSeconds: 6 },
+          },
+          {
+            defaultId: 'zhiyu-default-tts',
+            capability: 'tts',
+            providerId: 'minimax-tts',
+            providerName: 'MiniMax',
+            modelId: 'speech-2.8-turbo',
+            displayName: 'MiniMax Speech 2.8 Turbo',
+            available: true,
+            status: 'available',
+            revision: 'tts-r1',
+            parameters: { ttsVoice: 'male-qn-qingse' },
+          },
+        ],
+      },
+    });
+
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState()).toMatchObject({
+      llmSelection: { source: 'platform', defaultId: 'zhiyu-default-text' },
+      imageSelection: { source: 'platform', defaultId: 'zhiyu-default-image' },
+      videoSelection: { source: 'platform', defaultId: 'zhiyu-default-video' },
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+      imageGenerationEnabled: true,
+      videoGenerationEnabled: true,
+      ttsEnabled: true,
+      platformDefaultsStatus: 'ready',
+    });
+  });
+
+  it('does not replace an explicit user DeepSeek selection or its model list', async () => {
+    const store = await getStore();
+    store.getState().setProviderConfig('deepseek', { apiKey: 'user-deepseek-key' });
+    store.getState().setModel('deepseek', 'deepseek-v4-flash');
+    store.setState({ autoConfigApplied: true });
+    const originalModels = store.getState().providersConfig.deepseek.models;
+    mockServerResponse({
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-text',
+            capability: 'text',
+            providerId: 'deepseek',
+            providerName: 'DeepSeek',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            status: 'available',
+            revision: 'text-r1',
+            parameters: {},
+          },
+        ],
+      },
+    });
+
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState().llmSelection).toEqual({
+      source: 'user',
+      providerId: 'deepseek',
+      modelId: 'deepseek-v4-flash',
+    });
+    expect(store.getState().providersConfig.deepseek.apiKey).toBe('user-deepseek-key');
+    expect(store.getState().providersConfig.deepseek.models).toEqual(originalModels);
+    expect(store.getState().providersConfig.deepseek.isServerConfigured).toBe(false);
+  });
+
+  it('recovers a persisted unusable user text selection to the platform default', async () => {
+    const store = await getStore();
+    store.setState({
+      autoConfigApplied: true,
+      platformDefaultAutoSelectPending: false,
+      providerId: 'openai',
+      modelId: '',
+      llmSelection: { source: 'user', providerId: 'openai', modelId: '' },
+    });
+    mockServerResponse({
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-text',
+            capability: 'text',
+            providerId: 'deepseek',
+            providerName: 'DeepSeek',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            status: 'available',
+            revision: 'text-r1',
+            parameters: {},
+          },
+        ],
+      },
+    });
+
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState()).toMatchObject({
+      llmSelection: { source: 'platform', defaultId: 'zhiyu-default-text' },
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+    });
+  });
+
+  it('recovers a persisted unusable user text selection to a usable user fallback first', async () => {
+    const store = await getStore();
+    store.getState().setProviderConfig('deepseek', { apiKey: 'user-deepseek-key' });
+    store.setState({
+      autoConfigApplied: true,
+      platformDefaultAutoSelectPending: false,
+      providerId: 'openai',
+      modelId: '',
+      llmSelection: { source: 'user', providerId: 'openai', modelId: '' },
+    });
+    mockServerResponse({
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-text',
+            capability: 'text',
+            providerId: 'deepseek',
+            providerName: 'DeepSeek',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            status: 'available',
+            revision: 'text-r1',
+            parameters: {},
+          },
+        ],
+      },
+    });
+
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState().llmSelection).toEqual({
+      source: 'user',
+      providerId: 'deepseek',
+      modelId: 'deepseek-v4-pro',
+    });
+  });
+
+  it('keeps fresh-account platform selection pending until the catalog becomes usable', async () => {
+    const store = await getStore();
+    mockServerResponse();
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState().autoConfigApplied).toBe(true);
+    expect(store.getState().platformDefaultAutoSelectPending).toBe(true);
+
+    mockServerResponse({
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-text',
+            capability: 'text',
+            providerId: 'deepseek',
+            providerName: 'DeepSeek',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            status: 'available',
+            revision: 'text-r1',
+            parameters: {},
+          },
+        ],
+      },
+    });
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState().llmSelection).toEqual({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+    });
+  });
+
+  it('migrates a legacy managed selection after an earlier response omitted the catalog', async () => {
+    const store = await getStore();
+    store.setState({
+      autoConfigApplied: true,
+      platformDefaultAutoSelectPending: false,
+      providerId: 'deepseek',
+      modelId: 'deepseek-v4-flash',
+      llmSelection: {
+        source: 'legacy-managed',
+        providerId: 'deepseek',
+        modelId: 'deepseek-v4-flash',
+      },
+    });
+    mockServerResponse();
+    await store.getState().fetchServerProviders();
+    expect(store.getState().llmSelection.source).toBe('legacy-managed');
+
+    mockServerResponse({
+      platformDefaults: {
+        version: 2,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-text',
+            capability: 'text',
+            providerId: 'deepseek',
+            providerName: 'DeepSeek',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            status: 'available',
+            revision: 'text-r1',
+            parameters: {},
+          },
+        ],
+      },
+    });
+    await store.getState().fetchServerProviders();
+
+    expect(store.getState().llmSelection).toEqual({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+    });
+  });
+
+  it('ignores an older catalog response that arrives after a newer revision', async () => {
+    const store = await getStore();
+    const responseFor = (revision: string) => ({
+      ok: true,
+      json: async () => ({
+        providers: {},
+        tts: {},
+        asr: {},
+        pdf: {},
+        image: {},
+        video: {},
+        webSearch: {},
+        platformDefaults: {
+          version: 2,
+          entries: [
+            {
+              defaultId: 'zhiyu-default-text',
+              capability: 'text',
+              providerId: 'deepseek',
+              providerName: 'DeepSeek',
+              modelId: 'deepseek-flash',
+              displayName: 'DeepSeek V4.1 Flash',
+              available: true,
+              status: 'available',
+              revision,
+              parameters: {},
+            },
+          ],
+        },
+      }),
+    });
+    let resolveOlder!: (value: ReturnType<typeof responseFor>) => void;
+    const olderResponse = new Promise<ReturnType<typeof responseFor>>((resolve) => {
+      resolveOlder = resolve;
+    });
+    mockFetch.mockReturnValueOnce(olderResponse).mockResolvedValueOnce(responseFor('new-revision'));
+
+    const olderRequest = store.getState().fetchServerProviders();
+    const newerRequest = store.getState().fetchServerProviders();
+    await newerRequest;
+    resolveOlder(responseFor('old-revision'));
+    await olderRequest;
+
+    expect(store.getState().platformDefaults?.entries[0]?.revision).toBe('new-revision');
   });
 });

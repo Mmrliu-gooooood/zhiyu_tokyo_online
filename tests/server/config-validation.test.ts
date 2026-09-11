@@ -15,11 +15,21 @@ vi.mock('fs', async (importOriginal) => {
     default: {
       ...actual,
       existsSync: (p: string) => (isYaml(p) ? yamlOverride !== null : actual.existsSync(p)),
+      statSync: (p: string, ...args: unknown[]) =>
+        isYaml(p)
+          ? ({ isFile: () => true } as ReturnType<typeof actual.statSync>)
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (actual.statSync as any)(p, ...args),
       readFileSync: (p: string, ...args: unknown[]) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         isYaml(p) ? (yamlOverride ?? '') : (actual.readFileSync as any)(p, ...args),
     },
     existsSync: (p: string) => (isYaml(p) ? yamlOverride !== null : actual.existsSync(p)),
+    statSync: (p: string, ...args: unknown[]) =>
+      isYaml(p)
+        ? ({ isFile: () => true } as ReturnType<typeof actual.statSync>)
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (actual.statSync as any)(p, ...args),
     readFileSync: (p: string, ...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       isYaml(p) ? (yamlOverride ?? '') : (actual.readFileSync as any)(p, ...args),
@@ -56,6 +66,7 @@ function clearConfigEnv() {
   delete process.env.DEFAULT_MODEL;
   delete process.env.OPENMAIC_AGENT_RUNTIME_ENABLED;
   delete process.env.DATABASE_URL;
+  delete process.env.ZHIYU_DEFAULTS_REVISION_SECRET;
   for (const prefix of LLM_ENV_PREFIXES) {
     delete process.env[`${prefix}_API_KEY`];
     delete process.env[`${prefix}_BASE_URL`];
@@ -100,6 +111,22 @@ describe('validateServerConfig — warning matrix', () => {
     const { validateServerConfig } = await import('@/lib/server/config-validation');
     validateServerConfig();
     expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('accepts a configured stable platform default in DEFAULT_MODEL', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'platform-key');
+    vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
+    vi.stubEnv('DEFAULT_MODEL', 'platform:zhiyu-default-text');
+    const { validateServerConfig } = await import('@/lib/server/config-validation');
+    validateServerConfig();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('warns when a platform default is referenced without platform credentials', async () => {
+    vi.stubEnv('DEFAULT_MODEL', 'platform:zhiyu-default-text');
+    const { validateServerConfig } = await import('@/lib/server/config-validation');
+    validateServerConfig();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('zhiyu-default-text'));
   });
 
   it('warns when MODEL_ROUTES is not valid JSON', async () => {

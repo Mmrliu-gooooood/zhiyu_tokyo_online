@@ -28,6 +28,7 @@ const zh: Record<string, string> = {
   'generation.reviewOutlineAutoContinue': '如不审阅，大纲生成后会自动继续生成课程内容。',
   'generation.statusRetryWait': '构建课程中 · 模型繁忙，等待重试',
   'generation.statusRetryScheduledDesc': '模型服务繁忙，已安排自动重试。',
+  'generation.statusRetryScheduledAtDesc': '模型服务繁忙，将在 {{time}} 后自动重试。',
   'generation.statusCourseComplete': '课程已生成',
   'generation.statusCourseCompleteDesc': '课程内容已完成。',
   'generation.statusGenerationFailed': '生成失败',
@@ -36,6 +37,8 @@ const zh: Record<string, string> = {
   'generation.statusGenerationCancelledDesc': '已完成页面已保留；重新生成会创建新任务。',
   'generation.statusNeedsAttention': '需要确认处理',
   'generation.statusNeedsAttentionDesc': '任务需要你确认后才能继续处理。',
+  'generation.statusNeedsAttentionTriggerUnknownDesc':
+    '第 {{triggerPages}} 页因 {{triggerCode}} 停止；第 {{unknownPages}} 页请求结果未知。已完成页面均已保留，恢复前需要确认可能产生的重复费用。',
   'generation.statusSpeechNeedsAttention': '语音生成中断',
   'generation.statusSpeechNeedsAttentionDesc':
     '第 {{page}} 页语音生成中断，已有 {{completed}} / {{total}} 页内容已保留。语音服务的返回结果未确认。',
@@ -309,6 +312,53 @@ describe('projectGenerationJobPresentation', () => {
     ]);
   });
 
+  it('surfaces the original trigger and concurrent unknown pages for a stopped task', () => {
+    expect(
+      projectGenerationJobPresentation({
+        job: {
+          status: 'needs_attention',
+          phase: 'failed',
+          readyScenes: 6,
+          totalScenes: 12,
+          lastErrorCode: 'EXTERNAL_RESULT_UNKNOWN',
+          outlines: Array.from({ length: 12 }, (_, index) => ({ id: `scene_${index + 1}` })),
+          displayProgress: {
+            phase: 'actions',
+            content: { completed: 9, total: 12, active: 0 },
+            actions: { completed: 6, total: 12, active: 0 },
+            speech: { completed: 0, total: null, active: 0, skipped: 0 },
+            published: { completed: 6, total: 12 },
+            issues: [
+              {
+                outlineId: 'scene_7',
+                phase: 'actions',
+                code: 'PROVIDER_REQUEST_NOT_SENT',
+                state: 'retry_wait',
+              },
+              {
+                outlineId: 'scene_8',
+                phase: 'content',
+                code: 'EXTERNAL_RESULT_UNKNOWN',
+                state: 'unknown',
+              },
+              {
+                outlineId: 'scene_9',
+                phase: 'content',
+                code: 'EXTERNAL_RESULT_UNKNOWN',
+                state: 'unknown',
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual({
+      title: '需要确认处理',
+      detail:
+        '第 7 页因 PROVIDER_REQUEST_NOT_SENT 停止；第 8, 9 页请求结果未知。已完成页面均已保留，恢复前需要确认可能产生的重复费用。',
+      terminal: true,
+    });
+  });
+
   it('does not present automatic outline continuation as required manual confirmation', () => {
     expect(
       projectGenerationJobPresentation({
@@ -432,7 +482,12 @@ describe('projectGenerationJobPresentation', () => {
       '大纲已保留，确认前不会占用重任务执行位。',
       false,
     ],
-    ['retry_wait', '构建课程中 · 模型繁忙，等待重试', '模型服务繁忙，已安排自动重试。', false],
+    [
+      'retry_wait',
+      '构建课程中 · 模型繁忙，等待重试',
+      '模型服务繁忙，将在 2030-01-02T03:04:05.000Z 后自动重试。',
+      false,
+    ],
     ['succeeded', '课程已生成', '课程内容已完成。', true],
     ['failed', '生成失败', '生成未完成，请查看原因后重试。', true],
     ['cancelled', '生成已取消', '已完成页面已保留；重新生成会创建新任务。', true],

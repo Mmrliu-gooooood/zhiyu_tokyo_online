@@ -92,7 +92,8 @@ export interface CheckpointInfo {
   skillViolations?: string[];
 }
 
-export interface AgentSessionImageMediaConfig {
+export interface AgentSessionImageUserMediaConfig {
+  source?: 'user' | 'legacy-managed';
   providerId: ImageProviderId;
   protocol?: ImageProtocol;
   apiKey: string;
@@ -101,8 +102,12 @@ export interface AgentSessionImageMediaConfig {
   enabled: boolean;
   modelId: string;
 }
+export type AgentSessionImageMediaConfig =
+  | AgentSessionImageUserMediaConfig
+  | { source: 'platform'; defaultId: string; revision?: string };
 
-export interface AgentSessionVideoMediaConfig {
+export interface AgentSessionVideoUserMediaConfig {
+  source?: 'user' | 'legacy-managed';
   providerId: VideoProviderId;
   protocol?: VideoProtocol;
   apiKey: string;
@@ -111,6 +116,9 @@ export interface AgentSessionVideoMediaConfig {
   enabled: boolean;
   modelId: string;
 }
+export type AgentSessionVideoMediaConfig =
+  | AgentSessionVideoUserMediaConfig
+  | { source: 'platform'; defaultId: string; revision?: string };
 
 export interface AgentSessionTtsMediaConfig extends SceneTtsProviderConfig {
   providerId: TTSProviderId;
@@ -118,34 +126,63 @@ export interface AgentSessionTtsMediaConfig extends SceneTtsProviderConfig {
 }
 
 export interface AgentSessionTtsProviderMediaConfig extends SceneTtsProviderConfig {
+  source?: 'user' | 'legacy-managed';
   providerId: TTSProviderId;
+}
+export interface AgentSessionPlatformTtsProviderMediaConfig {
+  source: 'platform';
+  defaultId: string;
+  revision?: string;
+  speed?: number;
+  format?: string;
 }
 
 export interface AgentSessionVoiceBinding {
+  source?: 'user' | 'legacy-managed';
   providerId: string;
   modelId: string;
   voiceId: string;
   speed?: number;
 }
+export interface AgentSessionPlatformVoiceBinding {
+  source: 'platform';
+  defaultId: string;
+  revision?: string;
+  voiceId: string;
+  speed?: number;
+}
 
 export interface AgentSessionVoiceDirectoryEntry {
+  source?: 'user' | 'legacy-managed';
   providerId: string;
   modelId: string;
+  voiceIds: readonly string[];
+}
+export interface AgentSessionPlatformVoiceDirectoryEntry {
+  source: 'platform';
+  defaultId: string;
+  revision?: string;
   voiceIds: readonly string[];
 }
 
 /** Decrypted once per claimed run and kept outside model-visible arguments. */
 export interface AgentSessionMediaConfig {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   imageEnabled?: boolean;
   videoEnabled?: boolean;
   ttsEnabled?: boolean;
   image?: AgentSessionImageMediaConfig;
   video?: AgentSessionVideoMediaConfig;
   tts?: readonly AgentSessionTtsMediaConfig[];
-  ttsProviders?: readonly AgentSessionTtsProviderMediaConfig[];
-  ttsDefault?: AgentSessionVoiceBinding;
-  ttsVoiceDirectory?: readonly AgentSessionVoiceDirectoryEntry[];
+  ttsProviders?: readonly (
+    | AgentSessionTtsProviderMediaConfig
+    | AgentSessionPlatformTtsProviderMediaConfig
+  )[];
+  ttsDefault?: AgentSessionVoiceBinding | AgentSessionPlatformVoiceBinding;
+  ttsVoiceDirectory?: readonly (
+    | AgentSessionVoiceDirectoryEntry
+    | AgentSessionPlatformVoiceDirectoryEntry
+  )[];
 }
 
 export interface CourseToolDeps {

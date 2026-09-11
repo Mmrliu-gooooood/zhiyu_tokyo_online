@@ -38,7 +38,7 @@ export default function ClassroomDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const retryBackgroundJob = useClassroomGenerationJob(classroomId, !loading && !error);
+  const backgroundGeneration = useClassroomGenerationJob(classroomId, !loading && !error);
 
   const generationStartedRef = useRef(false);
   const isVisitCurrentRef = useRef<() => boolean>(() => false);
@@ -54,7 +54,7 @@ export default function ClassroomDetailPage() {
   });
   const retrySingleOutline = async (outlineId: string) => {
     try {
-      if (retryBackgroundJob) await retryBackgroundJob();
+      if (backgroundGeneration) await backgroundGeneration.retry();
       else await retryLocalOutline(outlineId);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : t('generation.sceneGenerateFailed'));
@@ -278,7 +278,10 @@ export default function ClassroomDetailPage() {
               }
             />
           ) : (
-            <Stage onRetryOutline={retrySingleOutline} />
+            <Stage
+              onRetryOutline={retrySingleOutline}
+              generationJobDisplay={backgroundGeneration?.display}
+            />
           )}
         </div>
       </MediaStageProvider>

@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 // This prevents YAML config from leaking host-machine state into tests while keeping
 // the mock scoped to what provider-config actually reads.
 let yamlOverride: string | null = null;
+let yamlIsFile = true;
 
 const ENV_PREFIXES_TO_CLEAR = [
   'OPENAI',
@@ -75,6 +76,8 @@ function clearProviderEnv() {
   delete process.env.BEDROCK_REGION;
   delete process.env.AWS_BEARER_TOKEN_BEDROCK;
   delete process.env.TTS_QWEN_VOICE_CLONE_MODEL;
+  delete process.env.ZHIYU_DEFAULTS_REVISION;
+  delete process.env.ZHIYU_DEFAULTS_REVISION_SECRET;
 }
 
 vi.mock('fs', async (importOriginal) => {
@@ -85,11 +88,21 @@ vi.mock('fs', async (importOriginal) => {
     default: {
       ...actual,
       existsSync: (p: string) => (isYaml(p) ? yamlOverride !== null : actual.existsSync(p)),
+      statSync: (p: string, ...args: unknown[]) =>
+        isYaml(p)
+          ? ({ isFile: () => yamlIsFile } as ReturnType<typeof actual.statSync>)
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (actual.statSync as any)(p, ...args),
       readFileSync: (p: string, ...args: unknown[]) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         isYaml(p) ? (yamlOverride ?? '') : (actual.readFileSync as any)(p, ...args),
     },
     existsSync: (p: string) => (isYaml(p) ? yamlOverride !== null : actual.existsSync(p)),
+    statSync: (p: string, ...args: unknown[]) =>
+      isYaml(p)
+        ? ({ isFile: () => yamlIsFile } as ReturnType<typeof actual.statSync>)
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (actual.statSync as any)(p, ...args),
     readFileSync: (p: string, ...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       isYaml(p) ? (yamlOverride ?? '') : (actual.readFileSync as any)(p, ...args),
@@ -101,7 +114,19 @@ describe('provider-config', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     clearProviderEnv();
+    vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
     yamlOverride = null;
+    yamlIsFile = true;
+  });
+
+  it('ignores a non-file YAML path and falls back to environment configuration', async () => {
+    yamlOverride = 'providers:\n  openai:\n    apiKey: yaml-secret';
+    yamlIsFile = false;
+    vi.stubEnv('ANTHROPIC_API_KEY', 'env-secret');
+
+    const { getServerProviders } = await import('@/lib/server/provider-config');
+
+    expect(getServerProviders()).toEqual({ anthropic: {} });
   });
 
   describe('resolveApiKey', () => {
@@ -1076,6 +1101,211 @@ video:
         await import('@/lib/server/provider-config');
       expect(isServerConfiguredProvider('pdf', 'alidocmind')).toBe(false);
       expect(resolveManagedAliDocMindCredentials()).toBeUndefined();
+    });
+  });
+
+  describe('ZHIYU platform defaults', () => {
+    it('publishes a secret-free catalog with the required low-cost bindings', async () => {
+      vi.stubEnv('DEEPSEEK_API_KEY', 'platform-text-secret');
+      vi.stubEnv('IMAGE_MINIMAX_API_KEY', 'platform-image-secret');
+      vi.stubEnv('VIDEO_MINIMAX_API_KEY', 'platform-video-secret');
+      vi.stubEnv('TTS_MINIMAX_API_KEY', 'platform-tts-secret');
+      const { getPlatformDefaultCatalog } = await import('@/lib/server/provider-config');
+
+      const catalog = getPlatformDefaultCatalog();
+      expect(catalog.version).toBe(2);
+      expect(catalog.entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            defaultId: 'zhiyu-default-text',
+            modelId: 'deepseek-flash',
+            displayName: 'DeepSeek V4.1 Flash',
+            available: true,
+            parameters: {
+              textTools: true,
+              textThinking: {
+                control: 'effort',
+                requestAdapter: 'deepseek',
+                effortValues: ['none', 'high', 'max'],
+                defaultEffort: 'high',
+              },
+              textContextWindow: 1048576,
+              textOutputWindow: 393216,
+            },
+            defaultThinkingConfig: { mode: 'disabled', effort: 'none' },
+          }),
+          expect.objectContaining({
+            defaultId: 'zhiyu-default-image',
+            modelId: 'image-01',
+            parameters: { imageCount: 1 },
+          }),
+          expect.objectContaining({
+            defaultId: 'zhiyu-default-video',
+            modelId: 'MiniMax-Hailuo-2.3',
+            parameters: { videoResolution: '768P', videoDurationSeconds: 6 },
+          }),
+          expect.objectContaining({
+            defaultId: 'zhiyu-default-tts',
+            modelId: 'speech-2.8-turbo',
+          }),
+        ]),
+      );
+      expect(JSON.stringify(catalog)).not.toContain('platform-text-secret');
+      expect(JSON.stringify(catalog)).not.toContain('platform-image-secret');
+    });
+
+    it('changes an opaque HMAC revision when credentials or the operator epoch changes', async () => {
+      vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'shared-revision-secret');
+      vi.stubEnv('DEEPSEEK_API_KEY', 'first-platform-secret');
+      const firstModule = await import('@/lib/server/provider-config');
+      const firstRevision = firstModule
+        .getPlatformDefaultCatalog()
+        .entries.find((entry) => entry.defaultId === 'zhiyu-default-text')?.revision;
+
+      vi.resetModules();
+      vi.stubEnv('DEEPSEEK_API_KEY', 'rotated-platform-secret');
+      const rotatedKeyModule = await import('@/lib/server/provider-config');
+      const rotatedKeyRevision = rotatedKeyModule
+        .getPlatformDefaultCatalog()
+        .entries.find((entry) => entry.defaultId === 'zhiyu-default-text')?.revision;
+      expect(rotatedKeyRevision).not.toBe(firstRevision);
+
+      vi.resetModules();
+      vi.stubEnv('ZHIYU_DEFAULTS_REVISION', '2');
+      const bumpedEpochModule = await import('@/lib/server/provider-config');
+      const bumpedRevision = bumpedEpochModule
+        .getPlatformDefaultCatalog()
+        .entries.find((entry) => entry.defaultId === 'zhiyu-default-text')?.revision;
+      expect(bumpedRevision).not.toBe(firstRevision);
+    });
+
+    it('includes the configurable platform thinking policy in the opaque revision', async () => {
+      vi.stubEnv('DEEPSEEK_API_KEY', 'platform-text-secret');
+      const firstModule = await import('@/lib/server/provider-config');
+      const first = firstModule
+        .getPlatformDefaultCatalog()
+        .entries.find((entry) => entry.defaultId === 'zhiyu-default-text');
+      expect(first?.defaultThinkingConfig).toEqual({ mode: 'disabled', effort: 'none' });
+
+      vi.resetModules();
+      vi.stubEnv('ZHIYU_DEFAULT_TEXT_THINKING_MODE', 'enabled');
+      vi.stubEnv('ZHIYU_DEFAULT_TEXT_THINKING_EFFORT', 'high');
+      const enabledModule = await import('@/lib/server/provider-config');
+      const enabled = enabledModule
+        .getPlatformDefaultCatalog()
+        .entries.find((entry) => entry.defaultId === 'zhiyu-default-text');
+      expect(enabled?.defaultThinkingConfig).toEqual({ mode: 'enabled', effort: 'high' });
+      expect(enabled?.revision).not.toBe(first?.revision);
+    });
+
+    it('marks an unconfigured default unavailable without borrowing a user key', async () => {
+      const { getPlatformDefaultCatalog, resolvePlatformDefault } =
+        await import('@/lib/server/provider-config');
+      expect(
+        getPlatformDefaultCatalog().entries.find(
+          (entry) => entry.defaultId === 'zhiyu-default-text',
+        ),
+      ).toMatchObject({ available: false, status: 'not_configured' });
+      expect(() => resolvePlatformDefault('zhiyu-default-text', 'text')).toThrow(/not configured/);
+    });
+
+    it('requires a shared revision secret before exposing a configured platform default', async () => {
+      vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', '');
+      vi.stubEnv('GENERATION_MODEL_ENCRYPTION_KEY', '');
+      vi.stubEnv('DEEPSEEK_API_KEY', 'platform-text-secret');
+      const { getPlatformDefaultCatalog } = await import('@/lib/server/provider-config');
+
+      expect(
+        getPlatformDefaultCatalog().entries.find(
+          (entry) => entry.defaultId === 'zhiyu-default-text',
+        ),
+      ).toMatchObject({
+        available: false,
+        status: 'not_configured',
+        revision: 'revision-secret-required',
+      });
+    });
+
+    it('does not publish an unverified model override with stale capability parameters', async () => {
+      vi.stubEnv('DEEPSEEK_API_KEY', 'platform-text-secret');
+      vi.stubEnv('ZHIYU_DEFAULT_TEXT_MODEL', 'unreviewed-future-model');
+      const { getPlatformDefaultCatalog, resolvePlatformDefault } =
+        await import('@/lib/server/provider-config');
+
+      expect(
+        getPlatformDefaultCatalog().entries.find(
+          (entry) => entry.defaultId === 'zhiyu-default-text',
+        ),
+      ).toMatchObject({
+        modelId: 'unreviewed-future-model',
+        available: false,
+        status: 'not_configured',
+      });
+      expect(() => resolvePlatformDefault('zhiyu-default-text', 'text')).toThrow(/not configured/);
+    });
+
+    it('keeps same-vendor platform and user credentials strictly isolated', async () => {
+      vi.stubEnv('IMAGE_MINIMAX_API_KEY', 'platform-key');
+      vi.stubEnv('IMAGE_MINIMAX_BASE_URL', 'https://platform.example/v1');
+      const { resolveProviderSelection } = await import('@/lib/server/resolve-provider-selection');
+
+      expect(
+        resolveProviderSelection({
+          capability: 'image',
+          source: 'platform',
+          defaultId: 'zhiyu-default-image',
+          providerId: 'minimax-image',
+          modelId: 'attacker-model',
+          apiKey: 'user-key',
+          baseUrl: 'https://user.example/v1',
+        }),
+      ).toMatchObject({
+        source: 'platform',
+        providerId: 'minimax-image',
+        modelId: 'image-01',
+        apiKey: 'platform-key',
+        baseUrl: 'https://platform.example/v1',
+      });
+      expect(
+        resolveProviderSelection({
+          capability: 'image',
+          source: 'user',
+          providerId: 'minimax-image',
+          modelId: 'image-01-live',
+          apiKey: 'user-key',
+          baseUrl: 'https://user.example/v1',
+        }),
+      ).toMatchObject({
+        source: 'user',
+        modelId: 'image-01-live',
+        apiKey: 'user-key',
+        baseUrl: 'https://user.example/v1',
+        managed: false,
+      });
+      expect(() =>
+        resolveProviderSelection({
+          capability: 'image',
+          providerId: 'minimax-image',
+          modelId: 'unapproved-model',
+        }),
+      ).toThrow(/Legacy platform credentials cannot be used/);
+    });
+
+    it('maps the legacy managed MiniMax HD TTS request to the stable Turbo default', async () => {
+      vi.stubEnv('TTS_MINIMAX_API_KEY', 'platform-tts-key');
+      const { resolveProviderSelection } = await import('@/lib/server/resolve-provider-selection');
+      expect(
+        resolveProviderSelection({
+          capability: 'tts',
+          providerId: 'minimax-tts',
+          modelId: 'speech-2.8-hd',
+        }),
+      ).toMatchObject({
+        source: 'platform',
+        defaultId: 'zhiyu-default-tts',
+        modelId: 'speech-2.8-turbo',
+        apiKey: 'platform-tts-key',
+      });
     });
   });
 });

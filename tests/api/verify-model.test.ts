@@ -23,11 +23,14 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
-async function postVerifyModel(body: Record<string, unknown>) {
+async function postVerifyModel(
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+) {
   const { POST } = await import('@/app/api/verify-model/route');
   const request = new Request('http://localhost/api/verify-model', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
   return POST(request as unknown as NextRequest);
@@ -86,5 +89,66 @@ describe('POST /api/verify-model', () => {
       undefined,
       { mode: 'disabled', enabled: false },
     );
+  });
+
+  it('verifies a platform default by stable ID without forwarding client overrides', async () => {
+    const res = await postVerifyModel(
+      {
+        model: 'deepseek/attacker-model',
+        apiKey: 'attacker-key',
+        baseUrl: 'https://attacker.example/v1',
+        providerType: 'anthropic',
+      },
+      {
+        'x-model-source': 'platform',
+        'x-platform-default-id': 'zhiyu-default-text',
+      },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.resolveModel).toHaveBeenCalledWith({
+      modelString: 'platform:zhiyu-default-text',
+      apiKey: undefined,
+      baseUrl: undefined,
+      providerType: undefined,
+      source: 'platform',
+      platformDefaultId: 'zhiyu-default-text',
+    });
+  });
+
+  it('keeps an explicit user selection on its own same-vendor credentials', async () => {
+    const res = await postVerifyModel(
+      {
+        model: 'deepseek/deepseek-chat',
+        apiKey: 'user-key',
+        baseUrl: 'https://user.example/v1',
+        providerType: 'openai',
+      },
+      { 'x-model-source': 'user' },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.resolveModel).toHaveBeenCalledWith({
+      modelString: 'deepseek/deepseek-chat',
+      apiKey: 'user-key',
+      baseUrl: 'https://user.example/v1',
+      providerType: 'openai',
+      source: 'user',
+      platformDefaultId: undefined,
+    });
+  });
+
+  it('rejects a platform default ID mixed with a user source', async () => {
+    const res = await postVerifyModel(
+      { model: 'deepseek/deepseek-chat', apiKey: 'user-key' },
+      {
+        'x-model-source': 'user',
+        'x-platform-default-id': 'zhiyu-default-text',
+      },
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ errorCode: 'INVALID_MODEL_SOURCE' });
+    expect(mocks.resolveModel).not.toHaveBeenCalled();
   });
 });

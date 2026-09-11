@@ -114,4 +114,52 @@ describe('effective session voice directory', () => {
       }),
     ).toMatchObject({ modelId: 'speech-hd', voice: 'shared-voice' });
   });
+
+  it('never resolves a user or source-less binding through a platform voice entry', () => {
+    const source = {
+      providerConfigs: [
+        { ...execution, source: 'platform' as const, defaultId: 'zhiyu-default-tts' },
+        { ...execution, source: 'user' as const, apiKey: 'owner-secret' },
+      ],
+      voiceDirectory: [
+        {
+          source: 'platform' as const,
+          defaultId: 'zhiyu-default-tts',
+          providerId: execution.providerId,
+          modelId: execution.modelId,
+          voiceIds: ['shared-voice'],
+        },
+        {
+          source: 'user' as const,
+          providerId: execution.providerId,
+          modelId: execution.modelId,
+          voiceIds: ['shared-voice'],
+        },
+      ],
+    };
+
+    expect(
+      resolveEffectiveSessionVoice(source, {
+        source: 'user',
+        providerId: execution.providerId,
+        modelId: execution.modelId,
+        voiceId: 'shared-voice',
+      }),
+    ).toMatchObject({ source: 'user', apiKey: 'owner-secret' });
+    expect(
+      resolveEffectiveSessionVoice(source, {
+        providerId: execution.providerId,
+        modelId: execution.modelId,
+        voiceId: 'shared-voice',
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveEffectiveSessionVoice(source, {
+        source: 'platform',
+        providerId: execution.providerId,
+        modelId: execution.modelId,
+        voiceId: 'shared-voice',
+      }),
+    ).toBeUndefined();
+  });
 });

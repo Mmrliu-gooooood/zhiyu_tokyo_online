@@ -5,6 +5,8 @@
  * stale provider/model selections after server config changes.
  */
 
+import type { ModelSelection } from '@/lib/types/platform-default-models';
+
 export type ProviderCfgLike = {
   isServerConfigured?: boolean;
   apiKey?: string;
@@ -135,4 +137,38 @@ export function hasUsableLLMProvider(
 ): boolean {
   if (!providersConfig) return false;
   return Object.values(providersConfig).some(isLLMProviderConfigured);
+}
+
+type PlatformDefaultCatalogLike = {
+  entries?: Array<{
+    capability?: string;
+    available?: boolean;
+    defaultId?: string;
+    revision?: string;
+  }>;
+};
+
+/** Whether the creation UI has either a usable user provider or a revisioned
+ * platform text default. Platform catalog v2 intentionally omits managed
+ * providers from `providersConfig`, so gating only on that legacy map leaves
+ * the home composer disabled even though its selected platform model is ready.
+ */
+export function hasUsableLLMSelection(
+  providersConfig: Record<string, LLMProviderCfgLike> | undefined | null,
+  platformDefaults: PlatformDefaultCatalogLike | undefined | null,
+  selection: ModelSelection,
+): boolean {
+  if (selection.source === 'platform') {
+    return (
+      platformDefaults?.entries?.some(
+        (entry) =>
+          entry.capability === 'text' &&
+          entry.defaultId === selection.defaultId &&
+          entry.available === true &&
+          !!entry.revision?.trim(),
+      ) === true
+    );
+  }
+  const selectedConfig = providersConfig?.[selection.providerId];
+  return selectedConfig ? isLLMProviderConfigured(selectedConfig) : false;
 }

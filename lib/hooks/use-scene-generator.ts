@@ -44,6 +44,10 @@ import {
   withGenerationRetry,
   type GenerationRetryOptions,
 } from '@openmaic/generation';
+import {
+  platformTTSRequestFields,
+  withPlatformTTSAvailability,
+} from '@/lib/audio/platform-tts-selection';
 
 const log = createLogger('SceneGenerator');
 
@@ -74,6 +78,10 @@ function getApiHeaders(): HeadersInit {
   const settings = useSettingsStore.getState();
   const imageProviderConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
   const videoProviderConfig = settings.videoProvidersConfig?.[settings.videoProviderId];
+  const imageSelection = settings.imageSelection;
+  const videoSelection = settings.videoSelection;
+  const imageIsPlatform = imageSelection?.source === 'platform';
+  const videoIsPlatform = videoSelection?.source === 'platform';
 
   return {
     'Content-Type': 'application/json',
@@ -81,16 +89,22 @@ function getApiHeaders(): HeadersInit {
     'x-api-key': config.apiKey || '',
     'x-base-url': config.baseUrl || '',
     'x-provider-type': config.providerType || '',
+    'x-model-source': config.source,
+    'x-platform-default-id': config.source === 'platform' ? config.defaultId || '' : '',
     // Image generation provider
-    'x-image-provider': settings.imageProviderId || '',
-    'x-image-model': settings.imageModelId || '',
-    'x-image-api-key': imageProviderConfig?.apiKey || '',
-    'x-image-base-url': imageProviderConfig?.baseUrl || '',
+    'x-image-model-source': imageSelection?.source || 'user',
+    'x-image-platform-default-id': imageIsPlatform ? imageSelection.defaultId : '',
+    'x-image-provider': imageIsPlatform ? '' : settings.imageProviderId || '',
+    'x-image-model': imageIsPlatform ? '' : settings.imageModelId || '',
+    'x-image-api-key': imageIsPlatform ? '' : imageProviderConfig?.apiKey || '',
+    'x-image-base-url': imageIsPlatform ? '' : imageProviderConfig?.baseUrl || '',
     // Video generation provider
-    'x-video-provider': settings.videoProviderId || '',
-    'x-video-model': settings.videoModelId || '',
-    'x-video-api-key': videoProviderConfig?.apiKey || '',
-    'x-video-base-url': videoProviderConfig?.baseUrl || '',
+    'x-video-model-source': videoSelection?.source || 'user',
+    'x-video-platform-default-id': videoIsPlatform ? videoSelection.defaultId : '',
+    'x-video-provider': videoIsPlatform ? '' : settings.videoProviderId || '',
+    'x-video-model': videoIsPlatform ? '' : settings.videoModelId || '',
+    'x-video-api-key': videoIsPlatform ? '' : videoProviderConfig?.apiKey || '',
+    'x-video-base-url': videoIsPlatform ? '' : videoProviderConfig?.baseUrl || '',
     // Media generation toggles
     'x-image-generation-enabled': String(settings.imageGenerationEnabled ?? false),
     'x-video-generation-enabled': String(settings.videoGenerationEnabled ?? false),
@@ -100,6 +114,15 @@ function getApiHeaders(): HeadersInit {
 function withThinkingConfig<T extends Record<string, unknown>>(body: T): T {
   const { thinkingConfig } = getCurrentModelConfig();
   return thinkingConfig ? ({ ...body, thinkingConfig } as T) : body;
+}
+
+function isCurrentTTSProviderEnabled(settings: ReturnType<typeof useSettingsStore.getState>) {
+  const config = withPlatformTTSAvailability(
+    settings.ttsProvidersConfig,
+    settings.ttsSelection,
+    settings.platformDefaults,
+  );
+  return isTTSProviderEnabled(settings.ttsProviderId, config[settings.ttsProviderId]);
 }
 
 async function readJsonResponse(response: Response): Promise<Record<string, unknown>> {
@@ -279,10 +302,27 @@ export async function generateAndStoreTTS(
   fallbackHops = 0,
 ): Promise<string | null> {
   const settings = useSettingsStore.getState();
+  const ttsSelection = settings.ttsSelection ?? {
+    source: 'user' as const,
+    providerId: settings.ttsProviderId,
+    modelId: settings.ttsProvidersConfig?.[settings.ttsProviderId]?.modelId,
+  };
+  const effectiveTTSProvidersConfig = withPlatformTTSAvailability(
+    settings.ttsProvidersConfig,
+    ttsSelection,
+    settings.platformDefaults,
+  );
   // A generated roster's explicit voice binding is the course voice source of truth.
   // Global settings remain the fallback for classrooms without a binding.
   const teacher = pickNarratorAgent(useAgentRegistry.getState().listAgents());
   const globalProviderConfig = settings.ttsProvidersConfig?.[settings.ttsProviderId];
+  const platformTTSDefaultId =
+    ttsSelection.source === 'platform' ? ttsSelection.defaultId : undefined;
+  const platformTTSDefault = platformTTSDefaultId
+    ? settings.platformDefaults?.entries.find(
+        (entry) => entry.capability === 'tts' && entry.defaultId === platformTTSDefaultId,
+      )
+    : undefined;
   const boundVoice = teacher?.voiceConfig;
   const boundKey = boundVoice ? voiceBindingKey(boundVoice) : undefined;
   // The narrator pin makes boundVoice == the global voice. That equality must
@@ -301,7 +341,7 @@ export async function generateAndStoreTTS(
       toast.warning(getClientTranslation('settings.qwenCloneNarrationUnavailable'));
     }
     return resolveDeterministicFallbackVoice(
-      getEnabledProvidersWithVoices(settings.ttsProvidersConfig),
+      getEnabledProvidersWithVoices(effectiveTTSProvidersConfig),
       0,
     );
   };
@@ -311,11 +351,18 @@ export async function generateAndStoreTTS(
     resolveNarratorVoiceBinding(
       boundVoice && isVoiceBindingUnavailable(boundVoice) ? undefined : boundVoice,
       {
+        source: ttsSelection.source,
+        ...(ttsSelection.source === 'platform'
+          ? {
+              defaultId: ttsSelection.defaultId,
+              revision: platformTTSDefault?.revision,
+            }
+          : {}),
         providerId: settings.ttsProviderId,
         modelId: globalProviderConfig?.modelId,
         voiceId: settings.ttsVoice,
       },
-      settings.ttsProvidersConfig,
+      effectiveTTSProvidersConfig,
     );
 
   // Pinned narrator (bound == global) whose provider became disabled:
@@ -327,7 +374,7 @@ export async function generateAndStoreTTS(
     !globalDiffers &&
     !isTTSProviderEnabled(
       resolvedVoice.providerId,
-      settings.ttsProvidersConfig?.[resolvedVoice.providerId],
+      effectiveTTSProvidersConfig?.[resolvedVoice.providerId],
     )
   ) {
     resolvedVoice = fallbackForUnusablePin() ?? resolvedVoice;
@@ -335,7 +382,7 @@ export async function generateAndStoreTTS(
 
   const ttsProviderId = resolvedVoice.providerId;
   const ttsVoice = resolvedVoice.voiceId;
-  const ttsProviderConfig = settings.ttsProvidersConfig?.[ttsProviderId];
+  const ttsProviderConfig = effectiveTTSProvidersConfig?.[ttsProviderId];
   const ttsModelId = resolveTTSModelForVoice(
     ttsProviderId,
     ttsVoice,
@@ -354,6 +401,15 @@ export async function generateAndStoreTTS(
     voiceId: ttsVoice,
     language,
   });
+  const requestSelection = platformTTSRequestFields(
+    ttsSelection,
+    ttsProviderId,
+    settings.ttsProviderId,
+    ttsModelId,
+    platformTTSDefault?.modelId,
+    resolvedVoice,
+  );
+  const platform = requestSelection.modelSource === 'platform';
   let data: TTSApiResponse;
   try {
     data = await withGenerationRetry(
@@ -364,15 +420,20 @@ export async function generateAndStoreTTS(
           body: JSON.stringify({
             text,
             audioId: requestId,
-            ttsProviderId,
-            ttsModelId,
+            ...requestSelection,
+            ...(platform
+              ? {}
+              : {
+                  ttsProviderId,
+                  ttsModelId,
+                  ttsApiKey: ttsProviderConfig?.apiKey || undefined,
+                  ttsBaseUrl:
+                    ttsProviderConfig?.baseUrl ||
+                    ttsProviderConfig?.customDefaultBaseUrl ||
+                    undefined,
+                }),
             ttsVoice,
             ttsSpeed: settings.ttsSpeed,
-            ttsApiKey: ttsProviderConfig?.apiKey || undefined,
-            // Managed providers resolve their base URL server-side; only send the
-            // client's own base URL (custom providers).
-            ttsBaseUrl:
-              ttsProviderConfig?.baseUrl || ttsProviderConfig?.customDefaultBaseUrl || undefined,
             ttsProtocol: ttsProviderConfig?.protocol,
             ttsRequiresApiKey: ttsProviderConfig?.requiresApiKey,
             ttsProviderOptions: providerOptions,
@@ -827,10 +888,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
             if (
               settings.ttsEnabled &&
               settings.ttsProviderId !== 'browser-native-tts' &&
-              isTTSProviderEnabled(
-                settings.ttsProviderId,
-                settings.ttsProvidersConfig?.[settings.ttsProviderId],
-              )
+              isCurrentTTSProviderEnabled(settings)
             ) {
               const ttsResult = await generateTTSForScene(
                 scene,
@@ -1011,10 +1069,7 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
         if (
           settings.ttsEnabled &&
           settings.ttsProviderId !== 'browser-native-tts' &&
-          isTTSProviderEnabled(
-            settings.ttsProviderId,
-            settings.ttsProvidersConfig?.[settings.ttsProviderId],
-          )
+          isCurrentTTSProviderEnabled(settings)
         ) {
           const ttsResult = await generateTTSForScene(
             actionsResult.scene,

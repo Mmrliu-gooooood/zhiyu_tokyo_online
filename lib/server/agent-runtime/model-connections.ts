@@ -3,8 +3,16 @@ import { z } from 'zod';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
 import { getProvider, parseModelString } from '@/lib/ai/providers';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
-import { isServerConfiguredProvider } from '@/lib/server/provider-config';
+import {
+  PlatformDefaultModelError,
+  isServerConfiguredProvider,
+  resolvePlatformDefault,
+} from '@/lib/server/provider-config';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
+import {
+  isPlatformThinkingConfigSupported,
+  normalizePlatformThinkingConfig,
+} from '@/lib/server/platform-default-models';
 import { nodePostgresTransaction } from './store';
 import type { ProModelContext, ProModelRef } from '@/types/pro-model';
 
@@ -20,12 +28,18 @@ export class ProModelConnectionError extends Error {
 
 const refSchema = z.object({ id: z.uuid(), revision: z.number().int().positive() });
 const contextSchema = z.object({
+  source: z.enum(['platform', 'user', 'legacy-managed']).optional(),
+  defaultId: z
+    .enum(['zhiyu-default-text', 'zhiyu-default-image', 'zhiyu-default-video', 'zhiyu-default-tts'])
+    .optional(),
+  revision: z.string().trim().min(1).max(500).optional(),
   modelString: z
     .string()
     .trim()
     .min(3)
     .max(500)
-    .regex(/^[^:/\s]+[:/].+$/),
+    .regex(/^[^:/\s]+[:/].+$/)
+    .optional(),
   apiKey: z.string().max(16384).optional(),
   baseUrl: z.string().trim().max(2048).optional(),
   providerType: z.enum(['openai', 'azure', 'anthropic', 'bedrock', 'google']).optional(),
@@ -89,13 +103,53 @@ function unseal(ciphertext: string, ownerId: string, ref: ProModelRef): ProModel
   }
 }
 
-export async function normalizeModelConnectionContext(value: unknown): Promise<ProModelContext> {
+async function normalizeModelConnectionContextWithPolicy(
+  value: unknown,
+  allowLegacyPlatformWithoutRevision: boolean,
+): Promise<ProModelContext> {
   const result = contextSchema.safeParse(value);
   if (!result.success) throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
   const context = result.data;
+  if (context.source === 'platform') {
+    if (!context.defaultId) throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+    try {
+      const binding = resolvePlatformDefault(context.defaultId, 'text');
+      if (!context.revision && !allowLegacyPlatformWithoutRevision) {
+        throw new ProModelConnectionError('PRO_MODEL_CONNECTION_STALE', 409);
+      }
+      if (context.revision && context.revision !== binding.revision) {
+        throw new ProModelConnectionError('PRO_MODEL_CONNECTION_STALE', 409);
+      }
+      if (
+        context.thinkingConfig &&
+        !isPlatformThinkingConfigSupported(binding.parameters, context.thinkingConfig)
+      ) {
+        throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+      }
+      return {
+        source: 'platform',
+        defaultId: binding.defaultId,
+        revision: binding.revision,
+        thinkingConfig: normalizePlatformThinkingConfig(
+          binding.parameters,
+          context.thinkingConfig,
+          binding.defaultThinkingConfig,
+        ),
+      };
+    } catch (error) {
+      if (error instanceof ProModelConnectionError) throw error;
+      if (error instanceof PlatformDefaultModelError) {
+        throw new ProModelConnectionError(error.code, error.httpStatus);
+      }
+      throw error;
+    }
+  }
+  if (context.defaultId || !context.modelString) {
+    throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+  }
   const { providerId } = parseModelString(context.modelString);
   const provider = getProvider(providerId);
-  const managed = isServerConfiguredProvider('providers', providerId);
+  const managed = context.source !== 'user' && isServerConfiguredProvider('providers', providerId);
   // Home's existing OpenAI API mode is explicitly the chat-completions
   // transport (getModel uses .chat); preserve that existing selection.
   if (!provider && !context.api && context.providerType === 'openai') {
@@ -126,6 +180,11 @@ export async function normalizeModelConnectionContext(value: unknown): Promise<P
     }
   }
   return context;
+}
+
+/** Normalize a new browser request; platform selections must pin the catalog revision. */
+export function normalizeModelConnectionContext(value: unknown): Promise<ProModelContext> {
+  return normalizeModelConnectionContextWithPolicy(value, false);
 }
 
 /** Additive lazy migration, shared by web and the durable runtime. */
@@ -226,8 +285,9 @@ export class ProModelConnectionStore {
       [ref.id, ownerId, ref.revision],
     );
     if (!result.rows[0]) throw new ProModelConnectionError('PRO_MODEL_CONNECTION_UNAVAILABLE', 409);
-    const context = await normalizeModelConnectionContext(
+    const context = await normalizeModelConnectionContextWithPolicy(
       unseal(result.rows[0].ciphertext, ownerId, ref),
+      true,
     );
     return { ...context, assertActive: () => this.assertActive(ownerId, ref) };
   }

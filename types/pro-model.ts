@@ -1,4 +1,5 @@
 import type { ThinkingConfig } from '@/lib/types/provider';
+import type { PlatformDefaultId } from '@/lib/types/platform-default-models';
 
 /** Public, owner-scoped reference. It never authorizes access by itself. */
 export interface ProModelRef {
@@ -8,7 +9,13 @@ export interface ProModelRef {
 
 /** Connection input / server-only resolved context. Never persist in a session. */
 export interface ProModelContext {
-  modelString: string;
+  /** Explicit source for new connections; omitted only by legacy snapshots. */
+  source?: 'platform' | 'user' | 'legacy-managed';
+  /** Stable server-resolved reference. Platform contexts never carry provider credentials. */
+  defaultId?: PlatformDefaultId;
+  /** Server-confirmed platform binding revision, included in snapshot identity. */
+  revision?: string;
+  modelString?: string;
   apiKey?: string;
   baseUrl?: string;
   providerType?: string;

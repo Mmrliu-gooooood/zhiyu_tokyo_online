@@ -11,7 +11,7 @@ import { nanoid } from 'nanoid';
 import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { getModelResolutionError, resolveModelFromRequest } from '@/lib/server/resolve-model';
 import { AGENT_COLOR_PALETTE } from '@/lib/constants/agent-defaults';
 import { normalizeVoiceDesign } from '@/lib/audio/voice-design';
 import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants';
@@ -366,6 +366,9 @@ Return a JSON object with this exact structure:
       `Agent profiles generation failed [stage="${stageName ?? 'unknown'}", model=${modelString ?? 'unknown'}]:`,
       error,
     );
-    return apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));
+    const resolutionError = getModelResolutionError(error);
+    return resolutionError
+      ? apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message)
+      : apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));
   }
 }

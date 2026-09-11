@@ -40,7 +40,13 @@ import { PipelineExecution, mapBounded } from './execution';
 import {
   mediaConfigVoiceSource,
   resolveEffectiveSessionVoice,
+  type EffectiveVoiceBinding,
 } from '@/lib/server/agent-runtime/effective-voice-directory';
+import {
+  platformImageExecutionOptions,
+  platformVideoExecutionOptions,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 async function download(url: string, signal: AbortSignal, maxBytes: number): Promise<Buffer> {
   const dispatcher = createPinnedFetchAgent();
@@ -85,16 +91,58 @@ export class GenerationMediaServices {
       if (request.type === 'image') {
         if (this.mediaConfig?.imageEnabled === false)
           throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
-        const providerId = (this.input.media?.image?.providerId ??
+        const selected = this.input.media?.image;
+        const snapshot = this.mediaConfig?.image;
+        const platform = selected && 'source' in selected && selected.source === 'platform';
+        const platformConfig =
+          platform && snapshot && 'source' in snapshot && snapshot.source === 'platform'
+            ? snapshot
+            : undefined;
+        if (
+          platform &&
+          (!platformConfig ||
+            platformConfig.defaultId !== selected.defaultId ||
+            (selected.revision && selected.revision !== platformConfig.revision))
+        ) {
+          throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
+        }
+        const selectedSnapshot =
+          !platform &&
+          selected &&
+          'providerId' in selected &&
+          snapshot &&
+          'providerId' in snapshot &&
+          snapshot.providerId === selected.providerId
+            ? snapshot
+            : undefined;
+        const resolvedSelection = platform
+          ? resolveProviderSelection({
+              capability: 'image',
+              source: 'platform',
+              defaultId: selected.defaultId,
+            })
+          : selected && 'providerId' in selected
+            ? resolveProviderSelection({
+                capability: 'image',
+                source: 'source' in selected ? selected.source : undefined,
+                providerId: selected.providerId,
+                modelId: selected.modelId,
+                apiKey: selectedSnapshot?.apiKey,
+                baseUrl: selectedSnapshot?.baseUrl,
+              })
+            : undefined;
+        if (platform && platformConfig?.revision !== resolvedSelection?.revision) {
+          throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
+        }
+        const providerId = (resolvedSelection?.providerId ??
           Object.entries(getServerImageProviders()).find(([, info]) => !info.disabled)?.[0]) as
           | ImageProviderId
           | undefined;
         if (!providerId || isServerProviderDisabled('image', providerId))
           throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
-        const snapshot = this.mediaConfig?.image;
-        const selectedSnapshot = snapshot?.providerId === providerId ? snapshot : undefined;
         if (
           this.mediaConfig?.imageEnabled === true &&
+          !platform &&
           (!selectedSnapshot || !selectedSnapshot.enabled)
         )
           throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
@@ -105,18 +153,16 @@ export class GenerationMediaServices {
         const providerConfig = custom
           ? parseCustomImageProviderConfig(
               providerId as Parameters<typeof parseCustomImageProviderConfig>[0],
-              customSnapshotInput(snapshot?.providerId === providerId ? snapshot : undefined),
-              this.input.media?.image?.modelId,
+              customSnapshotInput(selectedSnapshot),
+              selected && 'modelId' in selected ? selected.modelId : undefined,
             )
           : {
               providerId: providerId as keyof typeof IMAGE_PROVIDERS,
-              apiKey: resolveImageApiKey(providerId, selectedSnapshot?.apiKey),
-              baseUrl: resolveImageBaseUrl(providerId, selectedSnapshot?.baseUrl),
-              model:
-                resolveImageModel(
-                  providerId,
-                  selectedSnapshot?.modelId || this.input.media?.image?.modelId,
-                ) ?? provider?.models[0]?.id,
+              apiKey: resolvedSelection ? resolvedSelection.apiKey : resolveImageApiKey(providerId),
+              baseUrl: resolvedSelection
+                ? resolvedSelection.baseUrl
+                : resolveImageBaseUrl(providerId),
+              model: resolvedSelection ? resolvedSelection.modelId : resolveImageModel(providerId),
             };
         if (provider?.requiresApiKey && !providerConfig.apiKey)
           throw new Error('IMAGE_PROVIDER_NOT_CONFIGURED');
@@ -129,6 +175,9 @@ export class GenerationMediaServices {
             const options = {
               prompt: request.prompt,
               aspectRatio: request.aspectRatio ?? '16:9',
+              ...(platform && resolvedSelection
+                ? platformImageExecutionOptions(resolvedSelection)
+                : {}),
               signal,
             };
             const restrictedEndpoint =
@@ -161,16 +210,58 @@ export class GenerationMediaServices {
       } else {
         if (this.mediaConfig?.videoEnabled === false)
           throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
-        const providerId = (this.input.media?.video?.providerId ??
+        const selected = this.input.media?.video;
+        const snapshot = this.mediaConfig?.video;
+        const platform = selected && 'source' in selected && selected.source === 'platform';
+        const platformConfig =
+          platform && snapshot && 'source' in snapshot && snapshot.source === 'platform'
+            ? snapshot
+            : undefined;
+        if (
+          platform &&
+          (!platformConfig ||
+            platformConfig.defaultId !== selected.defaultId ||
+            (selected.revision && selected.revision !== platformConfig.revision))
+        ) {
+          throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
+        }
+        const selectedSnapshot =
+          !platform &&
+          selected &&
+          'providerId' in selected &&
+          snapshot &&
+          'providerId' in snapshot &&
+          snapshot.providerId === selected.providerId
+            ? snapshot
+            : undefined;
+        const resolvedSelection = platform
+          ? resolveProviderSelection({
+              capability: 'video',
+              source: 'platform',
+              defaultId: selected.defaultId,
+            })
+          : selected && 'providerId' in selected
+            ? resolveProviderSelection({
+                capability: 'video',
+                source: 'source' in selected ? selected.source : undefined,
+                providerId: selected.providerId,
+                modelId: selected.modelId,
+                apiKey: selectedSnapshot?.apiKey,
+                baseUrl: selectedSnapshot?.baseUrl,
+              })
+            : undefined;
+        if (platform && platformConfig?.revision !== resolvedSelection?.revision) {
+          throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
+        }
+        const providerId = (resolvedSelection?.providerId ??
           Object.entries(getServerVideoProviders()).find(([, info]) => !info.disabled)?.[0]) as
           | VideoProviderId
           | undefined;
         if (!providerId || isServerProviderDisabled('video', providerId))
           throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
-        const snapshot = this.mediaConfig?.video;
-        const selectedSnapshot = snapshot?.providerId === providerId ? snapshot : undefined;
         if (
           this.mediaConfig?.videoEnabled === true &&
+          !platform &&
           (!selectedSnapshot || !selectedSnapshot.enabled)
         )
           throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
@@ -178,18 +269,16 @@ export class GenerationMediaServices {
         const providerConfig = custom
           ? parseCustomVideoProviderConfig(
               providerId as Parameters<typeof parseCustomVideoProviderConfig>[0],
-              customSnapshotInput(snapshot?.providerId === providerId ? snapshot : undefined),
-              this.input.media?.video?.modelId,
+              customSnapshotInput(selectedSnapshot),
+              selected && 'modelId' in selected ? selected.modelId : undefined,
             )
           : {
               providerId: providerId as keyof typeof VIDEO_PROVIDERS,
-              apiKey: resolveVideoApiKey(providerId, selectedSnapshot?.apiKey),
-              baseUrl: resolveVideoBaseUrl(providerId, selectedSnapshot?.baseUrl),
-              model:
-                resolveVideoModel(
-                  providerId,
-                  selectedSnapshot?.modelId || this.input.media?.video?.modelId,
-                ) ?? VIDEO_PROVIDERS[providerId as keyof typeof VIDEO_PROVIDERS]?.models[0]?.id,
+              apiKey: resolvedSelection ? resolvedSelection.apiKey : resolveVideoApiKey(providerId),
+              baseUrl: resolvedSelection
+                ? resolvedSelection.baseUrl
+                : resolveVideoBaseUrl(providerId),
+              model: resolvedSelection ? resolvedSelection.modelId : resolveVideoModel(providerId),
             };
         if (!custom && !providerConfig.apiKey) throw new Error('VIDEO_PROVIDER_NOT_CONFIGURED');
         const result = await this.execution.external(
@@ -201,6 +290,9 @@ export class GenerationMediaServices {
             const options = normalizeVideoOptions(providerId, {
               prompt: request.prompt,
               aspectRatio: request.aspectRatio as '16:9',
+              ...(platform && resolvedSelection
+                ? platformVideoExecutionOptions(resolvedSelection)
+                : {}),
               signal,
             });
             const output = custom
@@ -247,7 +339,43 @@ export class GenerationMediaServices {
     if (!this.input.tts?.enabled || this.input.tts.providerId === 'browser-native-tts')
       return original;
     if (this.mediaConfig?.ttsEnabled === false) return original;
-    const defaultProviderId = (this.input.tts.providerId ??
+    const platform = this.input.tts.source === 'platform';
+    const platformSelection = platform
+      ? resolveProviderSelection({
+          capability: 'tts',
+          source: 'platform',
+          defaultId: this.input.tts.defaultId,
+          voiceId: this.input.tts.voice,
+        })
+      : undefined;
+    const platformSnapshot =
+      platform && this.mediaConfig?.version === 3
+        ? this.mediaConfig.ttsProviders?.find(
+            (candidate) =>
+              candidate.source === 'platform' && candidate.defaultId === this.input.tts?.defaultId,
+          )
+        : undefined;
+    const platformDirectory =
+      platform && this.mediaConfig?.version === 3
+        ? this.mediaConfig.ttsVoiceDirectory?.find(
+            (candidate) =>
+              candidate.source === 'platform' && candidate.defaultId === this.input.tts?.defaultId,
+          )
+        : undefined;
+    if (
+      platform &&
+      (!platformSnapshot ||
+        !platformDirectory ||
+        (platformSnapshot.source === 'platform' ? platformSnapshot.revision : undefined) !==
+          platformSelection?.revision ||
+        (platformDirectory.source === 'platform' ? platformDirectory.revision : undefined) !==
+          platformSelection?.revision ||
+        (this.input.tts.revision && this.input.tts.revision !== platformSelection?.revision))
+    ) {
+      throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
+    }
+    const defaultProviderId = (platformSelection?.providerId ??
+      this.input.tts.providerId ??
       Object.entries(getServerTTSProviders()).find(
         ([id, info]) => id !== 'browser-native-tts' && !info.disabled,
       )?.[0]) as TTSProviderId | undefined;
@@ -258,19 +386,48 @@ export class GenerationMediaServices {
       ? (this.input.tts.agentVoiceOverrides?.[agent.id] ??
         this.input.agents?.items?.find((item) => item.id === agent.id)?.voiceConfig)
       : undefined;
-    const selectedV2Voice =
-      this.mediaConfig?.version === 2
-        ? resolveEffectiveSessionVoice(mediaConfigVoiceSource(this.mediaConfig), {
-            providerId: override?.providerId ?? this.input.tts.providerId,
-            modelId: override?.modelId ?? this.input.tts.modelId,
-            voiceId: override?.voiceId ?? this.input.tts.voice,
-          })
+    const overrideIdentity = override as
+      | Pick<EffectiveVoiceBinding, 'source' | 'defaultId' | 'revision'>
+      | undefined;
+    const selectedSnapshotVoice =
+      this.mediaConfig?.version === 2 || this.mediaConfig?.version === 3
+        ? resolveEffectiveSessionVoice(
+            mediaConfigVoiceSource(this.mediaConfig),
+            override
+              ? {
+                  source: overrideIdentity?.source,
+                  defaultId: overrideIdentity?.defaultId,
+                  revision: overrideIdentity?.revision,
+                  providerId: override.providerId,
+                  modelId: override.modelId,
+                  voiceId: override.voiceId,
+                }
+              : platform
+                ? {
+                    source: 'platform',
+                    defaultId: this.input.tts.defaultId,
+                    revision: this.input.tts.revision,
+                    voiceId: this.input.tts.voice,
+                  }
+                : {
+                    source: this.input.tts.source,
+                    providerId: this.input.tts.providerId,
+                    modelId: this.input.tts.modelId,
+                    voiceId: this.input.tts.voice,
+                  },
+          )
         : undefined;
-    if (this.mediaConfig?.version === 2 && this.mediaConfig.ttsEnabled === true && !selectedV2Voice)
+    if (
+      (this.mediaConfig?.version === 2 || this.mediaConfig?.version === 3) &&
+      this.mediaConfig.ttsEnabled === true &&
+      !selectedSnapshotVoice
+    )
       throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
-    const selectedProviderId = (selectedV2Voice?.providerId ??
-      override?.providerId ??
-      defaultProviderId) as TTSProviderId;
+    const selectedProviderId = (selectedSnapshotVoice?.providerId ?? defaultProviderId) as
+      | TTSProviderId
+      | undefined;
+    if (!selectedProviderId) throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
+    const selectedPlatform = selectedSnapshotVoice?.source === 'platform';
     const scene = structuredClone(original);
     scene.actions = (scene.actions ?? []).flatMap((action) => {
       return splitLongSpeechActions([action], selectedProviderId);
@@ -283,7 +440,10 @@ export class GenerationMediaServices {
         throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
       const voice =
-        selectedV2Voice?.voice ??
+        selectedSnapshotVoice?.voice ??
+        (selectedPlatform
+          ? this.input.tts!.voice || platformSelection?.platformParameters?.ttsVoice
+          : undefined) ??
         override?.voiceId ??
         this.input.tts!.voice ??
         DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES];
@@ -303,14 +463,14 @@ export class GenerationMediaServices {
           : undefined;
       const key = `tts:${scene.outlineId}:${action.id}`;
       const modelId =
-        selectedV2Voice?.modelId ??
+        selectedSnapshotVoice?.modelId ??
         override?.modelId ??
         this.input.tts!.modelId ??
         DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] ??
         '';
-      const speed = action.speed ?? this.input.tts!.speed ?? selectedV2Voice?.speed;
+      const speed = action.speed ?? this.input.tts!.speed ?? selectedSnapshotVoice?.speed;
       const snapshot =
-        selectedV2Voice ??
+        selectedSnapshotVoice ??
         (this.mediaConfig?.version === 1
           ? this.mediaConfig.tts?.find(
               (candidate) =>
@@ -323,6 +483,7 @@ export class GenerationMediaServices {
         throw new Error('TTS_PROVIDER_NOT_CONFIGURED');
       }
       const custom = providerId.startsWith('custom-tts-');
+      const ownerConfigured = !!snapshot && 'source' in snapshot && snapshot.source === 'user';
       const providerConfig = custom
         ? parseCustomTTSProviderConfig(
             providerId as Parameters<typeof parseCustomTTSProviderConfig>[0],
@@ -330,8 +491,12 @@ export class GenerationMediaServices {
           )
         : {
             providerId,
-            apiKey: resolveTTSApiKey(providerId, snapshot?.apiKey),
-            baseUrl: resolveTTSBaseUrl(providerId, snapshot?.baseUrl),
+            apiKey: ownerConfigured
+              ? snapshot.apiKey
+              : resolveTTSApiKey(providerId, snapshot?.apiKey),
+            baseUrl: ownerConfigured
+              ? snapshot.baseUrl
+              : resolveTTSBaseUrl(providerId, snapshot?.baseUrl),
             voice,
             modelId,
             speed,

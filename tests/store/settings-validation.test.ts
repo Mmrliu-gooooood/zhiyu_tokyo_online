@@ -6,6 +6,7 @@ import {
   validateModel,
   resolveSelectedModel,
   hasUsableLLMProvider,
+  hasUsableLLMSelection,
   isLLMProviderConfigured,
   type ProviderCfgLike,
 } from '@/lib/store/settings-validation';
@@ -287,6 +288,104 @@ describe('hasUsableLLMProvider', () => {
         },
       }),
     ).toBe(true);
+  });
+});
+
+describe('hasUsableLLMSelection', () => {
+  it('accepts an available revisioned platform text default when catalog v2 omits providers', () => {
+    expect(
+      hasUsableLLMSelection(
+        {},
+        {
+          entries: [
+            {
+              capability: 'text',
+              available: true,
+              defaultId: 'zhiyu-default-text',
+              revision: 'revision-1',
+            },
+          ],
+        },
+        { source: 'platform', defaultId: 'zhiyu-default-text' },
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects unavailable or unrevisioned platform defaults', () => {
+    expect(
+      hasUsableLLMSelection(
+        {},
+        {
+          entries: [
+            {
+              capability: 'text',
+              available: true,
+              defaultId: 'zhiyu-default-text',
+            },
+          ],
+        },
+        { source: 'platform', defaultId: 'zhiyu-default-text' },
+      ),
+    ).toBe(false);
+    expect(
+      hasUsableLLMSelection(
+        {},
+        {
+          entries: [
+            {
+              capability: 'text',
+              available: false,
+              defaultId: 'zhiyu-default-text',
+              revision: 'revision-1',
+            },
+          ],
+        },
+        { source: 'platform', defaultId: 'zhiyu-default-text' },
+      ),
+    ).toBe(false);
+  });
+
+  it('does not let a usable user provider mask an invalid selected platform default', () => {
+    expect(
+      hasUsableLLMSelection(
+        {
+          openai: {
+            apiKey: 'sk-x',
+            defaultBaseUrl: 'https://example.test',
+            models: [{ id: 'm1' }],
+          },
+        },
+        {
+          entries: [
+            {
+              capability: 'text',
+              available: true,
+              defaultId: 'zhiyu-default-text',
+            },
+          ],
+        },
+        { source: 'platform', defaultId: 'zhiyu-default-text' },
+      ),
+    ).toBe(false);
+  });
+
+  it('does not let a platform default mask an unusable selected user provider', () => {
+    expect(
+      hasUsableLLMSelection(
+        { openai: { models: [{ id: 'm1' }], defaultBaseUrl: 'https://example.test' } },
+        {
+          entries: [
+            {
+              capability: 'text',
+              available: true,
+              defaultId: 'zhiyu-default-text',
+              revision: 'revision-1',
+            },
+          ],
+        },
+        { source: 'user', providerId: 'openai', modelId: 'm1' },
+      ),
+    ).toBe(false);
   });
 });
 

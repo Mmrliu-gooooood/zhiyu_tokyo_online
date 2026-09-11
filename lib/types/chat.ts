@@ -397,6 +397,8 @@ export interface StatelessChatRequest {
   baseUrl?: string;
   model?: string;
   providerType?: string;
+  modelSource?: 'platform' | 'user' | 'legacy-managed';
+  platformDefaultId?: string;
   /**
    * Opt-in: enable provider-side thinking for this request. Default is
    * `{ enabled: false }` (low-latency chat). Eval harness sets this to

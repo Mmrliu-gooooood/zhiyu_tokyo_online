@@ -59,6 +59,8 @@ export interface AgentLoopRequest {
   baseUrl?: string;
   model?: string;
   providerType?: string;
+  modelSource?: 'platform' | 'user' | 'legacy-managed';
+  platformDefaultId?: string;
   thinkingConfig?: ThinkingConfig;
 }
 
@@ -188,6 +190,8 @@ export async function runAgentLoop(
       baseUrl: request.baseUrl,
       model: request.model,
       providerType: request.providerType,
+      modelSource: request.modelSource,
+      platformDefaultId: request.platformDefaultId,
       thinkingConfig: request.thinkingConfig,
     };
 

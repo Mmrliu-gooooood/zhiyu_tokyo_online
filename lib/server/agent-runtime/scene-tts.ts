@@ -38,6 +38,9 @@ export interface SceneTtsInput {
 }
 
 export interface SceneTtsProviderConfig {
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
   providerId: TTSProviderId;
   protocol?: 'openai-speech';
   apiKey: string;
@@ -101,7 +104,11 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
           providerOptions: selected.providerOptions,
         })
       : undefined;
-  const apiKey = resolveTTSApiKey(providerId, customConfig?.apiKey ?? selected?.apiKey);
+  const fixedSelection =
+    !!customConfig || selected?.source === 'user' || selected?.source === 'platform';
+  const apiKey = fixedSelection
+    ? (customConfig?.apiKey ?? selected?.apiKey ?? '')
+    : resolveTTSApiKey(providerId, selected?.apiKey);
   if ((provider?.requiresApiKey ?? selected?.requiresApiKey) && !apiKey) {
     return { available: false, changed: false, generated: 0, skipped: 0, failed: [] };
   }
@@ -110,12 +117,11 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
     (bound?.providerId === providerId && bound.voiceId
       ? bound.voiceId
       : DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] || '');
-  const modelId =
-    resolveTTSModel(
-      providerId,
-      selected?.modelId || DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '',
-      selectedVoice,
-    ) || '';
+  const requestedModel =
+    selected?.modelId || DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '';
+  const modelId = fixedSelection
+    ? requestedModel
+    : resolveTTSModel(providerId, requestedModel, selectedVoice) || '';
   let generated = 0;
   let skipped = 0;
   const failed: string[] = [];
@@ -132,7 +138,9 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
         providerId,
         modelId,
         apiKey,
-        baseUrl: resolveTTSBaseUrl(providerId, customConfig?.baseUrl ?? selected?.baseUrl),
+        baseUrl: fixedSelection
+          ? (customConfig?.baseUrl ?? selected?.baseUrl)
+          : resolveTTSBaseUrl(providerId, selected?.baseUrl),
         voice: selectedVoice,
         speed: speech.speed ?? selected?.speed,
         format: selected?.format,

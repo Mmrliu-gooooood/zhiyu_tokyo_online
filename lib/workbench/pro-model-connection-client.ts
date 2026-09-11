@@ -52,11 +52,20 @@ export async function syncProModelConnection(config: ProModelContext): Promise<P
     /* stale cache */
   }
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const payload =
+      config.source === 'platform'
+        ? {
+            source: config.source,
+            defaultId: config.defaultId,
+            ...(config.revision ? { revision: config.revision } : {}),
+            ...(config.thinkingConfig ? { thinkingConfig: config.thinkingConfig } : {}),
+          }
+        : config;
     const response = await fetch('/api/agent/model-connections', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...config, ...(ref ? { ref } : {}) }),
+      body: JSON.stringify({ ...payload, ...(ref ? { ref } : {}) }),
     });
     const body = await response.json().catch(() => ({}));
     if (

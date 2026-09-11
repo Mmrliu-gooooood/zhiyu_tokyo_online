@@ -34,6 +34,20 @@ describe('generation deployment contract', () => {
     expect(envExample).toContain('worker reserves additional checkpoint commit time');
   });
 
+  it('passes the platform text thinking policy to web and worker', () => {
+    const compose = read('docker-compose.persistence.yml');
+    const envExample = read('.env.example');
+
+    expect(compose).toContain(
+      'ZHIYU_DEFAULT_TEXT_THINKING_MODE: ${ZHIYU_DEFAULT_TEXT_THINKING_MODE:-disabled}',
+    );
+    expect(compose).toContain(
+      'ZHIYU_DEFAULT_TEXT_THINKING_EFFORT: ${ZHIYU_DEFAULT_TEXT_THINKING_EFFORT:-none}',
+    );
+    expect(envExample).toContain('ZHIYU_DEFAULT_TEXT_THINKING_MODE=disabled');
+    expect(envExample).toContain('ZHIYU_DEFAULT_TEXT_THINKING_EFFORT=none');
+  });
+
   it('labels both runtime images with the same source revision', () => {
     const dockerfile = read('Dockerfile');
 
@@ -45,6 +59,7 @@ describe('generation deployment contract', () => {
 
   it('uses the optional public npm mirror for Corepack and dependency tarballs', () => {
     const dockerfile = read('Dockerfile');
+    const registryScript = read('scripts/docker-pnpm-command.sh');
     const baseStage = dockerfile.slice(0, dockerfile.indexOf('# ---- Stage 2: Dependencies ----'));
     const depsStage = dockerfile.slice(
       dockerfile.indexOf('# ---- Stage 2: Dependencies ----'),
@@ -52,10 +67,42 @@ describe('generation deployment contract', () => {
     );
 
     expect(baseStage).toContain('ARG NPM_REGISTRY=""');
-    expect(baseStage).toContain('COREPACK_NPM_REGISTRY="$npm_registry"');
-    expect(baseStage).toContain('while [ "${npm_registry%/}" != "$npm_registry" ]');
+    expect(baseStage).toContain('docker-pnpm-command prepare');
     expect(depsStage).toContain('ARG NPM_REGISTRY');
-    expect(depsStage).toContain('pnpm config set registry "$npm_registry"');
+    expect(depsStage).toContain('docker-pnpm-command install');
+    expect(registryScript).toContain('COREPACK_NPM_REGISTRY="$registry"');
+    expect(registryScript).toContain('pnpm config set registry "$registry"');
+    expect(registryScript).toContain('while [ "$attempt" -le 3 ]');
+    expect(registryScript).toContain('if [ "$attempt" -eq 1 ]; then delay=2; else delay=5; fi');
+    expect(registryScript).toContain("official_registry='https://registry.npmjs.org'");
+  });
+
+  it('bounds Alpine package retries and falls back without changing container DNS', () => {
+    const dockerfile = read('Dockerfile');
+    const retryScript = read('scripts/docker-apk-add.sh');
+
+    expect(dockerfile).toContain('COPY scripts/docker-apk-add.sh /usr/local/bin/docker-apk-add');
+    expect(dockerfile.match(/docker-apk-add libc6-compat/g)).toHaveLength(2);
+    expect(dockerfile).toContain(
+      'docker-apk-add python3 build-base g++ cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev',
+    );
+    expect(dockerfile).toContain('docker-apk-add cairo pango jpeg giflib librsvg');
+    expect(retryScript).toContain('while [ "$attempt" -le 3 ]');
+    expect(retryScript).toContain('if [ "$attempt" -eq 1 ]; then delay=2; else delay=5; fi');
+    expect(retryScript).toContain('dl-cdn.alpinelinux.org');
+    expect(retryScript).not.toContain('/etc/resolv.conf');
+  });
+
+  it('offers host networking only as an explicit build-scoped recovery option', () => {
+    const script = read('scripts/generation-compose.ps1');
+    const override = read('docker-compose.build-host.yml');
+
+    expect(script).toContain('[switch]$UseHostBuildNetwork');
+    expect(script).toContain("$Action -ne 'build'");
+    expect(script).toContain("$prefix += @('-f','docker-compose.build-host.yml')");
+    expect(override).toMatch(/openmaic:[\s\S]*build:[\s\S]*network: host/);
+    expect(override).toMatch(/generation-worker:[\s\S]*build:[\s\S]*network: host/);
+    expect(override).not.toContain('networks:');
   });
 
   it('gives the non-root generation worker a writable usage directory', () => {
@@ -70,6 +117,29 @@ describe('generation deployment contract', () => {
     expect(workerStage.indexOf('chown -R worker:nodejs /app/data')).toBeLessThan(
       workerStage.indexOf('USER worker'),
     );
+  });
+
+  it('persists web and worker usage in one narrowly initialized volume', () => {
+    const compose = read('docker-compose.persistence.yml');
+
+    expect(compose).toContain('usage-init:');
+    expect(compose).toContain('mkdir -p /data/usage');
+    expect(compose).toContain('chown 1001:65533 /data/usage');
+    expect(compose).toContain('chmod 0770 /data/usage');
+    expect(compose).not.toContain('chmod 777');
+    expect(compose).toMatch(/generation-worker:[\s\S]*volumes:[\s\S]*openmaic-data:\/app\/data/);
+  });
+
+  it('rejects a provider-config directory and disables implicit bind path creation', () => {
+    const script = read('scripts/generation-compose.ps1');
+    const providersCompose = read('docker-compose.providers.yml');
+
+    expect(script).toContain("Test-Path -LiteralPath 'server-providers.yml' -PathType Leaf");
+    expect(script).toContain("Test-Path -LiteralPath 'server-providers.yml' -PathType Container");
+    expect(script).toContain('must be a regular file');
+    expect(providersCompose).toContain('type: bind');
+    expect(providersCompose).toContain('create_host_path: false');
+    expect(providersCompose).not.toContain('./server-providers.yml:/app/server-providers.yml:ro');
   });
 
   it('provisions the Pro runtime stores before the generation worker starts', () => {
@@ -93,6 +163,7 @@ describe('generation deployment contract', () => {
       "if (-not $workerService) { throw 'The generation-worker service is required.' }",
     );
     expect(script).toContain('$workerEnv.DATABASE_URL -ne $appEnv.DATABASE_URL');
+    expect(script).toContain("$workerDataMount[0].source -ne 'openmaic-data'");
     expect(script).toContain(
       '$workerEnv.MEDIA_CONFIG_ENCRYPTION_KEY -ne $appEnv.MEDIA_CONFIG_ENCRYPTION_KEY',
     );
@@ -102,8 +173,15 @@ describe('generation deployment contract', () => {
     expect(script).toContain("GENERATION_BACKGROUND_ENABLED -ne '1'");
     expect(script).toContain("GENERATION_ACCEPTING_JOBS -ne '1'");
     expect(script).toContain('Wait-GenerationWorkerHealthy');
+    expect(script).toContain('function Initialize-UsageDirectory');
+    expect(script).toContain('run --rm --no-deps usage-init');
     expect(script).toContain('org.opencontainers.image.revision');
     expect(script).toContain('OPENMAIC_SOURCE_REVISION');
+    expect(script).toContain('[switch]$AllowDirty');
+    expect(script).toContain('NpmRegistryOverride must be an absolute HTTPS URL');
+    expect(script).toContain('NPM_REGISTRY=$NpmRegistryOverride');
+    expect(script).toContain('return "worktree-$($headRevision.Substring(0, 12))-$fingerprint"');
+    expect(script).toContain('git hash-object -- $path');
     expect(script).toContain(
       'function Get-ReleaseImageRecord([string]$ImageName, [string]$ExpectedRevision)',
     );

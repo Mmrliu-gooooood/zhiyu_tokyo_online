@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { replaceMediaPlaceholders } from '@/lib/server/classroom-media-generation';
 import type { Scene } from '@/lib/types/stage';
 import type { SceneOutline } from '@/lib/types/generation';
@@ -101,6 +101,10 @@ describe('classroom media placeholder replacement', () => {
 });
 
 describe('generateMediaForClassroom model fallback', () => {
+  beforeEach(() => {
+    vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
@@ -273,6 +277,159 @@ describe('generateMediaForClassroom model fallback', () => {
     );
     const genBody = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(genBody.model).toBe('doubao-seedance-2-0-260128');
+  });
+
+  test('applies the platform image default and keeps a same-provider user selection isolated', async () => {
+    vi.stubEnv('IMAGE_MINIMAX_API_KEY', 'platform-image-key');
+    vi.stubEnv('IMAGE_MINIMAX_BASE_URL', 'https://platform-image.example');
+    vi.resetModules();
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: { image_urls: ['https://cdn.example.com/platform.png'] },
+          base_resp: { status_code: 0 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        arrayBuffer: async () => new ArrayBuffer(8),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: { image_urls: ['https://cdn.example.com/user.png'] },
+          base_resp: { status_code: 0 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        arrayBuffer: async () => new ArrayBuffer(8),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const { generateMediaForClassroom } = await import('@/lib/server/classroom-media-generation');
+    const outlines = [
+      {
+        id: 'outline-platform-image',
+        type: 'slide',
+        title: 'Image',
+        description: 'd',
+        order: 1,
+        mediaGenerations: [{ type: 'image', prompt: 'a cat', elementId: 'gen_img_platform' }],
+      },
+    ] as unknown as SceneOutline[];
+
+    await generateMediaForClassroom(outlines, 'cls-platform-image', 'http://localhost', {
+      image: { source: 'platform', defaultId: 'zhiyu-default-image' },
+    });
+    await generateMediaForClassroom(outlines, 'cls-user-image', 'http://localhost', {
+      image: {
+        source: 'user',
+        providerId: 'minimax-image',
+        modelId: 'owner-image-model',
+        apiKey: 'owner-image-key',
+        baseUrl: 'https://owner-image.example',
+      },
+    });
+
+    const platformRequest = fetchMock.mock.calls[0];
+    expect(platformRequest[0]).toBe('https://platform-image.example/v1/image_generation');
+    expect(platformRequest[1].headers.Authorization).toBe('Bearer platform-image-key');
+    expect(JSON.parse(platformRequest[1].body)).toMatchObject({ model: 'image-01', n: 1 });
+    const userRequest = fetchMock.mock.calls[2];
+    expect(userRequest[0]).toBe('https://owner-image.example/v1/image_generation');
+    expect(userRequest[1].headers.Authorization).toBe('Bearer owner-image-key');
+    expect(JSON.parse(userRequest[1].body).model).toBe('owner-image-model');
+  });
+
+  test('submits the platform video default as MiniMax 768P for 6 seconds', async () => {
+    vi.stubEnv('VIDEO_MINIMAX_API_KEY', 'platform-video-key');
+    vi.stubEnv('VIDEO_MINIMAX_BASE_URL', 'https://platform-video.example');
+    vi.useFakeTimers();
+    vi.resetModules();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ task_id: 'task-1', base_resp: { status_code: 0 } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          task_id: 'task-1',
+          status: 'Success',
+          file_id: 'file-1',
+          base_resp: { status_code: 0 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          file: { file_id: 'file-1', download_url: 'https://cdn.example.com/video.mp4' },
+          base_resp: { status_code: 0 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        arrayBuffer: async () => new ArrayBuffer(8),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const { generateMediaForClassroom } = await import('@/lib/server/classroom-media-generation');
+    const outlines = [
+      {
+        id: 'outline-platform-video',
+        type: 'slide',
+        title: 'Video',
+        description: 'd',
+        order: 1,
+        mediaGenerations: [{ type: 'video', prompt: 'a cat', elementId: 'gen_vid_platform' }],
+      },
+    ] as unknown as SceneOutline[];
+
+    const result = generateMediaForClassroom(outlines, 'cls-platform-video', 'http://localhost', {
+      video: { source: 'platform', defaultId: 'zhiyu-default-video' },
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+    await result;
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      model: 'MiniMax-Hailuo-2.3',
+      duration: 6,
+      resolution: '768P',
+    });
+  });
+
+  test('uses the platform TTS Turbo model and registered preset voice', async () => {
+    vi.stubEnv('TTS_MINIMAX_API_KEY', 'platform-tts-key');
+    vi.stubEnv('TTS_MINIMAX_BASE_URL', 'https://platform-tts.example');
+    vi.resetModules();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { audio: '0102' }, extra_info: { audio_format: 'mp3' } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { generateTTSForClassroom } = await import('@/lib/server/classroom-media-generation');
+    const scene = slideScene([]);
+    scene.actions = [{ id: 'speech-platform', type: 'speech', text: 'Hello' }] as never;
+
+    await generateTTSForClassroom([scene], 'cls-platform-tts', 'http://localhost', {
+      source: 'platform',
+      defaultId: 'zhiyu-default-tts',
+    });
+
+    const request = fetchMock.mock.calls[0];
+    expect(request[0]).toBe('https://platform-tts.example/v1/t2a_v2');
+    expect(request[1].headers.Authorization).toBe('Bearer platform-tts-key');
+    expect(JSON.parse(request[1].body)).toMatchObject({
+      model: 'speech-2.8-turbo',
+      voice_setting: { voice_id: 'male-qn-qingse' },
+    });
   });
 
   test('uses the server-pinned video model when VIDEO_<PREFIX>_MODELS is set', async () => {

@@ -13,10 +13,7 @@ import { generateTTS, TTSRateLimitError } from '@/lib/audio/tts-providers';
 import { TTS_PROVIDERS } from '@/lib/audio/constants';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import {
-  isServerConfiguredProvider,
   isServerTTSProviderDisabled,
-  resolveTTSApiKey,
-  resolveTTSBaseUrl,
   resolveTTSModel,
   TTSModelNotAllowedError,
 } from '@/lib/server/provider-config';
@@ -34,6 +31,11 @@ import {
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
 import { getTTSProviderErrorResponse } from '@/lib/server/tts-error-response';
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
+import {
+  ProviderSelectionError,
+  normalizeProviderSelectionSource,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('TTS API');
 
@@ -60,6 +62,8 @@ async function handlePost(req: NextRequest, signal: AbortSignal) {
       ttsProtocol,
       ttsRequiresApiKey,
       ttsProviderOptions,
+      modelSource,
+      platformDefaultId,
     } = body as {
       text: string;
       audioId: string;
@@ -72,18 +76,46 @@ async function handlePost(req: NextRequest, signal: AbortSignal) {
       ttsProtocol?: string;
       ttsRequiresApiKey?: boolean;
       ttsProviderOptions?: Record<string, unknown>;
+      modelSource?: string;
+      platformDefaultId?: string;
     };
+    const normalizedSource = normalizeProviderSelectionSource(modelSource);
     ttsProviderId = body.ttsProviderId;
     ttsVoice = typeof body.ttsVoice === 'string' ? body.ttsVoice.trim() : undefined;
     audioId = body.audioId;
 
     // Validate required fields
-    if (!text || !audioId || !ttsProviderId || !ttsVoice) {
+    if (!text || !audioId || (!ttsProviderId && normalizedSource !== 'platform')) {
       return apiError(
         'MISSING_REQUIRED_FIELD',
         400,
-        'Missing required fields: text, audioId, ttsProviderId, ttsVoice',
+        'Missing required fields: text, audioId, ttsProviderId',
       );
+    }
+
+    const customProvider =
+      normalizedSource !== 'platform' && String(ttsProviderId).startsWith('custom-tts-');
+    const selection = customProvider
+      ? undefined
+      : resolveProviderSelection({
+          capability: 'tts',
+          source: normalizedSource,
+          defaultId: platformDefaultId,
+          providerId: ttsProviderId,
+          modelId: ttsModelId,
+          apiKey: ttsApiKey,
+          baseUrl: ttsBaseUrl,
+          voiceId: ttsVoice,
+        });
+    if (selection) {
+      ttsProviderId = selection.providerId;
+      ttsVoice = ttsVoice || selection.platformParameters?.ttsVoice;
+    }
+    if (!ttsVoice) {
+      return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: ttsVoice');
+    }
+    if (!ttsProviderId) {
+      return apiError('MISSING_PROVIDER', 400, 'No TTS provider selected');
     }
 
     // Reject browser-native TTS — must be handled client-side
@@ -117,7 +149,7 @@ async function handlePost(req: NextRequest, signal: AbortSignal) {
     }
 
     // Managed providers are admin-owned: ignore any client-sent key/baseUrl.
-    const managed = isServerConfiguredProvider('tts', ttsProviderId);
+    const managed = selection?.managed ?? false;
     const clientBaseUrl = managed ? undefined : ttsBaseUrl || undefined;
     if (clientBaseUrl) {
       const ssrfError = await validateUrlForSSRF(clientBaseUrl);
@@ -126,8 +158,8 @@ async function handlePost(req: NextRequest, signal: AbortSignal) {
       }
     }
 
-    const apiKey = resolveTTSApiKey(ttsProviderId, managed ? undefined : ttsApiKey || undefined);
-    const baseUrl = resolveTTSBaseUrl(ttsProviderId, clientBaseUrl);
+    const apiKey = selection?.apiKey ?? ttsApiKey ?? '';
+    const baseUrl = selection?.baseUrl ?? clientBaseUrl;
 
     // Pre-flight the same key requirement the library enforces: a keyed provider
     // with no key (server config AND client-supplied key both absent) is a
@@ -146,7 +178,8 @@ async function handlePost(req: NextRequest, signal: AbortSignal) {
     // Build TTS config (managed providers may pin the model server-side)
     const qwenCloneVoice = ttsProviderId === 'qwen-tts' && isQwenCloneVoice(ttsVoice);
     const requestedSpeed = ttsSpeed ?? 1.0;
-    const resolvedModelId = resolveTTSModel(ttsProviderId, ttsModelId, ttsVoice);
+    const resolvedModelId =
+      selection?.modelId ?? resolveTTSModel(ttsProviderId, ttsModelId, ttsVoice);
     const config = String(ttsProviderId).startsWith('custom-tts-')
       ? parseCustomTTSProviderConfig(ttsProviderId as TTSProviderId, {
           id: ttsProviderId,
@@ -209,6 +242,9 @@ async function handlePost(req: NextRequest, signal: AbortSignal) {
       `TTS generation failed [provider=${ttsProviderId ?? 'unknown'}, voice=${ttsVoice ?? 'unknown'}, audioId=${audioId ?? 'unknown'}]:`,
       error,
     );
+    if (error instanceof ProviderSelectionError) {
+      return apiError(error.code, error.httpStatus, error.message);
+    }
     if (error instanceof TTSRateLimitError) {
       return apiError('RATE_LIMITED', 429, error.message);
     }

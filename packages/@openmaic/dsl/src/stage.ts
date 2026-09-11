@@ -85,6 +85,9 @@ export interface AgentVoiceConfig {
   /** Model the voice was selected or enrolled for, when model-bound. */
   modelId?: string;
   voiceId: string;
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
 }
 
 /**

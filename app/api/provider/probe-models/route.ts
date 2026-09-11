@@ -3,6 +3,10 @@ import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { fetchModels, ModelFetchError } from '@/lib/server/model-fetch';
+import {
+  normalizeProviderSelectionSource,
+  ProviderSelectionError,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('ProbeModels');
 
@@ -18,6 +22,24 @@ const NON_CHAT_PATTERN = /(tts|asr|whisper|embedding|rerank|mineru|image|video|v
  */
 export async function POST(req: NextRequest) {
   try {
+    const source = normalizeProviderSelectionSource(
+      req.headers.get('x-model-source')?.trim() || undefined,
+    );
+    const platformDefaultId = req.headers.get('x-platform-default-id')?.trim() || undefined;
+    if (source === 'platform') {
+      return apiError(
+        'INVALID_MODEL_SOURCE',
+        400,
+        'Platform default models are verified through the server-managed catalog',
+      );
+    }
+    if (platformDefaultId) {
+      return apiError(
+        'INVALID_MODEL_SOURCE',
+        400,
+        'A platform default ID can only be used with the platform model source',
+      );
+    }
     const body = await req.json();
     const { baseUrl, apiKey, modelsUrl } = body as {
       baseUrl?: string;
@@ -44,6 +66,9 @@ export async function POST(req: NextRequest) {
       filtered: models.length - chatModels.length,
     });
   } catch (error) {
+    if (error instanceof ProviderSelectionError) {
+      return apiError(error.code, error.httpStatus, error.message);
+    }
     if (error instanceof ModelFetchError) {
       if (error.status >= 300 && error.status < 400) {
         return apiError('REDIRECT_NOT_ALLOWED', 403, 'Redirects are not allowed');

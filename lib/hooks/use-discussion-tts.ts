@@ -19,6 +19,10 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants';
 import { toast } from 'sonner';
 import {
+  platformTTSRequestFields,
+  withPlatformTTSAvailability,
+} from '@/lib/audio/platform-tts-selection';
+import {
   isVoiceBindingUnavailable,
   markVoiceBindingNoticeShown,
   markVoiceBindingUnavailable,
@@ -39,6 +43,9 @@ interface QueueItem {
   providerId: TTSProviderId;
   modelId?: string;
   voiceId: string;
+  source?: 'platform' | 'user' | 'legacy-managed';
+  defaultId?: string;
+  revision?: string;
   fallbackVoice?: ResolvedVoice;
 }
 
@@ -52,6 +59,8 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
   // Global lecture voice — used as fallback for teacher agent
   const globalTtsProviderId = useSettingsStore((s) => s.ttsProviderId);
   const globalTtsVoice = useSettingsStore((s) => s.ttsVoice);
+  const ttsSelection = useSettingsStore((s) => s.ttsSelection);
+  const platformDefaults = useSettingsStore((s) => s.platformDefaults);
   const agentVoiceOverrides = useSettingsStore((s) => s.agentVoiceOverrides);
   const { profiles: voiceProfiles } = useAllVoiceProfiles();
 
@@ -113,6 +122,18 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
     return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
   }, []);
 
+  const effectiveTTSProvidersConfig = withPlatformTTSAvailability(
+    ttsProvidersConfig,
+    ttsSelection,
+    platformDefaults,
+  );
+  const platformTTSDefault =
+    ttsSelection?.source === 'platform'
+      ? platformDefaults?.entries.find(
+          (entry) => entry.capability === 'tts' && entry.defaultId === ttsSelection.defaultId,
+        )
+      : undefined;
+
   const resolveVoiceForAgent = useCallback(
     (agentId: string | null): ResolvedVoice | null => {
       // ONE selectable-provider list shared with the AgentBar picker: enabled
@@ -120,7 +141,7 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       // it (fixes the #665 student-silence bug); the teacher uses the global
       // lecture voice (below).
       const providers = getSelectableProvidersWithVoices(
-        ttsProvidersConfig,
+        effectiveTTSProvidersConfig,
         voiceProfiles,
         browserVoices,
       );
@@ -138,11 +159,18 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       const globalVoice = resolveNarratorVoiceBinding(
         undefined,
         {
+          source: ttsSelection.source,
+          ...(ttsSelection.source === 'platform'
+            ? {
+                defaultId: ttsSelection.defaultId,
+                revision: platformTTSDefault?.revision,
+              }
+            : {}),
           providerId: globalTtsProviderId,
           voiceId: globalTtsVoice,
           modelId: ttsProvidersConfig[globalTtsProviderId]?.modelId,
         },
-        ttsProvidersConfig,
+        effectiveTTSProvidersConfig,
       );
       // Teacher's voice = the global lecture selection, honored VERBATIM (incl.
       // its model) whenever that provider is enabled — identical to what the
@@ -154,15 +182,22 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
         const resolved = resolveNarratorVoiceBinding(
           agent.voiceConfig,
           {
+            source: ttsSelection.source,
+            ...(ttsSelection.source === 'platform'
+              ? {
+                  defaultId: ttsSelection.defaultId,
+                  revision: platformTTSDefault?.revision,
+                }
+              : {}),
             providerId: globalTtsProviderId,
             voiceId: globalTtsVoice,
             modelId: ttsProvidersConfig[globalTtsProviderId]?.modelId,
           },
-          ttsProvidersConfig,
+          effectiveTTSProvidersConfig,
         );
         const preferred = isTTSProviderEnabled(
           resolved.providerId,
-          ttsProvidersConfig[resolved.providerId],
+          effectiveTTSProvidersConfig[resolved.providerId],
         )
           ? resolved
           : firstVoice();
@@ -188,19 +223,25 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
         const key = trackAssignedVoiceBinding(previousKey, preferred);
         agentBindingKeysRef.current.set(id, key);
         if (!isVoiceBindingUnavailable(preferred)) return preferred;
-        return isTTSProviderEnabled(fallback.providerId, ttsProvidersConfig[fallback.providerId])
+        return isTTSProviderEnabled(
+          fallback.providerId,
+          effectiveTTSProvidersConfig[fallback.providerId],
+        )
           ? fallback
           : getFirstVoice();
       }
     },
     [
       agents,
+      effectiveTTSProvidersConfig,
       ttsProvidersConfig,
       voiceProfiles,
       browserVoices,
       globalTtsProviderId,
       globalTtsVoice,
       agentVoiceOverrides,
+      platformTTSDefault?.revision,
+      ttsSelection,
     ],
   );
 
@@ -238,20 +279,32 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
         voiceId: item.voiceId,
         language: locale,
       });
+      const requestSelection = platformTTSRequestFields(
+        ttsSelection,
+        item.providerId,
+        globalTtsProviderId,
+        item.modelId || providerConfig?.modelId,
+        platformTTSDefault?.modelId,
+        item,
+      );
+      const platform = requestSelection.modelSource === 'platform';
       const res = await fetch('/api/generate/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: item.text,
           audioId: item.partId,
-          ttsProviderId: item.providerId,
-          ttsModelId: item.modelId || providerConfig?.modelId,
+          ...requestSelection,
+          ...(platform
+            ? {}
+            : {
+                ttsProviderId: item.providerId,
+                ttsModelId: item.modelId || providerConfig?.modelId,
+                ttsApiKey: providerConfig?.apiKey,
+                ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
+              }),
           ttsVoice: item.voiceId,
           ttsSpeed: ttsSpeed,
-          ttsApiKey: providerConfig?.apiKey,
-          // Managed providers resolve their base URL server-side; only send the
-          // client's own base URL (custom providers).
-          ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
           ttsProtocol: providerConfig?.protocol,
           ttsRequiresApiKey: providerConfig?.requiresApiKey,
           ttsProviderOptions: providerOptions,
@@ -322,6 +375,9 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
           providerId: item.fallbackVoice!.providerId,
           modelId: item.fallbackVoice!.modelId,
           voiceId: item.fallbackVoice!.voiceId,
+          source: item.fallbackVoice!.source,
+          defaultId: item.fallbackVoice!.defaultId,
+          revision: item.fallbackVoice!.revision,
           fallbackVoice: undefined,
         });
       }
@@ -346,6 +402,9 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
     ttsProvidersConfig,
     ttsSpeed,
     playbackSpeed,
+    globalTtsProviderId,
+    ttsSelection,
+    platformTTSDefault?.modelId,
   ]);
 
   processQueueRef.current = processQueue;
@@ -368,6 +427,13 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
           ? resolveNarratorVoiceBinding(
               undefined,
               {
+                source: ttsSelection.source,
+                ...(ttsSelection.source === 'platform'
+                  ? {
+                      defaultId: ttsSelection.defaultId,
+                      revision: platformTTSDefault?.revision,
+                    }
+                  : {}),
                 providerId: globalTtsProviderId,
                 voiceId: globalTtsVoice,
                 modelId: ttsProvidersConfig[globalTtsProviderId]?.modelId,
@@ -383,6 +449,9 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
         providerId,
         modelId: effectiveModelId,
         voiceId,
+        source: resolved.source,
+        defaultId: resolved.defaultId,
+        revision: resolved.revision,
         ...(fallbackVoice &&
         (fallbackVoice.providerId !== providerId || fallbackVoice.voiceId !== voiceId)
           ? { fallbackVoice }
@@ -402,6 +471,8 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       resolveVoiceForAgent,
       ttsMuted,
       ttsProvidersConfig,
+      ttsSelection,
+      platformTTSDefault?.revision,
     ],
   );
 

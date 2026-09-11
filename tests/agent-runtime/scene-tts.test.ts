@@ -4,13 +4,16 @@ const mocks = vi.hoisted(() => ({
   providers: vi.fn(),
   generate: vi.fn(),
   persist: vi.fn(),
+  resolveApiKey: vi.fn((_id: string, value?: string) => value || ''),
+  resolveBaseUrl: vi.fn((_id: string, value?: string) => value),
+  resolveModel: vi.fn((_id: string, value?: string) => value || ''),
 }));
 
 vi.mock('@/lib/server/provider-config', () => ({
   getServerTTSProviders: mocks.providers,
-  resolveTTSApiKey: vi.fn((_id: string, value?: string) => value || ''),
-  resolveTTSBaseUrl: vi.fn((_id: string, value?: string) => value),
-  resolveTTSModel: vi.fn((_id: string, value?: string) => value || ''),
+  resolveTTSApiKey: mocks.resolveApiKey,
+  resolveTTSBaseUrl: mocks.resolveBaseUrl,
+  resolveTTSModel: mocks.resolveModel,
 }));
 
 vi.mock('@/lib/audio/tts-providers', () => ({ generateTTS: mocks.generate }));
@@ -33,7 +36,12 @@ const scene = {
 } as Scene;
 
 describe('scene TTS capability routing', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.resolveApiKey.mockImplementation((_id: string, value?: string) => value || '');
+    mocks.resolveBaseUrl.mockImplementation((_id: string, value?: string) => value);
+    mocks.resolveModel.mockImplementation((_id: string, value?: string) => value || '');
+  });
 
   it('honors the server capability force-off before synthesis', async () => {
     mocks.providers.mockReturnValue({ 'configured-tts': { disabled: true } });
@@ -146,6 +154,44 @@ describe('scene TTS capability routing', () => {
         apiKey: 'key-two',
         modelId: 'speech-2.8-turbo',
         voice: 'voice-two',
+      }),
+      'Hello',
+    );
+  });
+
+  it('uses only the owner credentials and endpoint for a user selection', async () => {
+    mocks.providers.mockReturnValue({ 'minimax-tts': {} });
+    mocks.generate.mockResolvedValue({ audio: new Uint8Array([1, 2]), format: 'mp3' });
+    mocks.persist.mockResolvedValue('/api/classroom-media/stage-a/media/user.mp3');
+    mocks.resolveApiKey.mockReturnValue('server-key');
+    mocks.resolveBaseUrl.mockReturnValue('https://server.example/v1');
+    mocks.resolveModel.mockReturnValue('server-model');
+
+    await synthesizeSceneNarration({
+      scene: structuredClone(scene),
+      force: false,
+      providerConfigs: [
+        {
+          source: 'user',
+          providerId: 'minimax-tts',
+          apiKey: 'owner-key',
+          baseUrl: 'https://owner.example/v1',
+          requiresApiKey: true,
+          enabled: true,
+          modelId: 'owner-model',
+          voice: 'owner-voice',
+        },
+      ],
+    });
+
+    expect(mocks.resolveApiKey).not.toHaveBeenCalled();
+    expect(mocks.resolveBaseUrl).not.toHaveBeenCalled();
+    expect(mocks.resolveModel).not.toHaveBeenCalled();
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'owner-key',
+        baseUrl: 'https://owner.example/v1',
+        modelId: 'owner-model',
       }),
       'Hello',
     );

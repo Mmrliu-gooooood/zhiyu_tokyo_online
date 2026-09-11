@@ -19,6 +19,7 @@ vi.mock('@/lib/ai/llm', () => ({
 
 vi.mock('@/lib/server/resolve-model', () => ({
   resolveModelFromRequest: mocks.resolveModelFromRequest,
+  getModelResolutionError: () => undefined,
 }));
 
 vi.mock('@/lib/config/feature-flags', () => ({

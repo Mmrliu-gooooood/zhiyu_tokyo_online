@@ -18,6 +18,7 @@ vi.mock('@/lib/server/provider-config', () => ({
   resolveTTSModel: (_id: string, model?: string) => model,
 }));
 vi.mock('@/lib/server/resolve-model', () => ({
+  getModelResolutionError: () => undefined,
   resolveModel: async (input: unknown) => {
     mocks.modelInputs.push(input);
     return { providerId: 'openai', modelId: 'gpt-test', apiKey: 'server-key' };

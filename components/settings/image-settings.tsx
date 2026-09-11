@@ -134,6 +134,7 @@ export function ImageSettings({ selectedProviderId }: ImageSettingsProps) {
         headers: {
           'x-image-provider': selectedProviderId,
           'x-image-model': testModelId,
+          'x-model-source': 'user',
           'Content-Type': 'application/json',
           'x-api-key': currentConfig?.apiKey || '',
           'x-base-url': currentConfig?.baseUrl || '',

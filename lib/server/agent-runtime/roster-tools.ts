@@ -35,7 +35,6 @@ import { normalizeVoiceDesign } from '@/lib/audio/voice-design';
 import { TTS_PROVIDERS } from '@/lib/audio/constants';
 import {
   buildVoiceCatalog,
-  type CatalogVoice,
   type RegisteredVoiceInfo,
   type VoiceCatalogProvider,
 } from '@/lib/audio/voice-catalog';
@@ -50,6 +49,7 @@ import {
   sessionVoiceCatalog,
   type EffectiveSessionVoiceConfig,
   type EffectiveSessionVoiceSource,
+  type SessionCatalogVoice,
 } from './effective-voice-directory';
 
 export type CourseDocument = MaicDocument<Scene, Stage>;
@@ -79,10 +79,12 @@ export type RosterVoiceProviderConfig = EffectiveSessionVoiceConfig;
 
 // ── Roster helpers ──────────────────────────────────────────────────────────
 
-/** Parse an LLM-emitted v1 pair or model-qualified v2 voice binding. */
-export function parseVoiceConfig(
-  voice?: string,
-): { providerId: string; modelId?: string; voiceId: string } | undefined {
+type ParsedVoiceBinding =
+  | { source: 'platform'; defaultId: string; voiceId: string }
+  | { providerId: string; modelId?: string; voiceId: string };
+
+/** Parse an LLM-emitted legacy pair, model-qualified binding, or platform identity. */
+export function parseVoiceConfig(voice?: string): ParsedVoiceBinding | undefined {
   if (!voice) return undefined;
   const parts = voice.split('::');
   if (parts.length === 2) {
@@ -91,16 +93,16 @@ export function parseVoiceConfig(
   }
   if (parts.length === 3) {
     const [providerId, modelId, voiceId] = parts;
+    if (providerId === 'platform') {
+      return modelId && voiceId ? { source: 'platform', defaultId: modelId, voiceId } : undefined;
+    }
     return providerId && modelId && voiceId ? { providerId, modelId, voiceId } : undefined;
   }
   return undefined;
 }
 
-function formatVoiceBinding(binding: {
-  providerId: string;
-  modelId?: string;
-  voiceId: string;
-}): string {
+function formatVoiceBinding(binding: ParsedVoiceBinding): string {
+  if ('source' in binding) return `platform::${binding.defaultId}::${binding.voiceId}`;
   return binding.modelId
     ? `${binding.providerId}::${binding.modelId}::${binding.voiceId}`
     : `${binding.providerId}::${binding.voiceId}`;
@@ -127,7 +129,7 @@ export function agentVoiceCatalog(
   providerConfigs?:
     | readonly RosterVoiceProviderConfig[]
     | EffectiveSessionVoiceSource<RosterVoiceProviderConfig>,
-): Array<CatalogVoice & { modelId?: string }> {
+): SessionCatalogVoice[] {
   if (providerConfigs) return sessionVoiceCatalog(providerConfigs, registeredVoices);
   const providers: VoiceCatalogProvider[] = [];
   for (const id of enabledServerTTSProviderIds()) {
@@ -366,9 +368,12 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
         const voiceConfig =
           parsedVoice && catalogVoice
             ? {
-                providerId: parsedVoice.providerId,
+                ...(catalogVoice.source ? { source: catalogVoice.source } : {}),
+                ...(catalogVoice.defaultId ? { defaultId: catalogVoice.defaultId } : {}),
+                ...(catalogVoice.revision ? { revision: catalogVoice.revision } : {}),
+                providerId: catalogVoice.providerId,
                 ...(catalogVoice.modelId ? { modelId: catalogVoice.modelId } : {}),
-                voiceId: parsedVoice.voiceId,
+                voiceId: catalogVoice.id,
               }
             : undefined;
         return {

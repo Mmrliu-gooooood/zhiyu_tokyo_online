@@ -1,0 +1,7 @@
+services:
+  openmaic:
+    build:
+      network: host
+  generation-worker:
+    build:
+      network: host

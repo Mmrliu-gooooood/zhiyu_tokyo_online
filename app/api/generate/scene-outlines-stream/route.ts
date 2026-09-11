@@ -37,7 +37,7 @@ import type {
 } from '@/lib/types/generation';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { getModelResolutionError, resolveModelFromRequest } from '@/lib/server/resolve-model';
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
 import { resolveVisionImagesForPrompt } from '@/lib/persistence/resolve-vision-images';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
@@ -627,6 +627,9 @@ export async function POST(req: NextRequest) {
       `Outline streaming failed [requirement="${requirementSnippet ?? 'unknown'}...", model=${resolvedModelString ?? 'unknown'}]:`,
       error,
     );
-    return apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));
+    const resolutionError = getModelResolutionError(error);
+    return resolutionError
+      ? apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message)
+      : apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));
   }
 }

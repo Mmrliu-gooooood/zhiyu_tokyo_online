@@ -61,11 +61,18 @@ import {
   isProviderUsable,
 } from '@/lib/store/settings-validation';
 import { createKVPersistStorage, purgeLegacyPersistKey } from '@/lib/store/kv-persist';
+import type {
+  ModelSelection,
+  PlatformDefaultCapability,
+  PlatformDefaultCatalog,
+  PlatformDefaultId,
+} from '@/lib/types/platform-default-models';
 
 const log = createLogger('Settings');
 
 /** Persisted-blob version for zustand's `persist` `migrate` ladder. */
-const SETTINGS_PERSIST_VERSION = 5;
+const SETTINGS_PERSIST_VERSION = 7;
+let serverProviderRequestSequence = 0;
 
 /**
  * Bound after the store exists; see `onWriteRefused` for why it is not inlined.
@@ -106,6 +113,12 @@ export interface SettingsState {
 
   // Provider configurations (unified JSON storage)
   providersConfig: ProvidersConfig;
+  llmSelection: ModelSelection;
+  imageSelection: ModelSelection;
+  videoSelection: ModelSelection;
+  ttsSelection: ModelSelection;
+  platformDefaults: PlatformDefaultCatalog | null;
+  platformDefaultsStatus: 'idle' | 'ready' | 'error';
 
   // TTS settings (legacy, kept for backward compatibility)
   ttsModel: string;
@@ -221,6 +234,8 @@ export interface SettingsState {
 
   // Auto-config lifecycle flag (persisted)
   autoConfigApplied: boolean;
+  /** Fresh-account platform defaults remain pending until an authoritative, usable catalog arrives. */
+  platformDefaultAutoSelectPending: boolean;
 
   // Playback controls
   ttsMuted: boolean;
@@ -255,6 +270,7 @@ export interface SettingsState {
 
   // Actions
   setModel: (providerId: ProviderId, modelId: string) => void;
+  setPlatformDefault: (capability: PlatformDefaultCapability, defaultId: PlatformDefaultId) => void;
   setThinkingConfig: (
     providerId: ProviderId,
     modelId: string,
@@ -994,6 +1010,24 @@ export const useSettingsStore = create<SettingsState>()(
         // the KVStore on rehydration; an upgrading user reconfigures once.
         providerId: 'openai' as ProviderId,
         modelId: '',
+        llmSelection: { source: 'user', providerId: 'openai', modelId: '' },
+        imageSelection: {
+          source: 'user',
+          providerId: defaultImageConfig.imageProviderId,
+          modelId: defaultImageConfig.imageModelId,
+        },
+        videoSelection: {
+          source: 'user',
+          providerId: defaultVideoConfig.videoProviderId,
+          modelId: defaultVideoConfig.videoModelId,
+        },
+        ttsSelection: {
+          source: 'user',
+          providerId: defaultAudioConfig.ttsProviderId,
+          modelId: defaultAudioConfig.ttsProvidersConfig[defaultAudioConfig.ttsProviderId]?.modelId,
+        },
+        platformDefaults: null,
+        platformDefaultsStatus: 'idle',
         thinkingConfigs: {},
         providersConfig: getDefaultProvidersConfig(),
         ttsModel: 'openai-tts',
@@ -1043,12 +1077,63 @@ export const useSettingsStore = create<SettingsState>()(
         parallelSceneConcurrency: 0,
 
         autoConfigApplied: false,
+        platformDefaultAutoSelectPending: true,
 
         // Web Search settings (use defaults)
         ...defaultWebSearchConfig,
 
         // Actions
-        setModel: (providerId, modelId) => set({ providerId, modelId }),
+        setModel: (providerId, modelId) =>
+          set({
+            providerId,
+            modelId,
+            llmSelection: { source: 'user', providerId, modelId },
+            platformDefaultAutoSelectPending: false,
+          }),
+
+        setPlatformDefault: (capability, defaultId) =>
+          set((state) => {
+            const entry = state.platformDefaults?.entries.find(
+              (candidate) =>
+                candidate.defaultId === defaultId && candidate.capability === capability,
+            );
+            if (!entry?.available) return state;
+            const selection: ModelSelection = { source: 'platform', defaultId };
+            const platformDefaultAutoSelectPending = false;
+            switch (capability) {
+              case 'text':
+                return {
+                  platformDefaultAutoSelectPending,
+                  llmSelection: selection,
+                  providerId: entry.providerId as ProviderId,
+                  modelId: entry.modelId,
+                };
+              case 'image':
+                return {
+                  platformDefaultAutoSelectPending,
+                  imageSelection: selection,
+                  imageProviderId: entry.providerId as ImageProviderId,
+                  imageModelId: entry.modelId,
+                  imageGenerationEnabled: true,
+                };
+              case 'video':
+                return {
+                  platformDefaultAutoSelectPending,
+                  videoSelection: selection,
+                  videoProviderId: entry.providerId as VideoProviderId,
+                  videoModelId: entry.modelId,
+                  videoGenerationEnabled: true,
+                };
+              case 'tts':
+                return {
+                  platformDefaultAutoSelectPending,
+                  ttsSelection: selection,
+                  ttsProviderId: entry.providerId as TTSProviderId,
+                  ttsVoice: entry.parameters.ttsVoice || state.ttsVoice,
+                  ttsEnabled: true,
+                };
+            }
+          }),
 
         setThinkingConfig: (providerId, modelId, config) =>
           set((state) => {
@@ -1077,6 +1162,12 @@ export const useSettingsStore = create<SettingsState>()(
             // to another usable provider or State A), or change its model list
             // (re-pick the model). All handled atomically here, never leaving
             // an invalid/stale (provider, model) selected.
+            if (state.llmSelection.source === 'platform') {
+              return {
+                providersConfig,
+                thinkingConfigs: pruneThinkingConfigs(state.thinkingConfigs, providersConfig),
+              };
+            }
             const { providerId: nextProvider, modelId: nextModel } = resolveLLMSelection(
               providersConfig,
               state.providerId,
@@ -1087,11 +1178,18 @@ export const useSettingsStore = create<SettingsState>()(
               thinkingConfigs: pruneThinkingConfigs(state.thinkingConfigs, providersConfig),
               ...(nextProvider !== state.providerId && { providerId: nextProvider }),
               ...(nextModel !== state.modelId && { modelId: nextModel }),
+              llmSelection: { source: 'user', providerId: nextProvider, modelId: nextModel },
             };
           }),
 
         setProvidersConfig: (config) =>
           set((state) => {
+            if (state.llmSelection.source === 'platform') {
+              return {
+                providersConfig: config,
+                thinkingConfigs: pruneThinkingConfigs(state.thinkingConfigs, config),
+              };
+            }
             // Bulk config replace (delete provider/model, import, reset): same
             // shared resolver as setProviderConfig so the two paths can never
             // diverge — never leave the deleted/invalid provider selected.
@@ -1105,6 +1203,7 @@ export const useSettingsStore = create<SettingsState>()(
               thinkingConfigs: pruneThinkingConfigs(state.thinkingConfigs, config),
               ...(nextProvider !== state.providerId && { providerId: nextProvider }),
               ...(nextModel !== state.modelId && { modelId: nextModel }),
+              llmSelection: { source: 'user', providerId: nextProvider, modelId: nextModel },
             };
           }),
 
@@ -1126,7 +1225,7 @@ export const useSettingsStore = create<SettingsState>()(
           set((state) => {
             const next = { ...state.agentVoiceOverrides };
             if (voice) {
-              next[agentId] = voice;
+              next[agentId] = voice.source ? voice : { ...voice, source: 'user' };
             } else {
               delete next[agentId];
             }
@@ -1151,6 +1250,12 @@ export const useSettingsStore = create<SettingsState>()(
               : DEFAULT_TTS_VOICES[providerId as BuiltInTTSProviderId] || 'default';
             return {
               ttsProviderId: providerId,
+              platformDefaultAutoSelectPending: false,
+              ttsSelection: {
+                source: 'user',
+                providerId,
+                modelId: state.ttsProvidersConfig[providerId]?.modelId,
+              },
               ...(shouldUpdateVoice && { ttsVoice: defaultVoice }),
               ...(providerId === 'qwen-tts' &&
               isQwenCatalogVoice(defaultVoice) &&
@@ -1220,14 +1325,35 @@ export const useSettingsStore = create<SettingsState>()(
             // Disabling the active provider (e.g. removing a token plan) switches
             // the selection back to the always-available browser TTS so playback
             // doesn't keep pointing at a disabled provider with an empty key.
-            if (state.ttsProviderId === providerId && config.enabled === false) {
+            if (
+              state.ttsSelection.source !== 'platform' &&
+              state.ttsProviderId === providerId &&
+              config.enabled === false
+            ) {
               return {
                 ttsProvidersConfig,
                 ttsProviderId: getDefaultAudioConfig().ttsProviderId,
                 ttsVoice: 'default',
+                ttsSelection: {
+                  source: 'user',
+                  providerId: getDefaultAudioConfig().ttsProviderId,
+                },
               };
             }
-            return { ttsProvidersConfig };
+            return {
+              ttsProvidersConfig,
+              ...(state.ttsSelection.source !== 'platform' &&
+              state.ttsProviderId === providerId &&
+              config.modelId !== undefined
+                ? {
+                    ttsSelection: {
+                      source: 'user' as const,
+                      providerId,
+                      modelId: config.modelId,
+                    },
+                  }
+                : {}),
+            };
           }),
 
         setASRProviderConfig: (providerId, config) =>
@@ -1257,18 +1383,28 @@ export const useSettingsStore = create<SettingsState>()(
 
         // Image Generation actions
         setImageProvider: (providerId) =>
-          set((state) => ({
-            imageProviderId: providerId,
-            imageModelId: resolveSelectedModel(
+          set((state) => {
+            const imageModelId = resolveSelectedModel(
               state.imageModelId,
               resolveMediaModels(
                 findImageProvider(providerId, IMAGE_PROVIDERS, state.imageProvidersConfig)
                   ?.models ?? [],
                 state.imageProvidersConfig[providerId],
               ),
-            ),
+            );
+            return {
+              imageProviderId: providerId,
+              imageModelId,
+              platformDefaultAutoSelectPending: false,
+              imageSelection: { source: 'user', providerId, modelId: imageModelId },
+            };
+          }),
+        setImageModelId: (modelId) =>
+          set((state) => ({
+            imageModelId: modelId,
+            platformDefaultAutoSelectPending: false,
+            imageSelection: { source: 'user', providerId: state.imageProviderId, modelId },
           })),
-        setImageModelId: (modelId) => set({ imageModelId: modelId }),
 
         setImageProviderConfig: (providerId, config) =>
           set((state) => {
@@ -1281,13 +1417,17 @@ export const useSettingsStore = create<SettingsState>()(
               [providerId]: mergedProvider,
             };
             const base = { imageProvidersConfig };
-            if (state.imageProviderId === providerId) {
+            if (
+              state.imageSelection.source !== 'platform' &&
+              state.imageProviderId === providerId
+            ) {
               if (config.enabled === false) {
                 return {
                   ...base,
                   imageProviderId: '' as ImageProviderId,
                   imageModelId: '',
                   imageGenerationEnabled: false,
+                  imageSelection: { source: 'user', providerId: '', modelId: '' },
                 };
               }
               // Atomic invariant (#580): a config edit on the active image
@@ -1299,7 +1439,11 @@ export const useSettingsStore = create<SettingsState>()(
               );
               const imageModelId = resolveSelectedModel(state.imageModelId, models);
               if (imageModelId) {
-                return { ...base, imageModelId };
+                return {
+                  ...base,
+                  imageModelId,
+                  imageSelection: { source: 'user', providerId, modelId: imageModelId },
+                };
               }
             }
             return base;
@@ -1325,6 +1469,7 @@ export const useSettingsStore = create<SettingsState>()(
               },
               imageProviderId: id,
               imageModelId: '',
+              imageSelection: { source: 'user', providerId: id, modelId: '' },
             };
           }),
 
@@ -1338,24 +1483,35 @@ export const useSettingsStore = create<SettingsState>()(
                 imageProviderId: '' as ImageProviderId,
                 imageModelId: '',
                 imageGenerationEnabled: false,
+                imageSelection: { source: 'user', providerId: '', modelId: '' },
               }),
             };
           }),
 
         // Video Generation actions
         setVideoProvider: (providerId) =>
-          set((state) => ({
-            videoProviderId: providerId,
-            videoModelId: resolveSelectedModel(
+          set((state) => {
+            const videoModelId = resolveSelectedModel(
               state.videoModelId,
               resolveMediaModels(
                 findVideoProvider(providerId, VIDEO_PROVIDERS, state.videoProvidersConfig)
                   ?.models ?? [],
                 state.videoProvidersConfig[providerId],
               ),
-            ),
+            );
+            return {
+              videoProviderId: providerId,
+              videoModelId,
+              platformDefaultAutoSelectPending: false,
+              videoSelection: { source: 'user', providerId, modelId: videoModelId },
+            };
+          }),
+        setVideoModelId: (modelId) =>
+          set((state) => ({
+            videoModelId: modelId,
+            platformDefaultAutoSelectPending: false,
+            videoSelection: { source: 'user', providerId: state.videoProviderId, modelId },
           })),
-        setVideoModelId: (modelId) => set({ videoModelId: modelId }),
 
         setVideoProviderConfig: (providerId, config) =>
           set((state) => {
@@ -1368,13 +1524,17 @@ export const useSettingsStore = create<SettingsState>()(
               [providerId]: mergedProvider,
             };
             const base = { videoProvidersConfig };
-            if (state.videoProviderId === providerId) {
+            if (
+              state.videoSelection.source !== 'platform' &&
+              state.videoProviderId === providerId
+            ) {
               if (config.enabled === false) {
                 return {
                   ...base,
                   videoProviderId: '' as VideoProviderId,
                   videoModelId: '',
                   videoGenerationEnabled: false,
+                  videoSelection: { source: 'user', providerId: '', modelId: '' },
                 };
               }
               // Atomic invariant (#580): symmetric with image — a config edit on
@@ -1385,7 +1545,11 @@ export const useSettingsStore = create<SettingsState>()(
               );
               const videoModelId = resolveSelectedModel(state.videoModelId, models);
               if (videoModelId) {
-                return { ...base, videoModelId };
+                return {
+                  ...base,
+                  videoModelId,
+                  videoSelection: { source: 'user', providerId, modelId: videoModelId },
+                };
               }
             }
             return base;
@@ -1411,6 +1575,7 @@ export const useSettingsStore = create<SettingsState>()(
               },
               videoProviderId: id,
               videoModelId: '',
+              videoSelection: { source: 'user', providerId: id, modelId: '' },
             };
           }),
 
@@ -1424,6 +1589,7 @@ export const useSettingsStore = create<SettingsState>()(
                 videoProviderId: '' as VideoProviderId,
                 videoModelId: '',
                 videoGenerationEnabled: false,
+                videoSelection: { source: 'user', providerId: '', modelId: '' },
               }),
             };
           }),
@@ -1435,6 +1601,21 @@ export const useSettingsStore = create<SettingsState>()(
             return { ok: true, disabled: true };
           }
           const state = get();
+          if (state.imageSelection.source === 'platform') {
+            const defaultId = state.imageSelection.defaultId;
+            const entry = state.platformDefaults?.entries.find(
+              (candidate) => candidate.defaultId === defaultId,
+            );
+            if (!entry?.available) {
+              return { ok: false, reason: 'no-provider' } as MediaActivationResult<ImageProviderId>;
+            }
+            set({ imageGenerationEnabled: true });
+            return {
+              ok: true,
+              providerId: state.imageProviderId,
+              modelId: state.imageModelId,
+            } as MediaActivationResult<ImageProviderId>;
+          }
           const activation = resolveImageActivation(
             state.imageProviderId,
             state.imageModelId,
@@ -1462,6 +1643,21 @@ export const useSettingsStore = create<SettingsState>()(
             return { ok: true, disabled: true };
           }
           const state = get();
+          if (state.videoSelection.source === 'platform') {
+            const defaultId = state.videoSelection.defaultId;
+            const entry = state.platformDefaults?.entries.find(
+              (candidate) => candidate.defaultId === defaultId,
+            );
+            if (!entry?.available) {
+              return { ok: false, reason: 'no-provider' } as MediaActivationResult<VideoProviderId>;
+            }
+            set({ videoGenerationEnabled: true });
+            return {
+              ok: true,
+              providerId: state.videoProviderId,
+              modelId: state.videoModelId,
+            } as MediaActivationResult<VideoProviderId>;
+          }
           const activation = resolveVideoActivation(
             state.videoProviderId,
             state.videoModelId,
@@ -1506,6 +1702,8 @@ export const useSettingsStore = create<SettingsState>()(
               },
             },
             ttsProviderId: id,
+            platformDefaultAutoSelectPending: false,
+            ttsSelection: { source: 'user', providerId: id, modelId: defaultModel || '' },
           })),
 
         removeCustomTTSProvider: (id) =>
@@ -1517,6 +1715,7 @@ export const useSettingsStore = create<SettingsState>()(
               ...(state.ttsProviderId === id && {
                 ttsProviderId: 'browser-native-tts' as TTSProviderId,
                 ttsVoice: 'default',
+                ttsSelection: { source: 'user', providerId: 'browser-native-tts' },
               }),
             };
           }),
@@ -1589,9 +1788,14 @@ export const useSettingsStore = create<SettingsState>()(
 
         // Fetch server-configured providers and merge into local state
         fetchServerProviders: async () => {
+          const requestSequence = ++serverProviderRequestSequence;
           try {
-            const res = await fetch('/api/server-providers');
-            if (!res.ok) return;
+            const res = await fetch('/api/server-providers?catalogVersion=2');
+            if (requestSequence !== serverProviderRequestSequence) return;
+            if (!res.ok) {
+              set({ platformDefaultsStatus: 'error' });
+              return;
+            }
             // Managed providers expose only their allowed model list (LLM/image)
             // and presence (the "managed" flag) — never a base URL. Every
             // capability section carries an optional `disabled` flag for
@@ -1604,10 +1808,17 @@ export const useSettingsStore = create<SettingsState>()(
               image: Record<string, { models?: string[]; disabled?: boolean }>;
               video: Record<string, { disabled?: boolean }>;
               webSearch: Record<string, { disabled?: boolean }>;
+              platformDefaults?: PlatformDefaultCatalog;
               generation?: { parallelSceneConcurrency?: number };
             };
+            if (requestSequence !== serverProviderRequestSequence) return;
 
             set((state) => {
+              const platformCatalog = data.platformDefaults;
+              const platformEntry = (capability: PlatformDefaultCapability) =>
+                platformCatalog?.entries.find(
+                  (entry) => entry.capability === capability && entry.available,
+                );
               // Merge LLM providers
               const newProvidersConfig = { ...state.providersConfig };
               // First reset all server flags
@@ -2031,6 +2242,64 @@ export const useSettingsStore = create<SettingsState>()(
               // and model atomically at the source, covering server-configured
               // AND client-API-key providers — see #580.)
 
+              const resolveSourceSelection = (
+                capability: PlatformDefaultCapability,
+                current: ModelSelection,
+              ): ModelSelection => {
+                const available = platformEntry(capability);
+                if (state.platformDefaultAutoSelectPending && available) {
+                  return { source: 'platform', defaultId: available.defaultId };
+                }
+                if (current.source === 'platform') return current;
+                if (
+                  current.source === 'legacy-managed' &&
+                  available &&
+                  current.providerId === available.providerId
+                ) {
+                  return { source: 'platform', defaultId: available.defaultId };
+                }
+                // A persisted user selection can outlive its API key/server
+                // configuration. Keep explicit usable user choices, but repair
+                // an unusable text choice to the validated user fallback or,
+                // when none exists, the revisioned platform default. Without
+                // this recovery an upgraded browser remains permanently gated
+                // on the home page even though catalog v2 is ready.
+                if (capability === 'text' && current.source === 'user') {
+                  const currentConfig = newProvidersConfig[current.providerId as ProviderId];
+                  if (!currentConfig || !isLLMProviderConfigured(currentConfig)) {
+                    if (validLLMProvider && validLLMModel) {
+                      return {
+                        source: 'user',
+                        providerId: validLLMProvider as ProviderId,
+                        modelId: validLLMModel,
+                      };
+                    }
+                    if (available) {
+                      return { source: 'platform', defaultId: available.defaultId };
+                    }
+                  }
+                }
+                return current;
+              };
+
+              const llmSelection = resolveSourceSelection('text', state.llmSelection);
+              const imageSelection = resolveSourceSelection('image', state.imageSelection);
+              const videoSelection = resolveSourceSelection('video', state.videoSelection);
+              const ttsSelection = resolveSourceSelection('tts', state.ttsSelection);
+              const platformCatalogReady = (['text', 'image', 'video', 'tts'] as const).every(
+                (capability) => Boolean(platformEntry(capability)),
+              );
+              const entryForSelection = (selection: ModelSelection) =>
+                selection.source === 'platform'
+                  ? platformCatalog?.entries.find(
+                      (entry) => entry.defaultId === selection.defaultId,
+                    )
+                  : undefined;
+              const selectedTextDefault = entryForSelection(llmSelection);
+              const selectedImageDefault = entryForSelection(imageSelection);
+              const selectedVideoDefault = entryForSelection(videoSelection);
+              const selectedTtsDefault = entryForSelection(ttsSelection);
+
               return {
                 providersConfig: newProvidersConfig,
                 ttsProvidersConfig: newTTSConfig,
@@ -2047,6 +2316,8 @@ export const useSettingsStore = create<SettingsState>()(
                   Math.floor(data.generation?.parallelSceneConcurrency ?? 0),
                 ),
                 autoConfigApplied: true,
+                platformDefaultAutoSelectPending:
+                  state.platformDefaultAutoSelectPending && !platformCatalogReady,
                 // Validated selections
                 ...(validLLMProvider !== state.providerId && {
                   providerId: validLLMProvider as ProviderId,
@@ -2103,10 +2374,46 @@ export const useSettingsStore = create<SettingsState>()(
                   videoGenerationEnabled: autoVideoEnabled,
                 }),
                 ...(autoTtsEnabled !== undefined && { ttsEnabled: autoTtsEnabled }),
+                ...(platformCatalog
+                  ? {
+                      platformDefaults: platformCatalog,
+                      platformDefaultsStatus: 'ready' as const,
+                    }
+                  : {}),
+                llmSelection,
+                imageSelection,
+                videoSelection,
+                ttsSelection,
+                ...(selectedTextDefault && {
+                  providerId: selectedTextDefault.providerId as ProviderId,
+                  modelId: selectedTextDefault.modelId,
+                }),
+                ...(selectedImageDefault && {
+                  imageProviderId: selectedImageDefault.providerId as ImageProviderId,
+                  imageModelId: selectedImageDefault.modelId,
+                  ...(state.platformDefaultAutoSelectPending && {
+                    imageGenerationEnabled: true,
+                  }),
+                }),
+                ...(selectedVideoDefault && {
+                  videoProviderId: selectedVideoDefault.providerId as VideoProviderId,
+                  videoModelId: selectedVideoDefault.modelId,
+                  ...(state.platformDefaultAutoSelectPending && {
+                    videoGenerationEnabled: true,
+                  }),
+                }),
+                ...(selectedTtsDefault && {
+                  ttsProviderId: selectedTtsDefault.providerId as TTSProviderId,
+                  ...(state.platformDefaultAutoSelectPending && {
+                    ttsVoice: selectedTtsDefault.parameters.ttsVoice || state.ttsVoice,
+                    ttsEnabled: true,
+                  }),
+                }),
               };
             });
           } catch (e) {
-            // Silently fail — server providers are optional
+            if (requestSequence !== serverProviderRequestSequence) return;
+            set({ platformDefaultsStatus: 'error' });
             log.warn('Failed to fetch server providers:', e);
           }
         },
@@ -2125,6 +2432,12 @@ export const useSettingsStore = create<SettingsState>()(
         // `any`.
         onWriteRefused: () => recovery.rehydrate?.(),
       }),
+      // Rehydration is the account-scope generation boundary. Any catalog
+      // response started for the previous hydrated account must not write into
+      // the newly active settings state.
+      onRehydrateStorage: () => {
+        serverProviderRequestSequence += 1;
+      },
       version: SETTINGS_PERSIST_VERSION,
       // Migrate persisted state
       migrate: (persistedState: unknown, version: number) => {
@@ -2161,8 +2474,10 @@ export const useSettingsStore = create<SettingsState>()(
 
         // Add default audio config if missing
         if (!state.ttsProvidersConfig || !state.asrProvidersConfig) {
+          const persistedTtsSpeed = state.ttsSpeed;
           const defaultAudioConfig = getDefaultAudioConfig();
           Object.assign(state, defaultAudioConfig);
+          if (persistedTtsSpeed !== undefined) state.ttsSpeed = persistedTtsSpeed;
         }
         ensureBuiltInAudioProviders(state);
         ensureCustomAudioProtocols(state);
@@ -2332,6 +2647,62 @@ export const useSettingsStore = create<SettingsState>()(
         // adapters implicitly. Persist the protocol explicitly without changing
         // any credentials, models, voices, or enablement state.
         if (version < 5) ensureCustomAudioProtocols(state);
+
+        // v5 → v6: add the source-aware selection envelope without guessing
+        // that a same-named provider is a ZHIYU default. The async catalog sync
+        // performs that second-stage migration only after authoritative server
+        // metadata is available.
+        if (version < 6) {
+          state.llmSelection = {
+            source: state.providersConfig?.[state.providerId as ProviderId]?.isServerConfigured
+              ? 'legacy-managed'
+              : 'user',
+            providerId: state.providerId || '',
+            modelId: state.modelId || '',
+          };
+          state.imageSelection = {
+            source: state.imageProvidersConfig?.[state.imageProviderId as ImageProviderId]
+              ?.isServerConfigured
+              ? 'legacy-managed'
+              : 'user',
+            providerId: state.imageProviderId || '',
+            modelId: state.imageModelId || '',
+          };
+          state.videoSelection = {
+            source: state.videoProvidersConfig?.[state.videoProviderId as VideoProviderId]
+              ?.isServerConfigured
+              ? 'legacy-managed'
+              : 'user',
+            providerId: state.videoProviderId || '',
+            modelId: state.videoModelId || '',
+          };
+          state.ttsSelection = {
+            source: state.ttsProvidersConfig?.[state.ttsProviderId as TTSProviderId]
+              ?.isServerConfigured
+              ? 'legacy-managed'
+              : 'user',
+            providerId: state.ttsProviderId || '',
+            modelId: state.ttsProvidersConfig?.[state.ttsProviderId as TTSProviderId]?.modelId,
+          };
+          state.platformDefaults = null;
+          state.platformDefaultsStatus = 'idle';
+        }
+
+        // v6 -> v7: keep first-run platform selection pending across an old-server,
+        // missing-catalog, or temporarily unavailable-catalog response. Existing
+        // accounts have already completed generic auto-configuration and must not
+        // have an explicit user selection replaced.
+        if ((state as Record<string, unknown>).platformDefaultAutoSelectPending === undefined) {
+          state.platformDefaultAutoSelectPending = version >= 6 ? !state.autoConfigApplied : false;
+        }
+        if (version < 7 && state.agentVoiceOverrides) {
+          state.agentVoiceOverrides = Object.fromEntries(
+            Object.entries(state.agentVoiceOverrides).map(([agentId, voice]) => [
+              agentId,
+              voice.source ? voice : { ...voice, source: 'user' as const },
+            ]),
+          );
+        }
 
         ensureValidProviderSelections(state);
         ensureBuiltInAudioProviders(state);

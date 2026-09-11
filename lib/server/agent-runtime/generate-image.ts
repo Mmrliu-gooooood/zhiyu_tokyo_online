@@ -35,6 +35,10 @@ import type { CourseToolDeps } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { errorResult, MEDIA_TOOL_ERROR_REASONS } from './media-tool-result';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
+import {
+  platformImageExecutionOptions,
+  resolveProviderSelection,
+} from '@/lib/server/resolve-provider-selection';
 
 const log = createLogger('AgentGenerateImage');
 
@@ -239,11 +243,33 @@ export function buildGenerateImageTool(
   const resolveSnapshotConfig = (): ImageGenerationConfig | undefined => {
     const selected = deps.mediaConfig?.image;
     if (!selected) return undefined;
+    if (selected.source === 'platform') {
+      const resolved = resolveProviderSelection({
+        capability: 'image',
+        source: selected.source,
+        defaultId: selected.defaultId,
+      });
+      if (selected.revision !== resolved.revision) throw new Error('MEDIA_CONFIG_CHANGED');
+      return {
+        providerId: resolved.providerId as ImageProviderId,
+        apiKey: resolved.apiKey,
+        baseUrl: resolved.baseUrl,
+        model: resolved.modelId,
+      };
+    }
+    const resolved = resolveProviderSelection({
+      capability: 'image',
+      source: selected.source,
+      providerId: selected.providerId,
+      modelId: selected.modelId,
+      apiKey: selected.apiKey,
+      baseUrl: selected.baseUrl,
+    });
     return {
       providerId: selected.providerId,
-      apiKey: resolveImageApiKey(selected.providerId, selected.apiKey),
-      baseUrl: resolveImageBaseUrl(selected.providerId, selected.baseUrl),
-      model: resolveImageModel(selected.providerId, selected.modelId),
+      apiKey: resolved.apiKey,
+      baseUrl: resolved.baseUrl,
+      model: resolved.modelId,
       ...(selected.protocol ? { protocol: selected.protocol } : {}),
       requiresApiKey: selected.requiresApiKey,
     } as ImageGenerationConfig;
@@ -273,10 +299,11 @@ export function buildGenerateImageTool(
       }
 
       const selected = deps.mediaConfig?.image;
+      const selectedConfig = resolveSnapshotConfig();
       const providers = selected ? {} : configuredProviders();
-      const providerId = selected?.providerId ?? selectProvider(providers);
+      const providerId = selectedConfig?.providerId ?? selectProvider(providers);
       const requestedDefault = process.env.DEFAULT_IMAGE_PROVIDER?.trim();
-      if (selected && !selected.enabled) {
+      if (selected && selected.source !== 'platform' && !selected.enabled) {
         return errorResult('Image generation is unavailable.', {
           stageId,
           reason: MEDIA_TOOL_ERROR_REASONS.providerDisabled,
@@ -331,7 +358,7 @@ export function buildGenerateImageTool(
           },
         );
       }
-      const providerConfig = resolveSnapshotConfig() ?? resolveProviderConfig(providerId);
+      const providerConfig = selectedConfig ?? resolveProviderConfig(providerId);
       if ((provider?.requiresApiKey ?? providerConfig.requiresApiKey) && !providerConfig.apiKey) {
         log.warn(
           `[${toolCallId}] Image generation unavailable: no API key configured for provider ${providerId}`,
@@ -370,7 +397,22 @@ export function buildGenerateImageTool(
       const ioSignal = combineSignals(callerSignal, deps.timeoutMs ?? GENERATE_IMAGE_TIMEOUT_MS);
 
       try {
-        const providerOptions = { ...options, stageId, signal: ioSignal };
+        const platformOptions =
+          selected?.source === 'platform'
+            ? platformImageExecutionOptions(
+                resolveProviderSelection({
+                  capability: 'image',
+                  source: selected.source,
+                  defaultId: selected.defaultId,
+                }),
+              )
+            : {};
+        const providerOptions = {
+          ...options,
+          ...platformOptions,
+          stageId,
+          signal: ioSignal,
+        };
         const result =
           (customProvider || providerId === 'comfyui-image' || providerId === 'lemonade') &&
           callProvider === generateImage

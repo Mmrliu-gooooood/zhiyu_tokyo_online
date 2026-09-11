@@ -1,6 +1,21 @@
 import { PENDING_SCENE_ID } from '@/lib/store/stage';
 import type { StageMode } from '@/lib/types/stage';
 
+export interface StageDocumentEditAccess {
+  isOwner: boolean;
+  readOnly: boolean;
+  serverOwned: boolean;
+  generationStatus: 'idle' | 'generating' | 'paused' | 'completed' | 'error';
+}
+
+/** Keep write-producing editor chrome out while a server job holds the document. */
+export function canEditStageDocument(access: StageDocumentEditAccess): boolean {
+  const serverWriteInFlight =
+    access.serverOwned &&
+    (access.generationStatus === 'generating' || access.generationStatus === 'paused');
+  return access.isOwner && !access.readOnly && !serverWriteInFlight;
+}
+
 /**
  * Inputs the edit-mode auto-exit guard reads. Kept as primitives so callers
  * can derive the values cheaply without holding full Scene / SceneOutline

@@ -68,7 +68,15 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   // The provider prefix must be explicit. parseModelString silently defaults a
   // bare model id to the openai provider, so the driver must fail here before
   // resolveModel reaches that fallback and routes to the wrong provider.
-  const modelString = route?.model ?? modelContext!.modelString;
+  const modelString =
+    route?.model ??
+    modelContext?.modelString ??
+    (modelContext?.source === 'platform' && modelContext.defaultId
+      ? `platform:${modelContext.defaultId}`
+      : undefined);
+  if (!modelString) {
+    throw new Error('PRO_MODEL_CONFIGURATION_REQUIRED: No model selection is available.');
+  }
   const providerSeparator = modelString.indexOf(':');
   const modelId = providerSeparator > 0 ? modelString.slice(providerSeparator + 1) : undefined;
   if (!modelId) {

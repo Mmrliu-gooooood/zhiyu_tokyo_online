@@ -207,6 +207,141 @@ describe('createCallLlmStreamFn terminal contract', () => {
     });
   });
 
+  it.each(['EAI_AGAIN', 'ENOTFOUND'] as const)(
+    'retries a pre-send %s failure twice inside one agent turn',
+    async (code) => {
+      let calls = 0;
+      mocks.streamLLM.mockImplementation(() => {
+        calls += 1;
+        return resultFrom(
+          calls < 3
+            ? [{ type: 'error', error: Object.assign(new Error('dns'), { code }) }]
+            : [{ type: 'text-delta', text: 'recovered' }, finish('stop')],
+        );
+      });
+      const beforeCall = vi.fn().mockResolvedValue(undefined);
+      const streamFn = createCallLlmStreamFn({
+        languageModel: {} as never,
+        beforeCall,
+        retryPreSendDns: true,
+        dnsRetryDelaysMs: [0, 0],
+        dnsDiagnostic: {
+          providerId: 'deepseek',
+          hostname: 'api.deepseek.com',
+          step: 'maic-agent-driver',
+        },
+      });
+
+      const stream = await streamFn({} as never, {
+        systemPrompt: 'system',
+        messages: [],
+        tools: [],
+      });
+      for await (const _event of stream) {
+        // drain
+      }
+
+      expect(calls).toBe(3);
+      expect(beforeCall).toHaveBeenCalledTimes(3);
+      await expect(stream.result()).resolves.toMatchObject({
+        stopReason: 'stop',
+        content: [{ type: 'text', text: 'recovered' }],
+      });
+    },
+  );
+
+  it('does not retry DNS-shaped errors after provider output has started', async () => {
+    mocks.streamLLM.mockReturnValue(
+      resultFrom([
+        { type: 'text-delta', text: 'partial' },
+        {
+          type: 'error',
+          error: Object.assign(new Error('late dns-shaped error'), { code: 'EAI_AGAIN' }),
+        },
+      ]),
+    );
+    const streamFn = createCallLlmStreamFn({
+      languageModel: {} as never,
+      retryPreSendDns: true,
+      dnsRetryDelaysMs: [0, 0],
+    });
+    const stream = await streamFn({} as never, { systemPrompt: 'system', messages: [], tools: [] });
+    for await (const _event of stream) {
+      // drain
+    }
+
+    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    await expect(stream.result()).resolves.toMatchObject({ stopReason: 'error' });
+  });
+
+  it('stops after exactly two DNS retries and safely maps exhaustion', async () => {
+    mocks.streamLLM.mockImplementation(() =>
+      resultFrom([
+        { type: 'error', error: Object.assign(new Error('dns exhausted'), { code: 'EAI_AGAIN' }) },
+      ]),
+    );
+    const streamFn = createCallLlmStreamFn({
+      languageModel: {} as never,
+      retryPreSendDns: true,
+      dnsRetryDelaysMs: [0, 0],
+      formatError: () => 'safe provider error',
+    });
+    const stream = await streamFn({} as never, { systemPrompt: 'system', messages: [], tools: [] });
+    for await (const _event of stream) {
+      // drain
+    }
+
+    expect(mocks.streamLLM).toHaveBeenCalledTimes(3);
+    await expect(stream.result()).resolves.toMatchObject({
+      stopReason: 'error',
+      errorMessage: 'safe provider error',
+    });
+  });
+
+  it('does not retry a non-DNS setup failure', async () => {
+    mocks.streamLLM.mockReturnValue(
+      resultFrom([{ type: 'error', error: new Error('provider rejected request') }]),
+    );
+    const streamFn = createCallLlmStreamFn({
+      languageModel: {} as never,
+      retryPreSendDns: true,
+      dnsRetryDelaysMs: [0, 0],
+    });
+    const stream = await streamFn({} as never, { systemPrompt: 'system', messages: [], tools: [] });
+    for await (const _event of stream) {
+      // drain
+    }
+
+    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    await expect(stream.result()).resolves.toMatchObject({ stopReason: 'error' });
+  });
+
+  it('stops a DNS retry wait when the run is aborted', async () => {
+    const outer = new AbortController();
+    mocks.streamLLM.mockReturnValue(
+      resultFrom([
+        { type: 'error', error: Object.assign(new Error('dns'), { code: 'EAI_AGAIN' }) },
+      ]),
+    );
+    const streamFn = createCallLlmStreamFn({
+      languageModel: {} as never,
+      abortSignal: outer.signal,
+      retryPreSendDns: true,
+      dnsRetryDelaysMs: [60_000, 60_000],
+    });
+    const stream = await streamFn({} as never, { systemPrompt: 'system', messages: [], tools: [] });
+    outer.abort('cancelled during retry');
+    for await (const _event of stream) {
+      // drain
+    }
+
+    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    await expect(stream.result()).resolves.toMatchObject({
+      stopReason: 'aborted',
+      errorMessage: 'cancelled during retry',
+    });
+  });
+
   it.each(['outer', 'run'] as const)('pre-aborted %s signal prevents transport', async (owner) => {
     const outer = new AbortController();
     const run = new AbortController();

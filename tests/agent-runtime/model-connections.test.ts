@@ -1,3 +1,4 @@
+import { createCipheriv, randomBytes } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
@@ -13,6 +14,20 @@ vi.mock('@/lib/ai/providers', () => ({
 const mocks = vi.hoisted(() => ({ managed: false, unsafe: undefined as string | undefined }));
 vi.mock('@/lib/server/provider-config', () => ({
   isServerConfiguredProvider: () => mocks.managed,
+  PlatformDefaultModelError: class PlatformDefaultModelError extends Error {},
+  resolvePlatformDefault: () => ({
+    defaultId: 'zhiyu-default-text',
+    revision: 'text-r1',
+    parameters: {
+      textThinking: {
+        control: 'effort',
+        requestAdapter: 'deepseek',
+        effortValues: ['none', 'high', 'max'],
+        defaultEffort: 'high',
+      },
+    },
+    defaultThinkingConfig: { mode: 'disabled', effort: 'none' },
+  }),
 }));
 vi.mock('@/lib/server/ssrf-guard', () => ({ validateUrlForSSRF: async () => mocks.unsafe }));
 vi.mock('@/lib/persistence/server-provider', () => ({ getServerPersistenceProvider: vi.fn() }));
@@ -31,6 +46,23 @@ describe('durable encrypted PRO model connections', () => {
     apiKey: 'secret-must-not-leak',
     baseUrl: 'https://api.example.test/v1',
   };
+
+  function sealLegacyPlatformContext(
+    value: object,
+    ownerId: string,
+    ref: { id: string; revision: number },
+  ): string {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', Buffer.from('ab'.repeat(32), 'hex'), iv);
+    cipher.setAAD(Buffer.from(JSON.stringify(['pro-model:v1', ownerId, ref.id, ref.revision])));
+    const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()]);
+    return [
+      'v1',
+      iv.toString('base64'),
+      cipher.getAuthTag().toString('base64'),
+      encrypted.toString('base64'),
+    ].join('.');
+  }
   beforeEach(async () => {
     vi.stubEnv('PRO_MODEL_ENCRYPTION_KEY', 'ab'.repeat(32));
     mocks.managed = false;
@@ -118,6 +150,108 @@ describe('durable encrypted PRO model connections', () => {
     const loaded = await store.load('owner-a', ref);
     expect(loaded.apiKey).toBeUndefined();
     expect(loaded.baseUrl).toBeUndefined();
+  });
+
+  it('stores only a stable platform reference plus its normalized thinking preference', async () => {
+    const ref = await store.sync('owner-a', {
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+      modelString: 'deepseek:must-not-survive',
+      apiKey: 'must-not-survive',
+      baseUrl: 'https://must-not-survive.example',
+      thinkingConfig: { mode: 'enabled', effort: 'high' },
+    });
+
+    expect(await store.load('owner-a', ref)).toMatchObject({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+      thinkingConfig: { mode: 'enabled', effort: 'high' },
+    });
+    expect(await store.load('owner-a', ref)).not.toMatchObject({
+      modelString: expect.anything(),
+      apiKey: expect.anything(),
+      baseUrl: expect.anything(),
+    });
+  });
+
+  it('requires the current catalog revision on every new platform sync', async () => {
+    await expect(
+      store.sync('owner-a', {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+      }),
+    ).rejects.toMatchObject({ code: 'PRO_MODEL_CONNECTION_STALE', status: 409 });
+    expect((await db.query('SELECT * FROM pro_model_connections')).rows).toHaveLength(0);
+  });
+
+  it('loads an already-persisted legacy platform snapshot that predates catalog revisions', async () => {
+    const ref = { id: 'c68d16c4-4bba-4caf-9b93-62f818d067ef', revision: 1 };
+    const ciphertext = sealLegacyPlatformContext(
+      { source: 'platform', defaultId: 'zhiyu-default-text' },
+      'owner-a',
+      ref,
+    );
+    await db.query('INSERT INTO pro_model_connections(id,owner_id,revision) VALUES ($1,$2,$3)', [
+      ref.id,
+      'owner-a',
+      ref.revision,
+    ]);
+    await db.query(
+      'INSERT INTO pro_model_connection_revisions(connection_id,revision,ciphertext) VALUES ($1,$2,$3)',
+      [ref.id, ref.revision, ciphertext],
+    );
+
+    await expect(store.load('owner-a', ref)).resolves.toMatchObject({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+      thinkingConfig: { mode: 'disabled', effort: 'none' },
+    });
+  });
+
+  it('applies the platform thinking default and rejects unsupported effort values', async () => {
+    const ref = await store.sync('owner-a', {
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+    });
+    expect((await store.load('owner-a', ref)).thinkingConfig).toEqual({
+      mode: 'disabled',
+      effort: 'none',
+    });
+
+    await expect(
+      store.sync('owner-a', {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        thinkingConfig: { mode: 'enabled', effort: 'medium' },
+      }),
+    ).rejects.toMatchObject({ code: 'PRO_MODEL_INVALID_CONFIG' });
+
+    for (const thinkingConfig of [{}, { mode: 'default' }] as const) {
+      const defaulted = await store.sync('owner-a', {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        thinkingConfig,
+      });
+      expect((await store.load('owner-a', defaulted)).thinkingConfig).toEqual({
+        mode: 'disabled',
+        effort: 'none',
+      });
+    }
+
+    await expect(
+      store.sync('owner-a', {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        thinkingConfig: { mode: 'disabled', effort: 'high' },
+      }),
+    ).rejects.toMatchObject({ code: 'PRO_MODEL_INVALID_CONFIG' });
   });
 
   it('allows an authenticated owner to resync after deliberate encryption-key rotation', async () => {

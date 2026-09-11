@@ -20,10 +20,20 @@ export class GenerationModelSnapshotError extends Error {
   }
 }
 
-export const GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION = 1;
-const contentSchema = z
+export const GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION = 2;
+const thinkingConfigSchema = z
   .object({
-    version: z.literal(GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION),
+    mode: z.enum(['default', 'disabled', 'enabled', 'auto']).optional(),
+    effort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
+    level: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
+    enabled: z.boolean().optional(),
+    budgetTokens: z.number().int().nonnegative().max(1_000_000).optional(),
+    excludeReasoningOutput: z.boolean().optional(),
+  })
+  .strict();
+const legacyContentSchema = z
+  .object({
+    version: z.literal(1),
     modelString: z
       .string()
       .trim()
@@ -34,19 +44,39 @@ const contentSchema = z
     baseUrl: z.string().trim().max(2_048).url().optional(),
     providerType: z.enum(['openai', 'azure', 'anthropic', 'bedrock', 'google']).optional(),
     api: z.enum(['openai-completions', 'openai-responses']).optional(),
-    thinkingConfig: z
-      .object({
-        mode: z.enum(['default', 'disabled', 'enabled', 'auto']).optional(),
-        effort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
-        level: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
-        enabled: z.boolean().optional(),
-        budgetTokens: z.number().int().nonnegative().max(1_000_000).optional(),
-        excludeReasoningOutput: z.boolean().optional(),
-      })
-      .strict()
-      .optional(),
+    thinkingConfig: thinkingConfigSchema.optional(),
   })
   .strict();
+const sourcedModelSchema = z
+  .object({
+    source: z.enum(['user', 'legacy-managed']),
+    modelString: z
+      .string()
+      .trim()
+      .min(3)
+      .max(500)
+      .regex(/^[^:/\s]+[:/].+$/),
+    apiKey: z.string().max(16_384).optional(),
+    baseUrl: z.string().trim().max(2_048).url().optional(),
+    providerType: z.enum(['openai', 'azure', 'anthropic', 'bedrock', 'google']).optional(),
+    api: z.enum(['openai-completions', 'openai-responses']).optional(),
+    thinkingConfig: thinkingConfigSchema.optional(),
+  })
+  .strict();
+const platformModelSchema = z
+  .object({
+    source: z.literal('platform'),
+    defaultId: z.literal('zhiyu-default-text'),
+    revision: z.string().trim().min(1).max(500),
+    thinkingConfig: thinkingConfigSchema.optional(),
+  })
+  .strict();
+export const GenerationModelSnapshotContentSchema = z.union([
+  legacyContentSchema,
+  sourcedModelSchema.extend({ version: z.literal(2) }),
+  platformModelSchema.extend({ version: z.literal(2) }),
+]);
+const contentSchema = GenerationModelSnapshotContentSchema;
 
 export type GenerationModelSnapshotContent = z.infer<typeof contentSchema>;
 
@@ -117,7 +147,19 @@ export function generationModelSnapshotContent(
   value: ProModelContext,
 ): GenerationModelSnapshotContent {
   const { assertActive: _assertActive, ...content } = value;
-  const parsed = contentSchema.safeParse({ version: 1, ...content });
+  const parsed = contentSchema.safeParse(
+    content.source
+      ? content.source === 'platform'
+        ? {
+            version: 2,
+            source: content.source,
+            defaultId: content.defaultId,
+            revision: content.revision,
+            thinkingConfig: content.thinkingConfig,
+          }
+        : { version: 2, ...content }
+      : { version: 1, ...content },
+  );
   if (!parsed.success) throw new GenerationModelSnapshotError('GENERATION_MODEL_INVALID');
   return parsed.data;
 }
@@ -142,14 +184,7 @@ export class GenerationModelSnapshotStore {
       const ref = { id: randomUUID(), revision: 1 };
       const inserted = await db.query<GenerationModelRef>(
         `INSERT INTO generation_model_snapshots(id,owner_id,revision,schema_version,ciphertext,intent_digest) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING id,revision`,
-        [
-          ref.id,
-          ownerId,
-          ref.revision,
-          GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION,
-          seal(content, ownerId, ref),
-          digest,
-        ],
+        [ref.id, ownerId, ref.revision, content.version, seal(content, ownerId, ref), digest],
       );
       if (inserted.rows[0]) return inserted.rows[0];
       const raced = await db.query<GenerationModelRef>(
@@ -182,9 +217,13 @@ export class GenerationModelSnapshotStore {
       [parsed.data.id, parsed.data.revision, ownerId],
     );
     const row = result.rows[0];
-    if (!row || Number(row.schema_version) !== GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION)
+    if (!row || ![1, 2].includes(Number(row.schema_version)))
       throw new GenerationModelSnapshotError('GENERATION_MODEL_SNAPSHOT_UNAVAILABLE', 409);
-    return unseal(row.ciphertext, ownerId, parsed.data);
+    const content = unseal(row.ciphertext, ownerId, parsed.data);
+    if (content.version !== Number(row.schema_version)) {
+      throw new GenerationModelSnapshotError('GENERATION_MODEL_DECRYPTION_FAILED', 503);
+    }
+    return content;
   }
 
   async revoke(ownerId: string, value: GenerationModelRef): Promise<boolean> {

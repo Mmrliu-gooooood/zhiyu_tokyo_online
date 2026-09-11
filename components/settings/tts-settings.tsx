@@ -94,6 +94,8 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
   const ttsProvidersConfig = useSettingsStore((state) => state.ttsProvidersConfig);
   const setTTSProviderConfig = useSettingsStore((state) => state.setTTSProviderConfig);
   const activeProviderId = useSettingsStore((state) => state.ttsProviderId);
+  const ttsSelection = useSettingsStore((state) => state.ttsSelection);
+  const setTTSProvider = useSettingsStore((state) => state.setTTSProvider);
   const setTTSVoice = useSettingsStore((state) => state.setTTSVoice);
   const removeCustomTTSProvider = useSettingsStore((state) => state.removeCustomTTSProvider);
 
@@ -112,6 +114,8 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
   const providerConfigured = isTTSProviderConfigured(selectedProviderId, providerConfig);
   const providerEnableLocked = providerServerDisabled || !providerConfigured;
   const providerEnabled = isTTSProviderEnabled(selectedProviderId, providerConfig);
+  const isActiveNonPlatformProvider =
+    ttsSelection.source !== 'platform' && activeProviderId === selectedProviderId;
   const isVoxCPM = selectedProviderId === 'voxcpm-tts';
   const voxcpmBackend = normalizeVoxCPMBackend(providerConfig?.providerOptions?.backend);
   const requiresApiKey = isCustom
@@ -276,6 +280,18 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
             setTTSProviderConfig(selectedProviderId, { enabled: checked })
           }
         />
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          variant={isActiveNonPlatformProvider ? 'outline' : 'default'}
+          disabled={providerEnableLocked || isActiveNonPlatformProvider}
+          onClick={() => setTTSProvider(selectedProviderId)}
+        >
+          {isActiveNonPlatformProvider
+            ? t('settings.currentlyUsing')
+            : t('settings.useThisProvider')}
+        </Button>
       </div>
 
       {/* Server-configured notice */}

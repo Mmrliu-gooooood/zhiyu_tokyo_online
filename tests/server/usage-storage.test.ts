@@ -52,6 +52,25 @@ describe('recordUsage — LLM', () => {
     expect(records[0].kind).toBe('llm');
   });
 
+  it('keeps concurrent append records intact for shared web and worker writers', async () => {
+    await Promise.all(
+      Array.from({ length: 100 }, (_, index) =>
+        recordUsage(
+          {
+            ...llmInput,
+            source: index % 2 === 0 ? 'web' : 'worker',
+            modelId: `model-${index}`,
+          },
+          { baseDir: tmpDir, now: new Date('2026-09-11T00:00:00.000Z') },
+        ),
+      ),
+    );
+
+    const records = await readUsageRecords({ baseDir: tmpDir });
+    expect(records).toHaveLength(100);
+    expect(new Set(records.map((record) => record.modelId)).size).toBe(100);
+  });
+
   it('skips writing when there are no billable tokens', async () => {
     await recordUsage(
       {

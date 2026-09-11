@@ -14,11 +14,21 @@ vi.mock('fs', async (importOriginal) => {
     default: {
       ...actual,
       existsSync: (p: string) => (isYaml(p) ? yamlOverride !== null : actual.existsSync(p)),
+      statSync: (p: string, ...args: unknown[]) =>
+        isYaml(p)
+          ? ({ isFile: () => true } as ReturnType<typeof actual.statSync>)
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (actual.statSync as any)(p, ...args),
       readFileSync: (p: string, ...args: unknown[]) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         isYaml(p) ? (yamlOverride ?? '') : (actual.readFileSync as any)(p, ...args),
     },
     existsSync: (p: string) => (isYaml(p) ? yamlOverride !== null : actual.existsSync(p)),
+    statSync: (p: string, ...args: unknown[]) =>
+      isYaml(p)
+        ? ({ isFile: () => true } as ReturnType<typeof actual.statSync>)
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (actual.statSync as any)(p, ...args),
     readFileSync: (p: string, ...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       isYaml(p) ? (yamlOverride ?? '') : (actual.readFileSync as any)(p, ...args),
@@ -53,6 +63,7 @@ function clearTtsEnv() {
     delete process.env[`${prefix}_ENABLED`];
   }
   delete process.env.TTS_QWEN_VOICE_CLONE_MODEL;
+  delete process.env.ZHIYU_DEFAULTS_REVISION_SECRET;
 }
 
 function ttsRequest(body: Record<string, unknown>): NextRequest {
@@ -129,6 +140,59 @@ describe('POST /api/generate/tts missing-key contract (#665)', () => {
     expect(res.status).toBe(200);
     expect(mocks.generateTTS).toHaveBeenCalledWith(
       expect.objectContaining({ providerId: 'openai-tts', apiKey: 'client-key' }),
+      'Hello',
+    );
+  });
+
+  it('uses the platform MiniMax Turbo binding and ignores client model/key/address', async () => {
+    vi.stubEnv('TTS_MINIMAX_API_KEY', 'platform-tts-key');
+    vi.stubEnv('TTS_MINIMAX_BASE_URL', 'https://platform.example/v1');
+    vi.stubEnv('ZHIYU_DEFAULTS_REVISION_SECRET', 'test-shared-revision-secret');
+    const { POST } = await import('@/app/api/generate/tts/route');
+    const res = await POST(
+      ttsRequest({
+        ttsProviderId: 'minimax-tts',
+        ttsVoice: 'male-qn-qingse',
+        ttsModelId: 'speech-2.8-hd',
+        ttsApiKey: 'user-key',
+        ttsBaseUrl: 'https://user.example/v1',
+        modelSource: 'platform',
+        platformDefaultId: 'zhiyu-default-tts',
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.generateTTS).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-turbo',
+        apiKey: 'platform-tts-key',
+        baseUrl: 'https://platform.example/v1',
+      }),
+      'Hello',
+    );
+  });
+
+  it('uses an explicit user MiniMax key even when the platform has one', async () => {
+    vi.stubEnv('TTS_MINIMAX_API_KEY', 'platform-tts-key');
+    const { POST } = await import('@/app/api/generate/tts/route');
+    const res = await POST(
+      ttsRequest({
+        ttsProviderId: 'minimax-tts',
+        ttsVoice: 'male-qn-qingse',
+        ttsModelId: 'speech-2.8-hd',
+        ttsApiKey: 'user-key',
+        modelSource: 'user',
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.generateTTS).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-hd',
+        apiKey: 'user-key',
+      }),
       'Hello',
     );
   });
