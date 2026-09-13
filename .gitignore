@@ -1,15 +1,14 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 CLAUDE.local.md
-docker-compose.dns.local.yml
-.scratch/pro-repair-20260913/
+/docker-compose.dns.local.yml
 .claude
 .superpowers
 
 # dependencies
-/node_modules
+# All workspace packages and standalone apps, not just the repository root.
+node_modules/
 /node_modules_old
-/openclaw/node_modules
 /openclaw/package-lock.json
 /.pnp
 .pnp.*
@@ -42,24 +41,39 @@ docker-compose.dns.local.yml
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.pem
+*.key
+*.p12
+*.pfx
 
 # debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .pnpm-store/
 .scratch/
-debug.log
+/.temp/
+.cache/
 
 # env files
 .env*
 !.env.example
+!.env.*.example
 
-# server provider config (contains API keys)
-server-providers.yml
-server-providers-*.yml
+# Server provider configs and local backups may contain API keys.
+server-providers*.yml
+server-providers*.yaml
+server-providers*.yml.*
+server-providers*.yaml.*
+# Only sanitized templates belong in Git.
+!server-providers.example.yml
+!server-providers.example.yaml
+!server-providers-example.yml
+!server-providers-example.yaml
 
 # vercel
 .vercel
@@ -86,6 +100,7 @@ eval/outline-language/results/
 eval/orchestration/results/
 eval/orchestration/results-answering/
 eval/orchestration/results-answer-content/
+eval/pbl-v2-planner/results/
 
 # e2e screenshot artifacts
 e2e/screenshots/
