@@ -1207,6 +1207,13 @@
     "statusCourseCompleteDesc": "Le contenu du cours est terminé.",
     "statusGenerationFailed": "Échec de la génération",
     "statusGenerationFailedDesc": "La génération n’a pas abouti. Consultez la raison avant de réessayer.",
+    "preflightProviderUnavailable": "Un service requis est indisponible. Revenez à l’accueil et vérifiez les modèles, la recherche et les médias avant de réessayer.",
+    "preflightModelUnavailable": "Le modèle de texte est indisponible. Vérifiez le modèle choisi et sa connexion dans les paramètres de l’accueil.",
+    "preflightMediaUnavailable": "La configuration des médias enregistrée n’est plus disponible. Vérifiez les paramètres des médias à l’accueil avant de réessayer.",
+    "preflightTtsUnavailable": "La configuration vocale est indisponible. Vérifiez le modèle vocal et les voix des rôles du cours actuel à l’accueil.",
+    "preflightImageUnavailable": "La configuration des images est indisponible. Vérifiez le modèle d’image activé et sa connexion à l’accueil.",
+    "preflightVideoUnavailable": "La configuration vidéo est indisponible. Vérifiez le modèle vidéo activé et sa connexion à l’accueil.",
+    "preflightSearchUnavailable": "La recherche web est indisponible. Vérifiez le service de recherche choisi et sa connexion à l’accueil.",
     "statusQueueExpired": "Délai d’attente dans la file dépassé",
     "statusQueueExpiredDesc": "Les données de votre cours ont été conservées. Retournez à l’accueil et soumettez une nouvelle tâche lorsque vous êtes prêt.",
     "statusOutlineReviewExpired": "Délai de validation du plan dépassé",
@@ -1288,12 +1295,12 @@
     "selectedAgents": "Agents sélectionnés",
     "required": "Obligatoire",
     "agentNames": {
-      "default-1": "Professeur IA",
-      "default-2": "Assistant IA",
-      "default-3": "Le boute-en-train",
-      "default-4": "L’esprit curieux",
-      "default-5": "Le preneur de notes",
-      "default-6": "Le penseur"
+      "default-1": "Qi Heng",
+      "default-2": "Zhi Wei",
+      "default-3": "Yue Yang",
+      "default-4": "Wen Xi",
+      "default-5": "Shu Yan",
+      "default-6": "Si Che"
     },
     "agentRoles": {
       "teacher": "Professeur",

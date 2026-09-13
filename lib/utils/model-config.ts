@@ -8,6 +8,7 @@ import { findModelById } from '@/lib/ai/model-aliases';
 import { getCatalogThinkingCapability } from '@/lib/ai/model-metadata';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
+import type { ProModelContext } from '@/types/pro-model';
 
 function hasExplicitThinkingIntent(config: ThinkingConfig | undefined): boolean {
   return Boolean(
@@ -95,6 +96,31 @@ export function getCurrentModelConfig() {
   };
 }
 
+/** Refresh only a rejected new platform selection; never replace a run's stored snapshot. */
+export async function refreshPlatformModelConfig(
+  rejected: ProModelContext,
+  signal?: AbortSignal,
+): Promise<ProModelContext | undefined> {
+  if (rejected.source !== 'platform') return undefined;
+  signal?.throwIfAborted();
+  await useSettingsStore.getState().fetchServerProviders();
+  signal?.throwIfAborted();
+  if (useSettingsStore.getState().platformDefaultsStatus !== 'ready') return undefined;
+  const current = getCurrentModelConfig();
+  // A concurrent settings change must not silently change this submission's
+  // selected model. The same revision also means a PRO conflict was about the
+  // connection reference, whose optimistic concurrency protection stays intact.
+  if (
+    current.source !== 'platform' ||
+    current.defaultId !== rejected.defaultId ||
+    !current.revision ||
+    current.revision === rejected.revision
+  ) {
+    return undefined;
+  }
+  return current;
+}
+
 /** Synchronize Home selection before PRO writes, without putting keys in message bodies. */
 export async function getProModelRef() {
   const { flushProModelRevocation } = await import('@/lib/workbench/pro-model-connection-client');
@@ -113,7 +139,9 @@ export async function getProModelRef() {
   });
   const readiness = await response.json().catch(() => ({}));
   if (!response.ok || readiness.chatReady !== true || readiness.generationReady !== true) {
-    throw new Error(proModelConfigurationMessage(readiness.error));
+    throw new Error(
+      proModelConfigurationMessage(readiness.error ?? readiness.errorCode, response.status),
+    );
   }
   return modelRef;
 }

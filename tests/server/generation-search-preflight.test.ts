@@ -61,6 +61,24 @@ describe('owner search snapshots at the job preflight boundary', () => {
     expect(JSON.stringify(input)).not.toContain('owner-search-secret');
   });
 
+  it('accepts the built-in Brave web search with no API key or server search provider', async () => {
+    const searchConfigRef = await store.create('owner-a', {
+      version: 1,
+      providerId: 'brave',
+      baseUrl: 'https://search.brave.com',
+    });
+    const input = parseGenerationInput({
+      version: 1,
+      requirements: { requirement: '布迪厄思想学习', webSearch: true },
+      enableWebSearch: true,
+      webSearch: { providerId: 'brave' },
+      searchConfigRef,
+    });
+    await expect(
+      validateBackgroundProviders(input, { ownerId: 'owner-a', queryable }),
+    ).resolves.toBeUndefined();
+  });
+
   it('rejects another owner, missing context and a mismatched provider or model', async () => {
     const searchConfigRef = await store.create('owner-a', {
       version: 1,
@@ -74,18 +92,18 @@ describe('owner search snapshots at the job preflight boundary', () => {
       searchConfigRef,
     });
     await expect(validateBackgroundProviders(input)).rejects.toThrow(
-      'BACKGROUND_PROVIDER_UNAVAILABLE',
+      'BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE',
     );
     await expect(
       validateBackgroundProviders(input, { ownerId: 'owner-b', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE');
     for (const webSearch of [
       { providerId: 'brave' },
       { providerId: 'bocha', modelId: 'changed' },
     ]) {
       await expect(
         validateBackgroundProviders({ ...input, webSearch }, { ownerId: 'owner-a', queryable }),
-      ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+      ).rejects.toThrow('BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE');
     }
   });
 
@@ -98,6 +116,6 @@ describe('owner search snapshots at the job preflight boundary', () => {
     });
     await expect(
       validateBackgroundProviders(legacy, { ownerId: 'owner-a', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE');
   });
 });

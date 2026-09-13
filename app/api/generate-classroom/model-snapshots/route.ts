@@ -3,7 +3,10 @@ import {
   readGenerationJson,
   withGenerationRequest,
 } from '@/lib/server/generation-jobs/http';
-import { normalizeModelConnectionContext } from '@/lib/server/agent-runtime/model-connections';
+import {
+  normalizeModelConnectionContext,
+  ProModelConnectionError,
+} from '@/lib/server/agent-runtime/model-connections';
 import {
   generationModelSnapshotContent,
   GenerationModelSnapshotError,
@@ -31,7 +34,10 @@ export async function POST(req: Request) {
         );
         return generationResponse({ success: true, ref }, headers, 201);
       } catch (error) {
-        if (error instanceof GenerationModelSnapshotError) {
+        if (
+          error instanceof GenerationModelSnapshotError ||
+          error instanceof ProModelConnectionError
+        ) {
           throw new GenerationJobError(error.code, error.status);
         }
         throw error;

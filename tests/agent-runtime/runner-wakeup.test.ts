@@ -147,25 +147,30 @@ vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
   preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
 }));
 
-vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
-  resolveAgentDriverModel: vi.fn(async () => ({
-    connection: { model: { id: 'wakeup-test' }, modelId: 'wakeup-test', providerId: 'test' },
-    piModel: {
-      id: 'wakeup-test',
-      name: 'wakeup-test',
-      api: 'openai-completions',
-      provider: 'test',
-      baseUrl: '',
-      reasoning: true,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 128_000,
-      maxTokens: 8_192,
-    },
-    wireMaxOutputTokens: undefined,
-    reservedOutputTokens: 8_192,
-  })),
-}));
+vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) => {
+  const actual =
+    await importActual<typeof import('@/lib/server/agent-runtime/agent-driver-model')>();
+  return {
+    ...actual,
+    resolveAgentDriverModel: vi.fn(async () => ({
+      connection: { model: { id: 'wakeup-test' }, modelId: 'wakeup-test', providerId: 'test' },
+      piModel: {
+        id: 'wakeup-test',
+        name: 'wakeup-test',
+        api: 'openai-completions',
+        provider: 'test',
+        baseUrl: '',
+        reasoning: true,
+        input: ['text'],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128_000,
+        maxTokens: 8_192,
+      },
+      wireMaxOutputTokens: undefined,
+      reservedOutputTokens: 8_192,
+    })),
+  };
+});
 vi.mock('@/lib/agent/runtime/stream-fn', () => ({
   createCallLlmStreamFn: vi.fn(() => async () => undefined),
 }));

@@ -14,14 +14,28 @@ import {
 } from '@/lib/server/generation-jobs/contracts';
 import type { AgentSessionMediaConfig } from './course-tools';
 import { mediaConfigVoiceSource, resolveEffectiveSessionVoice } from './effective-voice-directory';
+import {
+  normalizeProAgents,
+  ProAgentParams,
+  ProInputError,
+  ProOutlineParams,
+} from './pro-generation-input';
+import { checkOutlineAgainstSkill, type OutlineConstraints } from './skills';
 
 const SubmitParams = Type.Object({
   requirement: Type.String({ description: 'The complete course generation brief.' }),
   courseTitle: Type.Optional(Type.String()),
   languageDirective: Type.Optional(Type.String()),
   researchContext: Type.Optional(Type.String()),
-  outlines: Type.Optional(Type.Array(Type.Any(), { minItems: 1, maxItems: 30 })),
-  agents: Type.Optional(Type.Array(Type.Any(), { minItems: 1, maxItems: 10 })),
+  outlines: Type.Optional(Type.Array(ProOutlineParams, { minItems: 1, maxItems: 30 })),
+  agents: Type.Optional(
+    Type.Array(ProAgentParams, {
+      minItems: 1,
+      maxItems: 10,
+      description:
+        'Optional complete custom cast: unique stable IDs and exactly one teacher. Omit to generate the cast automatically.',
+    }),
+  ),
   skillIds: Type.Optional(Type.Array(Type.String(), { maxItems: 30 })),
   folderId: Type.Optional(Type.String()),
   targetStageId: Type.Optional(Type.String()),
@@ -68,6 +82,10 @@ export interface GenerationJobToolDeps {
   resolveSkillConstraints?: (
     ids: readonly string[],
   ) => Promise<Array<{ id: string; constraints: Record<string, unknown> }>>;
+  /** Owner-visible installed skills, including guidance-only skills. Missing IDs are unavailable. */
+  resolveSkills?: (
+    ids: readonly string[],
+  ) => Promise<Array<{ id: string; constraints?: Record<string, unknown> }>>;
   onCompleted?: (job: GenerationJobView) => void;
 }
 
@@ -86,7 +104,8 @@ function progress(job: GenerationJobView) {
 }
 
 function normalizePlannedOutlines(value: readonly unknown[]) {
-  const normalized: Record<string, unknown>[] = value.map((item) => {
+  const issues: Array<{ path: string; message: string }> = [];
+  const normalized: Record<string, unknown>[] = value.map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new GenerationJobError('INVALID_OUTLINE', 400);
     }
@@ -94,24 +113,30 @@ function normalizePlannedOutlines(value: readonly unknown[]) {
     const description = source.description ?? source.brief;
     const keyPoints = source.keyPoints ?? source.materialFacts;
     const languageNote = source.languageNote ?? source.language;
-    if (
-      (source.description !== undefined &&
-        source.brief !== undefined &&
-        source.description !== source.brief) ||
-      (source.keyPoints !== undefined &&
-        source.materialFacts !== undefined &&
-        JSON.stringify(source.keyPoints) !== JSON.stringify(source.materialFacts)) ||
-      (source.languageNote !== undefined &&
-        source.language !== undefined &&
-        source.languageNote !== source.language)
-    ) {
-      throw new GenerationJobError('INVALID_OUTLINE', 400);
+    for (const [canonical, alias] of [
+      ['description', 'brief'],
+      ['keyPoints', 'materialFacts'],
+      ['languageNote', 'language'],
+    ] as const) {
+      if (
+        source[canonical] !== undefined &&
+        source[alias] !== undefined &&
+        (canonical === 'keyPoints'
+          ? JSON.stringify(source[canonical]) !== JSON.stringify(source[alias])
+          : source[canonical] !== source[alias])
+      ) {
+        issues.push({
+          path: `outlines[${index}].${alias}`,
+          message: `${alias} conflicts with ${canonical} on this page. Keep the intended teaching content in ${canonical} and remove ${alias}, or use ${alias} instead of ${canonical}. If both are supplied they must be identical. Resubmit the complete page object, not a partial update.`,
+        });
+      }
     }
     delete source.brief;
     delete source.materialFacts;
     delete source.language;
     return { ...source, description, keyPoints, ...(languageNote ? { languageNote } : {}) };
   });
+  if (issues.length) throw new ProInputError('INVALID_OUTLINE', issues);
   const orders = new Set<number>();
   for (const item of normalized) {
     if (!Number.isInteger(item.order) || orders.has(item.order as number)) {
@@ -203,7 +228,7 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
     name: 'submit_course_generation',
     label: 'Generate complete course',
     description:
-      'Submit a complete ordinary or planned course to the durable PostgreSQL generation worker. Returns immediately. Do not create pages synchronously after it succeeds.',
+      'Submit a complete ordinary or planned course to the durable PostgreSQL generation worker. Returns immediately. Do not create pages synchronously after it succeeds. Minimal planned page: {id:"p1",order:0,type:"slide",title:"Introduction",description:"Explain the learning goal",keyPoints:[]}. Prefer description/keyPoints/languageNote; legacy brief/materialFacts/language are alternatives, not additional content fields. Before submission, read and follow each requested skill and its structural constraints; supply outlines with all teaching guidance encoded in the pages. Every resubmission must include the full plan with complete page objects (id/type/title/order/description/keyPoints), never an incremental patch. A custom agent needs id/name/role/persona; copy optional voice from list_voices.',
     parameters: SubmitParams,
     executionMode: 'sequential',
     async execute(callId, params: Static<typeof SubmitParams>, signal) {
@@ -220,20 +245,84 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         );
       await deps.ensureReady?.();
       const modelConfigRef = deps.modelConfigRef ?? (await deps.resolveModelConfigRef?.());
-      const skillConstraints = params.skillIds?.length
-        ? await deps.resolveSkillConstraints?.(params.skillIds)
+      const skillIds = params.skillIds ? [...new Set(params.skillIds)] : undefined;
+      const resolvedSkills = skillIds?.length
+        ? await (deps.resolveSkills ?? deps.resolveSkillConstraints)?.(skillIds)
         : undefined;
-      if (params.skillIds?.length && skillConstraints?.length !== new Set(params.skillIds).size)
+      const missingSkills =
+        skillIds?.filter((id) => !resolvedSkills?.some((skill) => skill.id === id)) ?? [];
+      if (missingSkills.length)
         return result(
-          'One or more requested skills are unavailable or have no enforceable constraints.',
-          { refused: true, code: 'INVALID_GENERATION_SKILL' },
+          `Requested skills are not installed or are not accessible: ${missingSkills.join(', ')}. Correct only the unavailable IDs; keep valid skills and their page-level guidance.`,
+          {
+            refused: true,
+            code: 'INVALID_GENERATION_SKILL',
+            issues: missingSkills.map((id) => ({ id, reason: 'unavailable' })),
+          },
           true,
         );
-      const agents: GenerationInput['agents'] = params.agents
-        ? { mode: 'custom', items: params.agents }
-        : { mode: 'generate' };
+      if (skillIds?.length && !params.outlines)
+        return result(
+          'skillIds require outlines. Plan the pages first and encode guidance in description/keyPoints so the worker can preserve every skill requirement.',
+          { refused: true, code: 'SKILL_PLAN_REQUIRED' },
+          true,
+        );
+      const skillConstraints = resolvedSkills?.flatMap((skill) =>
+        skill.constraints ? [{ id: skill.id, constraints: skill.constraints }] : [],
+      );
       let input: GenerationInput;
       try {
+        // Validate independent local fields together so one malformed roster does
+        // not hide an outline error (or force another model repair round).
+        let agents: GenerationInput['agents'];
+        let outlines: ReturnType<typeof normalizePlannedOutlines> | undefined;
+        const errors: GenerationJobError[] = [];
+        try {
+          agents = normalizeProAgents(params.agents, deps.mediaConfig);
+        } catch (error) {
+          if (!(error instanceof GenerationJobError)) throw error;
+          errors.push(error);
+        }
+        try {
+          outlines = params.outlines ? normalizePlannedOutlines(params.outlines) : undefined;
+        } catch (error) {
+          if (!(error instanceof GenerationJobError)) throw error;
+          errors.push(error);
+        }
+        if (errors.length) {
+          const issues = errors.flatMap((error) =>
+            error instanceof ProInputError
+              ? error.issues.map((issue) => ({ ...issue, code: error.code }))
+              : [
+                  {
+                    path: 'outlines',
+                    code: error.code,
+                    message:
+                      'Each outline needs a unique id and integer order, title, valid type, description and keyPoints. Conflicting aliases are rejected.',
+                  },
+                ],
+          );
+          return result(
+            `Correct the supplied fields, then call submit_course_generation again. No job was created.\n${issues.map((issue) => `${issue.path} (${issue.code}): ${issue.message}`).join('\n')}`,
+            {
+              refused: true,
+              code: errors[0].code,
+              issues,
+            },
+            true,
+          );
+        }
+        const violations = (skillConstraints ?? []).flatMap((skill) =>
+          checkOutlineAgainstSkill(outlines ?? [], skill.constraints as OutlineConstraints).map(
+            (message) => ({ id: skill.id, message }),
+          ),
+        );
+        if (violations.length)
+          return result(
+            `The page plan violates the requested skill constraints. Repair the plan and keep the skill IDs.\n${violations.map((issue) => `${issue.id}: ${issue.message}`).join('\n')}`,
+            { refused: true, code: 'SKILL_CONSTRAINT_VIOLATION', issues: violations },
+            true,
+          );
         input = parseGenerationInput({
           version: 1,
           requirements: { requirement: params.requirement },
@@ -256,11 +345,11 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
           ...(params.outlines
             ? {
                 planning: {
-                  outlines: normalizePlannedOutlines(params.outlines),
+                  outlines,
                   courseTitle: params.courseTitle,
                   languageDirective: params.languageDirective,
                   researchContext: params.researchContext,
-                  skillIds: params.skillIds,
+                  skillIds,
                   skillConstraints,
                 },
               }
@@ -272,7 +361,7 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         });
       } catch (error) {
         if (!(error instanceof GenerationJobError)) throw error;
-        const code = params.agents ? 'INVALID_AGENTS' : error.code;
+        const code = error.code;
         return result(
           code === 'INVALID_AGENTS'
             ? 'The custom roster is incomplete or invalid. Supply full AgentInfo entries with stable ids and voiceConfig objects.'
@@ -302,7 +391,7 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         : await deps.repository.getJobBySession(deps.ownerId, deps.sessionId);
       if (!job)
         return result(
-          'No course generation job was found for this session.',
+          'No course generation job was found. If submit_course_generation failed, correct its reported parameters and submit successfully before checking status; there is no job to retry or poll yet.',
           { found: false },
           true,
         );

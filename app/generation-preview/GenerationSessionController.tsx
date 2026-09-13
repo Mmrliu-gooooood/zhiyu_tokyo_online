@@ -86,6 +86,7 @@ import { useGenerationJob } from '@/lib/hooks/use-generation-job';
 import { buildGenerationJobInput } from '@/lib/generation/session-input';
 import {
   createGenerationJob,
+  GenerationJobRequestError,
   generationJobRequest,
   readBackgroundGenerationCapability,
   retryGenerationJob,
@@ -563,7 +564,21 @@ function GenerationPreviewContent() {
           input,
           `generation:${backgroundSession.sessionId}`,
           run.signal,
-        );
+        ).catch((failure) => {
+          // These create-route rejections happen before admission (or roll the
+          // transaction back). A first rejected submission can rebuild its input.
+          // Never erase an earlier unknown outcome: a recovery request may now
+          // fail auth even though the original request already created the job.
+          if (
+            !generationSession.backgroundInput &&
+            failure instanceof GenerationJobRequestError &&
+            [400, 401, 403, 422].includes(failure.status) &&
+            generationRuntimeRef.current?.isCurrent(run.epoch)
+          ) {
+            persistSession({ ...backgroundSession, backgroundInput: undefined });
+          }
+          throw failure;
+        });
         if (!generationRuntimeRef.current?.isCurrent(run.epoch)) return;
         persistSession({ ...backgroundSession, generationJobId: job.jobId });
         applyBackgroundSnapshot(job);
@@ -1510,6 +1525,15 @@ function GenerationPreviewContent() {
   const cancelBackgroundAndReturn = async () => {
     const requestedJobId = sessionRef.current?.generationJobId;
     if (!requestedJobId) {
+      // Input is persisted immediately before POST. Without it, preflight has not
+      // submitted a job: stop local preparation and discard the abandoned session.
+      // Keep a submitted request recoverable if its HTTP response was lost.
+      if (!sessionRef.current?.backgroundInput) {
+        generationRuntimeRef.current?.stop();
+        sessionStorage.removeItem('generationSession');
+        continueInBackgroundAndReturn();
+        return;
+      }
       setExitCancelError(new Error('GENERATION_JOB_SUBMISSION_PENDING'));
       return;
     }
@@ -1755,6 +1779,7 @@ function GenerationPreviewContent() {
     session.generationBackend === 'server-job'
       ? projectGenerationJobPresentation({
           job: observedBackgroundJob,
+          submissionError: error,
           observationError: backgroundObservation.error,
           cancelling: backgroundObservation.cancelling,
           cancelError: exitCancelError ?? backgroundObservation.cancelError,
@@ -1762,7 +1787,7 @@ function GenerationPreviewContent() {
       : null;
   const jobStatusTitle = jobPresentation ? t(jobPresentation.titleKey) : null;
   const jobStatusDetail = jobPresentation
-    ? t(jobPresentation.detailKey, jobPresentation.detailValues)
+    ? (jobPresentation.detail ?? t(jobPresentation.detailKey, jobPresentation.detailValues))
     : null;
   const requiresNewSubmission = ['QUEUE_WAIT_EXPIRED', 'OUTLINE_REVIEW_EXPIRED'].includes(
     observedBackgroundJob?.lastErrorCode ?? '',

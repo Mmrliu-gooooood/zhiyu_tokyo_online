@@ -303,6 +303,7 @@ export async function validateBackgroundProviders(
 ): Promise<void> {
   if (process.env.ASSET_S3_BUCKET?.trim())
     throw new GenerationJobError('BACKGROUND_ASSET_BACKEND_UNSUPPORTED', 422);
+  let capability: 'MEDIA' | 'MODEL' | 'TTS' | 'IMAGE' | 'VIDEO' | 'SEARCH' = 'MEDIA';
   try {
     const mediaSnapshot = input.mediaConfigRef
       ? context
@@ -314,6 +315,7 @@ export async function validateBackgroundProviders(
             throw new Error('Media snapshot context unavailable');
           })()
       : undefined;
+    capability = 'MODEL';
     const modelSnapshot = input.modelConfigRef
       ? context
         ? await new GenerationModelSnapshotStore(context.queryable).load(
@@ -387,6 +389,7 @@ export async function validateBackgroundProviders(
       if (!id || !available[id] || available[id].disabled) throw new Error('Unavailable provider');
     };
     if (input.tts?.enabled && input.tts.providerId !== 'browser-native-tts') {
+      capability = 'TTS';
       requireTTSProvider(input.tts, input.tts.voice, mediaSnapshot);
       for (const voice of Object.values(input.tts.agentVoiceOverrides ?? {})) {
         if (voice.providerId !== 'browser-native-tts') {
@@ -394,9 +397,16 @@ export async function validateBackgroundProviders(
         }
       }
     }
-    if (input.enableImageGeneration) requireImageProvider(input, mediaSnapshot);
-    if (input.enableVideoGeneration) requireVideoProvider(input, mediaSnapshot);
+    if (input.enableImageGeneration) {
+      capability = 'IMAGE';
+      requireImageProvider(input, mediaSnapshot);
+    }
+    if (input.enableVideoGeneration) {
+      capability = 'VIDEO';
+      requireVideoProvider(input, mediaSnapshot);
+    }
     if (input.enableWebSearch || input.requirements.webSearch) {
+      capability = 'SEARCH';
       if (input.searchConfigRef) {
         if (!context) throw new Error('Search snapshot context unavailable');
         const searchSnapshot = await new GenerationSearchSnapshotStore(context.queryable).load(
@@ -413,6 +423,10 @@ export async function validateBackgroundProviders(
     if (resolutionError) {
       throw new GenerationJobError(resolutionError.code, resolutionError.httpStatus);
     }
-    throw new GenerationJobError('BACKGROUND_PROVIDER_UNAVAILABLE', 422);
+    const code = `BACKGROUND_${capability}_PROVIDER_UNAVAILABLE`;
+    // Fixed capability codes are safe to log; upstream errors and snapshots may
+    // contain credentials. Retain the precise public category without echoing them.
+    console.warn('[generation-preflight] rejected', { code });
+    throw new GenerationJobError(code, 422);
   }
 }

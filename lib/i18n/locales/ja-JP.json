@@ -1207,6 +1207,13 @@
     "statusCourseCompleteDesc": "コースのコンテンツが完成しました。",
     "statusGenerationFailed": "生成に失敗しました",
     "statusGenerationFailedDesc": "生成が完了しませんでした。再試行する前に原因を確認してください。",
+    "preflightProviderUnavailable": "必要なサービスを利用できません。ホームに戻り、モデル・検索・メディアの設定を確認してから再試行してください。",
+    "preflightModelUnavailable": "テキストモデルの設定を利用できません。ホームで選択したモデルと接続設定を確認してください。",
+    "preflightMediaUnavailable": "保存したメディア設定が無効です。ホームでメディア設定を確認してから再試行してください。",
+    "preflightTtsUnavailable": "音声設定を利用できません。ホームで音声モデルと現在の授業の役割ごとの声を確認してください。",
+    "preflightImageUnavailable": "画像生成の設定を利用できません。ホームで有効な画像モデルと接続設定を確認してください。",
+    "preflightVideoUnavailable": "動画生成の設定を利用できません。ホームで有効な動画モデルと接続設定を確認してください。",
+    "preflightSearchUnavailable": "ウェブ検索の設定を利用できません。ホームで選択した検索サービスと接続設定を確認してください。",
     "statusQueueExpired": "キューの待機期限が切れました",
     "statusQueueExpiredDesc": "入力したコース情報は保持されています。準備ができたらホームに戻り、新しいタスクを送信してください。",
     "statusOutlineReviewExpired": "アウトラインの確認期限が切れました",
@@ -1288,12 +1295,12 @@
     "selectedAgents": "選択中のエージェント",
     "required": "必須",
     "agentNames": {
-      "default-1": "AI教師",
-      "default-2": "AIアシスタント",
-      "default-3": "ムードメーカー",
-      "default-4": "好奇心旺盛くん",
-      "default-5": "ノートの達人",
-      "default-6": "深く考える人"
+      "default-1": "Qi Heng",
+      "default-2": "Zhi Wei",
+      "default-3": "Yue Yang",
+      "default-4": "Wen Xi",
+      "default-5": "Shu Yan",
+      "default-6": "Si Che"
     },
     "agentRoles": {
       "teacher": "教師",

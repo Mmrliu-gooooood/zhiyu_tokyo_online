@@ -84,14 +84,14 @@ describe('background model snapshot preflight with real model resolution', () =>
   it('rejects an unmanaged model without its encrypted snapshot', async () => {
     const value = await input();
     delete value.modelConfigRef;
-    await expect(validate(value)).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(value)).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
   });
 
   it('rejects an input model that does not match the encrypted snapshot', async () => {
     state.managed.openai = { apiKey: 'server-key' };
     const value = await input();
     value.model = { modelString: 'openai:gpt-4.1-mini' };
-    await expect(validate(value)).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(value)).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
   });
 
   it('rejects a user input paired with a legacy-managed snapshot for the same model', async () => {
@@ -109,7 +109,7 @@ describe('background model snapshot preflight with real model resolution', () =>
       modelConfigRef,
     });
 
-    await expect(validate(value)).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(value)).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
   });
 
   it('accepts an opaque-only Pro model reference without requiring a duplicate model field', async () => {
@@ -120,18 +120,18 @@ describe('background model snapshot preflight with real model resolution', () =>
 
   it('rejects a missing required client key and owner mismatch', async () => {
     await expect(validate(await input('openai:gpt-4.1', ''))).rejects.toThrow(
-      'BACKGROUND_PROVIDER_UNAVAILABLE',
+      'BACKGROUND_MODEL_PROVIDER_UNAVAILABLE',
     );
     await expect(validate(await input(), 'owner-b')).rejects.toThrow(
-      'BACKGROUND_PROVIDER_UNAVAILABLE',
+      'BACKGROUND_MODEL_PROVIDER_UNAVAILABLE',
     );
   });
 
   it('keeps the server model allowlist and credentials authoritative', async () => {
     state.managed.openai = { models: ['gpt-4.1-mini'], apiKey: 'server-key' };
-    await expect(validate(await input())).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(await input())).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
     state.managed.openai = { models: ['gpt-4.1'], apiKey: '' };
-    await expect(validate(await input())).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(await input())).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
     state.managed.openai.apiKey = 'server-key';
     await expect(validate(await input())).resolves.toBeUndefined();
   });
@@ -141,12 +141,12 @@ describe('background model snapshot preflight with real model resolution', () =>
     vi.stubEnv('MODEL_ROUTES', JSON.stringify({ 'scene-actions': 'anthropic:claude-sonnet-4' }));
     await expect(validate(await input())).resolves.toBeUndefined();
     state.managed.anthropic.apiKey = '';
-    await expect(validate(await input())).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(await input())).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
   });
 
   it('does not authorize an unmanaged server route using a client snapshot for the same model', async () => {
     vi.stubEnv('MODEL_ROUTES', JSON.stringify({ 'scene-actions': 'openai:gpt-4.1' }));
-    await expect(validate(await input())).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    await expect(validate(await input())).rejects.toThrow('BACKGROUND_MODEL_PROVIDER_UNAVAILABLE');
   });
 
   it('preserves legacy server managed generation without snapshots', async () => {

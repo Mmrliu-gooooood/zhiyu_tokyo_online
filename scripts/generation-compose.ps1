@@ -107,6 +107,13 @@ $prefix = @('compose','-p','openmaic-main','--env-file','.env.local','-f','docke
 if ($UseHostBuildNetwork) {
   $prefix += @('-f','docker-compose.build-host.yml')
 }
+# Optional deployment-local external DNS; keep Docker's internal service discovery.
+# Absence preserves the platform default. Never bake machine-specific resolvers into images.
+if (Test-Path -LiteralPath 'docker-compose.dns.local.yml' -PathType Leaf) {
+  $prefix += @('-f','docker-compose.dns.local.yml')
+} elseif (Test-Path -LiteralPath 'docker-compose.dns.local.yml') {
+  throw 'docker-compose.dns.local.yml must be a regular file when present.'
+}
 if (Test-Path -LiteralPath 'server-providers.yml' -PathType Leaf) {
   $prefix += @('-f','docker-compose.providers.yml')
 } elseif (Test-Path -LiteralPath 'server-providers.yml' -PathType Container) {

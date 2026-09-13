@@ -7,6 +7,7 @@ vi.mock('@/lib/store/settings', () => ({ useSettingsStore: { getState: () => ({}
 
 import { pickNarratorAgent, resolveAgentVoiceOptions } from '@/lib/audio/agent-voice';
 import { getVoxCPMProviderOptions } from '@/lib/audio/voxcpm-voices';
+import { DEFAULT_AGENTS } from '@/lib/orchestration/registry/defaults';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 
 const mockGetOptions = getVoxCPMProviderOptions as unknown as ReturnType<typeof vi.fn>;
@@ -84,5 +85,97 @@ describe('resolveAgentVoiceOptions — voice-design source', () => {
   it('has no descriptor when the agent has neither voiceDesign nor persona', async () => {
     await resolveAgentVoiceOptions(agent({ role: 'teacher', persona: '' }), opts);
     expect(mockGetOptions.mock.calls[0][1].voiceDesign).toBeUndefined();
+  });
+
+  it('changes only agentName in VoxCPM inputs when the six preset roles are renamed', async () => {
+    const legacyNames: Record<string, string> = {
+      'default-1': 'AI teacher',
+      'default-2': 'AI助教',
+      'default-3': '显眼包',
+      'default-4': '好奇宝宝',
+      'default-5': '笔记员',
+      'default-6': '思考者',
+    };
+
+    for (const preset of Object.values(DEFAULT_AGENTS)) {
+      await resolveAgentVoiceOptions({ ...preset, name: legacyNames[preset.id] }, opts);
+      const legacyInput = mockGetOptions.mock.calls.at(-1)?.[1];
+      await resolveAgentVoiceOptions(preset, opts);
+      const renamedInput = mockGetOptions.mock.calls.at(-1)?.[1];
+
+      expect(renamedInput.agentName).toBe(preset.name);
+      expect({ ...renamedInput, agentName: legacyInput.agentName }).toEqual(legacyInput);
+      expect(renamedInput.voiceDesign).toEqual({
+        identity: preset.persona,
+        texture: '',
+        delivery: '',
+      });
+    }
+  });
+
+  it('preserves selected-voice resolution and provider configuration across every rename', async () => {
+    const selected = {
+      providerId: 'voxcpm-tts',
+      voiceId: 'voxcpm-profile:learner-selected',
+      providerConfig: {
+        apiKey: 'test-key',
+        baseUrl: 'https://voice.test/v1',
+        modelId: 'voxcpm-stable',
+        providerOptions: { backend: 'voxcpm', temperature: 0.42 },
+      },
+      language: 'zh-CN',
+    };
+    mockGetOptions.mockImplementation(async (voiceId: string) => ({
+      voiceMode: 'prompt',
+      selectedVoiceId: voiceId,
+    }));
+
+    for (const preset of Object.values(DEFAULT_AGENTS)) {
+      const legacy = { ...preset, name: `legacy-${preset.id}` };
+      const before = await resolveAgentVoiceOptions(legacy, selected);
+      const after = await resolveAgentVoiceOptions(preset, selected);
+
+      expect(after).toEqual(before);
+      expect(mockGetOptions.mock.calls.at(-1)?.[0]).toBe(selected.voiceId);
+      expect(mockGetOptions.mock.calls.at(-1)?.[2]).toEqual({
+        ttsApiKey: selected.providerConfig.apiKey,
+        ttsBaseUrl: selected.providerConfig.baseUrl,
+        ttsModelId: selected.providerConfig.modelId,
+      });
+      expect(after).toMatchObject(selected.providerConfig.providerOptions);
+    }
+  });
+
+  it('preserves automatic voice prompt and registered-id inputs across every rename', async () => {
+    mockGetOptions.mockImplementation(async (_voiceId: string, context) => ({
+      voiceMode: 'auto',
+      voicePrompt: JSON.stringify(context.voiceDesign),
+      registeredVoiceId: `registered:${JSON.stringify(context.voiceDesign)}`,
+    }));
+    const automatic = {
+      providerId: 'voxcpm-tts',
+      voiceId: 'voxcpm:auto',
+      providerConfig: {
+        apiKey: 'test-key',
+        customDefaultBaseUrl: 'https://voice.test/v1',
+        modelId: 'voxcpm-stable',
+        providerOptions: { backend: 'vllm-omni', speed: 1.05 },
+      },
+      language: 'zh-CN',
+    };
+
+    for (const preset of Object.values(DEFAULT_AGENTS)) {
+      const legacy = { ...preset, name: `legacy-${preset.id}` };
+      const before = await resolveAgentVoiceOptions(legacy, automatic);
+      const beforeContext = mockGetOptions.mock.calls.at(-1)?.[1];
+      const after = await resolveAgentVoiceOptions(preset, automatic);
+      const afterContext = mockGetOptions.mock.calls.at(-1)?.[1];
+
+      expect(after).toEqual(before);
+      expect(afterContext.voiceDesign).toEqual(beforeContext.voiceDesign);
+      expect(afterContext.persona).toBe(beforeContext.persona);
+      expect(afterContext.role).toBe(beforeContext.role);
+      expect(afterContext.agentName).toBe(preset.name);
+    }
   });
 });

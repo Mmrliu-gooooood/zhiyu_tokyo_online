@@ -70,10 +70,28 @@ import type { PendingChange } from '@/lib/utils/stage-storage';
 function persistenceChangesForSetState(
   before: ReturnType<StageStore['getState']>,
   after: ReturnType<StageStore['getState']>,
+  transientWhiteboard = false,
 ): PendingChange[] {
   const changes: PendingChange[] = [];
 
-  if (before.stage !== after.stage) changes.push({ kind: 'stage' });
+  if (before.stage !== after.stage) {
+    const previous = before.stage;
+    const next = after.stage;
+    // Playback resets and draws on stage.whiteboard, but server-produced
+    // course documents belong to the worker. These visual changes must not
+    // enqueue putStage and start a rejected-write/authoritative-reload loop.
+    // Other stage fields remain document edits and keep the ordinary fence.
+    const whiteboardOnly =
+      transientWhiteboard &&
+      previous &&
+      next &&
+      [...new Set([...Object.keys(previous), ...Object.keys(next)])].every(
+        (key) =>
+          key === 'whiteboard' ||
+          previous[key as keyof typeof previous] === next[key as keyof typeof next],
+      );
+    if (!whiteboardOnly) changes.push({ kind: 'stage' });
+  }
   if (before.currentSceneId !== after.currentSceneId) changes.push({ kind: 'currentScene' });
 
   if (before.scenes !== after.scenes) {
@@ -104,8 +122,9 @@ function withProductionPersistence(store: StageStore): StageStore {
     ...store,
     setState(partial) {
       const before = store.getState();
+      const transientWhiteboard = useStageStore.getState().outlineProducer === 'server-job';
       store.setState(partial);
-      const changes = persistenceChangesForSetState(before, store.getState());
+      const changes = persistenceChangesForSetState(before, store.getState(), transientWhiteboard);
       if (changes.length > 0) markStagePersistenceDirty(changes);
     },
   };

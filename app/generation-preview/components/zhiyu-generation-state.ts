@@ -17,6 +17,7 @@ export type ZhiyuGenerationStep = {
 export type GenerationJobPresentation = {
   titleKey: string;
   detailKey: string;
+  detail?: string;
   detailValues?: Record<string, number | string>;
   terminal: boolean;
 };
@@ -94,9 +95,28 @@ export function projectGenerationJobPresentation(input: {
     autoContinueAt?: string | null;
   } | null;
   observationError?: Error | null;
+  submissionError?: string | null;
   cancelling?: boolean;
   cancelError?: Error | null;
 }): GenerationJobPresentation {
+  if (!input.job && input.submissionError) {
+    const providerDetails: Record<string, string> = {
+      BACKGROUND_PROVIDER_UNAVAILABLE: 'generation.preflightProviderUnavailable',
+      BACKGROUND_MODEL_PROVIDER_UNAVAILABLE: 'generation.preflightModelUnavailable',
+      BACKGROUND_MEDIA_PROVIDER_UNAVAILABLE: 'generation.preflightMediaUnavailable',
+      BACKGROUND_TTS_PROVIDER_UNAVAILABLE: 'generation.preflightTtsUnavailable',
+      BACKGROUND_IMAGE_PROVIDER_UNAVAILABLE: 'generation.preflightImageUnavailable',
+      BACKGROUND_VIDEO_PROVIDER_UNAVAILABLE: 'generation.preflightVideoUnavailable',
+      BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE: 'generation.preflightSearchUnavailable',
+    };
+    const providerDetail = providerDetails[input.submissionError];
+    return {
+      titleKey: 'generation.statusGenerationFailed',
+      detailKey: providerDetail ?? 'generation.statusGenerationFailedDesc',
+      ...(providerDetail ? {} : { detail: input.submissionError }),
+      terminal: true,
+    };
+  }
   const display = input.job
     ? projectGenerationJobDisplay({
         ...input.job,

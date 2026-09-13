@@ -1207,6 +1207,13 @@
     "statusCourseCompleteDesc": "اكتمل محتوى الدورة.",
     "statusGenerationFailed": "فشل الإنشاء",
     "statusGenerationFailedDesc": "لم يكتمل الإنشاء. راجع السبب قبل إعادة المحاولة.",
+    "preflightProviderUnavailable": "إحدى الخدمات المطلوبة غير متاحة. ارجع إلى الرئيسية وتحقق من إعدادات النماذج والبحث والوسائط قبل المحاولة مجددًا.",
+    "preflightModelUnavailable": "نموذج النص غير متاح. تحقق من النموذج المحدد وإعدادات اتصاله في الرئيسية.",
+    "preflightMediaUnavailable": "إعدادات الوسائط المحفوظة لم تعد متاحة. ارجع إلى الرئيسية وتحقق من إعدادات الوسائط.",
+    "preflightTtsUnavailable": "إعدادات الصوت غير متاحة. تحقق من نموذج الصوت وأصوات أدوار الدرس الحالي في الرئيسية.",
+    "preflightImageUnavailable": "إعدادات الصور غير متاحة. تحقق من نموذج الصور المفعّل وإعدادات اتصاله في الرئيسية.",
+    "preflightVideoUnavailable": "إعدادات الفيديو غير متاحة. تحقق من نموذج الفيديو المفعّل وإعدادات اتصاله في الرئيسية.",
+    "preflightSearchUnavailable": "البحث على الويب غير متاح. تحقق من خدمة البحث المحددة وإعدادات اتصالها في الرئيسية.",
     "statusQueueExpired": "انتهت مهلة الانتظار في قائمة الانتظار",
     "statusQueueExpiredDesc": "تم الاحتفاظ بمدخلات دورتك. ارجع إلى الصفحة الرئيسية وأرسل مهمة جديدة عندما تكون مستعدًا.",
     "statusOutlineReviewExpired": "انتهت مهلة مراجعة المخطط",
@@ -1288,12 +1295,12 @@
     "selectedAgents": "الوكلاء المختارون",
     "required": "مطلوب",
     "agentNames": {
-      "default-1": "المعلم الذكي",
-      "default-2": "المساعد الذكي",
-      "default-3": "مُحيي الفصل",
-      "default-4": "العقل الفضولي",
-      "default-5": "مُدوّن الملاحظات",
-      "default-6": "المفكر العميق"
+      "default-1": "Qi Heng",
+      "default-2": "Zhi Wei",
+      "default-3": "Yue Yang",
+      "default-4": "Wen Xi",
+      "default-5": "Shu Yan",
+      "default-6": "Si Che"
     },
     "agentRoles": {
       "teacher": "معلم",

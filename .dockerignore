@@ -29,6 +29,7 @@ debug.log
 .env*
 !.env.example
 server-providers*.yml
+docker-compose.dns.local.yml
 
 # misc
 assets

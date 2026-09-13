@@ -4,11 +4,15 @@ import { GenerationInputSchema } from '@/lib/server/generation-jobs/contracts';
 const mocks = vi.hoisted(() => ({
   settings: vi.fn(),
   model: vi.fn(),
+  refreshModel: vi.fn(),
   loadBlob: vi.fn(),
   loadAsset: vi.fn(),
 }));
 vi.mock('@/lib/store/settings', () => ({ useSettingsStore: { getState: mocks.settings } }));
-vi.mock('@/lib/utils/model-config', () => ({ getCurrentModelConfig: mocks.model }));
+vi.mock('@/lib/utils/model-config', () => ({
+  getCurrentModelConfig: mocks.model,
+  refreshPlatformModelConfig: mocks.refreshModel,
+}));
 vi.mock('@/lib/utils/image-storage', () => ({ loadDocumentBlob: mocks.loadBlob }));
 vi.mock('@/lib/media/resolve-stored-bytes', () => ({ resolveStoredBytes: mocks.loadAsset }));
 vi.mock('@/lib/orchestration/registry/store', () => ({
@@ -62,6 +66,314 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('background session input', () => {
+  it('keeps an explicit personal role voice separate from the same-provider platform narrator', async () => {
+    const override = {
+      source: 'user',
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-turbo',
+      voiceId: 'female-yujie',
+    };
+    mocks.settings.mockReturnValue({
+      ...settings,
+      ttsProviderId: 'minimax-tts',
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      ttsVoice: 'male-qn-qingse',
+      ttsProvidersConfig: {
+        'minimax-tts': { enabled: true, modelId: 'speech-2.8-turbo', apiKey: 'test-personal-key' },
+      },
+      platformDefaults: {
+        entries: [
+          {
+            capability: 'tts',
+            defaultId: 'zhiyu-default-tts',
+            revision: 'current-tts',
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-turbo',
+            available: true,
+          },
+        ],
+      },
+      agentVoiceOverrides: { teacher: override },
+    });
+    let snapshot: { ttsProviders: Array<Record<string, unknown>>; ttsDefault: unknown } | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/agent/media-config-snapshots') {
+          snapshot = JSON.parse(String(init?.body)).snapshot;
+          return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+        }
+        return Response.json({ jobs: [] });
+      }),
+    );
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(snapshot?.ttsProviders).toHaveLength(2);
+    expect(snapshot?.ttsProviders.find((provider) => provider.source === 'user')).toMatchObject({
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-turbo',
+      apiKey: 'test-personal-key',
+    });
+    expect(
+      snapshot?.ttsProviders.find((provider) => provider.source === 'platform'),
+    ).not.toHaveProperty('apiKey');
+    expect(snapshot?.ttsDefault).toMatchObject({
+      source: 'platform',
+      defaultId: 'zhiyu-default-tts',
+      voiceId: 'male-qn-qingse',
+    });
+    expect(input.tts?.agentVoiceOverrides?.teacher).toEqual(override);
+    expect(input.agents?.items?.[0]?.voiceConfig).toEqual(override);
+    expect(JSON.stringify(input)).not.toContain('test-personal-key');
+  });
+  it('preserves a platform role voice when the global narrator uses a custom provider', async () => {
+    const override = {
+      source: 'platform',
+      defaultId: 'zhiyu-default-tts',
+      revision: 'current-tts',
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-turbo',
+      voiceId: 'male-qn-qingse',
+    };
+    const userSettings = {
+      ...settings,
+      ttsProviderId: 'custom-tts-narrator',
+      ttsSelection: { source: 'user', providerId: 'custom-tts-narrator', modelId: 'custom-speech' },
+      ttsVoice: 'custom-voice',
+      ttsProvidersConfig: {
+        'custom-tts-narrator': {
+          protocol: 'openai-speech',
+          modelId: 'custom-speech',
+          enabled: true,
+          apiKey: 'test-custom-key',
+          baseUrl: 'https://speech.example.test/v1',
+        },
+        'minimax-tts': { modelId: 'speech-2.8-turbo', apiKey: 'must-not-be-platform-key' },
+      },
+      platformDefaults: {
+        entries: [
+          {
+            capability: 'tts',
+            defaultId: 'zhiyu-default-tts',
+            revision: 'current-tts',
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-turbo',
+            available: true,
+          },
+        ],
+      },
+      agentVoiceOverrides: { teacher: override },
+    };
+    mocks.settings.mockReturnValue(userSettings);
+    let snapshot:
+      | { ttsProviders: unknown[]; ttsVoiceDirectory: unknown[]; ttsDefault: unknown }
+      | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/agent/media-config-snapshots') {
+          snapshot = JSON.parse(String(init?.body)).snapshot;
+          return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+        }
+        return Response.json({ jobs: [] });
+      }),
+    );
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(snapshot?.ttsProviders).toContainEqual({
+      source: 'platform',
+      defaultId: 'zhiyu-default-tts',
+      revision: 'current-tts',
+      speed: 1,
+    });
+    expect(snapshot?.ttsVoiceDirectory).toContainEqual(
+      expect.objectContaining({
+        source: 'platform',
+        defaultId: 'zhiyu-default-tts',
+        revision: 'current-tts',
+        voiceIds: expect.arrayContaining(['male-qn-qingse']),
+      }),
+    );
+    expect(snapshot?.ttsDefault).toMatchObject({
+      source: 'user',
+      providerId: 'custom-tts-narrator',
+    });
+    expect(JSON.stringify(snapshot)).not.toContain('must-not-be-platform-key');
+    expect(input.tts?.agentVoiceOverrides?.teacher).toEqual(override);
+    expect(input.agents?.items?.[0]?.voiceConfig).toEqual(override);
+    expect(userSettings.agentVoiceOverrides.teacher).toEqual(override);
+    expect(GenerationInputSchema.safeParse(input).success).toBe(true);
+  });
+  it('refreshes explicitly selected platform role voices when freezing a new course', async () => {
+    const override = {
+      source: 'platform',
+      defaultId: 'zhiyu-default-tts',
+      revision: 'old-tts',
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-turbo',
+      voiceId: 'male-qn-qingse',
+    };
+    mocks.settings.mockReturnValue({
+      ...settings,
+      ttsProviderId: 'minimax-tts',
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      ttsVoice: 'male-qn-qingse',
+      ttsProvidersConfig: { 'minimax-tts': { modelId: 'speech-2.8-turbo' } },
+      platformDefaults: {
+        entries: [
+          {
+            capability: 'tts',
+            defaultId: 'zhiyu-default-tts',
+            revision: 'new-tts',
+            providerId: 'minimax-tts',
+            modelId: 'speech-2.8-turbo',
+            available: true,
+          },
+        ],
+      },
+      agentVoiceOverrides: { teacher: override },
+    });
+    let mediaSnapshot: { ttsProviders: Array<{ revision: string }> } | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/agent/media-config-snapshots') {
+          mediaSnapshot = JSON.parse(String(init?.body)).snapshot;
+          return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+        }
+        return Response.json({ jobs: [] });
+      }),
+    );
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(input.tts?.agentVoiceOverrides?.teacher).toMatchObject({
+      revision: mediaSnapshot?.ttsProviders[0].revision,
+    });
+    expect(input.agents?.items?.[0]?.voiceConfig).toMatchObject({
+      source: 'platform',
+      revision: 'new-tts',
+      voiceId: 'male-qn-qingse',
+    });
+    expect(override.revision).toBe('old-tts');
+  });
+  it.each(['preset', 'auto'])(
+    'does not submit unused persisted role voice overrides for %s rosters',
+    async (agentMode) => {
+      const unusedVoice = {
+        providerId: 'custom-tts-retired',
+        modelId: 'old-model',
+        voiceId: 'old-voice',
+        source: 'user',
+      };
+      const agentVoiceOverrides = {
+        'not-selected': unusedVoice,
+        ...(agentMode === 'auto' ? { teacher: unusedVoice } : {}),
+      };
+      mocks.settings.mockReturnValue({ ...settings, agentMode, agentVoiceOverrides });
+      let snapshot: Record<string, unknown> | undefined;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if (url === '/api/agent/media-config-snapshots') {
+            snapshot = JSON.parse(String(init?.body)).snapshot;
+            return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+          }
+          return Response.json({ jobs: [] });
+        }),
+      );
+
+      const input = await buildGenerationJobInput(
+        session,
+        'zh-CN',
+        new AbortController().signal,
+        vi.fn(),
+      );
+
+      expect(input.tts?.agentVoiceOverrides).toEqual({});
+      expect(JSON.stringify(snapshot)).not.toContain('custom-tts-retired');
+      expect(agentVoiceOverrides['not-selected']).toEqual(unusedVoice);
+    },
+  );
+  it('freezes the refreshed platform revision alongside the accepted model snapshot', async () => {
+    const model = {
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'old',
+      modelString: '',
+      apiKey: '',
+      baseUrl: '',
+    };
+    mocks.model.mockReturnValue(model);
+    const mediaSettings = (revision: string) => ({
+      ...settings,
+      imageGenerationEnabled: true,
+      imageProviderId: 'minimax-image',
+      imageModelId: 'image-01',
+      imageProvidersConfig: { 'minimax-image': {} },
+      imageSelection: { source: 'platform', defaultId: 'zhiyu-default-image' },
+      platformDefaults: { entries: [{ defaultId: 'zhiyu-default-image', revision }] },
+    });
+    mocks.settings.mockReturnValue(mediaSettings('old-image'));
+    mocks.refreshModel.mockImplementation(async () => {
+      mocks.settings.mockReturnValue(mediaSettings('new-image'));
+      return { ...model, revision: 'new' };
+    });
+    const ref = { id: crypto.randomUUID(), revision: 1 };
+    let modelPosts = 0;
+    let acceptedModel: Record<string, unknown> | undefined;
+    let acceptedImage: Record<string, unknown> | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/generate-classroom/model-snapshots') {
+          modelPosts += 1;
+          if (modelPosts === 1) {
+            return Response.json({ errorCode: 'PRO_MODEL_CONNECTION_STALE' }, { status: 409 });
+          }
+          acceptedModel = JSON.parse(String(init?.body));
+          return Response.json({ ref });
+        }
+        if (url === '/api/agent/media-config-snapshots') {
+          acceptedImage = JSON.parse(String(init?.body)).snapshot.image;
+          return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+        }
+        return Response.json({ jobs: [] });
+      }),
+    );
+
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(input.model).toEqual(acceptedModel);
+    expect(input.model?.revision).toBe('new');
+    expect(input.modelConfigRef).toEqual(ref);
+    expect(input.media?.image).toEqual(acceptedImage);
+    expect(input.media?.image).toMatchObject({ revision: 'new-image' });
+    expect(GenerationInputSchema.safeParse(input).success).toBe(true);
+    expect(model.revision).toBe('old');
+  });
   it('does not submit the legacy fixed agent count for a new automatic roster', async () => {
     const automaticSettings = {
       ...settings,

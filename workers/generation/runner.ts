@@ -1,6 +1,10 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { GenerationLease } from '@/lib/server/generation-jobs/contracts';
 import { GENERATION_WORKER_PIPELINE_VERSIONS } from '@/lib/server/generation-jobs/contracts';
+import {
+  providerFailureDiagnostic,
+  type ProviderFailureDiagnostic,
+} from '@/lib/server/generation-jobs/failure-diagnostics';
 
 export interface WorkerRepository {
   claim(workerId: string, versions?: string[]): Promise<GenerationLease | null>;
@@ -21,6 +25,13 @@ export interface GenerationWorkerReport {
   phase?: string;
   elapsedMs?: number;
   deadlineMs?: number;
+  diagnostic?: ProviderFailureDiagnostic;
+}
+
+function workerAbortReason(
+  code: 'GENERATION_LEASE_LOST' | 'WORKER_DRAIN_TIMEOUT' | 'WORKER_DATABASE_UNAVAILABLE',
+) {
+  return Object.assign(new Error(code), { code });
 }
 
 function safeErrorField(error: unknown, field: string): unknown {
@@ -63,7 +74,8 @@ export function safeWorkerStopReport(
     summary = 'External provider request outcome is unknown; durable evidence requires review.';
   } else if (code === 'PROVIDER_REQUEST_NOT_SENT') {
     category = 'provider_request_not_sent';
-    summary = 'Provider request was not sent because DNS resolution failed; a bounded retry is safe.';
+    summary =
+      'Provider request was not sent because DNS resolution failed; a bounded retry is safe.';
   } else if (code === 'GENERATION_LEASE_LOST') {
     category = 'lease_lost';
     summary = 'Generation stopped after its durable worker lease was lost.';
@@ -89,6 +101,9 @@ export function safeWorkerStopReport(
     phase,
     elapsedMs: Math.max(0, Math.round(now - startedAt)),
     ...(deadlineMs ? { deadlineMs } : {}),
+    ...(providerFailureDiagnostic(safeErrorField(error, 'diagnostic') ?? error)
+      ? { diagnostic: providerFailureDiagnostic(safeErrorField(error, 'diagnostic') ?? error) }
+      : {}),
   };
 }
 
@@ -134,7 +149,10 @@ export async function runWorker(options: {
     // If it does not finish, abort and let the durable reaper classify attempts.
     let drainTimer: ReturnType<typeof setTimeout> | undefined;
     const drain = () => {
-      drainTimer = setTimeout(() => controller.abort(new Error('WORKER_DRAIN_TIMEOUT')), 25_000);
+      drainTimer = setTimeout(
+        () => controller.abort(workerAbortReason('WORKER_DRAIN_TIMEOUT')),
+        25_000,
+      );
     };
     signal.addEventListener('abort', drain, { once: true });
     if (signal.aborted) drain();
@@ -145,9 +163,9 @@ export async function runWorker(options: {
       void repository
         .heartbeat(lease)
         .then((valid) => {
-          if (!valid) controller.abort(new Error('GENERATION_LEASE_LOST'));
+          if (!valid) controller.abort(workerAbortReason('GENERATION_LEASE_LOST'));
         })
-        .catch(() => controller.abort(new Error('WORKER_DATABASE_UNAVAILABLE')))
+        .catch(() => controller.abort(workerAbortReason('WORKER_DATABASE_UNAVAILABLE')))
         .finally(() => {
           heartbeatRunning = false;
         });
@@ -157,7 +175,11 @@ export async function runWorker(options: {
       await options.execute(lease, controller.signal);
       options.report?.({ event: 'job_yielded', jobId: lease.jobId });
     } catch (error) {
-      options.report?.(safeWorkerStopReport(error, lease, startedAt));
+      // Provider/SDK layers may wrap an abort and lose the reason's code. This
+      // controller is private to the runner, so its own stop reason remains
+      // authoritative when it actually aborted this lease's execution.
+      const stopReason = controller.signal.aborted ? controller.signal.reason : error;
+      options.report?.(safeWorkerStopReport(stopReason, lease, startedAt));
     } finally {
       clearInterval(timer);
       if (drainTimer) clearTimeout(drainTimer);

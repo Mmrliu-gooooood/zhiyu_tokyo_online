@@ -179,6 +179,12 @@ export const workbenchEn = {
       'The model endpoint failed its security check. Correct it in model settings.',
     modelConfigurationRequired:
       'The model configuration is unavailable. Open model settings and recheck before retrying.',
+    modelSessionInvalid:
+      'Session verification has expired. Reload this page and retry. If it persists, contact the administrator to check the session configuration.',
+    modelConfigurationStale:
+      'The model configuration version has changed. Reload this page to load the current settings, then retry.',
+    modelServiceUnavailable:
+      'The service is temporarily unavailable. Retry shortly. If it persists, contact the administrator to check the deployment.',
     modelSettingsHint:
       'Open model settings and recheck. Continue this conversation after fixing the connection.',
     stopped: 'This build was stopped',
@@ -487,6 +493,10 @@ export const workbenchZh = {
     modelConnectionUnavailable: '模型连接已撤销或不可用，请打开模型设置重新检查。',
     modelUnsafeEndpoint: '模型 API 地址未通过安全校验，请在模型设置中修正。',
     modelConfigurationRequired: '模型配置不可用，请打开模型设置重新检查后重试。',
+    modelSessionInvalid:
+      '会话验证已失效，请重新加载页面后重试；如果仍然失败，请联系管理员检查会话配置。',
+    modelConfigurationStale: '模型配置版本已更新，请重新加载页面以获取最新配置后重试。',
+    modelServiceUnavailable: '服务暂时不可用，请稍后重试；如果持续失败，请联系管理员检查部署配置。',
     modelSettingsHint: '请打开模型设置重新检查，修复后可在当前对话继续。',
     stopped: '本轮生成已停止',
     workerInterrupted: '被 worker 重启打断，这次调用没有产生结果；agent 会在新一次尝试里按需重发。',

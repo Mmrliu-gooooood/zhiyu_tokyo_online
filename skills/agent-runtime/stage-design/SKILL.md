@@ -52,20 +52,41 @@ Do not leave load-bearing decisions only in chat. Map them into
 | Verified material facts, citations, examples, and page-specific constraints | `outlines[].keyPoints` |
 | A page-specific language exception | `outlines[].languageNote` |
 | Full custom cast, only when it is deliberately settled | `agents` |
-| Every active generation skill whose constraints must be enforced | `skillIds` |
+| Every active installed generation skill, including guidance-only skills | `skillIds` (requires `outlines`) |
 | Research ledger, source boundaries, conflicts, and unresolved uncertainty | `researchContext` |
 | Destination series folder | `folderId` |
 
 Every `agents` entry must be complete: stable id, name, role, concrete persona,
-and valid `voiceConfig` when a voice is bound. The roster must contain exactly
-one teacher. If the cast is not deliberately fixed, omit `agents`; the worker will
+and optional `voice` copied exactly from `list_voices` (or a matching valid
+`voiceConfig`). Platform identity/revision is filled from the fixed session snapshot;
+never invent these fields. If both voice forms are supplied, they must agree.
+IDs must be unique and the roster must contain exactly one teacher (1–10 agents).
+If the cast is not deliberately fixed, omit `agents`; the worker will
 choose and freeze an automatic roster. Do not pass a desired count as a
 substitute for a roster.
 
 Put skill ids in `skillIds`, not merely in prose. Put the skill's page-level
 effects into each relevant `outlines[].description` and
-`outlines[].keyPoints` as well: the id enables structural validation, while the
-page fields carry the concrete teaching and style intent.
+`outlines[].keyPoints` as well. Installed skills with machine constraints (such
+as `lecture-style`) enable structural validation before submission and again
+in the worker. Guidance-only skills (such as `stage-design`) remain valid IDs;
+their teaching effects travel in the page fields. Unknown/inaccessible IDs are
+rejected individually. Do not remove all skills to work around a single invalid
+ID, and do not submit skillIds without a complete page plan.
+
+For any selected built-in skill with an `outline-constraints.json` resource,
+read that file alongside its `SKILL.md` before submitting (for example,
+`lecture-style/outline-constraints.json`). Check the complete page count,
+allowed types and type mix against it, including short courses. The prose
+describes teaching style; the JSON defines the enforced structural limits.
+Keep the user's requested page count when a valid mix fits it.
+
+If submission is refused, no job exists yet. Repair all reported fields and
+resubmit the full plan with complete page objects, not an incremental patch.
+Prefer description/keyPoints/languageNote; brief/materialFacts/language are
+compatibility aliases, not additional fields for different content. Do not
+call get_course_generation_status or retry_course_generation
+until submission succeeds.
 
 For a deliberate whole-course replacement, also pass `targetStageId`, the
 observed `targetRevision`, and explicit `replaceExisting`. Never turn a narrow

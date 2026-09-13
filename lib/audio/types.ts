@@ -159,6 +159,8 @@ export interface TTSModelConfig {
   providerOptions?: Record<string, unknown>;
   /** Server-only restricted transport for user-configured endpoints. */
   fetcher?: typeof fetch;
+  /** Opt-in for durable Pro jobs: at most two pre-send DNS retries in MiniMax's single HTTP call. */
+  retryPreSendDns?: boolean;
   /**
    * Cancel the provider request(s) when this signal aborts. The agent runtime
    * threads the session cancel signal here so an in-flight synthesis fetch is

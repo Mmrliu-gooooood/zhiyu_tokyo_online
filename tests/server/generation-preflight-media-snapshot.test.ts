@@ -136,11 +136,11 @@ describe('background media snapshot preflight', () => {
   it('rejects owner mismatch, missing context, provider mismatch and revoked snapshots', async () => {
     const valid = await input();
     await expect(validateBackgroundProviders(valid)).rejects.toThrow(
-      'BACKGROUND_PROVIDER_UNAVAILABLE',
+      'BACKGROUND_MEDIA_PROVIDER_UNAVAILABLE',
     );
     await expect(
       validateBackgroundProviders(valid, { ownerId: 'owner-b', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_MEDIA_PROVIDER_UNAVAILABLE');
     await expect(
       validateBackgroundProviders(
         parseGenerationInput({
@@ -152,12 +152,12 @@ describe('background media snapshot preflight', () => {
         }),
         { ownerId: 'owner-a', queryable },
       ),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_IMAGE_PROVIDER_UNAVAILABLE');
 
     await store.revokeByProviderInstance('owner-a', 'custom-image-private');
     await expect(
       validateBackgroundProviders(valid, { ownerId: 'owner-a', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_MEDIA_PROVIDER_UNAVAILABLE');
   });
 
   it('applies administrator disable policy before accepting snapshot credentials', async () => {
@@ -165,7 +165,7 @@ describe('background media snapshot preflight', () => {
     mocks.disabled.add('custom-image-private');
     await expect(
       validateBackgroundProviders(valid, { ownerId: 'owner-a', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_IMAGE_PROVIDER_UNAVAILABLE');
   });
 
   it('accepts an unmanaged built-in MiniMax TTS configuration from the encrypted snapshot', async () => {
@@ -269,7 +269,7 @@ describe('background media snapshot preflight', () => {
     });
     await expect(
       validateBackgroundProviders(outsideDirectory, { ownerId: 'owner-a', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_TTS_PROVIDER_UNAVAILABLE');
   });
 
   it('does not fall back to a server provider when the snapshot explicitly disables TTS', async () => {
@@ -288,6 +288,6 @@ describe('background media snapshot preflight', () => {
 
     await expect(
       validateBackgroundProviders(contradictory, { ownerId: 'owner-a', queryable }),
-    ).rejects.toThrow('BACKGROUND_PROVIDER_UNAVAILABLE');
+    ).rejects.toThrow('BACKGROUND_TTS_PROVIDER_UNAVAILABLE');
   });
 });

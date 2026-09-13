@@ -329,9 +329,8 @@ export function SceneSidebar({
                     <Loader2
                       className={cn(
                         'size-5',
-                        leading &&
-                          (generationJobDisplay?.executing ?? generationStatus === 'generating') &&
-                          'animate-spin',
+                        (generationJobDisplay?.executing ?? generationStatus === 'generating') &&
+                          'animate-spin motion-reduce:animate-none',
                       )}
                     />
                   )}

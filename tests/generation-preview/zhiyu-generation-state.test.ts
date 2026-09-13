@@ -52,6 +52,22 @@ const zh: Record<string, string> = {
   'generation.statusServiceUnavailableDesc': '生成服务暂时不可用，任务状态仍会继续同步。',
 };
 
+it.each([
+  ['BACKGROUND_PROVIDER_UNAVAILABLE', 'generation.preflightProviderUnavailable'],
+  ['BACKGROUND_MODEL_PROVIDER_UNAVAILABLE', 'generation.preflightModelUnavailable'],
+  ['BACKGROUND_MEDIA_PROVIDER_UNAVAILABLE', 'generation.preflightMediaUnavailable'],
+  ['BACKGROUND_TTS_PROVIDER_UNAVAILABLE', 'generation.preflightTtsUnavailable'],
+  ['BACKGROUND_IMAGE_PROVIDER_UNAVAILABLE', 'generation.preflightImageUnavailable'],
+  ['BACKGROUND_VIDEO_PROVIDER_UNAVAILABLE', 'generation.preflightVideoUnavailable'],
+  ['BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE', 'generation.preflightSearchUnavailable'],
+])('maps %s to actionable localized provider guidance', (code, detailKey) => {
+  expect(projectGenerationJobPresentationKeys({ job: null, submissionError: code })).toEqual({
+    titleKey: 'generation.statusGenerationFailed',
+    detailKey,
+    terminal: true,
+  });
+});
+
 function projectGenerationJobPresentation(
   input: Parameters<typeof projectGenerationJobPresentationKeys>[0],
 ) {

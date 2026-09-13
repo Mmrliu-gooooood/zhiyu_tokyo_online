@@ -76,6 +76,72 @@ beforeEach(() => {
 });
 
 describe('SceneSidebar generation task state', () => {
+  const running: GenerationJobDisplayProjection = {
+    status: 'running',
+    executing: true,
+    terminal: false,
+    stopped: false,
+    recovery: 'none',
+    retryAt: null,
+    affectedOutlineIds: [],
+    triggerIssues: [],
+    unknownIssues: [],
+  };
+
+  it('animates every pending scene while generation is running', () => {
+    const html = render(running);
+    expect(html.match(/class="[^"]*animate-spin[^"]*"/g)).toHaveLength(6);
+  });
+
+  it.skipIf(process.env.TEST_BROWSER_UI !== '1')(
+    'rotates every pending icon in Chromium and honors reduced motion',
+    async () => {
+      const { chromium } = await import('@playwright/test');
+      const { default: tailwind } = await import('@tailwindcss/postcss');
+      const { resolve } = await import('node:path');
+      const { createRequire } = await import('node:module');
+      // Use the plugin's own PostCSS runtime: the workspace also has a newer
+      // PostCSS version with incompatible duplicate TypeScript declarations.
+      const require = createRequire(import.meta.url);
+      const postcss = createRequire(require.resolve('@tailwindcss/postcss'))('postcss');
+      const { css } = await postcss([tailwind()]).process(
+        '@import "tailwindcss" source(none);\n@source "../../components/stage/scene-sidebar.tsx";',
+        { from: resolve('e2e/fixtures/scene-sidebar.css') },
+      );
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage({ reducedMotion: 'no-preference' });
+        await page.setContent(`<style>${css}</style>${render(running)}`);
+        const icons = page.locator('svg.lucide-loader-circle');
+        expect(await icons.count()).toBe(6);
+        const before = await icons.evaluateAll((elements) =>
+          elements.map((element) => ({
+            name: getComputedStyle(element).animationName,
+            state: element.getAnimations()[0]?.playState,
+            transform: getComputedStyle(element).transform,
+          })),
+        );
+        expect(before.map(({ name, state }) => ({ name, state }))).toEqual(
+          Array.from({ length: 6 }, () => ({ name: 'spin', state: 'running' })),
+        );
+        await page.waitForTimeout(100);
+        const after = await icons.evaluateAll((elements) =>
+          elements.map((element) => getComputedStyle(element).transform),
+        );
+        expect(after.every((transform, index) => transform !== before[index].transform)).toBe(true);
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        expect(
+          await icons.evaluateAll((elements) =>
+            elements.map((element) => getComputedStyle(element).animationName),
+          ),
+        ).toEqual(Array(6).fill('none'));
+      } finally {
+        await browser.close();
+      }
+    },
+    30_000,
+  );
+
   it('keeps task recovery visible when every outline already has scene content', () => {
     data.scenes = data.outlines.map((outline) => ({
       ...outline,

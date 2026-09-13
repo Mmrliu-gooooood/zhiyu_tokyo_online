@@ -113,19 +113,43 @@ export interface TTSGenerationResult {
   format: string;
 }
 
-/**
- * Thrown when a TTS provider returns a rate-limit / concurrency-quota error.
- * Allows downstream consumers to distinguish rate-limit errors from other TTS failures.
- *
- * TODO: The API route currently catches all errors uniformly as GENERATION_FAILED.
- * This class enables future retry/backoff logic without changing the throw sites.
- */
-export class TTSRateLimitError extends Error {
+/** Safe structured response metadata; never includes provider messages or request payloads. */
+export interface TTSResponseDiagnostics {
+  providerCode?: number;
+  traceId?: string;
+  phase: 'response' | 'decode';
+  responseReceived: true;
+  retryClassification: 'terminal' | 'transient' | 'rate_limit' | 'unknown';
+}
+
+class TTSResponseError extends Error {
+  readonly providerCode?: number;
+  readonly traceId?: string;
+  readonly phase?: TTSResponseDiagnostics['phase'];
+  readonly responseReceived?: true;
+  readonly retryClassification?: TTSResponseDiagnostics['retryClassification'];
+
+  constructor(message: string, diagnostics?: TTSResponseDiagnostics) {
+    super(message);
+    if (diagnostics) {
+      this.providerCode = diagnostics.providerCode;
+      this.traceId = diagnostics.traceId;
+      this.phase = diagnostics.phase;
+      this.responseReceived = diagnostics.responseReceived;
+      this.retryClassification = diagnostics.retryClassification;
+    }
+  }
+}
+
+/** A provider explicitly rejected the request because of rate or concurrency limits. */
+export class TTSRateLimitError extends TTSResponseError {
   constructor(
     public readonly provider: string,
     message: string,
+    diagnostics?: TTSResponseDiagnostics,
+    public readonly httpStatus?: number,
   ) {
-    super(message);
+    super(message, diagnostics);
     this.name = 'TTSRateLimitError';
   }
 }
@@ -159,7 +183,7 @@ export class TTSConfigurationError extends Error {
   }
 }
 
-export class TTSProviderTerminalError extends Error {
+export class TTSProviderTerminalError extends TTSResponseError {
   readonly code: string = 'TTS_PROVIDER_TERMINAL_FAILURE';
   readonly safeSummary = 'TTS provider returned an explicit terminal failure.';
 
@@ -167,13 +191,14 @@ export class TTSProviderTerminalError extends Error {
     public readonly provider: string,
     public readonly httpStatus: number,
     message: string,
+    diagnostics?: TTSResponseDiagnostics,
   ) {
-    super(message);
+    super(message, diagnostics);
     this.name = 'TTSProviderTerminalError';
   }
 }
 
-export class TTSProviderTransientError extends Error {
+export class TTSProviderTransientError extends TTSResponseError {
   readonly code = 'TTS_PROVIDER_TRANSIENT_FAILURE';
   readonly safeSummary = 'TTS provider returned an explicit transient failure.';
 
@@ -181,9 +206,26 @@ export class TTSProviderTransientError extends Error {
     public readonly provider: string,
     public readonly httpStatus: number,
     message: string,
+    diagnostics?: TTSResponseDiagnostics,
   ) {
-    super(message);
+    super(message, diagnostics);
     this.name = 'TTSProviderTransientError';
+  }
+}
+
+/** A received response does not establish whether usable synthesis completed. Never replay blindly. */
+export class TTSInvalidResponseError extends TTSResponseError {
+  readonly code = 'TTS_INVALID_RESPONSE';
+  readonly safeSummary =
+    'TTS provider returned an invalid or ambiguous response; its result is unknown.';
+
+  constructor(
+    public readonly provider: string,
+    public readonly httpStatus: number,
+    diagnostics: TTSResponseDiagnostics,
+  ) {
+    super('TTS provider returned an invalid or ambiguous response.', diagnostics);
+    this.name = 'TTSInvalidResponseError';
   }
 }
 
@@ -912,9 +954,71 @@ async function generateQwenTTS(
   };
 }
 
-/**
- * MiniMax TTS implementation (synchronous HTTP API)
- */
+function isMiniMaxPreSendDnsFailure(error: unknown): boolean {
+  // Only the single synthesis fetch's DNS resolution is safe to replay. A DNS
+  // error from parsing/downloading a result must never reach this boundary.
+  let current = error;
+  for (let depth = 0; depth < 5 && current && typeof current === 'object'; depth++) {
+    const detail = current as { code?: unknown; syscall?: unknown; cause?: unknown };
+    if (
+      (detail.code === 'EAI_AGAIN' || detail.code === 'ENOTFOUND') &&
+      detail.syscall === 'getaddrinfo'
+    )
+      return true;
+    current = detail.cause;
+  }
+  return false;
+}
+
+function waitForMiniMaxDnsRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function fetchMiniMaxSynthesis(
+  url: string,
+  init: RequestInit,
+  signal: AbortSignal,
+  retryPreSendDns: boolean,
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    signal.throwIfAborted();
+    try {
+      // Never retry redirects: a redirected DNS failure could follow a paid POST.
+      return await fetch(url, {
+        ...init,
+        signal,
+        ...(retryPreSendDns ? { redirect: 'error' } : {}),
+      });
+    } catch (error) {
+      if (
+        !retryPreSendDns ||
+        attempt >= 2 ||
+        signal.aborted ||
+        !isMiniMaxPreSendDnsFailure(error)
+      ) {
+        throw error;
+      }
+      await waitForMiniMaxDnsRetry(250 * (attempt + 1), signal);
+    }
+  }
+}
+
+function miniMaxTraceId(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(value) ? value : undefined;
+}
+
+/** MiniMax TTS implementation (synchronous HTTP API). */
 async function generateMiniMaxTTS(
   config: TTSModelConfig,
   text: string,
@@ -924,61 +1028,119 @@ async function generateMiniMaxTTS(
     /\/$/,
     '',
   );
-  const response = await fetch(`${baseUrl}/v1/t2a_v2`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json; charset=utf-8',
+  const response = await fetchMiniMaxSynthesis(
+    `${baseUrl}/v1/t2a_v2`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify({
+        model: config.modelId || 'speech-2.8-hd',
+        text,
+        stream: false,
+        output_format: 'hex',
+        voice_setting: {
+          voice_id: config.voice,
+          speed: config.speed || 1.0,
+          vol: 1,
+          pitch: 0,
+        },
+        audio_setting: {
+          sample_rate: 32000,
+          bitrate: 128000,
+          format: config.format || 'mp3',
+          channel: 1,
+        },
+        language_boost: 'auto',
+      }),
     },
-    body: JSON.stringify({
-      model: config.modelId || 'speech-2.8-hd',
-      text,
-      stream: false,
-      output_format: 'hex',
-      voice_setting: {
-        voice_id: config.voice,
-        speed: config.speed || 1.0,
-        vol: 1,
-        pitch: 0,
-      },
-      audio_setting: {
-        sample_rate: 32000,
-        bitrate: 128000,
-        format: config.format || 'mp3',
-        channel: 1,
-      },
-      language_boost: 'auto',
-    }),
     signal,
-  });
+    config.retryPreSendDns === true,
+  );
 
+  // Do not retain status_msg or raw bodies: either may echo narration or credentials.
+  const data = await response.json().catch(() => undefined);
+  const rawCode: unknown = data?.base_resp?.status_code;
+  const providerCode =
+    typeof rawCode === 'number' && Number.isSafeInteger(rawCode) && rawCode >= 0
+      ? rawCode
+      : undefined;
+  const diagnostics: TTSResponseDiagnostics = {
+    providerCode,
+    traceId: miniMaxTraceId(data?.trace_id) || miniMaxTraceId(response.headers.get('trace_id')),
+    phase: 'response',
+    responseReceived: true,
+    retryClassification: 'unknown',
+  };
+  const message = `MiniMax TTS request failed (HTTP ${response.status}${providerCode === undefined ? '' : `, code ${providerCode}`}).`;
+  // Verified against https://platform.minimaxi.com/docs/api-reference/errorcode.
+  // Only documented rejections get replayable classifications. Provider timeout
+  // (1001), unknown (1000), and unrecognized codes retain unknown-result safety.
+  const terminalCodes = [
+    1004, 1008, 1026, 1027, 1039, 1042, 1043, 1044, 2013, 20132, 2037, 2038, 2039, 2042, 2048, 2049,
+    2056,
+  ];
+  if (providerCode !== undefined && providerCode !== 0) {
+    if (providerCode === 1002 || providerCode === 2045) {
+      throw new TTSRateLimitError(
+        'minimax-tts',
+        message,
+        { ...diagnostics, retryClassification: 'rate_limit' },
+        response.status,
+      );
+    }
+    if (providerCode === 1024 || providerCode === 1033) {
+      throw new TTSProviderTransientError('minimax-tts', response.status, message, {
+        ...diagnostics,
+        retryClassification: 'transient',
+      });
+    }
+    if (terminalCodes.includes(providerCode)) {
+      throw new TTSProviderTerminalError('minimax-tts', response.status, message, {
+        ...diagnostics,
+        retryClassification: 'terminal',
+      });
+    }
+    throw new TTSInvalidResponseError('minimax-tts', response.status, diagnostics);
+  }
   if (!response.ok) {
-    throwIfTtsRateLimited('MiniMax', response.status);
-    const errorText = await response.text().catch(() => response.statusText);
-    throw ttsProviderHttpError(
-      'minimax-tts',
-      response.status,
-      `MiniMax TTS API error: ${errorText}`,
-    );
+    if (response.status === 429) {
+      throw new TTSRateLimitError(
+        'minimax-tts',
+        message,
+        { ...diagnostics, retryClassification: 'rate_limit' },
+        response.status,
+      );
+    }
+    if (response.status >= 500) {
+      throw new TTSProviderTransientError('minimax-tts', response.status, message, {
+        ...diagnostics,
+        retryClassification: 'transient',
+      });
+    }
+    if (response.status >= 400 && response.status !== 408) {
+      throw new TTSProviderTerminalError('minimax-tts', response.status, message, {
+        ...diagnostics,
+        retryClassification: 'terminal',
+      });
+    }
+    throw new TTSInvalidResponseError('minimax-tts', response.status, diagnostics);
   }
 
-  const data = await response.json();
-  const hexAudio = data?.data?.audio;
-  if (!hexAudio || typeof hexAudio !== 'string') {
-    throw ttsProviderHttpError(
-      'minimax-tts',
-      response.status,
-      `MiniMax TTS error: No audio returned. Response: ${JSON.stringify(data)}`,
-    );
-  }
-
-  const cleanedHex = hexAudio.trim();
-  if (cleanedHex.length % 2 !== 0) {
-    throw ttsProviderHttpError(
-      'minimax-tts',
-      response.status,
-      'MiniMax TTS error: invalid hex audio payload length',
-    );
+  const hexAudio: unknown = data?.data?.audio;
+  const cleanedHex = typeof hexAudio === 'string' ? hexAudio.trim() : '';
+  if (
+    providerCode !== 0 ||
+    cleanedHex.length % 2 !== 0 ||
+    !/^[0-9a-fA-F]+$/.test(cleanedHex) ||
+    (data?.data?.status !== undefined && data.data.status !== 2)
+  ) {
+    throw new TTSInvalidResponseError('minimax-tts', response.status, {
+      ...diagnostics,
+      phase: 'decode',
+    });
   }
 
   const audio = new Uint8Array(

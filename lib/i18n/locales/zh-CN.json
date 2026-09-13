@@ -1114,6 +1114,13 @@
     "statusCourseCompleteDesc": "课程内容已完成。",
     "statusGenerationFailed": "生成失败",
     "statusGenerationFailedDesc": "生成未完成，请查看原因后重试。",
+    "preflightProviderUnavailable": "课程所需的服务配置不可用，请返回首页检查模型、搜索及音视频设置后重试。",
+    "preflightModelUnavailable": "文本模型配置不可用，请返回首页检查所选模型及其连接配置后重试。",
+    "preflightMediaUnavailable": "音视频配置快照已失效，请返回首页重新检查媒体设置后重试。",
+    "preflightTtsUnavailable": "语音配置不可用，请返回首页检查语音模型及当前课堂角色的音色设置后重试。",
+    "preflightImageUnavailable": "图片生成配置不可用，请返回首页检查已启用的图片模型及其连接配置后重试。",
+    "preflightVideoUnavailable": "视频生成配置不可用，请返回首页检查已启用的视频模型及其连接配置后重试。",
+    "preflightSearchUnavailable": "网络搜索配置不可用，请返回首页检查所选搜索服务及其连接配置后重试。",
     "statusQueueExpired": "排队等待已超时",
     "statusQueueExpiredDesc": "课程输入已保留，请返回首页后主动提交新任务。",
     "statusOutlineReviewExpired": "大纲审阅已到期",
@@ -1280,12 +1287,12 @@
     "selectedAgents": "选中的智能体",
     "required": "必选",
     "agentNames": {
-      "default-1": "AI教师",
-      "default-2": "AI助教",
-      "default-3": "显眼包",
-      "default-4": "好奇宝宝",
-      "default-5": "笔记员",
-      "default-6": "思考者"
+      "default-1": "启衡",
+      "default-2": "知微",
+      "default-3": "悦扬",
+      "default-4": "问熙",
+      "default-5": "书言",
+      "default-6": "思澈"
     },
     "agentRoles": {
       "teacher": "教师",

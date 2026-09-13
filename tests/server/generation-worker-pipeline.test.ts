@@ -6,6 +6,7 @@ import {
   TTSProviderTransientError,
   TTSProviderTerminalError,
   TTSRequestTimeoutError,
+  TTSInvalidResponseError,
 } from '@/lib/audio/tts-providers';
 import type { AgentInfo } from '@openmaic/generation';
 import type { Action } from '@/lib/types/action';
@@ -866,6 +867,79 @@ describe('durable worker pipeline', () => {
     ]);
   });
 
+  it('keeps the initial failure when another bounded task aborts afterwards', async () => {
+    const primary = new TTSProviderTerminalError('minimax-tts', 400, 'private response');
+    const secondary = new Error('EXTERNAL_CALL_CANCELLED');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const outcome = mapBounded([0, 1, 2], 2, async (index) => {
+      if (index === 0) {
+        queueMicrotask(release);
+        throw primary;
+      }
+      await gate;
+      await Promise.resolve();
+      throw secondary;
+    }).catch((error: unknown) => error);
+    expect(await outcome).toBe(primary);
+  });
+
+  it('retains safe provider diagnostics at the durable TTS failure boundary', async () => {
+    const { execution, repo } = setup();
+    const failure = Object.assign(
+      new TTSProviderTerminalError('minimax-tts', 200, 'private response'),
+      {
+        providerCode: 1004,
+        traceId: 'trace-123',
+      },
+    );
+    await expect(
+      execution.external('tts:o1:speech', {}, 'tts', 'minimax-tts', async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
+    expect(repo.failures[0]).toMatchObject({
+      code: 'TTS_PROVIDER_TERMINAL_FAILURE',
+      diagnostic: {
+        providerId: 'minimax-tts',
+        httpStatus: 200,
+        providerCode: 1004,
+        traceId: 'trace-123',
+      },
+    });
+    expect(JSON.stringify(repo.failures)).not.toContain('private response');
+  });
+
+  it('keeps an invalid MiniMax response unknown with its diagnostic and never replays it', async () => {
+    const { execution, repo } = setup();
+    let calls = 0;
+    const failure = new TTSInvalidResponseError('minimax-tts', 200, {
+      providerCode: 1001,
+      traceId: 'trace-123',
+      phase: 'response',
+      responseReceived: true,
+      retryClassification: 'unknown',
+    });
+    const error = await execution
+      .external('tts:o1:speech', {}, 'tts', 'minimax-tts', async () => {
+        calls++;
+        throw failure;
+      })
+      .catch((error: unknown) => error);
+    expect(error).toMatchObject({
+      code: 'TTS_INVALID_RESPONSE',
+      diagnostic: { providerId: 'minimax-tts', providerCode: 1001, traceId: 'trace-123' },
+    });
+    expect(calls).toBe(1);
+    expect(repo.failures[0]).toMatchObject({
+      uncertain: true,
+      code: 'TTS_INVALID_RESPONSE',
+      diagnostic: { providerCode: 1001 },
+    });
+  });
+
   it('records an explicit terminal TTS response without leaking provider details', async () => {
     const { execution, repo } = setup();
     const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -897,6 +971,7 @@ describe('durable worker pipeline', () => {
           code: 'TTS_PROVIDER_TERMINAL_FAILURE',
           uncertain: false,
           errorSummary: 'TTS provider returned an explicit terminal failure.',
+          diagnostic: { providerId: 'openai-tts', httpStatus: 400 },
         },
       ]);
       expect(JSON.stringify(repo.failures)).not.toMatch(/secret|private narration|https?:\/\//i);
@@ -927,6 +1002,7 @@ describe('durable worker pipeline', () => {
         code: 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT',
         uncertain: true,
         errorSummary: 'TTS provider did not return before the deadline; its result is unknown.',
+        diagnostic: { providerId: 'minimax-tts' },
       },
     ]);
     expect(JSON.stringify(repo.failures)).not.toContain('private provider detail');
@@ -1003,6 +1079,7 @@ describe('durable worker pipeline', () => {
         code: 'TTS_PROVIDER_TRANSIENT_FAILURE',
         uncertain: false,
         errorSummary: 'TTS provider returned an explicit transient failure.',
+        diagnostic: { providerId: 'minimax-tts', httpStatus: 503 },
       },
     ]);
     expect(JSON.stringify(repo.failures)).not.toContain('private provider detail');

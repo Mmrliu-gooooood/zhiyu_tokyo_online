@@ -25,6 +25,7 @@ import {
   reserveHeavyTaskAttention,
 } from '@/lib/server/heavy-task-admission';
 import { assertGenerationSchema } from './migrations';
+import { providerFailureDiagnostic, type ProviderFailureDiagnostic } from './failure-diagnostics';
 import {
   canonicalHash,
   parseGenerationInput,
@@ -1427,6 +1428,7 @@ export class GenerationJobRepository {
       errorSummary?: string;
       retryable?: boolean;
       retryAfterMs?: number;
+      diagnostic?: ProviderFailureDiagnostic;
     },
   ): Promise<void> {
     await this.transaction(async (q) => {
@@ -1457,8 +1459,8 @@ export class GenerationJobRepository {
         [step.id, input.uncertain ? 'uncertain' : 'safe_failure'],
       );
       // Other concurrent requests are no longer safe to replay after losing this lease.
-      const other = await q.query<{ id: string }>(
-        "UPDATE generation_attempts a SET outcome='uncertain',finished_at=clock_timestamp() FROM generation_steps s WHERE a.step_id=s.id AND s.job_id=$1 AND a.outcome='running' RETURNING a.id",
+      const other = await q.query<{ id: string; step_key: string }>(
+        "UPDATE generation_attempts a SET outcome='uncertain',finished_at=clock_timestamp() FROM generation_steps s WHERE a.step_id=s.id AND s.job_id=$1 AND a.outcome='running' RETURNING a.id,s.step_key",
         [lease.jobId],
       );
       if (other.rows.length)
@@ -1486,6 +1488,20 @@ export class GenerationJobRepository {
         stepKey: input.stepKey,
         code: finalCode,
         ...(finalErrorSummary ? { errorSummary: finalErrorSummary } : {}),
+        primaryFailure: {
+          stepKey: input.stepKey,
+          code,
+          uncertain: input.uncertain,
+          ...(errorSummary ? { errorSummary } : {}),
+          ...(providerFailureDiagnostic(input.diagnostic)
+            ? { diagnostic: providerFailureDiagnostic(input.diagnostic) }
+            : {}),
+        },
+        concurrentUnknownCount: other.rows.length,
+        concurrentUnknown: other.rows.map((attempt) => ({
+          attemptId: attempt.id,
+          stepKey: attempt.step_key,
+        })),
       });
     });
   }

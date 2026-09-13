@@ -1,6 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 CLAUDE.local.md
+docker-compose.dns.local.yml
+.scratch/pro-repair-20260913/
 .claude
 .superpowers
 

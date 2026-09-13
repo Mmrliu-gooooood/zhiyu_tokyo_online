@@ -512,6 +512,8 @@ export class GenerationMediaServices {
         async (signal, lifecycle) => {
           const runtimeConfig = {
             ...providerConfig,
+            // Only Pro opts in, and the adapter enforces its single-request boundary.
+            ...(this.input.source?.kind === 'pro' ? { retryPreSendDns: true } : {}),
             speed,
             providerOptions: { ...snapshot?.providerOptions, ...providerOptions },
             signal,

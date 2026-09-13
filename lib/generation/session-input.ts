@@ -1,5 +1,7 @@
 import type { GenerationSessionState } from '@/app/generation-preview/types';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
+import type { ProModelContext } from '@/types/pro-model';
+import type { ModelSelection } from '@/lib/types/platform-default-models';
 import { useSettingsStore } from '@/lib/store/settings';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
@@ -8,7 +10,7 @@ import { resolveSessionDocumentSources } from '@/lib/document/session-sources';
 import { resolveStoredBytes } from '@/lib/media/resolve-stored-bytes';
 import { GenerationJobRequestError, generationJobRequest } from './job-client';
 import { syncCurrentMediaConfigSnapshot } from '@/lib/workbench/media-config-snapshot-client';
-import { syncGenerationModelSnapshot } from './model-snapshot-client';
+import { prepareGenerationModelSnapshot } from './model-snapshot-client';
 import { syncGenerationSearchSnapshot } from './search-snapshot-client';
 
 export interface GenerationUploadedAsset {
@@ -48,8 +50,23 @@ export async function buildGenerationJobInput(
   signal: AbortSignal,
   onAsset: (key: string, asset: GenerationUploadedAsset) => void,
 ): Promise<GenerationInput> {
+  let model: ProModelContext = getCurrentModelConfig();
+  if (resolveSessionDocumentSources(session).length)
+    rejectClientProvider(session.pdfProviderConfig);
+  if (session.sceneOutlines?.length || session.researchContext) {
+    throw new GenerationJobRequestError(422, 'BACKGROUND_LEGACY_SESSION_UNSUPPORTED');
+  }
+  // Establish the signed owner before uploading any source bytes.
+  await generationJobRequest('', { signal });
+  const preparedModel =
+    model.source === 'platform' || model.apiKey?.trim() || model.baseUrl?.trim()
+      ? await prepareGenerationModelSnapshot(model, signal)
+      : undefined;
+  if (preparedModel) model = preparedModel.context;
+  const modelConfigRef = preparedModel?.ref;
+  // A rejected platform snapshot may have refreshed the entire catalog. Freeze
+  // media settings only now, so their revisions match the refreshed snapshots.
   const settings = useSettingsStore.getState();
-  const model = getCurrentModelConfig();
   const imageSelection = settings.imageSelection ?? {
     source: 'user' as const,
     providerId: settings.imageProviderId,
@@ -65,13 +82,6 @@ export async function buildGenerationJobInput(
     providerId: settings.ttsProviderId,
     modelId: settings.ttsProvidersConfig[settings.ttsProviderId]?.modelId,
   };
-  if (resolveSessionDocumentSources(session).length)
-    rejectClientProvider(session.pdfProviderConfig);
-  if (session.sceneOutlines?.length || session.researchContext) {
-    throw new GenerationJobRequestError(422, 'BACKGROUND_LEGACY_SESSION_UNSUPPORTED');
-  }
-  // Establish the signed owner before uploading any source bytes.
-  await generationJobRequest('', { signal });
   const searchConfig = settings.webSearchProvidersConfig[settings.webSearchProviderId];
   const searchModelId = searchConfig?.modelId?.trim() || undefined;
   const searchConfigRef = session.requirements.webSearch
@@ -88,16 +98,28 @@ export async function buildGenerationJobInput(
         signal,
       )
     : undefined;
-  const modelConfigRef =
-    model.source === 'platform' || model.apiKey?.trim() || model.baseUrl?.trim()
-      ? await syncGenerationModelSnapshot(model, signal)
-      : undefined;
-  const selected = settings.selectedAgentIds
-    .map((id) => useAgentRegistry.getState().getAgent(id))
-    .filter((agent) => agent && !agent.isGenerated);
+  const selected =
+    settings.agentMode === 'auto'
+      ? []
+      : settings.selectedAgentIds
+          .map((id) => useAgentRegistry.getState().getAgent(id))
+          .filter((agent) => agent && !agent.isGenerated);
   const items = selected.map((agent) => {
     if (!agent || !['teacher', 'assistant', 'student'].includes(agent.role))
       throw new GenerationJobRequestError(422, 'BACKGROUND_AGENT_ROLE_UNSUPPORTED');
+    const savedVoice = settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig;
+    const voiceDefault =
+      savedVoice?.source === 'platform'
+        ? settings.platformDefaults?.entries.find(
+            (entry) =>
+              entry.capability === 'tts' &&
+              entry.available &&
+              entry.defaultId === savedVoice.defaultId,
+          )
+        : undefined;
+    const voiceConfig = voiceDefault
+      ? { ...savedVoice!, revision: voiceDefault.revision }
+      : savedVoice;
     return {
       id: agent.id,
       name: agent.name,
@@ -106,11 +128,35 @@ export async function buildGenerationJobInput(
       avatar: agent.avatar,
       color: agent.color,
       priority: agent.priority,
-      voiceConfig: settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig,
+      voiceConfig,
     };
   });
   const mediaConfigRef = await syncCurrentMediaConfigSnapshot(
-    items.flatMap((agent) => (agent.voiceConfig ? [agent.voiceConfig] : [])),
+    items.flatMap((agent) => {
+      const voice = agent.voiceConfig;
+      if (!voice) return [];
+      // Role voice bindings store their source at the top level; the media
+      // snapshot builder expects an explicit selection envelope. Preserve it
+      // so the global narrator cannot reinterpret a role's chosen provider.
+      let selection: ModelSelection | undefined;
+      if (voice.source === 'platform') {
+        if (voice.defaultId !== 'zhiyu-default-tts') {
+          throw new GenerationJobRequestError(422, 'BACKGROUND_TTS_PROVIDER_UNAVAILABLE');
+        }
+        selection = { source: voice.source, defaultId: voice.defaultId };
+      } else if (voice.source) {
+        selection = { source: voice.source, providerId: voice.providerId, modelId: voice.modelId };
+      }
+      return [{ ...voice, selection }];
+    }),
+  );
+  // Stored overrides may belong to old or unselected rosters. Only voices used
+  // by this job are included in its media snapshot and may be required by preflight.
+  const agentVoiceOverrides = Object.fromEntries(
+    items.flatMap((agent) => {
+      const voice = settings.agentVoiceOverrides[agent.id] ? agent.voiceConfig : undefined;
+      return voice ? [[agent.id, voice]] : [];
+    }),
   );
   const uploaded = { ...session.backgroundAssets };
   const upload = async (
@@ -264,7 +310,7 @@ export async function buildGenerationJobInput(
               }),
           voice: settings.ttsVoice,
           speed: settings.ttsSpeed,
-          agentVoiceOverrides: settings.agentVoiceOverrides,
+          agentVoiceOverrides,
         }
       : { enabled: false },
   };

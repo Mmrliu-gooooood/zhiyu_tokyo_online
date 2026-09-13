@@ -66,9 +66,11 @@ vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
   preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
 }));
 
-vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
-  resolveAgentDriverModel: mocks.resolveAgentDriverModel,
-}));
+vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) => {
+  const actual =
+    await importActual<typeof import('@/lib/server/agent-runtime/agent-driver-model')>();
+  return { ...actual, resolveAgentDriverModel: mocks.resolveAgentDriverModel };
+});
 
 vi.mock('@/lib/ai/llm', () => ({
   streamLLM: mocks.streamLLM,
@@ -77,10 +79,14 @@ vi.mock('@/lib/ai/llm', () => ({
 
 // The tool assembly seam is mocked so the runner's agent executes exactly one
 // instrumented hung tool instead of the full production toolset.
-vi.mock('@/lib/server/agent-runtime/runner-contract', () => ({
-  assembleRunnerTools: mocks.assembleRunnerTools,
-  buildRunnerCoursePrompt: mocks.buildRunnerCoursePrompt,
-}));
+vi.mock('@/lib/server/agent-runtime/runner-contract', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/server/agent-runtime/runner-contract')>();
+  return {
+    ...actual,
+    assembleRunnerTools: mocks.assembleRunnerTools,
+    buildRunnerCoursePrompt: mocks.buildRunnerCoursePrompt,
+  };
+});
 
 vi.mock('@/lib/server/agent-runtime/owner-scoped-documents', () => ({
   getOwnerScopedDocumentStore: mocks.getOwnerScopedDocumentStore,

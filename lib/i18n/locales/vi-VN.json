@@ -1207,6 +1207,13 @@
     "statusCourseCompleteDesc": "Nội dung khóa học đã hoàn tất.",
     "statusGenerationFailed": "Tạo khóa học không thành công",
     "statusGenerationFailedDesc": "Quá trình tạo chưa hoàn tất. Hãy xem nguyên nhân trước khi thử lại.",
+    "preflightProviderUnavailable": "Một dịch vụ cần thiết không khả dụng. Về trang chủ và kiểm tra mô hình, tìm kiếm và phương tiện trước khi thử lại.",
+    "preflightModelUnavailable": "Mô hình văn bản không khả dụng. Kiểm tra mô hình đã chọn và kết nối của mô hình trên trang chủ.",
+    "preflightMediaUnavailable": "Cấu hình phương tiện đã lưu không còn khả dụng. Về trang chủ và kiểm tra lại cấu hình phương tiện.",
+    "preflightTtsUnavailable": "Cấu hình giọng nói không khả dụng. Kiểm tra mô hình giọng nói và giọng của các vai trong lớp học hiện tại trên trang chủ.",
+    "preflightImageUnavailable": "Cấu hình hình ảnh không khả dụng. Kiểm tra mô hình hình ảnh đã bật và kết nối trên trang chủ.",
+    "preflightVideoUnavailable": "Cấu hình video không khả dụng. Kiểm tra mô hình video đã bật và kết nối trên trang chủ.",
+    "preflightSearchUnavailable": "Tìm kiếm web không khả dụng. Kiểm tra dịch vụ tìm kiếm đã chọn và kết nối trên trang chủ.",
     "statusQueueExpired": "Đã hết thời gian chờ trong hàng đợi",
     "statusQueueExpiredDesc": "Nội dung bạn nhập cho khóa học đã được lưu. Hãy quay lại Trang chủ và gửi tác vụ mới khi sẵn sàng.",
     "statusOutlineReviewExpired": "Đã hết thời hạn duyệt đề cương",
@@ -1288,12 +1295,12 @@
     "selectedAgents": "Các tác nhân đã chọn",
     "required": "Bắt buộc",
     "agentNames": {
-      "default-1": "Giảng viên AI",
-      "default-2": "Trợ giảng AI",
-      "default-3": "Cây hài của lớp",
-      "default-4": "Bạn tò mò",
-      "default-5": "Bạn ghi chép",
-      "default-6": "Bạn suy tư"
+      "default-1": "Qi Heng",
+      "default-2": "Zhi Wei",
+      "default-3": "Yue Yang",
+      "default-4": "Wen Xi",
+      "default-5": "Shu Yan",
+      "default-6": "Si Che"
     },
     "agentRoles": {
       "teacher": "Giảng viên",

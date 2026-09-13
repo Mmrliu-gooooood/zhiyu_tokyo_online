@@ -10,6 +10,7 @@
 import { describe, test, expect } from 'vitest';
 import { buildStructuredPrompt } from '@/lib/orchestration/prompt-builder';
 import { buildDirectorPrompt } from '@/lib/orchestration/director-prompt';
+import { DEFAULT_AGENTS } from '@/lib/orchestration/registry/defaults';
 import { loadPrompt } from '@openmaic/generation';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { StatelessChatRequest } from '@/lib/types/chat';
@@ -211,6 +212,53 @@ describe('optional sections toggle on / off correctly', () => {
     };
     const out = buildStructuredPrompt(baseAgent, stateNoLang);
     expect(out).not.toContain('# Language (CRITICAL)');
+  });
+});
+
+describe('default agent identity compatibility', () => {
+  test('injects the new unique names and excludes only the current default agent from peer context', () => {
+    const agents = Object.values(DEFAULT_AGENTS);
+    expect(agents.map((agent) => agent.id)).toEqual([
+      'default-1',
+      'default-2',
+      'default-3',
+      'default-4',
+      'default-5',
+      'default-6',
+    ]);
+    expect(agents.map((agent) => agent.name)).toEqual([
+      '启衡',
+      '知微',
+      '悦扬',
+      '问熙',
+      '书言',
+      '思澈',
+    ]);
+    expect(new Set(agents.map((agent) => agent.name)).size).toBe(agents.length);
+
+    const responses = agents.map((agent) => ({
+      agentId: agent.id,
+      agentName: agent.name,
+      contentPreview: `marker-${agent.id}`,
+      actionCount: 0,
+      whiteboardActions: [],
+    }));
+
+    for (const currentAgent of agents) {
+      const out = buildStructuredPrompt(
+        currentAgent,
+        slideState,
+        undefined,
+        undefined,
+        undefined,
+        responses,
+      );
+      expect(out).toContain(`You are ${currentAgent.name}`);
+      expect(out).not.toContain(`marker-${currentAgent.id}`);
+      for (const peer of agents.filter((agent) => agent.id !== currentAgent.id)) {
+        expect(out).toContain(`marker-${peer.id}`);
+      }
+    }
   });
 });
 

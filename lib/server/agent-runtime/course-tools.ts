@@ -365,9 +365,9 @@ export function buildCourseAllowlist(
 }
 
 export const DSL_TOOLS_PROMPT = [
-  'Some installed skills and older transcripts were written for earlier tool names. Translate on sight: read_scene → read_stage (path=/scenes/<order|id>); edit_slide / edit_quiz / edit_widget / edit_actions / edit_pbl → patch_stage (same JSON-pointer ops, target the scene); read_course → read_stage; patch_course → patch_stage; grep_course → grep_stage; generate_outline → submit_course_generation; generate_roster → set_roster. Never call the legacy names.',
+  'Some installed skills and older transcripts were written for earlier tool names. Translate on sight: read_scene → read_stage (path=/scenes/<order|id>); edit_slide / edit_quiz / edit_widget / edit_actions / edit_pbl → patch_stage (same JSON-pointer ops, target the scene); read_course → read_stage; patch_course → patch_stage; grep_course → grep_stage; generate_outline → submit_course_generation. For legacy generate_roster instructions, a new complete course carries its cast in submit_course_generation.agents; existing-classroom edits and original PPTX imports use set_roster. Never call the legacy names.',
   'The generic DSL tools replace read_scene and the per-type edit tools.',
-  'Every read_stage, patch_stage and grep_stage call requires an explicit stageId obtained from create_stage.',
+  'Every read_stage, patch_stage and grep_stage call requires an explicit verified stageId from an existing classroom reference, a completed generation result, or the stage created by the original PPTX import workflow. A session placeholder stageId is not proof that a classroom exists; do not call create_stage just to obtain an id for a new whole-course submission.',
   'Example: read_stage {"stageId":"stage-...","path":"/scenes/1","detail":"source"}. Use paths "", /outline, /scenes/<1-based order|sceneId>, and /scenes/<...>/actions.',
   'Before patching a structure you have not touched, read the stage-dsl skill and its matching reference chapter.',
   'Always read_stage detail:"source" for the target, patch_stage with the smallest /content/... or /actions/... JSON Pointer, then read_stage again to verify.',

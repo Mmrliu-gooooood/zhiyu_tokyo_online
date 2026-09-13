@@ -24,7 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { resolveASRProviderName } from '@/lib/audio/provider-display';
+import { resolveASRProviderName, resolveTTSProviderName } from '@/lib/audio/provider-display';
 import { useSettingsStore } from '@/lib/store/settings';
 import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
@@ -34,7 +34,11 @@ import {
   isImageProviderAvailable,
   isVideoProviderAvailable,
 } from '@/lib/media/provider-catalog';
-import { CUSTOM_ASR_DEFAULT_LANGUAGES } from '@/lib/audio/constants';
+import {
+  CUSTOM_ASR_DEFAULT_LANGUAGES,
+  TTS_PROVIDERS,
+  resolveTTSModelForVoice,
+} from '@/lib/audio/constants';
 import { ASR_PROVIDERS, getASRSupportedLanguages } from '@/lib/audio/constants';
 import type { ImageProviderId, VideoProviderId } from '@/lib/media/types';
 import type { ASRProviderId } from '@/lib/audio/types';
@@ -114,6 +118,28 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
   const videoSelection = useSettingsStore((s) => s.videoSelection);
   const platformDefaults = useSettingsStore((s) => s.platformDefaults);
   const setPlatformDefault = useSettingsStore((s) => s.setPlatformDefault);
+  const platformDefaultsStatus = useSettingsStore((s) => s.platformDefaultsStatus);
+  const ttsSelection = useSettingsStore((s) => s.ttsSelection);
+  const ttsProviderId = useSettingsStore((s) => s.ttsProviderId);
+  const ttsVoice = useSettingsStore((s) => s.ttsVoice);
+  const ttsProvidersConfig = useSettingsStore((s) => s.ttsProvidersConfig);
+  const platformTTS =
+    ttsSelection?.source === 'platform'
+      ? platformDefaults?.entries.find(
+          (entry) => entry.capability === 'tts' && entry.defaultId === ttsSelection.defaultId,
+        )
+      : undefined;
+  const ttsConfig = ttsProvidersConfig[ttsProviderId];
+  const ttsProvider = TTS_PROVIDERS[ttsProviderId as keyof typeof TTS_PROVIDERS];
+  const ttsModelId = resolveTTSModelForVoice(
+    ttsProviderId,
+    ttsVoice,
+    ttsConfig?.modelId || ttsProvider?.defaultModelId,
+  );
+  const ttsModelName =
+    ttsConfig?.customModels?.find((model) => model.id === ttsModelId)?.name ||
+    ttsProvider?.models.find((model) => model.id === ttsModelId)?.name ||
+    ttsModelId;
 
   const asrProviderId = useSettingsStore((s) => s.asrProviderId);
   const asrLanguage = useSettingsStore((s) => s.asrLanguage);
@@ -384,7 +410,48 @@ export function MediaPopover({ onSettingsOpen }: MediaPopoverProps) {
               label={t('media.ttsCapability')}
               enabled={ttsEnabled}
               onToggle={setTTSEnabled}
-            />
+            >
+              <div
+                className="rounded-lg border border-border/40 bg-background/80 px-2.5 py-2 text-xs"
+                data-testid="media-tts-selected-model"
+              >
+                <div className="font-medium">
+                  {ttsSelection?.source === 'platform'
+                    ? t('settings.platformDefault.titles.tts')
+                    : resolveTTSProviderName(
+                        ttsProviderId,
+                        t,
+                        ttsConfig?.customName || ttsProvider?.name,
+                      )}
+                </div>
+                <div className="mt-1 break-words text-muted-foreground">
+                  {ttsSelection?.source === 'platform'
+                    ? platformTTS?.displayName ||
+                      t(
+                        platformDefaultsStatus === 'error'
+                          ? 'settings.platformDefault.statuses.loadError'
+                          : platformDefaultsStatus === 'ready'
+                            ? 'settings.platformDefault.statuses.notConfigured'
+                            : 'settings.platformDefault.statuses.loading',
+                      )
+                    : ttsModelName ||
+                      resolveTTSProviderName(
+                        ttsProviderId,
+                        t,
+                        ttsConfig?.customName || ttsProvider?.name,
+                      )}
+                </div>
+                {platformTTS && !platformTTS.available && (
+                  <div className="mt-1 text-muted-foreground">
+                    {t(
+                      platformTTS.status === 'disabled'
+                        ? 'settings.platformDefault.statuses.disabled'
+                        : 'settings.platformDefault.statuses.notConfigured',
+                    )}
+                  </div>
+                )}
+              </div>
+            </TabPanel>
           )}
 
           {activeTab === 'asr' && (

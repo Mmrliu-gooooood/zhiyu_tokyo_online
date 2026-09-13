@@ -1013,6 +1013,51 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       }),
     ).rejects.toThrow('OWNER_QUEUE_LIMIT');
   });
+  it('preserves the primary diagnostic when concurrent requests require attention', async () => {
+    const lease = await claimed();
+    for (const key of ['tts:one:failed', 'tts:one:inflight']) {
+      await repo.beginStep(lease, { key, kind: 'tts', dependencyHash: key, external: true });
+    }
+    const failure = {
+      stepKey: 'tts:one:failed',
+      code: 'TTS_PROVIDER_TERMINAL_FAILURE',
+      uncertain: false,
+      errorSummary: 'TTS provider returned an explicit terminal failure.',
+      diagnostic: {
+        providerId: 'minimax-tts',
+        httpStatus: 200,
+        providerCode: 1004,
+        traceId: 'trace-123',
+        apiKey: 'private-secret',
+      },
+    };
+    await repo.failStep(lease, failure);
+    const event = (
+      await pool.query<{ payload: Record<string, unknown> }>(
+        "SELECT payload FROM generation_events WHERE job_id=$1 AND type='needs_attention' ORDER BY id DESC LIMIT 1",
+        [lease.jobId],
+      )
+    ).rows[0]!.payload;
+    expect(event).toMatchObject({
+      code: 'EXTERNAL_RESULT_UNKNOWN',
+      concurrentUnknownCount: 1,
+      concurrentUnknown: [{ attemptId: expect.any(String), stepKey: 'tts:one:inflight' }],
+      primaryFailure: {
+        stepKey: 'tts:one:failed',
+        code: 'TTS_PROVIDER_TERMINAL_FAILURE',
+        uncertain: false,
+        diagnostic: {
+          providerId: 'minimax-tts',
+          httpStatus: 200,
+          providerCode: 1004,
+          traceId: 'trace-123',
+        },
+      },
+    });
+    expect(JSON.stringify(event)).not.toContain('private-secret');
+    expect((await repo.getJob('owner', lease.jobId))!.status).toBe('needs_attention');
+  });
+
   it('persists and projects a bounded safe external failure summary', async () => {
     const lease = await claimed();
     await repo.beginStep(lease, {

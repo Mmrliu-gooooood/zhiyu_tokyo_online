@@ -86,7 +86,7 @@ describe('PRO Home model complete generation chain', () => {
       };
     });
     let turns = 0;
-    mocks.streamLLM.mockImplementation(async (params) => {
+    mocks.streamLLM.mockImplementation((params) => {
       const first = turns++ === 0;
       const transcript = JSON.stringify(params.messages);
       expect(transcript).toContain(prior);

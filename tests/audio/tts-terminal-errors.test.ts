@@ -72,7 +72,7 @@ describe('TTS explicit terminal responses', () => {
   it.each([
     {
       config: providers.find((item) => item.providerId === 'minimax-tts')!,
-      body: JSON.stringify({ base_resp: { status_code: 1002, status_msg: 'rejected' } }),
+      body: JSON.stringify({ base_resp: { status_code: 1004, status_msg: 'rejected' } }),
     },
     {
       config: providers.find((item) => item.providerId === 'doubao-tts')!,

@@ -13,6 +13,7 @@ vi.mock('@/lib/utils/stage-storage', () => ({
 }));
 
 import { createStageAPI } from '@/lib/api/stage-api';
+import { ActionEngine } from '@/lib/action/engine';
 import { flushStageSave, useStageStore } from '@/lib/store/stage';
 import type { Scene, Stage } from '@/lib/types/stage';
 
@@ -63,6 +64,39 @@ afterEach(() => {
 });
 
 describe('Stage API persistence injection', () => {
+  it.each([false, true])(
+    'keeps server-produced playback whiteboards out of document writes (complete=%s)',
+    async (generationComplete) => {
+      useStageStore.setState({
+        outlineProducer: 'server-job',
+        outlineProducerKind: 'course-worker',
+        generationComplete,
+      });
+      const engine = new ActionEngine(useStageStore);
+      const api = createStageAPI(useStageStore);
+      for (let checkpoint = 0; checkpoint < 3; checkpoint += 1) {
+        engine.resetPlaybackVisualState();
+        const board = api.whiteboard.get().data!;
+        expect(api.whiteboard.update({ viewportSize: 1200 }, board.id).success).toBe(true);
+        await flushStageSave();
+        await vi.advanceTimersByTimeAsync(500);
+      }
+      expect(useStageStore.getState().stage?.whiteboard?.[0].viewportSize).toBe(1200);
+      expect(incrementalSave).not.toHaveBeenCalled();
+      engine.dispose();
+    },
+  );
+
+  it('does not suppress an explicit server-produced course metadata edit alongside whiteboard state', async () => {
+    useStageStore.setState({ outlineProducer: 'server-job', generationComplete: true });
+    const api = createStageAPI(useStageStore);
+    api.whiteboard.create();
+    expect(api.stage.update({ name: 'User renamed course' }).success).toBe(true);
+    await flushStageSave();
+    expect(incrementalSave).toHaveBeenCalledOnce();
+    expect(incrementalSave.mock.calls[0]![1]).toEqual([{ kind: 'stage' }]);
+  });
+
   it('classifies production raw setState mutations by persisted owner', async () => {
     const api = createStageAPI(useStageStore);
 

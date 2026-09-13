@@ -1207,6 +1207,13 @@
     "statusCourseCompleteDesc": "Der Kursinhalt ist vollständig.",
     "statusGenerationFailed": "Erstellung fehlgeschlagen",
     "statusGenerationFailedDesc": "Die Erstellung wurde nicht abgeschlossen. Prüfen Sie den Grund, bevor Sie es erneut versuchen.",
+    "preflightProviderUnavailable": "Ein erforderlicher Dienst ist nicht verfügbar. Prüfen Sie auf der Startseite die Modell-, Such- und Medieneinstellungen und versuchen Sie es erneut.",
+    "preflightModelUnavailable": "Das Textmodell ist nicht verfügbar. Prüfen Sie auf der Startseite das ausgewählte Modell und seine Verbindung.",
+    "preflightMediaUnavailable": "Die gespeicherte Medienkonfiguration ist nicht mehr verfügbar. Prüfen Sie auf der Startseite die Medieneinstellungen.",
+    "preflightTtsUnavailable": "Die Sprachkonfiguration ist nicht verfügbar. Prüfen Sie auf der Startseite das Sprachmodell und die Stimmen der aktuellen Kursrollen.",
+    "preflightImageUnavailable": "Die Bildkonfiguration ist nicht verfügbar. Prüfen Sie auf der Startseite das aktivierte Bildmodell und seine Verbindung.",
+    "preflightVideoUnavailable": "Die Videokonfiguration ist nicht verfügbar. Prüfen Sie auf der Startseite das aktivierte Videomodell und seine Verbindung.",
+    "preflightSearchUnavailable": "Die Websuche ist nicht verfügbar. Prüfen Sie auf der Startseite den ausgewählten Suchdienst und seine Verbindung.",
     "statusQueueExpired": "Wartezeit in der Warteschlange abgelaufen",
     "statusQueueExpiredDesc": "Ihre Kurseingaben wurden beibehalten. Kehren Sie zur Startseite zurück und senden Sie eine neue Aufgabe, wenn Sie bereit sind.",
     "statusOutlineReviewExpired": "Frist für die Gliederungsprüfung abgelaufen",
@@ -1288,12 +1295,12 @@
     "selectedAgents": "Ausgewählte Agenten",
     "required": "Erforderlich",
     "agentNames": {
-      "default-1": "KI-Lehrkraft",
-      "default-2": "KI-Assistent",
-      "default-3": "Klassenclown",
-      "default-4": "Neugieriger Geist",
-      "default-5": "Mitschreiber",
-      "default-6": "Denker"
+      "default-1": "Qi Heng",
+      "default-2": "Zhi Wei",
+      "default-3": "Yue Yang",
+      "default-4": "Wen Xi",
+      "default-5": "Shu Yan",
+      "default-6": "Si Che"
     },
     "agentRoles": {
       "teacher": "Lehrkraft",

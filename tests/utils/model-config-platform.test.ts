@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ getState: vi.fn() }));
 vi.mock('@/lib/store/settings', () => ({ useSettingsStore: { getState: mocks.getState } }));
 
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, refreshPlatformModelConfig } from '@/lib/utils/model-config';
 
 const state = {
   providerId: 'deepseek',
@@ -68,4 +68,69 @@ describe('platform model client configuration', () => {
       expect(getCurrentModelConfig().thinkingConfig).toEqual({ mode: 'disabled', effort: 'none' });
     },
   );
+});
+
+describe('refreshing a rejected platform submission', () => {
+  const rejected = {
+    source: 'platform' as const,
+    defaultId: 'zhiyu-default-text' as const,
+    revision: 'old',
+  };
+
+  it('reloads and rereads the selected platform model after catalog refresh', async () => {
+    const fetchServerProviders = vi.fn(async () => {
+      mocks.getState.mockReturnValue({ ...state, platformDefaultsStatus: 'ready' });
+    });
+    mocks.getState.mockReturnValue({ ...state, fetchServerProviders });
+
+    await expect(refreshPlatformModelConfig(rejected)).resolves.toMatchObject({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'text-r1',
+    });
+    expect(fetchServerProviders).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { ...state, platformDefaultsStatus: 'error' },
+    {
+      ...state,
+      platformDefaultsStatus: 'ready',
+      llmSelection: { source: 'user', providerId: 'openai', modelId: 'gpt-4o' },
+    },
+  ])(
+    'does not retry a failed catalog load or a concurrent personal-model selection',
+    async (refreshed) => {
+      const fetchServerProviders = vi.fn(async () => mocks.getState.mockReturnValue(refreshed));
+      mocks.getState.mockReturnValue({ ...state, fetchServerProviders });
+
+      await expect(refreshPlatformModelConfig(rejected)).resolves.toBeUndefined();
+    },
+  );
+
+  it('does not retry a connection revision conflict when the platform revision is current', async () => {
+    const fetchServerProviders = vi.fn(async () => {});
+    mocks.getState.mockReturnValue({
+      ...state,
+      platformDefaultsStatus: 'ready',
+      fetchServerProviders,
+    });
+
+    await expect(
+      refreshPlatformModelConfig({ ...rejected, revision: 'text-r1' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not refresh personal models or continue an aborted submission', async () => {
+    const fetchServerProviders = vi.fn(async () => {});
+    mocks.getState.mockReturnValue({ ...state, fetchServerProviders });
+    await expect(
+      refreshPlatformModelConfig({ source: 'user', modelString: 'openai:gpt-4o' }),
+    ).resolves.toBeUndefined();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(refreshPlatformModelConfig(rejected, controller.signal)).rejects.toThrow();
+    expect(fetchServerProviders).not.toHaveBeenCalled();
+  });
 });

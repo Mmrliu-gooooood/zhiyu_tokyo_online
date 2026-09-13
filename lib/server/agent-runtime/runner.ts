@@ -1524,11 +1524,11 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       mediaConfigRef: meta.activeMediaConfigRef,
       mediaConfig,
       ensureReady: () => assertGenerationReady(true),
-      resolveSkillConstraints: async (ids) =>
+      resolveSkills: async (ids) =>
         ids.flatMap((skillId) => {
           const skill = installedSkills.find((candidate) => candidate.id === skillId);
-          return skill?.constraints
-            ? [{ id: skill.id, constraints: skill.constraints as Record<string, unknown> }]
+          return skill
+            ? [{ id: skill.id, ...(skill.constraints ? { constraints: skill.constraints as Record<string, unknown> } : {}) }]
             : [];
         }),
       onCompleted: (job) =>

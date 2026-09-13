@@ -28,6 +28,11 @@ the course contains and how it sounds.
   at the seam where one arc closes and the next begins, testing whether the
   learner can apply the arc's idea rather than recall its words. Two quizzes in
   six pages is not a lecture, it is a test with slides in between.
+  Before submission, read `lecture-style/outline-constraints.json`: its exact
+  machine-enforced limits are authoritative. Even a short course needs at
+  least one `quiz`, and at least 65% of all pages must be `slide`. For a
+  requested three-page course, use **2 slides + 1 quiz** (starting with a
+  slide); do not omit the quiz or add a fourth page just to satisfy this rule.
 - **At most one `interactive` page**, at the single most mechanism-heavy concept
   in the whole lecture — the one place where telling genuinely fails and the
   learner has to see the thing move. If the subject has two such concepts, a

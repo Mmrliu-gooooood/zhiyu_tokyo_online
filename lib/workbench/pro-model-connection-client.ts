@@ -70,6 +70,21 @@ export async function syncProModelConnection(config: ProModelContext): Promise<P
     const body = await response.json().catch(() => ({}));
     if (
       response.status === 409 &&
+      body.error === 'PRO_MODEL_CONNECTION_STALE' &&
+      config.source === 'platform' &&
+      attempt === 0
+    ) {
+      const { refreshPlatformModelConfig } = await import('@/lib/utils/model-config');
+      const refreshed = await refreshPlatformModelConfig(config);
+      if (refreshed) {
+        config = refreshed;
+        // Keep the previous ref: a catalog refresh must not bypass connection
+        // revision conflicts or overwrite another tab's newer connection.
+        continue;
+      }
+    }
+    if (
+      response.status === 409 &&
       body.error === 'PRO_MODEL_CONNECTION_UNAVAILABLE' &&
       ref &&
       attempt === 0
@@ -79,7 +94,7 @@ export async function syncProModelConnection(config: ProModelContext): Promise<P
       continue;
     }
     if (!response.ok || !body.ref?.id || !Number.isInteger(body.ref?.revision)) {
-      throw new Error(proModelConfigurationMessage(body.error));
+      throw new Error(proModelConfigurationMessage(body.error ?? body.errorCode, response.status));
     }
     local?.setItem(REF_KEY, JSON.stringify(body.ref));
     return body.ref;
@@ -88,17 +103,27 @@ export async function syncProModelConnection(config: ProModelContext): Promise<P
 }
 
 /** Only known safe codes are presented; arbitrary proxy bodies never reach the UI. */
-export function proModelConfigurationMessage(code?: unknown): string {
+export function proModelConfigurationMessage(code?: unknown, status?: number): string {
   const keys: Record<string, WorkbenchCopyKey> = {
+    INVALID_GENERATION_SESSION: 'workbench.system.modelSessionInvalid',
+    GENERATION_SESSION_REQUIRED: 'workbench.system.modelSessionInvalid',
+    PRO_MODEL_CONNECTION_STALE: 'workbench.system.modelConfigurationStale',
+    GENERATION_SESSION_UNAVAILABLE: 'workbench.system.modelServiceUnavailable',
+    PRO_MODEL_DATABASE_UNAVAILABLE: 'workbench.system.modelServiceUnavailable',
     PRO_MODEL_KEY_REQUIRED: 'workbench.system.modelKeyRequired',
     PRO_MODEL_PROTOCOL_REQUIRED: 'workbench.system.modelProtocolRequired',
     PRO_MODEL_ENCRYPTION_UNAVAILABLE: 'workbench.system.modelEncryptionUnavailable',
-    PRO_MODEL_CONNECTION_UNAVAILABLE: 'workbench.system.modelConnectionUnavailable',
+    PRO_MODEL_CONNECTION_UNAVAILABLE:
+      status !== undefined && status >= 500
+        ? 'workbench.system.modelServiceUnavailable'
+        : 'workbench.system.modelConnectionUnavailable',
     PRO_MODEL_UNSAFE_ENDPOINT: 'workbench.system.modelUnsafeEndpoint',
   };
   return defaultWorkbenchTranslator(
     typeof code === 'string' && keys[code]
       ? keys[code]
-      : 'workbench.system.modelConfigurationRequired',
+      : status !== undefined && status >= 500
+        ? 'workbench.system.modelServiceUnavailable'
+        : 'workbench.system.modelConfigurationRequired',
   );
 }

@@ -10,12 +10,17 @@ import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/con
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
 import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
 import {
+  providerFailureDiagnostic,
+  type ProviderFailureDiagnostic,
+} from '@/lib/server/generation-jobs/failure-diagnostics';
+import {
   DEFAULT_TTS_REQUEST_TIMEOUT_MS,
   resolveTTSRequestTimeoutMs,
   TTSConfigurationError,
   TTSProviderTransientError,
   TTSProviderTerminalError,
   TTSRequestTimeoutError,
+  TTSInvalidResponseError,
 } from '@/lib/audio/tts-providers';
 
 export interface CheckpointRepository {
@@ -45,6 +50,7 @@ export interface CheckpointRepository {
       errorSummary?: string;
       retryable?: boolean;
       retryAfterMs?: number;
+      diagnostic?: ProviderFailureDiagnostic;
     },
   ): Promise<unknown>;
   recordProviderRequest?(
@@ -59,6 +65,7 @@ export class UnknownExternalOutcome extends Error {
     readonly stepKey: string,
     readonly code = 'EXTERNAL_RESULT_UNKNOWN',
     readonly safeSummary = 'External provider result is unknown.',
+    readonly diagnostic?: ProviderFailureDiagnostic,
   ) {
     super('EXTERNAL_RESULT_UNKNOWN');
     this.name = 'UnknownExternalOutcome';
@@ -69,6 +76,7 @@ export class ProviderRetryScheduled extends Error {
   constructor(
     readonly code = 'PROVIDER_RATE_LIMITED',
     readonly phase = 'execution',
+    readonly diagnostic?: ProviderFailureDiagnostic,
   ) {
     super(code);
     this.name = 'ProviderRetryScheduled';
@@ -374,6 +382,11 @@ export class PipelineExecution {
         return result;
       } catch (error) {
         if (this.signal.aborted) {
+          // Siblings stopped by a provider failure must retain that first cause.
+          // Parent cancellation/lease loss still follow the interruption path.
+          if (this.stopped.signal.aborted && this.signal.reason === this.stopped.signal.reason) {
+            throw this.stopped.signal.reason;
+          }
           const reason = this.signal.reason;
           const leaseLost = reason instanceof Error && reason.message === 'GENERATION_LEASE_LOST';
           const interrupted = new ExternalCallInterrupted(
@@ -402,6 +415,7 @@ export class PipelineExecution {
             code: error.code,
             uncertain: false,
             errorSummary: error.safeSummary,
+            diagnostic: providerFailureDiagnostic(error),
           });
           this.stopped.abort(error);
           throw error;
@@ -412,6 +426,7 @@ export class PipelineExecution {
             code: error.code,
             uncertain: false,
             errorSummary: error.safeSummary,
+            diagnostic: providerFailureDiagnostic(error),
           });
           // A generic 5xx is transient, but it does not prove that a paid
           // request was never accepted. Keep its distinct evidence and stop;
@@ -488,11 +503,19 @@ export class PipelineExecution {
             stepKey: key,
             code: 'PROVIDER_RATE_LIMITED',
             uncertain: false,
-            errorSummary: 'Provider explicitly rejected the request with HTTP 429.',
+            errorSummary:
+              kind === 'tts' && providerFailureDiagnostic(error)?.providerCode !== undefined
+                ? 'TTS provider explicitly rejected the request because of rate limiting.'
+                : 'Provider explicitly rejected the request with HTTP 429.',
             retryable: true,
             retryAfterMs: boundedDelay,
+            ...(kind === 'tts' ? { diagnostic: providerFailureDiagnostic(error) } : {}),
           });
-          const retry = new ProviderRetryScheduled('PROVIDER_RATE_LIMITED', key);
+          const retry = new ProviderRetryScheduled(
+            'PROVIDER_RATE_LIMITED',
+            key,
+            kind === 'tts' ? providerFailureDiagnostic(error) : undefined,
+          );
           this.stopped.abort(retry);
           throw retry;
         }
@@ -508,6 +531,7 @@ export class PipelineExecution {
         const timeoutCode = 'TTS_RESULT_UNKNOWN_AFTER_TIMEOUT';
         const timeoutSummary =
           'TTS provider did not return before the deadline; its result is unknown.';
+        const invalidResponse = kind === 'tts' && error instanceof TTSInvalidResponseError;
         const outcome = new UnknownExternalOutcome(
           key,
           commitFailure
@@ -518,7 +542,9 @@ export class PipelineExecution {
                 ? error instanceof TTSRequestTimeoutError
                   ? error.code
                   : timeoutCode
-                : undefined,
+                : invalidResponse
+                  ? error.code
+                  : undefined,
           commitFailure
             ? 'TTS result was produced, but its checkpoint could not be committed.'
             : persistFailure
@@ -527,7 +553,10 @@ export class PipelineExecution {
                 ? error instanceof TTSRequestTimeoutError
                   ? error.safeSummary
                   : timeoutSummary
-                : undefined,
+                : invalidResponse
+                  ? error.safeSummary
+                  : undefined,
+          kind === 'tts' ? providerFailureDiagnostic(error) : undefined,
         );
         this.stopped.abort(outcome);
         await this.repository
@@ -536,6 +565,7 @@ export class PipelineExecution {
             code: outcome.code,
             uncertain: true,
             errorSummary: outcome.safeSummary,
+            ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic } : {}),
           })
           .catch(() => {});
         throw outcome;
@@ -582,8 +612,10 @@ export async function mapBounded<T, R>(
         try {
           results[index] = await work(items[index]!, index);
         } catch (error) {
-          failed = true;
-          failure = error;
+          if (!failed) {
+            failed = true;
+            failure = error;
+          }
         }
       }
     }),

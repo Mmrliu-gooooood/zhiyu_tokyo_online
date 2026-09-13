@@ -242,7 +242,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
     label: 'List available voices',
     description:
       'List every TTS voice this deployment actually serves and can bind to the roster: one flat entry per provider/model/voice identity, with a backward-compatible `providerId::voiceId` key when unambiguous and a `providerId::modelId::voiceId` key when model qualification is required. ' +
-      'Call this BEFORE set_roster and bind `voice` from exactly one returned key — never invent an id. ' +
+      'Call this before choosing any voice. For a new complete course, copy a returned binding into submit_course_generation agents[].voice; do not call create_stage or set_roster to prepare the submission. For an existing classroom or original PPTX import, the same binding can be used with set_roster. Never invent an id. ' +
       'A cloned voice registered this session with register_voice appears here too.',
     parameters: LIST_VOICES_PARAMS,
     async execute() {
@@ -259,7 +259,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
       const text =
         voices.length > 0
           ? JSON.stringify(voices, null, 2)
-          : 'This deployment serves no bindable TTS voices. Omit `voice` in set_roster; narration will be skipped or fall back to the deployment default.';
+          : 'This deployment serves no bindable TTS voices. Omit explicit voice bindings in submit_course_generation agents for a new complete course, or in set_roster for an existing classroom/PPTX import. The existing session TTS setting and default remain authoritative.';
       return {
         content: [{ type: 'text', text }],
         details: { voices },
@@ -271,7 +271,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
     name: 'set_roster',
     label: 'Set classroom roster',
     description:
-      'Write the classroom roster as you and the user settled it in chat: pass every agent (exactly ONE teacher, at least 2 agents total) with name/role/persona and optional avatar/color/priority/voiceDesign. ' +
+      'Update the roster of an existing classroom, or the stage created by the original PPTX import workflow. For a new complete course, pass the settled roster with stable ids in submit_course_generation agents instead; do not call set_roster or create_stage as preparation. For this existing-stage tool, pass every agent (exactly ONE teacher, at least 2 agents total) with name/role/persona and optional avatar/color/priority/voiceDesign. ' +
       'Personas are 2-3 concrete sentences naming personality and teaching/learning style, in the stage language. ' +
       'Bind `voice` using the exact key from list_voices (or the exact key register_voice returned for a cloned voice); never invent an id, and omit voice when no usable voice exists (narration then falls back to the provider default). ' +
       'Persists `stage.generatedAgentConfigs` and drives scene/discussion generation from then on; re-calling replaces the roster.',
@@ -315,7 +315,7 @@ export function buildRosterTools(deps: RosterToolDeps): AgentTool<never, never>[
           content: [
             {
               type: 'text',
-              text: 'No stage document yet — call create_stage first, then set_roster.',
+              text: 'No stage document was found. For a new complete course, submit the planned roster with stable ids in submit_course_generation agents; do not create a stage just to set its roster. For an existing classroom, verify its stageId. Only the original PPTX import workflow should create its import stage before setting the roster.',
             },
           ],
           details: { blocked: 'no-document' },
@@ -437,7 +437,8 @@ export const ROSTER_TOOL_NAMES = ['list_voices', 'set_roster'] as const;
 
 /** Roster guidance layered into every runner prompt (the tools are always registered). */
 export const ROSTER_TOOLS_PROMPT = [
-  'The classroom roster is written with set_roster: pass every agent (exactly ONE teacher, at least 2 agents total) with name/role/persona and optional avatar/color/priority/voiceDesign. It persists stage.generatedAgentConfigs and drives scene/discussion generation; re-calling replaces the roster.',
+  'For a new complete course, carry the settled cast in submit_course_generation.agents: every entry needs a unique stable id, name, role and persona, with exactly ONE teacher. Copy optional voice from list_voices; omit agents entirely when the worker should choose the cast. The worker creates the stage and roster. Do not call create_stage or set_roster before whole-course submission.',
+  'Use set_roster only to update an existing classroom or a stage created by the original PPTX import workflow: pass every agent (exactly ONE teacher, at least 2 agents total) with name/role/persona and optional avatar/color/priority/voiceDesign. This existing-stage tool persists stage.generatedAgentConfigs; re-calling replaces the roster.',
   'To bind a roster voice, call list_voices first and copy exactly one returned binding key. Unambiguous voices use `providerId::voiceId`; same-provider cross-model collisions use `providerId::modelId::voiceId`. Never invent a voice id or drop the model qualifier.',
   'A cloned voice registered this session with register_voice appears in list_voices and can be bound with the exact key register_voice returned; a voice from an earlier session is not enumerable — re-register it, bind a catalog voice, or omit voice.',
   'Omit `voice` when no usable voice exists: narration falls back to the provider default.',

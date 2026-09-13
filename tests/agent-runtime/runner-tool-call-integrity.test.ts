@@ -67,9 +67,11 @@ vi.mock('@/lib/server/agent-runtime/model-preflight', () => ({
   preflightProModel: vi.fn(async () => ({ chatReady: true, generationReady: true })),
 }));
 
-vi.mock('@/lib/server/agent-runtime/agent-driver-model', () => ({
-  resolveAgentDriverModel: mocks.resolveAgentDriverModel,
-}));
+vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) => {
+  const actual =
+    await importActual<typeof import('@/lib/server/agent-runtime/agent-driver-model')>();
+  return { ...actual, resolveAgentDriverModel: mocks.resolveAgentDriverModel };
+});
 
 vi.mock('@/lib/agent/runtime/stream-fn', () => ({
   createCallLlmStreamFn: mocks.createCallLlmStreamFn,
