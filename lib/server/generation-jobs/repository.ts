@@ -1318,7 +1318,9 @@ export class GenerationJobRepository {
       if (input.stepKeys && failures.rows.some((s) => !input.stepKeys!.includes(s.step_key)))
         throw new GenerationJobError('INCOMPLETE_RETRY_SCOPE');
       await q.query(
-        "UPDATE generation_steps SET status='pending',available_at=clock_timestamp(),max_attempts=attempt_count+3,error_code=NULL WHERE job_id=$1 AND status IN ('failed','uncertain','retry_wait','running')",
+        // A concurrent failure also resets sibling checkpoints to pending. They
+        // spent attempts too, so explicit manual retry must replenish them.
+        "UPDATE generation_steps SET status='pending',available_at=clock_timestamp(),max_attempts=attempt_count+3,error_code=NULL WHERE job_id=$1 AND status IN ('failed','uncertain','retry_wait','running','pending')",
         [id],
       );
       await q.query(

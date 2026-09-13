@@ -70,6 +70,50 @@ function setup(extra: Partial<GenerationJobToolDeps> = {}) {
 }
 
 describe('Pro submission contract regression', () => {
+  it('reports exact interactive counts, then accepts a complete corrected plan once', async () => {
+    const { run, createJob } = setup({
+      resolveSkills: async () => [
+        {
+          id: 'workshop-style',
+          constraints: { typeMix: [{ type: 'interactive', min: 3, minRatio: 0.4 }] },
+        },
+      ],
+    });
+    const outlines = Array.from({ length: 13 }, (_, order) => ({
+      ...outline,
+      id: `p${order}`,
+      order,
+      type: order >= 8 ? 'interactive' : order >= 5 ? 'quiz' : 'slide',
+      ...(order >= 8
+        ? { widgetType: 'simulation', widgetOutline: { concept: 'Try a parameter' } }
+        : {}),
+    }));
+    const response = await run({ outlines, skillIds: ['workshop-style'] });
+    expect(response).toMatchObject({
+      isError: true,
+      details: { code: 'SKILL_CONSTRAINT_VIOLATION' },
+    });
+    expect(response.content[0].text).toContain('5 of 13');
+    expect(response.content[0].text).toContain('at least 6');
+    expect(response.content[0].text).toContain('1 more');
+    expect(createJob).not.toHaveBeenCalled();
+    const corrected = outlines.map((page, index) =>
+      index === 4
+        ? {
+            ...page,
+            type: 'interactive',
+            description: 'Vary the initial condition and compare solutions.',
+            widgetType: 'simulation',
+            widgetOutline: { concept: 'Initial conditions' },
+          }
+        : page,
+    );
+    expect((await run({ outlines: corrected, skillIds: ['workshop-style'] })).isError).not.toBe(
+      true,
+    );
+    expect(createJob).toHaveBeenCalledTimes(1);
+  });
+
   it('reports every conflicting outline alias on every page in one actionable response', async () => {
     const { run, createJob } = setup();
     const outlines = Array.from({ length: 3 }, (_, order) => ({

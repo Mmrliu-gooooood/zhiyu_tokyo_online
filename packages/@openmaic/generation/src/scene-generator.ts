@@ -1125,7 +1125,13 @@ export async function generateWidgetContent(
         conceptName: widgetOutline.concept || outline.title,
         conceptOverview: outline.description,
         keyPoints: (outline.keyPoints || []).join('\n'),
-        variables: widgetOutline.keyVariables?.join(', ') || '',
+        // Persisted model-authored plans can supply prose instead of an array.
+        // Preserve it as prompt text so an existing course can resume safely.
+        variables: Array.isArray(widgetOutline.keyVariables)
+          ? widgetOutline.keyVariables.join(', ')
+          : typeof widgetOutline.keyVariables === 'string'
+            ? widgetOutline.keyVariables
+            : '',
         designIdea: '',
         languageDirective: languageDirective || '',
       };

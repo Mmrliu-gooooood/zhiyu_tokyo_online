@@ -18,6 +18,22 @@ function baseInteractiveOutline(overrides: Partial<SceneOutline> = {}): SceneOut
 }
 
 describe('widget actions direct pipeline', () => {
+  it('generates a simulation from persisted Pro variables supplied as text', async () => {
+    const outline = JSON.parse(JSON.stringify(baseInteractiveOutline()));
+    outline.widgetOutline.keyVariables = '常数 C、初值点横坐标 x0、初值点纵坐标 y0';
+    const prompts: string[] = [];
+    const content = await generateSceneContent(outline, async (_system, user) => {
+      prompts.push(user);
+      return '<!DOCTYPE html><html><body><div id="curve">曲线</div></body></html>';
+    });
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toContain(outline.widgetOutline.keyVariables);
+    expect(content).toMatchObject({
+      widgetType: 'simulation',
+      html: expect.stringContaining('curve'),
+    });
+  });
+
   it('generates widget content without a second teacherActions call', async () => {
     const capturedUsers: string[] = [];
     const aiCall: AICallFn = async (_system, user) => {

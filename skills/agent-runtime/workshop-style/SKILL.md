@@ -21,9 +21,13 @@ the course contains and how it sounds.
   the end, and the first thing they are about to try. No agenda, no history of
   the field.
 - **Every concept is followed at once by a hands-on page.** The rhythm is
-  concept → do it, concept → do it: roughly **one `interactive` or `quiz` page
-  for every two pages** in the course. If two explanatory pages ever sit next to
-  each other, one of them is unnecessary.
+  concept → do it, concept → do it. Allocate page types before writing the plan:
+  **at least `max(3, ceil(totalPages * 0.4))` pages must be `interactive`, plus
+  at least 2 separate `quiz` pages**. Quizzes do not count toward the interactive
+  minimum. Count every page, including the opening and closing pages, in the
+  denominator. For 8 pages use at least 4 interactive pages; for 12 use at least
+  5; for 13 use at least 6. Recount the actual final outlines array after edits.
+  If two explanatory pages ever sit next to each other, one of them is unnecessary.
 - **`interactive` pages are the exercises.** Each isolates one thing to build,
   vary or trace. Consecutive interactive pages must not reuse the same
   `widgetType` — as the learner moves from trying to predicting to applying, the

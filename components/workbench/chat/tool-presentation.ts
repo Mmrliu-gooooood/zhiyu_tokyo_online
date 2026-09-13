@@ -570,6 +570,29 @@ export function presentTool(
     }
 
     // ── The plan ─────────────────────────────────────────────────────────────
+    case 'submit_course_generation': {
+      const constraintFailure = failed && d.code === 'SKILL_CONSTRAINT_VIOLATION';
+      if (constraintFailure && Array.isArray(d.issues)) {
+        chips.push({
+          label: t('workbench.tool.chip.constraintViolations', { count: d.issues.length }),
+          tone: 'warn',
+        });
+      }
+      return {
+        icon: Presentation,
+        label: t('workbench.tool.label.generateOutline'),
+        subject: str(args.courseTitle),
+        chips,
+        ...(failed
+          ? {
+              errorText: constraintFailure
+                ? t('workbench.tool.error.generateOutline')
+                : errorLine(t('workbench.tool.error.generateOutline'), node.toolResultText),
+            }
+          : {}),
+      };
+    }
+
     // ── One page ─────────────────────────────────────────────────────────────
     case 'generate_scene': {
       const order = num(d.order) ?? num(args.order);

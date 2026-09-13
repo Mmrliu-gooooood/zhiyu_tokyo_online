@@ -59,6 +59,25 @@ describe('pi read', () => {
 });
 
 describe('generic typed tool presentation', () => {
+  it('presents a Pro plan rejection in localized copy while preserving the diagnostic', () => {
+    const node = toolNode({
+      toolName: 'submit_course_generation',
+      toolState: 'failed',
+      toolArgs: { courseTitle: '微分方程' },
+      toolDetails: {
+        code: 'SKILL_CONSTRAINT_VIOLATION',
+        issues: [{ id: 'workshop-style', message: 'Too few interactive pages' }],
+      },
+      toolResultText: 'The page plan violates the requested skill constraints.',
+    });
+    const presentation = presentTool(node);
+    expect(presentation.label).toBe('规划课堂');
+    expect(presentation.errorText).not.toContain('The page plan');
+    expect(presentation.chips).toContainEqual({ label: '1 处不满足约束', tone: 'warn' });
+    expect(presentation.hidePayload).not.toBe(true);
+    expect(node.toolResultText).toContain('The page plan');
+  });
+
   it('shows a create_skill receipt as a normally expandable tool call', () => {
     const presentation = presentTool(
       toolNode({

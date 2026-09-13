@@ -49,6 +49,22 @@ export function buildAskUserTool(deps: AskUserToolDeps): AgentTool<typeof AskUse
     description:
       "Ask the user a question and end the turn. The current run stops, and the user's answer arrives as the next chat message. Use this for a decision the user must own instead of guessing.",
     parameters: AskUserParams,
+    // Some compatible model endpoints return the complete arguments as a JSON
+    // string. Pi runs this hook BEFORE schema validation; execute is too late.
+    // Decode only the outer object, leaving malformed inputs to the same validator.
+    prepareArguments(args) {
+      if (typeof args === 'string') {
+        try {
+          const parsed: unknown = JSON.parse(args);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return parsed as Static<typeof AskUserParams>;
+          }
+        } catch {
+          // Preserve the original value and validation failure.
+        }
+      }
+      return args as Static<typeof AskUserParams>;
+    },
     async execute(_id, params: Static<typeof AskUserParams>, signal) {
       if (signal?.aborted) throw new Error('aborted');
       const question = params.question?.trim();

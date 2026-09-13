@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
 vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
 
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
+import { buildAskUserTool } from '@/lib/server/agent-runtime/ask-user';
 import { createCallLlmStreamFn, hasLengthToolCallProvenance } from '@/lib/agent/runtime/stream-fn';
 
 const ZERO_USAGE = {
@@ -14,6 +15,63 @@ const ZERO_USAGE = {
   outputTokens: 0,
   inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
 };
+
+describe('Pro ask_user argument preparation', () => {
+  it.each(['object', 'json-string'])(
+    'sends a %s question once without another model turn',
+    async (encoding) => {
+      const onUserQuestion = vi.fn();
+      const question = { question: '学习目标是什么？', options: [{ id: 'exam', label: '考试' }] };
+      mocks.streamLLM.mockReset();
+      useResponses([
+        [
+          {
+            type: 'tool-call',
+            toolCallId: 'question-1',
+            toolName: 'ask_user',
+            input: encoding === 'object' ? question : JSON.stringify(question),
+          },
+          finish('tool-calls'),
+        ],
+      ]);
+      const agent = buildAgent({
+        streamFn: createCallLlmStreamFn({ languageModel: {} as never }),
+        systemPrompt: 'Ask one question.',
+        tools: [buildAskUserTool({ onUserQuestion })],
+        allowedToolNames: new Set(['ask_user']),
+        afterToolCall: ({ isError }) => ({ terminate: !isError }),
+      });
+      await agent.prompt('Help me learn');
+      expect(onUserQuestion).toHaveBeenCalledExactlyOnceWith(question);
+      expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(['{broken', '[]', 'null', '"question"', '{}', '{"question":" "}'])(
+    'still rejects invalid question %s',
+    async (input) => {
+      const onUserQuestion = vi.fn();
+      mocks.streamLLM.mockReset();
+      useResponses([
+        [
+          { type: 'tool-call', toolCallId: 'bad', toolName: 'ask_user', input },
+          finish('tool-calls'),
+        ],
+      ]);
+      const agent = buildAgent({
+        streamFn: createCallLlmStreamFn({ languageModel: {} as never }),
+        systemPrompt: 'Ask one question.',
+        tools: [buildAskUserTool({ onUserQuestion })],
+        allowedToolNames: new Set(['ask_user']),
+      });
+      await agent.prompt('Help');
+      expect(onUserQuestion).not.toHaveBeenCalled();
+      expect(agent.state.messages).toContainEqual(
+        expect.objectContaining({ role: 'toolResult', isError: true }),
+      );
+    },
+  );
+});
 
 function finish(finishReason: string) {
   return { type: 'finish', finishReason, totalUsage: ZERO_USAGE };

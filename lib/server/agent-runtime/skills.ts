@@ -815,8 +815,9 @@ export function checkOutlineAgainstSkill(
       violations.push(`${c} \`${m.type}\` scenes, the skill allows at most ${m.max}`);
     }
     if (m.minRatio != null && n > 0 && c / n < m.minRatio) {
+      const required = Math.max(m.min ?? 0, Math.ceil(n * m.minRatio));
       violations.push(
-        `\`${m.type}\` scenes are ${Math.round((c / n) * 100)}% of the course, the skill requires at least ${Math.round(m.minRatio * 100)}%`,
+        `\`${m.type}\` scenes are ${Math.round((c / n) * 100)}% of the course, the skill requires at least ${Math.round(m.minRatio * 100)}%. Counted ${c} of ${n} pages; need at least ${required} \`${m.type}\` pages (${required - c} more at the current total). Only type \`${m.type}\` counts. If adding or removing pages, recalculate ceil(total * ${m.minRatio}) using the final outlines array. Revise the actual activities and their content, not just the type labels.`,
       );
     }
   }

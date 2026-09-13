@@ -1214,6 +1214,32 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     });
     expect((await repo.getJobDetail('owner', lease.jobId)).scenes[0].status).toBe('pending');
   });
+  it('manual retry replenishes pending sibling checkpoints after repeated concurrent failures', async () => {
+    let lease = await confirmed();
+    const sibling = { key: 'content:sibling', kind: 'content', dependencyHash: 'sibling' };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await repo.beginStep(lease, sibling);
+      await repo.beginStep(lease, {
+        key: 'content:broken',
+        kind: 'content',
+        dependencyHash: 'broken',
+      });
+      await repo.failStep(lease, {
+        stepKey: 'content:broken',
+        code: 'INVALID_CONTENT',
+        uncertain: false,
+      });
+      const detail = await repo.getJobDetail('owner', lease.jobId);
+      await repo.retry('owner', lease.jobId, {
+        commandKey: `retry-sibling-${attempt}`,
+        expectedVersion: detail.stateVersion,
+      });
+      lease = (await repo.claim(`resumed-${attempt}`))!;
+    }
+    await expect(repo.beginStep(lease, sibling)).resolves.toMatchObject({ status: 'running' });
+    await repo.commitCheckpoint(lease, { stepKey: sibling.key, result: { recovered: true } });
+    expect(await repo.getCheckpoint(lease, sibling.key)).toEqual({ recovered: true });
+  });
   it('projects expired external work as needs_attention and still requires retry acknowledgement', async () => {
     const lease = await confirmed();
     const firstAttempt = await repo.beginStep(lease, {
