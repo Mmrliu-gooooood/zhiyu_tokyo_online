@@ -16,7 +16,7 @@ test.describe.configure({ timeout: 120_000 });
 async function seedCompletedStage(
   page: Page,
   stageId: string,
-  options: { title?: string; withoutQuiz?: boolean } = {},
+  options: { title?: string; withoutQuiz?: boolean; staleOutline?: boolean } = {},
 ): Promise<PersistenceHeaders | undefined> {
   const persistenceRequest = page
     .waitForRequest(
@@ -121,7 +121,18 @@ async function seedCompletedStage(
       tx.objectStore('stages').put(stage);
       for (const scene of scenes) tx.objectStore('scenes').put(scene);
       const outline = {
-        outlines: [],
+        outlines: options.staleOutline
+          ? [
+              {
+                id: 'stale-summary',
+                type: 'slide',
+                title: 'Summary slide',
+                description: 'Saved outline from before editing',
+                keyPoints: [],
+                order: 4,
+              },
+            ]
+          : [],
         generationComplete: true,
         createdAt: now,
         updatedAt: now,
@@ -409,3 +420,130 @@ test('1366x768 Chinese dark completion preserves the empty-title fallback withou
     await cleanupCompletedStage(page, stageId, persistenceHeaders);
   }
 });
+
+for (const hosted of [false, true]) {
+  test(`${hosted ? 'Pro hosted' : 'standalone'} completion keeps a trophy entry with stale outlines and bounds a long prompt title`, async ({
+    page,
+  }, testInfo) => {
+    const stageId = `zhiyu-complete-stale-${hosted}-${RUN_ID}`;
+    const title =
+      '为高中学生设计一节《师说》讲授型大师课（单课时，约10页），核心学习目标有两条，课堂重心放在理解与鉴赏。'.repeat(
+        6,
+      );
+    let headers: PersistenceHeaders | undefined;
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    if (hosted) {
+      await page.addInitScript(() => localStorage.setItem('locale', 'zh-CN'));
+    }
+    try {
+      headers = await seedCompletedStage(page, stageId, {
+        title,
+        withoutQuiz: true,
+        staleOutline: true,
+      });
+      if (hosted) {
+        await page.goto(`/workspace?course=${stageId}`);
+        await expect(page.getByTestId('workbench-start-learning')).toBeEnabled({ timeout: 30_000 });
+        await page.getByTestId('workbench-start-learning').click();
+      } else {
+        await page.goto(`/classroom/${stageId}`);
+      }
+      const rail = page.getByTestId('zhiyu-scene-rail');
+      const trophy = rail.getByRole('button', { name: /course complete|课程完成/i });
+      await expect(trophy).toBeVisible({ timeout: 30_000 });
+      await trophy.click();
+      const complete = page.locator(
+        'section[aria-label="Course complete"], section[aria-label="课程完成"]',
+      );
+      await expect(complete).toBeVisible();
+      await expect(trophy).toHaveAttribute('aria-current', 'page');
+      await expect(trophy.locator('svg.lucide-trophy')).toHaveCount(1);
+      await expect(rail.locator('svg.lucide-loader-circle')).toHaveCount(0);
+      const heading = complete.getByRole('heading');
+      await expect(heading).toHaveText(title);
+      await expect(heading).toHaveAttribute('title', title);
+      const dimensions = await heading.evaluate((element) => ({
+        height: element.clientHeight,
+        lineHeight: parseFloat(getComputedStyle(element).lineHeight),
+        overflowX: getComputedStyle(element).overflowX,
+      }));
+      expect(dimensions.height).toBeLessThanOrEqual(dimensions.lineHeight * 2 + 1);
+      // Chromium includes hanging Chinese punctuation in the clipped heading's
+      // scrollWidth. Verify visible containment and the actual scroll surface
+      // instead of treating hidden glyph overhang as horizontal page overflow.
+      expect(dimensions.overflowX).toBe('hidden');
+      const scroll = complete.getByTestId('classroom-complete-scroll');
+      const scrollDimensions = await scroll.evaluate((element) => ({
+        width: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        documentWidth: document.documentElement.clientWidth,
+        documentScrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(scrollDimensions.scrollWidth).toBeLessThanOrEqual(scrollDimensions.width + 1);
+      expect(scrollDimensions.documentScrollWidth).toBeLessThanOrEqual(
+        scrollDimensions.documentWidth + 1,
+      );
+      const [headingBox, scrollBox] = await Promise.all([
+        heading.boundingBox(),
+        scroll.boundingBox(),
+      ]);
+      expect(headingBox).not.toBeNull();
+      expect(scrollBox).not.toBeNull();
+      expect(headingBox!.x).toBeGreaterThanOrEqual(scrollBox!.x - 1);
+      expect(headingBox!.x + headingBox!.width).toBeLessThanOrEqual(
+        scrollBox!.x + scrollBox!.width + 1,
+      );
+
+      const panel = page.getByTestId('zhiyu-interaction-panel');
+      if ((await panel.getAttribute('data-collapsed')) === 'true') {
+        await page
+          .getByTestId('zhiyu-playback-bar')
+          .getByRole('button', { name: /toggle interaction panel|切换互动面板/i })
+          .click();
+      }
+      await panel.getByRole('tab', { name: /discussion|讨论/i }).click();
+      const toggle = panel.getByTestId('guided-learning-toggle').getByRole('switch');
+      // This regression runs on deployments with checked tutoring enabled.
+      await expect(toggle).toBeVisible();
+      for (const active of [false, true, false]) {
+        if ((await toggle.getAttribute('aria-checked')) !== String(active)) await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-checked', String(active));
+        await expect
+          .poll(async () => {
+            const track = await toggle.boundingBox();
+            const thumb = await toggle.locator('span').boundingBox();
+            return (
+              !!track &&
+              !!thumb &&
+              thumb.x >= track.x + 1 &&
+              thumb.x + thumb.width <= track.x + track.width - 1
+            );
+          })
+          .toBe(true);
+      }
+      await capture(
+        page,
+        testInfo,
+        `${hosted ? 'pro' : 'standalone'}-completion-and-toggle-regression`,
+      );
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      if ((await rail.getAttribute('data-collapsed')) === 'true') {
+        await rail.getByRole('button', { name: /expand scene rail|展开场景栏/i }).click();
+      }
+      await expect(rail).toHaveAttribute('data-collapsed', 'false');
+      await expect(trophy.locator('span')).toBeVisible();
+      await expect(trophy.locator('span')).toHaveText(/course complete|课程完成/i);
+      await expect(panel).toHaveAttribute('data-collapsed', 'false');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-checked', 'true');
+      await capture(
+        page,
+        testInfo,
+        `${hosted ? 'pro' : 'standalone'}-completion-expanded-rail-toggle-on`,
+      );
+    } finally {
+      await cleanupCompletedStage(page, stageId, headers);
+    }
+  });
+}

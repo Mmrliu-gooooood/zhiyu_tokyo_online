@@ -67,6 +67,12 @@ import { VisuallyHidden } from 'radix-ui';
 import type { PPTElement } from '@openmaic/dsl';
 import type { SlideElementReference } from '@/lib/types/chat';
 import { isPiChatEnabled } from '@/lib/config/feature-flags';
+import { getLearningUiCapabilities } from '@/lib/learning/feature-flags';
+import {
+  remediationToGuidedLearningContext,
+  type RemediationContext,
+} from '@/lib/learning/remediation';
+import { LearningFeedbackLauncher } from '@/components/learning/LearningFeedbackLauncher';
 import {
   getSlideElementPresentation,
   getSlideElementTypeLabel,
@@ -162,6 +168,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       generationComplete,
     } = usePlaybackChromeStageProjection();
     const piChatEnabled = isPiChatEnabled();
+    const {
+      showChecks: learningChecksEnabled,
+      showQuizRemediation,
+      allowGuidedDiscussion,
+    } = getLearningUiCapabilities();
     const [classroomLiveRuntime] = useState(createClassroomLiveRuntime);
     const setLiveSpeech = classroomLiveRuntime.setLiveSpeech;
     const setSpeechProgress = classroomLiveRuntime.setSpeechProgress;
@@ -598,8 +609,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
 
     /**
      * Session-stop callback from the chat layer. Runs the normal cleanup, then —
-     * only when a confirmed or timed-out soft close ended a Q&A that had
-     * interrupted an active lecture — auto-resumes from the saved position.
+     * when a manual end or eligible soft close ends an interrupting Q&A or
+     * discussion — auto-resumes from the saved position.
      *
      * hadLectureInterruption MUST be read before doSessionCleanup(), because
      * handleEndDiscussion() restores and clears the saved lecture position.
@@ -1348,6 +1359,30 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       }
     }, [playbackCompleted, currentScene, saveSceneResumePosition]);
 
+    const pauseForLearningCheck = useCallback(async () => {
+      const playbackMode = engineRef.current?.getMode();
+      if (playbackMode === 'playing' || playbackMode === 'live') await handlePlayPause();
+    }, [handlePlayPause]);
+
+    const handleRemediationDiscussion = useCallback(
+      async (context: RemediationContext, prompt: string) => {
+        if (!stage?.id || !chatAreaRef.current) throw new Error('Classroom chat is unavailable');
+        await pauseForLearningCheck();
+        const suffix = crypto.randomUUID();
+        handleInteractionPresentationChange(false);
+        chatAreaRef.current.switchToTab('chat');
+        await chatAreaRef.current.sendMessage(prompt, {
+          interactionMode: 'guided',
+          learningContext: remediationToGuidedLearningContext(context, {
+            requestId: `guided-remediation:${suffix}`,
+            chatSessionId: `guided-remediation-session:${suffix}`,
+            stageId: stage.id,
+          }),
+        });
+      },
+      [handleInteractionPresentationChange, pauseForLearningCheck, stage?.id],
+    );
+
     // get scene information
     const isPendingScene = currentSceneId === PENDING_SCENE_ID;
     const hasNextPending = generatingOutlines.length > 0;
@@ -1818,6 +1853,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                   onToggleElementPick={handleToggleElementPick}
                   onPickElement={handlePickElement}
                   onCancelElementPick={() => setElementPickActive(false)}
+                  showQuizRemediation={showQuizRemediation}
+                  onDiscussQuizQuestion={
+                    allowGuidedDiscussion ? handleRemediationDiscussion : undefined
+                  }
                   hideToolbar={mode === 'playback' || (isPresenting && !controlsVisible)}
                   isPendingScene={isPendingScene}
                   isCourseComplete={isCourseComplete}
@@ -2036,6 +2075,19 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               onCollapsedChange={handleInteractionPresentationChange}
               projectLiveStatus={projectClassroomLiveStatus}
               renderRolesContent={renderClassroomRoles}
+              headerActions={
+                learningChecksEnabled && stage ? (
+                  <LearningFeedbackLauncher
+                    stage={stage}
+                    scenes={scenes}
+                    onReviewScene={gatedSceneSwitch}
+                    onDiscussQuestion={
+                      allowGuidedDiscussion ? handleRemediationDiscussion : undefined
+                    }
+                    onBeforeAnswer={pauseForLearningCheck}
+                  />
+                ) : undefined
+              }
               onTabChange={(tab) => {
                 if (tab === 'lecture') chatAreaRef.current?.switchToTab('lecture');
                 if (tab === 'discussion') chatAreaRef.current?.switchToTab('chat');

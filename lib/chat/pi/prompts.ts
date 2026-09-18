@@ -7,6 +7,7 @@ import { buildVirtualWhiteboardContext } from '@/lib/orchestration/summarizers/w
 import { getActionDescriptions } from '@/lib/orchestration/tool-schemas';
 import type { AgentTurnSummary, WhiteboardActionRecord } from '@/lib/orchestration/types';
 import type { StatelessChatRequest } from '@/lib/types/chat';
+import { buildUserReplyGuidance } from '../reply-policy';
 
 function compactOutlineText(value: string, maxLength: number): string {
   const compact = value.replace(/\s+/g, ' ').trim();
@@ -151,6 +152,7 @@ export function buildDirectorPrompt(
     '',
     'Available agents:',
     agentList || '(none)',
+    buildUserReplyGuidance(body.messages),
   ].join('\n');
 }
 
@@ -207,6 +209,7 @@ export function buildChildPrompt(
     `Current scene: ${currentScene?.title ?? currentScene?.id ?? 'none'}`,
     `Stage title: ${body.storeState.stage?.name ?? 'unknown'}`,
     body.userProfile?.nickname ? `User nickname: ${body.userProfile.nickname}` : '',
+    buildUserReplyGuidance(body.messages, agent.role),
   ]
     .filter(Boolean)
     .join('\n');
@@ -265,6 +268,7 @@ export function buildNativeChildPrompt(
     `Current scene: ${requestStartScene ? `${requestStartScene.sceneId} (${requestStartScene.sceneType})` : 'none'}`,
     `Stage title: ${body.storeState.stage?.name ?? 'unknown'}`,
     body.userProfile?.nickname ? `User nickname: ${body.userProfile.nickname}` : '',
+    buildUserReplyGuidance(body.messages, agent.role),
   ]
     .filter(Boolean)
     .join('\n');

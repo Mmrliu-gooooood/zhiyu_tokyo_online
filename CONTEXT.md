@@ -201,3 +201,41 @@ _Avoid_: online-user count, scene concurrency
 **Generation status suffix**:
 The requested user-visible status appended to “构建课程中”, derived from the server job lifecycle and execution phase. Queueing, execution and unavailable observations must remain distinguishable; terminal work uses a terminal title. The 2026-09-09 interview and ADR-0017 record the accepted exit, expiry and admission decisions; exact phase wording remains an implementation detail.
 _Avoid_: simulated progress, browser-only task status
+
+## Competition product scope (2026-09-14)
+
+**Student-facing competition release**:
+The ZHIYU release being explored for the university innovation competition, focused on students' own learning through a general-purpose course assistant: users enter a course they want to learn, study, and receive test questions. The user has confirmed student-first delivery and deferral of the teacher-facing product; the immediate deadline is ten days away, with one developer plus AI, about thirty developer hours per week, and access to ten to fifty potential testers. Track selection and the differentiated learning workflow remain under interview.
+_Avoid_: full school platform, confirmed adaptive-learning implementation
+
+**Teacher-facing product**:
+A product surface serving human teachers' teaching and management workflows, deferred from the current competition scope. It is distinct from AI teachers inside the existing classroom; deferral does not decide whether a future teacher surface shares the application or uses a separate system.
+_Avoid_: AI classroom teacher, required separate deployment
+
+See [ADR-0018](docs/adr/0018-focus-competition-release-on-student-learning.md) for the accepted scope and [the interview record](docs/research/zhiyu-student-competition-interview-2026-09-14.md) for observed facts and explicitly unaccepted proposals. Earlier product-chrome constraints describe the UI redesign workstream, not a decision that all future ZHIYU work must remain visual.
+
+**General-purpose course assistant**:
+The user-confirmed ZHIYU product direction in which a learner chooses what course to study and the system supports learning and testing. It is not restricted to one subject; general-purpose input does not establish validated teaching or assessment quality for every subject.
+_Avoid_: single-subject product, proven all-subject tutor
+
+**Automatic classroom reply round**:
+The bounded sequence of AI replies initiated by one learner message or explicit discussion continuation. The current user-input reply policy permits at most two AI replies for an ordinary question, one for a bare acknowledgment, and three for explicitly requested deeper discussion. Scripted conversations without learner input retain the earlier three-Q&A/six-discussion budget. These limits return control to the learner and do not declare the Course complete; see lib/chat/reply-policy.ts and the student regression record.
+_Avoid_: unlimited autonomous discussion, Course completion
+
+**Manual discussion end**:
+The learner's explicit action to finish the current classroom Q&A or discussion. After cleanup, a saved interrupted lecture resumes when the engine is idle and unfinished content remains; scene changes and error cleanup do not trigger this behavior.
+_Avoid_: pause discussion, end the entire Course
+
+### Student core implementation scope clarification (2026-09-14)
+
+The user requested a code-audited Markdown implementation specification for the highest-priority and core student improvements, to execute in a new conversation. The complete existing UI and ordinary foreground/background plus Pro course-generation behavior are hard preservation boundaries. Account and data-isolation verification is explicitly deferred from this implementation and is not a prerequisite; existing partition and authentication behavior must remain intact. This does not claim that earlier hosted-account requirements have been implemented or removed from the wider deployment plan.
+
+See [the original implementation specification](docs/plans/2026-09-14-zhiyu-student-core-implementation.md). The user subsequently reported completion; current code contains snapshot-bound assessment, optional reviewed tutoring, manual course checks, learning feedback and remediation. Use the current code and [subsequent regression record](docs/investigations/2026-09-14-student-regression-fixes.md) to assess implementation, rather than the original plan's pending labels. The first feedback slice does not establish the full Lesson/checkpoint/completion model defined earlier, and must not infer learner completion from generation completion or the existing classroom end screen.
+
+### Teach-back implementation specification (2026-09-14)
+
+**Teach back / 教会学伴**:
+The user-approved next student feature: one existing AI peer asks a concrete question, the student explains, and subsequent questions target gaps in that explanation. The planned activity allows at most three actual student explanations, with explicit waiting, early stop, evidence-linked feedback and lecture return. It is distinct from ordinary classroom replies and reviewed tutoring; no autonomous peer-to-peer loop is authorized.
+_Avoid_: mastery percentage, full teacher product, additional competition-feature bundle
+
+The user requested a deeply code-audited Markdown plan for implementation in a new conversation, explicitly without changing business code in this documentation task. See [the teach-back specification](docs/plans/2026-09-14-zhiyu-teach-back-implementation.md) for proposed domain/runtime boundaries, API, existing UI insertion points, lifecycle handling and generation protection. Teach back remains unimplemented by this task. The specification reuses the existing classroom input, chat resource owner and playback engine, with separate activity contracts and records; it must not change ordinary foreground/background or Pro generation. Broader misconception tracking, spaced repetition, transfer challenges and account-isolation verification are outside this feature scope. The documentation task ran 30 existing test files / 280 tests successfully; this is baseline evidence, not verification of the new feature.

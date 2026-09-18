@@ -19,6 +19,7 @@ export type ZhiyuInteractionPanelProps = {
   readonly persistentContent: ReactNode;
   readonly rolesContent: ReactNode;
   readonly liveStatus: ZhiyuClassroomLiveStatus;
+  readonly headerActions?: ReactNode;
   readonly onTabChange?: (tab: ZhiyuInteractionTab) => void;
 };
 
@@ -34,6 +35,7 @@ export function ZhiyuInteractionPanel({
   persistentContent,
   rolesContent,
   liveStatus,
+  headerActions,
   onTabChange,
 }: ZhiyuInteractionPanelProps) {
   const { t } = useI18n();
@@ -64,9 +66,7 @@ export function ZhiyuInteractionPanel({
       data-testid="zhiyu-interaction-panel"
       data-collapsed={collapsed ? 'true' : 'false'}
       style={{
-        width: collapsed
-          ? 0
-          : `var(--zhiyu-interaction-width, ${ZHIYU_INTERACTION_PANEL_WIDTH}px)`,
+        width: collapsed ? 0 : `var(--zhiyu-interaction-width, ${ZHIYU_INTERACTION_PANEL_WIDTH}px)`,
       }}
       className={cn(
         'flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border/70 bg-card/95 transition-[width] duration-300 dark:bg-card/95',
@@ -77,27 +77,27 @@ export function ZhiyuInteractionPanel({
       inert={collapsed ? true : undefined}
     >
       <div className={cn('flex h-full min-h-0 w-full flex-col', collapsed && 'invisible')}>
-          <div className="flex h-14 shrink-0 items-center justify-between border-b border-border/60 px-4">
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold text-foreground">
-                {t('classroomWorkspace.interactionTitle')}
-              </h2>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span
-                  className={cn(
-                    'size-1.5 rounded-full',
-                    liveStatus === 'teaching' && 'bg-primary',
-                    liveStatus === 'thinking' && 'bg-[var(--zhiyu-ai)]',
-                    liveStatus === 'discussion' && 'bg-[var(--zhiyu-learning)]',
-                    liveStatus === 'idle' && 'bg-muted-foreground/50',
-                  )}
-                  aria-hidden="true"
-                />
-                <span aria-live="polite">
-                  {t(`classroomWorkspace.status.${liveStatus}`)}
-                </span>
-              </div>
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border/60 px-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold text-foreground">
+              {t('classroomWorkspace.interactionTitle')}
+            </h2>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span
+                className={cn(
+                  'size-1.5 rounded-full',
+                  liveStatus === 'teaching' && 'bg-primary',
+                  liveStatus === 'thinking' && 'bg-[var(--zhiyu-ai)]',
+                  liveStatus === 'discussion' && 'bg-[var(--zhiyu-learning)]',
+                  liveStatus === 'idle' && 'bg-muted-foreground/50',
+                )}
+                aria-hidden="true"
+              />
+              <span aria-live="polite">{t(`classroomWorkspace.status.${liveStatus}`)}</span>
             </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {headerActions}
             <button
               type="button"
               onClick={() => onCollapsedChange(true)}
@@ -107,65 +107,66 @@ export function ZhiyuInteractionPanel({
               <PanelRightClose className="size-4" />
             </button>
           </div>
+        </div>
 
+        <div
+          role="tablist"
+          aria-label={t('classroomWorkspace.interactionTabs')}
+          className="grid h-11 shrink-0 grid-cols-3 border-b border-border/60 px-3"
+        >
+          {tabs.map((tab) => {
+            const Icon = TAB_ICONS[tab];
+            const selected = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={
+                  tab === 'roles' ? 'zhiyu-interaction-roles' : 'zhiyu-interaction-learning'
+                }
+                id={`zhiyu-interaction-tab-${tab}`}
+                onClick={() => selectTab(tab)}
+                onKeyDown={handleTabKeyDown}
+                tabIndex={selected ? 0 : -1}
+                className={cn(
+                  'relative inline-flex min-w-0 items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary',
+                  selected && 'text-primary',
+                )}
+              >
+                <Icon className="size-3.5 shrink-0" />
+                <span className="truncate">{t(`classroomWorkspace.tabs.${tab}`)}</span>
+                {selected ? (
+                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <div
-            role="tablist"
-            aria-label={t('classroomWorkspace.interactionTabs')}
-            className="grid h-11 shrink-0 grid-cols-3 border-b border-border/60 px-3"
+            id="zhiyu-interaction-learning"
+            role="tabpanel"
+            aria-labelledby={`zhiyu-interaction-tab-${activeTab}`}
+            className={cn(
+              'absolute inset-0 flex min-h-0',
+              activeTab === 'roles' && 'invisible pointer-events-none',
+            )}
           >
-            {tabs.map((tab) => {
-              const Icon = TAB_ICONS[tab];
-              const selected = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  aria-controls={
-                    tab === 'roles' ? 'zhiyu-interaction-roles' : 'zhiyu-interaction-learning'
-                  }
-                  id={`zhiyu-interaction-tab-${tab}`}
-                  onClick={() => selectTab(tab)}
-                  onKeyDown={handleTabKeyDown}
-                  tabIndex={selected ? 0 : -1}
-                  className={cn(
-                    'relative inline-flex min-w-0 items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary',
-                    selected && 'text-primary',
-                  )}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  <span className="truncate">{t(`classroomWorkspace.tabs.${tab}`)}</span>
-                  {selected ? (
-                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
-                  ) : null}
-                </button>
-              );
-            })}
+            {persistentContent}
           </div>
-
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div
-              id="zhiyu-interaction-learning"
-              role="tabpanel"
-              aria-labelledby={`zhiyu-interaction-tab-${activeTab}`}
-              className={cn(
-                'absolute inset-0 flex min-h-0',
-                activeTab === 'roles' && 'invisible pointer-events-none',
-              )}
-            >
-              {persistentContent}
-            </div>
-            <div
-              id="zhiyu-interaction-roles"
-              role="tabpanel"
-              aria-labelledby="zhiyu-interaction-tab-roles"
-              hidden={activeTab !== 'roles'}
-              className="h-full overflow-y-auto p-4"
-            >
-              {rolesContent}
-            </div>
+          <div
+            id="zhiyu-interaction-roles"
+            role="tabpanel"
+            aria-labelledby="zhiyu-interaction-tab-roles"
+            hidden={activeTab !== 'roles'}
+            className="h-full overflow-y-auto p-4"
+          >
+            {rolesContent}
           </div>
+        </div>
       </div>
     </section>
   );

@@ -77,7 +77,9 @@ export function SceneSidebar({
         collapsed ? ZHIYU_SCENE_RAIL_COLLAPSED_WIDTH : ZHIYU_SCENE_RAIL_EXPANDED_WIDTH
       }px)`;
   const sceneByOrder = new Map(scenes.map((scene) => [scene.order, scene]));
-  const railOutlines = outlines.length ? outlines : generatingOutlines;
+  // Completion is authoritative for finished/edited decks. Their saved planning
+  // outlines can outlive deleted or reordered slides and are not pending work.
+  const railOutlines = isCourseComplete ? [] : outlines.length ? outlines : generatingOutlines;
   const outlineOrders = new Set(railOutlines.map((outline) => outline.order));
   const sceneRows = [
     ...railOutlines.map((outline) => ({

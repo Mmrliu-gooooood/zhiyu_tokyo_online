@@ -1,9 +1,10 @@
-import type { Scene, SceneType, QuizContent } from '@/lib/types/stage';
-import { gradeChoiceQuestions } from '@/lib/quiz/grading';
+import type { QuizAttemptState } from '@/lib/quiz/runtime';
+import type { Scene, SceneType } from '@/lib/types/stage';
 
 export interface CompleteSummary {
   countsByType: Partial<Record<SceneType, number>>;
   quiz: { correct: number; total: number; pct: number } | null;
+  quizStatus: { pending: number; unavailable: number; legacyAttempts: number };
 }
 
 export interface ResolvedCompleteSummary {
@@ -18,6 +19,7 @@ export function pendingCompleteSummary(scenes: Scene[]): CompleteSummary {
       return counts;
     }, {}),
     quiz: null,
+    quizStatus: { pending: 0, unavailable: 0, legacyAttempts: 0 },
   };
 }
 
@@ -29,28 +31,26 @@ export function completeSummaryForScenes(
   return resolved.scenes === scenes ? resolved.summary : pendingCompleteSummary(scenes);
 }
 
-export type AnswerReader = (
-  sceneId: string,
-) => Promise<Record<string, string | string[]> | undefined>;
+export type QuizAttemptReader = (sceneId: string) => Promise<QuizAttemptState | undefined>;
 
-type QuizAnswerLoader = (input: {
+type QuizAttemptLoader = (input: {
   stageId: string;
   sceneId: string;
-}) => Promise<{ state?: { answers: Record<string, string | string[]> } }>;
+}) => Promise<{ state?: QuizAttemptState }>;
 
 /** Skip malformed legacy scenes before opening their RuntimeStore partition. */
-export async function readSceneQuizAnswers(
+export async function readSceneQuizAttempt(
   scene: { id: string; stageId?: string } | undefined,
-  load: QuizAnswerLoader,
-): Promise<Record<string, string | string[]> | undefined> {
+  load: QuizAttemptLoader,
+): Promise<QuizAttemptState | undefined> {
   if (!scene?.stageId) return undefined;
   const { state } = await load({ stageId: scene.stageId, sceneId: scene.id });
-  return state?.answers ?? {};
+  return state;
 }
 
 export async function summarizeScenes(
   scenes: Scene[],
-  readAnswers: AnswerReader,
+  readAttempt: QuizAttemptReader,
 ): Promise<CompleteSummary> {
   const countsByType: Partial<Record<SceneType, number>> = {};
   for (const scene of scenes) {
@@ -59,24 +59,49 @@ export async function summarizeScenes(
 
   let correct = 0;
   let total = 0;
+  let pending = 0;
+  let unavailable = 0;
+  let legacyAttempts = 0;
   for (const scene of scenes) {
     if (scene.type !== 'quiz') continue;
-    const questions = (scene.content as QuizContent).questions ?? [];
-    let answers: Awaited<ReturnType<AnswerReader>>;
+    let attempt: Awaited<ReturnType<QuizAttemptReader>>;
     try {
-      answers = await readAnswers(scene.id);
+      attempt = await readAttempt(scene.id);
     } catch {
       continue;
     }
-    if (answers === undefined) continue;
-    const results = gradeChoiceQuestions(questions, answers);
-    for (const r of results) {
+    if (!attempt || attempt.phase === 'draft') continue;
+    if (attempt.payloadVersion !== 2 || !attempt.questionSnapshot || !attempt.grading) {
+      legacyAttempts += 1;
+      continue;
+    }
+    for (const question of attempt.questionSnapshot) {
+      const grading = attempt.grading[question.id];
+      if (grading?.status === 'pending') {
+        pending += 1;
+        continue;
+      }
+      if (grading?.status === 'unavailable') {
+        unavailable += 1;
+        continue;
+      }
+      if (
+        grading?.status !== 'graded' ||
+        (question.type !== 'single' && question.type !== 'multiple') ||
+        (grading.result.correct !== true && grading.result.correct !== false)
+      ) {
+        continue;
+      }
       total += 1;
-      if (r.correct === true) correct += 1;
+      if (grading.result.correct) correct += 1;
     }
   }
 
   const quiz = total > 0 ? { correct, total, pct: Math.round((correct / total) * 100) } : null;
 
-  return { countsByType, quiz };
+  return {
+    countsByType,
+    quiz,
+    quizStatus: { pending, unavailable, legacyAttempts },
+  };
 }

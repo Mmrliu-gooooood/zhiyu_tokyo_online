@@ -7,13 +7,14 @@
  *
  * The loop runs per-user-message: the director dispatches agents one at a
  * time, each agent generates a response, and the loop continues until the
- * director says END, cues the user, or two consecutive empty agent turns
- * indicate something is wrong.
+ * director says END, cues the user, the automatic reply budget is reached,
+ * or two consecutive empty agent turns indicate something is wrong.
  */
 
 import type { StatelessEvent, DirectorState } from '@/lib/types/chat';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import { createLogger } from '@/lib/logger';
+import { getReplyPolicy } from './reply-policy';
 
 const log = createLogger('AgentLoop');
 
@@ -48,6 +49,8 @@ export interface AgentLoopStoreState {
 
 /** Request template — fields that stay constant across loop iterations */
 export interface AgentLoopRequest {
+  /** Immutable user-turn snapshot; React refs may still contain the previous turn. */
+  messages?: unknown[];
   config: {
     agentIds: string[];
     sessionType?: string;
@@ -108,7 +111,7 @@ export interface AgentLoopCallbacks {
 /** Final outcome of the agent loop */
 export interface AgentLoopOutcome {
   /** Why the loop stopped */
-  reason: 'end' | 'cue_user' | 'aborted' | 'empty_turns' | 'no_done';
+  reason: 'end' | 'cue_user' | 'turn_limit' | 'aborted' | 'empty_turns' | 'no_done';
   /** Accumulated director state */
   directorState?: DirectorState;
   /** Number of iterations completed */
@@ -150,8 +153,8 @@ function awaitOrAbort<T>(work: Promise<T>, signal: AbortSignal) {
  * Each iteration: refresh state → POST /api/chat → process SSE events
  * → check exit conditions → repeat until director cues USER, ENDs, the
  * stream errors out, or two consecutive empty agent turns are observed.
- * There is no client-side max-turn cap; the LLM director controls
- * round length via cue_user / END.
+ * User questions permit a teacher answer and one optional supplement; bare
+ * acknowledgments permit one closing reply. Scripted discussion keeps its budget.
  */
 export async function runAgentLoop(
   request: AgentLoopRequest,
@@ -161,6 +164,8 @@ export async function runAgentLoop(
   let directorState: DirectorState | undefined = undefined;
   let turnCount = 0;
   let consecutiveEmptyTurns = 0;
+  const replyPolicy = getReplyPolicy(request.messages ?? callbacks.getMessages(), request.config);
+  const maxTurns = replyPolicy.maxTurns;
 
   while (true) {
     if (signal.aborted) {
@@ -198,6 +203,12 @@ export async function runAgentLoop(
     // Fetch
     const response = await callbacks.fetchChat(body, signal);
 
+    // Some transports or test doubles may resolve even after cancellation.
+    // Never hand their late payload to the retired session consumer.
+    if (signal.aborted) {
+      return { reason: 'aborted', directorState, turnCount };
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`API error: ${response.status} - ${errorText}`);
@@ -213,6 +224,9 @@ export async function runAgentLoop(
     try {
       while (true) {
         const { done, value } = await reader.read();
+        if (signal.aborted) {
+          return { reason: 'aborted', directorState, turnCount };
+        }
         if (done) break;
 
         sseBuffer += decoder.decode(value, { stream: true });
@@ -240,7 +254,14 @@ export async function runAgentLoop(
     }
 
     // Post-iteration: wait for buffer drain (frontend) or collect results (eval)
-    const iterationResult = await callbacks.onIterationEnd();
+    const iterationRead = await awaitOrAbort(
+      Promise.resolve().then(() => callbacks.onIterationEnd()),
+      signal,
+    );
+    if (iterationRead.status === 'aborted') {
+      return { reason: 'aborted', directorState, turnCount };
+    }
+    const iterationResult = iterationRead.value;
 
     // Check exit conditions
     if (!iterationResult) {
@@ -249,11 +270,23 @@ export async function runAgentLoop(
 
     // Update accumulated director state
     directorState = iterationResult.directorState;
-    turnCount = directorState?.turnCount ?? turnCount + 1;
+    // Count completed requests locally: missing/stale model state must not
+    // reset the budget and keep the classroom talking indefinitely.
+    turnCount += 1;
+
+    // A one-reply acknowledgment budget must not turn an empty model response
+    // into successful closure (which would incorrectly resume the lecture).
+    if (
+      replyPolicy.acknowledgment &&
+      !iterationResult.agentHadContent &&
+      iterationResult.totalAgents > 0
+    ) {
+      return { reason: 'empty_turns', directorState, turnCount };
+    }
 
     // Director said USER — stop loop
     if (iterationResult.cueUserReceived) {
-      return { reason: 'cue_user', directorState, turnCount };
+      return { reason: replyPolicy.acknowledgment ? 'end' : 'cue_user', directorState, turnCount };
     }
 
     // Director said END — no agent spoke
@@ -272,6 +305,14 @@ export async function runAgentLoop(
       }
     } else {
       consecutiveEmptyTurns = 0;
+    }
+
+    if (turnCount >= maxTurns) {
+      return {
+        reason: replyPolicy.acknowledgment ? 'end' : 'turn_limit',
+        directorState,
+        turnCount,
+      };
     }
   }
 }

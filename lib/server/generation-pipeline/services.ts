@@ -22,6 +22,7 @@ import { getDefaultAgents } from '@/lib/orchestration/registry/defaults';
 import { resolveGenerationSearchConfig } from './search';
 import type { GenerationSearchSnapshotContent } from '@/lib/server/generation-search-snapshots';
 import { searchWeb, formatSearchResultsAsContext } from '@/lib/web-search';
+import { describeWebSearchFailure } from '@/lib/web-search/failure';
 import { validatePlan } from '@/lib/server/generation-jobs/contracts';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
 import type { ProModelContext } from '@/types/pro-model';
@@ -200,9 +201,11 @@ export class GenerationServices {
           if (!optionalSearch || isAbortError(error)) throw error;
           lifecycle.reportDnsFailure(error);
           // Persist an empty result once, so resuming this course never repeats
-          // an optional failed search. Do not log provider errors or credentials.
+          // an optional failed search. Log only allowlisted diagnostics; upstream
+          // messages may contain credentials, URLs, queries or challenge bodies.
           log.warn(
             'Optional web search unavailable; continuing course generation without research',
+            { provider: config.providerId, ...describeWebSearchFailure(error) },
           );
           return '';
         }

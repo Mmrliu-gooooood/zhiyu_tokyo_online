@@ -2,14 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatSession } from '@/lib/types/chat';
 import {
   consumePiSessionBoundaryContext,
+  createGuidedContextForTurn,
   consumePiWhiteboardEvent,
   createPreviousLiveSessionContext,
   createPiSessionBoundaryContext,
   getPiSessionBoundaryContext,
   getPiSingleRequestOutcome,
   isOpenLiveSession,
+  isGuidedProducerCurrent,
   normalizeStoredSessionsForRestore,
   retireLiveRequestResources,
+  resolveInteractionModeForTurn,
   resumeSoftClosingSessionForFollowUp,
   resumeSoftClosingSessionWithoutMessage,
   runPiSingleRequest,
@@ -137,6 +140,170 @@ describe('isOpenLiveSession', () => {
     expect(isOpenLiveSession({ type: 'discussion', status: 'soft-closing' })).toBe(true);
     expect(isOpenLiveSession({ type: 'qa', status: 'completed' })).toBe(false);
     expect(isOpenLiveSession({ type: 'lecture', status: 'soft-closing' })).toBe(false);
+  });
+});
+
+describe('guided interaction mode session boundary', () => {
+  it('invalidates a scene producer on stage, view, or authored source replacement only', () => {
+    const sourceScene = { id: 'scene-1' };
+    const producer = {
+      stageId: 'stage-1',
+      source: { kind: 'scene' as const, sceneId: 'scene-1' },
+      sourceScene,
+    };
+
+    expect(
+      isGuidedProducerCurrent(producer, {
+        stageId: 'stage-1',
+        currentSceneId: 'scene-1',
+        scenes: [sourceScene, { id: 'scene-2' }],
+      }),
+    ).toBe(true);
+    expect(
+      isGuidedProducerCurrent(producer, {
+        stageId: 'stage-1',
+        currentSceneId: 'scene-1',
+        scenes: [{ id: 'scene-1' }, { id: 'scene-2' }],
+      }),
+    ).toBe(false);
+    expect(
+      isGuidedProducerCurrent(producer, {
+        stageId: 'stage-2',
+        currentSceneId: 'scene-1',
+        scenes: [sourceScene],
+      }),
+    ).toBe(false);
+    expect(
+      isGuidedProducerCurrent(producer, {
+        stageId: 'stage-1',
+        currentSceneId: 'scene-2',
+        scenes: [sourceScene, { id: 'scene-2' }],
+      }),
+    ).toBe(false);
+  });
+
+  it('invalidates a frozen-attempt producer when its visible scene changes', () => {
+    const visibleScene = { id: 'scene-1' };
+    const producer = {
+      stageId: 'stage-1',
+      source: { kind: 'learning_attempt' as const, attemptId: 'attempt-1', questionId: 'q1' },
+      viewSceneId: 'scene-1',
+      viewScene: visibleScene,
+    };
+
+    expect(
+      isGuidedProducerCurrent(producer, {
+        stageId: 'stage-1',
+        currentSceneId: 'scene-1',
+        scenes: [visibleScene],
+      }),
+    ).toBe(true);
+    expect(
+      isGuidedProducerCurrent(producer, {
+        stageId: 'stage-1',
+        currentSceneId: 'scene-2',
+        scenes: [visibleScene, { id: 'scene-2' }],
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps the mode pinned to the current session when the caller omits it', () => {
+    expect(resolveInteractionModeForTurn(makeSession(), undefined)).toEqual({
+      interactionMode: 'standard',
+      startNewSession: false,
+    });
+    expect(
+      resolveInteractionModeForTurn(
+        makeSession({ config: { agentIds: ['default-1'], interactionMode: 'guided' } }),
+        undefined,
+      ),
+    ).toEqual({ interactionMode: 'guided', startNewSession: false });
+  });
+
+  it('requires a new session for an explicit mode switch', () => {
+    expect(resolveInteractionModeForTurn(makeSession(), 'guided')).toEqual({
+      interactionMode: 'guided',
+      startNewSession: true,
+    });
+    expect(
+      resolveInteractionModeForTurn(
+        makeSession({ config: { agentIds: ['default-1'], interactionMode: 'guided' } }),
+        'standard',
+      ),
+    ).toEqual({ interactionMode: 'standard', startNewSession: true });
+  });
+
+  it('mints a fresh request identity after a failed guided request and binds the new real input', () => {
+    const base = {
+      schemaVersion: 1 as const,
+      requestId: 'failed-request',
+      chatSessionId: 'session-1',
+      stageId: 'stage-1',
+      contentRevision: 'content-1',
+      scopedRevision: 'scope-1',
+      phase: 'explain' as const,
+      source: { kind: 'scene' as const, sceneId: 'scene-1' },
+      evidence: [{ ref: 'scene:scene-1', content: 'Evidence.' }],
+    };
+
+    expect(
+      createGuidedContextForTurn(
+        base,
+        undefined,
+        'A different real question',
+        'session-1',
+        () => 'replacement-request',
+      ),
+    ).toEqual({
+      ...base,
+      requestId: 'replacement-request',
+      chatSessionId: 'session-1',
+      phase: 'explain',
+    });
+  });
+
+  it.each([
+    ['the same answer', 'Stored answer'],
+    ['a new answer', 'Corrected answer'],
+  ])('keeps feedback retry evidence isolated for %s', (_label, studentAnswer) => {
+    const priorOutcome = {
+      schemaVersion: 1 as const,
+      requestId: 'explain-request',
+      phase: 'wait_student' as const,
+      published: { explanation: 'Checked explanation', reviewNote: 'Checked note' },
+      checkPrompt: 'What is your answer?',
+      review: { verdict: 'no_issue_found' as const, evidenceRefs: ['scene:scene-1'] },
+      budget: { callsUsed: 2, callLimit: 4 as const, stopReason: 'completed' as const },
+      usage: { status: 'unknown' as const },
+    };
+    const failedFeedback = {
+      schemaVersion: 1 as const,
+      requestId: 'failed-feedback-request',
+      chatSessionId: 'session-1',
+      stageId: 'stage-1',
+      contentRevision: 'content-1',
+      scopedRevision: 'scope-1',
+      phase: 'feedback' as const,
+      source: { kind: 'scene' as const, sceneId: 'scene-1' },
+      evidence: [{ ref: 'scene:scene-1', content: 'Evidence.' }],
+      studentAnswer: 'Stored answer',
+      priorOutcome,
+    };
+
+    expect(
+      createGuidedContextForTurn(
+        failedFeedback,
+        undefined,
+        studentAnswer,
+        'session-1',
+        () => 'retry-request',
+      ),
+    ).toMatchObject({
+      requestId: 'retry-request',
+      phase: 'feedback',
+      studentAnswer,
+      priorOutcome,
+    });
   });
 });
 

@@ -530,6 +530,8 @@ describe('embedded persistence route', () => {
     );
     expect(Object.keys(APP_RUNTIME_PAYLOAD_VALIDATORS)).toEqual([
       'chat',
+      'learningCheck',
+      'learningDialogue',
       'quizAttempt',
       'whiteboard',
     ]);

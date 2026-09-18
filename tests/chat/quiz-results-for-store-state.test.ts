@@ -40,6 +40,40 @@ describe('quiz results for chat store state', () => {
     });
   });
 
+  it('omits partially graded v2 attempts so pending work cannot be presented as final feedback', async () => {
+    vi.mocked(loadQuizAttemptState).mockResolvedValue({
+      attemptId: 'attempt-1',
+      state: {
+        sessionId: 'attempt-1',
+        status: 'active',
+        payloadVersion: 2,
+        phase: 'submitted',
+        answers: { q1: 'A', q2: 'B' },
+        questionSnapshot: [
+          { id: 'q1', type: 'single', question: 'One', points: 1 },
+          { id: 'q2', type: 'short_answer', question: 'Two', points: 1 },
+        ],
+        grading: {
+          q1: {
+            status: 'graded',
+            result: { questionId: 'q1', correct: true, status: 'correct', earned: 1 },
+            provenance: {
+              ruleVersion: 'quiz-grading-v1',
+              basis: 'answer-key',
+              gradedAt: '2026-09-14T00:00:00.000Z',
+            },
+          },
+          q2: { status: 'pending', error: { code: 'NETWORK_ERROR', retryable: true } },
+        },
+        results: [{ questionId: 'q1', correct: true, status: 'correct', earned: 1 }],
+      },
+    });
+
+    await expect(
+      buildQuizResultsForStoreState([{ id: 'quiz-1', type: 'quiz', stageId: 'stage-1' }], 'quiz-1'),
+    ).resolves.toBeUndefined();
+  });
+
   it('includes non-empty reviewed results for the active quiz', async () => {
     const results = [{ questionId: 'q1', correct: true, status: 'correct' as const, earned: 1 }];
     vi.mocked(loadQuizAttemptState).mockResolvedValue({

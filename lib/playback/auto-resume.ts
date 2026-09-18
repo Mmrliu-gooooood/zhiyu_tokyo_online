@@ -1,8 +1,8 @@
 import type { EngineMode } from './types';
 
 /**
- * Where a chat-session cleanup originated. A confirmed or timed-out soft close
- * may auto-resume an interrupted lecture; other sources must not.
+ * Where a chat-session cleanup originated. Explicitly ending a discussion or
+ * completing an eligible soft close may resume an interrupted lecture.
  */
 export type CleanupSource =
   | 'soft_close_enter'
@@ -30,14 +30,22 @@ export interface AutoResumeArgs {
 
 /**
  * Decide whether an ended Q&A/discussion should auto-resume the lecture it
- * interrupted. Pure and conservative: it only returns true for the narrow
- * "completed soft close after a satisfied/back-to-lesson Q&A" case, and
- * requires the engine to be idle with content still remaining.
+ * interrupted. A manual end is an explicit return to the lesson; automatic
+ * soft closes still need a satisfied/back-to-lesson reason. Both require an
+ * interrupted lecture and an idle engine with content still remaining.
  */
 export function shouldAutoResumeLecture(args: AutoResumeArgs): boolean {
-  if (args.source !== 'soft_close_confirmed' && args.source !== 'soft_close_timeout') return false;
+  const manualEnd = args.source === 'manual_stop';
+  if (
+    !manualEnd &&
+    args.source !== 'soft_close_confirmed' &&
+    args.source !== 'soft_close_timeout'
+  ) {
+    return false;
+  }
   if (!args.hadLectureInterruption) return false;
-  if (args.endReason !== 'user_done' && args.endReason !== 'back_to_lesson') return false;
+  if (!manualEnd && args.endReason !== 'user_done' && args.endReason !== 'back_to_lesson')
+    return false;
   if (args.engineMode !== 'idle') return false;
   if (args.isExhausted || args.playbackCompleted) return false;
   return true;

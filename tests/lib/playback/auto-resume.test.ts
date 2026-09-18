@@ -30,9 +30,32 @@ describe('shouldAutoResumeLecture', () => {
     ).toBe(false);
   });
 
-  it('never resumes for a non-soft-close cleanup source', () => {
+  it('resumes an interrupted lecture when the learner manually ends the discussion', () => {
+    expect(shouldAutoResumeLecture({ ...base, source: 'manual_stop', endReason: undefined })).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    { hadLectureInterruption: false },
+    { engineMode: 'playing' as const },
+    { engineMode: 'paused' as const },
+    { engineMode: 'live' as const },
+    { isExhausted: true },
+    { playbackCompleted: true },
+  ])('keeps manual end guarded by playback state: %o', (override) => {
+    expect(
+      shouldAutoResumeLecture({
+        ...base,
+        source: 'manual_stop',
+        endReason: undefined,
+        ...override,
+      }),
+    ).toBe(false);
+  });
+
+  it('never resumes for cleanup that does not finish the discussion', () => {
     expect(shouldAutoResumeLecture({ ...base, source: 'soft_close_enter' })).toBe(false);
-    expect(shouldAutoResumeLecture({ ...base, source: 'manual_stop' })).toBe(false);
     expect(shouldAutoResumeLecture({ ...base, source: 'scene_switch' })).toBe(false);
     expect(shouldAutoResumeLecture({ ...base, source: 'error' })).toBe(false);
     expect(shouldAutoResumeLecture({ ...base, source: 'turn_complete' })).toBe(false);

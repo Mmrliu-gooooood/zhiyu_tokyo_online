@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { useStageStore } from '@/lib/store';
 import { buildLectureNotes } from '@/lib/chat/lecture-notes';
-import { PanelRightClose, BookOpen, MessageSquare } from 'lucide-react';
+import { PanelRightClose, BookOpen, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   useChatSessions,
@@ -27,6 +27,9 @@ import {
 } from './use-chat-sessions';
 import { SessionList } from './session-list';
 import { LectureNotesView } from './lecture-notes-view';
+import { isGuidedLearningEnabled } from '@/lib/learning/feature-flags';
+import type { GuidedLearningContext } from '@/lib/learning/guided-contracts';
+import { nanoid } from 'nanoid';
 
 interface ChatAreaProps {
   className?: string;
@@ -99,6 +102,55 @@ const DEFAULT_WIDTH = 340;
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 560;
 
+export function GuidedModeToggle({
+  enabled,
+  active,
+  disabled,
+  label,
+  description,
+  onChange,
+}: {
+  enabled: boolean;
+  active: boolean;
+  disabled: boolean;
+  label: string;
+  description: string;
+  onChange: (active: boolean) => void;
+}) {
+  if (!enabled) return null;
+  return (
+    <div
+      data-testid="guided-learning-toggle"
+      className="flex min-w-0 shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800"
+    >
+      <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#356B59] dark:text-[#9FC0B0]" />
+      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-gray-600 dark:text-gray-300">
+        {label}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={active}
+        aria-label={label}
+        title={description}
+        disabled={disabled}
+        onClick={() => onChange(!active)}
+        className={cn(
+          'relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+          active ? 'bg-[#356B59] dark:bg-[#7FA392]' : 'bg-gray-200 dark:bg-gray-700',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+            active ? 'translate-x-[18px]' : 'translate-x-0.5',
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
 export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
   (
     {
@@ -128,6 +180,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
     ref,
   ) => {
     const { t } = useI18n();
+    const stage = useStageStore((s) => s.stage);
     const scenes = useStageStore((s) => s.scenes);
     const {
       sessions,
@@ -166,6 +219,8 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
     });
 
     const [activeTab, setActiveTab] = useState<'lecture' | 'chat'>('lecture');
+    const [guidedMode, setGuidedMode] = useState(false);
+    const guidedLearningEnabled = isGuidedLearningEnabled();
     const isDraggingRef = useRef(false);
     const [isDragging, setIsDragging] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -225,6 +280,59 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       setActiveTab(tab);
     }, []);
 
+    const sendMessageWithMode = useCallback(
+      async (content: string, options: ChatMessageSendOptions = {}) => {
+        const interactionMode =
+          options.interactionMode ?? (guidedLearningEnabled && guidedMode ? 'guided' : 'standard');
+        if (interactionMode !== 'guided' || options.learningContext) {
+          return sendMessage(content, { ...options, interactionMode });
+        }
+
+        const currentSession = sessions.find((session) => session.id === activeSessionId);
+        if (
+          currentSession?.config.interactionMode === 'guided' &&
+          currentSession.status !== 'completed'
+        ) {
+          return sendMessage(content, { ...options, interactionMode });
+        }
+
+        const currentScene = scenes.find((scene) => scene.id === currentSceneId);
+        if (!stage || !currentScene) {
+          return sendMessage(content, { ...options, interactionMode });
+        }
+        const { createLearningContentSnapshot } = await import('@/lib/learning/content-snapshot');
+        const [courseSnapshot, scopedSnapshot] = await Promise.all([
+          createLearningContentSnapshot({ courseTitle: stage.name, scenes }),
+          createLearningContentSnapshot({ courseTitle: stage.name, scenes: [currentScene] }),
+        ]);
+        const learningContext: GuidedLearningContext = {
+          schemaVersion: 1,
+          requestId: nanoid(),
+          chatSessionId: activeSessionId ?? 'pending-session',
+          stageId: stage.id,
+          contentRevision: courseSnapshot.contentRevision,
+          scopedRevision: scopedSnapshot.contentRevision,
+          phase: 'explain',
+          source: { kind: 'scene', sceneId: currentScene.id },
+          evidence: scopedSnapshot.fragments.map((fragment) => ({
+            ref: fragment.id,
+            content: fragment.text,
+          })),
+        };
+        return sendMessage(content, { ...options, interactionMode, learningContext });
+      },
+      [
+        activeSessionId,
+        currentSceneId,
+        guidedLearningEnabled,
+        guidedMode,
+        scenes,
+        sendMessage,
+        sessions,
+        stage,
+      ],
+    );
+
     useImperativeHandle(ref, () => ({
       createSession,
       endSession,
@@ -233,7 +341,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       continueActiveSoftClosingSession: handleContinueActiveSoftClosingSession,
       softPauseActiveSession,
       resumeActiveSession,
-      sendMessage,
+      sendMessage: sendMessageWithMode,
       startDiscussion,
       startLecture,
       addLectureMessage,
@@ -360,6 +468,14 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
 
             {/* Chat Tab */}
             <TabsContent value="chat" className="flex-1 overflow-hidden flex flex-col">
+              <GuidedModeToggle
+                enabled={guidedLearningEnabled}
+                active={guidedMode}
+                disabled={isStreaming}
+                label={t('chat.guided.label')}
+                description={t('chat.guided.description')}
+                onChange={setGuidedMode}
+              />
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 scrollbar-hide">
                 {chatSessions.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-50">

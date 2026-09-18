@@ -76,6 +76,21 @@ beforeEach(() => {
 });
 
 describe('SceneSidebar generation task state', () => {
+  it('shows the trophy completion entry without a phantom pending thumbnail for a completed edited deck', () => {
+    data.generationStatus = 'idle';
+    const html = renderToStaticMarkup(
+      createElement(SceneSidebar, {
+        collapsed: false,
+        onCollapseChange: () => {},
+        isCourseComplete: true,
+      }),
+    );
+    expect(html).toContain('stage.courseComplete');
+    expect(html).toContain('lucide-trophy');
+    expect(html).not.toContain('lucide-loader-circle');
+    expect(html.match(/data-testid="scene-item"/g)).toHaveLength(data.scenes.length + 1);
+  });
+
   const running: GenerationJobDisplayProjection = {
     status: 'running',
     executing: true,

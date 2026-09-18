@@ -492,6 +492,82 @@ describe('POST /api/chat/pi cue_user', () => {
     expect(childOptions.every((options) => options.convertToLlm === undefined)).toBe(true);
   });
 
+  it.each(['明白了', '对'])(
+    'closes after one visible acknowledgment for %s even if the director requests more talk',
+    async (text) => {
+      mockDirectorWithTwoTeacherTurns();
+      const body = makeBody();
+      body.messages[0].parts[0].text = text;
+      const events = await readSseEvents(await POST(makeRequest(body)));
+      expect(events.filter((event) => event.type === 'agent_start')).toHaveLength(1);
+      expect(events.filter((event) => event.type === 'cue_user')).toHaveLength(0);
+      expect(events.find((event) => event.type === 'done')?.data).toMatchObject({
+        totalAgents: 1,
+        sessionClosed: true,
+        endReason: 'user_done',
+        agentHadContent: true,
+      });
+    },
+  );
+
+  it('keeps an empty acknowledgment response identifiable as failure without closing or cueing', async () => {
+    mockDirectorWithAgentThenCue({ agentId: 'default-1', childText: '', cuePrompt: 'Continue?' });
+    const body = makeBody();
+    body.messages[0].parts[0].text = '明白了';
+    const events = await readSseEvents(await POST(makeRequest(body)));
+    expect(events.find((event) => event.type === 'done')?.data).toMatchObject({
+      totalAgents: 1,
+      agentHadContent: false,
+      sessionClosed: false,
+      cueUserReceived: false,
+    });
+  });
+
+  it('allows only the teacher and one supplement even when the director requests a third speaker', async () => {
+    mocks.buildAgent.mockImplementation((opts: MockAgentOptions) => {
+      const tool = opts.tools.find((candidate) => candidate.name === 'call_agent');
+      return {
+        prompt: async () => {
+          if (!tool) return;
+          for (const id of ['student-1', 'default-1', 'student-1', 'student-2']) {
+            await tool.execute(`call-${id}`, { agentId: id, instruction: 'Add a useful point.' });
+          }
+        },
+        subscribe: () => () => {},
+        waitForIdle: async () => {},
+        state: {
+          messages: [
+            { role: 'assistant', content: [{ type: 'text', text: 'A short useful answer.' }] },
+          ],
+        },
+      };
+    });
+    const body = makeBody();
+    const students = ['student-1', 'student-2'].map((id) =>
+      makeAgentConfig({ id, name: id, role: 'student' }),
+    );
+    const events = await readSseEvents(
+      await POST(
+        makeRequest({
+          ...body,
+          config: {
+            ...body.config,
+            piMaxAgentTurns: 6,
+            agentIds: [...body.config.agentIds, ...students.map((agent) => agent.id)],
+            agentConfigs: [...body.config.agentConfigs, ...students],
+          },
+        }),
+      ),
+    );
+    expect(
+      events.filter((event) => event.type === 'agent_start').map((event) => event.data.agentId),
+    ).toEqual(['default-1', 'student-1']);
+    expect(events.find((event) => event.type === 'done')?.data).toMatchObject({
+      totalAgents: 2,
+      cueUserReceived: true,
+    });
+  });
+
   it('keeps web_search out of the Director inventory', async () => {
     mockDirectorWithAgentTurn({ explicitlyCueUser: false });
     const response = await POST(makeRequest(makeBody()));

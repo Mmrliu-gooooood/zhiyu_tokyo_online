@@ -50,17 +50,31 @@ export async function buildQuizSnapshot(scenesBeforePbl: Scene[]): Promise<Prior
       log.warn(`Failed to load quiz snapshot for scene ${scene.id}:`, error);
       continue;
     }
-    if (state?.phase !== 'reviewed') continue;
+    if (
+      state?.phase !== 'reviewed' ||
+      state.payloadVersion !== 2 ||
+      !state.questionSnapshot ||
+      !state.grading
+    ) {
+      continue;
+    }
     // `reviewed` means the learner has submitted AND seen the
     // graded results — that's the only case where we have a
     // trustworthy correctness signal.
-    const questions = scene.content.questions ?? [];
+    const questions = state.questionSnapshot;
     if (questions.length === 0) continue;
+
+    const grading = questions.map((question) => state.grading?.[question.id]);
+    // A partial attempt must not become a positive proficiency signal merely
+    // because its currently graded subset happens to be correct.
+    if (grading.some((entry) => entry?.status !== 'graded')) continue;
 
     let correct = 0;
     let incorrect = 0;
     let unscored = 0;
-    for (const r of state.results ?? []) {
+    for (const entry of grading) {
+      if (!entry || entry.status !== 'graded') continue;
+      const r = entry.result;
       // `correct === null` for short-answer / non-auto-gradable
       // questions: count as unscored, do not penalise.
       if (r.correct === null) {

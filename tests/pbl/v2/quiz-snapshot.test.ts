@@ -14,6 +14,8 @@ import {
 } from '@/lib/pbl/v2/operations/runtime/quiz-snapshot';
 import { emptyAssessment } from '@/lib/pbl/v2/operations/kernel/proficiency';
 import type { PBLProjectV2, PriorQuizResult } from '@/lib/pbl/v2/types';
+import type { QuestionResult } from '@/lib/quiz/grading';
+import type { QuizAttemptState } from '@/lib/quiz/runtime';
 import type { Scene } from '@/lib/types/stage';
 
 vi.mock('@/lib/quiz/runtime', () => ({
@@ -86,7 +88,89 @@ function mkProject(overrides: Partial<PBLProjectV2> = {}): PBLProjectV2 {
   };
 }
 
+function reviewedV2State(results: QuestionResult[]): QuizAttemptState {
+  return {
+    sessionId: 'attempt-1',
+    status: 'completed',
+    payloadVersion: 2,
+    phase: 'reviewed',
+    answers: {},
+    questionSnapshot: results.map((result) => ({
+      id: result.questionId,
+      type: result.correct === null ? 'short_answer' : 'single',
+      question: result.questionId,
+      points: 1,
+    })),
+    grading: Object.fromEntries(
+      results.map((result) => [
+        result.questionId,
+        {
+          status: 'graded',
+          result,
+          provenance: {
+            ruleVersion: 'quiz-grading-v1',
+            basis: result.correct === null ? 'rubric' : 'answer-key',
+            gradedAt: '2026-09-14T00:00:00.000Z',
+          },
+        },
+      ]),
+    ),
+    results,
+  };
+}
+
 describe('buildQuizSnapshot', () => {
+  it('uses the reviewed v2 frozen snapshot instead of the current scene question count', async () => {
+    vi.mocked(loadQuizAttemptState).mockResolvedValue({
+      attemptId: 'attempt-1',
+      state: {
+        sessionId: 'attempt-1',
+        status: 'completed',
+        payloadVersion: 2,
+        phase: 'reviewed',
+        answers: { historical: 'A' },
+        questionSnapshot: [
+          {
+            id: 'historical',
+            type: 'single',
+            question: 'Frozen question',
+            answer: ['A'],
+            points: 1,
+          },
+        ],
+        grading: {
+          historical: {
+            status: 'graded',
+            result: {
+              questionId: 'historical',
+              correct: true,
+              status: 'correct',
+              earned: 1,
+            },
+            provenance: {
+              ruleVersion: 'quiz-grading-v1',
+              basis: 'answer-key',
+              gradedAt: '2026-09-14T00:00:00.000Z',
+            },
+          },
+        },
+        results: [{ questionId: 'historical', correct: true, status: 'correct', earned: 1 }],
+      },
+    });
+
+    await expect(buildQuizSnapshot([mkQuizScene('q1', 3)])).resolves.toEqual([
+      {
+        sceneId: 'q1',
+        sceneTitle: 'Q q1',
+        totalQuestions: 1,
+        correctCount: 1,
+        incorrectCount: 0,
+        unscoredCount: 0,
+        accuracy: 1,
+      },
+    ]);
+  });
+
   it('returns [] when there are no quiz scenes', async () => {
     await expect(buildQuizSnapshot([mkSlideScene('s1'), mkSlideScene('s2')])).resolves.toEqual([]);
   });
@@ -104,27 +188,55 @@ describe('buildQuizSnapshot', () => {
       state: {
         sessionId: 'attempt-1',
         status: 'active',
+        payloadVersion: 2,
         phase: 'submitted',
-        answers: {},
+        answers: { q0: 'A' },
+        questionSnapshot: [
+          { id: 'q0', type: 'single', question: 'One', points: 1 },
+          { id: 'q1', type: 'short_answer', question: 'Two', points: 1 },
+        ],
+        grading: {
+          q0: {
+            status: 'graded',
+            result: { questionId: 'q0', correct: true, status: 'correct', earned: 1 },
+            provenance: {
+              ruleVersion: 'quiz-grading-v1',
+              basis: 'answer-key',
+              gradedAt: '2026-09-14T00:00:00.000Z',
+            },
+          },
+          q1: { status: 'pending', error: { code: 'NETWORK_ERROR', retryable: true } },
+        },
+        results: [{ questionId: 'q0', correct: true, status: 'correct', earned: 1 }],
       },
     });
+    await expect(buildQuizSnapshot([mkQuizScene('q1', 3)])).resolves.toEqual([]);
+  });
+
+  it('skips reviewed v1 records because they have no frozen question snapshot', async () => {
+    vi.mocked(loadQuizAttemptState).mockResolvedValue({
+      attemptId: 'attempt-1',
+      state: {
+        sessionId: 'attempt-1',
+        status: 'completed',
+        payloadVersion: 1,
+        phase: 'reviewed',
+        answers: { historical: 'A' },
+        results: [{ questionId: 'historical', correct: true, status: 'correct', earned: 1 }],
+      },
+    });
+
     await expect(buildQuizSnapshot([mkQuizScene('q1', 3)])).resolves.toEqual([]);
   });
 
   it('counts correct / incorrect / unscored properly', async () => {
     vi.mocked(loadQuizAttemptState).mockResolvedValue({
       attemptId: 'attempt-1',
-      state: {
-        sessionId: 'attempt-1',
-        status: 'completed',
-        phase: 'reviewed',
-        answers: {},
-        results: [
-          { questionId: 'q0', correct: true, status: 'correct', earned: 1 },
-          { questionId: 'q1', correct: false, status: 'incorrect', earned: 0 },
-          { questionId: 'q2', correct: null, status: 'incorrect', earned: 0 },
-        ],
-      },
+      state: reviewedV2State([
+        { questionId: 'q0', correct: true, status: 'correct', earned: 1 },
+        { questionId: 'q1', correct: false, status: 'incorrect', earned: 0 },
+        { questionId: 'q2', correct: null, status: 'incorrect', earned: 0 },
+      ]),
     });
     const r = await buildQuizSnapshot([mkQuizScene('q1', 3)]);
     expect(r).toHaveLength(1);
@@ -140,16 +252,10 @@ describe('buildQuizSnapshot', () => {
   it('marks accuracy null when every question is unscored', async () => {
     vi.mocked(loadQuizAttemptState).mockResolvedValue({
       attemptId: 'attempt-1',
-      state: {
-        sessionId: 'attempt-1',
-        status: 'completed',
-        phase: 'reviewed',
-        answers: {},
-        results: [
-          { questionId: 'q0', correct: null, status: 'incorrect', earned: 0 },
-          { questionId: 'q1', correct: null, status: 'incorrect', earned: 0 },
-        ],
-      },
+      state: reviewedV2State([
+        { questionId: 'q0', correct: null, status: 'incorrect', earned: 0 },
+        { questionId: 'q1', correct: null, status: 'incorrect', earned: 0 },
+      ]),
     });
     const r = await buildQuizSnapshot([mkQuizScene('q1', 2)]);
     expect(r[0].accuracy).toBeNull();
@@ -161,18 +267,15 @@ describe('buildQuizSnapshot', () => {
       return {
         attemptId: `attempt-${sceneId}`,
         state: {
-          sessionId: `attempt-${sceneId}`,
-          status: 'completed',
-          phase: 'reviewed',
-          answers: {},
-          results: [
+          ...reviewedV2State([
             {
               questionId: 'q0',
               correct,
               status: correct ? 'correct' : 'incorrect',
               earned: correct ? 1 : 0,
             },
-          ],
+          ]),
+          sessionId: `attempt-${sceneId}`,
         },
       };
     });

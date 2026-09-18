@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PlaybackEngine } from '@/lib/playback/engine';
+import { shouldAutoResumeLecture } from '@/lib/playback/auto-resume';
 import {
   buildActionNavigationTargets,
   canJumpWithinReconstructablePrefix,
@@ -550,6 +551,37 @@ describe('PlaybackEngine action navigation', () => {
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(engine.getMode()).toBe('idle');
+  });
+
+  it('resumes the interrupted speech after manual discussion end without changing scenes', async () => {
+    const { engine: actionEngine } = createActionEngine();
+    const { player } = createAudioPlayer(async () => true);
+    const onSpeechStart = vi.fn();
+    const engine = new PlaybackEngine([scene([speech('explanation')])], actionEngine, player, {
+      onSpeechStart,
+    });
+
+    engine.start();
+    await flushPromises();
+    engine.handleUserInterrupt('Explain this again');
+    const hadLectureInterruption = engine.hasLectureInterruption();
+    engine.handleEndDiscussion();
+
+    const eligible = shouldAutoResumeLecture({
+      source: 'manual_stop',
+      hadLectureInterruption,
+      engineMode: engine.getMode(),
+      isExhausted: engine.isExhausted(),
+      playbackCompleted: false,
+    });
+    expect(eligible).toBe(true);
+    if (eligible) engine.continuePlayback();
+    await flushPromises();
+
+    expect(engine.getCurrentSceneId()).toBe('scene-1');
+    expect(engine.getMode()).toBe('playing');
+    expect(onSpeechStart.mock.calls).toEqual([['explanation'], ['explanation']]);
+    engine.stop();
   });
 
   it('restores an interrupted final speech before notifying discussion end', async () => {

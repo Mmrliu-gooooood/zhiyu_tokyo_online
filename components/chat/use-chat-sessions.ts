@@ -14,6 +14,11 @@ import {
   type StatelessEvent,
   type SlideElementReference,
 } from '@/lib/types/chat';
+import type {
+  GuidedInteractionMode,
+  GuidedLearningContext,
+  GuidedLearningOutcome,
+} from '@/lib/learning/guided-contracts';
 import type { DiscussionRequest } from '@/components/roundtable';
 import type { Action, SpotlightAction, DiscussionAction } from '@/lib/types/action';
 import type { UIMessage } from 'ai';
@@ -29,6 +34,9 @@ import { USER_AVATAR } from '@/lib/types/roundtable';
 import { StreamBuffer } from '@/lib/buffer/stream-buffer';
 import type { AgentStartItem, ActionItem } from '@/lib/buffer/stream-buffer';
 import { runAgentLoop, type AgentLoopStoreState } from '@/lib/chat/agent-loop';
+import { runGuidedSingleRequest } from '@/lib/chat/guided-request';
+import { appendLearningDialogueFact } from '@/lib/learning/guided-runtime';
+import { isGuidedLearningContextCurrent } from '@/lib/learning/guided-current';
 import { ActionEngine } from '@/lib/action/engine';
 import {
   buildQuizResultsForStoreState,
@@ -37,6 +45,7 @@ import {
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 import { isPiChatEnabled } from '@/lib/config/feature-flags';
+import { isGuidedLearningEnabled } from '@/lib/learning/feature-flags';
 import type { CleanupSource } from '@/lib/playback/auto-resume';
 import { nanoid } from 'nanoid';
 import type { BaiduSubSources, WebSearchProviderId } from '@/lib/web-search/types';
@@ -181,11 +190,113 @@ export type ChatRequestTemplate = {
   webSearchModelId?: string;
   baiduSubSources?: BaiduSubSources;
   elementReference?: SlideElementReference;
+  learningContext?: GuidedLearningContext;
 };
 
 export interface ChatMessageSendOptions {
   elementReference?: SlideElementReference;
   onResponseAccepted?: (response: Response) => void;
+  interactionMode?: GuidedInteractionMode;
+  learningContext?: GuidedLearningContext;
+}
+
+export function resolveInteractionModeForTurn(
+  session: Pick<ChatSession, 'config'> | undefined,
+  requested: GuidedInteractionMode | undefined,
+): { interactionMode: GuidedInteractionMode; startNewSession: boolean } {
+  const current = session?.config.interactionMode ?? 'standard';
+  const interactionMode = requested ?? current;
+  return {
+    interactionMode,
+    startNewSession: Boolean(session && requested && requested !== current),
+  };
+}
+
+/**
+ * Bind every guided retry/follow-up to the real input that triggered it.
+ * Transport failures leave the previous context on the session, so reusing it
+ * would also reuse its request id and make the runtime de-duplicate a new
+ * student input as though it were the old one.
+ */
+export function createGuidedContextForTurn(
+  base: GuidedLearningContext | undefined,
+  outcome: GuidedLearningOutcome | undefined,
+  studentInput: string,
+  chatSessionId: string,
+  mintRequestId: () => string = nanoid,
+): GuidedLearningContext | undefined {
+  if (!base) return undefined;
+  const requestId = mintRequestId();
+  if (outcome?.phase === 'wait_student') {
+    return {
+      ...base,
+      requestId,
+      chatSessionId,
+      phase: 'feedback',
+      studentAnswer: studentInput,
+      priorOutcome: outcome,
+    };
+  }
+  if (base.phase === 'feedback' && base.priorOutcome?.phase === 'wait_student') {
+    return {
+      ...base,
+      requestId,
+      chatSessionId,
+      studentAnswer: studentInput,
+      priorOutcome: base.priorOutcome,
+    };
+  }
+  const {
+    studentAnswer: _previousStudentAnswer,
+    priorOutcome: _previousOutcome,
+    ...explainContext
+  } = base;
+  return {
+    ...explainContext,
+    requestId,
+    chatSessionId,
+    phase: 'explain',
+  };
+}
+
+export interface GuidedRequestProducer {
+  stageId: string;
+  source: GuidedLearningContext['source'];
+  sourceScene?: unknown;
+  viewSceneId?: string | null;
+  viewScene?: unknown;
+}
+
+/** Fast request-owner check used before accepting each guided stream event. */
+export function isGuidedProducerCurrent(
+  producer: GuidedRequestProducer,
+  current: {
+    stageId: string | undefined;
+    currentSceneId: string | null;
+    scenes: readonly unknown[];
+  },
+): boolean {
+  if (current.stageId !== producer.stageId) return false;
+  if (producer.viewSceneId !== undefined) {
+    if (current.currentSceneId !== producer.viewSceneId) return false;
+    if (
+      producer.viewSceneId !== null &&
+      !current.scenes.some((scene) => scene === producer.viewScene)
+    ) {
+      return false;
+    }
+  }
+  if (producer.source.kind !== 'scene') return true;
+  const sourceSceneId = producer.source.sceneId;
+  if (current.currentSceneId !== sourceSceneId) return false;
+  return current.scenes.some(
+    (scene) =>
+      typeof scene === 'object' &&
+      scene !== null &&
+      'id' in scene &&
+      scene.id === sourceSceneId &&
+      scene === producer.sourceScene,
+  );
 }
 
 /**
@@ -558,6 +669,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
 
   // Track current stageId for data isolation
   const stageId = useStageStore((s) => s.stage?.id);
+  const stageScenes = useStageStore((s) => s.scenes);
   const stageIdRef = useRef(stageId);
   const currentSceneId = useStageStore((s) => s.currentSceneId);
   const currentSceneIdRef = useRef(currentSceneId);
@@ -572,6 +684,14 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingSessionIdRef = useRef<string | null>(null);
+  const activeGuidedProducerRef = useRef<
+    | {
+        controller: AbortController;
+        sessionId: string;
+        producer: GuidedRequestProducer;
+      }
+    | undefined
+  >(undefined);
   const softCloseRegistrationsRef = useRef<Map<string, SoftCloseRegistration>>(new Map());
   const softCloseLifecycleRef = useRef<Map<string, 'soft-closing' | 'active' | 'completed'>>(
     new Map(),
@@ -592,29 +712,6 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     sessionClosed?: boolean;
     endReason?: string;
   } | null>(null);
-
-  // Reload sessions when stage changes (course switch)
-  // This synchronous setState is intentional: it resets derived state from
-  // an external store (IndexedDB) when the stageId dependency changes.
-  useEffect(() => {
-    if (stageId === stageIdRef.current) return;
-    stageIdRef.current = stageId;
-    softCloseRegistrationsRef.current.forEach(({ timer }) => clearTimeout(timer));
-    softCloseRegistrationsRef.current.clear();
-    softCloseLifecycleRef.current.clear();
-    // Stage changed — reload sessions from store (already populated by loadFromStorage)
-    const stored = useStageStore.getState().chats;
-    setSessions(normalizeStoredSessionsForRestore(stored));
-    setActiveSessionId(null);
-    setExpandedSessionIds(new Set());
-    previousLiveSessionRef.current = undefined;
-    piSessionBoundariesRef.current.clear();
-  }, [stageId]);
-
-  useEffect(() => {
-    if (currentSceneId === currentSceneIdRef.current) return;
-    currentSceneIdRef.current = currentSceneId;
-  }, [currentSceneId]);
 
   const registerFirstPiRequest = useCallback((sessionId: string) => {
     piSessionBoundariesRef.current.set(
@@ -658,6 +755,45 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     },
     [],
   );
+
+  const retireActiveGuidedRequest = useCallback(() => {
+    const active = activeGuidedProducerRef.current;
+    if (!active) return;
+    activeGuidedProducerRef.current = undefined;
+    retireActiveLiveRequest(active.sessionId);
+  }, [retireActiveLiveRequest]);
+
+  // Reload sessions when stage changes (course switch). A guided producer is
+  // retired before the new stage's chat projection can become visible.
+  useEffect(() => {
+    if (stageId === stageIdRef.current) return;
+    retireActiveGuidedRequest();
+    stageIdRef.current = stageId;
+    softCloseRegistrationsRef.current.forEach(({ timer }) => clearTimeout(timer));
+    softCloseRegistrationsRef.current.clear();
+    softCloseLifecycleRef.current.clear();
+    const stored = useStageStore.getState().chats;
+    setSessions(normalizeStoredSessionsForRestore(stored));
+    setActiveSessionId(null);
+    setExpandedSessionIds(new Set());
+    previousLiveSessionRef.current = undefined;
+    piSessionBoundariesRef.current.clear();
+  }, [retireActiveGuidedRequest, stageId]);
+
+  useEffect(() => {
+    currentSceneIdRef.current = currentSceneId;
+    const active = activeGuidedProducerRef.current;
+    if (
+      active &&
+      !isGuidedProducerCurrent(active.producer, {
+        stageId,
+        currentSceneId,
+        scenes: stageScenes,
+      })
+    ) {
+      retireActiveGuidedRequest();
+    }
+  }, [currentSceneId, retireActiveGuidedRequest, stageId, stageScenes]);
 
   // Abort active stream and destroy buffers on unmount
   useEffect(() => {
@@ -1245,6 +1381,150 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       sessionType: SessionType,
       onElementReferenceResponseAccepted?: (response: Response) => void,
     ): Promise<void> => {
+      if (requestTemplate.config.interactionMode === 'guided') {
+        if (!isGuidedLearningEnabled()) {
+          throw new Error('Guided learning is not enabled');
+        }
+        const learningContext = requestTemplate.learningContext;
+        if (!learningContext || learningContext.chatSessionId !== sessionId) {
+          throw new Error('Guided learning requires context for the current session');
+        }
+        const storeState = await buildFreshAgentLoopStoreState();
+        const requestStartState = useStageStore.getState();
+        const sourceSceneId =
+          learningContext.source.kind === 'scene' ? learningContext.source.sceneId : undefined;
+        const producer: GuidedRequestProducer = {
+          stageId: learningContext.stageId,
+          source: learningContext.source,
+          viewSceneId: requestStartState.currentSceneId,
+          viewScene: requestStartState.scenes.find(
+            (scene) => scene.id === requestStartState.currentSceneId,
+          ),
+          ...(sourceSceneId
+            ? {
+                sourceScene: requestStartState.scenes.find((scene) => scene.id === sourceSceneId),
+              }
+            : {}),
+        };
+        const isCurrentProducer = () => {
+          const current = useStageStore.getState();
+          return isGuidedProducerCurrent(producer, {
+            stageId: current.stage?.id,
+            currentSceneId: current.currentSceneId,
+            scenes: current.scenes,
+          });
+        };
+        const abortAsStale = (): never => {
+          const error = new DOMException('The guided request is no longer current.', 'AbortError');
+          controller.abort(error);
+          throw error;
+        };
+        if (
+          !isCurrentProducer() ||
+          !(await isGuidedLearningContextCurrent(learningContext, requestStartState))
+        ) {
+          abortAsStale();
+        }
+        activeGuidedProducerRef.current = { controller, sessionId, producer };
+        const lastMessage = requestTemplate.messages.at(-1);
+        const studentInput =
+          learningContext.phase === 'feedback'
+            ? learningContext.studentAnswer
+            : lastMessage?.parts
+                .filter((part) => part.type === 'text')
+                .map((part) => part.text)
+                .join('\n')
+                .trim();
+        if (!studentInput) throw new Error('Guided learning requires real student input');
+        const identity = {
+          requestId: learningContext.requestId,
+          chatSessionId: sessionId,
+          stageId: learningContext.stageId,
+          contentRevision: learningContext.contentRevision,
+          scopedRevision: learningContext.scopedRevision,
+          source: learningContext.source,
+          evidenceRefs: learningContext.evidence.map(({ ref }) => ref),
+        };
+
+        try {
+          // The student's input is the prerequisite fact for feedback. If this
+          // CAS append fails, do not ask the model; the visible chat input stays
+          // available for an explicit retry.
+          await appendLearningDialogueFact({
+            payloadVersion: 1,
+            identity,
+            event: {
+              kind: 'student_input',
+              input: studentInput,
+              createdAt: new Date().toISOString(),
+            },
+          });
+
+          const outcome = await runGuidedSingleRequest(
+            {
+              ...requestTemplate,
+              sessionId,
+              storeState,
+              learningContext,
+            },
+            controller,
+            () => createStatelessStreamConsumer(sessionId, controller, sessionType),
+            fetch,
+            onElementReferenceResponseAccepted,
+            isCurrentProducer,
+          );
+          if (
+            controller.signal.aborted ||
+            !isCurrentProducer() ||
+            !(await isGuidedLearningContextCurrent(learningContext, useStageStore.getState()))
+          ) {
+            abortAsStale();
+          }
+
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === sessionId
+                ? {
+                    ...session,
+                    status:
+                      outcome.phase === 'feedback' && outcome.budget.stopReason === 'completed'
+                        ? ('completed' as const)
+                        : session.status,
+                    config: { ...session.config, learningContext, learningOutcome: outcome },
+                    updatedAt: nextChatUpdatedAt(session),
+                  }
+                : session,
+            ),
+          );
+          if (
+            !isCurrentProducer() ||
+            !(await isGuidedLearningContextCurrent(learningContext, useStageStore.getState()))
+          ) {
+            abortAsStale();
+          }
+          try {
+            await appendLearningDialogueFact({
+              payloadVersion: 1,
+              identity,
+              event: {
+                kind: 'published_outcome',
+                outcome,
+                createdAt: new Date().toISOString(),
+              },
+            });
+          } catch (error) {
+            // Runtime persistence is a sidecar. The checked response has already
+            // been published and must remain usable even if this append fails.
+            log.warn('[GuidedLearning] Failed to persist published outcome:', error);
+          }
+        } finally {
+          if (activeGuidedProducerRef.current?.controller === controller) {
+            activeGuidedProducerRef.current = undefined;
+          }
+        }
+        return;
+      }
+
       // Attach full configs for generated (non-default) agents so the server can use them.
       // The server-side registry only has default agents; generated agents exist only client-side.
       const generatedConfigs = requestTemplate.config.agentIds
@@ -1301,6 +1581,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
 
       const outcome = await runAgentLoop(
         {
+          messages: requestTemplate.messages,
           config: requestTemplate.config,
           userProfile: requestTemplate.userProfile,
           apiKey: requestTemplate.apiKey,
@@ -1337,6 +1618,11 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       // distinct session state — don't conflate error paths with completion.
       if (!controller.signal.aborted) {
         switch (outcome.reason) {
+          case 'turn_limit':
+            // The last reply has drained. Hand control to the learner without
+            // inventing another agent message or resuming the lecture.
+            onCueUserRef.current?.(undefined, undefined, sessionId);
+            break;
           case 'cue_user':
             // Session stays active; UI waits for the next user message.
             break;
@@ -1691,6 +1977,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             config: {
               agentIds,
               sessionType: session.type,
+              ...(session.config.interactionMode === 'guided'
+                ? { interactionMode: 'guided' as const }
+                : {}),
             },
             userProfile: {
               nickname: userProfileState.nickname || undefined,
@@ -1704,6 +1993,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
             thinkingConfig: mc.thinkingConfig,
             directorState: session.directorState,
+            ...(session.config.learningContext
+              ? { learningContext: session.config.learningContext }
+              : {}),
           },
           controller,
           session.type,
@@ -1802,8 +2094,12 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       // Create a new session when there's no active QA session to append to.
       // A completed session should NOT be reused — start a fresh one instead.
       const activeSession = sessionsRef.current.find((s) => s.id === sessionId);
+      const interaction = resolveInteractionModeForTurn(activeSession, options.interactionMode);
       const needNewSession =
-        !sessionId || activeSession?.type === 'lecture' || activeSession?.status === 'completed';
+        !sessionId ||
+        activeSession?.type === 'lecture' ||
+        activeSession?.status === 'completed' ||
+        interaction.startNewSession;
 
       if (needNewSession) {
         // End all active QA/Discussion sessions before creating new one
@@ -1852,6 +2148,19 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
 
       // Read current session data from ref (avoids stale closure AND keeps updater pure)
       const existingSession = sessionsRef.current.find((s) => s.id === sessionId);
+      const baseLearningContext =
+        options.learningContext ?? existingSession?.config.learningContext;
+      const learningContext: GuidedLearningContext | undefined =
+        interaction.interactionMode === 'guided' && baseLearningContext
+          ? options.learningContext
+            ? { ...options.learningContext, chatSessionId: sessionId! }
+            : createGuidedContextForTurn(
+                baseLearningContext,
+                existingSession?.config.learningOutcome,
+                content,
+                sessionId!,
+              )
+          : undefined;
       const sessionMessages: UIMessage<ChatMessageMetadata>[] = existingSession
         ? [...existingSession.messages, userMessage]
         : [userMessage];
@@ -1861,9 +2170,19 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       setSessions((prev) => {
         const exists = prev.some((s) => s.id === sessionId);
         if (exists) {
-          return prev.map((s) =>
-            s.id === sessionId ? resumeSoftClosingSessionForFollowUp(s, userMessage, now) : s,
-          );
+          return prev.map((s) => {
+            if (s.id !== sessionId) return s;
+            const resumed = resumeSoftClosingSessionForFollowUp(s, userMessage, now);
+            return {
+              ...resumed,
+              config: {
+                ...resumed.config,
+                ...(interaction.interactionMode === 'guided'
+                  ? { interactionMode: 'guided' as const, learningContext }
+                  : {}),
+              },
+            };
+          });
         } else {
           const newSession: ChatSession = {
             id: sessionId!,
@@ -1874,6 +2193,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             config: {
               agentIds,
               defaultAgentId: agentIds[0],
+              ...(interaction.interactionMode === 'guided'
+                ? { interactionMode: 'guided' as const, learningContext }
+                : {}),
             },
             toolCalls: [],
             pendingToolCalls: [],
@@ -1900,6 +2222,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             config: {
               agentIds,
               sessionType,
+              ...(interaction.interactionMode === 'guided'
+                ? { interactionMode: 'guided' as const }
+                : {}),
             },
             userProfile: {
               nickname: userProfileState.nickname || undefined,
@@ -1913,6 +2238,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
             platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
             thinkingConfig: mc.thinkingConfig,
             directorState: existingSession?.directorState,
+            ...(learningContext ? { learningContext } : {}),
             ...(options.elementReference ? { elementReference: options.elementReference } : {}),
           },
           controller,

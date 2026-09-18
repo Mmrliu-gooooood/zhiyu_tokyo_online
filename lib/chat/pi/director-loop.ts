@@ -21,6 +21,7 @@ import {
 import type { NativeWebSearchConfig } from './tools/web-search';
 import type { WhiteboardRuntimeService } from '@/lib/whiteboard/runtime/store';
 import type { ResolvedSlideElementReference } from './element-reference';
+import { getReplyPolicy } from '../reply-policy';
 
 function formatSceneEvidenceForDelegation(evidence: DirectorSceneEvidencePacket[]): string {
   return evidence.map((packet) => packet.content).join('\n\n');
@@ -48,6 +49,10 @@ export async function runPiDirectorLoop(opts: {
   nativeWhiteboardLearnerKey?: string;
   requestStartManualVisibilityRevision?: number;
 }): Promise<void> {
+  const replyPolicy = getReplyPolicy(opts.body.messages, opts.body.config);
+  const maxAgentTurns = replyPolicy.userInitiated
+    ? Math.min(opts.maxAgentTurns, replyPolicy.maxTurns)
+    : opts.maxAgentTurns;
   let totalAgents = 0;
   let totalActions = 0;
   let agentHadContent = false;
@@ -63,7 +68,7 @@ export async function runPiDirectorLoop(opts: {
       })
     : undefined;
   const directorToolTrace: DirectorToolTraceEntry[] = [];
-  const maxDirectorToolCalls = Math.max(opts.maxAgentTurns * 3, opts.maxAgentTurns + 3);
+  const maxDirectorToolCalls = Math.max(maxAgentTurns * 3, maxAgentTurns + 3);
   const piAgentResponses: AgentTurnSummary[] = [];
   const piWhiteboardLedger: WhiteboardActionRecord[] = [];
   const requestStartCurrentScene = (() => {
@@ -103,6 +108,9 @@ export async function runPiDirectorLoop(opts: {
   const cueUser = async (
     data: Extract<StatelessEvent, { type: 'cue_user' }>['data'],
   ): Promise<boolean> => {
+    if (replyPolicy.acknowledgment && hasVisibleAgentTurn()) {
+      return closeSession({ endReason: 'user_done' });
+    }
     if (userCued) return false;
     userCued = true;
     await opts.send({ type: 'cue_user', data });
@@ -152,7 +160,7 @@ export async function runPiDirectorLoop(opts: {
       thinkingConfig: opts.thinkingConfig,
       maxOutputTokens: opts.maxOutputTokens,
       abortSignal: opts.abortSignal,
-      maxAgentTurns: opts.maxAgentTurns,
+      maxAgentTurns,
       getAgentTurnCount,
       getAgentResponses: () => [
         ...(opts.body.directorState?.agentResponses ?? []),
@@ -209,7 +217,7 @@ export async function runPiDirectorLoop(opts: {
 
   const director = buildAgent({
     streamFn,
-    systemPrompt: buildDirectorPrompt(opts.body, opts.agentConfigs, opts.maxAgentTurns),
+    systemPrompt: buildDirectorPrompt(opts.body, opts.agentConfigs, maxAgentTurns),
     tools,
     allowedToolNames: new Set(tools.map((tool) => tool.name)),
     history: toHistoryMessages(opts.body.messages, null),
@@ -254,7 +262,8 @@ export async function runPiDirectorLoop(opts: {
   if (opts.signal.aborted) return;
 
   if (!sessionClosed && !userCued && hasAgentContent()) {
-    await cueUser({ fromAgentId: piAgentResponses.at(-1)?.agentId });
+    if (replyPolicy.acknowledgment) await closeSession({ endReason: 'user_done' });
+    else await cueUser({ fromAgentId: piAgentResponses.at(-1)?.agentId });
   }
 
   await opts.send({

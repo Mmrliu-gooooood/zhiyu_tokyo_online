@@ -13,6 +13,8 @@
 - [ ] Trigger or listen to TTS.
 - [ ] Open Classroom Interaction.
 - [ ] Send one Chat message.
+- [ ] Stop typing and verify automatic replies yield to the learner (legacy Q&A: at most three; discussion: at most six).
+- [ ] Interrupt an ongoing lecture with a question, manually end the Q&A, and verify narration resumes on the same page without navigating away.
 - [ ] Inspect Roles state.
 - [ ] Collapse and reopen the Interaction Panel.
 - [ ] Expand/collapse Scene Rail.

@@ -71,4 +71,105 @@ describe('agent loop async store state', () => {
     ).resolves.toMatchObject({ reason: 'aborted' });
     expect(fetchChat).not.toHaveBeenCalled();
   });
+
+  it('does not publish events from a response that arrives after teardown aborts', async () => {
+    const pendingResponse = deferred<Response>();
+    const controller = new AbortController();
+    const onEvent = vi.fn();
+    const fetchChat = vi.fn(() => pendingResponse.promise);
+    const running = runAgentLoop(
+      { config: { agentIds: [] }, apiKey: '' },
+      {
+        getStoreState: () => state,
+        getMessages: () => [],
+        fetchChat,
+        onEvent,
+        onIterationEnd: async () => null,
+      },
+      controller.signal,
+    );
+
+    await vi.waitFor(() => expect(fetchChat).toHaveBeenCalledOnce());
+    controller.abort();
+    pendingResponse.resolve(
+      new Response(
+        `data: ${JSON.stringify({
+          type: 'cue_user',
+          data: { fromAgentId: 'teacher', prompt: 'stale prompt' },
+        })}\n\n`,
+      ),
+    );
+
+    await expect(running).resolves.toMatchObject({ reason: 'aborted' });
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('does not publish a stream chunk that arrives after teardown aborts', async () => {
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+    const response = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller;
+        },
+      }),
+    );
+    const controller = new AbortController();
+    const onEvent = vi.fn();
+    const fetchChat = vi.fn(async () => response);
+    const running = runAgentLoop(
+      { config: { agentIds: [] }, apiKey: '' },
+      {
+        getStoreState: () => state,
+        getMessages: () => [],
+        fetchChat,
+        onEvent,
+        onIterationEnd: async () => null,
+      },
+      controller.signal,
+    );
+
+    await vi.waitFor(() => expect(fetchChat).toHaveBeenCalledOnce());
+    controller.abort();
+    streamController.enqueue(
+      new TextEncoder().encode(
+        `data: ${JSON.stringify({
+          type: 'cue_user',
+          data: { fromAgentId: 'teacher', prompt: 'late stream prompt' },
+        })}\n\n`,
+      ),
+    );
+    streamController.close();
+
+    await expect(running).resolves.toMatchObject({ reason: 'aborted' });
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('does not remain blocked when teardown aborts a pending buffer drain', async () => {
+    const pendingDrain = deferred<null>();
+    const controller = new AbortController();
+    const onIterationEnd = vi.fn(() => pendingDrain.promise);
+    const running = runAgentLoop(
+      { config: { agentIds: [] }, apiKey: '' },
+      {
+        getStoreState: () => state,
+        getMessages: () => [],
+        fetchChat: async () => new Response(''),
+        onEvent: vi.fn(),
+        onIterationEnd,
+      },
+      controller.signal,
+    );
+
+    await vi.waitFor(() => expect(onIterationEnd).toHaveBeenCalledOnce());
+    controller.abort();
+
+    await expect(
+      Promise.race([
+        running,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('abort remained blocked on buffer drain')), 50),
+        ),
+      ]),
+    ).resolves.toMatchObject({ reason: 'aborted' });
+  });
 });

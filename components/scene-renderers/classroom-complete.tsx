@@ -10,7 +10,7 @@ import type { Scene, SceneType } from '@/lib/types/stage';
 import {
   completeSummaryForScenes,
   pendingCompleteSummary,
-  readSceneQuizAnswers,
+  readSceneQuizAttempt,
   summarizeScenes,
 } from '@/lib/classroom/complete-summary';
 import { loadQuizAttemptState } from '@/lib/quiz/runtime';
@@ -341,7 +341,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
     void summarizeScenes(scenes, async (sceneId) => {
       const scene = scenes.find((candidate) => candidate.id === sceneId);
       try {
-        return await readSceneQuizAnswers(scene, loadQuizAttemptState);
+        return await readSceneQuizAttempt(scene, loadQuizAttemptState);
       } catch (error) {
         log.warn(`Failed to load quiz summary for scene ${sceneId}:`, error);
         return undefined;
@@ -491,11 +491,15 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.78, duration: 0.4, ease: 'easeOut' }}
-                className={cn('text-center', compact ? 'space-y-0.5' : 'space-y-1.5')}
+                className={cn(
+                  'min-w-0 w-full text-center',
+                  compact ? 'space-y-0.5' : 'space-y-1.5',
+                )}
               >
                 <h2
+                  title={title || t('classroomComplete.title')}
                   className={cn(
-                    'font-black leading-tight bg-gradient-to-br from-amber-700 via-orange-600 to-amber-800 dark:from-amber-200 dark:via-orange-200 dark:to-amber-300 bg-clip-text text-transparent',
+                    'line-clamp-2 break-words font-black leading-tight bg-gradient-to-br from-amber-700 via-orange-600 to-amber-800 dark:from-amber-200 dark:via-orange-200 dark:to-amber-300 bg-clip-text text-transparent',
                     compact ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl',
                   )}
                 >
@@ -571,7 +575,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
               )}
 
               {/* Quiz card */}
-              {summary.quiz && (
+              {(summary.countsByType.quiz ?? 0) > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 14, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -582,7 +586,9 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                   )}
                 >
                   <div className={cn('flex items-center', compact ? 'gap-3' : 'gap-5')}>
-                    <QuizRing pct={summary.quiz.pct} delay={1.3} compact={compact} />
+                    {summary.quiz && (
+                      <QuizRing pct={summary.quiz.pct} delay={1.3} compact={compact} />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div
                         className={cn(
@@ -590,18 +596,43 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                           compact ? 'text-sm' : 'text-base',
                         )}
                       >
-                        {t('classroomComplete.quizScoreLabel', {
-                          correct: summary.quiz.correct,
-                          total: summary.quiz.total,
-                        })}
+                        {summary.quiz
+                          ? t('classroomComplete.quizScoreLabel', {
+                              correct: summary.quiz.correct,
+                              total: summary.quiz.total,
+                            })
+                          : t('classroomComplete.noGradedResults')}
                       </div>
                       <div
                         className={cn(
-                          'mt-1 text-amber-700/80 dark:text-amber-300/80',
+                          'mt-1 space-y-0.5 text-amber-700/80 dark:text-amber-300/80',
                           compact ? 'text-xs' : 'text-sm',
                         )}
                       >
-                        {t(`classroomComplete.encouragement.${encouragementKey(summary.quiz.pct)}`)}
+                        {summary.quiz && (
+                          <div>
+                            {t(
+                              `classroomComplete.encouragement.${encouragementKey(summary.quiz.pct)}`,
+                            )}
+                          </div>
+                        )}
+                        {summary.quizStatus.pending > 0 && (
+                          <div>
+                            {t('classroomComplete.pendingGrading', {
+                              count: summary.quizStatus.pending,
+                            })}
+                          </div>
+                        )}
+                        {summary.quizStatus.unavailable > 0 && (
+                          <div>
+                            {t('classroomComplete.unavailableGrading', {
+                              count: summary.quizStatus.unavailable,
+                            })}
+                          </div>
+                        )}
+                        {summary.quizStatus.legacyAttempts > 0 && (
+                          <div>{t('classroomComplete.legacyExcluded')}</div>
+                        )}
                       </div>
                     </div>
                   </div>

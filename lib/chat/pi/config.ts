@@ -1,6 +1,7 @@
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { StatelessChatRequest } from '@/lib/types/chat';
+import { getReplyPolicy } from '../reply-policy';
 
 const DEFAULT_PI_MAX_AGENT_TURNS = 6;
 const MAX_PI_MAX_AGENT_TURNS = 6;
@@ -25,10 +26,14 @@ export function resolveAgentConfigs(body: StatelessChatRequest): AgentConfig[] {
 }
 
 export function getPiMaxAgentTurns(body: StatelessChatRequest): number {
-  return clampPositiveInteger(
-    body.config.piMaxAgentTurns,
-    DEFAULT_PI_MAX_AGENT_TURNS,
-    MAX_PI_MAX_AGENT_TURNS,
+  const policy = getReplyPolicy(body.messages, body.config);
+  return Math.min(
+    policy.userInitiated ? policy.maxTurns : MAX_PI_MAX_AGENT_TURNS,
+    clampPositiveInteger(
+      body.config.piMaxAgentTurns,
+      DEFAULT_PI_MAX_AGENT_TURNS,
+      MAX_PI_MAX_AGENT_TURNS,
+    ),
   );
 }
 

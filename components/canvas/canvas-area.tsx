@@ -16,6 +16,7 @@ import { ContainBox } from '@/components/edit/ContainBox';
 import { useInWorkbenchPanel } from '@/lib/workbench/panel-context';
 import type { PPTElement } from '@openmaic/dsl';
 import { SlideElementPickOverlay } from '@/components/canvas/slide-element-pick-overlay';
+import type { RemediationContext } from '@/lib/learning/remediation';
 
 interface CanvasAreaProps extends CanvasToolbarProps {
   readonly currentScene: Scene | null;
@@ -28,6 +29,11 @@ interface CanvasAreaProps extends CanvasToolbarProps {
   readonly elementPickActive?: boolean;
   readonly onPickElement?: (element: PPTElement) => void;
   readonly onCancelElementPick?: () => void;
+  readonly showQuizRemediation?: boolean;
+  readonly onDiscussQuizQuestion?: (
+    context: RemediationContext,
+    prompt: string,
+  ) => Promise<unknown> | unknown;
 }
 
 export function CanvasArea({
@@ -61,6 +67,8 @@ export function CanvasArea({
   elementPickActive,
   onPickElement,
   onCancelElementPick,
+  showQuizRemediation,
+  onDiscussQuizQuestion,
 }: CanvasAreaProps) {
   const { t } = useI18n();
   const inWorkbenchPanel = useInWorkbenchPanel();
@@ -130,7 +138,12 @@ export function CanvasArea({
           {currentScene && !whiteboardOpen && (
             <div className="absolute inset-0">
               <SceneProvider>
-                <SceneRenderer scene={currentScene} mode={mode} />
+                <SceneRenderer
+                  scene={currentScene}
+                  mode={mode}
+                  showQuizRemediation={showQuizRemediation}
+                  onDiscussQuizQuestion={onDiscussQuizQuestion}
+                />
               </SceneProvider>
             </div>
           )}

@@ -39,6 +39,7 @@ import { buildNativeSpotlightTool } from './native-spotlight';
 import { buildNativeWhiteboardTools } from './native-whiteboard';
 import type { WhiteboardRuntimeService } from '@/lib/whiteboard/runtime/store';
 import type { SlideElementEvidence } from '../element-reference';
+import { getReplyPolicy } from '../../reply-policy';
 
 const CallAgentParams = Type.Object({
   agentId: Type.String({
@@ -563,6 +564,7 @@ export function buildCallAgentTool(opts: {
   // unbounded call_agent retries. Track attempts + consecutive empties and stop deterministically.
   const MAX_CONSECUTIVE_EMPTY_TURNS = 2;
   const maxAgentAttempts = Math.max(opts.maxAgentTurns * 3, opts.maxAgentTurns + 3);
+  const spokenAgentIds = new Set<string>();
   let consecutiveEmptyTurns = 0;
   let totalAgentAttempts = 0;
   let whiteboardState: PiWhiteboardRuntimeState | undefined;
@@ -647,6 +649,30 @@ export function buildCallAgentTool(opts: {
             maxAgentTurns: opts.maxAgentTurns,
           },
         };
+      }
+
+      if (getReplyPolicy(opts.body.messages, opts.body.config).userInitiated) {
+        const teacher = opts.agentConfigs.find((candidate) => candidate.role === 'teacher');
+        const reason =
+          spokenAgentIds.size === 0 && teacher && agent.role !== 'teacher'
+            ? 'teacher_answers_first'
+            : agent.role !== 'teacher' && spokenAgentIds.has(agent.id)
+              ? 'agent_already_spoke'
+              : undefined;
+        if (reason) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text:
+                  reason === 'teacher_answers_first'
+                    ? `Call the teacher (${teacher?.id}) first to answer the user.`
+                    : 'This agent already spoke. Finish the turn, or select one brief, useful supplement from another agent.',
+              },
+            ],
+            details: { skipped: true, reason },
+          };
+        }
       }
 
       if (consecutiveEmptyTurns >= MAX_CONSECUTIVE_EMPTY_TURNS) {
@@ -816,6 +842,7 @@ export function buildCallAgentTool(opts: {
 
         const finalText = nativeResult.visibleOutput.trim();
         const isCompleted = nativeResult.status === 'completed';
+        if (isCompleted && (finalText || actionCount > 0)) spokenAgentIds.add(agent.id);
         consecutiveEmptyTurns = isCompleted ? 0 : consecutiveEmptyTurns + 1;
         await opts.send({ type: 'agent_end', data: { messageId, agentId: agent.id } });
         opts.onAgentDone({
@@ -968,6 +995,7 @@ export function buildCallAgentTool(opts: {
         await opts.send({ type: 'text_delta', data: { content: finalText, messageId } });
       }
       const isEmptyTurn = childErrored || (!hasVisibleText && actionCount === 0);
+      if (!isEmptyTurn) spokenAgentIds.add(agent.id);
       consecutiveEmptyTurns = isEmptyTurn ? consecutiveEmptyTurns + 1 : 0;
       await opts.send({ type: 'agent_end', data: { messageId, agentId: agent.id } });
       opts.onAgentDone({

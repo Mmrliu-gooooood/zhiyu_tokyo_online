@@ -395,7 +395,7 @@ export class PlaybackEngine {
     }
   }
 
-  /** End discussion → restore lecture → idle (user clicks "start" to continue) */
+  /** End discussion → restore lecture → idle; the owner decides whether to resume. */
   handleEndDiscussion(): void {
     this.invalidatePlaybackGeneration();
     this.actionEngine.clearEffects();

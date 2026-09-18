@@ -8,6 +8,7 @@ import {
 } from '@/lib/server/generation-pipeline/execution';
 import { GenerationServices } from '@/lib/server/generation-pipeline/services';
 import { resolveGenerationSearchConfig } from '@/lib/server/generation-pipeline/search';
+import { WebSearchHttpError } from '@/lib/web-search/failure';
 
 const mocks = vi.hoisted(() => ({
   managed: {} as Record<string, { apiKey: string; baseUrl?: string; models?: string[] }>,
@@ -145,6 +146,30 @@ describe('background generation search snapshot consumption', () => {
       }),
     ]);
     expect(JSON.stringify(diagnostics)).not.toMatch(/secret query|token/);
+  });
+
+  it('logs an actionable, redacted Brave 429 while preserving the optional empty checkpoint', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      mocks.search.mockRejectedValue(
+        new WebSearchHttpError('private-query secret-token', 429, 'public_html'),
+      );
+      const { services, persisted } = service(
+        { ...input, webSearch: { providerId: 'brave' } },
+        { version: 1, providerId: 'brave', apiKey: '' },
+      );
+      await expect(services.research()).resolves.toBe('');
+      const logged = JSON.stringify(warn.mock.calls);
+      expect(logged).toContain('rate_limited');
+      expect(logged).toContain('429');
+      expect(logged).toContain('public_html');
+      expect(logged).toContain('brave');
+      expect(logged).not.toMatch(/private-query|secret-token/);
+      expect(mocks.search).toHaveBeenCalledTimes(1);
+      expect(persisted).toContainEqual({ stepKey: 'research:search', result: '' });
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('keeps Pro search failures on their original failure path', async () => {

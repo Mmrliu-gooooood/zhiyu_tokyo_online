@@ -40,6 +40,7 @@ import { getEffectiveActions } from './tool-schemas';
 import type { AgentTurnSummary, WhiteboardActionRecord } from './types';
 import { parseStructuredChunk, createParserState, finalizeParser } from './stateless-generate';
 import { createLogger } from '@/lib/logger';
+import { getReplyPolicy, buildUserReplyGuidance } from '@/lib/chat/reply-policy';
 
 const log = createLogger('DirectorGraph');
 
@@ -113,6 +114,23 @@ async function directorNode(
     }
   };
   const isSingleAgent = state.availableAgentIds.length <= 1;
+  const replyPolicy = getReplyPolicy(state.messages, {});
+  if (replyPolicy.userInitiated) {
+    const completed = Math.max(state.turnCount, state.agentResponses.length);
+    if (completed >= replyPolicy.maxTurns) return { shouldEnd: true };
+    // A question/acknowledgment belongs to the learner, even when they reply
+    // inside a previously agent-initiated discussion session.
+    if (completed === 0) {
+      const teacher = state.availableAgentIds
+        .map((id) => resolveAgent(state, id))
+        .filter((agent): agent is AgentConfig => agent?.role === 'teacher')
+        .sort((a, b) => b.priority - a.priority)[0];
+      if (teacher) {
+        write({ type: 'thinking', data: { stage: 'agent_loading', agentId: teacher.id } });
+        return { currentAgentId: teacher.id, shouldEnd: false };
+      }
+    }
+  }
 
   // ── Single agent: code-only director ──
   if (isSingleAgent) {
@@ -161,17 +179,20 @@ async function directorNode(
   const openaiMessages = convertMessagesToOpenAI(state.messages);
   const conversationSummary = summarizeConversation(openaiMessages);
 
-  const prompt = buildDirectorPrompt(
-    agents,
-    conversationSummary,
-    state.agentResponses,
-    state.turnCount,
-    state.discussionContext,
-    state.triggerAgentId,
-    state.whiteboardLedger,
-    state.userProfile || undefined,
-    state.storeState.whiteboardOpen,
-  );
+  const prompt =
+    buildDirectorPrompt(
+      agents,
+      conversationSummary,
+      state.agentResponses,
+      state.turnCount,
+      state.discussionContext,
+      state.triggerAgentId,
+      state.whiteboardLedger,
+      state.userProfile || undefined,
+      state.storeState.whiteboardOpen,
+    ) +
+    '\n' +
+    buildUserReplyGuidance(state.messages);
 
   const adapter = new AISdkLangGraphAdapter(state.languageModel, state.thinkingConfig ?? undefined);
 
@@ -203,6 +224,18 @@ async function directorNode(
     const agentExists = agents.some((a) => a.id === decision.nextAgentId);
     if (!agentExists) {
       log.warn(`[Director] Unknown agent "${decision.nextAgentId}", ending`);
+      return { shouldEnd: true };
+    }
+
+    if (
+      replyPolicy.userInitiated &&
+      agents.find((agent) => agent.id === decision.nextAgentId)?.role !== 'teacher' &&
+      state.agentResponses.some(
+        (response) =>
+          response.agentId === decision.nextAgentId &&
+          (response.contentPreview || response.actionCount),
+      )
+    ) {
       return { shouldEnd: true };
     }
 
@@ -276,14 +309,17 @@ async function runAgentGeneration(
   const effectiveActions = getEffectiveActions(agentConfig.allowedActions, sceneType);
 
   const discussionContext = state.discussionContext || undefined;
-  const systemPrompt = buildStructuredPrompt(
-    agentConfig,
-    state.storeState,
-    discussionContext,
-    state.whiteboardLedger,
-    state.userProfile || undefined,
-    state.agentResponses,
-  );
+  const systemPrompt =
+    buildStructuredPrompt(
+      agentConfig,
+      state.storeState,
+      discussionContext,
+      state.whiteboardLedger,
+      state.userProfile || undefined,
+      state.agentResponses,
+    ) +
+    '\n' +
+    buildUserReplyGuidance(state.messages, agentConfig.role);
   const openaiMessages = convertMessagesToOpenAI(state.messages, agentId);
   const adapter = new AISdkLangGraphAdapter(state.languageModel, state.thinkingConfig ?? undefined);
 

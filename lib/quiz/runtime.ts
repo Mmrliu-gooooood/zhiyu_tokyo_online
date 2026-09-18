@@ -1,11 +1,11 @@
-import type {
-  QuizAttemptPhase,
-  QuizAttemptSkeleton,
-  RuntimeRecord,
-  RuntimeSession,
-} from '@openmaic/dsl';
+import type { QuizAttemptPhase, RuntimeRecord, RuntimeSession } from '@openmaic/dsl';
 import { RuntimeAppendConflictError, type RuntimeStore } from '@openmaic/storage';
 import type { QuestionResult } from '@/lib/quiz/grading';
+import {
+  isQuizAttemptPayloadV2,
+  type QuizAttemptPayload,
+  type QuizAttemptPayloadV2,
+} from '@/lib/quiz/attempt-schema';
 import {
   clearDraftRecovery,
   clearLegacyQuizStateSnapshot,
@@ -15,13 +15,6 @@ import {
 import { getLearnerKey } from '@/lib/runtime/learner-key';
 import { getRuntimeStore } from '@/lib/runtime/store';
 
-export interface QuizAttemptPayload extends QuizAttemptSkeleton {
-  payloadVersion: 1;
-  phase: QuizAttemptPhase;
-  answers: QuizAnswers;
-  results?: QuestionResult[];
-}
-
 export interface QuizAttemptRecordInput {
   stageId: string;
   sceneId: string;
@@ -29,6 +22,8 @@ export interface QuizAttemptRecordInput {
   phase: QuizAttemptPhase;
   answers: QuizAnswers;
   results?: QuestionResult[];
+  /** Application-owned v2 evidence. Omitted only by legacy migration/callers. */
+  v2?: Omit<QuizAttemptPayloadV2, 'payloadVersion' | 'phase' | 'answers'>;
   /** Begin a distinct retry even when the prior attempt has the same payload. */
   startNewAttempt?: boolean;
 }
@@ -56,12 +51,33 @@ export class QuizRetryProgressedError extends Error {
   }
 }
 
+export class QuizSubmittedAnswersChangedError extends Error {
+  constructor(sessionId: string) {
+    super(`Submitted quiz answers for ${JSON.stringify(sessionId)} cannot be changed`);
+    this.name = 'QuizSubmittedAnswersChangedError';
+  }
+}
+
+export class QuizAttemptEvidenceChangedError extends Error {
+  constructor(sessionId: string) {
+    super(`Quiz evidence for ${JSON.stringify(sessionId)} cannot be replaced`);
+    this.name = 'QuizAttemptEvidenceChangedError';
+  }
+}
+
 export interface QuizAttemptState {
   sessionId: string;
   status: RuntimeSession['status'];
+  payloadVersion?: 1 | 2;
   phase: QuizAttemptPhase;
   answers: QuizAnswers;
   results?: QuestionResult[];
+  questionSnapshot?: QuizAttemptPayloadV2['questionSnapshot'];
+  contentRevision?: string;
+  grading?: QuizAttemptPayloadV2['grading'];
+  gradeProvenance?: QuizAttemptPayloadV2['gradeProvenance'];
+  submittedDigest?: string;
+  archived?: boolean;
 }
 
 export interface LoadedQuizAttemptState {
@@ -233,6 +249,7 @@ function mintId(): string {
 function asQuizPayload(record: RuntimeRecord | undefined): QuizAttemptPayload | undefined {
   if (!record || typeof record.payload !== 'object' || record.payload === null) return undefined;
   const payload = record.payload as Partial<QuizAttemptPayload>;
+  if (isQuizAttemptPayloadV2(payload)) return payload;
   if (
     payload.payloadVersion !== 1 ||
     (payload.phase !== 'draft' && payload.phase !== 'submitted' && payload.phase !== 'reviewed') ||
@@ -273,10 +290,19 @@ async function readLatestQuizAttemptState(
     return {
       sessionId: session.id,
       status: session.status,
+      payloadVersion: payload.payloadVersion,
       phase: payload.phase,
       answers: payload.answers,
-      ...(payload.phase === 'reviewed'
-        ? { results: Array.isArray(payload.results) ? payload.results : [] }
+      ...(Array.isArray(payload.results) ? { results: payload.results } : {}),
+      ...(payload.payloadVersion === 2
+        ? {
+            questionSnapshot: payload.questionSnapshot,
+            contentRevision: payload.contentRevision,
+            grading: payload.grading,
+            gradeProvenance: payload.gradeProvenance,
+            ...(payload.submittedDigest ? { submittedDigest: payload.submittedDigest } : {}),
+            ...(payload.archived === undefined ? {} : { archived: payload.archived }),
+          }
         : {}),
     };
   }
@@ -402,6 +428,23 @@ export async function loadQuizAttemptState(
         phase: 'reviewed',
         answers: state.answers,
         results: state.results ?? [],
+        ...(state.payloadVersion === 2 &&
+        state.questionSnapshot &&
+        state.contentRevision &&
+        state.grading &&
+        state.gradeProvenance
+          ? {
+              v2: {
+                questionSnapshot: state.questionSnapshot,
+                contentRevision: state.contentRevision,
+                grading: state.grading,
+                results: state.results ?? [],
+                gradeProvenance: state.gradeProvenance,
+                ...(state.submittedDigest ? { submittedDigest: state.submittedDigest } : {}),
+                ...(state.archived === undefined ? {} : { archived: state.archived }),
+              },
+            }
+          : {}),
       },
       { ...deps, store, learnerKey },
     );
@@ -419,7 +462,13 @@ function samePayload(left: QuizAttemptPayload, right: QuizAttemptPayload): boole
 }
 
 function sameAnswers(left: QuizAnswers, right: QuizAnswers): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  const canonical = (answers: QuizAnswers) =>
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(answers).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)),
+      ),
+    );
+  return canonical(left) === canonical(right);
 }
 
 function rolloverAttemptId(attemptId: string, index: number): string {
@@ -480,12 +529,19 @@ export async function recordQuizAttempt(
         latestState?.status === 'completed'
           ? await store.getSession(latestState.sessionId)
           : undefined;
-      const payload: QuizAttemptPayload = {
-        payloadVersion: 1,
-        phase: input.phase,
-        answers: input.answers,
-        ...(input.results === undefined ? {} : { results: input.results }),
-      };
+      let payload: QuizAttemptPayload = input.v2
+        ? {
+            payloadVersion: 2,
+            phase: input.phase,
+            answers: input.answers,
+            ...input.v2,
+          }
+        : {
+            payloadVersion: 1,
+            phase: input.phase,
+            answers: input.answers,
+            ...(input.results === undefined ? {} : { results: input.results }),
+          };
       let rolloverIndex = 0;
       let sessionId = input.attemptId;
       let originSession: RuntimeSession | undefined;
@@ -542,6 +598,54 @@ export async function recordQuizAttempt(
 
         const lastRecord = records.at(-1);
         const last = asQuizPayload(lastRecord);
+
+        if (
+          session.status === 'active' &&
+          !input.startNewAttempt &&
+          last?.payloadVersion === 2 &&
+          payload.payloadVersion === 2 &&
+          last.contentRevision !== payload.contentRevision
+        ) {
+          throw new QuizAttemptEvidenceChangedError(sessionId);
+        }
+
+        if (
+          session.status === 'active' &&
+          !input.startNewAttempt &&
+          last?.payloadVersion === 2 &&
+          payload.payloadVersion === 2
+        ) {
+          const grading = { ...payload.grading };
+          let preserved = false;
+          for (const question of last.questionSnapshot) {
+            const prior = last.grading[question.id];
+            if (prior?.status !== 'graded') continue;
+            grading[question.id] = prior;
+            preserved = true;
+          }
+          if (preserved) {
+            const results: QuestionResult[] = [];
+            const gradeProvenance: QuizAttemptPayloadV2['gradeProvenance'] = {};
+            for (const question of payload.questionSnapshot) {
+              const fact = grading[question.id];
+              if (fact?.status !== 'graded') continue;
+              results.push(fact.result);
+              gradeProvenance[question.id] = fact.provenance;
+            }
+            payload = { ...payload, grading, results, gradeProvenance };
+          }
+        }
+
+        if (
+          session.status === 'active' &&
+          !input.startNewAttempt &&
+          last?.payloadVersion === 2 &&
+          (last.phase === 'submitted' || last.phase === 'reviewed') &&
+          payload.payloadVersion === 2 &&
+          !sameAnswers(last.answers, payload.answers)
+        ) {
+          throw new QuizSubmittedAnswersChangedError(sessionId);
+        }
 
         if (input.startNewAttempt && !created) {
           // A concurrent retry may already have created the first active child.

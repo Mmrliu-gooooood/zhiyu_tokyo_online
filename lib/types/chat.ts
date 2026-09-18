@@ -8,6 +8,11 @@
 import type { UIMessage } from 'ai';
 import type { CleanupSource } from '@/lib/playback/auto-resume';
 import type { ThinkingConfig } from './provider';
+import type {
+  GuidedInteractionMode,
+  GuidedLearningContext,
+  GuidedLearningOutcome,
+} from '@/lib/learning/guided-contracts';
 
 // Session Types
 export type SessionType = 'qa' | 'discussion' | 'lecture';
@@ -123,6 +128,12 @@ export interface SessionConfig {
   agentIds: string[];
   triggerAgentId?: string; // For discussion: first agent to speak
   defaultAgentId?: string; // For QA: the responding agent
+  /** Fixed for the lifetime of one live session; switching requires a new session. */
+  interactionMode?: GuidedInteractionMode;
+  /** Source-bound context for the current guided exchange. */
+  learningContext?: GuidedLearningContext;
+  /** Last public guided result; internal drafts are never stored here. */
+  learningOutcome?: GuidedLearningOutcome;
 }
 
 /**
@@ -485,6 +496,8 @@ export type StatelessEvent =
         directorCompaction?: DirectorCompactionTrace;
         directorToolTrace?: DirectorToolTraceEntry[];
         directorState?: DirectorState;
+        /** Optional only for guided learning; default chat paths do not depend on it. */
+        learningOutcome?: GuidedLearningOutcome;
       };
     }
   | { type: 'error'; data: { message: string } };

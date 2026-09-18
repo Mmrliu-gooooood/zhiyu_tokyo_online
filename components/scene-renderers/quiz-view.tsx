@@ -11,6 +11,8 @@ import {
   Check,
   BookOpenText,
   Loader2,
+  MessageCircle,
+  RefreshCw,
   Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,13 +23,28 @@ import { createLogger } from '@/lib/logger';
 const log = createLogger('QuizView');
 import type { QuizQuestion } from '@/lib/types/stage';
 import { SpeechButton } from '@/components/audio/speech-button';
-import { gradeChoiceQuestions, isShortAnswer, type QuestionResult } from '@/lib/quiz/grading';
+import type { QuestionResult } from '@/lib/quiz/grading';
+import { mapWithConcurrency, parseQuizGradeResponse } from '@/lib/quiz/client-grading';
+import {
+  applyQuizGrade,
+  createQuizQuestionSnapshot,
+  createSubmittedQuizGrading,
+  isQuizAttemptFullyGraded,
+  markQuizGradingError,
+  quizContentRevision,
+  quizSubmittedDigest,
+  QUIZ_GRADING_RULE_VERSION,
+  type QuizAttemptPayloadV2,
+  type QuizGradeProvenance,
+  type QuizQuestionSnapshot,
+} from '@/lib/quiz/attempt-schema';
 import { renderQuizMathText } from '@/lib/quiz/math-text';
 import { writeDraftRecovery } from '@/lib/quiz/persistence';
 import {
   createQuizAttemptWriter,
   loadQuizAttemptState,
   QuizRetryProgressedError,
+  type QuizAttemptState,
   type QuizAttemptWriter,
 } from '@/lib/quiz/runtime';
 import {
@@ -41,15 +58,24 @@ import {
   type QuizRuntimeGate,
   type QuizViewLifetime,
 } from '@/lib/quiz/view-state';
+import {
+  buildQuizPayloadRemediationContext,
+  type RemediationContext,
+} from '@/lib/learning/remediation';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type Phase = 'not_started' | 'answering' | 'submitting' | 'grading' | 'reviewing';
+type Phase = 'not_started' | 'answering' | 'submitting' | 'grading' | 'pending' | 'reviewing';
 
 interface QuizViewProps {
   readonly questions: QuizQuestion[];
   readonly sceneId: string;
   readonly stageId: string;
+  readonly remediationEnabled?: boolean;
+  readonly onDiscussQuestion?: (
+    context: RemediationContext,
+    prompt: string,
+  ) => Promise<unknown> | unknown;
 }
 
 const QuizMathText = memo(function QuizMathText({
@@ -90,62 +116,105 @@ const QuizMathText = memo(function QuizMathText({
 });
 
 /** Call /api/quiz-grade for a single short-answer question. */
+class QuizGradeRequestError extends Error {
+  constructor(
+    readonly code: string,
+    readonly retryable: boolean,
+  ) {
+    super(code);
+    this.name = 'QuizGradeRequestError';
+  }
+}
+
+function v2RecordFields(
+  payload: QuizAttemptPayloadV2,
+): Omit<QuizAttemptPayloadV2, 'payloadVersion' | 'phase' | 'answers'> {
+  const { payloadVersion: _payloadVersion, phase: _phase, answers: _answers, ...fields } = payload;
+  return fields;
+}
+
+function v2PayloadFromState(state: QuizAttemptState | undefined): QuizAttemptPayloadV2 | null {
+  if (
+    state?.payloadVersion !== 2 ||
+    !state.questionSnapshot ||
+    !state.contentRevision ||
+    !state.grading ||
+    !state.gradeProvenance
+  ) {
+    return null;
+  }
+  return {
+    payloadVersion: 2,
+    phase: state.phase,
+    questionSnapshot: state.questionSnapshot,
+    contentRevision: state.contentRevision,
+    answers: state.answers,
+    grading: state.grading,
+    results: state.results ?? [],
+    gradeProvenance: state.gradeProvenance,
+    ...(state.submittedDigest ? { submittedDigest: state.submittedDigest } : {}),
+    ...(state.archived === undefined ? {} : { archived: state.archived }),
+  };
+}
+
 async function gradeShortAnswerQuestion(
-  q: QuizQuestion,
+  q: QuizQuestionSnapshot,
   userAnswer: string,
   language: string,
-): Promise<QuestionResult> {
+  signal: AbortSignal,
+): Promise<{ result: QuestionResult; provenance: QuizGradeProvenance }> {
   const pts = q.points ?? 1;
-  try {
-    const modelConfig = getCurrentModelConfig();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString,
-      'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey,
-      'x-model-source': modelConfig.source,
-    };
-    if (modelConfig.source === 'platform' && modelConfig.defaultId) {
-      headers['x-platform-default-id'] = modelConfig.defaultId;
-    }
-    if (modelConfig.baseUrl) headers['x-base-url'] = modelConfig.baseUrl;
-    if (modelConfig.providerType) headers['x-provider-type'] = modelConfig.providerType;
-
-    const res = await fetch('/api/quiz-grade', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        question: q.question,
-        userAnswer,
-        points: pts,
-        commentPrompt: q.commentPrompt,
-        language,
-      }),
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { score: number; comment: string };
-    const earned = Math.max(0, Math.min(pts, data.score));
-    return {
-      questionId: q.id,
-      correct: earned >= pts * 0.8,
-      status: earned >= pts * 0.8 ? 'correct' : 'incorrect',
-      earned,
-      aiComment: data.comment,
-    };
-  } catch (err) {
-    log.error('[quiz-view] AI grading failed for', q.id, err);
-    // Fallback: give half credit
-    return {
-      questionId: q.id,
-      correct: null,
-      status: 'incorrect',
-      earned: Math.round(pts * 0.5),
-      aiComment:
-        language === 'zh-CN'
-          ? '评分服务暂时不可用，已给予基础分。'
-          : 'Grading service unavailable. Base score given.',
-    };
+  const modelConfig = getCurrentModelConfig();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString,
+    'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey,
+    'x-model-source': modelConfig.source,
+  };
+  if (modelConfig.source === 'platform' && modelConfig.defaultId) {
+    headers['x-platform-default-id'] = modelConfig.defaultId;
   }
+  if (modelConfig.baseUrl) headers['x-base-url'] = modelConfig.baseUrl;
+  if (modelConfig.providerType) headers['x-provider-type'] = modelConfig.providerType;
+
+  const res = await fetch('/api/quiz-grade', {
+    method: 'POST',
+    headers,
+    signal,
+    body: JSON.stringify({
+      question: q.question,
+      userAnswer,
+      points: pts,
+      commentPrompt: q.commentPrompt,
+      referenceAnswer: q.answer?.join('\n'),
+      language,
+    }),
+  });
+  const data = (await res.json().catch(() => null)) as {
+    success?: unknown;
+    errorCode?: unknown;
+  } | null;
+  if (!res.ok) {
+    const code = typeof data?.errorCode === 'string' ? data.errorCode : `HTTP_${res.status}`;
+    throw new QuizGradeRequestError(code, code !== 'GRADING_UNAVAILABLE');
+  }
+  const parsed = parseQuizGradeResponse(data, pts);
+  const result: QuestionResult = {
+    questionId: q.id,
+    correct: parsed.score >= pts * 0.8,
+    status: parsed.score >= pts * 0.8 ? 'correct' : 'incorrect',
+    earned: parsed.score,
+    aiComment: parsed.comment,
+  };
+  return {
+    result,
+    provenance: {
+      ruleVersion: QUIZ_GRADING_RULE_VERSION,
+      model: modelConfig.modelString || modelConfig.defaultId,
+      basis: q.commentPrompt?.trim() ? 'rubric' : 'reference-answer',
+      gradedAt: new Date().toISOString(),
+    },
+  };
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -700,15 +769,25 @@ function ScoreBanner({
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
+export function QuizView({
+  questions,
+  sceneId,
+  stageId,
+  remediationEnabled = false,
+  onDiscussQuestion,
+}: QuizViewProps) {
   const { t, locale } = useI18n();
 
   const [phase, setPhase] = useState<Phase>('not_started');
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [results, setResults] = useState<QuestionResult[]>([]);
+  const [attemptPayload, setAttemptPayload] = useState<QuizAttemptPayloadV2 | null>(null);
   const [runtimeGate, setRuntimeGate] = useState<QuizRuntimeGate>({ status: 'loading' });
   const [hydrationVersion, setHydrationVersion] = useState(0);
   const [retrying, setRetrying] = useState(false);
+  const [attemptSessionId, setAttemptSessionId] = useState<string>();
+  const [expandedRemediationQuestion, setExpandedRemediationQuestion] = useState<string>();
+  const [remediationError, setRemediationError] = useState(false);
   const viewLifetimeRef = useRef<QuizViewLifetime | null>(null);
   viewLifetimeRef.current ??= createQuizViewLifetime();
   const viewLifetime = viewLifetimeRef.current;
@@ -735,6 +814,8 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
         setPhase(next.phase);
         setAnswers(next.answers);
         setResults(next.results);
+        setAttemptPayload(v2PayloadFromState(state));
+        setAttemptSessionId(state?.sessionId ?? nextAttemptId);
         setRuntimeGate({ status: 'ready', attemptId: nextAttemptId });
       })
       .catch((error) => {
@@ -749,115 +830,252 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
   }, [hydrationVersion, runtimeWriter, sceneId, stageId, viewLifetime]);
 
   const attemptId = isQuizRuntimeReady(runtimeGate) ? runtimeGate.attemptId : null;
+  const displayQuestions = attemptPayload?.questionSnapshot ?? questions;
 
   const totalPoints = useMemo(
-    () => questions.reduce((sum, q) => sum + (q.points ?? 1), 0),
-    [questions],
+    () => displayQuestions.reduce((sum, q) => sum + (q.points ?? 1), 0),
+    [displayQuestions],
   );
 
   const allAnswered = useMemo(() => {
-    return questions.every((q) => {
+    return displayQuestions.every((q) => {
       const a = answers[q.id];
       if (!a) return false;
       if (Array.isArray(a)) return a.length > 0;
       return (a as string).trim().length > 0;
     });
-  }, [questions, answers]);
+  }, [displayQuestions, answers]);
+
+  const createDraftPayload = useCallback((): QuizAttemptPayloadV2 => {
+    const questionSnapshot = createQuizQuestionSnapshot(questions);
+    return {
+      payloadVersion: 2,
+      phase: 'draft',
+      questionSnapshot,
+      contentRevision: quizContentRevision(questionSnapshot),
+      answers: {},
+      grading: {},
+      results: [],
+      gradeProvenance: {},
+    };
+  }, [questions]);
+
+  const handleStart = useCallback(() => {
+    if (!attemptId) return;
+    const payload = attemptPayload?.phase === 'draft' ? attemptPayload : createDraftPayload();
+    setAttemptPayload(payload);
+    setAnswers({});
+    setResults([]);
+    setPhase('answering');
+    void runtimeWriter
+      .recordPhase({
+        stageId,
+        sceneId,
+        attemptId,
+        phase: 'draft',
+        answers: {},
+        v2: v2RecordFields(payload),
+      })
+      .catch((error) => {
+        log.warn('Failed to persist quiz start:', error);
+        setRuntimeGate({ status: 'error' });
+      });
+  }, [attemptId, attemptPayload, createDraftPayload, runtimeWriter, sceneId, stageId]);
 
   const handleSetAnswer = useCallback(
     (questionId: string, value: string | string[]) => {
       setAnswers((prev) => {
         const next = { ...prev, [questionId]: value };
-        if (attemptId) {
+        if (attemptId && attemptPayload) {
+          const nextPayload: QuizAttemptPayloadV2 = {
+            ...attemptPayload,
+            phase: 'draft',
+            answers: next,
+          };
+          setAttemptPayload(nextPayload);
           writeDraftRecovery(sceneId, attemptId, next);
           runtimeWriter.scheduleDraft({
             stageId,
             sceneId,
             attemptId,
             answers: next,
+            v2: v2RecordFields(nextPayload),
           });
         }
         return next;
       });
     },
-    [attemptId, runtimeWriter, sceneId, stageId],
+    [attemptId, attemptPayload, runtimeWriter, sceneId, stageId],
   );
 
   const handleSubmit = useCallback(async () => {
     if (!attemptId) return;
+    const draftPayload = attemptPayload ?? createDraftPayload();
+    const submittedGrading = createSubmittedQuizGrading(
+      draftPayload.questionSnapshot,
+      answers,
+      new Date().toISOString(),
+    );
+    const submittedPayload: QuizAttemptPayloadV2 = {
+      ...draftPayload,
+      phase: 'submitted',
+      answers,
+      ...submittedGrading,
+      submittedDigest: quizSubmittedDigest(draftPayload.contentRevision, answers),
+    };
     setPhase('submitting');
     await runQuizPersistenceTransition(
-      () => persistQuizSubmission({ stageId, sceneId, attemptId, answers }, runtimeWriter),
+      () =>
+        persistQuizSubmission(
+          {
+            stageId,
+            sceneId,
+            attemptId,
+            answers,
+            v2: v2RecordFields(submittedPayload),
+          },
+          runtimeWriter,
+        ),
       viewLifetime,
-      () => setPhase('grading'),
+      () => {
+        setAttemptPayload(submittedPayload);
+        setResults(submittedPayload.results);
+        setPhase('grading');
+      },
       (error) => {
         log.warn('Failed to persist quiz submission:', error);
         setRuntimeGate({ status: 'error' });
       },
     );
-  }, [attemptId, answers, runtimeWriter, sceneId, stageId, viewLifetime]);
+  }, [
+    attemptId,
+    answers,
+    attemptPayload,
+    createDraftPayload,
+    runtimeWriter,
+    sceneId,
+    stageId,
+    viewLifetime,
+  ]);
 
-  // When entering grading phase, grade choice questions locally + call API for short-answer
+  // Grade only still-pending short answers. Every successful fact is persisted
+  // immediately; refresh therefore resumes the same frozen submission.
   useEffect(() => {
-    if (phase !== 'grading') return;
+    if (phase !== 'grading' || !attemptPayload || !attemptId) return;
     let cancelled = false;
+    const abortController = new AbortController();
 
     (async () => {
-      // 1. Grade choice questions locally (instant)
-      const choiceResults = gradeChoiceQuestions(questions, answers);
-
-      // 2. Grade short-answer questions via AI API (parallel)
-      const shortAnswerQs = questions.filter(isShortAnswer);
-      const aiResults = await Promise.all(
-        shortAnswerQs.map((q) =>
-          gradeShortAnswerQuestion(q, (answers[q.id] as string) ?? '', locale),
-        ),
+      let workingPayload = attemptPayload;
+      const pendingQuestions = workingPayload.questionSnapshot.filter(
+        (question) => workingPayload.grading[question.id]?.status === 'pending',
       );
-
-      if (cancelled) return;
-
-      // 3. Merge results in original question order
-      const allResultsMap = new Map<string, QuestionResult>();
-      for (const r of [...choiceResults, ...aiResults]) {
-        allResultsMap.set(r.questionId, r);
-      }
-      const ordered = questions.map((q) => allResultsMap.get(q.id)!).filter(Boolean);
-
-      if (!attemptId) {
-        setRuntimeGate({ status: 'error' });
-        return;
-      }
-      try {
-        await persistQuizReview(
-          { stageId, sceneId, attemptId, answers, results: ordered },
+      await mapWithConcurrency(pendingQuestions, 2, async (question) => {
+        if (abortController.signal.aborted) return;
+        try {
+          const graded = await gradeShortAnswerQuestion(
+            question,
+            typeof workingPayload.answers[question.id] === 'string'
+              ? (workingPayload.answers[question.id] as string)
+              : '',
+            locale,
+            abortController.signal,
+          );
+          workingPayload = applyQuizGrade(workingPayload, graded.result, graded.provenance);
+        } catch (error) {
+          if (abortController.signal.aborted) return;
+          log.error('[quiz-view] AI grading failed for', question.id, error);
+          const requestError =
+            error instanceof QuizGradeRequestError
+              ? error
+              : new QuizGradeRequestError('GRADING_REQUEST_FAILED', true);
+          workingPayload = markQuizGradingError(
+            workingPayload,
+            question.id,
+            requestError.code,
+            requestError.retryable,
+          );
+        }
+        await persistQuizSubmission(
+          {
+            stageId,
+            sceneId,
+            attemptId,
+            answers: workingPayload.answers,
+            v2: v2RecordFields(workingPayload),
+          },
           runtimeWriter,
         );
-      } catch (error) {
-        log.warn('Failed to persist quiz review:', error);
-        if (!cancelled) setRuntimeGate({ status: 'error' });
+      });
+
+      if (cancelled) return;
+      const authoritative = await loadQuizAttemptState({ stageId, sceneId });
+      const authoritativePayload = v2PayloadFromState(authoritative.state);
+      if (!cancelled) setAttemptSessionId(authoritative.state?.sessionId ?? attemptId);
+      if (
+        !authoritativePayload ||
+        authoritativePayload.submittedDigest !== workingPayload.submittedDigest
+      ) {
+        if (!cancelled) setHydrationVersion((version) => version + 1);
         return;
       }
-      if (cancelled) return;
-      setResults(ordered);
-      setPhase('reviewing');
-    })();
+      workingPayload = authoritativePayload;
+      if (workingPayload.phase === 'reviewed') {
+        setAttemptPayload(workingPayload);
+        setResults(workingPayload.results);
+        setPhase('reviewing');
+        return;
+      }
+      if (isQuizAttemptFullyGraded(workingPayload)) {
+        const reviewedPayload: QuizAttemptPayloadV2 = { ...workingPayload, phase: 'reviewed' };
+        await persistQuizReview(
+          {
+            stageId,
+            sceneId,
+            attemptId,
+            answers: reviewedPayload.answers,
+            results: reviewedPayload.results,
+            v2: v2RecordFields(reviewedPayload),
+          },
+          runtimeWriter,
+        );
+        if (cancelled) return;
+        setAttemptPayload(reviewedPayload);
+        setResults(reviewedPayload.results);
+        setPhase('reviewing');
+      } else {
+        setAttemptPayload(workingPayload);
+        setResults(workingPayload.results);
+        setPhase('pending');
+      }
+    })().catch((error) => {
+      log.warn('Failed to persist quiz grading progress:', error);
+      if (!cancelled) setRuntimeGate({ status: 'error' });
+    });
 
     return () => {
       cancelled = true;
+      abortController.abort();
     };
-  }, [phase, questions, answers, locale, sceneId, stageId, attemptId, runtimeWriter]);
+  }, [phase, attemptPayload, locale, sceneId, stageId, attemptId, runtimeWriter]);
 
   const handleRetry = useCallback(async () => {
     if (!attemptId || retrying) return;
     setRetrying(true);
     runtimeWriter.cancelDraft();
+    const retryPayload = createDraftPayload();
     await runQuizPersistenceTransition(
-      () => persistQuizRetry({ stageId, sceneId, attemptId }, runtimeWriter),
+      () =>
+        persistQuizRetry(
+          { stageId, sceneId, attemptId, v2: v2RecordFields(retryPayload) },
+          runtimeWriter,
+        ),
       viewLifetime,
       () => {
         setPhase('not_started');
         setAnswers({});
         setResults([]);
+        setAttemptPayload(retryPayload);
         setRetrying(false);
       },
       (error) => {
@@ -870,7 +1088,7 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
         setRuntimeGate({ status: 'error' });
       },
     );
-  }, [attemptId, retrying, runtimeWriter, sceneId, stageId, viewLifetime]);
+  }, [attemptId, retrying, createDraftPayload, runtimeWriter, sceneId, stageId, viewLifetime]);
 
   const earnedScore = useMemo(() => results.reduce((sum, r) => sum + r.earned, 0), [results]);
 
@@ -881,6 +1099,9 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
     });
     return map;
   }, [results]);
+  const retryablePendingCount = attemptPayload
+    ? Object.values(attemptPayload.grading).filter((grading) => grading.status === 'pending').length
+    : 0;
 
   if (runtimeGate.status === 'error') {
     return (
@@ -917,9 +1138,9 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
             className="flex-1"
           >
             <QuizCover
-              questionCount={questions.length}
+              questionCount={displayQuestions.length}
               totalPoints={totalPoints}
-              onStart={() => setPhase('answering')}
+              onStart={handleStart}
             />
           </motion.div>
         )}
@@ -947,7 +1168,7 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
                       return typeof a === 'string' && a.trim().length > 0;
                     }).length
                   }{' '}
-                  / {questions.length}
+                  / {displayQuestions.length}
                 </span>
               </div>
               <button
@@ -967,7 +1188,7 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
 
             {/* Questions */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              {questions.map((q, i) => {
+              {displayQuestions.map((q, i) => {
                 if (q.type === 'single') {
                   return (
                     <SingleChoiceQuestion
@@ -1041,6 +1262,42 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
           </motion.div>
         )}
 
+        {phase === 'pending' && (
+          <motion.div
+            key="pending"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center"
+          >
+            <Loader2 className="h-9 w-9 text-amber-500" />
+            <div>
+              <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
+                {t('quiz.pendingTitle')}
+              </p>
+              <p className="mt-1 text-sm text-gray-400">{t('quiz.pendingDescription')}</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              {retryablePendingCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPhase('grading')}
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+                >
+                  {t('quiz.retryGrading')}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleRetry()}
+                disabled={retrying}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:text-violet-600 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
+              >
+                {t('quiz.retry')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {phase === 'reviewing' && (
           <motion.div
             key="reviewing"
@@ -1069,48 +1326,132 @@ export function QuizView({ questions, sceneId, stageId }: QuizViewProps) {
 
             {/* Results */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              <ScoreBanner score={earnedScore} total={totalPoints} results={results} />
+              {!attemptPayload ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  {t('quiz.legacySnapshotUnavailable')}
+                </div>
+              ) : (
+                <ScoreBanner score={earnedScore} total={totalPoints} results={results} />
+              )}
 
-              {questions.map((q, i) => {
-                const r = resultMap[q.id];
-                if (q.type === 'single') {
-                  return (
-                    <SingleChoiceQuestion
-                      key={q.id}
-                      question={q}
-                      index={i}
-                      value={answers[q.id] as string | undefined}
-                      onChange={() => {}}
-                      disabled
-                      result={r}
-                    />
+              {attemptPayload &&
+                displayQuestions.map((q, i) => {
+                  const r = resultMap[q.id];
+                  let questionView: React.ReactNode;
+                  if (q.type === 'single') {
+                    questionView = (
+                      <SingleChoiceQuestion
+                        question={q}
+                        index={i}
+                        value={answers[q.id] as string | undefined}
+                        onChange={() => {}}
+                        disabled
+                        result={r}
+                      />
+                    );
+                  } else if (q.type === 'multiple') {
+                    questionView = (
+                      <MultipleChoiceQuestion
+                        question={q}
+                        index={i}
+                        value={answers[q.id] as string[] | undefined}
+                        onChange={() => {}}
+                        disabled
+                        result={r}
+                      />
+                    );
+                  } else {
+                    questionView = (
+                      <ShortAnswerQuestion
+                        question={q}
+                        index={i}
+                        value={answers[q.id] as string | undefined}
+                        onChange={() => {}}
+                        disabled
+                        result={r}
+                      />
+                    );
+                  }
+                  if (!remediationEnabled || !r || r.earned >= (q.points ?? 1)) {
+                    return <div key={q.id}>{questionView}</div>;
+                  }
+                  const remediationAttemptId = attemptSessionId ?? attemptId;
+                  if (!remediationAttemptId) return <div key={q.id}>{questionView}</div>;
+                  const context = buildQuizPayloadRemediationContext(
+                    attemptPayload,
+                    remediationAttemptId,
+                    q.id,
+                    sceneId,
                   );
-                }
-                if (q.type === 'multiple') {
                   return (
-                    <MultipleChoiceQuestion
-                      key={q.id}
-                      question={q}
-                      index={i}
-                      value={answers[q.id] as string[] | undefined}
-                      onChange={() => {}}
-                      disabled
-                      result={r}
-                    />
+                    <div key={q.id} className="space-y-2">
+                      {questionView}
+                      <div className="flex flex-wrap gap-2 rounded-xl border border-violet-100 bg-violet-50/50 p-3 dark:border-violet-900 dark:bg-violet-950/20">
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:text-violet-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                          aria-expanded={expandedRemediationQuestion === q.id}
+                          onClick={() =>
+                            setExpandedRemediationQuestion((current) =>
+                              current === q.id ? undefined : q.id,
+                            )
+                          }
+                        >
+                          <BookOpenText className="h-3.5 w-3.5" />
+                          {t('quiz.reviewOriginalQuestion')}
+                        </button>
+                        {onDiscussQuestion ? (
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:text-violet-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            onClick={() => {
+                              setRemediationError(false);
+                              void Promise.resolve(
+                                onDiscussQuestion(context, t('quiz.remediationDiscussPrompt')),
+                              ).catch(() => setRemediationError(true));
+                            }}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            {t('quiz.discussQuestion')}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled
+                          title={t('quiz.remediationUnavailable')}
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          {t('quiz.checkUnderstanding')}
+                        </button>
+                        <p className="basis-full text-xs text-gray-500 dark:text-gray-400">
+                          {t('quiz.remediationUnavailable')}
+                        </p>
+                        {remediationError ? (
+                          <p className="basis-full text-xs text-red-600 dark:text-red-400">
+                            {t('quiz.remediationActionFailed')}
+                          </p>
+                        ) : null}
+                      </div>
+                      {expandedRemediationQuestion === q.id ? (
+                        <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm dark:border-gray-700 dark:bg-gray-900">
+                          <p className="font-medium">{context.question.prompt}</p>
+                          <p className="mt-2 text-gray-600 dark:text-gray-300">
+                            {t('quiz.savedAnswer')}:{' '}
+                            {Array.isArray(context.question.answer)
+                              ? context.question.answer.join(', ')
+                              : context.question.answer || '—'}
+                          </p>
+                          {context.question.explanation ? (
+                            <p className="mt-2 text-gray-600 dark:text-gray-300">
+                              {context.question.explanation}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   );
-                }
-                return (
-                  <ShortAnswerQuestion
-                    key={q.id}
-                    question={q}
-                    index={i}
-                    value={answers[q.id] as string | undefined}
-                    onChange={() => {}}
-                    disabled
-                    result={r}
-                  />
-                );
-              })}
+                })}
             </div>
           </motion.div>
         )}

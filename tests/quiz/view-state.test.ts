@@ -10,7 +10,25 @@ import {
 } from '@/lib/quiz/view-state';
 
 describe('quiz view runtime hydration', () => {
-  it('hydrates a draft or submission back into answering', () => {
+  it('hydrates a submitted v2 attempt as pending instead of reopening answers', () => {
+    expect(
+      quizViewStateFromAttempt({
+        sessionId: 'attempt-v2',
+        status: 'active',
+        payloadVersion: 2,
+        phase: 'submitted',
+        answers: { q1: 'A' },
+        results: [],
+        questionSnapshot: [{ id: 'q1', type: 'short_answer', question: 'Why?', points: 2 }],
+        contentRevision: 'quiz-snapshot-v1:abc',
+        grading: { q1: { status: 'pending' } },
+        gradeProvenance: {},
+        submittedDigest: 'quiz-submission-v1:def',
+      }),
+    ).toMatchObject({ phase: 'pending', answers: { q1: 'A' }, results: [] });
+  });
+
+  it('hydrates a draft back into answering', () => {
     expect(
       quizViewStateFromAttempt({
         sessionId: 'attempt-1',
@@ -19,6 +37,18 @@ describe('quiz view runtime hydration', () => {
         answers: { q1: 'A' },
       }),
     ).toEqual({ phase: 'answering', answers: { q1: 'A' }, results: [] });
+  });
+
+  it('does not reopen a legacy submitted answer for editing or invent a snapshot', () => {
+    expect(
+      quizViewStateFromAttempt({
+        sessionId: 'attempt-v1',
+        status: 'active',
+        payloadVersion: 1,
+        phase: 'submitted',
+        answers: { q1: 'A' },
+      }),
+    ).toEqual({ phase: 'pending', answers: { q1: 'A' }, results: [] });
   });
 
   it('hydrates reviewed empty results into reviewing', () => {

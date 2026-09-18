@@ -11,6 +11,7 @@
 import { proxyFetch } from '@/lib/server/proxy-fetch';
 import type { WebSearchResult, WebSearchSource } from '@/lib/types/web-search';
 import { normalizeWebSearchQuery } from './utils';
+import { WebSearchHttpError } from './failure';
 
 const BRAVE_DEFAULT_BASE_URL = 'https://search.brave.com';
 
@@ -135,7 +136,11 @@ async function searchWithBraveApi(
   });
 
   if (!res.ok) {
-    throw new Error(`Brave API error (${res.status}): ${describeBraveFailure(res)}`);
+    throw new WebSearchHttpError(
+      `Brave API error (${res.status}): ${describeBraveFailure(res)}`,
+      res.status,
+      'api',
+    );
   }
 
   const data = (await res.json()) as {
@@ -175,7 +180,11 @@ async function searchWithBraveScrape(
   });
 
   if (!res.ok) {
-    throw new Error(`Brave Search error (${res.status}): ${describeBraveFailure(res)}`);
+    throw new WebSearchHttpError(
+      `Brave Search error (${res.status}): ${describeBraveFailure(res)}`,
+      res.status,
+      'public_html',
+    );
   }
 
   const html = await res.text();

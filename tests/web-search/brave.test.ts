@@ -112,5 +112,17 @@ describe('searchWithBrave', () => {
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).message).toBe('Brave Search error (429): Too Many Requests');
     expect((failure as Error).message).not.toContain('<html>');
+    expect(failure).toMatchObject({ status: 429, mode: 'public_html' });
+    expect(proxyFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('distinguishes a rejected official API credential from public-page rate limiting', async () => {
+    proxyFetchMock.mockResolvedValueOnce(new Response('secret upstream body', { status: 401 }));
+    const failure = await searchWithBrave({ query: 'test', apiKey: 'private-api-key' }).catch(
+      (error: unknown) => error,
+    );
+    expect(failure).toMatchObject({ status: 401, mode: 'api' });
+    expect(JSON.stringify(failure)).not.toMatch(/private-api-key|secret upstream body/);
+    expect(proxyFetchMock).toHaveBeenCalledTimes(1);
   });
 });

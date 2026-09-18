@@ -47,7 +47,7 @@ export function isQuizRuntimeReady(
 }
 
 export async function persistQuizRetry(
-  input: { stageId: string; sceneId: string; attemptId: string },
+  input: Pick<QuizDraftInput, 'stageId' | 'sceneId' | 'attemptId' | 'v2'>,
   writer: Pick<QuizAttemptWriter, 'recordPhase'>,
 ): Promise<void> {
   await writer.recordPhase({
@@ -73,7 +73,7 @@ export async function persistQuizReview(
 }
 
 export interface QuizViewHydratedState {
-  phase: 'not_started' | 'answering' | 'reviewing';
+  phase: 'not_started' | 'answering' | 'pending' | 'reviewing';
   answers: QuizAnswers;
   results: QuestionResult[];
 }
@@ -85,6 +85,13 @@ export function quizViewStateFromAttempt(
   if (state.phase === 'reviewed') {
     return {
       phase: 'reviewing',
+      answers: state.answers,
+      results: state.results ?? [],
+    };
+  }
+  if (state.phase === 'submitted') {
+    return {
+      phase: 'pending',
       answers: state.answers,
       results: state.results ?? [],
     };
