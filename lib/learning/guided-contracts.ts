@@ -1,4 +1,6 @@
-export type GuidedInteractionMode = 'standard' | 'guided';
+import type { InteractionMode } from '@/lib/chat/interaction-mode';
+
+export type GuidedInteractionMode = InteractionMode;
 
 export type GuidedReviewVerdict = 'no_issue_found' | 'issue_found' | 'insufficient_evidence';
 

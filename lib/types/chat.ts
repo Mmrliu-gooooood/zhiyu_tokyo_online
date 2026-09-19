@@ -7,12 +7,9 @@
 
 import type { UIMessage } from 'ai';
 import type { CleanupSource } from '@/lib/playback/auto-resume';
+import type { InteractionMode } from '@/lib/chat/interaction-mode';
 import type { ThinkingConfig } from './provider';
-import type {
-  GuidedInteractionMode,
-  GuidedLearningContext,
-  GuidedLearningOutcome,
-} from '@/lib/learning/guided-contracts';
+import type { GuidedLearningContext, GuidedLearningOutcome } from '@/lib/learning/guided-contracts';
 
 // Session Types
 export type SessionType = 'qa' | 'discussion' | 'lecture';
@@ -129,7 +126,9 @@ export interface SessionConfig {
   triggerAgentId?: string; // For discussion: first agent to speak
   defaultAgentId?: string; // For QA: the responding agent
   /** Fixed for the lifetime of one live session; switching requires a new session. */
-  interactionMode?: GuidedInteractionMode;
+  interactionMode?: InteractionMode;
+  /** Teach-back activity bound to this chat session; not a new sessionType. */
+  teachBackActivityId?: string;
   /** Source-bound context for the current guided exchange. */
   learningContext?: GuidedLearningContext;
   /** Last public guided result; internal drafts are never stored here. */

@@ -68,6 +68,8 @@ import type { PPTElement } from '@openmaic/dsl';
 import type { SlideElementReference } from '@/lib/types/chat';
 import { isPiChatEnabled } from '@/lib/config/feature-flags';
 import { getLearningUiCapabilities } from '@/lib/learning/feature-flags';
+import { useWorkbenchPanelState } from '@/lib/workbench/panel-context';
+import type { ZhiyuInteractionTab } from '@/components/classroom/ZhiyuInteractionPanel';
 import {
   remediationToGuidedLearningContext,
   type RemediationContext,
@@ -172,7 +174,12 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       showChecks: learningChecksEnabled,
       showQuizRemediation,
       allowGuidedDiscussion,
+      showLearningFeedback,
+      showTeachBack,
     } = getLearningUiCapabilities();
+    const workbenchPanel = useWorkbenchPanelState();
+    const [interactionTab, setInteractionTab] = useState<ZhiyuInteractionTab>('lecture');
+    const [teachBackHint, setTeachBackHint] = useState<string | undefined>();
     const [classroomLiveRuntime] = useState(createClassroomLiveRuntime);
     const setLiveSpeech = classroomLiveRuntime.setLiveSpeech;
     const setSpeechProgress = classroomLiveRuntime.setSpeechProgress;
@@ -2063,6 +2070,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                     }
                     onClearElementReference={() => setDraftElementReference(null)}
                     hideEmbeddedToolbar={!isPresenting}
+                    contextHint={teachBackHint}
+                    inputPlaceholder={teachBackHint}
                   />
                 </div>
               )}
@@ -2076,7 +2085,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               projectLiveStatus={projectClassroomLiveStatus}
               renderRolesContent={renderClassroomRoles}
               headerActions={
-                learningChecksEnabled && stage ? (
+                showLearningFeedback && stage ? (
                   <LearningFeedbackLauncher
                     stage={stage}
                     scenes={scenes}
@@ -2085,10 +2094,21 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                       allowGuidedDiscussion ? handleRemediationDiscussion : undefined
                     }
                     onBeforeAnswer={pauseForLearningCheck}
+                    showChecks={learningChecksEnabled}
+                    showTeachBack={showTeachBack}
+                    onRestoreTeachBack={(activity) => {
+                      void (async () => {
+                        if (activity.source?.sceneId) await gatedSceneSwitch(activity.source.sceneId);
+                        setInteractionTab('discussion');
+                        chatAreaRef.current?.attachTeachBackActivity(activity);
+                      })();
+                    }}
                   />
                 ) : undefined
               }
+              tab={interactionTab}
               onTabChange={(tab) => {
+                setInteractionTab(tab);
                 if (tab === 'lecture') chatAreaRef.current?.switchToTab('lecture');
                 if (tab === 'discussion') chatAreaRef.current?.switchToTab('chat');
               }}
@@ -2111,6 +2131,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                   onJumpToAction={(sceneId, actionIndex) => {
                     void handleJumpToAction(sceneId, actionIndex);
                   }}
+                  onEnterLiveConversation={() => engineRef.current?.enterLiveConversation()}
+                  onRevealDiscussionTab={() => setInteractionTab('discussion')}
+                  classroomVisible={workbenchPanel.visible}
+                  canResumeInterruptedLecture={engineRef.current?.hasLectureInterruption() ?? false}
+                  onTeachBackContextChange={setTeachBackHint}
                   onLiveSpeech={(text, agentId, producerSessionId) => {
                     if (!isCurrentChatProducer(producerSessionId)) return;
                     // Capture epoch at call time — discard if scene has changed since

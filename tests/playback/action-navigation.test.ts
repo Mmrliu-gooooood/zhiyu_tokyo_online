@@ -606,4 +606,26 @@ describe('PlaybackEngine action navigation', () => {
     expect(engine.getSnapshot().actionIndex).toBe(0);
     expect(engine.getMode()).toBe('idle');
   });
+
+  it('enters live conversation without sending a forged user message', async () => {
+    const { engine: actionEngine } = createActionEngine();
+    const { player } = createAudioPlayer(async () => true);
+    const onUserInterrupt = vi.fn();
+    const engine = new PlaybackEngine([scene([speech('explanation')])], actionEngine, player, {
+      onUserInterrupt,
+    });
+
+    engine.start();
+    await flushPromises();
+    engine.enterLiveConversation();
+
+    expect(engine.getMode()).toBe('live');
+    expect(engine.hasLectureInterruption()).toBe(true);
+    expect(onUserInterrupt).not.toHaveBeenCalled();
+
+    engine.handleUserInterrupt('Explain this again');
+    expect(onUserInterrupt).toHaveBeenCalledOnce();
+    expect(onUserInterrupt).toHaveBeenCalledWith('Explain this again');
+    engine.stop();
+  });
 });

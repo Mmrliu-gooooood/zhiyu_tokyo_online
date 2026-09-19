@@ -437,7 +437,12 @@ export class PlaybackEngine {
   }
 
   /** User sends a message during playback → interrupt → live mode */
-  handleUserInterrupt(text: string): void {
+  /**
+   * Enter live conversation without sending a user message. Used by teach-back
+   * so starting the activity can save the lecture interrupt point without a
+   * forged chat turn. handleUserInterrupt keeps the original send callback.
+   */
+  enterLiveConversation(): void {
     this.invalidatePlaybackGeneration();
     if (this.mode === 'playing' || this.mode === 'paused') {
       // Save lecture state BEFORE stopping audio — actionIndex was already
@@ -464,6 +469,11 @@ export class PlaybackEngine {
     this.setMode('live');
     this.audioPlayer.stop();
     this.cancelBrowserTTS();
+  }
+
+  /** User sends a message during playback → interrupt → live mode */
+  handleUserInterrupt(text: string): void {
+    this.enterLiveConversation();
     this.callbacks.onUserInterrupt?.(text);
   }
 

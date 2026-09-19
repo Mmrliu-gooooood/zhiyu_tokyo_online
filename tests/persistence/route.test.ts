@@ -534,6 +534,7 @@ describe('embedded persistence route', () => {
       'learningDialogue',
       'quizAttempt',
       'whiteboard',
+      'teachBack',
     ]);
   });
 

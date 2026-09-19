@@ -21,15 +21,24 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   useChatSessions,
   MANUAL_STOP_END_OPTIONS,
+  isOpenLiveSession,
   type EndSessionOptions,
   type SessionCleanupPayload,
   type ChatMessageSendOptions,
 } from './use-chat-sessions';
 import { SessionList } from './session-list';
 import { LectureNotesView } from './lecture-notes-view';
-import { isGuidedLearningEnabled } from '@/lib/learning/feature-flags';
+import { isGuidedLearningEnabled, isTeachBackEnabled } from '@/lib/learning/feature-flags';
 import type { GuidedLearningContext } from '@/lib/learning/guided-contracts';
 import { nanoid } from 'nanoid';
+import {
+  TeachBackActivityCard,
+  TeachBackEntryButton,
+} from '@/components/learning/teach-back/TeachBackActivity';
+import { buildTeachBackSource, selectTeachBackPeers } from '@/lib/learning/teach-back/source';
+import { useAgentRegistry } from '@/lib/orchestration/registry/store';
+import { useSettingsStore } from '@/lib/store/settings';
+import { TEACH_BACK_MAX_EXPLANATIONS } from '@/lib/learning/teach-back/contracts';
 
 interface ChatAreaProps {
   className?: string;
@@ -73,6 +82,11 @@ interface ChatAreaProps {
   currentActionIndex?: number | null;
   canJumpToAction?: (sceneId: string, actionIndex: number) => boolean;
   onJumpToAction?: (sceneId: string, actionIndex: number) => void;
+  onEnterLiveConversation?: () => void;
+  onRevealDiscussionTab?: () => void;
+  classroomVisible?: boolean;
+  canResumeInterruptedLecture?: boolean;
+  onTeachBackContextChange?: (hint: string | undefined) => void;
 }
 
 export interface ChatAreaRef {
@@ -96,6 +110,7 @@ export interface ChatAreaRef {
   pauseActiveLiveBuffer: () => boolean;
   resumeActiveLiveBuffer: () => void;
   switchToTab: (tab: 'lecture' | 'chat') => void;
+  attachTeachBackActivity: (activity: import('@/lib/learning/teach-back/activity').TeachBackProjectedActivity) => void;
 }
 
 const DEFAULT_WIDTH = 340;
@@ -121,7 +136,7 @@ export function GuidedModeToggle({
   return (
     <div
       data-testid="guided-learning-toggle"
-      className="flex min-w-0 shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800"
+      className="flex min-w-0 items-center gap-2"
     >
       <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#356B59] dark:text-[#9FC0B0]" />
       <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-gray-600 dark:text-gray-300">
@@ -176,6 +191,11 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       currentActionIndex,
       canJumpToAction,
       onJumpToAction,
+      onEnterLiveConversation,
+      onRevealDiscussionTab,
+      classroomVisible = true,
+      canResumeInterruptedLecture = false,
+      onTeachBackContextChange,
     },
     ref,
   ) => {
@@ -205,6 +225,13 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       resumeBuffer,
       pauseActiveLiveBuffer,
       resumeActiveLiveBuffer,
+      teachBackView,
+      startTeachBack,
+      restoreTeachBack,
+      retryTeachBack,
+      continueTeachBackRound,
+      attachTeachBackActivity,
+      surfaceTeachBackError,
     } = useChatSessions({
       onLiveSpeech,
       onSpeechProgress,
@@ -216,13 +243,66 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       onStopSession,
       onSegmentSealed,
       shouldHoldAfterReveal,
+      onEnterLiveConversation,
+      classroomVisible,
     });
 
     const [activeTab, setActiveTab] = useState<'lecture' | 'chat'>('lecture');
     const [guidedMode, setGuidedMode] = useState(false);
+    const [teachBackOpen, setTeachBackOpen] = useState(false);
+    const [teachBackTopic, setTeachBackTopic] = useState('');
+    const [teachBackPeerId, setTeachBackPeerId] = useState('');
+    const [teachBackNeedsConfirm, setTeachBackNeedsConfirm] = useState(false);
     const guidedLearningEnabled = isGuidedLearningEnabled();
+    const teachBackEnabled = isTeachBackEnabled();
+    const agents = useAgentRegistry((s) => s.agents);
+    const selectedAgentIds = useSettingsStore((s) => s.selectedAgentIds);
+    const teachBackPeers = useMemo(
+      () =>
+        selectTeachBackPeers(
+          selectedAgentIds
+            .map((id) => agents[id])
+            .filter((agent): agent is NonNullable<typeof agent> => Boolean(agent)),
+        ),
+      [agents, selectedAgentIds],
+    );
     const isDraggingRef = useRef(false);
     const [isDragging, setIsDragging] = useState(false);
+    useEffect(() => {
+      const scene = scenes.find((item) => item.id === currentSceneId);
+      if (scene && !teachBackView.activity?.hasStarted) {
+        setTeachBackTopic((current) => current || scene.title);
+      }
+    }, [currentSceneId, scenes, teachBackView.activity?.hasStarted]);
+
+    useEffect(() => {
+      if (!teachBackPeerId && teachBackPeers[0]) setTeachBackPeerId(teachBackPeers[0].id);
+    }, [teachBackPeerId, teachBackPeers]);
+
+    const teachBackActive = Boolean(
+      teachBackView.activity?.hasStarted && teachBackView.activity.phase !== 'finished',
+    );
+    useEffect(() => {
+      if (!teachBackEnabled || !teachBackActive) {
+        onTeachBackContextChange?.(undefined);
+        return;
+      }
+      if (teachBackView.activity?.logicalPhase === 'summary_ready') {
+        onTeachBackContextChange?.(t('chat.teachBack.inputHintRoundComplete'));
+        return;
+      }
+      const n = Math.min((teachBackView.activity?.explanations.length ?? 0) + 1, TEACH_BACK_MAX_EXPLANATIONS);
+      onTeachBackContextChange?.(
+        t('chat.teachBack.inputHint', { n, max: TEACH_BACK_MAX_EXPLANATIONS }),
+      );
+    }, [
+      onTeachBackContextChange,
+      t,
+      teachBackActive,
+      teachBackEnabled,
+      teachBackView.activity?.explanations.length,
+      teachBackView.activity?.logicalPhase,
+    ]);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     // Derive lecture notes directly from scenes — updates reactively as scenes stream in.
@@ -282,6 +362,9 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
 
     const sendMessageWithMode = useCallback(
       async (content: string, options: ChatMessageSendOptions = {}) => {
+        if (teachBackEnabled && teachBackActive && !options.interactionMode) {
+          return sendMessage(content, { ...options, interactionMode: 'teach_back' });
+        }
         const interactionMode =
           options.interactionMode ?? (guidedLearningEnabled && guidedMode ? 'guided' : 'standard');
         if (interactionMode !== 'guided' || options.learningContext) {
@@ -330,6 +413,8 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
         sendMessage,
         sessions,
         stage,
+        teachBackActive,
+        teachBackEnabled,
       ],
     );
 
@@ -354,6 +439,13 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
       pauseActiveLiveBuffer,
       resumeActiveLiveBuffer,
       switchToTab,
+      attachTeachBackActivity: (activity) => {
+        setTeachBackOpen(true);
+        setTeachBackNeedsConfirm(false);
+        attachTeachBackActivity(activity);
+        switchToTab('chat');
+        onRevealDiscussionTab?.();
+      },
     }));
 
     // Drag-to-resize
@@ -468,15 +560,109 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
 
             {/* Chat Tab */}
             <TabsContent value="chat" className="flex-1 overflow-hidden flex flex-col">
-              <GuidedModeToggle
-                enabled={guidedLearningEnabled}
-                active={guidedMode}
-                disabled={isStreaming}
-                label={t('chat.guided.label')}
-                description={t('chat.guided.description')}
-                onChange={setGuidedMode}
-              />
+              <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+                <div className="min-w-0 flex-1">
+                  <GuidedModeToggle
+                    enabled={guidedLearningEnabled}
+                    active={guidedMode && !teachBackActive}
+                    disabled={isStreaming || teachBackActive}
+                    label={t('chat.guided.label')}
+                    description={
+                      teachBackActive ? t('chat.teachBack.endToSwitch') : t('chat.guided.description')
+                    }
+                    onChange={setGuidedMode}
+                  />
+                </div>
+                <TeachBackEntryButton
+                  enabled={teachBackEnabled}
+                  active={teachBackOpen || Boolean(teachBackActive)}
+                  disabled={isStreaming && !teachBackActive}
+                  onClick={() => {
+                    setTeachBackOpen(true);
+                    switchToTab('chat');
+                    onRevealDiscussionTab?.();
+                  }}
+                />
+              </div>
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 scrollbar-hide">
+                {teachBackOpen || teachBackActive ? (
+                  <TeachBackActivityCard
+                    view={teachBackView}
+                    peers={teachBackPeers}
+                    topic={teachBackTopic}
+                    selectedPeerId={teachBackPeerId}
+                    sceneTitle={
+                      scenes.find((scene) => scene.id === currentSceneId)?.title ??
+                      t('chat.teachBack.currentPage')
+                    }
+                    preparing={teachBackView.ui === 'preparing'}
+                    canResumeLecture={canResumeInterruptedLecture}
+                    needsConfirmReplace={teachBackNeedsConfirm}
+                    onTopicChange={setTeachBackTopic}
+                    onPeerChange={setTeachBackPeerId}
+                    onStart={() => {
+                      void (async () => {
+                        if (!stage || !currentSceneId) return;
+                        const scene = scenes.find((item) => item.id === currentSceneId);
+                        if (!scene) return;
+                        const built = await buildTeachBackSource({
+                          stageId: stage.id,
+                          courseTitle: stage.name,
+                          scene,
+                        });
+                        if (!built.ok) {
+                          surfaceTeachBackError(built.code);
+                          return;
+                        }
+                        const peer = teachBackPeers.find((item) => item.id === teachBackPeerId);
+                        if (!peer) {
+                          surfaceTeachBackError('no_peer');
+                          return;
+                        }
+                        const replaceOpenQa = sessions.some(
+                          (session) =>
+                            isOpenLiveSession(session) &&
+                            session.config.interactionMode !== 'teach_back',
+                        );
+                        if (replaceOpenQa && !teachBackNeedsConfirm) {
+                          setTeachBackNeedsConfirm(true);
+                          return;
+                        }
+                        setTeachBackNeedsConfirm(false);
+                        switchToTab('chat');
+                        onRevealDiscussionTab?.();
+                        await startTeachBack({
+                          source: built.source,
+                          topic: teachBackTopic || scene.title,
+                          peer,
+                          replaceOpenQa,
+                        });
+                      })();
+                    }}
+                    onCancel={() => {
+                      setTeachBackOpen(false);
+                      setTeachBackNeedsConfirm(false);
+                    }}
+                    onRetry={() => {
+                      void retryTeachBack();
+                    }}
+                    onRestore={() => {
+                      switchToTab('chat');
+                      onRevealDiscussionTab?.();
+                      void restoreTeachBack();
+                    }}
+                    onAskAgain={() => {
+                      switchToTab('chat');
+                      onRevealDiscussionTab?.();
+                      void continueTeachBackRound();
+                    }}
+                    onFinish={() => {
+                      void handleStopActiveSession();
+                      setTeachBackOpen(false);
+                      setTeachBackNeedsConfirm(false);
+                    }}
+                  />
+                ) : null}
                 {chatSessions.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-50">
                     <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E7F1EC] text-[#356B59]/55 dark:bg-[#356B59]/20 dark:text-[#9FC0B0]">

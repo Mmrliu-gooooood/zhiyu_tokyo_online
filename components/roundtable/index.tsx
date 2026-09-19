@@ -112,6 +112,8 @@ interface RoundtableProps {
   readonly onClearElementReference?: () => void;
   /** Hide only the in-flow toolbar when an outer classroom bar owns it. */
   readonly hideEmbeddedToolbar?: boolean;
+  readonly inputPlaceholder?: string;
+  readonly contextHint?: string;
 }
 
 // This must stay in sync with the non-presentation textarea's max-h-[100px] class.
@@ -210,6 +212,8 @@ export function Roundtable({
   elementReferencePill,
   onClearElementReference,
   hideEmbeddedToolbar = false,
+  inputPlaceholder,
+  contextHint,
 }: RoundtableProps) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
@@ -824,8 +828,11 @@ export function Roundtable({
                 className="w-[min(480px,calc(100vw-3rem))] pointer-events-auto"
               >
                 <div className="flex items-center gap-3 bg-white/70 dark:bg-black/60 backdrop-blur-xl rounded-full px-4 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-gray-200/60 dark:border-white/10">
-                  <div className="flex-1 min-w-0 flex items-center">
-                    <textarea
+                    <div className="flex-1 min-w-0 flex items-center">
+                      {contextHint ? (
+                        <span className="sr-only">{contextHint}</span>
+                      ) : null}
+                      <textarea
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onBeforeInput={() => onUserInputActivity?.('text_input')}
@@ -836,7 +843,7 @@ export function Roundtable({
                           handleSendMessage();
                         }
                       }}
-                      placeholder={t('roundtable.inputPlaceholder')}
+                      placeholder={inputPlaceholder ?? t('roundtable.inputPlaceholder')}
                       autoFocus
                       rows={1}
                       className="w-full resize-none bg-transparent border-none focus:ring-0 focus:outline-none outline-none shadow-none ring-0 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 py-0 leading-[40px] max-h-[80px]"
@@ -1355,6 +1362,9 @@ export function Roundtable({
                     className="relative w-fit max-w-[85%] sm:max-w-[65%] min-w-[200px] sm:min-w-[300px] bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-2 pr-2 rounded-2xl rounded-br-none shadow-2xl border border-[#C9DED4] dark:border-[#356B59]/60 flex items-end gap-2 ring-1 ring-[#E7F1EC] dark:ring-[#356B59]/30"
                   >
                     <div className="pl-4 flex-1 py-1 min-w-0">
+                      {contextHint ? (
+                        <p className="mb-1 text-[10px] text-[#356B59] dark:text-[#9FC0B0]">{contextHint}</p>
+                      ) : null}
                       <textarea
                         ref={nonPresentationInputRef}
                         value={inputValue}
@@ -1367,7 +1377,7 @@ export function Roundtable({
                             handleSendMessage();
                           }
                         }}
-                        placeholder={t('roundtable.inputPlaceholder')}
+                        placeholder={inputPlaceholder ?? t('roundtable.inputPlaceholder')}
                         autoFocus
                         rows={1}
                         className="w-full resize-none overflow-y-auto bg-transparent border-none focus:ring-0 focus:outline-none outline-none shadow-none ring-0 text-gray-700 dark:text-gray-200 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 min-h-[40px] max-h-[100px]"

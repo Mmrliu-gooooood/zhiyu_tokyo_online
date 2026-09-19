@@ -15,7 +15,8 @@
 - [技术调研](research/)：部署、数据库与认证等选型依据；结论不自动代表已经实施。
 - [智域学生端参赛定位访谈](research/zhiyu-student-competition-interview-2026-09-14.md)：学生端范围、代码观察和待讨论的差异化方案；建议不等于已批准实施。
 - [智域学生端最高 / 核心改进实施方案](plans/2026-09-14-zhiyu-student-core-implementation.md)：评分、可控互动、学习反馈与补学的原规格；用户已报告完成，当前代码已有对应实现，后续验证见[学生端回归记录](investigations/2026-09-14-student-regression-fixes.md)。原方案的状态描述不替代当前代码。
-- [教会学伴：反向教学实施方案](plans/2026-09-14-zhiyu-teach-back-implementation.md)：待实施；基于实际课堂、聊天、播放、学习记录与生成链路审查，规定独立领域模块、三次以内学生解释、UI 接入、结束续讲和普通/Pro 生成保护。本次仅交付文档。
+- [教会学伴：反向教学实施方案](plans/2026-09-14-zhiyu-teach-back-implementation.md)：已实施独立领域模块与课堂接入；默认开关关闭。普通前台、后台和 Pro 生成保持原链路。验证细节见实施报告。
+- [Supabase 邮箱账号与用户数据隔离实施方案](plans/2026-09-19-zhiyu-supabase-accounts-implementation.md)：GitHub 认证方案调研、现有代码审查、全链路数据隔离、预置测试 admin、迁移与上线验收；供新对话实施，当前尚未接入账号。
 
 ## 模块内文档
 

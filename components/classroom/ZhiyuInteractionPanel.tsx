@@ -20,6 +20,7 @@ export type ZhiyuInteractionPanelProps = {
   readonly rolesContent: ReactNode;
   readonly liveStatus: ZhiyuClassroomLiveStatus;
   readonly headerActions?: ReactNode;
+  readonly tab?: ZhiyuInteractionTab;
   readonly onTabChange?: (tab: ZhiyuInteractionTab) => void;
 };
 
@@ -36,14 +37,16 @@ export function ZhiyuInteractionPanel({
   rolesContent,
   liveStatus,
   headerActions,
+  tab,
   onTabChange,
 }: ZhiyuInteractionPanelProps) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<ZhiyuInteractionTab>('lecture');
+  const [internalTab, setInternalTab] = useState<ZhiyuInteractionTab>('lecture');
+  const activeTab = tab ?? internalTab;
 
-  const selectTab = (tab: ZhiyuInteractionTab) => {
-    setActiveTab(tab);
-    onTabChange?.(tab);
+  const selectTab = (next: ZhiyuInteractionTab) => {
+    if (tab === undefined) setInternalTab(next);
+    onTabChange?.(next);
   };
 
   const tabs: readonly ZhiyuInteractionTab[] = ['lecture', 'discussion', 'roles'];

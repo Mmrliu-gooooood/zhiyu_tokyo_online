@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { createLearningContentSnapshot } from '@/lib/learning/content-snapshot';
 import type {
   LearningCheckPayloadV1,
@@ -35,7 +36,8 @@ import {
 } from '@/lib/learning/runtime';
 import { useStageStore } from '@/lib/store';
 import type { Scene, Stage } from '@/lib/types/stage';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { TeachBackHistory } from '@/components/learning/teach-back/TeachBackHistory';
+import type { TeachBackProjectedActivity } from '@/lib/learning/teach-back/activity';
 
 interface LearningCheckApiBody {
   success?: unknown;
@@ -262,6 +264,9 @@ export interface LearningFeedbackDialogProps {
   onReviewScene?: (sceneId: string) => Promise<unknown> | unknown;
   onDiscussQuestion?: (context: RemediationContext, prompt: string) => Promise<unknown> | unknown;
   onBeforeAnswer?: () => Promise<unknown> | unknown;
+  showChecks?: boolean;
+  showTeachBack?: boolean;
+  onRestoreTeachBack?: (activity: TeachBackProjectedActivity) => void;
 }
 
 export function LearningFeedbackDialog({
@@ -272,6 +277,9 @@ export function LearningFeedbackDialog({
   onReviewScene,
   onDiscussQuestion,
   onBeforeAnswer,
+  showChecks = true,
+  showTeachBack = false,
+  onRestoreTeachBack,
 }: LearningFeedbackDialogProps) {
   const { locale, t } = useI18n();
   const [snapshot, setSnapshot] = useState<LearningContentSnapshot>();
@@ -288,6 +296,7 @@ export function LearningFeedbackDialog({
   refreshScope.current = { open, stageId: stage.id };
 
   const refresh = useCallback(async () => {
+    if (!showChecks) return;
     const epoch = ++requestEpoch.current;
     const requestStageId = stage.id;
     const nextSnapshot = await createLearningContentSnapshot({
@@ -311,7 +320,7 @@ export function LearningFeedbackDialog({
     setStoredAttempts(attempts);
     setReport(projectLearningFeedback(attempts, nextSnapshot.contentRevision));
     setActive(selectResumableLearningCheck(attempts));
-  }, [scenes, stage.id, stage.name]);
+  }, [scenes, showChecks, stage.id, stage.name]);
 
   useEffect(() => {
     if (!open) return;
@@ -445,7 +454,21 @@ export function LearningFeedbackDialog({
           <DialogTitle>{t('learningFeedback.title')}</DialogTitle>
           <DialogDescription>{t('learningFeedback.description')}</DialogDescription>
         </DialogHeader>
-        {loading ? (
+        {showTeachBack ? (
+          <TeachBackHistory
+            stageId={stage.id}
+            enabled={showTeachBack}
+            onRestore={
+              onRestoreTeachBack
+                ? (activity) => {
+                    onOpenChange(false);
+                    onRestoreTeachBack(activity);
+                  }
+                : undefined
+            }
+          />
+        ) : null}
+        {loading && showChecks ? (
           <div className="flex min-h-32 items-center justify-center" aria-live="polite">
             <Loader2 className="animate-spin" />
             <span className="sr-only">{t('common.loading')}</span>
@@ -466,10 +489,10 @@ export function LearningFeedbackDialog({
                 {error}
               </p>
             ) : null}
-            {report?.status === 'none' ? (
+            {showChecks && report?.status === 'none' ? (
               <p className="text-sm text-muted-foreground">{t('learningFeedback.none')}</p>
             ) : null}
-            {report && report.status !== 'none' ? (
+            {showChecks && report && report.status !== 'none' ? (
               <div className="space-y-3">
                 {[...report.attempts].reverse().map((attempt) => (
                   <article key={attempt.attemptId} className="rounded-xl border border-border p-4">
@@ -689,7 +712,9 @@ export function LearningFeedbackDialog({
                 ))}
               </div>
             ) : null}
-            <Button onClick={() => void start()}>{t('learningFeedback.start')}</Button>
+            {showChecks ? (
+              <Button onClick={() => void start()}>{t('learningFeedback.start')}</Button>
+            ) : null}
           </div>
         )}
       </DialogContent>

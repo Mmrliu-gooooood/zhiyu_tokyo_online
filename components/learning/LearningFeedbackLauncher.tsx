@@ -20,6 +20,9 @@ export interface LearningFeedbackLauncherProps {
   onReviewScene?: (sceneId: string) => Promise<unknown> | unknown;
   onDiscussQuestion?: (context: RemediationContext, prompt: string) => Promise<unknown> | unknown;
   onBeforeAnswer?: () => Promise<unknown> | unknown;
+  showChecks?: boolean;
+  showTeachBack?: boolean;
+  onRestoreTeachBack?: (activity: import('@/lib/learning/teach-back/activity').TeachBackProjectedActivity) => void;
 }
 
 export function LearningFeedbackLauncher({
@@ -28,6 +31,9 @@ export function LearningFeedbackLauncher({
   onReviewScene,
   onDiscussQuestion,
   onBeforeAnswer,
+  showChecks = true,
+  showTeachBack = false,
+  onRestoreTeachBack,
 }: LearningFeedbackLauncherProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -54,6 +60,9 @@ export function LearningFeedbackLauncher({
           onReviewScene={onReviewScene}
           onDiscussQuestion={onDiscussQuestion}
           onBeforeAnswer={onBeforeAnswer}
+          showChecks={showChecks}
+          showTeachBack={showTeachBack}
+          onRestoreTeachBack={onRestoreTeachBack}
         />
       ) : null}
     </>

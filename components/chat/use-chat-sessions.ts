@@ -14,6 +14,7 @@ import {
   type StatelessEvent,
   type SlideElementReference,
 } from '@/lib/types/chat';
+import type { InteractionMode } from '@/lib/chat/interaction-mode';
 import type {
   GuidedInteractionMode,
   GuidedLearningContext,
@@ -45,7 +46,17 @@ import {
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 import { isPiChatEnabled } from '@/lib/config/feature-flags';
-import { isGuidedLearningEnabled } from '@/lib/learning/feature-flags';
+import { isGuidedLearningEnabled, isTeachBackEnabled } from '@/lib/learning/feature-flags';
+import {
+  TeachBackSession,
+  shouldRouteToTeachBack,
+  shouldSkipAgentLoopForTeachBack,
+  type TeachBackHost,
+  type TeachBackView,
+} from '@/lib/chat/teach-back-session';
+import type { TeachBackErrorCode, TeachBackPeer, TeachBackSource } from '@/lib/learning/teach-back/contracts';
+import { buildTeachBackSource } from '@/lib/learning/teach-back/source';
+import type { TeachBackProjectedActivity } from '@/lib/learning/teach-back/activity';
 import type { CleanupSource } from '@/lib/playback/auto-resume';
 import { nanoid } from 'nanoid';
 import type { BaiduSubSources, WebSearchProviderId } from '@/lib/web-search/types';
@@ -163,6 +174,8 @@ interface UseChatSessionsOptions {
   ) => void;
   /** When provided and returns true, StreamBuffer holds on the current text item after reveal. */
   shouldHoldAfterReveal?: () => { holding: boolean; segmentDone: number } | boolean;
+  onEnterLiveConversation?: () => void;
+  classroomVisible?: boolean;
 }
 
 export type ChatRequestTemplate = {
@@ -196,14 +209,14 @@ export type ChatRequestTemplate = {
 export interface ChatMessageSendOptions {
   elementReference?: SlideElementReference;
   onResponseAccepted?: (response: Response) => void;
-  interactionMode?: GuidedInteractionMode;
+  interactionMode?: InteractionMode;
   learningContext?: GuidedLearningContext;
 }
 
 export function resolveInteractionModeForTurn(
   session: Pick<ChatSession, 'config'> | undefined,
-  requested: GuidedInteractionMode | undefined,
-): { interactionMode: GuidedInteractionMode; startNewSession: boolean } {
+  requested: InteractionMode | undefined,
+): { interactionMode: InteractionMode; startNewSession: boolean } {
   const current = session?.config.interactionMode ?? 'standard';
   const interactionMode = requested ?? current;
   return {
@@ -642,6 +655,8 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
   const onStopSessionRef = useRef(options.onStopSession);
   const onSegmentSealedRef = useRef(options.onSegmentSealed);
   const shouldHoldAfterRevealRef = useRef(options.shouldHoldAfterReveal);
+  const onEnterLiveConversationRef = useRef(options.onEnterLiveConversation);
+  const classroomVisibleRef = useRef(options.classroomVisible ?? true);
   useEffect(() => {
     onLiveSpeechRef.current = options.onLiveSpeech;
     onSpeechProgressRef.current = options.onSpeechProgress;
@@ -653,6 +668,8 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     onStopSessionRef.current = options.onStopSession;
     onSegmentSealedRef.current = options.onSegmentSealed;
     shouldHoldAfterRevealRef.current = options.shouldHoldAfterReveal;
+    onEnterLiveConversationRef.current = options.onEnterLiveConversation;
+    classroomVisibleRef.current = options.classroomVisible ?? true;
   }, [
     options.onLiveSpeech,
     options.onSpeechProgress,
@@ -664,6 +681,8 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     options.onStopSession,
     options.onSegmentSealed,
     options.shouldHoldAfterReveal,
+    options.onEnterLiveConversation,
+    options.classroomVisible,
   ]);
   const { t } = useI18n();
 
@@ -682,6 +701,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [expandedSessionIds, setExpandedSessionIds] = useState<Set<string>>(new Set());
   const [isStreaming, setIsStreaming] = useState(false);
+  const [teachBackView, setTeachBackView] = useState<TeachBackView>({ activity: null, ui: 'idle' });
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingSessionIdRef = useRef<string | null>(null);
   const activeGuidedProducerRef = useRef<
@@ -699,6 +719,10 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
   const sessionsRef = useRef<ChatSession[]>(sessions);
   const previousLiveSessionRef = useRef<PreviousLiveSessionContext | undefined>(undefined);
   const piSessionBoundariesRef = useRef<Map<string, PiSessionBoundaryContext>>(new Map());
+  const teachBackHostRef = useRef<TeachBackHost>({} as TeachBackHost);
+  const teachBackRef = useRef<TeachBackSession | null>(null);
+  const teachBackViewEpochRef = useRef(0);
+  const continueTeachBackRoundRef = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     sessionsRef.current = sessions;
   }, [sessions]);
@@ -794,6 +818,21 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       retireActiveGuidedRequest();
     }
   }, [currentSceneId, retireActiveGuidedRequest, stageId, stageScenes]);
+
+  useEffect(() => {
+    teachBackViewEpochRef.current += 1;
+    const producer = teachBackRef.current?.getProducer();
+    if (producer && (producer.sceneId !== currentSceneId || producer.stageId !== stageId)) {
+      void teachBackRef.current?.suspend('scene_switch');
+    }
+  }, [currentSceneId, stageId]);
+
+  useEffect(() => {
+    if (options.classroomVisible === false) {
+      teachBackRef.current?.abortActiveRequest();
+      void teachBackRef.current?.suspend('hidden');
+    }
+  }, [options.classroomVisible]);
 
   // Abort active stream and destroy buffers on unmount
   useEffect(() => {
@@ -1367,6 +1406,85 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     [createBufferForSession],
   );
 
+  if (!teachBackRef.current) {
+    teachBackRef.current = new TeachBackSession(teachBackHostRef.current);
+  }
+  teachBackHostRef.current.isCurrent = (producer) => {
+    if (!isTeachBackEnabled()) return false;
+    if (!classroomVisibleRef.current) return false;
+    const current = useStageStore.getState();
+    return (
+      current.stage?.id === producer.stageId &&
+      current.currentSceneId === producer.sceneId &&
+      producer.viewEpoch === teachBackViewEpochRef.current
+    );
+  };
+  teachBackHostRef.current.enterLiveConversation = () => onEnterLiveConversationRef.current?.();
+  teachBackHostRef.current.retireRequestsAndAudio = async () => {
+    retireActiveLiveRequest();
+    await pendingRetirementRef.current;
+  };
+  teachBackHostRef.current.presentEvents = async (events, signal) => {
+    const sessionId =
+      streamingSessionIdRef.current ??
+      teachBackRef.current?.getProducer()?.sessionId ??
+      sessionsRef.current.find(
+        (session) => session.config.interactionMode === 'teach_back' && session.status === 'active',
+      )?.id;
+    if (!sessionId) return;
+    const existing = abortControllerRef.current;
+    const controller = existing && !existing.signal.aborted ? existing : new AbortController();
+    abortControllerRef.current = controller;
+    streamingSessionIdRef.current = sessionId;
+    setIsStreaming(true);
+    const consumer = createStatelessStreamConsumer(sessionId, controller, 'qa');
+    try {
+      for (const event of events) {
+        if (signal.aborted || controller.signal.aborted) return;
+        consumer.onEvent(event);
+      }
+      await consumer.onIterationEnd();
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        streamingSessionIdRef.current = null;
+        setIsStreaming(false);
+      }
+    }
+  };
+  teachBackHostRef.current.readCurrentSource = async () => {
+    const current = useStageStore.getState();
+    const scene = current.scenes.find((item) => item.id === current.currentSceneId);
+    if (!current.stage || !scene) return { ok: false as const, code: 'invalid_request' as const };
+    return buildTeachBackSource({
+      stageId: current.stage.id,
+      courseTitle: current.stage.name,
+      scene,
+    });
+  };
+  teachBackHostRef.current.fetchTeachBack = (body, signal) =>
+    fetch('/api/learning/teach-back', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+  teachBackHostRef.current.getModelConfig = () => {
+    const model = getCurrentModelConfig();
+    return {
+      apiKey: model.apiKey,
+      baseUrl: model.baseUrl,
+      model: model.source === 'platform' ? undefined : model.modelString,
+      providerType: model.providerType,
+      modelSource: model.source,
+      platformDefaultId: model.source === 'platform' ? model.defaultId : undefined,
+      thinkingConfig: model.thinkingConfig,
+    };
+  };
+  teachBackHostRef.current.now = () => new Date().toISOString();
+  teachBackHostRef.current.mintId = () => nanoid();
+  teachBackHostRef.current.onView = (view) => setTeachBackView(view);
+
   /**
    * Frontend-driven agent loop. Delegates to the shared runAgentLoop
    * from lib/chat/agent-loop.ts, wiring StreamBuffer for UI pacing.
@@ -1669,11 +1787,17 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
    * Create a new chat session
    */
   const createSession = useCallback(
-    async (type: SessionType, title: string): Promise<string> => {
+    async (
+      type: SessionType,
+      title: string,
+      options: { skipPiBoundary?: boolean; config?: ChatSession['config'] } = {},
+    ): Promise<string> => {
       const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const now = Date.now();
 
-      if (type === 'qa' || type === 'discussion') registerFirstPiRequest(sessionId);
+      if ((type === 'qa' || type === 'discussion') && !options.skipPiBoundary) {
+        registerFirstPiRequest(sessionId);
+      }
       const newSession: ChatSession = {
         id: sessionId,
         type,
@@ -1681,8 +1805,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
         status: 'active',
         messages: [],
         config: {
-          agentIds: ['default-1'],
-          defaultAgentId: 'default-1',
+          agentIds: options.config?.agentIds ?? ['default-1'],
+          defaultAgentId: options.config?.defaultAgentId ?? options.config?.agentIds?.[0] ?? 'default-1',
+          ...options.config,
         },
         toolCalls: [],
         pendingToolCalls: [],
@@ -1713,6 +1838,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       livePausedRef.current = false;
 
       const session = sessionsRef.current.find((s) => s.id === sessionId);
+      if (session?.config.interactionMode === 'teach_back') {
+        teachBackRef.current?.abortActiveRequest();
+      }
       const isLiveSession = session && (session.type === 'qa' || session.type === 'discussion');
       const wasStreaming = !!(
         abortControllerRef.current && streamingSessionIdRef.current === sessionId
@@ -1729,6 +1857,13 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
         );
       }
       await pendingRetirementRef.current;
+      if (session?.config.interactionMode === 'teach_back') {
+        if (options.source === 'scene_switch') {
+          await teachBackRef.current?.suspend('scene_switch');
+        } else if (options.source === 'manual_stop' || options.source === undefined) {
+          await teachBackRef.current?.finish('manual_stop');
+        }
+      }
       piSessionBoundariesRef.current.delete(sessionId);
       if (isLiveSession && session) {
         previousLiveSessionRef.current = createPreviousLiveSessionContext(
@@ -2027,6 +2162,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
   const resumeActiveSession = useCallback(async (): Promise<void> => {
     const active = sessionsRef.current.find(isOpenLiveSession);
     if (active) {
+      if (shouldSkipAgentLoopForTeachBack(active.config.interactionMode)) {
+        return;
+      }
       await resumeSession(active.id);
     }
   }, [resumeSession]);
@@ -2095,6 +2233,69 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       // A completed session should NOT be reused — start a fresh one instead.
       const activeSession = sessionsRef.current.find((s) => s.id === sessionId);
       const interaction = resolveInteractionModeForTurn(activeSession, options.interactionMode);
+      if (
+        isTeachBackEnabled() &&
+        shouldRouteToTeachBack(interaction.interactionMode, activeSession?.config.interactionMode)
+      ) {
+        const producer = teachBackRef.current?.getProducer();
+        const view = teachBackRef.current?.getView();
+        const phase = view?.activity?.logicalPhase;
+        if (
+          view?.ui === 'preparing' ||
+          view?.ui === 'submitting' ||
+          view?.ui === 'saving' ||
+          view?.ui === 'retrying' ||
+          phase === 'finished' ||
+          view?.ui === 'paused'
+        ) {
+          return;
+        }
+        if (phase === 'summary_ready') {
+          await continueTeachBackRoundRef.current?.();
+          return;
+        }
+        if (!producer || !sessionId) {
+          return;
+        }
+        const now = Date.now();
+        const userMessage: UIMessage<ChatMessageMetadata> = {
+          id: `user-${now}`,
+          role: 'user',
+          parts: [{ type: 'text', text: content }],
+          metadata: {
+            senderName: t('common.you'),
+            senderAvatar: USER_AVATAR,
+            originalRole: 'user',
+            createdAt: now,
+          },
+        };
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  messages: [...session.messages, userMessage],
+                  status: 'active',
+                  updatedAt: nextChatUpdatedAt(session, now),
+                }
+              : session,
+          ),
+        );
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        streamingSessionIdRef.current = sessionId;
+        setIsStreaming(true);
+        try {
+          await teachBackRef.current?.submitExplanation({ text: content, producer });
+        } finally {
+          if (abortControllerRef.current === controller) {
+            abortControllerRef.current = null;
+            streamingSessionIdRef.current = null;
+            setIsStreaming(false);
+          }
+        }
+        return;
+      }
       const needNewSession =
         !sessionId ||
         activeSession?.type === 'lecture' ||
@@ -2606,12 +2807,129 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     log.info('[ChatArea] Buffer-resumed discussion:', active.id);
   }, []);
 
+  const startTeachBack = useCallback(
+    async (input: {
+      source: TeachBackSource;
+      topic: string;
+      peer: TeachBackPeer;
+      replaceOpenQa: boolean;
+    }) => {
+      if (!isTeachBackEnabled()) return;
+      const open = sessionsRef.current.filter(isOpenLiveSession);
+      for (const session of open) {
+        await endSession(session.id, session.config.interactionMode === 'teach_back' ? { source: 'manual_stop' } : {});
+      }
+      const activityId = `tb-${nanoid()}`;
+      const sessionId = await createSession('qa', input.topic || 'Teach-back', {
+        skipPiBoundary: true,
+        config: {
+          agentIds: [input.peer.id],
+          defaultAgentId: input.peer.id,
+          interactionMode: 'teach_back',
+          teachBackActivityId: activityId,
+        },
+      });
+      setIsStreaming(true);
+      try {
+        await teachBackRef.current?.start({
+          activityId,
+          sessionId,
+          source: input.source,
+          topic: input.topic,
+          peer: input.peer,
+          viewEpoch: teachBackViewEpochRef.current,
+          replaceOpenQa: input.replaceOpenQa,
+        });
+      } finally {
+        if (!abortControllerRef.current) setIsStreaming(false);
+      }
+    },
+    [createSession, endSession],
+  );
+
+  const continueTeachBackRound = useCallback(async () => {
+    if (!isTeachBackEnabled()) return;
+    const activity = teachBackRef.current?.getView().activity;
+    if (!activity?.source || !activity.plan) return;
+    if (activity.logicalPhase !== 'summary_ready') return;
+    await startTeachBack({
+      source: activity.source,
+      topic: activity.topic || activity.plan.topic,
+      peer: activity.plan.peer,
+      replaceOpenQa: false,
+    });
+  }, [startTeachBack]);
+  continueTeachBackRoundRef.current = continueTeachBackRound;
+
+  const restoreTeachBack = useCallback(async () => {
+    const producer = teachBackRef.current?.getProducer();
+    const activity = teachBackRef.current?.getView().activity;
+    if (!producer || !activity?.source) return;
+    let sessionId = sessionsRef.current.find(
+      (session) => session.config.teachBackActivityId === producer.activityId,
+    )?.id;
+    if (!sessionId) {
+      sessionId = await createSession('qa', activity.topic || 'Teach-back', {
+        skipPiBoundary: true,
+        config: {
+          agentIds: activity.plan ? [activity.plan.peer.id] : ['default-1'],
+          defaultAgentId: activity.plan?.peer.id,
+          interactionMode: 'teach_back',
+          teachBackActivityId: producer.activityId,
+        },
+      });
+    }
+    const nextProducer = { ...producer, sessionId, viewEpoch: teachBackViewEpochRef.current };
+    onEnterLiveConversationRef.current?.();
+    if (activity.logicalPhase === 'evaluation_pending' && activity.pendingTurnId) {
+      await teachBackRef.current?.retryEvaluation(nextProducer, activity.pendingTurnId);
+      return;
+    }
+    await teachBackRef.current?.restore(nextProducer, true);
+  }, [createSession]);
+
+  const retryTeachBack = useCallback(async () => {
+    const producer = teachBackRef.current?.getProducer();
+    const activity = teachBackRef.current?.getView().activity;
+    if (!producer) return;
+    if (teachBackRef.current?.getView().errorCode === 'save_failed') {
+      await teachBackRef.current.retrySave(producer);
+      return;
+    }
+    if (activity?.pendingTurnId) {
+      await teachBackRef.current?.retryEvaluation(producer, activity.pendingTurnId);
+    }
+  }, []);
+
+  const attachTeachBackActivity = useCallback((activity: TeachBackProjectedActivity) => {
+    if (!activity.source) return;
+    const sessionId =
+      sessionsRef.current.find((session) => session.config.teachBackActivityId === activity.activityId)
+        ?.id ?? '';
+    teachBackRef.current?.attach(
+      {
+        activityId: activity.activityId,
+        sessionId,
+        stageId: activity.source.stageId,
+        sceneId: activity.source.sceneId,
+        sourceRevision: activity.source.sourceRevision,
+        viewEpoch: teachBackViewEpochRef.current,
+      },
+      activity,
+    );
+  }, []);
+
+  const surfaceTeachBackError = useCallback((code: TeachBackErrorCode) => {
+    teachBackRef.current?.surfaceError(code);
+  }, []);
+
   return {
     sessions,
     activeSessionId,
     activeSessionType,
     expandedSessionIds,
     isStreaming,
+    teachBackView,
     createSession,
     endSession,
     endActiveSession,
@@ -2630,5 +2948,11 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     resumeBuffer,
     pauseActiveLiveBuffer,
     resumeActiveLiveBuffer,
+    startTeachBack,
+    continueTeachBackRound,
+    restoreTeachBack,
+    retryTeachBack,
+    attachTeachBackActivity,
+    surfaceTeachBackError,
   };
 }

@@ -12,13 +12,21 @@ export function isGuidedLearningEnabled(): boolean {
   return enabled(process.env.NEXT_PUBLIC_GUIDED_LEARNING_ENABLED);
 }
 
+/** Independent gate for reverse-teaching / teach-back practice. */
+export function isTeachBackEnabled(): boolean {
+  return enabled(process.env.NEXT_PUBLIC_TEACH_BACK_ENABLED);
+}
+
 export function getLearningUiCapabilities(
   learningChecksEnabled = isLearningChecksEnabled(),
   guidedLearningEnabled = isGuidedLearningEnabled(),
+  teachBackEnabled = isTeachBackEnabled(),
 ) {
   return {
     showChecks: learningChecksEnabled,
     showQuizRemediation: learningChecksEnabled,
     allowGuidedDiscussion: learningChecksEnabled && guidedLearningEnabled,
+    showTeachBack: teachBackEnabled,
+    showLearningFeedback: learningChecksEnabled || teachBackEnabled,
   } as const;
 }

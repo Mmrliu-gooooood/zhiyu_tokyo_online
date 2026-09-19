@@ -5,6 +5,7 @@ import { whiteboardRuntimePayloadValidator } from '@/lib/whiteboard/runtime/vali
 import { validateQuizAttemptPayloadV2 } from '@/lib/quiz/attempt-schema';
 import { learningCheckRuntimePayloadValidator } from '@/lib/learning/contracts';
 import { learningDialogueRuntimePayloadValidator } from '@/lib/learning/guided-runtime';
+import { teachBackRuntimePayloadValidator } from '@/lib/learning/teach-back/contracts';
 
 const chat: RuntimePayloadValidator = (payload) =>
   isChatMessageSkeleton(payload)
@@ -53,4 +54,5 @@ export const APP_RUNTIME_PAYLOAD_VALIDATORS = Object.freeze({
   learningDialogue: learningDialogueRuntimePayloadValidator,
   quizAttempt,
   whiteboard: whiteboardRuntimePayloadValidator,
+  teachBack: teachBackRuntimePayloadValidator,
 }) satisfies Readonly<Record<string, RuntimePayloadValidator>>;

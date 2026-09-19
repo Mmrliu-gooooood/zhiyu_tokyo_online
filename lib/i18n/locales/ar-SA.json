@@ -73,7 +73,19 @@
     "recommendationReviewSource": "Review the verified source and scoring basis before trying a new question.",
     "remediationForQuestion": "Follow-up for: {{question}}",
     "originalAnswer": "Original answer",
-    "followUpAnswer": "Follow-up answer"
+    "followUpAnswer": "Follow-up answer",
+    "teachBack": {
+      "title": "Teach-the-companion records",
+      "empty": "No teach-the-companion practice yet. Failed preparation is not counted as a result.",
+      "expand": "Expand",
+      "hide": "Hide",
+      "phase": {
+        "awaiting_explanation": "Waiting for an explanation",
+        "evaluation_pending": "Feedback pending",
+        "summary_ready": "Result ready",
+        "finished": "Finished"
+      }
+    }
   },
   "common": {
     "you": "أنت",
@@ -249,6 +261,63 @@
       "qa": "أسئلة",
       "discussion": "نقاش",
       "lecture": "محاضرة"
+    },
+    "teachBack": {
+      "label": "Teach the companion",
+      "description": "You explain; the companion asks one targeted question at a time, up to three explanations",
+      "readyTitle": "Ready to start",
+      "readyHint": "You explain. The companion asks one question at a time, for at most three explanations.",
+      "topic": "Topic",
+      "peer": "Companion",
+      "noPeer": "Enable an existing companion first (do not use the teacher).",
+      "start": "Start",
+      "cancel": "Cancel",
+      "confirmReplace": "Starting will end the current Q&A.",
+      "confirmReplaceStart": "End the current Q&A and start",
+      "preparing": "The companion is preparing a question…",
+      "evaluating": "Organizing feedback for this explanation…",
+      "waiting": "Teach the companion · explanation {{n}}/{{max}}",
+      "inputHint": "Teach the companion · explanation {{n}}/{{max}}. Explain in your own words; an example helps.",
+      "paused": "The last practice is paused",
+      "pausedHint": "Topic “{{topic}}” already has {{n}} explanation(s). It will not speak until you restore it.",
+      "restore": "Resume practice",
+      "viewResult": "View result",
+      "retry": "Retry",
+      "retryFeedback": "Continue generating this feedback",
+      "askAgain": "Ask again",
+      "roundCompleteHint": "This round is over; the companion will not ask another question. Ask again to start another round of three.",
+      "inputHintRoundComplete": "This round is over. Ask again to start another round of three explanations.",
+      "end": "End practice",
+      "endAndResume": "End and continue the lecture",
+      "returnToClass": "Return to class",
+      "endToSwitch": "End teach-the-companion practice before switching to checked tutoring",
+      "yourExplanation": "Your explanation",
+      "summaryTitle": "Explanation recap",
+      "noFeedbackYet": "This practice does not have feedback yet.",
+      "basedOn": "Based on",
+      "currentPage": "Current page",
+      "status": {
+        "explained": "Explained",
+        "needs_supplement": "Needs more",
+        "not_addressed": "Not addressed"
+      },
+      "errors": {
+        "feature_disabled": "Teach-the-companion is not enabled.",
+        "invalid_request": "This request is invalid.",
+        "insufficient_source": "This page has too little readable course evidence. Choose a lecture page.",
+        "quiz_in_progress": "An in-progress quiz cannot expose its answers here. Choose a lecture page.",
+        "model_unavailable": "The companion could not reply. Your saved explanation is kept.",
+        "timeout": "The companion timed out. Your saved explanation is kept.",
+        "invalid_output": "The companion output could not be used. Your saved explanation is kept.",
+        "source_stale": "The course content changed. This practice cannot keep using the old evidence.",
+        "storage_conflict": "Another tab updated this practice. Refresh and retry.",
+        "budget_exhausted": "This practice has used its request budget. End it or start another.",
+        "save_failed": "The result has not been saved yet.",
+        "no_peer": "Enable a companion first.",
+        "explanationUnsaved": "The explanation has not been saved.",
+        "feedbackUnsaved": "The feedback has not been saved.",
+        "feedbackIncomplete": "Your explanation is saved, but this feedback is incomplete."
+      }
     }
   },
   "actions": {
