@@ -1,6 +1,8 @@
 # Supabase 迁移后的后置优化实施清单
 
-更新：2026-09-23（同日按仓库代码复核修订；当晚完成第二次逐条代码核对，修订见第 0.1 节）。状态：待后续执行，本文仅编制方案，没有实施优化、扩容或生产部署。
+更新：2026-09-25（依据东京迁移记录调整部署前提、性能基线与恢复边界，见第 0.2 节；同日可执行性复核补充执行守则、前置输入与若干修正，见第 0.3 节及第 1.1 节；2026-09-23 的代码复核记录保留）。状态：东京区域迁移已完成；本文后置优化、扩容和生产服务器部署仍待执行，本次仅修订方案。
+
+> **交给 AI 执行前必读：**先读第 1.1 节（执行守则、每项可否直接开工、需用户提供的输入）。第 0 节是修订历史，只用于理解背景；**执行以第 1 节起的正文为准**，正文与第 0 节冲突时以正文为准。
 
 ## 0. 本次按代码复核的修订要点
 
@@ -20,19 +22,41 @@
 - **P1-1**：`loadAccount` 嵌套在 `ensureAccountRow` 成功路径内部而非平级第 4 步；瞬时错误经 `withRegistryRetry` 最多重试 3 次会放大往返。新增候选：聊天首轮 `runtimeViews` 的每会话读取是无上限 `Promise.all` 全量并发。
 - **P1-0**：措辞收窄为“生产代码路径中没有分段计时/池等待统计”（`pg` 池的 `waitingCount` 等计数仅出现在个别测试断言中）。
 
+### 0.2 东京迁移后的调整（2026-09-25）
+
+依据：[东京迁移记录](2026-09-25-supabase-tokyo-migration.md)及其链接的[最终交付报告](../reports/2026-09-25-supabase-tokyo-migration-completed.md)。迁移记录包含中途暂停与恢复的历史过程，当前状态以文首完成结论、最后执行记录和最终交付报告为准，不把中途的未完成项直接当作当前待办。
+
+- **部署前提**：主项目已为东京 `zhiyu-tokyo` / `lvbtgwlsebzbtcvjwktq` / `ap-northeast-1`，原新加坡项目已删除。当前应用仍在本机，东京生产服务器部署未完成；D0 继续保留。
+- **性能与优先级**：旧延迟数据仅作迁移前历史证据。P1-0 保留，P1-1 先建立东京环境的新基线，再决定是否优化及优先级；不预设仍有跨地域瓶颈，不把迁移收益计入后续代码优化收益。
+- **功能与容量**：P1-2 租约释放、P3-1 配音标签、P3-2 图片质量不因迁移而解决；P2-1 的 16 并发验收仍未完成。P1-3 仍按服务器中转带宽实测定序，同地域不消除应用中转流量。
+- **证据复用**：迁移已验证数据/权限/文件完整性、登录、恢复邮件、通知连接及部分导出；不重复把这些标为完全未验证。但其环境与范围不等于正式域名验收、新课程真实生成、全部导出格式或完整课堂矩阵。
+- **恢复边界**：后续应用回退必须使用兼容东京项目的镜像和配置。旧新加坡镜像/配置仅作恢复材料，不能直接切回已删除项目；灾难恢复需另建项目、恢复备份并处理迁移后新增数据。
+
+### 0.3 可执行性复核（2026-09-25，逐条对照代码）
+
+复核结论：第 2–11 节的代码事实抽查均与当前代码一致；以下为本次修正与补充。
+
+- **P1-2 补偿漏洞**：原第 3 步只在“镜像为 false”时补偿，漏掉“标记成功、释放失败返回 500”的中间态（此时镜像已为 true，租约要等 60 分钟过期）。改为：本标签页 `sessionStorage` 仍保留该课 session id 时，无论镜像取值都调用完成 API（客户端仅在成功后清除该 id，见 `lib/generation/foreground-root-client.ts`）；原第 4 步“评估同一事务”改为必做。另补充自愈分支与 404 处理。
+- **D0 遗漏 DNS 覆盖**：`scripts/supabase-compose.ps1` 在 `docker-compose.dns.local.yml` 存在时自动叠加，该文件为 web/worker/readiness 写死国内 DNS `223.5.5.5`、`119.29.29.29`。生产覆盖与 Linux 脚本不得叠加该文件。
+- **`TRUST_PROXY_HEADERS` 前置定案**：拆为独立代码项 D0-0（两处读取点统一接受 `1`/`true`），不再留到部署现场二选一。
+- **P1-3 两种应答形态**：redirect 模式下，服务端对带描述符 `Accept` 的请求返回描述符 JSON，对未协商的通用 HTTP 客户端返回 `302`（`packages/@openmaic/storage/src/server/asset.ts`）。应用浏览器端始终协商，走描述符；用 curl/脚本做验收时须带同样的 `Accept` 头，否则测到的是 302 分支。`handler.ts` 第 43 行注释只提 302，实施 P1-3 时可补一句描述符分支。
+- **新增第 1.1 节**：执行守则、每项开工条件、必须由用户提供的输入与停止条件。
+- **付费预授权**：用户授权执行者在验收需要时，每个工作项可不经询问跑一门真实课程（含正常流程产生的模型费用），细则见第 1.1 节第 3 条。
+
 ## 1. 执行范围与顺序
 
 依据：[数据库核心功能验收](../reports/2026-09-23-supabase-database-functional-acceptance.md)、[详细历史证据](../reports/2026-09-21-supabase-storage-capacity-acceptance.md)、[原实施计划](2026-09-20-supabase-storage-and-generation-capacity.md)。用户最新决定优先完成数据库功能并上线，性能、扩展验收和非阻断体验随后处理；原计划中要求完整 T8/T9 全部完成再上线的顺序，以本次决定为准。
 
-当前基线：本机应用使用 Supabase；Tier 4、Background、2 个 worker。普通前台/后台/Pro 各有成功样本；资产完整性、私有桶、账号隔离与核心学习记录已验证。稳定回归为 8457 项通过、70 跳过。**这些结果不证明生产环境、P95 延迟或 16 并发已经通过。**
+当前基线（截至 2026-09-25 迁移验收）：本机应用连接东京 Supabase；Tier 4、Background、2 个 worker 保留。51 张业务表内容摘要一致，3 个账号、3 个私有桶、1,571 文件及 43 份加密配置验证通过；登录、账号隔离、已有课程/学习记录读取、恢复邮件、LISTEN/NOTIFY 和 Markdown/DOCX 导出已有迁移证据。全量回归为 8,459 项通过、0 失败、70 跳过，另有 15 项定向测试；类型检查和 Web/worker 生产构建通过。普通前台/后台/Pro 的成功生成样本来自此前验收，本次迁移未触发付费 LLM/TTS 新生成。**这些结果不证明正式生产部署、迁移后新课程端到端生成、完整课堂矩阵、P95 延迟或 16 并发已经通过。**
 
-生产目标（用户提供，尚未 SSH 核实）：雨云东京 4 vCPU / 8 GB / 40 GB，上行 20 Mbps、下行 30 Mbps；Supabase 项目位于新加坡。数据库与 Storage 均为跨地域访问。
+生产目标（用户提供，尚未 SSH 核实）：雨云东京 4 vCPU / 8 GB / 40 GB，上行 20 Mbps、下行 30 Mbps；Supabase 数据库与 Storage 已迁至东京 `ap-northeast-1`。未来应用服务器与 Supabase 同在东京，但不代表同一内网；当前日本出口 IP 也不能代替实际服务器链路测量。本机应用与东京生产服务器的结果分别记录。
 
 | 顺序 | 工作项 | 性质 | 何时执行 |
 | --- | --- | --- | --- |
+| D0-0 | 统一 `TRUST_PROXY_HEADERS` 取值 | 新增小型代码修改，D0 的前置 | D0 之前；无外部依赖，可立即执行 |
 | D0 | 生产环境最小验收 | 部署收尾，尚未完成；需先产出生产配置 | 首次开放用户前 |
 | P1-0 | 请求分段计时埋点 | 新增代码，是 P1-1 的前提 | 上线后第一批，先于 P1-1 |
-| P1-1 | 远程读取延迟定位与优化 | 已知存在明显等待，代码中已有往返放大嫌疑点 | P1-0 完成后 |
+| P1-1 | 远程读取延迟定位与优化 | 迁移前存在明显等待；东京环境需重新测量，代码中的往返放大点仍待定位 | P1-0 后建立基线；未达体验目标时再实施优化 |
 | P1-2 | 前台完成标记与租约释放补偿 | 已定位缺陷，影响以槽位占用为主 | 上线后第一批 |
 | P1-3 | 私有媒体间接出口（redirect）验证 | 复用已有能力，先验证 Supabase S3 兼容性 | 以 D0 实测中转带宽定序；原计划 13.2 视其为上线重点 |
 | P2-1 | 4→8→16 容量验收 | 扩容前必须完成，不是现有故障 | 提高实际并发前 |
@@ -43,7 +67,39 @@
 
 每次只推进一项可独立验收的修改。先保存当前工作树和镜像标识，保留未提交文件；先做相关测试，稳定后再统一构建与完整回归。不得为优化关闭生成模式、移除课堂/导出能力或放宽 owner/RLS。发现数据丢失、越权或保存失败，应立即升级为功能故障，不继续按普通优化排期。
 
+迁移后的执行顺序：先完成 D0-0 代码统一，再完成 D0 正式部署验收；上线后先补 P1-0 并建立东京性能基线，P1-2 作为正确性修复继续按首批安排，不以 P1-1 优化完成为前提。读取已达预先约定目标时可暂缓 P1-1 代码优化；媒体中转占满上行时优先 P1-3。提高并发前仍须完成 P2-1，不因区域迁移直接升档。
+
 以下路径均相对于仓库根目录 `D:/ZZGG_Innovation_Project/OpenMAIC-main`。所有性能目标均为建议的后续验收门槛，尚未达成；执行前固定测量环境与目标，避免结果出来后调整口径。
+
+### 1.1 执行守则、开工条件与停止条件（AI 执行者必须遵守）
+
+**通用守则：**
+
+1. **一次只做用户指定的一项。**未被指定的工作项即使看到问题也不顺手修改，只在报告“剩余事项”中记录。
+2. **开工前检查工作树。**运行 `git status`；若存在与本项无关的未提交修改（截至 2026-09-25 有东京迁移相关的 16 个已修改文件及若干新脚本/文档），**停下并请用户先提交或确认**，不得自行提交、暂存、还原或覆盖这些文件。本项的修改应能形成独立、可回退的 diff。
+3. **远程与付费操作须逐次获得用户确认：**对东京 Supabase 项目的任何写入（SQL、迁移、Auth/Site URL 设置、Storage 对象）、SSH 登录生产服务器并修改、重建生产容器、调用付费 LLM/TTS/图片模型、向真实邮箱发信。只读查询（如读取 `max_connections`、Advisor 列表）可以执行，但须在报告中列出。
+   - **付费模型的预授权例外（用户 2026-09-25 授权）：**当工作项的验收步骤要求“跑一门真实课程”（如 P1-2 第 6 步），执行者**无需再询问**，可直接通过应用正常生成流程生成**一门**真实课程，包括其正常流程产生的 LLM、图片与 TTS 调用。范围限制：每个工作项最多一门；只走应用现有生成链路，不写绕过配额或准入的脚本；生成失败时可重试一次，仍失败则停下报告，不连续重试；课程 ID、生成模式与耗时写入报告。超出此范围的付费调用（第二门课程、P2-1 容量批量测试、P3-2 图片批量对比、为修标签重新配音等）仍须逐次确认。
+4. **禁止事项：**连接或引用已删除的新加坡项目 `lzomhnjyymalupgvcato`；把密钥、连接串、签名 URL 写入仓库、日志或报告；为通过测试放宽 owner/RLS、关闭生成模式或调高超时掩盖回归；在 Supabase 控制台直接改 schema（须走仓库迁移）。
+5. **缺输入即停。**下表“需要的用户输入”未提供时，只执行该项中标为“无需输入”的步骤，然后停下，在报告中列出缺少的输入；不得自行假设数值、账号、预算或域名。
+6. **完成即报告。**每项按第 12 节模板在 `docs/reports/` 新增日期化记录；结论只能是“通过 / 未通过 / 受外部条件限制”，未验证的不写通过。
+
+**各项开工条件：**
+
+| 工作项 | 可否直接开工 | 需要的用户输入（未提供时的处理） |
+| --- | --- | --- |
+| D0-0 | 可以 | 无 |
+| P1-2 | 可以 | 无；最后一步“真实前台课程”会调用付费模型，已按第 3 条预授权，无需再确认（限一门） |
+| P1-0 | 可以 | 无 |
+| P3-1 | 可以 | 需一门含云端配音的 Pro 样本课程 ID（未提供时先用单元测试复现，真实样本验证留待用户） |
+| D0 | 否 | 服务器 SSH 访问方式及可操作范围、域名 DNS/HTTPS 现状、东京 Supabase Auth Site URL/回调修改授权、专用测试账号。未提供时只能完成第 2 步（生产 compose 覆盖文件与 Linux 脚本入库）和第 3 步中的本机镜像构建 |
+| P1-1 | 部分 | 各类接口的延迟目标（见第 4 节第 1 步的目标表）、测量用课程 ID。未提供目标时只做基线测量与分段定位，**不实施代码优化** |
+| P1-3 | 否 | D0 第 7 步的媒体中转基线；测试环境。未具备时不切换 `ASSET_BYTE_EGRESS` |
+| P2-1 | 部分 | ≥8 个专用测试 owner、模型 RPM/TPM 与图片/TTS 配额、测试费用上限、成功率门槛。未提供时只执行第 2 步（本机临时 PostgreSQL 调度测试） |
+| P2-2 | 部分 | 可用测试账号与课程；涉及新生成时的费用授权。未提供时只整理矩阵表并填入已有证据 |
+| P2-3 | 部分 | 隔离恢复环境、告警渠道。未提供时只做只读统计（孤儿对象、tmpfs 占用）与日志轮转配置文件 |
+| P3-2 | 否 | 图片正确性判定标准、样本集、费用上限 |
+
+**立即停止并报告用户的情况：**出现数据丢失、越权读取、保存失败或重复执行；测试中发现与本文“代码现状/事实”不符的行为（先报告差异，不按本文假设继续）；需要执行上述第 3 条中的远程或付费操作而尚未获确认。
 
 ## 2. D0：部署时的最小验收
 
@@ -55,12 +111,13 @@
 - 仓库中没有生产 compose/覆盖文件，也没有 Linux 启停与分档脚本。`scripts/supabase-compose.ps1` 只适用于本机 PowerShell。
 - `NEXT_PUBLIC_*`（Supabase URL、publishable key、功能开关）是构建参数，会写入镜像，需要用生产值构建。`Start` 动作的注释说明，Next.js 构建需要先停服务腾出内存，8 GB 服务器上不宜现场构建。
 - `render-service`（MP4 导出）内存上限为 `${RENDER_SERVICE_MEMORY_LIMIT:-8g}`（默认 8g，可覆盖），4 核 / 8 GB 服务器无法与 Web + 2 worker 同时运行。MP4 可用性由运行时对 render-service `/health` 的探测（3 秒超时，`lib/server/render-service.ts`）决定：未启用 `video-export` profile 时探测必然失败，前端隐藏 MP4 按钮、仅保留 ZIP 导出。
-- `TRUST_PROXY_HEADERS` 由 `lib/auth/rate-limit.ts` 与 `app/api/export-video/render/route.ts` 读取，但两处取值判断不一致：限流判断 `=== '1'`，导出路由判断 `=== 'true'`，单一取值无法同时启用两者。生产配置前需先统一代码取值语义，或在验收记录中写明按哪个语义设置、哪个读取点因此不生效。
+- `TRUST_PROXY_HEADERS` 由 `lib/auth/rate-limit.ts` 与 `app/api/export-video/render/route.ts` 读取，但两处取值判断不一致：限流判断 `=== '1'`，导出路由判断 `=== 'true'`，单一取值无法同时启用两者。已决定在 D0 之前由 D0-0（第 2.1 节）统一代码语义。
+- `docker-compose.dns.local.yml` 是本机专用 DNS 覆盖，为 `openmaic`、`generation-worker`、`supabase-readiness` 写死国内解析器 `223.5.5.5`、`119.29.29.29`；`scripts/supabase-compose.ps1` 只要该文件存在就会自动叠加（`-f docker-compose.dns.local.yml`）。东京生产服务器不应使用这组解析器。
 
-1. 核实实际服务器、可用内存/磁盘、已有服务和网络；确认 Supabase（新加坡）、Storage、模型服务从东京服务器可达，并记录 DNS/TCP/TLS 耗时。
-2. **产出生产配置**：新增生产 compose 覆盖文件（不修改受契约测试锁定的现有文件），设置 `APP_ORIGIN=https://zhiyulearn.online`、准确的 `GENERATION_ALLOWED_ORIGINS`，确认代理不可绕过后再设 `TRUST_PROXY_HEADERS`（注意上文两处取值语义不一致：先统一代码语义，或明确本次按哪个取值、哪个读取点不生效）。同时提供等价的 Linux 启停/分档脚本，保持 Tier 4 分档值、`APP_HEAVY_TASK_PER_OWNER_LIMIT=2`、两个 worker 副本与本机一致。
-3. 在本机或 CI 用生产公开参数构建并标记 Web/worker 镜像，保存发布镜像、配置版本及回滚镜像。明确本次不启用 `video-export` profile，仅保留 ZIP 导出，并在验收记录中写明。
-4. 配置域名、HTTPS 与 Supabase Site URL/回调；复用宝塔 Nginx，Web 只绑定 `127.0.0.1:3000`；验证 SSE 不被缓存/缓冲。
+1. 核实实际服务器、可用内存/磁盘、已有服务和网络；从实际东京服务器确认东京 Supabase、Storage、模型服务可达，记录 DNS/TCP/TLS、新建数据库连接及复用连接查询耗时。DNS 测量须在**应用容器内**用其实际生效的解析器执行，而不只是在宿主机上。注明服务器位置、网络出口、是否经过代理和连接模式；本机日本出口的探测结果单列，不能替代服务器验收。
+2. **产出生产配置**（前提：D0-0 已完成）：新增生产 compose 覆盖文件（例如 `docker-compose.production.yml`；不修改受契约测试锁定的 `docker-compose.supabase.yml`、`docker-compose.hosted.yml`），设置 `APP_ORIGIN=https://zhiyulearn.online`、准确的 `GENERATION_ALLOWED_ORIGINS`（只含正式 origin，不含 localhost），确认 Web 只绑定 `127.0.0.1` 且代理不可绕过后再设 `TRUST_PROXY_HEADERS=1`。同时提供等价的 Linux 启停/分档脚本（例如 `scripts/supabase-compose.sh`），保持 Tier 4 分档值、`APP_HEAVY_TASK_PER_OWNER_LIMIT=2`、两个 worker 副本与本机一致；该脚本**不得叠加 `docker-compose.dns.local.yml`**，使用服务器默认解析器或在覆盖文件中显式写入适合东京的解析器。为新文件补充 `tests/config/` 下的契约测试（至少锁定：正式 origin、不含 localhost、不含国内 DNS、不启用 `video-export` profile、Web 端口只绑定 127.0.0.1）。
+3. 在本机或 CI 用生产公开参数构建并标记 Web/worker 镜像，保存发布镜像、配置版本及回滚镜像。迁移已更新本机配置与浏览器产物；生产发布仍须核对构建期 Supabase URL/key、运行时 DB/Web/worker/LISTEN 连接及 S3 endpoint/region/凭据均属于东京项目，不残留旧 ref。回滚镜像也必须兼容东京配置与当前 schema，不能直接使用绑定已删除新加坡项目的旧镜像。明确本次不启用 `video-export` profile，仅保留 ZIP 导出，并在验收记录中写明。
+4. 配置域名、HTTPS 与东京 Supabase Site URL/回调；迁移邮件的实际回调仍包含 localhost:3000，需调整为正式入口并重新验证。复用宝塔 Nginx，Web 只绑定 `127.0.0.1:3000`；验证 SSE 不被缓存/缓冲。
 5. 核对 Web/worker 同版本、readiness（`supabase-readiness` 服务的检查逻辑可复用）、持久化后端和私有桶。
 6. 在正式域名用专用测试账号验证：登录/登出、注册确认与密码重置链接；上传材料、生成带媒体课程、保存学习记录；另一设备读回，另一账号不能访问。
 7. **记录媒体中转基线**：打开一门带图片/音频的课程，记录服务器出站字节与耗时，作为 P1-3 排序依据。
@@ -68,6 +125,17 @@
 9. 留存环境、镜像、时间、测试对象 ID、响应和结果。生产环境出现保存、鉴权或读取失败时，先修该失败再开放流量。
 
 **完成标准：**正式域名下关键用户链路通过，能重建并读回已保存数据；生产配置与脚本已入库；清楚标注容量为初始 Tier 4、未启用 MP4 导出，未声称 16 并发通过。
+
+### 2.1 D0-0：统一 `TRUST_PROXY_HEADERS` 取值（D0 前置代码修改）
+
+**事实：**`lib/auth/rate-limit.ts` 的 `clientRateKey` 判断 `=== '1'`；`app/api/export-video/render/route.ts` 的 `clientIdentity` 判断 `=== 'true'`。`.env.example` 示例写 `TRUST_PROXY_HEADERS=1`，`render-service/README.md` 写 `=true`。现有测试 `tests/auth/security-boundaries.test.ts` 用 `'1'`。
+
+1. 新增一个共享的只读判断（例如在 `lib/auth/` 下新增 `trust-proxy.ts`，导出 `trustProxyHeaders(env = process.env): boolean`），接受 `1` 与 `true`（去除首尾空白、不区分大小写），其余一律为 false（含未设置、`0`、`false`、`yes`）。
+2. 两处读取点改为调用该函数，其余逻辑不变：未启用时限流仍回落 `'untrusted-client'`，导出仍回落 `'direct'`。
+3. `.env.example` 与 `render-service/README.md` 的说明改为“`1` 或 `true` 均可”，示例统一为 `1`。
+4. 测试：为新函数补单元测试（`1`、`true`、`TRUE`、` 1 `为 true；未设置、空串、`0`、`false`、`yes` 为 false）；`tests/auth/security-boundaries.test.ts` 现有用例保持通过；为导出路由的 `clientIdentity` 补一条用例证明 `1` 也会采信 `x-forwarded-for`（若该函数未导出，通过路由行为或最小化导出测试，不改变其对外行为）。
+
+**完成标准：**两处读取点语义一致；未设置时行为与修改前完全相同；相关测试与 `tsc --noEmit` 通过。**回退：**还原本项提交。
 
 ## 3. P1-0：请求分段计时埋点（P1-1 前置）
 
@@ -84,7 +152,7 @@
 
 ## 4. P1-1：缩短课程和学习记录的读取等待
 
-**事实：**本机到云端曾出现文档/音频约 20–35 秒、学伴记录约 8–19 秒的单次等待，均不是 P95。2026-09-21 Web 容器探测样本：新建 PG 连接 5.7–10 秒，复用连接单条查询 461–863 ms，JWKS HTTPS 请求 1.7–2.6 秒（本机网络，非生产）。请求内认证复用、聊天首轮“一次会话扫描 + 每会话一次读取”、学伴历史最多 4 路并行均已实现（见 `tests/persistence/request-auth-reuse.test.ts`、`tests/runtime/chat-storage.test.ts`、`lib/learning/teach-back/runtime.ts`），不要再列为待开发。
+**历史证据（迁移前，不能作为东京当前基线）：**本机到新加坡云端曾出现文档/音频约 20–35 秒、学伴记录约 8–19 秒的单次等待，均不是 P95。2026-09-21 Web 容器探测样本：新建 PG 连接 5.7–10 秒，复用连接单条查询 461–863 ms，JWKS HTTPS 请求 1.7–2.6 秒（本机网络，非生产）。东京迁移验收未给出可比较的延迟分布，不能宣称上述问题已消失或仍然存在。请求内认证复用、聊天首轮“一次会话扫描 + 每会话一次读取”、学伴历史最多 4 路并行均已实现（见 `tests/persistence/request-auth-reuse.test.ts`、`tests/runtime/chat-storage.test.ts`、`lib/learning/teach-back/runtime.ts`），不要再列为待开发。
 
 **代码中的往返放大点（待 P1-0 数据确认占比）：**
 - **鉴权链路**：每个 HTTP 请求在 `lib/auth/session.ts` 的 `resolvePrincipal` 中串行执行 `getClaims()`、PostgREST 自查 `app_accounts`、`app_internal.ensure_account`（`loadAccount` 在其成功路径内部调用，仅当其返回空时才在外层兜底调用）、`app_internal.session_is_active`，正常托管路径共 5 次串行往返；瞬时错误经 `withRegistryRetry` 最多重试 3 次，会进一步放大往返数。其中 Supabase 客户端每个请求新建一次，需核实 JWKS 是否跨请求缓存。
@@ -97,7 +165,18 @@
 
 **入口：**`lib/db/app-pool.ts`、`lib/db/pool-registry.ts`、`lib/db/request-queryable.ts`、`lib/auth/session.ts`、`lib/auth/principal.ts`、`lib/persistence/server-auth.ts`、`app/api/persistence/[...path]/handler.ts`、`packages/@openmaic/storage/src/runtime/http.ts`、`lib/utils/chat-storage.ts`、`lib/learning/teach-back/runtime.ts`。
 
-1. 在实际部署环境建立基线。固定一门旧课、一门新课及固定数量的学伴历史；每类接口采集至少 30 次热读取，并单独记录冷启动样本。报告样本量、中位数、P95、最大值与失败数；30 次仅作初步定位，不能当持续 SLA 证明。
+1. 在实际东京部署环境、开始本项代码优化前建立新基线，并事先约定各类接口可接受的延迟目标。固定一门旧课、一门新课及固定数量的学伴历史；每类接口采集至少 30 次热读取，并单独记录冷启动样本。报告样本量、中位数、P95、最大值与失败数，同时记录代码/镜像、项目区域和网络出口；30 次仅作初步定位，不能当持续 SLA 证明。本机与服务器分开统计，区域迁移收益与后续代码优化收益分开记录；没有可比较的迁移前样本时不计算迁移降幅。若东京基线已达体验目标且无明显池等待，可记录证据并暂缓本项代码优化。
+
+   延迟目标由用户在实施前填写；**表格留空时，执行者只完成第 1–2 步（基线与分段定位）并提交报告，不进入第 3 步代码优化。**
+
+   | 接口类别 | 代表请求 | 热读取 P95 目标 | 用户确认日期 |
+   | --- | --- | --- | --- |
+   | 课程文档读取 | 打开课堂时的文档 GET | （待填） | |
+   | 课程元信息 | `GET /api/stage-meta/[stageId]` | （待填） | |
+   | 单个媒体资产 | 资产字节 GET（图片/音频各一） | （待填） | |
+   | 学伴历史 | 学伴历史列表完整加载 | （待填） | |
+   | 聊天首轮恢复 | 课堂聊天历史恢复 | （待填） | |
+
 2. 用 P1-0 的分段数据对照浏览器瀑布图，定位占比最大的阶段：新建连接慢查 DNS/网络与空闲回收；池等待高查连接释放与事务时长；短 SQL 往返多查上述放大点；媒体慢转 P1-3。
 3. 一次只实施一种有证据的改动，候选按预期收益排列：
    - 同一请求内的多条 owner 绑定 SQL 改用一次 `withTransaction`，或减少 `BEGIN`/`set_config` 的独立往返。必须保持事务级 owner 设置，并与 transaction pooler 兼容。
@@ -105,12 +184,12 @@
    - 去掉鉴权链路中对 `app_accounts` 的重复读取（PostgREST 自查与 `loadAccount`）。受上文反证约束，必须 owner 绑定并有真实 RLS 证据，且每个请求仍要校验会话撤销。
    - 避免读取整个聊天分区来完成单条展示；为聊天首轮 `runtimeViews` 的每会话读取加有界并发（对齐学伴侧的 4 路）；无变化写入必须先核对版本与冲突语义。
 4. 请求缓存仅保留在同一次已鉴权请求内；若新增跨请求缓存，必须设计 owner/session/version 键、注销/撤销失效和更新后的读一致性。不得缓存成功身份来跳过下一请求的撤销验证。
-5. 调整池参数前统计 Web、两个 worker、Pro 与维护连接的总上限。原计划实测 Supabase `max_connections=60`；代码按 session pooler 约 10 个后端槽位为 `app_worker` 做预算（两个 worker 各 3 个池连接 + 1 个 LISTEN）。连接模式须与 IPv4/IPv6、事务边界和 prepared statements 兼容，不直接扩大所有池。[官方连接说明](https://supabase.com/docs/guides/database/connecting-to-postgres)
+5. 调整池参数前统计 Web、两个 worker、Pro 与维护连接的总上限。原计划的 `max_connections=60` 是旧项目实测值，须在东京项目重新读取并核对 compute、pooler 配额及实际占用；代码按 session pooler 约 10 个后端槽位为 `app_worker` 做预算（两个 worker 各 3 个池连接 + 1 个 LISTEN），这一预算也须对照东京实际配置确认。迁移已修复 `DATABASE_LISTEN_URL*` 生成器并验证东京 session pooler 的 LISTEN/NOTIFY，不将该修复重复列为待办；后续连接模式变更须保留通知连接的 session/direct 语义，并复验通知。连接模式须与 IPv4/IPv6、事务边界和 prepared statements 兼容，不因同地域直接扩大所有池。[官方连接说明](https://supabase.com/docs/guides/database/connecting-to-postgres)
 6. 在相同环境和数据集复测，并验证撤销会话、跨 owner 读取、并发保存/恢复；至少完成一次真实课堂打开与历史恢复。
 
-**完成标准：**提交逐阶段前后数据；建议热读取 P95 相比基线下降至少 50%，池等待 P95 < 1 秒，功能和隔离无回归。如延迟主要来自东京—新加坡的网络，记录实测下限及待选方案（如调整部署区域），不为达数值取消鉴权。
+**完成标准：**提交东京基线与逐阶段结论。若实施优化，使用同一东京环境和数据集给出前后对比，达到实施前约定的接口延迟目标，建议池等待 P95 < 1 秒，功能和隔离无回归。原“热读取 P95 再下降至少 50%”不再作为统一门槛；仅在基线明显偏高且分段数据支持时，于实施前约定为该项优化目标。基线已达标而暂缓优化时，明确标记“测量达标，优化暂缓”，不宣称完成代码优化。仍有网络等待时检查实际路由、代理、连接建立与复用，不再默认归因于东京—新加坡跨区，也不为达数值取消鉴权。
 
-**回退：**撤回本项代码/池配置到上一版本；缓存可失效重建，不回滚用户已写入的数据库。
+**回退：**撤回本项代码/池配置到上一已验证且兼容东京项目的版本，保留东京连接及当前有效凭据；缓存可失效重建，不回滚用户已写入的数据库。
 
 ## 5. P1-2：前台完成标记与租约释放补偿
 
@@ -133,17 +212,24 @@
    - 若将来有功能（如发布门槛、列表筛选、统计）要读取该字段，必须先作为独立工作项把它升级为权威字段：为 Pro/导入补写入路径，并按 producer 与实际文档逐条核对修复历史数据，经真实 PostgreSQL/RLS 验证后才能使用。在此之前，服务端判断完成状态应读取大纲。
    - 选择理由：仓库中没有产品功能依赖该字段；升级为权威字段需要改动三条写入路径并修复历史数据，风险与工作量都更大，却没有用户可感知的收益。本项真正要解决的是前台容量租约的释放。
 2. **前台完成请求加有界重试**：网络错误与 5xx 退避重试，4xx（404 已删除、403 非本人）不重试；最终失败时给出可见提示。不能让旧页面整份覆盖新文档。
-3. **重开补偿**：课堂页已在加载后调用 `fetchStageMeta`，响应中含 `generationComplete` 与 `isOwner`，但**不含 producer**——响应中的 `source` 字段恒为 `'document'`，仅诊断用，代码注释明令禁止据其分支。当“大纲已完成、镜像为 false、producer 不是 `server-job`（取自本地已加载文档大纲的 `producer` 字段，如 `lib/store/stage.ts` 的 `outlinesRecord?.producer`）、本人课程”时调用完成 API。无 session 头时只补标记、不释放（与完成路由现有 `if (sessionId)` 行为一致），租约由过期回收；同一标签页 `sessionStorage` 仍有 session id 时顺带释放。
-4. 评估把路由中的“标记”与“释放”放进同一 owner 绑定事务（`withTransaction`），消除“已标记、未释放、返回 500”的中间态。
+3. **重开补偿**：课堂页已在加载后调用 `fetchStageMeta`（`app/classroom/[id]/page.tsx`），响应中含 `generationComplete`（即 `stage_meta` 镜像）与 `isOwner`，但**不含 producer**——响应中的 `source` 字段恒为 `'document'`，仅诊断用，代码注释明令禁止据其分支。补偿条件（全部满足才调用完成 API）：
+   - 本人课程：`fetchStageMeta` 结果为 `found` 且 `isOwner === true`；
+   - 大纲已完成：以 `loadFromStorage` **自愈后**的 store 状态 `generationComplete === true` 为准（`lib/store/stage.ts` 约第 1211 行，旧课自愈分支同样只保存、不调完成 API，也应被覆盖）；
+   - producer 不是 `server-job`：取本地已加载文档的 `outlineProducer`（来自 `outlinesRecord?.producer`）。Pro 建课与 PPTX 导入写入的 producer 均为 `server-job`，因此会被排除，符合第 1 步决定；
+   - 且满足以下任一：(a) 镜像 `generationComplete === false`；(b) 本标签页 `sessionStorage` 中仍有该课的前台 session id（键前缀 `openmaic:foreground-generation-session:`）。客户端只在完成请求成功后才清除该 id，所以 (b) 表示“上次标记或释放没有成功”，覆盖“已标记、未释放、返回 500”的情况。
+
+   有 session id 时带上 session 头，完成路由会一并释放；无 session 头时只补标记、不释放（与完成路由现有 `if (sessionId)` 行为一致），租约由 60 分钟过期回收。补偿失败沿用第 2 步的重试规则；收到 404/403 视为终态，本次页面生命周期内不再重复请求，不弹出提示（补偿是后台修复，不打扰用户）。补偿请求只发一次，不因页面停留而轮询。
+4. **（必做）**把路由中的“标记”与“释放”放进同一 owner 绑定事务：`getOwnerBoundStageAccessDb` 返回的 `createOwnerBoundQueryable`（`lib/db/request-queryable.ts`）已提供 `withTransaction`，在其内依次执行 `markStageGenerationComplete` 与 `releaseForegroundGenerationRoot(ownerId, stageId, sessionId, tx)`；任一失败整体回滚并返回 500，从而不再出现“已标记、未释放”的中间态。须用真实 PostgreSQL 验证事务内释放在托管模式（`app_internal.release_heavy_task_foreground_lease`）与非托管模式（`DELETE FROM generation_provider_slots`）下均生效，不能只用模拟查询验收。
 5. 保留四个受控故障位置（最终保存前、保存成功但完成请求失败、请求成功但响应丢失、刷新重开）作为回归测试：修复前应能复现，修复后应能收敛。
 6. 补充失败重试、重复请求、外来 owner、已删除课程与并发编辑测试；核对取消/失败语义下不把半成品或已删除课程标为完成。最后跑一门全新的真实前台课程。
 
-**完成标准：**正常流程与受控故障后，前台课程的租约在完成后立即释放，或在无法释放时于过期后可复用；前台课程的镜像与大纲一致；无内容覆盖。`stage-meta.ts` 字段注释已按第 1 步更新；Pro/导入课程镜像保持 false，属于预期行为，不计为失败。
+**完成标准：**正常流程与受控故障后，前台课程的租约在完成后立即释放，或在无法释放时于过期后可复用；“已标记、未释放”的中间态不再出现（事务测试证明），且同一标签页重开后能补释放；前台课程的镜像与大纲一致；无内容覆盖。`stage-meta.ts` 字段注释已按第 1 步更新；Pro/导入课程镜像保持 false，属于预期行为，不计为失败。
 
 ## 6. P1-3：私有媒体间接出口（redirect）验证
 
 **事实（代码）：**
 - 当前 Supabase 栈为 `ASSET_BYTE_EGRESS: direct`，在 `docker-compose.supabase.yml` 中写死（`.env.hosted.example` 同为 direct）。媒体字节路径为 Storage → 应用 → 浏览器，全部占用服务器带宽；生产上行 20 Mbps。
+- 迁至东京不会改变上述中转路径与上行限制，redirect 优先级仍由 D0 的生产带宽实测决定。迁移已验证东京对象字节完整性与 S3 Range 206；普通资产 HTTP 接口仍按原合约返回完整 200。这些证据不等于正式 origin 下的签名 URL CORS、响应头覆盖、`NoSuchKey` 及完整播放/导出验证，以下验收继续保留。
 - redirect 能力已实现：`app/api/persistence/[...path]/handler.ts` 在 `ASSET_BYTE_EGRESS=redirect` 且资产回收宽限期不低于签名有效期 10 倍时启用（签名 TTL 60 秒；默认宽限 1 小时，`GENERATION_BACKGROUND_ENABLED=1` 时下限抬升为 24 小时——见 `lib/persistence/asset-collection-grace.ts`，两种取值均满足条件；不满足时回退 direct 并输出警告）。服务端先校验 owner/资源，再用 `@aws-sdk/s3-request-presigner` 对 Supabase S3 端点签发 SigV4 GET URL，并写入 `ResponseContentType`、`ResponseCacheControl`、`ResponseContentDisposition`（`packages/@openmaic/storage/src/asset/s3-bytes.ts`）。
 - 浏览器端 `HttpAssetStore`（`packages/@openmaic/storage/src/asset/http.ts`）发起一次字节 GET 并带 `Accept: application/vnd.openmaic.asset-descriptor+json, */*;q=0.9` 协商头；redirect 模式下服务端以描述符 JSON 作答（不是独立的预请求），客户端再以 `credentials: 'omit'` 跨源 fetch 签名 URL 读取完整 body（字节 GET 设 `redirect: 'manual'`，任何 3xx 按错误处理、不跟随）。Blob URL 由存储包铸造（`http.ts` 与 `browser-store.ts` 的 `URL.createObjectURL`），`lib/media/use-asset-url.ts` 只负责租约与引用计数；`<img>`、`<audio>`、编辑器画布与导出都只接触 Blob URL。
 - 因此：拖动播放由浏览器对 Blob 处理，不走 Storage 的 Range；画布导出不涉及跨源图片；签名过期只影响“拿到描述信息到发起 fetch”之间的 60 秒窗口；数据库与课程内容只保存资产 ID（已满足）。
@@ -154,7 +240,7 @@
 
 1. 以 D0 第 7 步的中转基线确定优先级：若媒体已占满服务器上行或明显拖慢首屏，本项提前到 P1-1 之前。
 2. 在测试环境把 compose（或生产覆盖文件）中的 `ASSET_BYTE_EGRESS` 改为 `redirect`。这是改 compose 文件，不是只改 env 文件。启动日志不应出现回退到 direct 的警告。
-3. **Supabase S3 兼容性验证**（图片、SVG、MP3、已有视频各一）：
+3. **Supabase S3 兼容性验证**（图片、SVG、MP3、已有视频各一；用脚本或 curl 请求资产字节 GET 时须带 `Accept: application/vnd.openmaic.asset-descriptor+json, */*;q=0.9`，否则服务端走的是通用客户端的 `302` 分支，而不是浏览器实际使用的描述符分支）：
    - 签名响应的 `content-type`、`cache-control`、`content-disposition` 是否与 direct 模式一致；
    - 从正式 origin 发起的跨源 fetch 是否被 CORS 放行；
    - 已删除对象是否返回带 `NoSuchKey` 的 404；错误桶/端点是否不会被误判为缺失；
@@ -168,7 +254,7 @@
 
 ## 7. P2-1：全站 16 / 每用户 2 的真实容量验收
 
-**现状：**当前 3 个账号不足以证明 8-owner/16 根任务。已有临时 PostgreSQL 调度验证脚本，但它不调用真实云端模型，不能代替吞吐验收。
+**现状：**东京迁移保留 3 个账号、Tier 4 与两个 worker，不足以证明 8-owner/16 根任务；迁移没有触发付费模型新生成，也没有完成真实容量验收。同地域可能减少网络等待，但不会自动增加数据库连接、服务器资源或模型配额。已有临时 PostgreSQL 调度验证脚本，但它不调用真实云端模型，不能代替吞吐验收。
 
 **配置事实：**
 - `scripts/supabase-compose.ps1` 的 4/8/16 档分别设置 `APP_HEAVY_TASK_LIMIT`、`OPENMAIC_AGENT_RUNTIME_MAX_CONCURRENT`、`GENERATION_LLM_MAX_INFLIGHT` 为 4/8/16，`GENERATION_WORKER_CONCURRENCY` 为 2/4/8；worker 固定 2 副本；每用户上限在 compose 中写死为 2（代码默认值为 1）。
@@ -187,7 +273,7 @@
    ```
 
 3. 建立固定任务集：普通后台与 Pro 混合、相近页数和媒体数量；另测普通前台同步准入与后台/Pro 共享额度。使用相同输入规模，避免将任务变轻当成容量提升。
-4. 按 4→8→16 逐档执行，每档开始前核实实际配置。改档用 `Apply` 会重建配置变化的容器，应先停止接入新任务并等待活动任务终态，不能在真实请求中途切换。
+4. 在东京环境按 4→8→16 逐档执行，每档开始前核实实际配置及 P1-1 第 5 步的东京连接预算；保留区域、服务器和模型配额记录，不把迁移前结果直接当作当前容量结论。改档用 `Apply` 会重建配置变化的容器，应先停止接入新任务并等待活动任务终态，不能在真实请求中途切换。
 5. 每档建议先一轮冒烟，再至少三批可比较任务；记录每个根任务的 owner、类型、排队/开始/结束时间、结果、重试和提供商用量。持续采集 DB 准入事件与每秒监测；仅靠采样不能证明从未短暂超限。
 6. Tier 16 时让 8 个 owner 各有 2 个可运行根任务，并额外提交第 17 个；验证全局最多 16、每 owner 最多 2，超额的任务等待或按既有契约拒绝。Pro 派生的 job/解析任务不能被重复计为根任务；公平性检查新旧 owner 都有进展。
 7. 采集池等待（P1-0 埋点）、队列等待、P95 完成时间、成功率、429、CPU/RSS、tmpfs 占用、事件循环延迟、心跳和租约丢失；负载中实际打开旧课堂、播放媒体并完成学伴一轮。
@@ -200,7 +286,7 @@
 
 ## 8. P2-2：补齐完整课堂和学伴验收矩阵
 
-1. 从原计划第 9.1 节与 T0 清单建立表格，逐项填“已有证据 / 待测 / 失败 / 不适用及原因”。沿用已通过的课程 ID，不把全部工作重新标为未做。
+1. 从原计划第 9.1 节与 T0 清单建立表格，逐项填“已有证据 / 待测 / 失败 / 不适用及原因”，每条标注环境、日期和验证方式。沿用已通过的课程 ID，引用东京迁移已有的读取、隔离、文件、学习记录及 Markdown/DOCX 导出证据，不把全部工作重新标为未做；这些 HTTP/导出逻辑证据不能替代完整浏览器操作。普通前台/后台/Pro 新生成、其他导出格式及完整课堂/学伴链路仍按实际覆盖补验。
 2. 四类课程分别覆盖：普通前台、普通后台、Pro、迁移旧课。页面类型选已有的 slide、交互/练习等代表样本；每种已有导出格式单独记录。生产未启用 MP4 导出时，标为“不适用（资源限制）”，不写失败也不写通过。
 3. 补测生成阶段的确认/取消/失败恢复；课堂的编辑保存、媒体、聊天、白板、练习/反馈、导出；刷新和容器重建后的持久化读取。
 4. 学伴补齐选择、准备、解释、追问/评价、引用/总结、暂停/恢复、结束、历史和账号隔离。已有的“重试创建新活动”是当前行为，不写成同一 activity 续跑；瞬时播放位置也不冒充已支持跨设备同步。
@@ -214,7 +300,7 @@
 2. 现有 compose 只设置 `LOG_LEVEL`/`LOG_FORMAT`，没有 Docker `logging` 轮转配置。生产覆盖文件或宿主 Docker daemon 需配置日志轮转和保留期；业务状态和删除账本仍在数据库；日志脱敏，区分测试与真实用户流量。
 3. **临时文件**：Web/worker 的 `/tmp`、`/app/data` 是 tmpfs，容器重建即清空，但运行期间占用内存。为 tmpfs 设置 size 上限，按“任务租约 + 最后使用时间 + 保留期”清理长运行容器内的临时文件。先 dry-run 输出候选，只删除确认没有活动任务引用的文件；不递归清理业务卷或备份目录。
 4. **Storage 孤儿对象**：Supabase 栈在共享环境锚点中设 `ASSET_COLLECTION_ENABLED: 'false'`（web/worker/readiness 全关闭），替换或删除后无引用的对象会累积。**注意 hosted 覆盖并未全关**：`docker-compose.hosted.yml` 只在 Web 服务上设置该变量，其 `generation-worker`（`env_file: !reset []`）未设置，而代码默认开启（`lib/persistence/asset-collector-schedule.ts` 仅 `'0'`/`'false'` 视为关闭），即 hosted 栈的 worker 实际会运行资产回收；启用状态必须按服务逐一核对，不能按栈笼统认定。按原部署计划，在对象层与备份保护验证后再启用。`AssetCollector` 没有 dry-run 模式，启用前需另写只读查询，统计无引用对象的数量与体积。
-5. 在隔离恢复环境演练数据库、Storage 对象及加密密钥恢复，记录实际 RPO/RTO；抽查课程、媒体、学习记录和共享对象引用。备份是否覆盖 Storage 必须独立确认。
+5. 在隔离恢复环境演练数据库、Storage 对象及加密密钥恢复，记录实际 RPO/RTO；抽查课程、媒体、学习记录和共享对象引用。迁移已有实际恢复与文件逐个摘要核验的证据，可复用其恢复步骤；最终冻结数据库备份位于 `.scratch/supabase-tokyo-20260925/source-cutover/sql/full-source.dump`，对象及摘要位于该迁移目录的 `source-preflight/`。它们是迁移时点的恢复材料，不能覆盖东京后续新增数据，仍需建立东京项目持续备份并独立确认 Storage 文件字节覆盖。原新加坡项目已删除，灾难恢复需另建项目、导入备份并更新项目连接及构建参数；应用版本回退继续连接东京，不能指向已删除项目。备份、配置和密钥仅保存在受保护位置，不提交仓库。
 6. 复核历史 Advisor 提示：
    - `public.reserved_admin_lifecycle_snapshot`（定义在 `lib/server/accounts/sql-accounts.ts`，accounts v5）授权给 `authenticated`，是为 `scripts/lib/test-admin-lifecycle.ts` 的 dry-run 服务。函数内部已校验 `auth.uid()` 非空、邮箱属于调用者、账号为 active admin。如要收紧，须新增 accounts 迁移版本，同步 readiness 的 `ACCOUNTS_SCHEMA_REQUIRED`（当前 19），并保证该脚本仍可用或有替代途径，不在控制台直接改。
    - 泄露密码保护：按产品登录策略决定是否开启，不为清空告警破坏现有账号功能。
@@ -257,6 +343,9 @@
 只运行与本项有关的测试；全部代码稳定后再跑一次完整测试、类型检查及构建。文档变更无需全套测试。现有入口示例（本机 PowerShell；Node 需满足 package.json 的 `>=22.13.0`）：
 
 ```powershell
+# D0-0：代理头取值统一（新增的 trust-proxy 测试文件按实际命名补入）
+node node_modules/vitest/vitest.mjs run tests/auth/security-boundaries.test.ts --maxWorkers=2
+
 # 认证与读取优化相关测试
 node node_modules/vitest/vitest.mjs run tests/persistence/request-auth-reuse.test.ts tests/runtime/chat-storage.test.ts tests/learning/teach-back-runtime.test.ts --maxWorkers=2
 
@@ -283,10 +372,10 @@ node node_modules/vitest/vitest.mjs run --maxWorkers=2 --testTimeout=15000
 
 ```markdown
 # 工作项编号与名称
-- 环境/日期/代码版本/镜像：
+- 环境/日期/代码版本/镜像（本机或服务器、项目 ref/区域、网络出口、连接模式；不含凭据）：
 - 初始问题及复现步骤：
 - 修改范围与原因：
-- 前后指标（样本量、中位数、P95、失败数）：
+- 前后指标（样本量、中位数、P95、失败数；东京基线与代码优化结果同环境比较，迁移历史数据单列）：
 - 自动测试命令及结果：
 - 真实操作与课程/任务/会话 ID：
 - 权限与持久化检查：
@@ -295,8 +384,11 @@ node node_modules/vitest/vitest.mjs run --maxWorkers=2 --testTimeout=15000
 - 剩余事项：
 ```
 
-后续接续任务可直接使用：
+后续接续任务可直接使用（把 `<工作项>` 换成第 1 节表中的编号，如 `D0-0`、`P1-2`；如已准备好第 1.1 节要求的输入，一并附上）：
 
-> 阅读本清单、当前数据库验收报告和相关代码，只实施我指定的工作项。先复现与测量，再做最小修改并验证；保留当前未提交工作和三种生成模式，不修改无关功能，不把历史单次测试当作当前性能结论。完成后更新对应报告，明确通过范围和剩余限制。
+> 请执行 `docs/plans/2026-09-23-supabase-post-launch-improvements.md` 中的工作项 `<工作项>`，只做这一项。
+> 开始前：完整阅读该文第 1.1 节（执行守则）和该工作项所在章节；按需参考 2026-09-25 东京迁移记录及最终交付报告、当前数据库验收报告和相关代码。先运行 `git status`，如有与本项无关的未提交修改，停下来问我，不要提交、还原或覆盖它们。
+> 执行中：先复现与测量，再做最小修改并验证；若发现代码实际情况与文中“事实/代码现状”不符，先停下报告差异。任何对东京 Supabase 的写入、生产服务器操作、付费模型调用或真实邮件发送，都先问我；唯一例外是第 1.1 节第 3 条预授权的“每个工作项最多跑一门真实课程”，这一门不用问我。缺少第 1.1 节列出的输入时，只做不需要该输入的步骤，然后列出缺少什么。保留三种生成模式，不修改无关功能，不放宽 owner/RLS，不把新加坡历史单次测试当作东京当前性能结论，不连接已删除的新加坡项目。
+> 完成后：按第 12 节模板在 `docs/reports/` 新增报告，写明环境、测试命令与结果、通过范围和剩余限制；不要替我提交 git，改动清单列给我确认。
 
-技术资料于 2026-09-23 核对；后续执行涉及 Supabase API、S3 兼容性、连接模式或配置变更时，重新核对[官方更新记录](https://supabase.com/changelog)及对应文档。
+技术资料于 2026-09-23 核对；2026-09-25 本次修订依据东京迁移记录及最终交付报告，不代表重新完成全部代码与平台能力验收。后续执行涉及 Supabase API、S3 兼容性、连接模式或配置变更时，重新核对[官方更新记录](https://supabase.com/changelog)及对应文档。
