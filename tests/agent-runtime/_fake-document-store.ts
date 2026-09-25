@@ -37,7 +37,12 @@ export interface FakeDocumentStore {
 /** The fake store is already one owner's partition, so scoping is identity. */
 export type OwnerScopedFakeStore = DocumentStore<AppScene, AppStage> &
   StageFreshnessManifestStore &
-  DocumentFolderStore & { forOwner(ownerId: string): OwnerScopedFakeStore };
+  DocumentFolderStore & {
+    forOwner(ownerId: string): OwnerScopedFakeStore;
+    listLibraryDocuments(
+      folderId?: string,
+    ): ReturnType<DocumentStore<AppScene, AppStage>['listDocuments']>;
+  };
 
 export function createFakeDocumentStore(): FakeDocumentStore {
   const docs = new Map<string, MaicDocument<AppScene, AppStage>>();
@@ -110,6 +115,9 @@ export function createFakeDocumentStore(): FakeDocumentStore {
           sceneCount: doc.scenes.length,
         }))
         .sort((left, right) => left.id.localeCompare(right.id));
+    },
+    async listLibraryDocuments() {
+      return this.listDocuments();
     },
     async deleteDocument(stageId: string) {
       docs.delete(stageId);

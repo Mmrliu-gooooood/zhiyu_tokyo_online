@@ -7,6 +7,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { refuseForeignStagePost } from '@/lib/auth/stage-owner-gate';
 import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { apiError } from '@/lib/server/api-response';
 import { MAX_SESSION_TEXT_LENGTH } from '@/lib/server/agent-runtime/limits';
@@ -77,9 +78,6 @@ export async function POST(req: NextRequest) {
   const stageId = body.stageId?.toString().trim() || undefined;
   if (existingCourse && !stageId) {
     return apiError('MISSING_REQUIRED_FIELD', 400, 'existingCourse requires stageId');
-  }
-  if (existingCourse && stageId && !isValidClassroomId(stageId)) {
-    return apiError('INVALID_REQUEST', 400, 'existingCourse stageId has an invalid format');
   }
 
   const prompt =
@@ -165,14 +163,28 @@ export async function POST(req: NextRequest) {
      */
     const skillId = explicitSkillId ?? (await inferSkillIdFromPrompt(prompt, ownerId));
 
-    // Upstream classrooms do not carry an owner partition, so existing-course
-    // sessions validate only the identifier format here. Full existence and
-    // ownership validation is deferred until a later slice consumes stageId —
-    // the upstream document store has no owner partition yet.
+    if (stageId) {
+      const deniedStage = await refuseForeignStagePost(req, stageId, {
+        ownerId,
+        headers: responseHeaders,
+        requireExisting: existingCourse,
+      });
+      if (deniedStage) return deniedStage;
+    }
+    if (existingCourse && stageId && !isValidClassroomId(stageId)) {
+      const response = apiError(
+        'INVALID_REQUEST',
+        400,
+        'existingCourse stageId has an invalid format',
+      );
+      responseHeaders.forEach((value, name) => response.headers.append(name, value));
+      return response;
+    }
+
     const modelRef = existingCourse
       ? undefined
       : await validateSessionModelBinding(ownerId, body.modelRef);
-    const store = await getAgentSessionStore();
+    const store = await getAgentSessionStore(ownerId);
     const hasOpeningContext = materialIds.length > 0 || decodedCourseRefs.refs.length > 0;
     let meta;
     try {
@@ -253,7 +265,7 @@ export async function GET(req: NextRequest) {
   }
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
-    const store = await getAgentSessionStore();
+    const store = await getAgentSessionStore(ownerId);
     const sessions = await store.listSessionsByOwner(ownerId);
     return NextResponse.json(sessions, { headers: responseHeaders });
   });

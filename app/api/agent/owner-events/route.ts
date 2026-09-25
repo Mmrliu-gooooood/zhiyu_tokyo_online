@@ -3,22 +3,24 @@
  * A degraded caught_up is not authoritative: clients should schedule one full
  * reconciliation and may later receive a non-degraded caught_up on recovery.
  *
- * Access model: there is no per-route auth challenge. Every request is
- * granted an anonymous cookie identity, and every store read is scoped to
- * that identity.
+ * Access model: identity is resolved from the request (hosted principal or
+ * signed generation cookie). Store reads stay scoped to that owner.
  */
 import type { PersistedOwnerSessionEvent } from '@openmaic/storage';
 import type { NextRequest } from 'next/server';
 
 import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { subscribeAgentEventWakeup } from '@/lib/server/agent-runtime/event-notify-bus';
-import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
+import { resolveRequestOwnerIdAsync } from '@/lib/server/agent-runtime/owner';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
 import {
   OWNER_EVENT_POLL_INTERVAL_MS,
   OWNER_EVENT_REPLAY_LIMIT,
   SSE_HEARTBEAT_INTERVAL_MS,
 } from '@/lib/server/agent-runtime/route-constants';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
+import { tryPrincipal } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 // Self-hosted `next start` ignores maxDuration; Vercel's adapter can still use
@@ -42,14 +44,11 @@ export async function GET(req: NextRequest) {
   if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
 
   // Identity belongs to the request, not the URL. EventSource reconnects to
-  // this same stable path with the anonymous cookie minted on first attach.
-  // This slice resolves only the anonymous cookie identity; a future auth
-  // integration must thread `authenticatedOwnerId` through here, or sessions
-  // created under authenticated identities would be unreachable by their own
-  // owner.
+  // this same stable path. Hosted mode uses the verified principal; legacy
+  // mode keeps the signed generation cookie.
   const responseHeaders = new Headers();
-  const ownerId = resolveRequestOwnerId(req, responseHeaders);
-  const store = await getAgentSessionStore();
+  const ownerId = await resolveRequestOwnerIdAsync(req, responseHeaders);
+  const store = await getAgentSessionStore(ownerId);
 
   const url = new URL(req.url);
   const lastEventId = parseLastEventId(
@@ -207,6 +206,18 @@ export async function GET(req: NextRequest) {
 
       const poll = async () => {
         if (closed) return;
+        if (isHostedAuthEnabled() || shouldIsolateOwner(ownerId)) {
+          try {
+            const principal = await tryPrincipal(req);
+            if (!principal || principal.ownerId !== ownerId) {
+              close();
+              return;
+            }
+          } catch {
+            close();
+            return;
+          }
+        }
         if (!attachCursorChecked) {
           if (!(await checkAttachCursor()) || backlogSkippedForResync) return;
         }

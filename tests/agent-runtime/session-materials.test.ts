@@ -11,12 +11,14 @@ import { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ensureAgentSessionSchema, PgAgentSessionStore } from '@openmaic/storage/agent-session/pg';
+import { ensureAgentSessionMaterialSchema, PgAgentSessionMaterialStore } from '@openmaic/storage/material/pg';
 import type { Queryable } from '@openmaic/storage/asset/pg';
 import { setMaterialByteStoreForTests } from '@/lib/server/materials/bytes';
 
 const mocks = vi.hoisted(() => ({
   getAgentSessionStore: vi.fn(),
   getServerPersistenceProvider: vi.fn(),
+  getReadyOwnerMaterials: vi.fn(),
 }));
 
 vi.mock('@/lib/server/agent-runtime/store', () => ({
@@ -30,9 +32,13 @@ vi.mock('@/lib/server/agent-runtime/store', () => ({
 vi.mock('@/lib/persistence/server-provider', () => ({
   getServerPersistenceProvider: mocks.getServerPersistenceProvider,
 }));
+vi.mock('@/lib/persistence/owner-materials', () => ({
+  getReadyOwnerMaterials: mocks.getReadyOwnerMaterials,
+}));
 
 import {
   createWebMaterial,
+  bindOwnerMaterialsToSession,
   getSessionMaterial,
   listSessionMaterials,
   sessionMaterialsPromptBlock,
@@ -73,6 +79,55 @@ beforeEach(() => {
 });
 
 describe('session materials persistence', () => {
+  it('reuses one owner upload across sessions with distinct stable session material ids', async () => {
+    const { bytes, db, sessionStore } = await makeHost();
+    await sessionStore.createSession({ id: 'session-1', ownerId: 'owner-a', prompt: 'p' });
+    await sessionStore.createSession({ id: 'session-2', ownerId: 'owner-a', prompt: 'p' });
+    const sourceId = 'mat_123456789abcdefghjkmnpqrs';
+    bytes.set('owner/material.txt', Buffer.from('one source'));
+    mocks.getReadyOwnerMaterials.mockResolvedValue([
+      { id: sourceId, ossKey: 'owner/material.txt', mime: 'text/plain', originalName: 'material.txt', bytes: 10 },
+    ]);
+
+    const first = await bindOwnerMaterialsToSession('session-1', 'owner-a', [sourceId]);
+    const second = await bindOwnerMaterialsToSession('session-2', 'owner-a', [sourceId]);
+    const retried = await bindOwnerMaterialsToSession('session-1', 'owner-a', [sourceId]);
+
+    expect(first[0]?.materialId).toMatch(/^mat_[0-9abcdefghjkmnpqrstvwxyz]{26}$/);
+    expect(second[0]?.materialId).toMatch(/^mat_[0-9abcdefghjkmnpqrstvwxyz]{26}$/);
+    expect(first[0]?.materialId).not.toBe(second[0]?.materialId);
+    expect(retried).toEqual(first);
+    expect((await db.query('SELECT id FROM agent_session_materials')).rows).toHaveLength(2);
+    for (const [sessionId, binding] of [['session-1', first], ['session-2', second]] as const) {
+      const material = await getSessionMaterial(sessionId, binding[0]!.materialId);
+      expect(material?.kind).toBe('source');
+      expect(bytes.get(material!.rawAssetId!)?.toString()).toBe('one source');
+    }
+  });
+
+  it('keeps the existing owner id binding in an older session', async () => {
+    const { bytes, db, sessionStore } = await makeHost();
+    await sessionStore.createSession({ id: 'session-legacy', ownerId: 'owner-a', prompt: 'p' });
+    await ensureAgentSessionMaterialSchema(db);
+    const store = new PgAgentSessionMaterialStore(db);
+    const sourceId = 'mat_legacy';
+    await store.createMaterial('session-legacy', {
+      id: sourceId,
+      kind: 'source',
+      title: 'material.txt',
+      rawAssetId: 'materials/session-legacy/mat_legacy/raw.dGV4dC9wbGFpbg',
+    });
+    mocks.getReadyOwnerMaterials.mockResolvedValue([
+      { id: sourceId, ossKey: 'owner/material.txt', mime: 'text/plain', originalName: 'material.txt', bytes: 10 },
+    ]);
+
+    expect(await bindOwnerMaterialsToSession('session-legacy', 'owner-a', [sourceId])).toEqual([
+      { materialId: sourceId, originalName: 'material.txt', mime: 'text/plain', bytes: 10 },
+    ]);
+    expect((await db.query('SELECT id FROM agent_session_materials')).rows).toHaveLength(1);
+    expect(bytes.size).toBe(0);
+  });
+
   it('persists a fetched page as a web material linking its object key, and reads it back', async () => {
     const { bytes, sessionStore } = await makeHost();
     await sessionStore.createSession({ id: 'session-1', ownerId: 'owner-a', prompt: 'p' });

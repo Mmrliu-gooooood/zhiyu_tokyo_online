@@ -15,6 +15,7 @@ vi.mock('@/lib/config/feature-flags', () => ({
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
+  resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
 }));
 vi.mock('@/lib/server/agent-runtime/store', () => ({
   getAgentSessionStore: vi.fn(async () => ({

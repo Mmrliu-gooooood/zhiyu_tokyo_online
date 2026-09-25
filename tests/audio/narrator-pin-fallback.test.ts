@@ -46,9 +46,12 @@ vi.mock('@/lib/utils/database', () => ({
 }));
 
 vi.mock('@/lib/media/asset-pool', () => ({
-  putAsset: mocks.poolPut,
-  replaceAsset: mocks.poolReplace,
-  removeAsset: mocks.poolRemove,
+  getAssetPool: () => ({
+    put: mocks.poolPut,
+    replace: mocks.poolReplace,
+    remove: mocks.poolRemove,
+  }),
+  isAssetPoolServerBacked: () => false,
 }));
 
 vi.mock('@/lib/audio/provider-enablement', () => ({

@@ -1,7 +1,3 @@
-import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { Type, type Static } from 'typebox';
 
@@ -24,7 +20,7 @@ import { createLogger } from '@/lib/logger';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { readResponseBodyWithLimit } from '@/lib/server/bounded-download';
-import { CLASSROOMS_DIR } from '@/lib/server/classroom-storage';
+import { persistClassroomMediaBytes } from '@/lib/server/classroom-media-bytes';
 import type { CourseToolDeps } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { errorResult, MEDIA_TOOL_ERROR_REASONS } from './media-tool-result';
@@ -170,7 +166,7 @@ async function fetchGeneratedVideo(url: string, signal: AbortSignal): Promise<Re
 
 /**
  * Video providers return hosted URLs that may expire. Materialize those bytes
- * through the same local classroom-media path as generate_image and classic
+ * through the same classroom-media path as generate_image and classic
  * mode, returning an origin-independent RELATIVE serving path: the agent
  * runtime has no request to derive an origin from, and the durable value must
  * stay valid regardless of the origin the app is served from (the browser
@@ -208,17 +204,16 @@ export async function defaultPersistGeneratedVideo({
     mime = normalizeVideoMime(response.headers.get('content-type') ?? undefined);
     bytes = await readResponseBodyWithLimit(response, { maxBytes: MAX_GENERATED_VIDEO_BYTES });
   }
-  const hash = createHash('sha256').update(bytes).digest('hex');
   throwIfAborted(signal);
-
-  const mediaDir = path.join(CLASSROOMS_DIR, stageId, 'media');
-  const filename = `generated-${hash}.${extensionForVideoMime(mime)}`;
-  await fs.mkdir(mediaDir, { recursive: true });
-  throwIfAborted(signal);
-  await fs.writeFile(path.join(mediaDir, filename), bytes);
-  throwIfAborted(signal);
+  const src = await persistClassroomMediaBytes({
+    stageId,
+    bytes,
+    mime,
+    prefix: 'generated',
+    signal,
+  });
   return {
-    src: `/api/classroom-media/${stageId}/media/${filename}`,
+    src,
     mime,
   };
 }

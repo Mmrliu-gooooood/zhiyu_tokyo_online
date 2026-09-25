@@ -301,8 +301,6 @@ export async function validateBackgroundProviders(
   input: GenerationInput,
   context?: BackgroundProviderValidationContext,
 ): Promise<void> {
-  if (process.env.ASSET_S3_BUCKET?.trim())
-    throw new GenerationJobError('BACKGROUND_ASSET_BACKEND_UNSUPPORTED', 422);
   let capability: 'MEDIA' | 'MODEL' | 'TTS' | 'IMAGE' | 'VIDEO' | 'SEARCH' = 'MEDIA';
   try {
     const mediaSnapshot = input.mediaConfigRef

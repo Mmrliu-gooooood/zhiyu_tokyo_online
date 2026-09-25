@@ -1,14 +1,8 @@
 import type { RuntimeRecord, RuntimeSession } from '@openmaic/dsl';
-import {
-  RuntimeAppendConflictError,
-  type RuntimeStore,
-} from '@openmaic/storage';
+import { RuntimeAppendConflictError, type RuntimeStore } from '@openmaic/storage';
 import { getLearnerKey } from '@/lib/runtime/learner-key';
 import { getRuntimeStore } from '@/lib/runtime/store';
-import {
-  projectTeachBackActivity,
-  type TeachBackProjectedActivity,
-} from './activity';
+import { projectTeachBackActivity, type TeachBackProjectedActivity } from './activity';
 import {
   canonicalJson,
   parseTeachBackRecordPayload,
@@ -111,19 +105,33 @@ export async function listTeachBackActivities(
   const store = deps.store ?? getRuntimeStore();
   const learnerKey = deps.learnerKey ?? (await getLearnerKey());
   const sessions = await store.listSessions(stageId, learnerKey);
-  const activities: TeachBackProjectedActivity[] = [];
-  for (const session of sessions) {
-    if (session.kind !== 'teachBack') continue;
-    const records = await store.listRecords(session.id);
-    const payloads = records.flatMap((record) => {
-      const payload = asPayload(record);
-      return payload ? [{ seq: record.seq, payload }] : [];
-    });
-    const activityId = payloads[0]?.payload.activityId ?? session.id.replace(/^teach-back:/, '');
-    const activity = projectTeachBackActivity(activityId, payloads);
-    if (activity.hasStarted) activities.push(activity);
-  }
-  return activities.sort((left, right) => left.lastSeq - right.lastSeq);
+  const teachBackSessions = sessions.filter((session) => session.kind === 'teachBack');
+  const activities: (TeachBackProjectedActivity | undefined)[] = new Array(
+    teachBackSessions.length,
+  );
+  let nextIndex = 0;
+  // Bound remote reads so long histories neither serialize every round trip
+  // nor flood the shared HTTP/database pool. Keep ties in session-list order.
+  await Promise.all(
+    Array.from({ length: Math.min(4, teachBackSessions.length) }, async () => {
+      while (nextIndex < teachBackSessions.length) {
+        const index = nextIndex++;
+        const session = teachBackSessions[index]!;
+        const records = await store.listRecords(session.id);
+        const payloads = records.flatMap((record) => {
+          const payload = asPayload(record);
+          return payload ? [{ seq: record.seq, payload }] : [];
+        });
+        const activityId =
+          payloads[0]?.payload.activityId ?? session.id.replace(/^teach-back:/, '');
+        const activity = projectTeachBackActivity(activityId, payloads);
+        if (activity.hasStarted) activities[index] = activity;
+      }
+    }),
+  );
+  return activities
+    .filter((activity): activity is TeachBackProjectedActivity => activity !== undefined)
+    .sort((left, right) => left.lastSeq - right.lastSeq);
 }
 
 export async function appendTeachBackEvent(

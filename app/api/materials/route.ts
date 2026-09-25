@@ -37,7 +37,6 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { createMaterialId } from '@openmaic/storage';
-import type { ConnectableQueryable } from '@openmaic/storage/server/reference';
 
 import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { apiError } from '@/lib/server/api-response';
@@ -58,6 +57,7 @@ import {
   registerOwnerMaterial,
 } from '@/lib/persistence/owner-materials';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getMaterialByteStore } from '@/lib/server/materials/bytes';
 import {
   isWorkbenchMaterialMime,
@@ -127,10 +127,14 @@ export async function GET(req: NextRequest) {
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const session = await resolveOwnedSession(sessionId, ownerId);
     if (!session) return ownerNotFound(responseHeaders);
-    const materials = await listSessionMaterials(sessionId, {
-      ...(parsedLimit.limit === undefined ? {} : { limit: parsedLimit.limit }),
-      ...(before ? { before } : {}),
-    });
+    const materials = await listSessionMaterials(
+      sessionId,
+      {
+        ...(parsedLimit.limit === undefined ? {} : { limit: parsedLimit.limit }),
+        ...(before ? { before } : {}),
+      },
+      ownerId,
+    );
     return ownerJson(
       { materials: materials.map((material) => publicMaterialView(material)) },
       200,
@@ -219,6 +223,7 @@ export async function POST(req: NextRequest) {
       const ossKey = `materials/${ownerId}/${createdMaterialId}`;
 
       const provider = await getServerPersistenceProvider(process.env.DATABASE_URL ?? '');
+      const ownerDb = createOwnerBoundQueryable(provider.pool, ownerId);
       const byteStore = getMaterialByteStore();
 
       // Browsers send Content-Length for a File body. When an intermediary
@@ -234,7 +239,7 @@ export async function POST(req: NextRequest) {
       // the next pass instead of losing the pointer to its bytes.
       phase = 'reclaim_stale_uploads';
       await reclaimStaleOwnerMaterialUploads(
-        provider.pool as unknown as ConnectableQueryable,
+        ownerDb,
         ownerId,
         async (objectKey) => {
           try {
@@ -259,7 +264,7 @@ export async function POST(req: NextRequest) {
       phase = 'reserve_material';
       try {
         await registerOwnerMaterial(
-          provider.pool as unknown as ConnectableQueryable,
+          ownerDb,
           {
             id: createdMaterialId,
             ownerId,
@@ -274,6 +279,7 @@ export async function POST(req: NextRequest) {
             maxCount: agentRuntimeConfig.maxMaterialsPerOwner,
             maxTotalBytes: agentRuntimeConfig.maxMaterialBytesPerOwner,
           },
+          ownerDb.withTransaction,
         );
       } catch (error) {
         if (error instanceof MaterialQuotaExceededError) {
@@ -296,7 +302,7 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         if (error instanceof MaterialPayloadTooLarge) {
           await abandonOwnerMaterial(
-            provider.pool as unknown as ConnectableQueryable,
+            ownerDb,
             createdMaterialId,
           ).catch(() => undefined);
           return reject(
@@ -306,15 +312,12 @@ export async function POST(req: NextRequest) {
           );
         }
         failureLogged = true;
-        await abandonOwnerMaterial(
-          provider.pool as unknown as ConnectableQueryable,
-          createdMaterialId,
-        ).catch(() => undefined);
+        await abandonOwnerMaterial(ownerDb, createdMaterialId).catch(() => undefined);
         throw error;
       }
       if (bytes.byteLength === 0) {
         await abandonOwnerMaterial(
-          provider.pool as unknown as ConnectableQueryable,
+          ownerDb,
           createdMaterialId,
         ).catch(() => undefined);
         return reject(
@@ -324,10 +327,7 @@ export async function POST(req: NextRequest) {
         );
       }
       if (bytes.byteLength > reservedBytes) {
-        await abandonOwnerMaterial(
-          provider.pool as unknown as ConnectableQueryable,
-          createdMaterialId,
-        ).catch(() => undefined);
+        await abandonOwnerMaterial(ownerDb, createdMaterialId).catch(() => undefined);
         return reject(
           apiError('INVALID_REQUEST', 413, 'upload body exceeds its declared content length'),
           'declared_length_mismatch',
@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
         await byteStore.put(ossKey, bytes, mime);
         bytesStored = true;
         const row = await finalizeOwnerMaterial(
-          provider.pool as unknown as ConnectableQueryable,
+          ownerDb,
           createdMaterialId,
           bytes.byteLength,
           hash,
@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
         }
         if (bytesDeleted) {
           await abandonOwnerMaterial(
-            provider.pool as unknown as ConnectableQueryable,
+            ownerDb,
             createdMaterialId,
           ).catch(() => undefined);
         }

@@ -188,6 +188,7 @@ export function projectTeachBackActivity(
         const ended = explanation
           ? shouldEndTeachBackTurn({
               turnIndex: explanation.turnIndex,
+              currentTurnId: event.result.turnId,
               criteria: event.result.criteria,
             })
           : Boolean(event.result.endReason);
@@ -253,12 +254,19 @@ export function assertCanSubmitExplanation(activity: TeachBackProjectedActivity)
   if (!allowedTeachBackCommands(activity).has('submit_explanation')) {
     throw new Error('Teach-back is not waiting for an explanation');
   }
-  if (activity.explanations.some((item) => !activity.results.some((result) => result.turnId === item.turnId))) {
+  if (
+    activity.explanations.some(
+      (item) => !activity.results.some((result) => result.turnId === item.turnId),
+    )
+  ) {
     throw new Error('Teach-back already has an unevaluated explanation');
   }
 }
 
-export function assertCanRetryEvaluation(activity: TeachBackProjectedActivity, turnId: string): void {
+export function assertCanRetryEvaluation(
+  activity: TeachBackProjectedActivity,
+  turnId: string,
+): void {
   if (!allowedTeachBackCommands(activity).has('retry_evaluation')) {
     throw new Error('Teach-back has no pending explanation to retry');
   }

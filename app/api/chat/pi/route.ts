@@ -5,6 +5,8 @@
  * chain as a single server-side pi agent loop.
  */
 
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
+import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
 import { isProviderKeyRequired } from '@/lib/ai/providers';
 import {
@@ -40,6 +42,12 @@ const log = createLogger('Pi Chat API');
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   if (!isPiChatEnabled()) {
     return apiError('INVALID_REQUEST', 404, 'Pi chat runtime is disabled');
   }
@@ -52,6 +60,9 @@ export async function POST(req: NextRequest) {
     const body: StatelessChatRequest = await req.json();
     chatModel = body.model;
     chatMessageCount = body.messages?.length;
+
+    const deniedStage = await refuseForeignStagePost(req, stageIdFromStoreState(body.storeState));
+    if (deniedStage) return deniedStage;
 
     if (!body.messages || !Array.isArray(body.messages)) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: messages');

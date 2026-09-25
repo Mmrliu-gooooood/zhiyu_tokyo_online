@@ -1,16 +1,25 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 
-import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
+import { AuthError, authJsonResponse } from '@/lib/auth/errors';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import {
+  createOwnerBoundQueryable,
+  createOwnerBoundTransactionSource,
+  type OwnerBoundQueryable,
+} from '@/lib/db/request-queryable';
+import { resolveRequestOwnerIdAsync } from '@/lib/server/agent-runtime/owner';
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
 import { apiError } from '@/lib/server/api-response';
+import { FOREGROUND_GENERATION_ROOT_HEADER } from './foreground-generation';
 import {
   backgroundGenerationEnabled,
-  getGenerationPool,
+  getGenerationRequestPool,
 } from '@/lib/server/generation-jobs/runtime';
 
 import {
   checkHeavyTaskAdmission,
+  heavyTaskOwnerLimit,
   heavyTaskSyncQuotaGroup,
   isHeavyTaskFairTurn,
   withHeavyTaskRootContext,
@@ -31,6 +40,7 @@ let abortableFetchInstalled = false;
 
 interface IndependentLease {
   group: string;
+  slot: number;
   holder: string;
   epoch: number;
   expiresAtMs: number;
@@ -51,16 +61,41 @@ export async function runIndependentHeavyTaskRequest(
 ): Promise<Response> {
   // Worker deployments reject browser media routes at their existing guard;
   // durable worker/Pro media already inherits its admitted root context.
-  if (kind === 'media' && backgroundGenerationEnabled()) return body(new AbortController().signal);
-  if (!process.env.DATABASE_URL?.trim()) return body(new AbortController().signal);
+  // Hosted accounts cannot skip identity, even when the local DB is unset.
+  if (!isHostedAuthEnabled() && kind === 'media' && backgroundGenerationEnabled()) {
+    return body(new AbortController().signal);
+  }
+  if (!isHostedAuthEnabled() && !process.env.DATABASE_URL?.trim()) {
+    return body(new AbortController().signal);
+  }
 
   const responseHeaders = new Headers({ 'Cache-Control': 'no-store' });
-  const ownerId = resolveRequestOwnerId(request, responseHeaders);
+  let ownerId: string;
+  try {
+    ownerId = await resolveRequestOwnerIdAsync(request, responseHeaders);
+  } catch (error) {
+    if (error instanceof AuthError) return authJsonResponse(error, responseHeaders);
+    throw error;
+  }
+  if (!process.env.DATABASE_URL?.trim()) {
+    const response = await body(new AbortController().signal);
+    appendResponseHeaders(response, responseHeaders);
+    return response;
+  }
+  // Foreground course media is a child of the stable course root acquired by
+  // guardClientGeneration inside body. Do not allocate a second random root.
+  if (kind === 'media' && request.headers.get(FOREGROUND_GENERATION_ROOT_HEADER)?.trim()) {
+    const response = await body(new AbortController().signal);
+    appendResponseHeaders(response, responseHeaders);
+    return response;
+  }
   const holder = randomUUID();
   const rootTaskId = `independent:${holder}`;
+  const requestPool = getGenerationRequestPool();
+  const requestDb = createOwnerBoundQueryable(requestPool, ownerId);
   let lease: IndependentLease | null;
   try {
-    lease = await acquireIndependentLease(ownerId, rootTaskId, kind, holder);
+    lease = await acquireIndependentLease(requestPool, ownerId, rootTaskId, kind, holder);
   } catch (error) {
     return error instanceof PersonalCapacityError
       ? limitResponse('personal_limit', responseHeaders)
@@ -85,7 +120,7 @@ export async function runIndependentHeavyTaskRequest(
   armExpiryWatchdog();
   const renew = () => {
     if (renewing) return;
-    renewing = heartbeatIndependentLease(lease!)
+    renewing = heartbeatIndependentLease(requestDb, lease!)
       .then((alive) => {
         if (!alive) {
           const error = new IndependentLeaseLostError();
@@ -123,20 +158,21 @@ export async function runIndependentHeavyTaskRequest(
     if (expiryWatchdog) clearTimeout(expiryWatchdog);
     await renewing;
     try {
-      await releaseIndependentLease(lease);
+      await releaseIndependentLease(requestDb, lease);
     } catch {
-      retryReleaseIndependentLease(lease);
+      retryReleaseIndependentLease(requestDb, lease);
     }
   }
 }
 
 async function acquireIndependentLease(
+  pool: ReturnType<typeof getGenerationRequestPool>,
   ownerId: string,
   rootTaskId: string,
   kind: Extract<HeavyTaskKind, 'document-extraction' | 'media'>,
   holder: string,
 ): Promise<IndependentLease | null> {
-  return transaction(async (client) => {
+  return transaction(pool, ownerId, async (client) => {
     const nowMs = Date.now();
     const decision = await checkHeavyTaskAdmission(client, {
       ownerId,
@@ -162,53 +198,102 @@ async function acquireIndependentLease(
     ) {
       return null;
     }
+    const ownerLimit = heavyTaskOwnerLimit();
+    if (isHostedAuthEnabled()) {
+      const acquired = await client.query<{ slot_no: number; lease_epoch: number | string }>(
+        'SELECT * FROM app_internal.acquire_heavy_task_sync_lease($1,$2,$3,$4)',
+        [ownerId, holder, ownerLimit, SYNC_LEASE_MS],
+      );
+      const row = acquired.rows[0];
+      return row
+        ? {
+            group: heavyTaskSyncQuotaGroup(ownerId),
+            slot: Number(row.slot_no),
+            holder,
+            epoch: Number(row.lease_epoch),
+            expiresAtMs: Date.now() + SYNC_LEASE_MS,
+          }
+        : null;
+    }
     const group = heavyTaskSyncQuotaGroup(ownerId);
-    const acquired = await client.query<{ lease_epoch: number | string }>(
-      `INSERT INTO generation_provider_slots(
-         quota_group, slot_no, holder_attempt_id, lease_epoch, expires_at,
-         quarantine_until, cooldown_until
-       ) VALUES (
-         $1, 0, $2, 1,
-         clock_timestamp() + $3 * interval '1 millisecond', NULL, NULL
+    await client.query(
+      `INSERT INTO generation_provider_slots(quota_group, slot_no)
+       SELECT $1, slot_no FROM generate_series(0, $2 - 1) AS slot_no
+       ON CONFLICT DO NOTHING`,
+      [group, ownerLimit],
+    );
+    const acquired = await client.query<{ slot_no: number; lease_epoch: number | string }>(
+      `WITH available AS (
+         SELECT slot_no FROM generation_provider_slots
+          WHERE quota_group=$1 AND slot_no<$2
+            AND (holder_attempt_id IS NULL OR expires_at <= clock_timestamp())
+          ORDER BY slot_no LIMIT 1 FOR UPDATE SKIP LOCKED
        )
-       ON CONFLICT (quota_group, slot_no) DO UPDATE
-         SET holder_attempt_id = EXCLUDED.holder_attempt_id,
-             lease_epoch = generation_provider_slots.lease_epoch + 1,
-             expires_at = EXCLUDED.expires_at,
-             quarantine_until = NULL,
-             cooldown_until = NULL
-       WHERE generation_provider_slots.holder_attempt_id IS NULL
-          OR generation_provider_slots.expires_at <= clock_timestamp()
-       RETURNING lease_epoch`,
-      [group, holder, SYNC_LEASE_MS],
+       UPDATE generation_provider_slots AS target
+          SET holder_attempt_id=$3, lease_epoch=target.lease_epoch+1,
+              expires_at=clock_timestamp()+$4*interval '1 millisecond',
+              quarantine_until=NULL, cooldown_until=NULL
+         FROM available
+        WHERE target.quota_group=$1 AND target.slot_no=available.slot_no
+        RETURNING target.slot_no, target.lease_epoch`,
+      [group, ownerLimit, holder, SYNC_LEASE_MS],
     );
     const row = acquired.rows[0];
     return row
-      ? { group, holder, epoch: Number(row.lease_epoch), expiresAtMs: Date.now() + SYNC_LEASE_MS }
+      ? {
+          group,
+          slot: Number(row.slot_no),
+          holder,
+          epoch: Number(row.lease_epoch),
+          expiresAtMs: Date.now() + SYNC_LEASE_MS,
+        }
       : null;
   });
 }
 
-async function heartbeatIndependentLease(lease: IndependentLease): Promise<boolean> {
-  const result = await getGenerationPool().query(
+async function heartbeatIndependentLease(
+  db: OwnerBoundQueryable,
+  lease: IndependentLease,
+): Promise<boolean> {
+  if (isHostedAuthEnabled()) {
+    const result = await db.query<{ alive: boolean }>(
+      'SELECT app_internal.heartbeat_heavy_task_sync_lease($1,$2,$3,$4,$5) AS alive',
+      [lease.group, lease.slot, lease.holder, lease.epoch, SYNC_LEASE_MS],
+    );
+    return result.rows[0]?.alive === true;
+  }
+  const result = await db.query(
     `UPDATE generation_provider_slots
-        SET expires_at = clock_timestamp() + $4 * interval '1 millisecond'
-      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3
-        AND expires_at > clock_timestamp()`,
-    [lease.group, lease.holder, lease.epoch, SYNC_LEASE_MS],
+        SET expires_at = clock_timestamp() + $5 * interval '1 millisecond'
+      WHERE quota_group=$1 AND slot_no=$2 AND holder_attempt_id=$3 AND lease_epoch=$4
+        AND expires_at > clock_timestamp()
+      RETURNING slot_no`,
+    [lease.group, lease.slot, lease.holder, lease.epoch, SYNC_LEASE_MS],
   );
-  return result.rowCount === 1;
+  return result.rows.length === 1;
 }
 
-async function releaseIndependentLease(lease: IndependentLease): Promise<void> {
-  await getGenerationPool().query(
+async function releaseIndependentLease(
+  db: OwnerBoundQueryable,
+  lease: IndependentLease,
+): Promise<void> {
+  if (isHostedAuthEnabled()) {
+    await db.query('SELECT app_internal.release_heavy_task_sync_lease($1,$2,$3,$4)', [
+      lease.group,
+      lease.slot,
+      lease.holder,
+      lease.epoch,
+    ]);
+    return;
+  }
+  await db.query(
     `DELETE FROM generation_provider_slots
-      WHERE quota_group=$1 AND slot_no=0 AND holder_attempt_id=$2 AND lease_epoch=$3`,
-    [lease.group, lease.holder, lease.epoch],
+      WHERE quota_group=$1 AND slot_no=$2 AND holder_attempt_id=$3 AND lease_epoch=$4`,
+    [lease.group, lease.slot, lease.holder, lease.epoch],
   );
 }
 
-function retryReleaseIndependentLease(lease: IndependentLease): void {
+function retryReleaseIndependentLease(db: OwnerBoundQueryable, lease: IndependentLease): void {
   void (async () => {
     let attempt = 0;
     while (Date.now() < lease.expiresAtMs) {
@@ -217,7 +302,7 @@ function retryReleaseIndependentLease(lease: IndependentLease): void {
       const delayMs = Math.min(configuredDelay, Math.max(1, lease.expiresAtMs - Date.now()));
       await unrefDelay(delayMs);
       try {
-        await releaseIndependentLease(lease);
+        await releaseIndependentLease(db, lease);
         return;
       } catch {
         // A later fenced attempt is safe even if a successor already owns the row.
@@ -234,11 +319,15 @@ function unrefDelay(ms: number): Promise<void> {
   });
 }
 
-async function transaction<T>(body: (client: HeavyTaskAdmissionQueryable) => Promise<T>) {
-  const client = await getGenerationPool().connect();
+async function transaction<T>(
+  pool: ReturnType<typeof getGenerationRequestPool>,
+  ownerId: string,
+  body: (client: HeavyTaskAdmissionQueryable) => Promise<T>,
+) {
+  const client = await createOwnerBoundTransactionSource(pool, ownerId).connect();
   try {
     await client.query('BEGIN');
-    const result = await body(client);
+    const result = await body(client as HeavyTaskAdmissionQueryable);
     await client.query('COMMIT');
     return result;
   } catch (error) {

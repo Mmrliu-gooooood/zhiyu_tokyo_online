@@ -10,12 +10,13 @@ import {
   getPlatformDefaultCatalog,
   isPlatformDefaultBackingProvider,
 } from '@/lib/server/provider-config';
+import { hostedAuthGate } from '@/lib/auth/api';
 import type { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
 import {
   backgroundGenerationEnabled,
-  generationReadiness,
+  generationRequestReadiness,
 } from '@/lib/server/generation-jobs/runtime';
 
 const log = createLogger('ServerProviders');
@@ -34,6 +35,8 @@ function userProviderProjection<T extends object>(
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await hostedAuthGate(request);
+  if (denied) return denied;
   try {
     const catalogVersion = request.nextUrl.searchParams.get('catalogVersion');
     const version2 = catalogVersion === '2';
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
         background: backgroundGenerationEnabled()
           ? {
               enabled: true,
-              available: (await generationReadiness()).accepting,
+              available: (await generationRequestReadiness()).accepting,
               pipelineVersion: '1',
             }
           : { enabled: false, available: false, pipelineVersion: '1' },

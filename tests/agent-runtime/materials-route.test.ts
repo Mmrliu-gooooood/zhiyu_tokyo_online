@@ -30,6 +30,7 @@ vi.mock('@/lib/config/feature-flags', () => ({
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
+  resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
 }));
 vi.mock('@/lib/server/agent-runtime/session-materials', async (importOriginal) => {
   const actual =
@@ -138,7 +139,7 @@ describe('GET /api/materials', () => {
       ],
     });
     expect(mocks.resolveOwnedSession).toHaveBeenCalledWith(SESSION_ID, 'owner-1');
-    expect(mocks.listSessionMaterials).toHaveBeenCalledWith(SESSION_ID, {});
+    expect(mocks.listSessionMaterials).toHaveBeenCalledWith(SESSION_ID, {}, 'owner-1');
   });
 
   it('passes limit and before through as keyset paging', async () => {
@@ -148,10 +149,14 @@ describe('GET /api/materials', () => {
       ),
     );
     expect(response.status).toBe(200);
-    expect(mocks.listSessionMaterials).toHaveBeenCalledWith(SESSION_ID, {
-      limit: 10,
-      before: 'mat_prev',
-    });
+    expect(mocks.listSessionMaterials).toHaveBeenCalledWith(
+      SESSION_ID,
+      {
+        limit: 10,
+        before: 'mat_prev',
+      },
+      'owner-1',
+    );
   });
 
   it('rejects a missing sessionId', async () => {
@@ -225,6 +230,7 @@ describe('POST /api/materials', () => {
         maxCount: agentRuntimeConfig.maxMaterialsPerOwner,
         maxTotalBytes: agentRuntimeConfig.maxMaterialBytesPerOwner,
       }),
+      expect.any(Function),
     );
     expect(mocks.byteStore.put).toHaveBeenCalledWith(
       `materials/owner-1/${body.materialId}`,

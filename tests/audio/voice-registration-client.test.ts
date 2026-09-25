@@ -14,7 +14,8 @@ import { ensureRegisteredVoice } from '@/lib/audio/voice-registration-client';
 
 function okFetch() {
   const f = vi.fn(
-    async () => new Response(JSON.stringify({ voiceId: 'x', registered: true }), { status: 200 }),
+    async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify({ voiceId: 'x', registered: true }), { status: 200 }),
   );
   vi.stubGlobal('fetch', f);
   return f;
@@ -78,5 +79,21 @@ describe('ensureRegisteredVoice memoization', () => {
       { ttsBaseUrl: base, ttsApiKey: 'k2' },
     );
     expect(f).toHaveBeenCalledTimes(2); // different creds → re-validate
+  });
+
+  it('binds course-generation voice registration to the stable stage root', async () => {
+    const f = okFetch();
+    const stageId = 'stage-voice-root';
+    const voiceDesign = {
+      identity: 'stage-root teacher',
+      texture: 'warm',
+      delivery: 'measured',
+    };
+
+    await ensureRegisteredVoice('voxcpm-tts', { voiceDesign }, { stageId });
+
+    const init = f.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get('x-generation-root-stage-id')).toBe(stageId);
+    expect(JSON.parse(String(init?.body))).toMatchObject({ stageId });
   });
 });

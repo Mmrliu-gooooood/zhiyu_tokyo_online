@@ -44,6 +44,7 @@ node_modules/
 Thumbs.db
 Desktop.ini
 *.pem
+*.crt
 *.key
 *.p12
 *.pfx
@@ -111,6 +112,10 @@ e2e/screenshots/
 # local e2e screenshots for #619 review
 e2e/__screenshots-619/
 /.playwright-mcp/
+
+# Local editing and review artifacts
+/.codex-temp/
+/edit.py
 
 # Superdesign temp HTML (never commit)
 .superdesign/tmp/

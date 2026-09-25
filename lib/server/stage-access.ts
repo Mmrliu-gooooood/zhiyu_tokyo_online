@@ -10,6 +10,7 @@
  * generation-complete) go through.
  */
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 
 /** The minimal query surface this module needs; keeps it pool-agnostic for tests. */
 export interface StageAccessQueryable {
@@ -84,6 +85,12 @@ async function queryableFor(): Promise<StageAccessQueryable> {
 export async function getStageAccessDb(): Promise<StageAccessQueryable> {
   const { pool } = await getServerPersistenceProvider(process.env.DATABASE_URL ?? '');
   return pool as unknown as StageAccessQueryable;
+}
+
+/** Request-local app_web query surface with the authenticated owner set for RLS. */
+export async function getOwnerBoundStageAccessDb(ownerId: string): Promise<StageAccessQueryable> {
+  const { pool } = await getServerPersistenceProvider(process.env.DATABASE_URL ?? '');
+  return createOwnerBoundQueryable(pool, ownerId) as StageAccessQueryable;
 }
 
 /**

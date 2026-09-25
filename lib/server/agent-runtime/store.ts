@@ -7,6 +7,13 @@ import {
 import { extractObservedUrls } from '@openmaic/storage';
 import type { Pool } from 'pg';
 
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import {
+  getPersistenceDatabaseUrl,
+  tryAgentRuntimeDatabaseUrl,
+} from '@/lib/db/database-urls';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 import { notifyDurableAgentEvent } from './event-notify-bus';
 import {
@@ -49,16 +56,17 @@ export function nodePostgresTransaction(pool: Pool): WithTransaction {
   };
 }
 
-async function createAgentSessionStore(connectionString: string): Promise<PgAgentSessionStore> {
-  const { pool } = await getServerPersistenceProvider(connectionString);
-  await ensureAgentSessionSchema(pool);
+function createConfiguredAgentSessionStore(
+  db: Queryable,
+  withTransaction: WithTransaction,
+): PgAgentSessionStore {
   // URL observations from user-authored prompt/message text are registered
   // inside the same business transaction that creates the session / posts the
   // message (reference session-store semantics), so they commit atomically and
   // a registration failure aborts the write. The hooks run only after the
   // store is constructed, so the closure reference is always assigned.
-  const store: PgAgentSessionStore = new PgAgentSessionStore(pool, {
-    withTransaction: nodePostgresTransaction(pool),
+  const store: PgAgentSessionStore = new PgAgentSessionStore(db, {
+    withTransaction,
     admitClaim: async (transaction, input): Promise<boolean> => {
       const decision = await checkHeavyTaskAdmission(transaction, {
         ownerId: input.ownerId,
@@ -129,13 +137,32 @@ async function createAgentSessionStore(connectionString: string): Promise<PgAgen
   return store;
 }
 
+async function createAgentSessionStore(connectionString: string): Promise<PgAgentSessionStore> {
+  const { pool } = await getServerPersistenceProvider(connectionString);
+  // Hosted roles are DML-only. The operator migration owns schema creation;
+  // local/dev mode keeps the historical lazy initializer.
+  if (!isHostedAuthEnabled()) await ensureAgentSessionSchema(pool);
+  return createConfiguredAgentSessionStore(pool, nodePostgresTransaction(pool));
+}
+
+function createOwnerAgentSessionStore(ownerId: string): PgAgentSessionStore {
+  getPersistenceDatabaseUrl();
+  const db = createOwnerBoundQueryable(getPersistencePool(), ownerId);
+  // Hosted request paths never run schema DDL. Migrations provision the tables;
+  // the web LOGIN only receives owner-scoped DML through this transaction.
+  return createConfiguredAgentSessionStore(db, db.withTransaction);
+}
+
 /**
  * Return the process-wide agent-session store, initializing its schema lazily.
  * Failed initialization is cleared so a later request can retry after the
  * database becomes available.
  */
-export function getAgentSessionStore(): Promise<PgAgentSessionStore> {
-  const connectionString = process.env.DATABASE_URL;
+export function getAgentSessionStore(ownerId?: string): Promise<PgAgentSessionStore> {
+  if (ownerId && isHostedAuthEnabled()) {
+    return Promise.resolve(createOwnerAgentSessionStore(ownerId));
+  }
+  const connectionString = tryAgentRuntimeDatabaseUrl();
   if (!connectionString) {
     return Promise.reject(new Error('Agent runtime requires DATABASE_URL'));
   }

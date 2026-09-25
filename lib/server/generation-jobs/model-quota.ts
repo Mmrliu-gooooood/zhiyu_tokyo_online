@@ -1,5 +1,6 @@
 import type { LanguageModel } from 'ai';
-import { generationQuotaActive } from './provider-call-context';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { generationQuotaActive, getProviderQuotaOwner } from './provider-call-context';
 
 /** Quota wraps each actual SDK provider operation, including streaming lifetime. */
 export function withGenerationModelQuota(model: LanguageModel): LanguageModel {
@@ -18,15 +19,19 @@ export function withGenerationModelQuota(model: LanguageModel): LanguageModel {
         // The browser-driven/legacy deployment must not load PostgreSQL's queue
         // dependency graph merely by importing the shared LLM layer. Keep the
         // synchronous stream factory while acquiring quota at the actual call.
-        const [{ PostgresGenerationLimiter }, { generationConfig }, { getGenerationPool }] =
+        const [{ PostgresGenerationLimiter }, { generationConfig }, { getGenerationRequestPool }] =
           await Promise.all([import('./limiter'), import('./config'), import('./runtime')]);
         signal.throwIfAborted();
         const config = generationConfig();
-        const limiter = new PostgresGenerationLimiter(getGenerationPool(), {
-          llm: config.llmConcurrency,
-          tts: config.ttsConcurrency,
-          media: config.mediaConcurrency,
-        });
+        const limiter = new PostgresGenerationLimiter(
+          getGenerationRequestPool(),
+          {
+            llm: config.llmConcurrency,
+            tts: config.ttsConcurrency,
+            media: config.mediaConcurrency,
+          },
+          { ownerId: isHostedAuthEnabled() ? getProviderQuotaOwner() : undefined },
+        );
         if (key === 'doGenerate')
           return limiter.run('llm', 'deployment', signal, () =>
             Reflect.apply(original, target, [{ ...options, abortSignal: signal }]),

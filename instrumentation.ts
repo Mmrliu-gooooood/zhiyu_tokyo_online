@@ -34,15 +34,22 @@ export async function register(): Promise<void> {
     | undefined;
   let stopAgentEventNotifyBus: (() => Promise<void>) | null = null;
   try {
-    const { isAgentRuntimeConfigured } = await import('@/lib/config/feature-flags');
+    const { isAgentRuntimeConfigured, isAgentRuntimeWorkerConfigured } =
+      await import('@/lib/config/feature-flags');
     if (isAgentRuntimeConfigured()) {
-      // One dedicated LISTEN connection per application instance. The HTTP
-      // SSE routes and the runner share its in-process fanout registry; it is
-      // not a pool client and never scales with the number of streams.
-      const { startAgentEventNotifyBus } =
-        await import('@/lib/server/agent-runtime/event-notify-bus');
-      const eventNotifyBus = startAgentEventNotifyBus();
+      // The Web process owns the in-memory SSE subscribers, so it needs its
+      // own app_web session LISTEN connection. This never receives app_worker
+      // credentials; durable polling remains the recovery backstop.
+      const [{ startAgentEventNotifyBus }, { getWebListenDatabaseUrl }] = await Promise.all([
+        import('@/lib/server/agent-runtime/event-notify-bus'),
+        import('@/lib/db/database-urls'),
+      ]);
+      const eventNotifyBus = startAgentEventNotifyBus({
+        connectionString: getWebListenDatabaseUrl(),
+      });
       stopAgentEventNotifyBus = () => eventNotifyBus.stop();
+    }
+    if (isAgentRuntimeWorkerConfigured()) {
       // startAgentRunner only installs a timer. Store/schema initialization is
       // retained behind the store's lazy promise and never blocks register().
       const runtime = await import('@/lib/server/agent-runtime/runner');
@@ -86,8 +93,13 @@ export async function register(): Promise<void> {
       } catch (error) {
         console.error('[instrumentation] Asset collector drain failed', error);
       }
-      const connectionString = process.env.DATABASE_URL?.trim();
-      if (connectionString) {
+      const { trySystemDatabaseUrl } = await import('@/lib/db/database-urls');
+      const urls = new Set(
+        [process.env.DATABASE_URL?.trim(), trySystemDatabaseUrl()].filter(
+          (value): value is string => Boolean(value),
+        ),
+      );
+      for (const connectionString of urls) {
         try {
           const { getServerPersistenceProvider } =
             await import('@/lib/persistence/server-provider');

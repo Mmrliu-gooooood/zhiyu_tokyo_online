@@ -1,4 +1,5 @@
 import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 /**
  * Scene Outlines Streaming API (SSE)
  *
@@ -199,6 +200,10 @@ function ensureUniqueOutlineId(outline: SceneOutline, usedIds: Set<string>): Sce
 }
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let requirementSnippet: string | undefined;

@@ -14,8 +14,13 @@
  */
 import { AssetNotFoundError, toAssetId, type AssetPrincipal } from '@openmaic/storage';
 
+import { AuthError } from '@/lib/auth/errors';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
+import { tryPrincipal } from '@/lib/auth/session';
+
 import { authenticatePersistenceHeaders } from './server-auth';
-import { getServerPersistenceProvider } from './server-provider';
+import { createHostedOwnerBoundStores, getServerPersistenceProvider } from './server-provider';
 
 export type ServerAssetResolution =
   | { status: 'resolved'; buffer: Buffer; mimeType: string }
@@ -43,32 +48,43 @@ export async function resolveServerAsset(
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) return { status: 'unconfigured' };
 
-  // Shared-partition development auth: this authenticator maps every caller to
-  // one 'shared' asset principal (see the server-auth.ts docstring). It is the
-  // documented stopgap for this deployment shape — its cost surface is
-  // accepted until real per-learner principals land in a later part of the
-  // RFC; do not extend it here.
-  const principal = authenticatePersistenceHeaders(headers);
-  // The authenticator always supplies a partition key on success, but its type
-  // leaves it optional; a keyless principal fails closed as unauthenticated.
-  if (!principal?.key) return { status: 'unauthenticated' };
-  const assetPrincipal: AssetPrincipal = {
-    key: principal.key,
-    ...(principal.learnerKey ? { learnerKey: principal.learnerKey } : {}),
-  };
+  let assetPrincipal: AssetPrincipal | undefined;
+  try {
+    const hosted = await tryPrincipal(
+      new Request('http://localhost/api/persistence', { headers }),
+    );
+    if (hosted) {
+      assetPrincipal = { key: hosted.assetPrincipal, learnerKey: hosted.learnerKey };
+    }
+  } catch (error) {
+    if (error instanceof AuthError) return { status: 'unauthenticated' };
+    throw error;
+  }
+  if (!assetPrincipal) {
+    if (isHostedAuthEnabled()) return { status: 'unauthenticated' };
+    const principal = authenticatePersistenceHeaders(headers);
+    if (!principal?.key) return { status: 'unauthenticated' };
+    assetPrincipal = {
+      key: principal.key,
+      ...(principal.learnerKey ? { learnerKey: principal.learnerKey } : {}),
+    };
+  }
 
   try {
     const provider = await getServerPersistenceProvider(connectionString);
+    const assetStore = shouldIsolateOwner(assetPrincipal.key)
+      ? createHostedOwnerBoundStores(provider.pool, assetPrincipal.key).assetStore
+      : provider.assetStore;
     const ref = toAssetId(assetId);
     // Size check BEFORE materialization: `identify` reads only the registry
     // row (recorded byte length), never the bytes, so an oversized asset is
     // rejected without ever pulling it into server memory.
     if (maxByteLength !== undefined) {
-      const identity = await provider.assetStore.identify(assetPrincipal, ref);
+      const identity = await assetStore.identify(assetPrincipal, ref);
       if (!identity) return { status: 'missing' };
       if (identity.byteLength > maxByteLength) return { status: 'too_large' };
     }
-    const resolved = await provider.assetStore.resolve(assetPrincipal, ref);
+    const resolved = await assetStore.resolve(assetPrincipal, ref);
     if (!resolved) return { status: 'missing' };
     return { status: 'resolved', buffer: Buffer.from(resolved.bytes), mimeType: resolved.mime };
   } catch (error) {

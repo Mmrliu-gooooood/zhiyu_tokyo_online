@@ -8,7 +8,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
+import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
 import { setStagePublished } from '@/lib/persistence/stage-meta';
 import { getStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
@@ -18,11 +20,21 @@ export const runtime = 'nodejs';
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const { id: stageId } = await params;
     try {
+      if (isHostedAuthEnabled() || shouldIsolateOwner(ownerId)) {
+        return NextResponse.json(
+          {
+            error: 'SHARING_DISABLED',
+            message: 'Link sharing is unavailable. Copy the URL only to open this course on your other devices.',
+          },
+          { status: 403, headers: responseHeaders },
+        );
+      }
+
       if (ownerId.startsWith('anon:')) {
         return NextResponse.json(
           { error: 'login_required' },

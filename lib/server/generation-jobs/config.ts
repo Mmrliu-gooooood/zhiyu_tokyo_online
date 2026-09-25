@@ -1,3 +1,5 @@
+import { heavyTaskCapacityConfig } from '@/lib/server/heavy-task-admission';
+
 export interface GenerationConfig {
   enabled: boolean;
   workerConcurrency: number;
@@ -15,6 +17,7 @@ export interface GenerationConfig {
   heartbeatMs: number;
 }
 export function generationConfig(env: NodeJS.ProcessEnv = process.env): GenerationConfig {
+  const capacity = heavyTaskCapacityConfig(env);
   const integer = (key: string, fallback: number, min: number, max: number) => {
     if (!env[key]?.trim()) return fallback;
     const n = Number(env[key]);
@@ -25,10 +28,10 @@ export function generationConfig(env: NodeJS.ProcessEnv = process.env): Generati
   return {
     enabled: env.GENERATION_BACKGROUND_ENABLED === '1',
     workerConcurrency: integer('GENERATION_WORKER_CONCURRENCY', 1, 1, 8),
-    maxQueuedPerOwner: integer('GENERATION_MAX_QUEUED_JOBS_PER_OWNER', 5, 1, 5),
-    maxQueued: integer('GENERATION_MAX_QUEUED_JOBS', 20, 1, 20),
-    maxReviewAttentionPerOwner: integer('GENERATION_MAX_REVIEW_ATTENTION_JOBS_PER_OWNER', 5, 1, 5),
-    maxReviewAttention: integer('GENERATION_MAX_REVIEW_ATTENTION_JOBS', 20, 1, 20),
+    maxQueuedPerOwner: capacity.queue.ownerLimit,
+    maxQueued: capacity.queue.siteLimit,
+    maxReviewAttentionPerOwner: capacity.attention.ownerLimit,
+    maxReviewAttention: capacity.attention.siteLimit,
     queueWaitMs: integer('GENERATION_QUEUE_WAIT_MS', 60 * 60 * 1000, 1000, 60 * 60 * 1000),
     manualReviewWaitMs: integer(
       'GENERATION_MANUAL_REVIEW_WAIT_MS',

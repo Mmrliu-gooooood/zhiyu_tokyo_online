@@ -1,4 +1,5 @@
 import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 /**
  * Agent Profiles Generation API
  *
@@ -129,6 +130,10 @@ function stripCodeFences(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let stageName: string | undefined;

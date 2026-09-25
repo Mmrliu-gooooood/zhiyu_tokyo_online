@@ -40,6 +40,7 @@ import {
   withChatStorageExclusiveLock,
   withChatStorageSharedLock,
 } from './chat-storage-lock';
+import { webLockManager } from './web-locks';
 
 const RESTORE_MARKER_PREFIX = 'chat-restore-marker:';
 const DELETION_MARKER_PREFIX = 'chat-deletion:';
@@ -217,8 +218,8 @@ function withPartitionLocks<T>(
   requiresCrossRealmLock: boolean,
   work: (isolatedWrites: boolean) => Promise<T>,
 ): Promise<T> {
-  if (typeof navigator !== 'undefined' && navigator.locks) {
-    const locks = navigator.locks;
+  const locks = webLockManager();
+  if (locks) {
     return locks.request<Promise<T>>(
       chatStoragePartitionLockName(crossRealmKey),
       () =>
@@ -964,8 +965,9 @@ async function loadRuntimeSessions(
   store: RuntimeStore,
   stageId: string,
   learnerKey: string,
+  existingViews?: ChatRuntimeView[],
 ): Promise<ChatSession[]> {
-  const views = await runtimeViews(store, stageId, learnerKey);
+  const views = existingViews ?? (await runtimeViews(store, stageId, learnerKey));
   const deletedChatSessionIds = new Set(deletionMarkersByChatId(views, stageId).keys());
   const restoreMarker = currentRestoreMarker(views, stageId);
   const supersededRuntimeSessionIds = new Set(
@@ -1213,7 +1215,14 @@ export async function loadChatSessions(
           }
         }
         if (legacy.length === 0) {
-          const loaded = await loadRuntimeSessions(resolved.store, stageId, resolved.learnerKey);
+          // The current partition read already includes any restore cleanup.
+          // Project that same snapshot instead of fetching every record twice.
+          const loaded = await loadRuntimeSessions(
+            resolved.store,
+            stageId,
+            resolved.learnerKey,
+            beforeLoad,
+          );
           runtimeReadSucceeded = true;
           if (options.observe !== false) {
             rememberObservedIds(
@@ -1432,7 +1441,7 @@ export async function restoreChatSessionsFromBackup(
     await restoreAfterPrecedingWrites();
     return;
   }
-  if (typeof navigator !== 'undefined' && navigator.locks) {
+  if (webLockManager()) {
     // The queue snapshot and shared-lock request are synchronous with respect
     // to other JavaScript tasks. New saves either join this shared epoch and
     // coordinate on partition locks, or wait behind a later exclusive request.

@@ -13,11 +13,21 @@
 import { db } from '@/lib/utils/database';
 import { getDeterministicVoiceId, type VoiceDesign } from '@/lib/audio/voice-design';
 import { clearVoiceBindingUnavailable } from '@/lib/audio/unavailable-voice-bindings';
+import { foregroundGenerationHeaders } from '@/lib/generation/foreground-root-client';
 
 export interface VoiceRegistrationRequestConfig {
   ttsApiKey?: string;
   ttsBaseUrl?: string;
   ttsModelId?: string;
+  /** Bind course-generation voice bootstrap work to the course's stable root lease. */
+  stageId?: string;
+}
+
+function voiceRegistrationHeaders(request: VoiceRegistrationRequestConfig): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    ...(request.stageId ? foregroundGenerationHeaders(request.stageId) : {}),
+  };
 }
 
 export interface UserVoiceRegistrationParams {
@@ -55,7 +65,7 @@ export async function registerVoiceFromReference(
   const referenceAudioBase64 = await blobToBase64(params.referenceAudio);
   const res = await fetch('/api/generate/voice', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: voiceRegistrationHeaders(request),
     body: JSON.stringify({
       modelSource: 'user',
       providerId,
@@ -86,7 +96,7 @@ export async function deleteRegisteredVoice(
   try {
     const res = await fetch('/api/generate/voice', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: voiceRegistrationHeaders(request),
       body: JSON.stringify({
         modelSource: 'user',
         providerId,
@@ -165,7 +175,7 @@ async function registerOnce(
   const cached = await getCachedClip(voiceId);
   const res = await fetch('/api/generate/voice', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: voiceRegistrationHeaders(request),
     body: JSON.stringify({
       modelSource: 'user',
       providerId,

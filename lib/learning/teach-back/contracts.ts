@@ -153,7 +153,7 @@ export interface TeachBackTurnResult {
   turnId: string;
   criteria: TeachBackCriterionResult[];
   nextQuestion?: TeachBackQuestion;
-  endReason?: 'all_explained' | 'max_turns';
+  endReason?: 'all_explained' | 'answer_correct' | 'max_turns';
   suggestion: string;
 }
 
@@ -235,6 +235,7 @@ export interface TeachBackEvaluateApiInput {
   explanations: TeachBackExplanation[];
   priorResults: TeachBackTurnResult[];
   turnId: string;
+  locale?: string;
 }
 
 export type TeachBackApiInput = TeachBackPrepareApiInput | TeachBackEvaluateApiInput;
@@ -377,7 +378,10 @@ export function parseTeachBackPeer(value: unknown): TeachBackPeer {
   };
 }
 
-function parseCriterion(value: unknown, fragments: readonly TeachBackFragment[]): TeachBackCriterion {
+function parseCriterion(
+  value: unknown,
+  fragments: readonly TeachBackFragment[],
+): TeachBackCriterion {
   if (
     !isRecord(value) ||
     !hasOnlyKeys(value, ['criterionId', 'description', 'quote', 'fragmentId']) ||
@@ -400,10 +404,7 @@ function parseCriterion(value: unknown, fragments: readonly TeachBackFragment[])
   };
 }
 
-function parseQuestion(
-  value: unknown,
-  criterionIds: ReadonlySet<string>,
-): TeachBackQuestion {
+function parseQuestion(value: unknown, criterionIds: ReadonlySet<string>): TeachBackQuestion {
   if (
     !isRecord(value) ||
     !hasOnlyKeys(value, ['questionId', 'text', 'criterionId']) ||
@@ -534,11 +535,12 @@ function parseCriterionResult(
 
 export function shouldEndTeachBackTurn(input: {
   turnIndex: number;
+  currentTurnId: string;
   criteria: readonly TeachBackCriterionResult[];
 }): boolean {
   if (input.turnIndex >= TEACH_BACK_MAX_EXPLANATIONS) return true;
-  return (
-    input.criteria.length > 0 && input.criteria.every((item) => item.status === 'explained')
+  return input.criteria.some(
+    (item) => item.status === 'explained' && item.citation?.turnId === input.currentTurnId,
   );
 }
 
@@ -625,10 +627,69 @@ function suggestionFromCriteria(
   return clipBoundedText(parts.join(' ') || plan.topic, TEACH_BACK_LIMITS.suggestionCharacters);
 }
 
-export function teachBackClosingSpeech(
-  result: TeachBackTurnResult,
+const TEACH_BACK_CLOSING_COPY: Readonly<
+  Record<string, { affirmation: string; correctionPrefix: string }>
+> = Object.freeze({
+  'zh-CN': { affirmation: '回答正确，讲得很好。', correctionPrefix: '正确解释：' },
+  'zh-TW': { affirmation: '回答正確，講得很好。', correctionPrefix: '正確解釋：' },
+  'en-US': { affirmation: 'Correct — well explained. ', correctionPrefix: 'Correct explanation: ' },
+  'ja-JP': { affirmation: '正解です。よく説明できました。', correctionPrefix: '正しい説明：' },
+  'ru-RU': {
+    affirmation: 'Ответ верный — отлично объяснено. ',
+    correctionPrefix: 'Правильное объяснение: ',
+  },
+  'ar-SA': { affirmation: 'إجابتك صحيحة، شرح رائع. ', correctionPrefix: 'الشرح الصحيح: ' },
+  'pt-BR': {
+    affirmation: 'Resposta correta, muito bem explicado. ',
+    correctionPrefix: 'Explicação correta: ',
+  },
+  'ko-KR': { affirmation: '정답입니다. 잘 설명했어요. ', correctionPrefix: '올바른 설명: ' },
+  'es-MX': {
+    affirmation: 'Respuesta correcta, muy bien explicado. ',
+    correctionPrefix: 'Explicación correcta: ',
+  },
+  'fr-FR': {
+    affirmation: 'Bonne réponse, très bien expliqué. ',
+    correctionPrefix: 'Explication correcte : ',
+  },
+  'vi-VN': {
+    affirmation: 'Câu trả lời đúng, bạn giải thích rất tốt. ',
+    correctionPrefix: 'Lời giải đúng: ',
+  },
+  'de-DE': {
+    affirmation: 'Richtig beantwortet, gut erklärt. ',
+    correctionPrefix: 'Richtige Erklärung: ',
+  },
+});
+
+function teachBackClosingCopy(locale: string) {
+  return TEACH_BACK_CLOSING_COPY[locale] ?? TEACH_BACK_CLOSING_COPY['en-US']!;
+}
+
+function courseGroundedCorrection(
+  criteria: readonly Pick<TeachBackCriterionResult, 'criterionId' | 'status'>[],
   plan: TeachBackPlan,
+  correctionPrefix: string,
 ): string {
+  const answers = criteria
+    .filter((item) => item.status !== 'explained')
+    .map((item) => plan.criteria.find((entry) => entry.criterionId === item.criterionId))
+    .filter((item): item is TeachBackCriterion => Boolean(item))
+    .map((item) => item.quote.trim() || item.description.trim())
+    .filter(Boolean);
+  const prefix = correctionPrefix;
+  if (answers.length === 0) return prefix + plan.topic;
+  const separatorsLength = Math.max(0, answers.length - 1);
+  const budget = Math.max(
+    1,
+    Math.floor(
+      (TEACH_BACK_LIMITS.suggestionCharacters - prefix.length - separatorsLength) / answers.length,
+    ),
+  );
+  return `${prefix}${answers.map((answer) => clipBoundedText(answer, budget)).join('；')}`;
+}
+
+export function teachBackClosingSpeech(result: TeachBackTurnResult, plan: TeachBackPlan): string {
   const spoken = result.suggestion.trim() || suggestionFromCriteria(result.criteria, plan);
   return clipBoundedText(spoken, TEACH_BACK_LIMITS.suggestionCharacters);
 }
@@ -638,6 +699,7 @@ export function coerceTeachBackModelTurnResult(
   plan: TeachBackPlan,
   explanations: readonly TeachBackExplanation[],
   turnId: string,
+  locale = 'zh-CN',
 ): Record<string, unknown> {
   if (!isRecord(value)) throw new Error('Invalid teach-back turn result');
   const explanation = explanations.find((item) => item.turnId === turnId);
@@ -656,22 +718,38 @@ export function coerceTeachBackModelTurnResult(
   const criteria = plan.criteria.map((criterion) => {
     const raw = byId.get(criterion.criterionId);
     if (!raw) throw new Error('Teach-back turn result omitted a criterion');
-    return coerceCriterionResultDraft(
-      raw,
-      criterionIds,
-      explanations,
-      criterion.description,
-    );
+    return coerceCriterionResultDraft(raw, criterionIds, explanations, criterion.description);
   });
 
   const ended = shouldEndTeachBackTurn({
     turnIndex: explanation.turnIndex,
+    currentTurnId: turnId,
     criteria,
   });
-  let suggestion =
-    typeof value.suggestion === 'string' ? value.suggestion.trim() : '';
+  let suggestion = typeof value.suggestion === 'string' ? value.suggestion.trim() : '';
   if (!suggestion) {
     suggestion = suggestionFromCriteria(criteria, plan);
+  }
+  const answeredCorrectly = criteria.some(
+    (item) => item.status === 'explained' && item.citation?.turnId === turnId,
+  );
+  const allExplained =
+    answeredCorrectly &&
+    criteria.length > 0 &&
+    criteria.every((item) => item.status === 'explained');
+  const closingCopy = teachBackClosingCopy(locale);
+  if (ended && answeredCorrectly) {
+    const affirmation = closingCopy.affirmation;
+    suggestion = suggestion.startsWith(affirmation) ? suggestion : `${affirmation}${suggestion}`;
+  } else if (ended) {
+    // The third failed explanation must end with the course-grounded answer,
+    // independent of untrusted model feedback and within the fixed output budget.
+    const grounded = courseGroundedCorrection(criteria, plan, closingCopy.correctionPrefix);
+    const remaining = TEACH_BACK_LIMITS.suggestionCharacters - grounded.length - 1;
+    suggestion =
+      remaining > 0 && suggestion && !grounded.includes(suggestion)
+        ? `${grounded} ${clipBoundedText(suggestion, remaining)}`
+        : grounded;
   }
   suggestion = clipBoundedText(suggestion, TEACH_BACK_LIMITS.suggestionCharacters);
 
@@ -681,9 +759,11 @@ export function coerceTeachBackModelTurnResult(
     suggestion,
   };
   if (ended) {
-    coerced.endReason = criteria.every((item) => item.status === 'explained')
+    coerced.endReason = allExplained
       ? 'all_explained'
-      : 'max_turns';
+      : answeredCorrectly
+        ? 'answer_correct'
+        : 'max_turns';
     return coerced;
   }
   const nextQuestion = coerceNextQuestionDraft(value.nextQuestion, criterionIds, criteria);
@@ -696,8 +776,9 @@ export function parseTeachBackTurnResult(
   plan: TeachBackPlan,
   explanations: readonly TeachBackExplanation[],
   turnId: string,
+  locale = 'zh-CN',
 ): TeachBackTurnResult {
-  const coerced = coerceTeachBackModelTurnResult(value, plan, explanations, turnId);
+  const coerced = coerceTeachBackModelTurnResult(value, plan, explanations, turnId, locale);
   if (
     !boundedString(coerced.turnId, TEACH_BACK_LIMITS.idCharacters) ||
     coerced.turnId !== turnId ||
@@ -726,7 +807,11 @@ export function parseTeachBackTurnResult(
     }
   }
 
-  const ended = shouldEndTeachBackTurn({ turnIndex: explanation.turnIndex, criteria });
+  const ended = shouldEndTeachBackTurn({
+    turnIndex: explanation.turnIndex,
+    currentTurnId: turnId,
+    criteria,
+  });
   const hasNext = coerced.nextQuestion !== undefined && coerced.nextQuestion !== null;
   if (ended && hasNext) {
     throw new Error('Ended teach-back turns cannot ask another question');
@@ -734,7 +819,12 @@ export function parseTeachBackTurnResult(
   if (!ended && !hasNext) {
     throw new Error('Open teach-back turns must include exactly one next question');
   }
-  if (ended && coerced.endReason !== 'all_explained' && coerced.endReason !== 'max_turns') {
+  if (
+    ended &&
+    coerced.endReason !== 'all_explained' &&
+    coerced.endReason !== 'answer_correct' &&
+    coerced.endReason !== 'max_turns'
+  ) {
     throw new Error('Ended teach-back turns require an end reason');
   }
   if (!ended && coerced.endReason !== undefined) {
@@ -748,9 +838,7 @@ export function parseTeachBackTurnResult(
     throw new Error('Invalid teach-back turn result');
   }
 
-  const nextQuestion = hasNext
-    ? parseQuestion(coerced.nextQuestion, criterionIds)
-    : undefined;
+  const nextQuestion = hasNext ? parseQuestion(coerced.nextQuestion, criterionIds) : undefined;
   if (nextQuestion) {
     const target = criteria.find((item) => item.criterionId === nextQuestion.criterionId);
     if (!target || target.status === 'explained') {
@@ -763,7 +851,11 @@ export function parseTeachBackTurnResult(
     criteria,
     suggestion: coerced.suggestion as string,
     ...(nextQuestion ? { nextQuestion } : {}),
-    ...(ended ? { endReason: coerced.endReason as 'all_explained' | 'max_turns' } : {}),
+    ...(ended
+      ? {
+          endReason: coerced.endReason as 'all_explained' | 'answer_correct' | 'max_turns',
+        }
+      : {}),
   };
 }
 
@@ -830,6 +922,7 @@ function parseStoredTurnResult(value: unknown): TeachBackTurnResult {
   if (
     value.endReason !== undefined &&
     value.endReason !== 'all_explained' &&
+    value.endReason !== 'answer_correct' &&
     value.endReason !== 'max_turns'
   ) {
     throw new Error('Invalid stored end reason');
@@ -1017,6 +1110,7 @@ export function parseTeachBackApiInput(value: unknown): TeachBackApiInput {
       !boundedString(value.activityId, TEACH_BACK_LIMITS.idCharacters) ||
       !boundedString(value.requestId, TEACH_BACK_LIMITS.idCharacters) ||
       !boundedString(value.turnId, TEACH_BACK_LIMITS.idCharacters) ||
+      (value.locale !== undefined && !boundedString(value.locale, 16)) ||
       !Array.isArray(value.explanations) ||
       value.explanations.length > TEACH_BACK_MAX_EXPLANATIONS ||
       !Array.isArray(value.priorResults) ||
@@ -1030,9 +1124,7 @@ export function parseTeachBackApiInput(value: unknown): TeachBackApiInput {
       plan.openingQuestion.questionId,
       ...((value.priorResults as unknown[])
         .map((item) =>
-          isRecord(item) && isRecord(item.nextQuestion)
-            ? String(item.nextQuestion.questionId)
-            : '',
+          isRecord(item) && isRecord(item.nextQuestion) ? String(item.nextQuestion.questionId) : '',
         )
         .filter(Boolean) as string[]),
     ]);
@@ -1047,7 +1139,13 @@ export function parseTeachBackApiInput(value: unknown): TeachBackApiInput {
       if (!isRecord(item) || !priorTurn || item.turnId !== priorTurn.turnId) {
         throw new Error('Prior teach-back results must follow submitted turns');
       }
-      return parseTeachBackTurnResult(item, plan, explanations.slice(0, index + 1), priorTurn.turnId);
+      return parseTeachBackTurnResult(
+        item,
+        plan,
+        explanations.slice(0, index + 1),
+        priorTurn.turnId,
+        typeof value.locale === 'string' ? value.locale : 'zh-CN',
+      );
     });
     return {
       operation: 'evaluate',
@@ -1058,6 +1156,7 @@ export function parseTeachBackApiInput(value: unknown): TeachBackApiInput {
       explanations,
       priorResults,
       turnId: value.turnId,
+      ...(typeof value.locale === 'string' ? { locale: value.locale } : {}),
     };
   }
   throw new Error('Invalid teach-back operation');

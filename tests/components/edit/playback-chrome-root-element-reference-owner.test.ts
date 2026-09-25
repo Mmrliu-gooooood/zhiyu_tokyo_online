@@ -297,6 +297,9 @@ vi.mock('@/lib/playback', () => ({
     isExhausted() {
       return false;
     }
+    hasLectureInterruption() {
+      return false;
+    }
     canJumpToAction() {
       return mocks.canJumpToAction();
     }

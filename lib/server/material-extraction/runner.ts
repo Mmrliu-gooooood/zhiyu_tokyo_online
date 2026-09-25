@@ -19,16 +19,16 @@ export interface MaterialExtractionRunnerDependencies {
   execute?: typeof extractClaimedSessionMaterial;
 }
 
-/** Claim and settle one job. Exported so the failure path is contract-testable. */
-export async function runNextMaterialExtraction(
+type ClaimedMaterialExtraction = NonNullable<
+  Awaited<ReturnType<PgAgentSessionMaterialStore['claimNextExtraction']>>
+>;
+
+async function runClaimedMaterialExtraction(
   store: PgAgentSessionMaterialStore,
+  claim: ClaimedMaterialExtraction,
   workerId: string,
-  execute: typeof extractClaimedSessionMaterial = extractClaimedSessionMaterial,
-): Promise<boolean> {
-  const claim = await store.claimNextExtraction(workerId, {
-    leaseTtlMs: agentRuntimeConfig.leaseTtlMs,
-  });
-  if (!claim) return false;
+  execute: typeof extractClaimedSessionMaterial,
+): Promise<void> {
   const heartbeat = setInterval(() => {
     void store.heartbeatExtraction(claim.material.id, workerId);
   }, agentRuntimeConfig.heartbeatIntervalMs);
@@ -52,6 +52,19 @@ export async function runNextMaterialExtraction(
   } finally {
     clearInterval(heartbeat);
   }
+}
+
+/** Claim and settle one job. Exported so the failure path is contract-testable. */
+export async function runNextMaterialExtraction(
+  store: PgAgentSessionMaterialStore,
+  workerId: string,
+  execute: typeof extractClaimedSessionMaterial = extractClaimedSessionMaterial,
+): Promise<boolean> {
+  const claim = await store.claimNextExtraction(workerId, {
+    leaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+  });
+  if (!claim) return false;
+  await runClaimedMaterialExtraction(store, claim, workerId, execute);
   return true;
 }
 
@@ -64,15 +77,20 @@ export function startMaterialExtractionRunner(
   const execute = dependencies.execute ?? extractClaimedSessionMaterial;
   const running = new Set<Promise<void>>();
   let stopping = false;
+  let scanning = false;
 
   const scan = async () => {
-    if (stopping) return;
+    if (stopping || scanning) return;
+    scanning = true;
     try {
       const store = await getStore();
       await store.expirePendingExtractions(heavyTaskQueueWaitMs());
-      const available = agentRuntimeConfig.maxConcurrent - running.size;
-      for (let index = 0; !stopping && index < available; index += 1) {
-        const job: Promise<void> = runNextMaterialExtraction(store, workerId, execute)
+      while (!stopping && running.size < agentRuntimeConfig.maxConcurrent) {
+        const claim = await store.claimNextExtraction(workerId, {
+          leaseTtlMs: agentRuntimeConfig.leaseTtlMs,
+        });
+        if (!claim) break;
+        const job: Promise<void> = runClaimedMaterialExtraction(store, claim, workerId, execute)
           .then(() => undefined)
           .catch((error) => {
             console.error('[material-extraction] job failed before settlement', error);
@@ -82,6 +100,8 @@ export function startMaterialExtractionRunner(
       }
     } catch (error) {
       console.error('[material-extraction] scan failed', error);
+    } finally {
+      scanning = false;
     }
   };
   const timer = setInterval(() => void scan(), agentRuntimeConfig.scanIntervalMs);
@@ -93,7 +113,7 @@ export function startMaterialExtractionRunner(
       stopping = true;
       clearInterval(timer);
       const deadline = Date.now() + (options?.timeoutMs ?? 15_000);
-      while (running.size > 0 && Date.now() < deadline) {
+      while ((scanning || running.size > 0) && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
     },

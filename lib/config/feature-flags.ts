@@ -19,9 +19,36 @@ export function isAgentRuntimeEnabled(): boolean {
   return readBoolean(process.env.OPENMAIC_AGENT_RUNTIME_ENABLED);
 }
 
-/** The Node runtime can start the runner only with a non-empty database URL. */
+/** Web request surfaces need only the owner-scoped persistence login. */
 export function isAgentRuntimeConfigured(): boolean {
   return isAgentRuntimeEnabled() && Boolean(process.env.DATABASE_URL?.trim());
+}
+
+/**
+ * Background claimers need the system login in hosted mode. Keeping this
+ * separate prevents a Web process from receiving app_worker credentials merely
+ * so its authenticated Pro routes remain available.
+ */
+export function isAgentRuntimeWorkerConfigured(): boolean {
+  if (!isAgentRuntimeConfigured()) return false;
+  if (process.env.AUTH_MODE === 'supabase' || process.env.NEXT_PUBLIC_AUTH_MODE === 'supabase') {
+    // Hosted runner stores use the worker pool (claim / fair-turn).
+    return Boolean(process.env.WORKER_DATABASE_URL?.trim());
+  }
+  return true;
+}
+
+/**
+ * Ordinary cloud course library. Hosted accounts keep `/api/stages` available
+ * even when Pro / agent runtime is off. Legacy deployments still require the
+ * agent runtime gate so existing tests and Pro-only installs stay unchanged.
+ */
+export function isCloudCourseLibraryEnabled(): boolean {
+  if (!process.env.DATABASE_URL?.trim()) return false;
+  if (process.env.AUTH_MODE === 'supabase' || process.env.NEXT_PUBLIC_AUTH_MODE === 'supabase') {
+    return true;
+  }
+  return isAgentRuntimeConfigured();
 }
 
 /**

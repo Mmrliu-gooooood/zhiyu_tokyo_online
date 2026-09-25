@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
 
 /** The minimal query contract shared by pg pools, clients, and storage adapters. */
 export interface HeavyTaskAdmissionQueryable {
@@ -75,6 +76,7 @@ export interface HeavyTaskAdmissionOptions extends HeavyTaskRootContext {
   agentLeaseTtlMs: number;
   materialLeaseTtlMs?: number;
   siteLimit?: number;
+  ownerLimit?: number;
   /** Read-only status projections may skip serialization; claim paths keep the default. */
   lock?: boolean;
   /** A synchronous request can join the fairness comparison without a durable queue row. */
@@ -86,11 +88,117 @@ export const HEAVY_TASK_SYNC_QUOTA_PREFIX = 'heavy-task:sync-owner:';
 const HEAVY_TASK_ATTENTION_RESERVATION_GROUP = 'heavy-task:attention-reservation';
 const rootContext = new AsyncLocalStorage<HeavyTaskRootContext>();
 
-export function heavyTaskSiteLimit(env: Record<string, string | undefined> = process.env): 1 | 2 {
-  const raw = env.APP_HEAVY_TASK_LIMIT?.trim();
-  if (!raw) return 1;
-  if (raw === '1' || raw === '2') return Number(raw) as 1 | 2;
-  throw new Error('Invalid heavy-task configuration: APP_HEAVY_TASK_LIMIT must be 1 or 2');
+export interface HeavyTaskBacklogCapacity {
+  ownerLimit: number;
+  siteLimit: number;
+}
+
+export interface HeavyTaskCapacityConfig {
+  ownerLimit: number;
+  siteLimit: number;
+  queue: HeavyTaskBacklogCapacity;
+  attention: HeavyTaskBacklogCapacity;
+}
+
+function configuredInteger(
+  env: Record<string, string | undefined>,
+  key: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const raw = env[key]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < min || value > max) {
+    throw new Error(
+      `Invalid heavy-task configuration: ${key} must be an integer from ${min} to ${max}`,
+    );
+  }
+  return value;
+}
+
+function assertOwnerWithinSite(ownerLimit: number, siteLimit: number, ownerKey: string): void {
+  if (ownerLimit > siteLimit) {
+    throw new Error(
+      `Invalid heavy-task configuration: ${ownerKey} must not exceed APP_HEAVY_TASK_LIMIT`,
+    );
+  }
+}
+
+function validateBacklogCapacity(capacity: HeavyTaskBacklogCapacity): HeavyTaskBacklogCapacity {
+  if (
+    !Number.isSafeInteger(capacity.ownerLimit) ||
+    capacity.ownerLimit < 1 ||
+    capacity.ownerLimit > 100
+  ) {
+    throw new Error('backlog ownerLimit must be an integer from 1 to 100');
+  }
+  if (
+    !Number.isSafeInteger(capacity.siteLimit) ||
+    capacity.siteLimit < 1 ||
+    capacity.siteLimit > 100
+  ) {
+    throw new Error('backlog siteLimit must be an integer from 1 to 100');
+  }
+  if (capacity.ownerLimit > capacity.siteLimit) {
+    throw new Error('backlog ownerLimit must not exceed siteLimit');
+  }
+  return capacity;
+}
+
+export function heavyTaskSiteLimit(env: Record<string, string | undefined> = process.env): number {
+  return configuredInteger(env, 'APP_HEAVY_TASK_LIMIT', 1, 1, 32);
+}
+
+export function heavyTaskOwnerLimit(env: Record<string, string | undefined> = process.env): number {
+  return configuredInteger(env, 'APP_HEAVY_TASK_PER_OWNER_LIMIT', 1, 1, 32);
+}
+
+export function heavyTaskQueueCapacity(
+  env: Record<string, string | undefined> = process.env,
+): HeavyTaskBacklogCapacity {
+  const ownerLimit = configuredInteger(env, 'GENERATION_MAX_QUEUED_JOBS_PER_OWNER', 5, 1, 100);
+  const siteLimit = configuredInteger(env, 'GENERATION_MAX_QUEUED_JOBS', 20, 1, 100);
+  if (ownerLimit > siteLimit) {
+    throw new Error(
+      'Invalid heavy-task configuration: GENERATION_MAX_QUEUED_JOBS_PER_OWNER must not exceed GENERATION_MAX_QUEUED_JOBS',
+    );
+  }
+  return { ownerLimit, siteLimit };
+}
+
+export function heavyTaskAttentionCapacity(
+  env: Record<string, string | undefined> = process.env,
+): HeavyTaskBacklogCapacity {
+  const ownerLimit = configuredInteger(
+    env,
+    'GENERATION_MAX_REVIEW_ATTENTION_JOBS_PER_OWNER',
+    5,
+    1,
+    100,
+  );
+  const siteLimit = configuredInteger(env, 'GENERATION_MAX_REVIEW_ATTENTION_JOBS', 20, 1, 100);
+  if (ownerLimit > siteLimit) {
+    throw new Error(
+      'Invalid heavy-task configuration: GENERATION_MAX_REVIEW_ATTENTION_JOBS_PER_OWNER must not exceed GENERATION_MAX_REVIEW_ATTENTION_JOBS',
+    );
+  }
+  return { ownerLimit, siteLimit };
+}
+
+export function heavyTaskCapacityConfig(
+  env: Record<string, string | undefined> = process.env,
+): HeavyTaskCapacityConfig {
+  const siteLimit = heavyTaskSiteLimit(env);
+  const ownerLimit = heavyTaskOwnerLimit(env);
+  assertOwnerWithinSite(ownerLimit, siteLimit, 'APP_HEAVY_TASK_PER_OWNER_LIMIT');
+  return {
+    siteLimit,
+    ownerLimit,
+    queue: heavyTaskQueueCapacity(env),
+    attention: heavyTaskAttentionCapacity(env),
+  };
 }
 
 export function heavyTaskQueueWaitMs(
@@ -168,8 +276,43 @@ export async function checkHeavyTaskAdmission(
     'materialLeaseTtlMs',
   );
   const siteLimit = options.siteLimit ?? heavyTaskSiteLimit();
-  if (siteLimit !== 1 && siteLimit !== 2) {
-    throw new Error('siteLimit must be 1 or 2');
+  const ownerLimit = options.ownerLimit ?? heavyTaskOwnerLimit();
+  if (!Number.isSafeInteger(siteLimit) || siteLimit < 1 || siteLimit > 32) {
+    throw new Error('siteLimit must be an integer from 1 to 32');
+  }
+  if (!Number.isSafeInteger(ownerLimit) || ownerLimit < 1 || ownerLimit > 32) {
+    throw new Error('ownerLimit must be an integer from 1 to 32');
+  }
+  if (ownerLimit > siteLimit) throw new Error('ownerLimit must not exceed siteLimit');
+
+  if (isHostedAuthEnabled()) {
+    const result = await hostedCapacity(queryable, 'admission', options, {
+      ownerLimit,
+      siteLimit,
+      agentLeaseTtlMs,
+      materialLeaseTtlMs,
+    });
+    const activeRoots = Number(result.total_count);
+    const activeOwnerRoots = Number(result.owner_count);
+    const inherited = result.inherited;
+    if (inherited) return { allowed: true, inherited, activeRoots, activeOwnerRoots };
+    if (activeOwnerRoots >= ownerLimit)
+      return {
+        allowed: false,
+        inherited: false,
+        reason: 'personal_limit',
+        activeRoots,
+        activeOwnerRoots,
+      };
+    if (activeRoots >= siteLimit)
+      return {
+        allowed: false,
+        inherited: false,
+        reason: 'site_limit',
+        activeRoots,
+        activeOwnerRoots,
+      };
+    return { allowed: true, inherited: false, activeRoots, activeOwnerRoots };
   }
 
   if (options.lock !== false) {
@@ -232,12 +375,18 @@ export async function checkHeavyTaskAdmission(
   const activeSql = roots.length
     ? roots.join('\nUNION\n')
     : `SELECT NULL::text AS owner_id, NULL::text AS root_task_id WHERE FALSE`;
-  let synchronousSql = `SELECT 0::bigint AS active_roots, 0::bigint AS active_owner_roots`;
+  let synchronousSql = `SELECT 0::bigint AS active_roots,
+                                0::bigint AS active_owner_roots,
+                                false AS inherited`;
   if (available?.generation_provider_slots) {
     const syncOwnerGroup = `$${parameters.push(heavyTaskSyncQuotaGroup(options.ownerId))}`;
     synchronousSql = `SELECT COUNT(*)::bigint AS active_roots,
                              COUNT(*) FILTER (WHERE quota_group = ${syncOwnerGroup})::bigint
-                               AS active_owner_roots
+                               AS active_owner_roots,
+                             COALESCE(BOOL_OR(
+                               quota_group = ${syncOwnerGroup}
+                               AND 'foreground:' || holder_attempt_id::text = $2
+                             ), FALSE) AS inherited
                         FROM generation_provider_slots
                        WHERE quota_group LIKE '${HEAVY_TASK_SYNC_QUOTA_PREFIX}%'
                          AND holder_attempt_id IS NOT NULL
@@ -256,7 +405,7 @@ export async function checkHeavyTaskAdmission(
      ), synchronous AS (${synchronousSql})
      SELECT durable.active_roots + synchronous.active_roots AS active_roots,
             durable.active_owner_roots + synchronous.active_owner_roots AS active_owner_roots,
-            durable.inherited
+            durable.inherited OR synchronous.inherited AS inherited
        FROM durable CROSS JOIN synchronous`,
     parameters,
   );
@@ -266,8 +415,7 @@ export async function checkHeavyTaskAdmission(
   const inherited = row?.inherited === true;
 
   if (inherited) return { allowed: true, inherited, activeRoots, activeOwnerRoots };
-  // The per-user limit is deliberately fixed at one for the beta; it is not configurable.
-  if (activeOwnerRoots >= 1) {
+  if (activeOwnerRoots >= ownerLimit) {
     return {
       allowed: false,
       inherited: false,
@@ -289,7 +437,7 @@ export async function checkHeavyTaskAdmission(
 }
 
 /**
- * Check the confirmed pure-queue capacity (five roots per owner, twenty site-wide).
+ * Check the configured pure-queue capacity across every durable heavy-task queue.
  * Like execution admission, the caller must run this in the same transaction that
  * accepts its new root. The requested root is excluded, so the helper is safe both
  * immediately before insertion and from an after-insert hook in that transaction.
@@ -298,8 +446,29 @@ export async function checkHeavyTaskAdmission(
 export async function checkHeavyTaskQueueCapacity(
   queryable: HeavyTaskAdmissionQueryable,
   request: Pick<HeavyTaskRootContext, 'ownerId' | 'rootTaskId'>,
+  capacity: HeavyTaskBacklogCapacity = heavyTaskQueueCapacity(),
 ): Promise<HeavyTaskQueueDecision> {
   assertRootContext({ ...request, kind: 'generation' });
+  validateBacklogCapacity(capacity);
+  if (isHostedAuthEnabled()) {
+    const result = await hostedCapacity(
+      queryable,
+      'queue',
+      {
+        ...request,
+        kind: 'generation',
+        agentLeaseTtlMs: 1,
+      },
+      { ownerLimit: capacity.ownerLimit, siteLimit: capacity.siteLimit },
+    );
+    const queuedRoots = Number(result.total_count);
+    const queuedOwnerRoots = Number(result.owner_count);
+    if (queuedOwnerRoots >= capacity.ownerLimit)
+      return { allowed: false, reason: 'personal_queue_limit', queuedRoots, queuedOwnerRoots };
+    if (queuedRoots >= capacity.siteLimit)
+      return { allowed: false, reason: 'site_queue_limit', queuedRoots, queuedOwnerRoots };
+    return { allowed: true, queuedRoots, queuedOwnerRoots };
+  }
   await queryable.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ADMISSION_LOCK]);
   const relations = await queryable.query<{
     generation_jobs: string | null;
@@ -355,21 +524,52 @@ export async function checkHeavyTaskQueueCapacity(
   );
   const queuedRoots = Number(counts.rows[0]?.queued_roots ?? 0);
   const queuedOwnerRoots = Number(counts.rows[0]?.queued_owner_roots ?? 0);
-  if (queuedOwnerRoots >= 5) {
+  if (queuedOwnerRoots >= capacity.ownerLimit) {
     return { allowed: false, reason: 'personal_queue_limit', queuedRoots, queuedOwnerRoots };
   }
-  if (queuedRoots >= 20) {
+  if (queuedRoots >= capacity.siteLimit) {
     return { allowed: false, reason: 'site_queue_limit', queuedRoots, queuedOwnerRoots };
   }
   return { allowed: true, queuedRoots, queuedOwnerRoots };
 }
 
-/** Check the separate review/manual-attention backlog (five owner, twenty site). */
+/** Check the separately configured review/manual-attention backlog. */
 export async function checkHeavyTaskAttentionCapacity(
   queryable: HeavyTaskAdmissionQueryable,
   request: Pick<HeavyTaskRootContext, 'ownerId' | 'rootTaskId'>,
+  capacity: HeavyTaskBacklogCapacity = heavyTaskAttentionCapacity(),
 ): Promise<HeavyTaskAttentionDecision> {
   assertRootContext({ ...request, kind: 'generation' });
+  validateBacklogCapacity(capacity);
+  if (isHostedAuthEnabled()) {
+    const result = await hostedCapacity(
+      queryable,
+      'attention',
+      {
+        ...request,
+        kind: 'generation',
+        agentLeaseTtlMs: 1,
+      },
+      { ownerLimit: capacity.ownerLimit, siteLimit: capacity.siteLimit },
+    );
+    const attentionRoots = Number(result.total_count);
+    const attentionOwnerRoots = Number(result.owner_count);
+    if (attentionOwnerRoots >= capacity.ownerLimit)
+      return {
+        allowed: false,
+        reason: 'personal_attention_limit',
+        attentionRoots,
+        attentionOwnerRoots,
+      };
+    if (attentionRoots >= capacity.siteLimit)
+      return {
+        allowed: false,
+        reason: 'site_attention_limit',
+        attentionRoots,
+        attentionOwnerRoots,
+      };
+    return { allowed: true, attentionRoots, attentionOwnerRoots };
+  }
   await queryable.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ADMISSION_LOCK]);
   const relations = await queryable.query<{
     generation_jobs: string | null;
@@ -446,7 +646,7 @@ export async function checkHeavyTaskAttentionCapacity(
   );
   const attentionRoots = Number(counts.rows[0]?.attention_roots ?? 0);
   const attentionOwnerRoots = Number(counts.rows[0]?.attention_owner_roots ?? 0);
-  if (attentionOwnerRoots >= 5) {
+  if (attentionOwnerRoots >= capacity.ownerLimit) {
     return {
       allowed: false,
       reason: 'personal_attention_limit',
@@ -454,7 +654,7 @@ export async function checkHeavyTaskAttentionCapacity(
       attentionOwnerRoots,
     };
   }
-  if (attentionRoots >= 20) {
+  if (attentionRoots >= capacity.siteLimit) {
     return {
       allowed: false,
       reason: 'site_attention_limit',
@@ -465,23 +665,36 @@ export async function checkHeavyTaskAttentionCapacity(
   return { allowed: true, attentionRoots, attentionOwnerRoots };
 }
 
-/** Reserve one of the twenty future manual-review admission slots for an accepted job. */
+/** Reserve one configured future manual-review admission slot for an accepted job. */
 export async function reserveHeavyTaskAttention(
   queryable: HeavyTaskAdmissionQueryable,
   jobId: string,
+  siteLimit = heavyTaskAttentionCapacity().siteLimit,
 ): Promise<boolean> {
   if (!/^[0-9a-f-]{36}$/i.test(jobId)) throw new Error('Invalid attention reservation job id');
+  if (!Number.isSafeInteger(siteLimit) || siteLimit < 1 || siteLimit > 100) {
+    throw new Error('attention siteLimit must be an integer from 1 to 100');
+  }
+  if (isHostedAuthEnabled()) {
+    const result = await queryable.query<{ reserved: boolean }>(
+      'SELECT app_internal.reserve_heavy_task_attention($1,$2) AS reserved',
+      [jobId, siteLimit],
+    );
+    return result.rows[0]?.reserved === true;
+  }
   await queryable.query(
     `INSERT INTO generation_provider_slots(quota_group, slot_no)
      SELECT '${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}', slot_no
-       FROM generate_series(0, 19) AS slot_no
+       FROM generate_series(0, $1 - 1) AS slot_no
      ON CONFLICT DO NOTHING`,
+    [siteLimit],
   );
   const result = await queryable.query<{ slot_no: number }>(
     `WITH available AS (
        SELECT reservation.slot_no
          FROM generation_provider_slots AS reservation
         WHERE reservation.quota_group = '${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}'
+          AND reservation.slot_no < $2
           AND (
             reservation.holder_attempt_id IS NULL OR NOT EXISTS (
               SELECT 1 FROM generation_jobs AS job
@@ -499,7 +712,7 @@ export async function reserveHeavyTaskAttention(
       WHERE reservation.quota_group='${HEAVY_TASK_ATTENTION_RESERVATION_GROUP}'
         AND reservation.slot_no=available.slot_no
       RETURNING reservation.slot_no`,
-    [jobId],
+    [jobId, siteLimit],
   );
   return result.rows.length === 1;
 }
@@ -520,6 +733,24 @@ export async function isHeavyTaskFairTurn(
     nowMs -
     positiveDuration(options.materialLeaseTtlMs ?? options.agentLeaseTtlMs, 'materialLeaseTtlMs');
   const queueFreshAfter = nowMs - heavyTaskQueueWaitMs();
+  const siteLimit = options.siteLimit ?? heavyTaskSiteLimit();
+  const ownerLimit = options.ownerLimit ?? heavyTaskOwnerLimit();
+  if (!Number.isSafeInteger(siteLimit) || siteLimit < 1 || siteLimit > 32) {
+    throw new Error('siteLimit must be an integer from 1 to 32');
+  }
+  if (!Number.isSafeInteger(ownerLimit) || ownerLimit < 1 || ownerLimit > 32) {
+    throw new Error('ownerLimit must be an integer from 1 to 32');
+  }
+  if (ownerLimit > siteLimit) throw new Error('ownerLimit must not exceed siteLimit');
+  if (isHostedAuthEnabled()) {
+    const result = await hostedCapacity(queryable, 'fair', options, {
+      ownerLimit,
+      siteLimit,
+      agentLeaseTtlMs: nowMs - agentStaleBefore,
+      materialLeaseTtlMs: nowMs - materialStaleBefore,
+    });
+    return result.candidate_present !== true || result.oldest_root === options.rootTaskId;
+  }
   const relations = await queryable.query<{
     generation_jobs: string | null;
     agent_sessions: string | null;
@@ -554,7 +785,7 @@ export async function isHeavyTaskFairTurn(
   if (available?.generation_provider_slots) {
     active.push(
       `SELECT substring(quota_group from ${HEAVY_TASK_SYNC_QUOTA_PREFIX.length + 1}) AS owner_id,
-              'independent:' || holder_attempt_id::text AS root_task_id
+              'foreground:' || holder_attempt_id::text AS root_task_id
          FROM generation_provider_slots
         WHERE quota_group LIKE '${HEAVY_TASK_SYNC_QUOTA_PREFIX}%'
           AND holder_attempt_id IS NOT NULL AND expires_at > clock_timestamp()`,
@@ -613,16 +844,21 @@ export async function isHeavyTaskFairTurn(
        SELECT $1::text AS owner_id, $2::text AS root_task_id,
               $3::bigint AS agent_stale_before, $4::bigint AS material_stale_before,
               $5::bigint AS queue_fresh_after, $6::bigint AS candidate_queued_at
-     ), active_roots AS (${activeSql}), raw_queue AS (${queuedSql}), queued_roots AS (
+     ), active_roots AS (${activeSql}), active_owner_counts AS (
+       SELECT owner_id, COUNT(*)::bigint AS active_root_count
+         FROM active_roots GROUP BY owner_id
+     ), raw_queue AS (${queuedSql}), queued_roots AS (
        SELECT owner_id, root_task_id, MIN(queued_at) AS queued_at
          FROM raw_queue GROUP BY owner_id, root_task_id
      ), eligible AS (
        SELECT queued_roots.* FROM queued_roots
-        WHERE NOT EXISTS (
-          SELECT 1 FROM active_roots
-           WHERE active_roots.owner_id = queued_roots.owner_id
-             AND active_roots.root_task_id <> queued_roots.root_task_id
-        )
+       LEFT JOIN active_owner_counts USING (owner_id)
+        WHERE COALESCE(active_owner_counts.active_root_count, 0) < $7
+           OR EXISTS (
+             SELECT 1 FROM active_roots
+              WHERE active_roots.owner_id = queued_roots.owner_id
+                AND active_roots.root_task_id = queued_roots.root_task_id
+           )
      )
      SELECT EXISTS(SELECT 1 FROM queued_roots WHERE owner_id=$1 AND root_task_id=$2)
               AS candidate_present,
@@ -636,8 +872,50 @@ export async function isHeavyTaskFairTurn(
       materialStaleBefore,
       queueFreshAfter,
       options.candidateQueuedAtMs ?? nowMs,
+      ownerLimit,
     ],
   );
   const row = result.rows[0];
   return row?.candidate_present !== true || row.oldest_root === options.rootTaskId;
+}
+
+interface HostedCapacityRow extends Record<string, unknown> {
+  total_count: number | string;
+  owner_count: number | string;
+  inherited: boolean;
+  candidate_present: boolean;
+  oldest_root: string | null;
+}
+
+async function hostedCapacity(
+  queryable: HeavyTaskAdmissionQueryable,
+  operation: 'admission' | 'queue' | 'attention' | 'fair',
+  options: HeavyTaskAdmissionOptions,
+  limits: {
+    ownerLimit: number;
+    siteLimit: number;
+    agentLeaseTtlMs?: number;
+    materialLeaseTtlMs?: number;
+  },
+): Promise<HostedCapacityRow> {
+  const nowMs = options.nowMs ?? Date.now();
+  const result = await queryable.query<HostedCapacityRow>(
+    'SELECT * FROM app_internal.heavy_task_capacity($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+    [
+      operation,
+      options.ownerId,
+      options.rootTaskId,
+      nowMs,
+      nowMs - (limits.agentLeaseTtlMs ?? 1),
+      nowMs - (limits.materialLeaseTtlMs ?? limits.agentLeaseTtlMs ?? 1),
+      nowMs - heavyTaskQueueWaitMs(),
+      options.candidateQueuedAtMs ?? null,
+      limits.ownerLimit,
+      limits.siteLimit,
+      options.lock !== false,
+    ],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error('Hosted capacity function returned no row');
+  return row;
 }

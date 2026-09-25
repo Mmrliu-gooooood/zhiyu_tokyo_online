@@ -1,9 +1,11 @@
 import { type NextRequest } from 'next/server';
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { proxyFetch } from '@/lib/server/proxy-fetch';
 import { resolveRenderServiceUrl } from '@/lib/server/render-service';
 import { capBodyStream } from '@/lib/server/capped-stream';
 import { createLogger } from '@/lib/logger';
+import { recordRenderJobOwner } from '@/lib/server/render-job-owners';
 
 const log = createLogger('ExportVideo Render API');
 
@@ -44,6 +46,8 @@ function clientIdentity(req: NextRequest): string {
  * can degrade to a local ZIP download.
  */
 export async function POST(req: NextRequest) {
+  const principal = await requirePrincipalIfHosted(req);
+  if (principal instanceof Response) return principal;
   const resolved = resolveRenderServiceUrl();
   if ('error' in resolved) {
     return apiError('PROVIDER_DISABLED', 501, 'Render service is not configured');
@@ -96,6 +100,9 @@ export async function POST(req: NextRequest) {
       return apiError(code, status, 'Render service rejected the request', detail);
     }
 
+    if (principal?.ownerId && typeof data.jobId === 'string') {
+      await recordRenderJobOwner(data.jobId, principal.ownerId);
+    }
     return apiSuccess({ jobId: data.jobId, pollIntervalMs: 3000 }, 202);
   } catch (error) {
     // A cap trip aborts the forwarded stream, surfacing here as a fetch error.

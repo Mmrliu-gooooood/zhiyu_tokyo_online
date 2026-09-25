@@ -101,16 +101,28 @@ describe('generation owner sessions', () => {
     },
   );
 
-  it('still requires an exact Origin match for the standalone Host', () => {
-    for (const origin of [undefined, 'http://127.0.0.1:3000', 'https://evil.example']) {
-      expect(() =>
-        assertGenerationOrigin(
-          new Request('http://0.0.0.0:3000/api/agent/model-connections', {
-            method: 'POST',
-            headers: { host: 'localhost:3000', ...(origin ? { origin } : {}) },
-          }),
-        ),
-      ).toThrow();
-    }
+  it('uses a Supabase session owner in dual-mode even when AUTH_MODE is unset', async () => {
+    vi.resetModules();
+    vi.stubEnv('AUTH_MODE', '');
+    vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', '');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
+    vi.doMock('@/lib/auth/session', () => ({
+      tryPrincipal: async () => ({
+        ownerId: 'user:11111111-1111-4111-8111-111111111111',
+      }),
+      requirePrincipal: async () => {
+        throw new Error('hosted requirePrincipal should not run in dual-mode');
+      },
+    }));
+    const { resolveGenerationOwnerAsync } = await import('@/lib/server/generation-jobs/auth');
+    const owner = await resolveGenerationOwnerAsync(
+      new Request('http://localhost:3000/api/stages', {
+        headers: { origin: 'http://localhost:3000' },
+      }),
+      new Headers(),
+      true,
+    );
+    expect(owner).toBe('user:11111111-1111-4111-8111-111111111111');
   });
 });

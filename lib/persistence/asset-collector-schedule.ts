@@ -22,8 +22,10 @@ import {
   nodePostgresTransaction,
   type ConnectableQueryable,
 } from '@openmaic/storage/server/reference';
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 
+import { trySystemDatabaseUrl } from '@/lib/db/database-urls';
+import { getSystemPool } from '@/lib/db/pool-registry';
 import { resolveAssetCollectionGraceMs } from '@/lib/persistence/asset-collection-grace';
 import { configuredS3Bucket, createAssetByteStore } from '@/lib/persistence/asset-byte-store';
 
@@ -99,7 +101,7 @@ export function startAssetCollectorSchedule(
   // anything to reclaim. PERSISTENCE_DEV_TOKEN deliberately does not gate this:
   // it authenticates the HTTP surface, and bytes already written still have to
   // be reclaimed if it is later removed.
-  const connectionString = process.env.DATABASE_URL?.trim();
+  const connectionString = trySystemDatabaseUrl();
   if (!connectionString) return undefined;
   if (!collectionEnabled()) return undefined;
 
@@ -117,9 +119,8 @@ export function startAssetCollectorSchedule(
   // indirect byte egress safely.
   const graceMs = resolveAssetCollectionGraceMs();
 
-  const pool = (deps.poolFactory ?? ((value) => new Pool({ connectionString: value, max: 2 })))(
-    connectionString,
-  );
+  const ownsPool = Boolean(deps.poolFactory);
+  const pool = deps.poolFactory ? deps.poolFactory(connectionString) : getSystemPool();
   const queryable = pool as unknown as ConnectableQueryable;
 
   // Built on first use rather than now: PostgreSQL may still be starting (the
@@ -181,7 +182,7 @@ export function startAssetCollectorSchedule(
       stopped = true;
       clearInterval(timer);
       globalState[SCHEDULE_KEY] = undefined;
-      await pool.end().catch(() => {});
+      if (ownsPool) await pool.end().catch(() => {});
     },
   };
   globalState[SCHEDULE_KEY] = schedule;

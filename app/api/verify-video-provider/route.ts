@@ -16,6 +16,7 @@
  * Response: { success: boolean, message: string }
  */
 
+import { hostedAuthGate } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { testVideoConnectivity } from '@/lib/media/video-providers';
 import { resolveServerVideoProviderId } from '@/lib/server/provider-config';
@@ -36,6 +37,8 @@ import {
 const log = createLogger('VerifyVideoProvider');
 
 export async function POST(request: NextRequest) {
+  const denied = await hostedAuthGate(request);
+  if (denied) return denied;
   try {
     const requestBody = (await request
       .clone()

@@ -35,6 +35,8 @@ export interface AgentVoiceResolveOptions {
   voiceId: string;
   /** Course language / locale — only selects the one-time bootstrap sample sentence. */
   language?: string;
+  /** Present only for foreground course generation so voice bootstrap shares its root lease. */
+  stageId?: string;
 }
 
 /**
@@ -94,6 +96,7 @@ export async function resolveAgentVoiceOptions(
         ttsBaseUrl:
           opts.providerConfig?.baseUrl || opts.providerConfig?.customDefaultBaseUrl || undefined,
         ttsModelId: opts.providerConfig?.modelId,
+        stageId: opts.stageId,
       },
     )),
   };

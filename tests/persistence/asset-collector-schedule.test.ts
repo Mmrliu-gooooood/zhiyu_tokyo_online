@@ -21,7 +21,7 @@ interface Harness {
   ensureAssetSchema: ReturnType<typeof vi.fn>;
   pgByteStores: unknown[];
   loadS3AssetByteStore: ReturnType<typeof vi.fn>;
-  pools: Array<{ end: ReturnType<typeof vi.fn> }>;
+  pools: Array<{ end: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> }>;
   poolOptions: unknown[];
 }
 
@@ -70,9 +70,10 @@ function mockStorage(collect: () => Promise<number>): Harness {
   vi.doMock('pg', () => ({
     Pool: class {
       end = vi.fn().mockResolvedValue(undefined);
+      on = vi.fn().mockReturnThis();
       constructor(options: unknown) {
         harness.poolOptions.push(options);
-        harness.pools.push(this as unknown as { end: ReturnType<typeof vi.fn> });
+        harness.pools.push(this as unknown as Harness['pools'][number]);
       }
     },
   }));

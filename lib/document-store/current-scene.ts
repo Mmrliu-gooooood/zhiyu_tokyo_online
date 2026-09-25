@@ -1,5 +1,6 @@
 /** Device-scoped editor position, separate from the canonical document. */
 import { BrowserKVStore, type KVStore } from '@openmaic/storage';
+import { accountKvNamespace } from '@/lib/auth/account-environment';
 
 export interface CurrentSceneValue {
   sceneId: string | null;
@@ -12,6 +13,7 @@ export interface CurrentSceneDeps {
 
 const KEY_PREFIX = 'editor-current-scene:';
 let defaultKv: KVStore | undefined;
+let defaultKvNamespace: string | undefined;
 
 function key(stageId: string): string {
   return `${KEY_PREFIX}${stageId}`;
@@ -21,7 +23,12 @@ function resolveKv(kv?: KVStore): KVStore {
   if (kv) return kv;
   if (typeof localStorage === 'undefined')
     throw new Error('Current-scene persistence requires localStorage (client-only)');
-  return (defaultKv ??= new BrowserKVStore());
+  const namespace = accountKvNamespace();
+  if (!defaultKv || defaultKvNamespace !== namespace) {
+    defaultKv = new BrowserKVStore({ namespace });
+    defaultKvNamespace = namespace;
+  }
+  return defaultKv;
 }
 
 function isCurrentSceneValue(value: unknown): value is CurrentSceneValue {

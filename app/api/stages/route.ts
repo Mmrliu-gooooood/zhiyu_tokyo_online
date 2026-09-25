@@ -5,8 +5,9 @@
  * resolves from the anonymous cookie (`withRequestOwnerId`) and is never a
  * request parameter, and all reads and writes go through the owner-bound
  * document store (`getOwnerScopedDocumentStore`), the same seam the runner
- * binds for the stage tools. A stage created here is visible to this browser
- * and to nobody else.
+ * binds for the stage tools. POST still claims the resolved owner. GET uses
+ * `listLibraryDocuments`: unsigned dual-mode traffic sees the live `anon:`
+ * classroom pile, while signed-in `user:{uuid}` sessions stay owner-only.
  *
  * The configured runtime gates the whole family: these routes serve the
  * workbench, which is agent-runtime territory, so a runtime that is off OR
@@ -16,7 +17,7 @@
 import type { NextRequest } from 'next/server';
 import { randomBytes } from 'node:crypto';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
+import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
 import type { AppDocumentOutline } from '@/lib/document-store/persistence-types';
 import { apiError } from '@/lib/server/api-response';
 import { getOwnerScopedDocumentStore } from '@/lib/server/agent-runtime/owner-scoped-documents';
@@ -33,11 +34,11 @@ function createStageId(): string {
 
 // GET /api/stages — list every stage document owned by the caller.
 export async function GET(req: NextRequest) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const store = await getOwnerScopedDocumentStore(ownerId);
-    const stages = await store.listDocuments();
+    const stages = await store.listLibraryDocuments();
     return ownerJson({ stages }, 200, responseHeaders);
   });
 }
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
 // a malformed body must not mint an anonymous cookie partition for a request
 // that will not proceed.
 export async function POST(req: NextRequest) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   let body: unknown;
   try {

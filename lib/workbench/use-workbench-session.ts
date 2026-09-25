@@ -39,6 +39,7 @@ import {
   type StageManifest,
 } from '@/lib/workbench/stage-freshness';
 import { applyGenerateTtsResultToScenes } from '@/lib/workbench/tts-stage-sync';
+import { whilePageVisible } from './page-visible-lifecycle';
 
 /**
  * pi's own `AgentEvent` types, which the runner appends verbatim.
@@ -145,107 +146,117 @@ export function useWorkbenchStream(sessionId: string | null): void {
         }
       })
       .catch(() => {});
-    // Read the resume point imperatively: subscribing to `lastEventId` would
-    // re-run this effect on every event and reconnect in a loop.
-    const from = useWorkbenchStore.getState().lastEventId;
-    const source = new EventSource(
-      `/api/agent/sessions/${encodeURIComponent(sessionId)}/events?lastEventId=${from}`,
-    );
+    const stopVisibility = whilePageVisible(() => {
+      let streamActive = true;
+      const isStreamCurrent = () => streamActive && isCurrent();
+      // Read the resume point imperatively: subscribing to `lastEventId` would
+      // re-run this effect on every event and reconnect in a loop.
+      const from = useWorkbenchStore.getState().lastEventId;
+      const source = new EventSource(
+        `/api/agent/sessions/${encodeURIComponent(sessionId)}/events?lastEventId=${from}`,
+      );
 
-    let connected = false;
-    let caughtUp = false;
-    const backlog: WorkbenchEvent[] = [];
-    const markAttached = () => {
-      if (connected || !isCurrent()) return;
-      connected = true;
-      setAttached(true);
-      setError(null);
-    };
-    const onAny = (e: MessageEvent) => {
-      if (!isCurrent()) return;
-      let parsed: WorkbenchEvent;
-      try {
-        parsed = JSON.parse(e.data) as WorkbenchEvent;
-      } catch {
-        return;
-      }
-      if (!caughtUp) {
-        appendCompactedReplayEvent(backlog, parsed);
-        return;
-      }
-      applyEvent(parsed);
-      markAttached();
-
-      // A checkpoint schedules the normal whole-document course sync. TTS
-      // additionally folds its authoritative action array at tool completion,
-      // so an already-mounted PlaybackEngine cannot retain the pre-TTS scene
-      // while the success card is visible. Guard both identities: the user may
-      // have switched either the conversation or the course since this
-      // EventSource was attached.
-      if (parsed.type === 'tool_execution_end') {
-        const workbench = useWorkbenchStore.getState();
-        const stage = useStageStore.getState();
-        if (
-          workbench.sessionId === sessionId &&
-          workbench.stageId &&
-          stage.stage?.id === workbench.stageId
-        ) {
-          const scenes = applyGenerateTtsResultToScenes(stage.scenes, parsed);
-          if (scenes !== stage.scenes) useStageStore.setState({ scenes: [...scenes] });
+      let connected = false;
+      let caughtUp = false;
+      const backlog: WorkbenchEvent[] = [];
+      const markAttached = () => {
+        if (connected || !isStreamCurrent()) return;
+        connected = true;
+        setAttached(true);
+        setError(null);
+      };
+      const onAny = (e: MessageEvent) => {
+        if (!isStreamCurrent()) return;
+        let parsed: WorkbenchEvent;
+        try {
+          parsed = JSON.parse(e.data) as WorkbenchEvent;
+        } catch {
+          return;
         }
-      }
-    };
+        if (!caughtUp) {
+          appendCompactedReplayEvent(backlog, parsed);
+          return;
+        }
+        applyEvent(parsed);
+        markAttached();
 
-    // "You are caught up", as a real event: a client attaching in the middle of
-    // a five-minute tool call would otherwise sit on "replaying" until the next
-    // frame, and a re-attach to a finished session at its last event id would
-    // receive nothing at all.
-    const finishReplay = () => {
-      if (caughtUp) return;
-      caughtUp = true;
-      if (!isCurrent()) {
+        // A checkpoint schedules the normal whole-document course sync. TTS
+        // additionally folds its authoritative action array at tool completion,
+        // so an already-mounted PlaybackEngine cannot retain the pre-TTS scene
+        // while the success card is visible. Guard both identities: the user may
+        // have switched either the conversation or the course since this
+        // EventSource was attached.
+        if (parsed.type === 'tool_execution_end') {
+          const workbench = useWorkbenchStore.getState();
+          const stage = useStageStore.getState();
+          if (
+            workbench.sessionId === sessionId &&
+            workbench.stageId &&
+            stage.stage?.id === workbench.stageId
+          ) {
+            const scenes = applyGenerateTtsResultToScenes(stage.scenes, parsed);
+            if (scenes !== stage.scenes) useStageStore.setState({ scenes: [...scenes] });
+          }
+        }
+      };
+
+      // "You are caught up", as a real event: a client attaching in the middle of
+      // a five-minute tool call would otherwise sit on "replaying" until the next
+      // frame, and a re-attach to a finished session at its last event id would
+      // receive nothing at all.
+      const finishReplay = () => {
+        if (caughtUp) return;
+        caughtUp = true;
+        if (!isStreamCurrent()) {
+          backlog.length = 0;
+          return;
+        }
+        applyEvents(compactReplayEvents(backlog));
         backlog.length = 0;
-        return;
-      }
-      applyEvents(compactReplayEvents(backlog));
-      backlog.length = 0;
-      // Record which stage links were historical in the same state transition
-      // that exposes the fold. Opening a chat must not replay its old classroom
-      // navigation into the independent right pane.
-      finishReplayState();
-    };
-    const onCaughtUp = () => {
-      if (!isCurrent()) return;
-      finishReplay();
-      markAttached();
-    };
-    source.addEventListener('caught_up', onCaughtUp);
-    const replayWatchdog = window.setTimeout(finishReplay, 20_000);
-
-    for (const type of WORKBENCH_EVENT_TYPES) source.addEventListener(type, onAny as EventListener);
-    source.onerror = () => {
-      if (!isCurrent()) return;
-      // During native auto-reconnect the server snapshot is more current than
-      // this frozen fold. The next received frame marks it attached again.
-      connected = false;
-      setAttached(false);
-      // EventSource retries on its own; only surface a hard failure.
-      if (source.readyState === EventSource.CLOSED) {
+        // Record which stage links were historical in the same state transition
+        // that exposes the fold. Opening a chat must not replay its old classroom
+        // navigation into the independent right pane.
+        finishReplayState();
+      };
+      const onCaughtUp = () => {
+        if (!isStreamCurrent()) return;
         finishReplay();
-        setError('event stream closed');
-      }
-    };
+        markAttached();
+      };
+      source.addEventListener('caught_up', onCaughtUp);
+      const replayWatchdog = window.setTimeout(finishReplay, 20_000);
 
+      for (const type of WORKBENCH_EVENT_TYPES)
+        source.addEventListener(type, onAny as EventListener);
+      source.onerror = () => {
+        if (!isStreamCurrent()) return;
+        // During native auto-reconnect the server snapshot is more current than
+        // this frozen fold. The next received frame marks it attached again.
+        connected = false;
+        setAttached(false);
+        // EventSource retries on its own; only surface a hard failure.
+        if (source.readyState === EventSource.CLOSED) {
+          finishReplay();
+          setError('event stream closed');
+        }
+      };
+
+      return () => {
+        streamActive = false;
+        caughtUp = true;
+        backlog.length = 0;
+        window.clearTimeout(replayWatchdog);
+        for (const type of WORKBENCH_EVENT_TYPES)
+          source.removeEventListener(type, onAny as EventListener);
+        source.removeEventListener('caught_up', onCaughtUp);
+        source.onerror = null;
+        source.close();
+        if (useWorkbenchStore.getState().sessionId === sessionId) setAttached(false);
+      };
+    });
     return () => {
       active = false;
-      caughtUp = true;
-      backlog.length = 0;
-      window.clearTimeout(replayWatchdog);
-      for (const type of WORKBENCH_EVENT_TYPES)
-        source.removeEventListener(type, onAny as EventListener);
-      source.removeEventListener('caught_up', onCaughtUp);
-      source.close();
-      if (useWorkbenchStore.getState().sessionId === sessionId) setAttached(false);
+      stopVisibility();
     };
   }, [sessionId, applyEvent, applyEvents, setAttached, finishReplayState, setError]);
 }
@@ -413,7 +424,7 @@ export function useStageFreshnessSync(
       // A stale pass's late `finally` (after a course switch) must not clobber
       // the CURRENT stage's fallback timer — that timer is the convergence
       // backstop when the stream is dead (cr D3-F4).
-      if (!isCurrent()) return;
+      if (!isCurrent() || document.visibilityState === 'hidden') return;
       if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
       const jitter = 1 + (Math.random() * 2 - 1) * STAGE_SYNC_FALLBACK_JITTER;
       fallbackTimer.current = setTimeout(() => {
@@ -572,7 +583,11 @@ export function useStageFreshnessSync(
 
     const runPass = async (_reason: string) => {
       try {
-        while (isCurrent() && pendingSync.current > served.current) {
+        while (
+          isCurrent() &&
+          document.visibilityState !== 'hidden' &&
+          pendingSync.current > served.current
+        ) {
           served.current = pendingSync.current;
           await syncOnce();
           if (!isCurrent()) return;
@@ -581,7 +596,7 @@ export function useStageFreshnessSync(
         // retry budget from zero again.
         retries.current = 0;
       } catch (error) {
-        if (!isCurrent()) return;
+        if (!isCurrent() || document.visibilityState === 'hidden') return;
         console.warn('[workbench] stage freshness sync failed', error);
         if (retries.current < STAGE_SYNC_MAX_RETRIES) {
           retries.current += 1;
@@ -599,6 +614,7 @@ export function useStageFreshnessSync(
 
     const requestSync = (reason: string) => {
       pendingSync.current += 1;
+      if (document.visibilityState === 'hidden') return;
       // Coalesce only passes of the SAME stage generation (cr D3-F4): a
       // different stage's in-flight pass must not block this stage's mount
       // sync. Each pass is independently fenced by `isCurrent()`.
@@ -608,32 +624,41 @@ export function useStageFreshnessSync(
     };
 
     // ── triggers ───────────────────────────────────────────────────────────
-    requestSync('mount');
-
-    const source = new EventSource(`/api/stages/${encodeURIComponent(requestedStage)}/freshness`);
-    sourceRef.current = source;
-    let streamHadError = false;
-    const onFreshnessFrame = () => {
-      if (isCurrent()) requestSync('freshness');
-    };
-    source.addEventListener('stage_freshness', onFreshnessFrame);
-    source.onopen = () => {
-      if (!isCurrent()) return;
-      // First open and every re-open pull the manifest once: a drop means
-      // frames between the last pull and now were lost (EventSource has no
-      // replay here by design — freshness is volatile).
-      requestSync(streamHadError ? 'reconnect' : 'open');
-      streamHadError = false;
-    };
-    source.onerror = () => {
-      if (!isCurrent()) return;
-      streamHadError = true;
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible' && isCurrent()) requestSync('focus');
-    };
-    document.addEventListener('visibilitychange', onVisibility);
+    let opened = false;
+    const stopVisibility = whilePageVisible(() => {
+      requestSync(opened ? 'focus' : 'mount');
+      opened = true;
+      const source = new EventSource(`/api/stages/${encodeURIComponent(requestedStage)}/freshness`);
+      sourceRef.current = source;
+      let streamActive = true;
+      let streamHadError = false;
+      const onFreshnessFrame = () => {
+        if (streamActive && isCurrent()) requestSync('freshness');
+      };
+      source.addEventListener('stage_freshness', onFreshnessFrame);
+      source.onopen = () => {
+        if (!streamActive || !isCurrent()) return;
+        // Freshness is volatile: resume and native reconnect both pull the
+        // manifest, recovering changes made while this tab held no stream.
+        requestSync(streamHadError ? 'reconnect' : 'open');
+        streamHadError = false;
+      };
+      source.onerror = () => {
+        if (streamActive && isCurrent()) streamHadError = true;
+      };
+      return () => {
+        streamActive = false;
+        if (retryTimer.current) clearTimeout(retryTimer.current);
+        retryTimer.current = null;
+        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+        fallbackTimer.current = null;
+        source.removeEventListener('stage_freshness', onFreshnessFrame);
+        source.onopen = null;
+        source.onerror = null;
+        source.close();
+        if (sourceRef.current === source) sourceRef.current = null;
+      };
+    });
 
     // The aggregate-save veto bumped the store's sync-request tick when it
     // refused a write: the server moved past the browser's baseline, so the
@@ -648,12 +673,7 @@ export function useStageFreshnessSync(
     return () => {
       if (retryTimer.current) clearTimeout(retryTimer.current);
       if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-      source.removeEventListener('stage_freshness', onFreshnessFrame);
-      source.onopen = null;
-      source.onerror = null;
-      source.close();
-      if (sourceRef.current === source) sourceRef.current = null;
-      document.removeEventListener('visibilitychange', onVisibility);
+      stopVisibility();
       unsubscribeVetoSync();
     };
   }, [stageId]);

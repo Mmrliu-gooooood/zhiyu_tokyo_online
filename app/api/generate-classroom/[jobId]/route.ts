@@ -1,6 +1,6 @@
 import { GenerationJobError } from '@/lib/server/generation-jobs/contracts';
 import { generationResponse, withGenerationRequest } from '@/lib/server/generation-jobs/http';
-import { generationReadiness } from '@/lib/server/generation-jobs/runtime';
+import { generationRequestReadiness } from '@/lib/server/generation-jobs/runtime';
 export const dynamic = 'force-dynamic';
 export async function GET(req: Request, context: { params: Promise<{ jobId: string }> }) {
   return withGenerationRequest(req, async ({ ownerId, headers, repository }) => {
@@ -11,7 +11,7 @@ export async function GET(req: Request, context: { params: Promise<{ jobId: stri
       throw new GenerationJobError('INVALID_CURSOR', 400);
     const job = await repository.getJobDetail(ownerId, jobId, cursor);
     if (!job) throw new GenerationJobError('JOB_NOT_FOUND', 404);
-    const readiness = await generationReadiness();
+    const readiness = await generationRequestReadiness();
     return generationResponse(
       {
         success: true,

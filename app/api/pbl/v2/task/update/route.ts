@@ -19,6 +19,7 @@
 
 export const maxDuration = 60;
 
+import { hostedAuthGate } from '@/lib/auth/api';
 import type { NextRequest } from 'next/server';
 
 import { apiError, apiSuccess } from '@/lib/server/api-response';
@@ -46,6 +47,8 @@ interface UpdateRequest {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let body: UpdateRequest;
   try {
     body = (await req.json()) as UpdateRequest;

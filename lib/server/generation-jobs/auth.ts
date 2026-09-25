@@ -1,4 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { requirePrincipal, tryPrincipal } from '@/lib/auth/session';
+import { hasSupabaseBrowserConfig } from '@/lib/supabase/env';
 import { GenerationJobError } from './contracts';
 
 const COOKIE = 'generation_owner';
@@ -62,6 +65,9 @@ export function assertGenerationOrigin(req: Request): void {
 }
 /** A persisted, signed session. The public persistence token is never an identity. */
 export function resolveGenerationOwner(req: Request, headers: Headers, create = false): string {
+  if (isHostedAuthEnabled()) {
+    throw new GenerationJobError('GENERATION_SESSION_REQUIRED', 401);
+  }
   const raw = cookie(req, COOKIE);
   if (raw) {
     const [id, proof, ...extra] = raw.split('.');
@@ -86,4 +92,20 @@ export function resolveGenerationOwner(req: Request, headers: Headers, create = 
   headers.append('Set-Cookie', `${COOKIE}=${id}.${signature(id)}${suffix}`);
   headers.append('Set-Cookie', `anonymous_id=${id}${suffix}`);
   return `anon:${id}`;
+}
+
+export async function resolveGenerationOwnerAsync(
+  req: Request,
+  headers: Headers,
+  create = false,
+): Promise<string> {
+  if (isHostedAuthEnabled()) {
+    const principal = await requirePrincipal(req, headers);
+    return principal.ownerId;
+  }
+  if (hasSupabaseBrowserConfig()) {
+    const principal = await tryPrincipal(req, headers);
+    if (principal) return principal.ownerId;
+  }
+  return resolveGenerationOwner(req, headers, create);
 }

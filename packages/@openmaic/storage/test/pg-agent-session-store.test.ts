@@ -415,6 +415,36 @@ describe('PgAgentSessionStore with PGlite', () => {
     expect(indexNames).not.toContain('spec_session_entries_type_idx');
   });
 
+  test.each([10_000, 90_000])(
+    'honors a %i ms lease through a delayed heartbeat and fences a dead worker after takeover',
+    async (leaseTtlMs) => {
+      let now = 1_000_000;
+      const clocked = new PgAgentSessionStore(db, { ...optionsFor(db), now: () => now });
+      const claimOptions = { leaseTtlMs, maxAttempts: 3 };
+      await clocked.createSession(makeAgentSessionInput());
+      expect(await clocked.claimNextSession('worker-a', 101, claimOptions)).toMatchObject({
+        attempt: 1,
+      });
+
+      // A delayed heartbeat remains safe inside the configured window. At 90s
+      // this covers a 10s checkout plus multiple missed 10s heartbeat ticks.
+      now += leaseTtlMs / 2;
+      expect(await clocked.claimNextSession('worker-b', 102, claimOptions)).toBeNull();
+      expect(await clocked.heartbeat('session-1', 'worker-a')).toBe(true);
+      now += leaseTtlMs;
+      expect(await clocked.claimNextSession('worker-b', 102, claimOptions)).toBeNull();
+
+      // The exact boundary is still held; one millisecond later a genuinely
+      // dead worker is reclaimed with the usual attempt and worker-id fences.
+      now += 1;
+      expect(await clocked.claimNextSession('worker-b', 102, claimOptions)).toMatchObject({
+        attempt: 2,
+      });
+      expect(await clocked.heartbeat('session-1', 'worker-a')).toBe(false);
+      expect(await clocked.heartbeat('session-1', 'worker-b')).toBe(true);
+    },
+  );
+
   test('settles a cancel-requested stale-running session as cancelled on claim, never attempt N+1', async () => {
     // The incident shape: a worker dies mid-run with the cancel request set;
     // after the restart the claim scan must NOT re-lease the session for

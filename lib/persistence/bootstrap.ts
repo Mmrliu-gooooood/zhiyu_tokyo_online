@@ -1,6 +1,5 @@
 import {
   BrowserKVStore,
-  BrowserAssetStore,
   HttpAssetStore,
   HttpDocumentStore,
   type HttpAssetHeadersHook,
@@ -18,8 +17,15 @@ import {
   configureAssetPoolStorage,
   type AssetPoolStorageOptions,
 } from '@/lib/media/asset-pool-config';
+import { createBrowserAssetPoolStore } from '@/lib/media/browser-asset-store-factory';
 import { assertRuntimeStorageConfigurable, configureRuntimeStorage } from '@/lib/runtime/config';
 import { getLearnerKey } from '@/lib/runtime/learner-key';
+import {
+  canUseHostedAuthUi,
+  isHostedAuthEnabled,
+  SESSION_ID_HEADER,
+  USER_ID_HEADER,
+} from '@/lib/auth/mode';
 import { ServerAssetStoreWithLegacyFallback } from './server-asset-store-with-legacy-fallback';
 
 let deviceKv: BrowserKVStore | undefined;
@@ -33,6 +39,21 @@ export function getPersistenceLearnerKey(): Promise<string> {
   if (!isBrowserPersistenceEnabled()) {
     return Promise.reject(new Error('Browser persistence is not enabled'));
   }
+  if (canUseHostedAuthUi()) {
+    return import('@/lib/auth/account-environment').then(({ requireAccountEnvironment }) =>
+      requireAccountEnvironment()
+        .then((account) => account.learnerKey)
+        .catch((error) => {
+          if (isHostedAuthEnabled()) throw error;
+          return (learnerKeyPromise ??= getLearnerKey((deviceKv ??= new BrowserKVStore())).catch(
+            (deviceError) => {
+              learnerKeyPromise = undefined;
+              throw deviceError;
+            },
+          ));
+        }),
+    );
+  }
   return (learnerKeyPromise ??= getLearnerKey((deviceKv ??= new BrowserKVStore())).catch(
     (error) => {
       learnerKeyPromise = undefined;
@@ -43,6 +64,19 @@ export function getPersistenceLearnerKey(): Promise<string> {
 
 export async function getPersistenceRequestHeaders(): Promise<Record<string, string>> {
   if (!isBrowserPersistenceEnabled()) return {};
+  if (canUseHostedAuthUi()) {
+    try {
+      const { requireAccountEnvironment } = await import('@/lib/auth/account-environment');
+      const account = await requireAccountEnvironment();
+      return {
+        'x-learner-key': account.learnerKey,
+        [USER_ID_HEADER]: account.userId,
+        [SESSION_ID_HEADER]: account.sessionId,
+      };
+    } catch (error) {
+      if (isHostedAuthEnabled()) throw error;
+    }
+  }
   const resolvedLearnerKey = await getPersistenceLearnerKey();
   const token = process.env.NEXT_PUBLIC_PERSISTENCE_TOKEN;
   return {
@@ -73,14 +107,14 @@ if (isBrowserPersistenceEnabled()) {
       }),
   };
   const assetOptions: AssetPoolStorageOptions = {
-    store: () =>
-      new ServerAssetStoreWithLegacyFallback(
-        new HttpAssetStore({
-          baseUrl: '/api/persistence',
-          headers: headers satisfies HttpAssetHeadersHook,
-        }),
-        new BrowserAssetStore({ dbName: 'maic-asset-pool' }),
-      ),
+    store: () => {
+      const http = new HttpAssetStore({
+        baseUrl: '/api/persistence',
+        headers: headers satisfies HttpAssetHeadersHook,
+      });
+      if (isHostedAuthEnabled()) return http;
+      return new ServerAssetStoreWithLegacyFallback(http, createBrowserAssetPoolStore());
+    },
     serverBacked: true,
   };
   try {

@@ -103,6 +103,10 @@ $keys = [regex]::Matches((Get-Content -Raw -LiteralPath 'docker-compose.persiste
 foreach ($key in $keys) {
   if ([Environment]::GetEnvironmentVariable($key, 'Process')) { throw "Unset the shell override $key before deployment; .env.local must be authoritative." }
 }
+# Never auto-load docker-compose.hosted.yml. That overlay is opt-in for a
+# future AUTH_MODE=supabase stack and must not alter openmaic-main.
+# docker-compose.accounts-rls-proof.yml is a disposable local RLS Postgres
+# and is also never loaded here.
 $prefix = @('compose','-p','openmaic-main','--env-file','.env.local','-f','docker-compose.yml','-f','docker-compose.persistence.yml','--profile','server-persistence')
 if ($UseHostBuildNetwork) {
   $prefix += @('-f','docker-compose.build-host.yml')

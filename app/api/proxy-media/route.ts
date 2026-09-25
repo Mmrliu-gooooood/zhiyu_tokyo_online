@@ -11,6 +11,7 @@
  * Response: Binary blob with appropriate Content-Type
  */
 
+import { hostedAuthGate } from '@/lib/auth/api';
 import { NextRequest, NextResponse } from 'next/server';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { apiError } from '@/lib/server/api-response';
@@ -21,6 +22,8 @@ const log = createLogger('ProxyMedia');
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  const denied = await hostedAuthGate(request);
+  if (denied) return denied;
   let url: string | undefined;
   try {
     ({ url } = await request.json());

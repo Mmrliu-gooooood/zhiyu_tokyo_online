@@ -5,6 +5,7 @@ import { useSettingsStore } from '@/lib/store/settings';
 import { useBrowserTTS } from '@/lib/hooks/use-browser-tts';
 import {
   resolveAgentVoice,
+  resolveDeterministicFallbackVoice,
   resolveNarratorVoiceBinding,
   getSelectableProvidersWithVoices,
   type ResolvedVoice,
@@ -144,14 +145,19 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
         effectiveTTSProvidersConfig,
         voiceProfiles,
         browserVoices,
+      ).map((provider) =>
+        platformTTSDefault?.available && provider.providerId === platformTTSDefault.providerId
+          ? {
+              ...provider,
+              source: 'platform' as const,
+              defaultId: platformTTSDefault.defaultId,
+              revision: platformTTSDefault.revision,
+              modelId: platformTTSDefault.modelId,
+            }
+          : provider,
       );
       const firstVoice = (): ResolvedVoice | null =>
-        providers.length > 0
-          ? {
-              providerId: providers[0].providerId,
-              voiceId: providers[0].voices[0]?.id ?? 'default',
-            }
-          : null;
+        resolveDeterministicFallbackVoice(providers, 0);
 
       const agent = agentId ? agents.find((a) => a.id === agentId) : undefined;
       if (!agent) return firstVoice();
@@ -240,7 +246,7 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       globalTtsProviderId,
       globalTtsVoice,
       agentVoiceOverrides,
-      platformTTSDefault?.revision,
+      platformTTSDefault,
       ttsSelection,
     ],
   );

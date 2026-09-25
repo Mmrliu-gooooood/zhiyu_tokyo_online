@@ -1,8 +1,10 @@
 import { type NextRequest } from 'next/server';
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { proxyFetch } from '@/lib/server/proxy-fetch';
 import { resolveRenderServiceUrl } from '@/lib/server/render-service';
 import { createLogger } from '@/lib/logger';
+import { assertRenderJobOwner } from '@/lib/server/render-job-owners';
 
 const log = createLogger('ExportVideo Job API');
 
@@ -10,7 +12,12 @@ export const dynamic = 'force-dynamic';
 
 /** Relay a render job's status. Polled by the client while a render runs. */
 export async function GET(req: NextRequest, context: { params: Promise<{ jobId: string }> }) {
+  const principal = await requirePrincipalIfHosted(req);
+  if (principal instanceof Response) return principal;
   const { jobId } = await context.params;
+  if (!(await assertRenderJobOwner(jobId, principal?.ownerId))) {
+    return apiError('UPSTREAM_ERROR', 404, 'Render job lookup failed');
+  }
   const resolved = resolveRenderServiceUrl();
   if ('error' in resolved) {
     return apiError('PROVIDER_DISABLED', 501, 'Render service is not configured');
@@ -35,7 +42,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ jobId: 
 
 /** Cancel a queued/running render job. */
 export async function DELETE(req: NextRequest, context: { params: Promise<{ jobId: string }> }) {
+  const principal = await requirePrincipalIfHosted(req);
+  if (principal instanceof Response) return principal;
   const { jobId } = await context.params;
+  if (!(await assertRenderJobOwner(jobId, principal?.ownerId))) {
+    return apiError('UPSTREAM_ERROR', 404, 'Render job lookup failed');
+  }
   const resolved = resolveRenderServiceUrl();
   if ('error' in resolved) {
     return apiError('PROVIDER_DISABLED', 501, 'Render service is not configured');

@@ -23,10 +23,12 @@ const fake = vi.hoisted(() => {
   class FakeClient {
     static instances: FakeClient[] = [];
     queryCalls: Array<{ text: string; params: unknown[] }> = [];
+    readonly config: unknown;
     private listeners = new Map<string, Set<Listener>>();
     ended = false;
 
-    constructor(_config?: unknown) {
+    constructor(config?: unknown) {
+      this.config = config;
       FakeClient.instances.push(this);
     }
 
@@ -169,6 +171,14 @@ describe('agent event notify bus', () => {
     client.emitNotification(AGENT_EVENT_NOTIFY_CHANNEL, '{"kind":"session"}');
     expect(wake).not.toHaveBeenCalled();
     unsubscribe();
+  });
+
+  it('uses an explicit process-role LISTEN URL without consulting worker credentials', async () => {
+    const handle = startAgentEventNotifyBus({ connectionString: 'postgres://app-web-listen' });
+    await handle.connecting;
+    const client = fake.FakeClient.instances.at(-1)!;
+    expect(client.config).toMatchObject({ connectionString: 'postgres://app-web-listen' });
+    client.emitNotification(AGENT_EVENT_PROBE_CHANNEL, 'openmaic-agent-notify-selfcheck');
   });
 
   it('queues a session-route pg_notify on the caller transaction and skips over-limit payloads', async () => {

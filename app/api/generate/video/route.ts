@@ -1,4 +1,5 @@
 import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 /**
  * Video Generation API
  *
@@ -45,7 +46,9 @@ const log = createLogger('VideoGeneration API');
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
-  return runIndependentHeavyTaskRequest(request, 'media', (signal) => handlePost(request, signal));
+  return withHostedProviderQuota(request, () =>
+    runIndependentHeavyTaskRequest(request, 'media', (signal) => handlePost(request, signal)),
+  );
 }
 
 async function handlePost(request: NextRequest, signal: AbortSignal) {

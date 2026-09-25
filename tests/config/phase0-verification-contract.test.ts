@@ -15,12 +15,14 @@ describe('Phase 0 verification contract', () => {
     };
     const ci = read('.github/workflows/ci.yml');
     const dockerfile = read('Dockerfile');
+    const dockerPnpmCommand = read('scripts/docker-pnpm-command.sh');
 
     expect(read('.nvmrc').trim()).toBe('22');
     expect(packageJson.packageManager).toMatch(/^pnpm@10\.28\.0\+/);
     expect(ci).toMatch(/node-version:\s*22/);
     expect(dockerfile).toContain('FROM node:22-alpine AS base');
-    expect(dockerfile).toContain('corepack prepare pnpm@10.28.0 --activate');
+    expect(dockerfile).toContain('docker-pnpm-command prepare');
+    expect(dockerPnpmCommand).toContain('corepack prepare pnpm@10.28.0 --activate');
   });
 
   it('exposes the fixed Phase 0 critical regression set without invoking pnpm', () => {

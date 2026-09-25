@@ -10,7 +10,15 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('fs', () => ({
-  promises: { realpath: mocks.realpath, stat: mocks.stat },
+  promises: {
+    realpath: mocks.realpath,
+    stat: mocks.stat,
+    readFile: vi.fn(async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      throw error;
+    }),
+  },
   createReadStream: mocks.createReadStream,
 }));
 

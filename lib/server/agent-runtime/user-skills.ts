@@ -44,12 +44,12 @@ export { getUserSkillStore } from './user-skill-store';
 export type { Queryable, WithTransaction } from './user-skill-store';
 
 export async function listUserSkills(ownerId: string): Promise<UserSkillRecord[]> {
-  const store = await getUserSkillStore();
+  const store = await getUserSkillStore(ownerId);
   return store.list(ownerId);
 }
 
 export async function findUserSkill(id: string, ownerId: string): Promise<UserSkillRecord | null> {
-  const store = await getUserSkillStore();
+  const store = await getUserSkillStore(ownerId);
   return store.find(id, ownerId);
 }
 
@@ -57,7 +57,7 @@ export async function findUserSkillByRef(
   ownerId: string,
   ref: string,
 ): Promise<UserSkillRecord | null> {
-  const store = await getUserSkillStore();
+  const store = await getUserSkillStore(ownerId);
   return store.findByRef(ownerId, ref);
 }
 
@@ -65,12 +65,12 @@ export async function createUserSkill(
   ownerId: string,
   input: { name: string; title: string; description: string; content: string },
 ): Promise<UserSkillRecord> {
-  const store = await getUserSkillStore();
+  const store = await getUserSkillStore(ownerId);
   return store.create(ownerId, input);
 }
 
 export async function deleteUserSkill(ownerId: string, ref: string): Promise<void> {
-  const store = await getUserSkillStore();
+  const store = await getUserSkillStore(ownerId);
   return store.delete(ownerId, ref);
 }
 
@@ -79,6 +79,6 @@ export async function patchUserSkill(
   ref: string,
   ops: readonly UserSkillPatchOpInput[],
 ): Promise<UserSkillPatchOutcome> {
-  const store = await getUserSkillStore();
+  const store = await getUserSkillStore(ownerId);
   return store.patch(ownerId, ref, ops);
 }

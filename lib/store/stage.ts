@@ -23,8 +23,12 @@ import { hydratePBLScenesFromRuntime } from '@/lib/pbl/v2/runtime/hydration';
 import type { ChatStorageSnapshot } from '@/lib/utils/chat-storage';
 import type { DocumentProducer } from '@/lib/document-store/persistence-types';
 import { canGenerateLocally } from '@/lib/generation/ownership';
+import { completeForegroundGenerationRoot } from '@/lib/generation/foreground-root-client';
+import { isBrowserPersistenceEnabled } from '@/lib/persistence/bootstrap';
 import type { PendingChange, StageStoreData, StaleDroppedSave } from '@/lib/utils/stage-storage';
 import { collectStageAssetRefs } from '@/lib/media/collect-stage-asset-refs';
+import { promoteSceneMediaRef } from '@/lib/media/generated-media-promotion';
+import { useMediaGenerationStore } from '@/lib/store/media-generation';
 import { HttpDocumentStoreError } from '@openmaic/storage';
 import {
   isStageDeleted,
@@ -712,7 +716,13 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
       );
       return;
     }
-    const scenes = [...get().scenes, migrateScene(scene)];
+    let promoted = migrateScene(scene);
+    for (const task of Object.values(useMediaGenerationStore.getState().tasks)) {
+      if (task.status === 'done' && task.placeholderRef && task.elementId.startsWith('ast_')) {
+        promoted = promoteSceneMediaRef(promoted, task.placeholderRef, task.elementId);
+      }
+    }
+    const scenes = [...get().scenes, promoted];
     // Remove the matching outline from generatingOutlines (match by order)
     const generatingOutlines = get().generatingOutlines.filter((o) => o.order !== scene.order);
     // Auto-switch from pending page to the newly generated scene
@@ -899,7 +909,17 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
   setGenerationComplete: (generationComplete) => {
     set({ generationComplete });
     // Final scenes and the completion barrier commit in the same aggregate write.
-    void get().saveToStorage();
+    const stageId = get().stage?.id;
+    void get()
+      .saveToStorage()
+      .then(async (saved) => {
+        if (saved && generationComplete && stageId && isBrowserPersistenceEnabled()) {
+          await completeForegroundGenerationRoot(stageId);
+        }
+      })
+      .catch((error) => {
+        log.warn('Failed to persist/release foreground generation completion:', error);
+      });
   },
 
   markGenerationCompleteIfDone: () => {

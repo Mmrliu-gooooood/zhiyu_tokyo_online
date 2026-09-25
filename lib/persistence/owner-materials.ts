@@ -27,6 +27,8 @@ import {
   type ConnectableQueryable,
 } from '@openmaic/storage/server/reference';
 
+type OwnerMaterialTransaction = <T>(body: (queryable: Queryable) => Promise<T>) => Promise<T>;
+
 export const OWNER_MATERIAL_STATUSES = ['uploading', 'ready'] as const;
 export type OwnerMaterialStatus = (typeof OWNER_MATERIAL_STATUSES)[number];
 
@@ -288,11 +290,13 @@ export async function reclaimStaleOwnerMaterialUploads(
  * by the caller via {@link reclaimStaleOwnerMaterialUploads} before this call.
  */
 export async function registerOwnerMaterial(
-  queryable: ConnectableQueryable,
+  queryable: Queryable,
   input: RegisterOwnerMaterialInput,
   limits: OwnerMaterialRegistrationLimits,
+  transaction?: OwnerMaterialTransaction,
 ): Promise<OwnerMaterialRecord> {
-  const withTransaction = nodePostgresTransaction(queryable);
+  const withTransaction =
+    transaction ?? nodePostgresTransaction(queryable as ConnectableQueryable);
   return withTransaction(async (tx) => {
     // hashtextextended is 64-bit (hashtext is 32-bit and could block unrelated
     // owners on a collision); the lock is transaction-scoped and releases on

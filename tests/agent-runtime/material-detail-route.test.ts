@@ -15,6 +15,7 @@ vi.mock('@/lib/config/feature-flags', () => ({
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
+  resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
 }));
 vi.mock('@/lib/server/agent-runtime/session-materials', async (importOriginal) => {
   const actual =
@@ -76,7 +77,7 @@ describe('GET /api/materials/[id]', () => {
         createdAt: '2025-01-01T00:00:00.000Z',
       },
     });
-    expect(mocks.getSessionMaterial).toHaveBeenCalledWith(SESSION_ID, MATERIAL_ID);
+    expect(mocks.getSessionMaterial).toHaveBeenCalledWith(SESSION_ID, MATERIAL_ID, 'owner-1');
   });
 
   it('rejects a missing sessionId', async () => {

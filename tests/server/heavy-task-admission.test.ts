@@ -1,12 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   checkHeavyTaskAdmission,
   checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
   getHeavyTaskRootContext,
+  heavyTaskCapacityConfig,
+  heavyTaskOwnerLimit,
   heavyTaskSiteLimit,
   isHeavyTaskFairTurn,
+  reserveHeavyTaskAttention,
   withHeavyTaskRootContext,
   type HeavyTaskAdmissionQueryable,
 } from '@/lib/server/heavy-task-admission';
@@ -72,12 +75,31 @@ describe('heavy task admission', () => {
     ).toBe(false);
   });
 
-  it('defaults to one site slot and only permits the validated scale-up value', () => {
+  it('defaults compatibly and validates the unified 16/2 capacity envelope', () => {
     expect(heavyTaskSiteLimit({})).toBe(1);
-    expect(heavyTaskSiteLimit({ APP_HEAVY_TASK_LIMIT: ' 2 ' })).toBe(2);
-    expect(() => heavyTaskSiteLimit({ APP_HEAVY_TASK_LIMIT: '3' })).toThrow(
-      'APP_HEAVY_TASK_LIMIT must be 1 or 2',
+    expect(heavyTaskOwnerLimit({})).toBe(1);
+    expect(
+      heavyTaskCapacityConfig({
+        APP_HEAVY_TASK_LIMIT: ' 16 ',
+        APP_HEAVY_TASK_PER_OWNER_LIMIT: ' 2 ',
+        GENERATION_MAX_QUEUED_JOBS: '100',
+        GENERATION_MAX_REVIEW_ATTENTION_JOBS: '100',
+      }),
+    ).toMatchObject({
+      siteLimit: 16,
+      ownerLimit: 2,
+      queue: { ownerLimit: 5, siteLimit: 100 },
+      attention: { ownerLimit: 5, siteLimit: 100 },
+    });
+    expect(() => heavyTaskSiteLimit({ APP_HEAVY_TASK_LIMIT: '33' })).toThrow(
+      'APP_HEAVY_TASK_LIMIT must be an integer from 1 to 32',
     );
+    expect(() =>
+      heavyTaskCapacityConfig({
+        APP_HEAVY_TASK_LIMIT: '1',
+        APP_HEAVY_TASK_PER_OWNER_LIMIT: '2',
+      }),
+    ).toThrow('APP_HEAVY_TASK_PER_OWNER_LIMIT must not exceed APP_HEAVY_TASK_LIMIT');
   });
 
   it('serializes the decision before counting all durable live root kinds', async () => {
@@ -133,16 +155,30 @@ describe('heavy task admission', () => {
     });
   });
 
-  it('rejects another root from the same owner before considering the site limit', async () => {
-    const fake = queryable({ activeRoots: 2, activeOwnerRoots: 1 });
+  it('admits a second owner root and rejects the third before considering the site limit', async () => {
+    const admitted = queryable({ activeRoots: 1, activeOwnerRoots: 1 });
     await expect(
-      checkHeavyTaskAdmission(fake.queryable, { ...request, siteLimit: 2 }),
+      checkHeavyTaskAdmission(admitted.queryable, {
+        ...request,
+        siteLimit: 16,
+        ownerLimit: 2,
+      }),
+    ).resolves.toEqual({
+      allowed: true,
+      inherited: false,
+      activeRoots: 1,
+      activeOwnerRoots: 1,
+    });
+
+    const fake = queryable({ activeRoots: 2, activeOwnerRoots: 2 });
+    await expect(
+      checkHeavyTaskAdmission(fake.queryable, { ...request, siteLimit: 16, ownerLimit: 2 }),
     ).resolves.toEqual({
       allowed: false,
       inherited: false,
       reason: 'personal_limit',
       activeRoots: 2,
-      activeOwnerRoots: 1,
+      activeOwnerRoots: 2,
     });
   });
 
@@ -207,7 +243,7 @@ describe('heavy task admission', () => {
     expect(getHeavyTaskRootContext()).toBeUndefined();
   });
 
-  it('counts distinct pure queued roots across the three queues with fixed 5/20 caps', async () => {
+  it('counts distinct pure queued roots across the three queues with a configured site cap', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('pg_advisory_xact_lock')) return { rows: [{}] };
       if (sql.includes("to_regclass('generation_jobs')")) {
@@ -225,19 +261,39 @@ describe('heavy task admission', () => {
       expect(sql).toContain("agent_sessions WHERE status = 'queued'");
       expect(sql).toContain("material.extraction_status = 'pending'");
       expect(sql.match(/UNION/g)).toHaveLength(2);
-      return { rows: [{ queued_roots: '20', queued_owner_roots: '4' }] };
+      return { rows: [{ queued_roots: '100', queued_owner_roots: '4' }] };
     });
     await expect(
-      checkHeavyTaskQueueCapacity({ query } as unknown as HeavyTaskAdmissionQueryable, {
-        ownerId: 'owner-a',
-        rootTaskId: 'generation:new',
-      }),
+      checkHeavyTaskQueueCapacity(
+        { query } as unknown as HeavyTaskAdmissionQueryable,
+        {
+          ownerId: 'owner-a',
+          rootTaskId: 'generation:new',
+        },
+        { ownerLimit: 5, siteLimit: 100 },
+      ),
     ).resolves.toEqual({
       allowed: false,
       reason: 'site_queue_limit',
-      queuedRoots: 20,
+      queuedRoots: 100,
       queuedOwnerRoots: 4,
     });
+  });
+
+  it('keeps manual-attention reservations inside a lowered configured slot range', async () => {
+    const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
+      if (sql.includes('INSERT INTO generation_provider_slots')) return { rows: [] };
+      expect(sql).toContain('reservation.slot_no < $2');
+      expect(parameters).toEqual(['00000000-0000-4000-8000-000000000001', 20]);
+      return { rows: [{ slot_no: 19 }] };
+    });
+    await expect(
+      reserveHeavyTaskAttention(
+        { query } as unknown as HeavyTaskAdmissionQueryable,
+        '00000000-0000-4000-8000-000000000001',
+        20,
+      ),
+    ).resolves.toBe(true);
   });
 
   it('counts generation review and unanswered Pro questions in one attention backlog', async () => {
@@ -282,11 +338,74 @@ describe('heavy task admission', () => {
       expect(sql).toContain("status = 'queued'");
       expect(sql).toContain("material.extraction_status = 'pending'");
       expect(sql).toContain('ORDER BY queued_at, root_task_id');
-      expect(parameters).toEqual(['owner-a', 'agent:root-a', 90_000, 80_000, -3_500_000, 100_000]);
+      expect(sql).toContain('active_owner_counts');
+      expect(sql).toContain('active_roots.root_task_id = queued_roots.root_task_id');
+      expect(parameters).toEqual([
+        'owner-a',
+        'agent:root-a',
+        90_000,
+        80_000,
+        -3_500_000,
+        100_000,
+        2,
+      ]);
       return { rows: [{ candidate_present: true, oldest_root: 'generation:older' }] };
     });
     await expect(
-      isHeavyTaskFairTurn({ query } as unknown as HeavyTaskAdmissionQueryable, request),
+      isHeavyTaskFairTurn({ query } as unknown as HeavyTaskAdmissionQueryable, {
+        ...request,
+        siteLimit: 16,
+        ownerLimit: 2,
+      }),
     ).resolves.toBe(false);
+  });
+});
+
+describe('hosted heavy task aggregate boundary', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('uses the SECURITY DEFINER aggregate without selecting cross-owner rows', async () => {
+    vi.stubEnv('AUTH_MODE', 'supabase');
+    vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', 'supabase');
+    const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
+      expect(sql).toContain('app_internal.heavy_task_capacity');
+      expect(parameters?.slice(0, 3)).toEqual(['admission', 'owner-a', 'agent:root-a']);
+      expect(parameters?.slice(8, 10)).toEqual([2, 16]);
+      return {
+        rows: [
+          {
+            total_count: '15',
+            owner_count: '1',
+            inherited: false,
+            candidate_present: false,
+            oldest_root: null,
+          },
+        ],
+      };
+    });
+
+    await expect(
+      checkHeavyTaskAdmission({ query } as unknown as HeavyTaskAdmissionQueryable, {
+        ...request,
+        siteLimit: 16,
+        ownerLimit: 2,
+      }),
+    ).resolves.toMatchObject({ allowed: true, activeRoots: 15, activeOwnerRoots: 1 });
+    expect(query).toHaveBeenCalledOnce();
+  });
+
+  it('reserves attention only through the fenced function', async () => {
+    vi.stubEnv('AUTH_MODE', 'supabase');
+    const query = vi.fn(async (sql: string) => {
+      expect(sql).toBe('SELECT app_internal.reserve_heavy_task_attention($1,$2) AS reserved');
+      return { rows: [{ reserved: true }] };
+    });
+    await expect(
+      reserveHeavyTaskAttention(
+        { query } as unknown as HeavyTaskAdmissionQueryable,
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        16,
+      ),
+    ).resolves.toBe(true);
   });
 });

@@ -13,6 +13,7 @@ import {
   PgAgentSessionMaterialStore,
   ensureAgentSessionMaterialSchema,
 } from '@openmaic/storage/material/pg';
+import { createHash } from 'node:crypto';
 import {
   createMaterialId,
   type AgentSessionMaterial,
@@ -28,7 +29,10 @@ import {
   isHeavyTaskFairTurn,
 } from '@/lib/server/heavy-task-admission';
 
+import { getPersistenceDatabaseUrl, tryAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getMaterialByteStore } from '@/lib/server/materials/bytes';
 
 import { getAgentSessionStore, nodePostgresTransaction } from './store';
@@ -51,14 +55,22 @@ const globalState = globalThis as typeof globalThis & {
 };
 const storeState = (globalState[MATERIAL_STORE_STATE_KEY] ??= {});
 
-async function createMaterialStore(connectionString: string): Promise<PgAgentSessionMaterialStore> {
+async function createMaterialStore(
+  connectionString: string,
+  ownerId?: string,
+): Promise<PgAgentSessionMaterialStore> {
   const { pool } = await getServerPersistenceProvider(connectionString);
   // The material table references agent_sessions(id), so the agent-session
   // schema (provisioned by getAgentSessionStore) must exist first — the same
   // dependency the URL trust-gate table has inside that schema.
-  await ensureAgentSessionMaterialSchema(pool);
-  return new PgAgentSessionMaterialStore(pool, {
-    withTransaction: nodePostgresTransaction(pool),
+  if (!isHostedAuthEnabled()) await ensureAgentSessionMaterialSchema(pool);
+  const db = ownerId && isHostedAuthEnabled() ? createOwnerBoundQueryable(pool, ownerId) : pool;
+  const withTransaction =
+    ownerId && isHostedAuthEnabled()
+      ? (db as ReturnType<typeof createOwnerBoundQueryable>).withTransaction
+      : nodePostgresTransaction(pool);
+  return new PgAgentSessionMaterialStore(db, {
+    withTransaction,
     admitExtractionClaim: async (transaction, input): Promise<boolean> => {
       const decision = await checkHeavyTaskAdmission(transaction, {
         ownerId: input.ownerId,
@@ -102,8 +114,13 @@ async function createMaterialStore(connectionString: string): Promise<PgAgentSes
  * lazily. Failed initialization is cleared so a later request can retry after
  * the database becomes available.
  */
-export function getAgentSessionMaterialStore(): Promise<PgAgentSessionMaterialStore> {
-  const connectionString = process.env.DATABASE_URL;
+export function getAgentSessionMaterialStore(
+  ownerId?: string,
+): Promise<PgAgentSessionMaterialStore> {
+  if (ownerId && isHostedAuthEnabled()) {
+    return createMaterialStore(getPersistenceDatabaseUrl(), ownerId);
+  }
+  const connectionString = tryAgentRuntimeDatabaseUrl();
   if (!connectionString) {
     return Promise.reject(new Error('Agent runtime requires DATABASE_URL'));
   }
@@ -129,6 +146,30 @@ function sessionMaterialPrefix(sessionId: string): string {
 
 function sessionMaterialKey(sessionId: string, materialId: string, name: string): string {
   return `${sessionMaterialPrefix(sessionId)}${materialId}/${name}`;
+}
+
+/** Session rows have a global id primary key, even when their source uploads match. */
+function boundOwnerMaterialId(sessionId: string, ownerMaterialId: string): string {
+  const digest = createHash('sha256')
+    .update(sessionId)
+    .update('\0')
+    .update(ownerMaterialId)
+    .digest();
+  const alphabet = '0123456789abcdefghjkmnpqrstvwxyz';
+  let bits = 0;
+  let value = 0;
+  let suffix = '';
+  for (const byte of digest.subarray(0, 16)) {
+    value = value * 256 + byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      suffix += alphabet[(value / 2 ** bits) & 31];
+      value %= 2 ** bits;
+    }
+  }
+  if (bits > 0) suffix += alphabet[(value * 2 ** (5 - bits)) & 31];
+  return `mat_${suffix}`;
 }
 
 function rawObjectName(mime: string): string {
@@ -164,8 +205,7 @@ export async function createWebMaterial(
   sessionId: string,
   page: ExtractedWebPage,
 ): Promise<AgentSessionMaterial> {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error('Agent runtime requires DATABASE_URL');
+  if (!tryAgentRuntimeDatabaseUrl()) throw new Error('Agent runtime requires DATABASE_URL');
   const id = createMaterialId();
   const body = Buffer.from(page.markdown, 'utf8');
   const textObjectKey = sessionMaterialKey(sessionId, id, 'text.md');
@@ -222,8 +262,7 @@ export async function createSourceMaterial(
   sessionId: string,
   input: CreateSourceMaterialInput,
 ): Promise<AgentSessionMaterial> {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error('Agent runtime requires DATABASE_URL');
+  if (!tryAgentRuntimeDatabaseUrl()) throw new Error('Agent runtime requires DATABASE_URL');
   const id = createMaterialId();
   const body = Buffer.from(input.bytes);
   const rawObjectKey = sessionMaterialKey(sessionId, id, rawObjectName(input.mimeType));
@@ -260,20 +299,29 @@ export async function bindOwnerMaterialsToSession(
   ownerId: string,
   materialIds: readonly string[],
 ): Promise<Array<{ materialId: string; originalName?: string; mime?: string; bytes: number }>> {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = isHostedAuthEnabled()
+    ? getPersistenceDatabaseUrl()
+    : tryAgentRuntimeDatabaseUrl();
   if (!connectionString) throw new Error('Agent runtime requires DATABASE_URL');
   const provider = await getServerPersistenceProvider(connectionString);
-  const records = await getReadyOwnerMaterials(provider.pool, ownerId, materialIds);
+  const ownerDb = isHostedAuthEnabled()
+    ? createOwnerBoundQueryable(provider.pool, ownerId)
+    : provider.pool;
+  const records = await getReadyOwnerMaterials(ownerDb, ownerId, materialIds);
   const byteStore = getMaterialByteStore();
   const byId = new Map(records.map((record) => [record.id, record]));
   if (materialIds.some((id) => !byId.has(id))) {
     throw new SessionMaterialBindingError('one or more materials are unavailable');
   }
-  const store = await getAgentSessionMaterialStore();
+  const store = await getAgentSessionMaterialStore(ownerId);
   const bound = [];
   for (const id of materialIds) {
     const record = byId.get(id)!;
-    if (!(await store.getMaterial(sessionId, id))) {
+    // Older sessions used the owner upload id directly. Keep their existing
+    // binding; new sessions need a distinct globally unique material-row id.
+    const legacyBinding = await store.getMaterial(sessionId, id);
+    const sessionMaterialId = legacyBinding ? id : boundOwnerMaterialId(sessionId, id);
+    if (!(legacyBinding ?? (await store.getMaterial(sessionId, sessionMaterialId)))) {
       let source: Buffer;
       try {
         source = await byteStore.get(record.ossKey);
@@ -281,25 +329,25 @@ export async function bindOwnerMaterialsToSession(
         throw new SessionMaterialBindingError(`material ${id} bytes are unavailable`);
       }
       const mime = record.mime ?? 'application/octet-stream';
-      const rawObjectKey = sessionMaterialKey(sessionId, id, rawObjectName(mime));
+      const rawObjectKey = sessionMaterialKey(sessionId, sessionMaterialId, rawObjectName(mime));
       await byteStore.put(rawObjectKey, source, mime);
       try {
         await store.createMaterial(sessionId, {
-          id,
+          id: sessionMaterialId,
           kind: 'source',
           title: record.originalName ?? id,
           rawAssetId: rawObjectKey,
           textChars: 0,
         });
       } catch (error) {
-        if (!(await store.getMaterial(sessionId, id))) {
+        if (!(await store.getMaterial(sessionId, sessionMaterialId))) {
           await byteStore.delete(rawObjectKey).catch(() => undefined);
           throw error;
         }
       }
     }
     bound.push({
-      materialId: id,
+      materialId: sessionMaterialId,
       ...(record.originalName ? { originalName: record.originalName } : {}),
       ...(record.mime ? { mime: record.mime } : {}),
       bytes: record.bytes,
@@ -334,7 +382,7 @@ export async function resolveOwnedSession(
   sessionId: string,
   ownerId: string,
 ): Promise<AgentSessionMeta | null> {
-  const store = await getAgentSessionStore();
+  const store = await getAgentSessionStore(ownerId);
   const session = await store.getSession(sessionId);
   return session && session.ownerId === ownerId ? session : null;
 }
@@ -343,8 +391,9 @@ export async function resolveOwnedSession(
 export async function listSessionMaterials(
   sessionId: string,
   options?: ListAgentSessionMaterialsOptions,
+  ownerId?: string,
 ): Promise<AgentSessionMaterial[]> {
-  const store = await getAgentSessionMaterialStore();
+  const store = await getAgentSessionMaterialStore(ownerId);
   return store.listMaterials(sessionId, options);
 }
 
@@ -352,8 +401,9 @@ export async function listSessionMaterials(
 export async function getSessionMaterial(
   sessionId: string,
   materialId: string,
+  ownerId?: string,
 ): Promise<AgentSessionMaterial | null> {
-  const store = await getAgentSessionMaterialStore();
+  const store = await getAgentSessionMaterialStore(ownerId);
   return store.getMaterial(sessionId, materialId);
 }
 

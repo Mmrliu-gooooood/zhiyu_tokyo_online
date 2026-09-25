@@ -6,6 +6,7 @@ import {
   type OwnerStreamState,
   type ProHomeSessionItem,
 } from '@/lib/workbench/pro-home-data';
+import { whilePageVisible } from './page-visible-lifecycle';
 
 // This is a closed set because EventSource dispatches named events only to
 // matching listeners; future server event names are structurally invisible
@@ -139,20 +140,39 @@ export class OwnerSessionClient {
   >();
   private reconcileTimer: ReturnType<typeof setTimeout> | null = null;
   private streamHealthTimer: ReturnType<typeof setInterval> | null = null;
+  private stopVisibility: (() => void) | null = null;
+  private closeStream: (() => void) | null = null;
+  private pageVisible = false;
 
   constructor(private readonly options: OwnerSessionClientOptions) {}
 
   start(): void {
     if (!this.stopped) return;
     this.stopped = false;
-    this.openStream();
-    this.requestFullFetch(true);
-    this.scheduleReconciliation();
+    this.stopVisibility = whilePageVisible(() => {
+      this.pageVisible = true;
+      this.openStream();
+      this.requestFullFetch(!this.streamState.initialized);
+      this.scheduleReconciliation();
+      return () => {
+        this.pageVisible = false;
+        this.epoch += 1;
+        this.requestInFlightEpoch = null;
+        this.requestPending = false;
+        this.closeStream?.();
+        if (this.reconcileTimer) clearTimeout(this.reconcileTimer);
+        this.reconcileTimer = null;
+        if (this.streamHealthTimer) clearInterval(this.streamHealthTimer);
+        this.streamHealthTimer = null;
+      };
+    });
   }
 
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;
+    this.stopVisibility?.();
+    this.stopVisibility = null;
     this.epoch += 1;
     this.requestInFlightEpoch = null;
     this.requestPending = false;
@@ -173,7 +193,7 @@ export class OwnerSessionClient {
   }
 
   requestFullFetch(showLoading = false): void {
-    if (this.stopped) return;
+    if (this.stopped || !this.pageVisible) return;
     if (showLoading) this.options.onState('loading');
     if (this.requestInFlightEpoch === this.epoch) {
       this.requestPending = true;
@@ -212,7 +232,10 @@ export class OwnerSessionClient {
 
   private openStream(): void {
     const epoch = this.epoch;
-    const source = this.options.createEventSource('/api/agent/owner-events', { headers: {} });
+    const resume = this.cursor === '0' ? '' : `?lastEventId=${encodeURIComponent(this.cursor)}`;
+    const source = this.options.createEventSource(`/api/agent/owner-events${resume}`, {
+      headers: {},
+    });
     this.source = source;
     this.connectingSamples = 0;
     if (this.streamHealthTimer) clearInterval(this.streamHealthTimer);
@@ -284,7 +307,7 @@ export class OwnerSessionClient {
       if (!transition.reconnect) return;
       // A fresh native instance has no inherited Last-Event-ID. Closing first
       // also prevents the clean server EOF from reconnecting the retired owner.
-      source.close();
+      this.closeStream?.();
       this.epoch += 1;
       this.cursor = '0';
       this.journal = [];
@@ -320,6 +343,16 @@ export class OwnerSessionClient {
     source.onerror = () => {
       if (this.stopped || epoch !== this.epoch) return;
       this.observeStreamHealth(source, epoch);
+    };
+    this.closeStream = () => {
+      for (const type of OWNER_SESSION_EVENT_TYPES)
+        source.removeEventListener(type, onSessionEvent);
+      source.removeEventListener('caught_up', onCaughtUp);
+      source.removeEventListener('resync_required', onResyncRequired);
+      source.removeEventListener('owner_moved', onOwnerMoved);
+      source.onerror = null;
+      source.close();
+      if (this.source === source) this.source = null;
     };
   }
 
@@ -398,7 +431,7 @@ export class OwnerSessionClient {
       .finally(() => {
         if (this.requestInFlightEpoch !== epoch) return;
         this.requestInFlightEpoch = null;
-        if (!this.stopped && this.requestPending) {
+        if (!this.stopped && this.pageVisible && this.requestPending) {
           this.requestPending = false;
           this.runFullFetch();
         }

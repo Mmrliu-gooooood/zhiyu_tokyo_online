@@ -62,6 +62,7 @@ export interface TeachBackHost {
   presentEvents: (events: StatelessEvent[], signal: AbortSignal) => Promise<void>;
   fetchTeachBack: (body: unknown, signal: AbortSignal) => Promise<Response>;
   getModelConfig: () => TeachBackModelConfig;
+  getLocale: () => string;
   now: () => string;
   mintId: () => string;
   onView: (view: TeachBackView) => void;
@@ -107,6 +108,38 @@ export function buildTeachBackSpeechEvents(input: {
     },
   });
   return events;
+}
+
+/**
+ * A completed teach-back round stays closed until the learner explicitly asks
+ * the companion to ask again. Acknowledgements and learner-authored questions
+ * must not silently open a fresh three-explanation round.
+ */
+export function isTeachBackFollowUpRequest(content: string): boolean {
+  const normalized = content
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[。！？!?.,，；;：:]+$/u, '')
+    .replace(/\s+/g, ' ');
+  if (!normalized) return false;
+
+  const compact = normalized.replace(/\s+/g, '');
+
+  return (
+    /^(?:请|請)?(?:继续提问|繼續提問|继续问我|繼續問我|接着问我|接著問我|再问我(?:一个问题)?|再問我(?:一個問題)?|继续出题|繼續出題|接着出题|接著出題|再出题|再出題|继续考我|繼續考我|接着考我|接著考我|再考我|再来一轮|再來一輪|下一轮|下一輪|新一轮|新一輪)$/u.test(
+      compact,
+    ) ||
+    /^(?:我(?:还)?想让)?(?:ai|学伴|你)(?:继续|接着|再)?(?:提问|问我|出题|考我)$/iu.test(compact) ||
+    /^(?:please )?(?:ask|quiz) me (?:again|another(?: question)?|one more(?: question)?)$/iu.test(
+      normalized,
+    ) ||
+    /^(?:please )?(?:continue|keep) (?:asking|quizzing) me$/iu.test(normalized) ||
+    /^(?:another|next|new) round$/iu.test(normalized) ||
+    /^(?:もう一度質問して|다시질문해줘|pose-moiuneautrequestion|stellmirnocheinefrage|hazmeotrapregunta|façaoutrapergunta|задаймнеещёодинвопрос|hỏitôithêmmộtcâu|اسألنيسؤالا(?:ً)?آخر)$/iu.test(
+      compact,
+    )
+  );
 }
 
 function mapHttpError(code: string | undefined): TeachBackErrorCode {
@@ -316,10 +349,7 @@ export class TeachBackSession {
     }
   }
 
-  async submitExplanation(input: {
-    text: string;
-    producer: TeachBackProducer;
-  }): Promise<void> {
+  async submitExplanation(input: { text: string; producer: TeachBackProducer }): Promise<void> {
     const trimmed = input.text.trim();
     if (!trimmed || trimmed.length > TEACH_BACK_LIMITS.explanationCharacters) {
       this.setView({ ...this.view, errorCode: 'invalid_request' });
@@ -591,6 +621,7 @@ export class TeachBackSession {
           explanations: registered.activity.explanations,
           priorResults: registered.activity.results,
           turnId,
+          locale: this.host.getLocale(),
         },
         controller.signal,
       );

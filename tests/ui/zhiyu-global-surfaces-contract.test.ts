@@ -27,11 +27,13 @@ describe('ZHIYU global surface contract', () => {
 
   it('uses the single brand source for metadata and route status surfaces', () => {
     const layout = source('app/layout.tsx');
+    const authShell = source('components/auth/AuthAppShell.tsx');
     const routeLoading = source('components/brand/ZhiyuRouteLoading.tsx');
 
     expect(layout).toContain('icon: DEFAULT_BRAND.markSrc');
     expect(layout).toContain('applicationName: DEFAULT_BRAND.productName');
-    expect(layout).toContain('<DocumentMetadataSync />');
+    expect(layout).toContain('<AuthAppShell>{children}</AuthAppShell>');
+    expect(authShell).toContain('<DocumentMetadataSync />');
     expect(routeLoading).toContain('<ZhiyuLockup');
     expect(routeLoading).toContain('role="status"');
   });

@@ -1,6 +1,10 @@
 import '@/lib/persistence/bootstrap';
 
-import { BrowserAssetStore, toAssetId } from '@openmaic/storage';
+import { toAssetId } from '@openmaic/storage';
+import {
+  ASSET_POOL_DATABASE_NAME,
+  createBrowserAssetPoolStore,
+} from './browser-asset-store-factory';
 import {
   isAssetPoolServerBacked,
   registerAssetPoolStorageResetHook,
@@ -13,7 +17,6 @@ import {
 } from './stage-realm-presence';
 import { bindAssetReplacementChannel, observeAssetReplacements } from './asset-replacement-events';
 
-const ASSET_POOL_DATABASE_NAME = 'maic-asset-pool';
 let pool: AssetPoolStore | undefined;
 let clearing: Promise<void> | undefined;
 
@@ -25,6 +28,7 @@ registerAssetPoolStorageResetHook(() => {
 export {
   configureAssetPoolStorage,
   isAssetPoolStorageConfigured,
+  isAssetPoolServerBacked,
   resetAssetPoolStorageForTests,
 } from './asset-pool-config';
 export type { AssetPoolStorageOptions, AssetPoolStore } from './asset-pool-config';
@@ -78,12 +82,27 @@ export function getAssetPool(): AssetPoolStore {
     if (typeof indexedDB === 'undefined') {
       throw new Error('The browser asset pool requires IndexedDB.');
     }
-    return new BrowserAssetStore({ dbName: ASSET_POOL_DATABASE_NAME });
+    return createBrowserAssetPoolStore();
   })());
 }
 
 export function removeAsset(ref: string): Promise<void> {
   return getAssetPool().remove(toAssetId(ref));
+}
+
+export function putAsset(
+  data: Parameters<AssetPoolStore['put']>[0],
+  meta?: Parameters<AssetPoolStore['put']>[1],
+): ReturnType<AssetPoolStore['put']> {
+  return getAssetPool().put(data, meta);
+}
+
+export function replaceAsset(
+  ref: string,
+  data: Parameters<AssetPoolStore['replace']>[1],
+  meta?: Parameters<AssetPoolStore['replace']>[2],
+): ReturnType<AssetPoolStore['replace']> {
+  return getAssetPool().replace(toAssetId(ref), data, meta);
 }
 
 function deleteAssetPoolDatabase(): Promise<void> {

@@ -9,7 +9,10 @@ const ALIASED_GET_POOL_IMPORT =
 const NAMESPACE_POOL_IMPORT =
   /import\s+\*\s+as\s+\w+\s+from\s*['"](?:@\/lib\/media\/asset-pool|(?:\.\.?\/)+(?:[\w.-]+\/)*asset-pool(?:\.[cm]?[jt]s)?)['"]/;
 const FORBIDDEN = [
-  { pattern: /\bnew\s+BrowserAssetStore\s*\(/, allowed: new Set(['lib/media/asset-pool.ts']) },
+  {
+    pattern: /\bnew\s+BrowserAssetStore\s*\(/,
+    allowed: new Set(['lib/media/browser-asset-store-factory.ts']),
+  },
   {
     pattern: /\bgetAssetPool\s*\(/,
     allowed: new Set(['lib/media/asset-pool.ts', 'lib/media/use-asset-url.ts']),

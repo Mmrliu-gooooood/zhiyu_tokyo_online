@@ -117,6 +117,7 @@ export async function runWorker(options: {
   execute: (lease: GenerationLease, signal: AbortSignal) => Promise<unknown>;
   report?: (event: GenerationWorkerReport) => void;
   maintenance?: () => Promise<unknown>;
+  onDatabaseHeartbeat?: () => Promise<void> | void;
 }) {
   const { repository, workerId, signal } = options;
   const versions = [...GENERATION_WORKER_PIPELINE_VERSIONS];
@@ -127,6 +128,7 @@ export async function runWorker(options: {
     maintenanceRunning = true;
     try {
       await repository.workerHeartbeat(workerId, versions, signal.aborted);
+      await options.onDatabaseHeartbeat?.();
       await repository.reapExpired();
       await repository.expireWaitingJobs();
       await repository.confirmDuePlans();

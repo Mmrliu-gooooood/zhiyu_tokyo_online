@@ -36,6 +36,8 @@ vi.mock('@/lib/server/agent-runtime/store', () => ({ nodePostgresTransaction: vi
 import {
   PRO_MODEL_CONNECTION_SCHEMA,
   ProModelConnectionStore,
+  proModelConnectionCiphertextsEqual,
+  reassignProModelConnectionCiphertext,
 } from '@/lib/server/agent-runtime/model-connections';
 
 describe('durable encrypted PRO model connections', () => {
@@ -95,6 +97,29 @@ describe('durable encrypted PRO model connections', () => {
     expect(JSON.stringify(saved.rows)).not.toContain(context.baseUrl);
     expect((await store.load('owner-a', first)).apiKey).toBe(context.apiKey);
     expect((await store.load('owner-a', second)).apiKey).toBe('new-key');
+  });
+
+  it('re-encrypts owner AAD and compares randomized retry ciphertext without exposing plaintext', async () => {
+    const ref = await store.sync('owner-a', context);
+    const saved = await db.query<{ ciphertext: string }>(
+      'SELECT ciphertext FROM pro_model_connection_revisions WHERE connection_id=$1 AND revision=$2',
+      [ref.id, ref.revision],
+    );
+    const first = reassignProModelConnectionCiphertext(
+      saved.rows[0]!.ciphertext,
+      'owner-a',
+      'owner-b',
+      ref,
+    );
+    const retry = reassignProModelConnectionCiphertext(
+      saved.rows[0]!.ciphertext,
+      'owner-a',
+      'owner-b',
+      ref,
+    );
+    expect(retry).not.toBe(first);
+    expect(proModelConnectionCiphertextsEqual(first, retry, 'owner-b', ref)).toBe(true);
+    expect(JSON.stringify({ first, retry })).not.toContain(context.apiKey);
   });
 
   it('rejects an update based on a stale previous revision with a 409 conflict', async () => {

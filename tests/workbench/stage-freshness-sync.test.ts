@@ -350,7 +350,7 @@ beforeEach(() => {
   vi.stubGlobal('EventSource', MockEventSource);
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
-    value: 'hidden',
+    value: 'visible',
   });
 });
 
@@ -522,12 +522,12 @@ describe('AC4: freshness 流断开 → 兜底周期内仍收敛（绝对时间�
 describe('AC5: tab focus / 重连各触发一次 manifest 拉取', () => {
   it('focus 一次 +1；断线重连一次 +1', async () => {
     await mount();
-    const source = MockEventSource.instances[0]!;
-
     // After the initial sync: 1 manifest fetch (mount's baseline), stream not open yet.
     const afterMount = mocks.manifestFetchCount;
 
     // Tab focus → exactly one manifest fetch.
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -535,10 +535,55 @@ describe('AC5: tab focus / 重连各触发一次 manifest 拉取', () => {
     expect(mocks.manifestFetchCount).toBe(afterMount + 1);
 
     // Drop + reconnect → exactly one manifest fetch.
+    const source = MockEventSource.instances.at(-1)!;
     await act(async () => source.error());
     expect(mocks.manifestFetchCount).toBe(afterMount + 1); // the error itself does not fetch
     await act(async () => source.open());
     expect(mocks.manifestFetchCount).toBe(afterMount + 2);
+  });
+});
+
+describe('hidden freshness lifecycle', () => {
+  it('closes the stream and timers while hidden, catches up the canvas on return, and never reopens after unmount', async () => {
+    vi.useFakeTimers();
+    await mount();
+    const first = MockEventSource.instances[0]!;
+    const before = mocks.manifestFetchCount;
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    expect(first.readyState).toBe(2);
+    expect([...first.listeners.values()].flat()).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+    bumpSceneRev('scene-1');
+    await act(async () => {
+      first.emitFreshness();
+      await vi.advanceTimersByTimeAsync(90_000);
+    });
+    expect(mocks.manifestFetchCount).toBe(before);
+    expect(mocks.stageState.scenes[0]).toMatchObject({ title: 'scene-1 v1' });
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(mocks.stageState.scenes[0]).toMatchObject({ title: 'scene-1 v2' });
+    expect(mocks.batchCalls.at(-1)).toEqual(['scene-1']);
+    const current = MockEventSource.instances[1]!;
+    await unmount();
+    expect(current.readyState).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(MockEventSource.instances).toHaveLength(2);
+  });
+
+  it('opens no stream or sync pass when mounted hidden', async () => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    await mount();
+    expect(MockEventSource.instances).toHaveLength(0);
+    expect(mocks.manifestFetchCount).toBe(0);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(mocks.stageState.scenes).toHaveLength(3);
   });
 });
 

@@ -4,6 +4,7 @@
  */
 
 import { nanoid } from 'nanoid';
+import { isWidgetType } from '@openmaic/dsl';
 import { MAX_PDF_CONTENT_CHARS, MAX_VISION_IMAGES } from './constants.js';
 import { parseJsonResponse } from './json-repair.js';
 import { noopGenerationLogger, type GenerationLogger } from './logger.js';
@@ -209,6 +210,21 @@ export function applyOutlineFallbacks(
 ): SceneOutline {
   const logger = options.logger ?? noopGenerationLogger;
   const hasWidgetConfig = outline.widgetType && outline.widgetOutline;
+
+  // Plans supplied by Pro or a saved model response can bypass the normal
+  // outline parser. Keep an interactive scene usable when the model invents a
+  // widget name that this version of the renderer cannot generate.
+  if (outline.type === 'interactive' && outline.widgetType && !isWidgetType(outline.widgetType)) {
+    logger.warn(`Unsupported widget type in interactive outline "${outline.title}"; using simulation`);
+    return {
+      ...outline,
+      widgetType: 'simulation',
+      widgetOutline: {
+        ...(outline.widgetOutline ?? {}),
+        concept: outline.widgetOutline?.concept || outline.title,
+      },
+    };
+  }
 
   if (outline.widgetType === 'procedural-skill' && !options.allowProceduralSkill) {
     logger.warn(

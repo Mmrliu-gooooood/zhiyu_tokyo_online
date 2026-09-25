@@ -190,4 +190,53 @@ describe('readUsageRecords', () => {
     expect(r.kind).toBe('llm');
     expect(r.inputTokens).toBe(5);
   });
+
+  it('hides user-owned rows from unsigned reads and keeps them on an exact owner filter', async () => {
+    const dir = tmpDir;
+    const owned = {
+      id: 'user-row',
+      createdAt: 2,
+      kind: 'llm',
+      source: 'chat',
+      providerId: 'openai',
+      modelId: 'm',
+      modelString: 'openai:m',
+      inputTokens: 7,
+      outputTokens: 1,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      reasoningTokens: 0,
+      ownerId: 'user:09ee0532-7110-4bd4-ae73-e95f4d5126b0',
+    };
+    const unowned = {
+      id: 'legacy-row',
+      createdAt: 1,
+      kind: 'llm',
+      source: 'chat',
+      providerId: 'openai',
+      modelId: 'm',
+      modelString: 'openai:m',
+      inputTokens: 4,
+      outputTokens: 1,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      reasoningTokens: 0,
+    };
+    await fs.writeFile(
+      path.join(dir, '2026-09.jsonl'),
+      `${JSON.stringify(owned)}\n${JSON.stringify(unowned)}\n`,
+    );
+    const unsigned = await readUsageRecords({ baseDir: dir });
+    expect(unsigned.map((row) => row.id)).toEqual(['legacy-row']);
+    const ownedOnly = await readUsageRecords({
+      baseDir: dir,
+      ownerId: 'user:09ee0532-7110-4bd4-ae73-e95f4d5126b0',
+    });
+    expect(ownedOnly.map((row) => row.id)).toEqual(['user-row']);
+    const otherOwner = await readUsageRecords({
+      baseDir: dir,
+      ownerId: 'user:fdef1b67-298d-40c9-bc60-d778816ea1c6',
+    });
+    expect(otherOwner).toEqual([]);
+  });
 });

@@ -49,12 +49,17 @@ import { isPiChatEnabled } from '@/lib/config/feature-flags';
 import { isGuidedLearningEnabled, isTeachBackEnabled } from '@/lib/learning/feature-flags';
 import {
   TeachBackSession,
+  isTeachBackFollowUpRequest,
   shouldRouteToTeachBack,
   shouldSkipAgentLoopForTeachBack,
   type TeachBackHost,
   type TeachBackView,
 } from '@/lib/chat/teach-back-session';
-import type { TeachBackErrorCode, TeachBackPeer, TeachBackSource } from '@/lib/learning/teach-back/contracts';
+import type {
+  TeachBackErrorCode,
+  TeachBackPeer,
+  TeachBackSource,
+} from '@/lib/learning/teach-back/contracts';
 import { buildTeachBackSource } from '@/lib/learning/teach-back/source';
 import type { TeachBackProjectedActivity } from '@/lib/learning/teach-back/activity';
 import type { CleanupSource } from '@/lib/playback/auto-resume';
@@ -684,7 +689,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     options.onEnterLiveConversation,
     options.classroomVisible,
   ]);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   // Track current stageId for data isolation
   const stageId = useStageStore((s) => s.stage?.id);
@@ -1481,6 +1486,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       thinkingConfig: model.thinkingConfig,
     };
   };
+  teachBackHostRef.current.getLocale = () => locale;
   teachBackHostRef.current.now = () => new Date().toISOString();
   teachBackHostRef.current.mintId = () => nanoid();
   teachBackHostRef.current.onView = (view) => setTeachBackView(view);
@@ -1806,7 +1812,8 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
         messages: [],
         config: {
           agentIds: options.config?.agentIds ?? ['default-1'],
-          defaultAgentId: options.config?.defaultAgentId ?? options.config?.agentIds?.[0] ?? 'default-1',
+          defaultAgentId:
+            options.config?.defaultAgentId ?? options.config?.agentIds?.[0] ?? 'default-1',
           ...options.config,
         },
         toolCalls: [],
@@ -2251,7 +2258,37 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
           return;
         }
         if (phase === 'summary_ready') {
-          await continueTeachBackRoundRef.current?.();
+          // Keep post-round acknowledgements and learner-authored questions visible.
+          // Only an explicit request opens another round; every other message stays
+          // in the completed conversation without triggering another companion ask.
+          if (sessionId) {
+            const now = Date.now();
+            const userMessage: UIMessage<ChatMessageMetadata> = {
+              id: `user-${now}`,
+              role: 'user',
+              parts: [{ type: 'text', text: content }],
+              metadata: {
+                senderName: t('common.you'),
+                senderAvatar: USER_AVATAR,
+                originalRole: 'user',
+                createdAt: now,
+              },
+            };
+            setSessions((prev) =>
+              prev.map((session) =>
+                session.id === sessionId
+                  ? {
+                      ...session,
+                      messages: [...session.messages, userMessage],
+                      updatedAt: nextChatUpdatedAt(session, now),
+                    }
+                  : session,
+              ),
+            );
+          }
+          if (isTeachBackFollowUpRequest(content)) {
+            await continueTeachBackRoundRef.current?.();
+          }
           return;
         }
         if (!producer || !sessionId) {
@@ -2817,7 +2854,10 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
       if (!isTeachBackEnabled()) return;
       const open = sessionsRef.current.filter(isOpenLiveSession);
       for (const session of open) {
-        await endSession(session.id, session.config.interactionMode === 'teach_back' ? { source: 'manual_stop' } : {});
+        await endSession(
+          session.id,
+          session.config.interactionMode === 'teach_back' ? { source: 'manual_stop' } : {},
+        );
       }
       const activityId = `tb-${nanoid()}`;
       const sessionId = await createSession('qa', input.topic || 'Teach-back', {
@@ -2904,8 +2944,9 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
   const attachTeachBackActivity = useCallback((activity: TeachBackProjectedActivity) => {
     if (!activity.source) return;
     const sessionId =
-      sessionsRef.current.find((session) => session.config.teachBackActivityId === activity.activityId)
-        ?.id ?? '';
+      sessionsRef.current.find(
+        (session) => session.config.teachBackActivityId === activity.activityId,
+      )?.id ?? '';
     teachBackRef.current?.attach(
       {
         activityId: activity.activityId,

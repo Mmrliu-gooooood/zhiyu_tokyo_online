@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { hostedAuthGate } from '@/lib/auth/api';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import {
@@ -13,6 +14,8 @@ import { MINERU_CLOUD_DEFAULT_BASE } from '@/lib/pdf/constants';
 const log = createLogger('Verify PDF Provider');
 
 export async function POST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let providerId: string | undefined;
   try {
     const body = await req.json();

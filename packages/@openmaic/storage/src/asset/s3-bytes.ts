@@ -22,6 +22,7 @@ interface S3PutObjectInput extends S3ObjectInput {
 }
 
 interface S3GetObjectInput extends S3ObjectInput {
+  Range?: string;
   ResponseContentType?: string;
   ResponseContentDisposition?: string;
   ResponseCacheControl?: string;
@@ -80,7 +81,7 @@ const AWS_S3_CLIENT_PACKAGE = '@aws-sdk/client-s3';
 const AWS_S3_PRESIGNER_PACKAGE = '@aws-sdk/s3-request-presigner';
 
 interface S3Sdk {
-  S3Client: new (options: Record<string, never>) => S3AssetByteStoreClient;
+  S3Client: new (options: S3AssetClientConfig) => S3AssetByteStoreClient;
   PutObjectCommand: new (input: S3PutObjectInput) => unknown;
   GetObjectCommand: new (input: S3GetObjectInput) => unknown;
   DeleteObjectCommand: new (input: S3ObjectInput) => unknown;
@@ -92,6 +93,21 @@ interface S3PresignerSdk {
     command: unknown,
     options: { expiresIn: number },
   ): Promise<string>;
+}
+
+/**
+ * The subset of AWS S3 client configuration accepted by the application
+ * adapter. Keeping it structural avoids making the optional SDK a required
+ * type dependency for consumers of this module.
+ */
+export interface S3AssetClientConfig {
+  region?: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
+  credentials?: {
+    accessKeyId: string;
+    secretAccessKey: string;
+  };
 }
 
 /**
@@ -158,12 +174,15 @@ function missingPresigner(error: unknown): Error {
  * never runs for it. A host that wants resolution deferred to first use can
  * construct `new S3AssetByteStore({ client, bucket })` itself instead.
  */
-export async function loadS3AssetByteStore(bucket: string): Promise<AssetByteStore> {
+export async function loadS3AssetByteStore(
+  bucket: string,
+  clientConfig: S3AssetClientConfig = {},
+): Promise<AssetByteStore> {
   try {
     const sdk = await importS3Sdk();
     return new S3AssetByteStore({
       bucket,
-      client: new sdk.S3Client({}),
+      client: new sdk.S3Client(clientConfig),
       commands: sdkCommands(sdk),
     });
   } catch (error) {
@@ -312,6 +331,23 @@ export class S3AssetByteStore implements AssetByteStore {
     } catch (error) {
       if (isNotFound(error)) return null;
       throw s3Failure('read');
+    }
+  }
+
+  async readRange(hash: ContentHash, start: number, end: number): Promise<Uint8Array | null> {
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start) {
+      throw new Error('@openmaic/storage: invalid S3 asset byte range');
+    }
+    const commands = await this.commands();
+    try {
+      const output = (await this.client.send(
+        commands.get({ Bucket: this.bucket, Key: hash, Range: `bytes=${start}-${end}` }),
+      )) as S3GetObjectOutput;
+      if (!output.Body) throw s3Failure('range read');
+      return Uint8Array.from(await output.Body.transformToByteArray());
+    } catch (error) {
+      if (isNotFound(error)) return null;
+      throw s3Failure('range read');
     }
   }
 

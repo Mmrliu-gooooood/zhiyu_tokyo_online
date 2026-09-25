@@ -9,6 +9,10 @@
  */
 import { PgUserSkillStore, ensureUserSkillSchema } from '@openmaic/storage/skill/pg';
 
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { getPersistenceDatabaseUrl, tryAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 
 import type { Queryable, WithTransaction } from '@openmaic/storage/skill/pg';
@@ -50,7 +54,7 @@ export function nodePostgresTransaction(pool: Pool): WithTransaction {
 
 async function createUserSkillStore(connectionString: string): Promise<PgUserSkillStore> {
   const { pool } = await getServerPersistenceProvider(connectionString);
-  await ensureUserSkillSchema(pool);
+  if (!isHostedAuthEnabled()) await ensureUserSkillSchema(pool);
   return new PgUserSkillStore(pool, { withTransaction: nodePostgresTransaction(pool) });
 }
 
@@ -59,8 +63,13 @@ async function createUserSkillStore(connectionString: string): Promise<PgUserSki
  * Failed initialization is cleared so a later request can retry after the
  * database becomes available.
  */
-export function getUserSkillStore(): Promise<PgUserSkillStore> {
-  const connectionString = process.env.DATABASE_URL;
+export function getUserSkillStore(ownerId?: string): Promise<PgUserSkillStore> {
+  if (ownerId && isHostedAuthEnabled()) {
+    getPersistenceDatabaseUrl();
+    const db = createOwnerBoundQueryable(getPersistencePool(), ownerId);
+    return Promise.resolve(new PgUserSkillStore(db, { withTransaction: db.withTransaction }));
+  }
+  const connectionString = tryAgentRuntimeDatabaseUrl();
   if (!connectionString) {
     return Promise.reject(new Error('Agent runtime requires DATABASE_URL'));
   }

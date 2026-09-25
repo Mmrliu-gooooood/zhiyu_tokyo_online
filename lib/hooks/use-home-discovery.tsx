@@ -41,6 +41,7 @@ import type { FolderRecord } from '@/lib/utils/database';
 import { NewFolderDialog } from '@/components/discovery/folder-dialogs';
 import { useImportClassroom } from '@/lib/import/use-import-classroom';
 import { createCoalescedLatestLoader } from '@/lib/workbench/course-discovery-sync';
+import { isOwnerListingAuthFailure } from '@/lib/utils/owner-listing-error';
 
 const log = createLogger('HomeDiscovery');
 
@@ -136,7 +137,9 @@ export function useHomeDiscovery({
           if (stateRef.current === 'ready') return;
           stateRef.current = 'error';
           setState('error');
-          toast.error('Persistence is unavailable. Saved classrooms could not be loaded.');
+          if (!isOwnerListingAuthFailure(err)) {
+            toast.error('Persistence is unavailable. Saved classrooms could not be loaded.');
+          }
         },
       });
     }

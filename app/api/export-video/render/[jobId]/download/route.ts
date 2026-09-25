@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
 import { apiError } from '@/lib/server/api-response';
 import { proxyFetch } from '@/lib/server/proxy-fetch';
 import { resolveRenderServiceUrl } from '@/lib/server/render-service';
 import { createLogger } from '@/lib/logger';
+import { assertRenderJobOwner } from '@/lib/server/render-job-owners';
 
 const log = createLogger('ExportVideo Download API');
 
@@ -18,7 +20,12 @@ export const dynamic = 'force-dynamic';
  * streams the bytes through here.
  */
 export async function GET(req: NextRequest, context: { params: Promise<{ jobId: string }> }) {
+  const principal = await requirePrincipalIfHosted(req);
+  if (principal instanceof Response) return principal;
   const { jobId } = await context.params;
+  if (!(await assertRenderJobOwner(jobId, principal?.ownerId))) {
+    return apiError('UPSTREAM_ERROR', 404, 'Render output not available');
+  }
   const resolved = resolveRenderServiceUrl();
   if ('error' in resolved) {
     return apiError('PROVIDER_DISABLED', 501, 'Render service is not configured');

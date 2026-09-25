@@ -1,8 +1,15 @@
 import { z } from 'zod';
-import { assertGenerationOrigin, resolveGenerationOwner } from './auth';
+import { AuthError, authJsonResponse } from '@/lib/auth/errors';
+import {
+  createOwnerBoundQueryable,
+  createOwnerBoundTransactionSource,
+  type OwnerBoundQueryable,
+} from '@/lib/db/request-queryable';
+import { assertGenerationOrigin, resolveGenerationOwnerAsync } from './auth';
 import { GenerationJobError } from './contracts';
-import { assertGenerationReady, getGenerationPool } from './runtime';
+import { assertGenerationRequestReady, getGenerationRequestPool } from './runtime';
 import { GenerationJobRepository } from './repository';
+import { withProviderQuotaOwner } from './provider-call-context';
 
 export async function readBoundedBody(req: Request, limit = 1_048_576): Promise<Uint8Array> {
   const reader = req.body?.getReader();
@@ -49,21 +56,46 @@ export async function withGenerationRequest(
     ownerId: string;
     headers: Headers;
     repository: GenerationJobRepository;
+    queryable: OwnerBoundQueryable;
   }) => Promise<Response>,
   options: { createSession?: boolean; submitting?: boolean } = {},
 ): Promise<Response> {
   const headers = new Headers({ 'Cache-Control': 'private, no-store' });
+  let stage: 'origin' | 'owner' | 'readiness' | 'handler' = 'origin';
   try {
     assertGenerationOrigin(req);
-    const ownerId = resolveGenerationOwner(req, headers, options.createSession);
-    await assertGenerationReady(options.submitting);
-    return await handler({
-      ownerId,
-      headers,
-      repository: new GenerationJobRepository(getGenerationPool()),
-    });
+    stage = 'owner';
+    const ownerId = await resolveGenerationOwnerAsync(req, headers, options.createSession);
+    stage = 'readiness';
+    await assertGenerationRequestReady(options.submitting);
+    const pool = getGenerationRequestPool();
+    stage = 'handler';
+    return await withProviderQuotaOwner(ownerId, () =>
+      handler({
+        ownerId,
+        headers,
+        repository: new GenerationJobRepository(createOwnerBoundTransactionSource(pool, ownerId)),
+        queryable: createOwnerBoundQueryable(pool, ownerId),
+      }),
+    );
   } catch (error) {
+    if (error instanceof AuthError) return authJsonResponse(error, headers);
     const known = error instanceof GenerationJobError;
+    if (!known) {
+      const databaseCode =
+        error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+          ? error.code.slice(0, 32)
+          : undefined;
+      // Never log the message, request, owner, connection string or provider
+      // payload: PostgreSQL/provider errors can embed sensitive values. The
+      // exception class and bounded SQLSTATE-style code are enough to route an
+      // operator toward connectivity vs permission vs implementation faults.
+      console.error('[generation-request] unavailable', {
+        stage,
+        errorName: error instanceof Error ? error.name : typeof error,
+        databaseCode,
+      });
+    }
     const status = known ? error.httpStatus : 503;
     if (status === 503 || status === 429) headers.set('Retry-After', '10');
     return generationResponse(

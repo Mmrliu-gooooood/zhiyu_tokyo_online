@@ -73,6 +73,13 @@ export interface AssetByteStore {
   read(hash: ContentHash): Promise<Uint8Array | null>;
 
   /**
+   * Read an inclusive byte range without materializing the full object.
+   * Object-backed implementations should expose this so authorized media
+   * proxies can preserve HTTP Range semantics under concurrent video load.
+   */
+  readRange?(hash: ContentHash, start: number, end: number): Promise<Uint8Array | null>;
+
+  /**
    * Delete the bytes stored under a hash.
    *
    * **Only the offline collector calls this.** No request path may, which is

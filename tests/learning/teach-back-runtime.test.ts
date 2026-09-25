@@ -1,11 +1,15 @@
 import 'fake-indexeddb/auto';
 
 import { BrowserRuntimeStore } from '@openmaic/storage';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { teachBackRuntimePayloadValidator } from '@/lib/learning/teach-back/contracts';
 import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators';
-import { appendTeachBackEvent, readTeachBackActivity } from '@/lib/learning/teach-back/runtime';
+import {
+  appendTeachBackEvent,
+  listTeachBackActivities,
+  readTeachBackActivity,
+} from '@/lib/learning/teach-back/runtime';
 import type { TeachBackSource } from '@/lib/learning/teach-back/contracts';
 
 const databases = new Set<string>();
@@ -30,7 +34,7 @@ const source: TeachBackSource = {
     {
       id: 'scene:scene-1',
       digest: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
-      text: 'A net force changes an object\'s velocity.',
+      text: "A net force changes an object's velocity.",
     },
   ],
   coverageLimited: false,
@@ -53,6 +57,67 @@ afterEach(async () => {
 });
 
 describe('teach-back runtime store', () => {
+  it('overlaps history reads within four requests and preserves tied history order', async () => {
+    const backing = store('tb-history-bounded');
+    for (let index = 0; index < 7; index++) {
+      await appendTeachBackEvent(
+        {
+          activityId: `history-${index}`,
+          commandId: 'prepared',
+          stageId: source.stageId,
+          expectedLastSeq: null,
+          event: {
+            kind: 'activity_prepared',
+            createdAt: '2026-09-19T00:00:00.000Z',
+            source,
+            plan: {
+              topic: `Forces ${index}`,
+              peer,
+              criteria: [
+                {
+                  criterionId: 'c1',
+                  description: 'Force',
+                  quote: 'A net force',
+                  fragmentId: 'scene:scene-1',
+                },
+              ],
+              openingQuestion: {
+                questionId: 'q1',
+                text: 'What changes velocity?',
+                criterionId: 'c1',
+              },
+            },
+          },
+        },
+        { store: backing, learnerKey: 'learner-1' },
+      );
+    }
+    const expected = (await backing.listSessions(source.stageId, 'learner-1')).map((session) =>
+      session.id.replace(/^teach-back:/, ''),
+    );
+    const read = backing.listRecords.bind(backing);
+    let active = 0;
+    let peak = 0;
+    vi.spyOn(backing, 'listRecords').mockImplementation(async (...args) => {
+      active++;
+      peak = Math.max(peak, active);
+      try {
+        return await read(...args);
+      } finally {
+        active--;
+      }
+    });
+    const activities = await listTeachBackActivities(source.stageId, {
+      store: backing,
+      learnerKey: 'learner-1',
+    });
+    expect(peak).toBe(4);
+    expect(activities.map((activity) => activity.activityId)).toEqual(expected);
+    expect(activities.every((activity) => activity.logicalPhase === 'awaiting_explanation')).toBe(
+      true,
+    );
+  });
+
   it('replays the same commandId without creating a second explanation', async () => {
     const backing = store('tb-runtime-1');
     const first = await appendTeachBackEvent(

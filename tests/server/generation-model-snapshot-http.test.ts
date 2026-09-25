@@ -8,10 +8,15 @@ vi.mock('@/lib/server/provider-config', async (importOriginal) => ({
 vi.mock('@/lib/server/generation-jobs/auth', () => ({
   assertGenerationOrigin: () => {},
   resolveGenerationOwner: () => 'signed-owner',
+  resolveGenerationOwnerAsync: async () => 'signed-owner',
 }));
 vi.mock('@/lib/server/generation-jobs/runtime', () => ({
-  assertGenerationReady: async () => {},
-  getGenerationPool: () => ({}),
+  assertGenerationRequestReady: async () => {},
+  getGenerationRequestPool: () => ({}),
+}));
+vi.mock('@/lib/db/request-queryable', () => ({
+  createOwnerBoundTransactionSource: (pool: unknown) => pool,
+  createOwnerBoundQueryable: () => ({ query: async () => ({ rows: [] }) }),
 }));
 vi.mock('@/lib/server/generation-model-snapshots', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/server/generation-model-snapshots')>()),

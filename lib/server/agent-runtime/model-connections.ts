@@ -2,7 +2,14 @@ import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:
 import { z } from 'zod';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
 import { getProvider, parseModelString } from '@/lib/ai/providers';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { getPersistenceDatabaseUrl, tryAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
+import { PRO_MODEL_CONNECTION_SCHEMA } from './model-connection-schema';
+
+export { PRO_MODEL_CONNECTION_SCHEMA } from './model-connection-schema';
 import {
   PlatformDefaultModelError,
   isServerConfiguredProvider,
@@ -103,6 +110,29 @@ function unseal(ciphertext: string, ownerId: string, ref: ProModelRef): ProModel
   }
 }
 
+/** Operator-only migration helper for Pro model connection owner reassignment. */
+export function reassignProModelConnectionCiphertext(
+  ciphertext: string,
+  fromOwnerId: string,
+  toOwnerId: string,
+  ref: ProModelRef,
+): string {
+  return seal(unseal(ciphertext, fromOwnerId, ref), toOwnerId, ref);
+}
+
+/** Operator-only equality check used to make randomized re-encryption resumable. */
+export function proModelConnectionCiphertextsEqual(
+  leftCiphertext: string,
+  rightCiphertext: string,
+  ownerId: string,
+  ref: ProModelRef,
+): boolean {
+  return (
+    JSON.stringify(unseal(leftCiphertext, ownerId, ref)) ===
+    JSON.stringify(unseal(rightCiphertext, ownerId, ref))
+  );
+}
+
 async function normalizeModelConnectionContextWithPolicy(
   value: unknown,
   allowLegacyPlatformWithoutRevision: boolean,
@@ -186,19 +216,6 @@ async function normalizeModelConnectionContextWithPolicy(
 export function normalizeModelConnectionContext(value: unknown): Promise<ProModelContext> {
   return normalizeModelConnectionContextWithPolicy(value, false);
 }
-
-/** Additive lazy migration, shared by web and the durable runtime. */
-export const PRO_MODEL_CONNECTION_SCHEMA = `
-CREATE TABLE IF NOT EXISTS pro_model_connections (
-  id UUID PRIMARY KEY, owner_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision > 0),
-  revoked BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS pro_model_connections_owner ON pro_model_connections(owner_id);
-CREATE TABLE IF NOT EXISTS pro_model_connection_revisions (
-  connection_id UUID NOT NULL REFERENCES pro_model_connections(id),
-  revision INTEGER NOT NULL CHECK (revision > 0), ciphertext TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(connection_id, revision)
-);`;
 
 /** Repository uses injected transactions so encryption/isolation can be tested with real SQL. */
 export class ProModelConnectionStore {
@@ -311,10 +328,23 @@ export class ProModelConnectionStore {
 }
 
 const initializations = new WeakMap<object, Promise<ProModelConnectionStore>>();
-async function getStore(): Promise<ProModelConnectionStore> {
-  if (!process.env.DATABASE_URL)
-    throw new ProModelConnectionError('PRO_MODEL_DATABASE_UNAVAILABLE', 503);
-  const { pool } = await getServerPersistenceProvider(process.env.DATABASE_URL);
+
+async function getStore(ownerId: string, system = false): Promise<ProModelConnectionStore> {
+  if (isHostedAuthEnabled() && !system) {
+    getPersistenceDatabaseUrl();
+    const db = createOwnerBoundQueryable(getPersistencePool(), ownerId);
+    // The migration owns schema creation. Web requests receive only an
+    // owner-bound DML surface and cannot fall back to the worker role.
+    return new ProModelConnectionStore(db, db.withTransaction);
+  }
+  const connectionString = tryAgentRuntimeDatabaseUrl();
+  if (!connectionString) throw new ProModelConnectionError('PRO_MODEL_DATABASE_UNAVAILABLE', 503);
+  const { pool } = await getServerPersistenceProvider(connectionString);
+  if (isHostedAuthEnabled()) {
+    // Hosted worker credentials are intentionally DML-only. Migration v10
+    // provisions this schema before the worker is connected.
+    return new ProModelConnectionStore(pool, nodePostgresTransaction(pool));
+  }
   let pending = initializations.get(pool);
   if (!pending) {
     pending = nodePostgresTransaction(pool)(async (db) => {
@@ -330,13 +360,16 @@ async function getStore(): Promise<ProModelConnectionStore> {
 }
 
 export async function syncModelConnection(ownerId: string, context: unknown, ref?: ProModelRef) {
-  return (await getStore()).sync(ownerId, context, ref);
+  return (await getStore(ownerId)).sync(ownerId, context, ref);
 }
 export async function loadModelConnection(ownerId: string, ref: ProModelRef) {
-  return (await getStore()).load(ownerId, ref);
+  return (await getStore(ownerId)).load(ownerId, ref);
+}
+export async function loadModelConnectionForWorker(ownerId: string, ref: ProModelRef) {
+  return (await getStore(ownerId, true)).load(ownerId, ref);
 }
 export const resolveProModelContext = loadModelConnection;
 export const loadProModelContext = loadModelConnection;
 export async function revokeModelConnections(ownerId: string, id?: string) {
-  return (await getStore()).revoke(ownerId, id);
+  return (await getStore(ownerId)).revoke(ownerId, id);
 }

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   isAgentRuntimeConfigured,
   isAgentRuntimeEnabled,
+  isAgentRuntimeWorkerConfigured,
   isEditorRendererEnabled,
   isMaicEditorEnabled,
   isPlaybackRendererEnabled,
@@ -18,7 +19,13 @@ import {
 const FLAG = 'NEXT_PUBLIC_MAIC_EDITOR_ENABLED';
 
 describe('agent runtime configuration predicate', () => {
-  const ENV_KEYS = ['OPENMAIC_AGENT_RUNTIME_ENABLED', 'DATABASE_URL'] as const;
+  const ENV_KEYS = [
+    'OPENMAIC_AGENT_RUNTIME_ENABLED',
+    'DATABASE_URL',
+    'AUTH_MODE',
+    'NEXT_PUBLIC_AUTH_MODE',
+    'WORKER_DATABASE_URL',
+  ] as const;
   const originals = new Map<string, string | undefined>();
 
   beforeEach(() => {
@@ -48,11 +55,27 @@ describe('agent runtime configuration predicate', () => {
     (_case, runtimeFlag, databaseUrl, enabled, configured) => {
       if (runtimeFlag !== undefined) process.env.OPENMAIC_AGENT_RUNTIME_ENABLED = runtimeFlag;
       if (databaseUrl !== undefined) process.env.DATABASE_URL = databaseUrl;
+      delete process.env.AUTH_MODE;
+      delete process.env.NEXT_PUBLIC_AUTH_MODE;
+      delete process.env.WORKER_DATABASE_URL;
 
       expect(isAgentRuntimeEnabled()).toBe(enabled);
       expect(isAgentRuntimeConfigured()).toBe(configured);
     },
   );
+
+  it('keeps hosted request routes configured without exposing the worker login to Web', () => {
+    process.env.OPENMAIC_AGENT_RUNTIME_ENABLED = 'true';
+    process.env.DATABASE_URL = 'postgres://web';
+    process.env.AUTH_MODE = 'supabase';
+    process.env.NEXT_PUBLIC_AUTH_MODE = 'supabase';
+    delete process.env.WORKER_DATABASE_URL;
+    expect(isAgentRuntimeConfigured()).toBe(true);
+    expect(isAgentRuntimeWorkerConfigured()).toBe(false);
+    process.env.WORKER_DATABASE_URL = 'postgres://worker';
+    expect(isAgentRuntimeConfigured()).toBe(true);
+    expect(isAgentRuntimeWorkerConfigured()).toBe(true);
+  });
 });
 
 describe('isMaicEditorEnabled', () => {

@@ -161,7 +161,7 @@ describe('generation input whitelist', () => {
   });
 });
 describe('generation admission configuration', () => {
-  it('starts with the confirmed site queue and execution limits and permits an explicit two-slot trial', () => {
+  it('starts with compatible queue limits and permits the configured 100-item site backlog', () => {
     expect(generationConfig({} as NodeJS.ProcessEnv)).toMatchObject({
       maxQueuedPerOwner: 5,
       maxQueued: 20,
@@ -170,8 +170,16 @@ describe('generation admission configuration', () => {
       queueWaitMs: 60 * 60 * 1000,
       manualReviewWaitMs: 24 * 60 * 60 * 1000,
     });
+    expect(
+      generationConfig({
+        APP_HEAVY_TASK_LIMIT: '16',
+        APP_HEAVY_TASK_PER_OWNER_LIMIT: '2',
+        GENERATION_MAX_QUEUED_JOBS: '100',
+        GENERATION_MAX_REVIEW_ATTENTION_JOBS: '100',
+      } as unknown as NodeJS.ProcessEnv),
+    ).toMatchObject({ maxQueued: 100, maxReviewAttention: 100 });
     expect(() =>
-      generationConfig({ GENERATION_MAX_QUEUED_JOBS: '21' } as unknown as NodeJS.ProcessEnv),
+      generationConfig({ GENERATION_MAX_QUEUED_JOBS: '101' } as unknown as NodeJS.ProcessEnv),
     ).toThrow();
     expect(() =>
       generationConfig({
@@ -199,6 +207,52 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
   async function create() {
     return repo.createJob('owner', 'create-key', input);
   }
+  it('never claims cancelled, inactive, or tombstoned hosted-account work', async () => {
+    const cancelled = await repo.createJob('owner-cancelled', 'delete-fence-cancelled', input);
+    const deleting = await repo.createJob('owner-deleting', 'delete-fence-deleting', input);
+    const tombstoned = await repo.createJob('owner-tombstoned', 'delete-fence-tombstoned', input);
+    await pool.query(`CREATE TABLE app_accounts(
+        user_id uuid PRIMARY KEY,
+        owner_id text UNIQUE NOT NULL,
+        status text NOT NULL
+      )`);
+    await pool.query(`CREATE TABLE deleted_account_tombstones(
+        user_id uuid PRIMARY KEY,
+        owner_id text UNIQUE NOT NULL
+      )`);
+    await pool.query(
+      `INSERT INTO app_accounts(user_id,owner_id,status) VALUES
+        ('30000000-0000-4000-8000-000000000001','owner-cancelled','active'),
+        ('30000000-0000-4000-8000-000000000002','owner-deleting','deleting'),
+        ('30000000-0000-4000-8000-000000000003','owner-tombstoned','active')`,
+    );
+    await pool.query(
+      `INSERT INTO deleted_account_tombstones(user_id,owner_id)
+       VALUES('30000000-0000-4000-8000-000000000003','owner-tombstoned')`,
+    );
+    await pool.query(
+      `UPDATE generation_jobs SET cancel_requested_at=clock_timestamp()
+        WHERE id=$1`,
+      [cancelled.jobId],
+    );
+    await pool.query("UPDATE generation_jobs SET status='retry_wait' WHERE id IN ($1,$2)", [
+      deleting.jobId,
+      tombstoned.jobId,
+    ]);
+
+    vi.stubEnv('AUTH_MODE', 'supabase');
+    vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', 'supabase');
+    try {
+      await pool.query('CREATE SCHEMA app_internal');
+      await pool.query(`CREATE FUNCTION app_internal.generation_readiness()
+        RETURNS TABLE(schema_version integer, worker_live boolean)
+        LANGUAGE sql STABLE
+        AS $$ SELECT 4, false $$`);
+      expect(await repo.claim('deleted-account-worker')).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   it('files a new course only into an owner folder', async () => {
     await pool.query(
       `INSERT INTO document_folders(owner_id,id,name,normalized_name,created_at,updated_at)
@@ -556,6 +610,24 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
     await pool.query("UPDATE generation_schema_migrations SET checksum='drift'");
     await expect(migrateGenerationSchema(pool)).rejects.toThrow('checksum');
   });
+  it('reads hosted schema version through the bounded readiness projection', async () => {
+    const previousAuthMode = process.env.AUTH_MODE;
+    const previousPublicAuthMode = process.env.NEXT_PUBLIC_AUTH_MODE;
+    process.env.AUTH_MODE = 'supabase';
+    process.env.NEXT_PUBLIC_AUTH_MODE = 'supabase';
+    const query = vi.fn().mockResolvedValue({ rows: [{ schema_version: 4 }] });
+    try {
+      expect(await getGenerationSchemaVersion({ query })).toBe(4);
+      expect(query).toHaveBeenCalledWith(
+        'SELECT schema_version FROM app_internal.generation_readiness()',
+      );
+    } finally {
+      if (previousAuthMode === undefined) delete process.env.AUTH_MODE;
+      else process.env.AUTH_MODE = previousAuthMode;
+      if (previousPublicAuthMode === undefined) delete process.env.NEXT_PUBLIC_AUTH_MODE;
+      else process.env.NEXT_PUBLIC_AUTH_MODE = previousPublicAuthMode;
+    }
+  });
   it('creates stage, owner, outline and job once, rejects body conflicts and hides foreign jobs', async () => {
     const job = await create();
     expect(job).toMatchObject({ queueReason: 'queued', retryAt: null });
@@ -651,10 +723,13 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       maxQueuedPerOwner: 1,
       maxReviewAttentionPerOwner: 1,
     });
-    const running = await repo.createJob('owner', 'running', input);
+    const automatic = { ...input, review: { mode: 'auto' as const } };
+    const running = await repo.createJob('owner', 'running', automatic);
     expect((await repo.claim('worker'))?.jobId).toBe(running.jobId);
-    const queued = await repo.createJob('owner', 'queued', input);
-    await expect(repo.createJob('owner', 'queue-full', input)).rejects.toThrow('OWNER_QUEUE_LIMIT');
+    const queued = await repo.createJob('owner', 'queued', automatic);
+    await expect(repo.createJob('owner', 'queue-full', automatic)).rejects.toThrow(
+      'OWNER_QUEUE_LIMIT',
+    );
     await repo.cancel('owner', running.jobId, { commandKey: 'cancel-running' });
     await repo.cancel('owner', queued.jobId, { commandKey: 'cancel-queued' });
 
@@ -713,6 +788,23 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       const ownerB = await repo.createJob('owner-b', 'owner-b', input);
       expect((await repo.claim('worker-a'))?.jobId).toBe(ownerAJobs[0].jobId);
       expect((await repo.claim('worker-b'))?.jobId).toBe(ownerB.jobId);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it('claims two independent roots for one owner when the 16/2 envelope is configured', async () => {
+    vi.stubEnv('APP_HEAVY_TASK_LIMIT', '16');
+    vi.stubEnv('APP_HEAVY_TASK_PER_OWNER_LIMIT', '2');
+    try {
+      const first = await repo.createJob('owner-a', 'owner-a-first', input);
+      const second = await repo.createJob('owner-a', 'owner-a-second', input);
+      const third = await repo.createJob('owner-a', 'owner-a-third', input);
+      expect((await repo.claim('worker-a'))?.jobId).toBe(first.jobId);
+      expect((await repo.claim('worker-b'))?.jobId).toBe(second.jobId);
+      expect(await repo.claim('worker-c')).toBeNull();
+      expect(await repo.getJob('owner-a', third.jobId)).toEqual(
+        expect.objectContaining({ queueReason: 'owner_limit' }),
+      );
     } finally {
       vi.unstubAllEnvs();
     }

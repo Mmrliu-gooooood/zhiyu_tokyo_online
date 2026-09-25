@@ -1,4 +1,5 @@
 import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 /**
  * Scene Content Generation API
  *
@@ -58,6 +59,10 @@ const VISION_RESOLUTION_BUDGET_MS = 15_000;
 const MAX_CONSECUTIVE_UNRESOLVABLE_VISION_IMAGES = 3;
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let outlineTitle: string | undefined;

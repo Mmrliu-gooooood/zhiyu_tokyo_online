@@ -1,4 +1,5 @@
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
+import { MIMEType } from 'node:util';
 import type { AssetMeta } from '@openmaic/dsl';
 import type { AssetId } from '../asset/id.js';
 import { assertSignedUrlTtlWithinGrace } from '../asset/collector.js';
@@ -316,6 +317,45 @@ async function parseMeta(part: Blob): Promise<AssetMeta> {
   return value as AssetMeta;
 }
 
+function assertMultipartDispositionSyntax(body: Buffer, contentType: string): void {
+  const boundary = new MIMEType(contentType).params.get('boundary');
+  if (!boundary) throw new Error('Missing multipart boundary');
+  const marker = Buffer.from('--' + boundary);
+  // Some platform formData parsers silently discard text after a closing
+  // quote. Validate raw part headers first so malformed uploads cannot become
+  // valid writes merely by upgrading Node. Payload bytes remain opaque.
+  const token = "[!#$%&'*+.^_`|~0-9A-Za-z-]+";
+  const quoted = String.raw`"(?:[\t\x20\x21\x23-\x5b\x5d-\xff]|\\[\t\x20-\xff])*"`;
+  const disposition = new RegExp(
+    String.raw`^[\t ]*form-data(?:[\t ]*;[\t ]*${token}[\t ]*=[\t ]*(?:${token}|${quoted}))*[\t ]*$`,
+    'i',
+  );
+  let offset = 0;
+  while ((offset = body.indexOf(marker, offset)) !== -1) {
+    const atLineStart =
+      offset === 0 || body.subarray(offset - 2, offset).equals(Buffer.from('\r\n'));
+    offset += marker.length;
+    if (!atLineStart) continue;
+    const suffix = body.subarray(offset, offset + 2).toString('latin1');
+    if (suffix === '--') return;
+    if (suffix !== '\r\n') continue;
+    const headerEnd = body.indexOf('\r\n\r\n', offset + 2);
+    if (headerEnd === -1) throw new Error('Missing multipart headers');
+    const headers = body
+      .subarray(offset + 2, headerEnd)
+      .toString('latin1')
+      .split('\r\n');
+    for (const header of headers) {
+      const colon = header.indexOf(':');
+      if (header.slice(0, colon).toLowerCase() !== 'content-disposition') continue;
+      if (!disposition.test(header.slice(colon + 1))) {
+        throw new Error('Malformed multipart disposition');
+      }
+    }
+    offset = headerEnd + 4;
+  }
+}
+
 async function readWrite(
   req: IncomingMessage,
   requiredMeta: boolean,
@@ -333,6 +373,7 @@ async function readWrite(
   const body = await readBoundedBody(req, limits.maxRequestBytes);
   let form: FormData;
   try {
+    assertMultipartDispositionSyntax(body, contentType);
     const bytes = body.buffer.slice(
       body.byteOffset,
       body.byteOffset + body.byteLength,
@@ -795,7 +836,16 @@ export function createAssetHttpHandler(
         return;
       }
       if (!(error instanceof AssetHttpError) || error.status >= 500) {
-        console.error('@openmaic/storage: Asset HTTP handler internal error');
+        const databaseCode =
+          error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+            ? error.code.slice(0, 32)
+            : undefined;
+        // Keep diagnostics useful without exposing request paths, object keys,
+        // connection details, provider responses, or other error-message data.
+        console.error('@openmaic/storage: Asset HTTP handler internal error', {
+          errorName: error instanceof Error ? error.name : typeof error,
+          databaseCode,
+        });
       }
       const mapped = mappedError(error);
       sendJson(req, res, mapped.status, mapped.body, mapped.headers);

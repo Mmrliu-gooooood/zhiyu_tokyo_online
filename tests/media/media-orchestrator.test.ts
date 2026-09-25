@@ -1,11 +1,21 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   settings: vi.fn(),
   mediaPut: vi.fn(),
   mediaDelete: vi.fn(),
+  serverBacked: vi.fn(),
+  poolPut: vi.fn(),
+  stageState: vi.fn(),
+}));
+
+vi.mock('@/lib/media/asset-pool', () => ({
+  isAssetPoolServerBacked: mocks.serverBacked,
+  putAsset: mocks.poolPut,
+}));
+
+vi.mock('@/lib/store/stage', () => ({
+  useStageStore: { getState: mocks.stageState },
 }));
 
 vi.mock('@/lib/store/settings', () => ({
@@ -70,6 +80,9 @@ describe('classic media orchestrator', () => {
     resetProxyMediaFailureCache();
     mocks.mediaPut.mockReset().mockResolvedValue(undefined);
     mocks.mediaDelete.mockReset().mockResolvedValue(undefined);
+    mocks.serverBacked.mockReset().mockReturnValue(false);
+    mocks.poolPut.mockReset().mockResolvedValue('ast_generated_image');
+    mocks.stageState.mockReset();
     mocks.settings.mockReset().mockReturnValue({
       imageGenerationEnabled: true,
       videoGenerationEnabled: true,
@@ -161,6 +174,12 @@ describe('classic media orchestrator', () => {
     expect(row.stageId).toBe(stageId);
     expect(row.placeholderRef).toBeUndefined();
     await expect(row.blob.text()).resolves.toBe('classic-image');
+
+    const generationInit = fetchMock.mock.calls.find(
+      ([input]) => String(input) === '/api/generate/image',
+    )?.[1] as RequestInit | undefined;
+    expect(new Headers(generationInit?.headers).get('x-generation-root-stage-id')).toBe(stageId);
+    expect(new Headers(generationInit?.headers).get('x-generation-root-session-id')).toBeTruthy();
 
     const tasks = useMediaGenerationStore.getState().tasks;
     expect(Object.keys(tasks)).toEqual([imageRef]);
@@ -365,6 +384,10 @@ describe('classic media orchestrator', () => {
       status: 'done',
       retryCount: 1,
     });
+    const retryInit = fetchMock.mock.calls.find(
+      ([input]) => String(input) === '/api/generate/image',
+    )?.[1] as RequestInit | undefined;
+    expect(new Headers(retryInit?.headers).has('x-generation-root-stage-id')).toBe(false);
   });
 
   it('persists structured terminal errors under the placeholder for reload', async () => {
@@ -445,13 +468,54 @@ describe('classic media orchestrator', () => {
     expect(JSON.stringify(init)).not.toContain('must-not-leak');
   });
 
-  it('does not import the asset pool or document mutation seams', () => {
-    const source = readFileSync(join(process.cwd(), 'lib/media/media-orchestrator.ts'), 'utf8');
-    expect(source).not.toMatch(/from ['"]@\/lib\/media\/asset-pool['"]/);
-    expect(source).not.toContain('putAsset(');
-    expect(source).not.toContain('replaceAsset(');
-    expect(source).not.toContain('mutateDocument(');
-    expect(source).not.toContain('.rekeyDone(');
+  it('stores hosted media in the asset pool, saves its document ref, and skips regeneration on reload', async () => {
+    mocks.serverBacked.mockReturnValue(true);
+    const outline = outlineWith({ type: 'image', prompt: 'Quartered circle', elementId: imageRef });
+    const scene = {
+      id: 'scene-1',
+      stageId,
+      type: 'slide',
+      title: 'Quartered circle',
+      order: 1,
+      content: {
+        type: 'slide',
+        canvas: { id: 'slide-1', elements: [{ id: 'image-1', type: 'image', src: imageRef }] },
+      },
+    };
+    const state: {
+      stage: { id: string };
+      scenes: typeof scene[];
+      outlines: SceneOutline[];
+      setOutlines: (next: SceneOutline[]) => void;
+      updateScene: (id: string, patch: { content: typeof scene.content }) => void;
+      saveToStorage: ReturnType<typeof vi.fn>;
+    } = {
+      stage: { id: stageId },
+      scenes: [scene],
+      outlines: [outline],
+      setOutlines(next) { state.outlines = next; },
+      updateScene(_id: string, patch: { content: typeof scene.content }) {
+        state.scenes = [{ ...state.scenes[0], content: patch.content }];
+      },
+      saveToStorage: vi.fn().mockResolvedValue(true),
+    };
+    mocks.stageState.mockReturnValue(state);
+    serveImage();
+
+    await generateMediaForOutlines([outline], stageId);
+
+    expect(mocks.poolPut).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'image/png' }),
+      { contentType: 'image/png' },
+    );
+    expect(state.scenes[0].content.canvas.elements[0].src).toBe('ast_generated_image');
+    expect(state.outlines[0].mediaGenerations?.[0]?.elementId).toBe('ast_generated_image');
+    expect(state.saveToStorage).toHaveBeenCalledOnce();
+    expect(useMediaGenerationStore.getState().tasks.ast_generated_image?.placeholderRef).toBe(imageRef);
+
+    const imageCalls = fetchMock.mock.calls.filter(([url]) => String(url) === '/api/generate/image');
+    await generateMediaForOutlines(state.outlines, stageId);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/generate/image')).toHaveLength(imageCalls.length);
   });
 
   it('retains renderer retry targeting as a read-side compatibility seam', () => {

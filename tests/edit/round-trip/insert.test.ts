@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildPptxBlob } from '@/lib/export/use-export-pptx';
 import { applySlideEditOperation } from '@/lib/edit/slide-ops';
 import {
@@ -63,6 +63,12 @@ describe('round-trip: element.add inserts (PR2 gate)', () => {
 
   it('(b) inserted default image element (remote URL) — slide XML is non-empty', async () => {
     const { scene, content } = makeSlideFixture();
+    // This gate intentionally exercises the remote-fetch failure path. Make the
+    // documented CI-no-network condition deterministic instead of waiting on a
+    // real external host under full-suite load.
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 404 }));
 
     const after = applySlideEditOperation(content, {
       type: 'element.add',
@@ -70,6 +76,7 @@ describe('round-trip: element.add inserts (PR2 gate)', () => {
     });
 
     const blob = await exportSlideContent(after, scene);
+    fetchSpy.mockRestore();
 
     // (b) Tests that element.add on a remote-URL image does NOT crash or corrupt
     // export. The remote URL cannot be fetched in CI (no network), so the exporter

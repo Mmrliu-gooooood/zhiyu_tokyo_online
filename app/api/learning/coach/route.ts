@@ -1,3 +1,5 @@
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
+import { refuseForeignStagePost } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { isGuidedLearningEnabled } from '@/lib/learning/feature-flags';
@@ -155,6 +157,12 @@ function sseResponse(outcome: GuidedLearningOutcome): Response {
 }
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   if (!isGuidedLearningEnabled()) {
     return apiError('INVALID_REQUEST', 404, 'Guided learning is not enabled');
   }
@@ -179,6 +187,8 @@ export async function POST(req: NextRequest) {
   try {
     if (!isRecord(raw)) throw new Error('Invalid request body');
     const context = parseGuidedLearningContext(raw.learningContext);
+    const deniedStage = await refuseForeignStagePost(req, context.stageId);
+    if (deniedStage) return deniedStage;
     const prompt = lastStudentText(raw.messages);
     if (!prompt || !(await validatesCurrentSource(raw, context))) {
       throw new Error('Guided request context does not match the current session');

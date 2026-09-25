@@ -156,6 +156,18 @@ afterEach(() => {
 });
 
 describe('chat RuntimeStore cutover', () => {
+  it('loads a remote chat snapshot with one session scan and one read per session', async () => {
+    const store = makeRuntimeStore();
+    const legacyStore = new MemoryLegacyChatStore();
+    await saveChatSessions(STAGE_ID, [session()], { store, learnerKey: LEARNER_KEY, legacyStore });
+    const listSessions = vi.spyOn(store, 'listSessions');
+    const listRecords = vi.spyOn(store, 'listRecords');
+    const loaded = await loadChatSessions(STAGE_ID, { store, learnerKey: LEARNER_KEY, legacyStore });
+    expect(loaded[0]?.messages).toEqual(session().messages);
+    expect(listSessions).toHaveBeenCalledTimes(1);
+    expect(listRecords).toHaveBeenCalledTimes(1);
+  });
+
   it('persists chat sessions as replayable RuntimeStore records and loads them back', async () => {
     const store = makeRuntimeStore();
     const legacyStore = new MemoryLegacyChatStore();

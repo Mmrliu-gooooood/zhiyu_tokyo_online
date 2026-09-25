@@ -4,24 +4,36 @@
  * Returns the public-state metadata for a stage. Used by the Share menu CTA
  * to know whether to show "Publish" or "Already published · Unpublish".
  *
- * No auth required — any caller who has the stage ID can read its public flag.
+ * Legacy public state is readable without auth. Hosted courses require the
+ * authenticated owner's database scope, like the document read itself.
  *
  * Convention: snake_case error codes (e.g. `not_found`, `internal_error`).
  */
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
-import { resolveStageAccess } from '@/lib/server/stage-access';
+import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
+import { getOwnerBoundStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 
 export const runtime = 'nodejs';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+export async function GET(req: NextRequest, { params }: Params) {
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   const { id } = await params;
+  if (isHostedAuthEnabled()) {
+    return withRequestOwnerId(req, async (ownerId, headers) => {
+      const db = await getOwnerBoundStageAccessDb(ownerId);
+      const access = await resolveStageAccess(id, db);
+      return access
+        ? NextResponse.json({ isPublic: access.isPublic, publishedAt: access.publishedAt }, { headers })
+        : NextResponse.json({ error: 'not_found' }, { status: 404, headers });
+    });
+  }
   try {
     const access = await resolveStageAccess(id);
 

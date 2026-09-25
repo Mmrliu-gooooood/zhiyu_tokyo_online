@@ -55,13 +55,16 @@ COPY --from=worker-builder /app/dist-worker ./dist-worker
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
 COPY --from=worker-builder /app/lib/prompts ./lib/prompts
+COPY --from=worker-builder /app/lib/server/agent-runtime/import-pptx-worker.mjs ./lib/server/agent-runtime/import-pptx-worker.mjs
+COPY --from=worker-builder /app/skills/agent-runtime ./skills/agent-runtime
+COPY --from=worker-builder /app/scripts/check-supabase-readiness.mjs ./scripts/check-supabase-readiness.mjs
 USER worker
 CMD ["node", "dist-worker/generation.mjs"]
 
 # ---- Stage 3: Builder ----
 FROM base AS builder
 
-ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=--max-old-space-size=3072
 
 ARG ALLOWED_FRAME_ANCESTORS
 ARG NEXT_PUBLIC_PERSISTENCE
@@ -78,6 +81,9 @@ ARG NEXT_PUBLIC_SHOW_VOCATIONAL_TEST_UI
 ARG NEXT_PUBLIC_ENABLE_VIDEO_EXPORT
 ARG NEXT_PUBLIC_VIDEO_EXPORT_CTA_DESTINATION
 ARG NEXT_PUBLIC_ENABLE_PPTX_IMPORT
+ARG NEXT_PUBLIC_AUTH_MODE
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 ENV ALLOWED_FRAME_ANCESTORS=$ALLOWED_FRAME_ANCESTORS
 ENV NEXT_PUBLIC_PERSISTENCE=$NEXT_PUBLIC_PERSISTENCE
 ENV NEXT_PUBLIC_PERSISTENCE_TOKEN=$NEXT_PUBLIC_PERSISTENCE_TOKEN
@@ -93,6 +99,9 @@ ENV NEXT_PUBLIC_SHOW_VOCATIONAL_TEST_UI=$NEXT_PUBLIC_SHOW_VOCATIONAL_TEST_UI
 ENV NEXT_PUBLIC_ENABLE_VIDEO_EXPORT=$NEXT_PUBLIC_ENABLE_VIDEO_EXPORT
 ENV NEXT_PUBLIC_VIDEO_EXPORT_CTA_DESTINATION=$NEXT_PUBLIC_VIDEO_EXPORT_CTA_DESTINATION
 ENV NEXT_PUBLIC_ENABLE_PPTX_IMPORT=$NEXT_PUBLIC_ENABLE_PPTX_IMPORT
+ENV NEXT_PUBLIC_AUTH_MODE=$NEXT_PUBLIC_AUTH_MODE
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

@@ -193,6 +193,8 @@ export function resolveDeterministicFallbackVoice(
       : first.voices;
   if (fallbackVoices.length === 0) return null;
   return {
+    ...voiceSourceFields(first),
+    ...(first.modelId ? { modelId: first.modelId } : {}),
     providerId: first.providerId,
     voiceId: fallbackVoices[index % fallbackVoices.length].id,
   };
@@ -252,6 +254,11 @@ export interface ModelVoiceGroup {
 
 export interface ProviderWithVoices {
   providerId: TTSProviderId;
+  /** Source of newly auto-assigned voices; explicit role picks retain their own source. */
+  source?: ResolvedVoice['source'];
+  defaultId?: string;
+  revision?: string;
+  modelId?: string;
   providerName: string;
   voices: Array<{ id: string; name: string; language?: string }>;
   modelGroups: ModelVoiceGroup[]; // voices grouped by model

@@ -1,10 +1,9 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Queryable, WithTransaction } from '@openmaic/storage/document/pg';
-import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
-import { nodePostgresTransaction } from '@/lib/server/agent-runtime/store';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { MediaConfigRefSchema, type MediaConfigRef } from '@/lib/server/generation-jobs/contracts';
-import { assertGenerationSchema } from '@/lib/server/generation-jobs/migrations';
 import { PlatformDefaultModelError, resolvePlatformDefault } from '@/lib/server/provider-config';
 
 export class MediaConfigSnapshotError extends Error {
@@ -546,6 +545,23 @@ function unseal(
   }
 }
 
+/** Operator-only migration helper for owner-bound media snapshot AAD/digests. */
+export function reassignMediaConfigSnapshot(
+  ciphertext: string,
+  fromOwnerId: string,
+  toOwnerId: string,
+  ref: MediaConfigRef,
+  schemaVersion: number,
+): { ciphertext: string; intentDigest: string } {
+  const content = unseal(ciphertext, fromOwnerId, ref, schemaVersion);
+  return {
+    ciphertext: seal(content, toOwnerId, ref),
+    intentDigest: createHmac('sha256', encryptionKey())
+      .update(`media-config:v1\0${toOwnerId}\0${canonicalJson(content)}`)
+      .digest('hex'),
+  };
+}
+
 function parseContent(value: unknown): MediaConfigSnapshotContent {
   const parsed = MediaConfigSnapshotContentSchema.safeParse(value);
   if (!parsed.success) throw new MediaConfigSnapshotError('MEDIA_CONFIG_INVALID');
@@ -689,40 +705,28 @@ export class MediaConfigSnapshotStore {
   }
 }
 
-const stores = new WeakMap<object, Promise<MediaConfigSnapshotStore>>();
-async function getStore(): Promise<MediaConfigSnapshotStore> {
-  if (!process.env.DATABASE_URL) {
-    throw new MediaConfigSnapshotError('MEDIA_CONFIG_DATABASE_UNAVAILABLE', 503);
-  }
-  const { pool } = await getServerPersistenceProvider(process.env.DATABASE_URL);
-  let pending = stores.get(pool);
-  if (!pending) {
-    pending = assertGenerationSchema(pool).then(
-      () => new MediaConfigSnapshotStore(pool, nodePostgresTransaction(pool)),
-    );
-    stores.set(pool, pending);
-    pending.catch(() => stores.delete(pool));
-  }
-  return pending;
+function getOwnerStore(ownerId: string): MediaConfigSnapshotStore {
+  const db = createOwnerBoundQueryable(getPersistencePool(), ownerId);
+  return new MediaConfigSnapshotStore(db, db.withTransaction);
 }
 
 export async function syncMediaConfigSnapshot(
   ownerId: string,
   value: unknown,
 ): Promise<MediaConfigRef> {
-  return (await getStore()).create(ownerId, value);
+  return getOwnerStore(ownerId).create(ownerId, value);
 }
 
 export async function loadMediaConfigSnapshot(
   ownerId: string,
   ref: MediaConfigRef,
 ): Promise<MediaConfigSnapshotContent> {
-  return (await getStore()).load(ownerId, ref);
+  return getOwnerStore(ownerId).load(ownerId, ref);
 }
 
 export async function revokeMediaConfigSnapshots(
   ownerId: string,
   providerInstanceId: string,
 ): Promise<number> {
-  return (await getStore()).revokeByProviderInstance(ownerId, providerInstanceId);
+  return getOwnerStore(ownerId).revokeByProviderInstance(ownerId, providerInstanceId);
 }

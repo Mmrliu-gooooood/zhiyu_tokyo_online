@@ -11,9 +11,12 @@
  */
 
 import { NextResponse } from 'next/server';
+import { hostedAuthGate } from '@/lib/auth/api';
 import { listComfyuiWorkflows } from '@/lib/media/comfyui-workflows';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await hostedAuthGate(request);
+  if (denied) return denied;
   try {
     return NextResponse.json({ workflows: await listComfyuiWorkflows() });
   } catch (err) {

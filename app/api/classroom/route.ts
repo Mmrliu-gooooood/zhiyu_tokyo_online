@@ -1,8 +1,10 @@
 import { type NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
 import { apiSuccess, apiError, API_ERROR_CODES } from '@/lib/server/api-response';
 import {
   buildRequestOrigin,
+  classroomOwnerAllows,
   isValidClassroomId,
   persistClassroom,
   readClassroom,
@@ -15,6 +17,9 @@ export async function POST(request: NextRequest) {
   let stageId: string | undefined;
   let sceneCount: number | undefined;
   try {
+    const principal = await requirePrincipalIfHosted(request);
+    if (principal instanceof Response) return principal;
+
     const body = await request.json();
     const { stage, scenes } = body;
     stageId = stage?.id;
@@ -31,10 +36,16 @@ export async function POST(request: NextRequest) {
     const id = stage.id || randomUUID();
     const baseUrl = buildRequestOrigin(request);
 
-    const persisted = await persistClassroom({ id, stage: { ...stage, id }, scenes }, baseUrl);
+    const persisted = await persistClassroom(
+      { id, stage: { ...stage, id }, scenes, ownerId: principal?.ownerId },
+      baseUrl,
+    );
 
     return apiSuccess({ id: persisted.id, url: persisted.url }, 201);
   } catch (error) {
+    if (error instanceof Error && error.name === 'ClassroomOwnerConflict') {
+      return apiError(API_ERROR_CODES.INVALID_REQUEST, 404, 'Classroom not found');
+    }
     log.error(
       `Classroom storage failed [stageId=${stageId ?? 'unknown'}, scenes=${sceneCount ?? 0}]:`,
       error,
@@ -50,6 +61,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const principal = await requirePrincipalIfHosted(request);
+    if (principal instanceof Response) return principal;
+
     const id = request.nextUrl.searchParams.get('id');
 
     if (!id) {
@@ -64,8 +78,8 @@ export async function GET(request: NextRequest) {
       return apiError(API_ERROR_CODES.INVALID_REQUEST, 400, 'Invalid classroom id');
     }
 
-    const classroom = await readClassroom(id);
-    if (!classroom) {
+    const classroom = await readClassroom(id, principal?.ownerId);
+    if (!classroom || !classroomOwnerAllows(classroom, principal?.ownerId)) {
       return apiError(API_ERROR_CODES.INVALID_REQUEST, 404, 'Classroom not found');
     }
 

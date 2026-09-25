@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Queryable } from '@openmaic/storage/document/pg';
 import type { TransactionSource } from '@/lib/persistence/owner-bound-document-store';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { GENERATION_SCHEMA_VERSION } from './contracts';
 
 /** Additive migration only. Existing document/asset schemas must be migrated first. */
@@ -166,6 +167,15 @@ export async function migrateGenerationSchema(pool: TransactionSource): Promise<
   }
 }
 export async function getGenerationSchemaVersion(q: Queryable): Promise<number> {
+  if (isHostedAuthEnabled()) {
+    // Hosted request roles deliberately cannot inspect the FORCE-RLS migration
+    // ledger. Read only the bounded SECURITY DEFINER projection already shared
+    // by Web readiness and workers instead of widening table privileges.
+    const result = await q.query<{ schema_version: number }>(
+      'SELECT schema_version FROM app_internal.generation_readiness()',
+    );
+    return Number(result.rows[0]?.schema_version ?? 0);
+  }
   const tables = await q.query<{ name: string | null }>(
     "SELECT to_regclass('generation_schema_migrations')::text AS name",
   );

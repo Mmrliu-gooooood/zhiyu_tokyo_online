@@ -607,53 +607,67 @@ describe('database runtime chat integration', () => {
     expect(stageDeletionEpoch('stage-import-rollback')).toBeGreaterThan(epochAfterDelete);
   });
 
-  it('blocks lazy migration behind a runtime-wide clear and observes the deleted source', async () => {
-    vi.stubGlobal('navigator', { locks: fairLockManager() });
-    const backing = new BrowserRuntimeStore({ indexedDB: globalThis.indexedDB });
-    const { clearDatabase, db } = await import('@/lib/utils/database');
-    const { loadStageData } = await import('@/lib/utils/stage-storage');
-    await db.stages.put({
-      id: 'stage-clear-migration-race',
-      name: 'Legacy source',
-      createdAt: 1_000,
-      updatedAt: 2_000,
+  describe('legacy migration during a runtime-wide clear', () => {
+    let backing: BrowserRuntimeStore;
+    let database: typeof import('@/lib/utils/database');
+    let stageStorage: typeof import('@/lib/utils/stage-storage');
+
+    beforeEach(async () => {
+      // The outer fixture still resets modules, IndexedDB, and browser globals
+      // for every test. Keep cold module loading in setup so the race's timeout
+      // measures lock coordination, not transformation of the application graph.
+      vi.stubGlobal('navigator', { locks: fairLockManager() });
+      backing = new BrowserRuntimeStore({ indexedDB: globalThis.indexedDB });
+      database = await import('@/lib/utils/database');
+      stageStorage = await import('@/lib/utils/stage-storage');
     });
 
-    let releaseDeleteAll!: () => void;
-    const deleteAllGate = new Promise<void>((resolve) => {
-      releaseDeleteAll = resolve;
-    });
-    let clearAcquired!: () => void;
-    const clearHasLock = new Promise<void>((resolve) => {
-      clearAcquired = resolve;
-    });
-    const gatedStore = new Proxy(backing, {
-      get(target, property) {
-        if (property === 'deleteAllRuntime') {
-          return async () => {
-            clearAcquired();
-            await deleteAllGate;
-            return target.deleteAllRuntime();
-          };
-        }
-        const value = Reflect.get(target, property, target) as unknown;
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
+    it('blocks lazy migration behind a runtime-wide clear and observes the deleted source', async () => {
+      const { clearDatabase, db } = database;
+      const { loadStageData } = stageStorage;
+      await db.stages.put({
+        id: 'stage-clear-migration-race',
+        name: 'Legacy source',
+        createdAt: 1_000,
+        updatedAt: 2_000,
+      });
 
-    const clearing = clearDatabase(gatedStore);
-    await clearHasLock;
-    let migrationSettled = false;
-    const migrating = loadStageData('stage-clear-migration-race').finally(() => {
-      migrationSettled = true;
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(migrationSettled).toBe(false);
+      let releaseDeleteAll!: () => void;
+      const deleteAllGate = new Promise<void>((resolve) => {
+        releaseDeleteAll = resolve;
+      });
+      let clearAcquired!: () => void;
+      const clearHasLock = new Promise<void>((resolve) => {
+        clearAcquired = resolve;
+      });
+      const gatedStore = new Proxy(backing, {
+        get(target, property) {
+          if (property === 'deleteAllRuntime') {
+            return async () => {
+              clearAcquired();
+              await deleteAllGate;
+              return target.deleteAllRuntime();
+            };
+          }
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
 
-    releaseDeleteAll();
-    await clearing;
-    await expect(migrating).resolves.toBeNull();
+      const clearing = clearDatabase(gatedStore);
+      await clearHasLock;
+      let migrationSettled = false;
+      const migrating = loadStageData('stage-clear-migration-race').finally(() => {
+        migrationSettled = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(migrationSettled).toBe(false);
+
+      releaseDeleteAll();
+      await clearing;
+      await expect(migrating).resolves.toBeNull();
+    });
   });
 
   it('rejects a stage save that resumes after a database clear and allows a fresh save', async () => {

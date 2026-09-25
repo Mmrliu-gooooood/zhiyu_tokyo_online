@@ -16,14 +16,22 @@
     "unmute": "取消静音",
     "speed": "播放速度",
     "autoPlay": "自动播放",
-    "tabs": { "lecture": "讲解", "discussion": "讨论", "roles": "角色" },
+    "tabs": {
+      "lecture": "讲解",
+      "discussion": "讨论",
+      "roles": "角色"
+    },
     "status": {
       "idle": "准备就绪",
       "teaching": "正在讲解",
       "thinking": "正在思考",
       "discussion": "讨论进行中"
     },
-    "roleStatus": { "idle": "等待", "teaching": "正在讲解", "thinking": "正在思考" }
+    "roleStatus": {
+      "idle": "等待",
+      "teaching": "正在讲解",
+      "thinking": "正在思考"
+    }
   },
   "learningFeedback": {
     "open": "打开学习反馈",
@@ -240,8 +248,8 @@
       "retry": "重试",
       "retryFeedback": "继续生成本次反馈",
       "askAgain": "继续提问",
-      "roundCompleteHint": "本轮已结束，学伴不再追问。若要再练，仍是三次一轮。",
-      "inputHintRoundComplete": "本轮已结束。继续提问会再开一轮，最多三次解释。",
+      "roundCompleteHint": "本轮已结束，学伴不再追问。只有你明确要求继续提问时，才会开始新一轮；每轮仍最多三次解释。",
+      "inputHintRoundComplete": "本轮已结束。点击“继续提问”或明确输入“继续提问”，才会开始新一轮。",
       "end": "结束练习",
       "endAndResume": "结束并继续讲解",
       "returnToClass": "返回课堂",
@@ -2294,6 +2302,73 @@
       "error": {
         "materialExtraction": null
       }
+    }
+  },
+  "auth": {
+    "productName": "智域",
+    "loginTitle": "登录",
+    "loginDescription": "使用邮箱和密码登录。预置管理员账号也使用此页面。",
+    "loginSubmit": "登录",
+    "signUpTitle": "注册账号",
+    "signUpDescription": "使用你自己的邮箱（含 QQ、163）注册：邮箱 + 智域密码 + 确认邮件。没有 QQ 一键登录。未确认不能使用业务功能。",
+    "signUpSubmit": "注册",
+    "signUpFailed": "无法创建此账号。请更换邮箱或直接登录。",
+    "alreadyHaveAccount": "已有账号？去登录",
+    "createAccount": "创建账号",
+    "forgotPassword": "忘记密码",
+    "forgotTitle": "重置密码",
+    "forgotDescription": "如果该邮箱已注册，我们会发送重置链接。",
+    "sendReset": "发送重置邮件",
+    "resetFailed": "暂时无法发送重置邮件，请稍后重试。",
+    "resetEmailDescription": "如果该邮箱已注册，重置链接已发出。",
+    "checkEmailTitle": "请查收邮件",
+    "checkEmailDescription": "打开确认或重置邮件并点击链接。本页不会让你处于已登录状态。",
+    "resendHint": "没有收到邮件？稍等片刻后可以再发一次。",
+    "resendSubmit": "重发邮件",
+    "resendSent": "如果该邮箱已注册，我们已再次发送邮件。",
+    "resendFailed": "暂时无法发送邮件，请稍后重试。",
+    "updatePasswordTitle": "设置新密码",
+    "updatePasswordDescription": "请使用至少 12 个字符的密码。",
+    "updatePasswordSubmit": "更新密码",
+    "updatePasswordFailed": "无法更新密码。请重新申请重置链接。",
+    "passwordUpdatedTitle": "密码已更新",
+    "passwordUpdatedDescription": "请使用新密码登录。",
+    "newPassword": "新密码",
+    "confirmPassword": "确认密码",
+    "passwordMismatch": "两次输入的密码不一致。",
+    "passwordTooShort": "密码至少需要 12 个字符。",
+    "email": "邮箱",
+    "password": "密码",
+    "displayName": "显示名称",
+    "invalidCredentials": "邮箱或密码不正确，或邮箱尚未确认。",
+    "networkError": "网络错误，请重试。",
+    "hostedDisabled": "当前部署未启用托管邮箱账号。",
+    "backHome": "返回首页",
+    "backToLogin": "返回登录",
+    "errorTitle": "链接无效",
+    "loadingSession": "正在确认账号…",
+    "accountTitle": "账号",
+    "accountDescription": "邮箱只读。显示名称仅属于当前账号。",
+    "accountMenu": "账号菜单",
+    "saveProfile": "保存资料",
+    "profileSaveFailed": "资料未能保存。",
+    "signOut": "退出登录",
+    "adminTitle": "管理员状态",
+    "adminDescription": "仅显示服务状态。这里不会列出私人课程或聊天。",
+    "adminForbidden": "此页面需要预置管理员角色。",
+    "adminRole": "角色",
+    "adminAccounts": "账号数量",
+    "adminUnknown": "暂不可用",
+    "adminDatabase": "数据库",
+    "adminSchema": "结构",
+    "adminWorker": "Worker",
+    "ready": "就绪",
+    "notReady": "未就绪",
+    "errors": {
+      "missing_token": "确认链接缺少必要信息。",
+      "confirm_failed": "确认链接无效、已过期或已经使用过。",
+      "rate_limited": "尝试过于频繁，请稍后再试。",
+      "unknown": "认证链接出现问题。"
     }
   }
 }

@@ -66,19 +66,19 @@ Schema:
   "turnId": string,
   "criteria": [{"criterionId":string,"status":"explained"|"needs_supplement"|"not_addressed","reason":string,"citation":{"turnId":string,"excerpt":string}}],
   "nextQuestion": {"questionId":string,"text":string,"criterionId":string} | null,
-  "endReason": "all_explained"|"max_turns"|null,
+  "endReason": "all_explained"|"answer_correct"|"max_turns"|null,
   "suggestion": string
 }
 
 Rules:
 - Cover every frozen criterion exactly once. Do not add criteria.
-- explained / needs_supplement citations must be contiguous excerpts from a real student explanation turnId. If you cannot quote the student exactly, omit citation.
+- explained / needs_supplement citations must be contiguous excerpts from a real student explanation turnId. If you cannot quote the student exactly, omit citation. A criterion counts as correctly answered on this turn only when its explained citation uses the exact Evaluate turnId.
 - not_addressed must omit citation and must not invent student wording.
 - needs_supplement must say what is missing (reason, condition, or example).
 - Re-evaluate from the full explanation history; later corrections may change earlier judgments.
 - suggestion is spoken aloud to the student as your turn. It is not an internal note.
-- If every frozen criterion is explained, even before the third explanation: nextQuestion must be null, endReason must be "all_explained", and suggestion must affirm what they got right. Do not ask another question.
-- If this is the third explanation: nextQuestion must be null. If every criterion is explained, endReason "all_explained" and suggestion must affirm. If any criterion is still incomplete, endReason "max_turns" and suggestion must give the correct explanation from the course fragments for the remaining gaps. Never ask a fourth question.
+- If the current answer correctly explains any frozen criterion, prove that with an explained citation from the exact Evaluate turnId, stop immediately, and affirm it. Use endReason "all_explained" when every criterion is explained, otherwise "answer_correct". nextQuestion must be null.
+- If this is the third explanation and the current answer does not correctly explain any criterion: nextQuestion must be null, endReason "max_turns", and suggestion must give the correct explanation from the course fragments for the remaining gaps. Never ask a fourth question.
 - Otherwise nextQuestion is required, points at one incomplete criterion, and endReason must be null.
 - Ask only one targeted follow-up while the round is still open. Do not lecture, do not call tools, do not rewrite the course.`;
 
@@ -109,7 +109,10 @@ export function assertUsableSource(source: TeachBackSource): void {
     (fragment) => readableSourceLength(fragment.text) >= TEACH_BACK_LIMITS.minSourceCharacters,
   );
   if (!usable) {
-    throw new TeachBackModelError('insufficient_source', 'Current page has no usable course excerpt');
+    throw new TeachBackModelError(
+      'insufficient_source',
+      'Current page has no usable course excerpt',
+    );
   }
 }
 
@@ -126,7 +129,9 @@ async function once(
 ): Promise<string> {
   const caller = dependencies.signal;
   if (caller?.aborted) throw abortError(caller);
-  const timeout = AbortSignal.timeout(dependencies.perCallTimeoutMs ?? TEACH_BACK_LIMITS.perCallTimeoutMs);
+  const timeout = AbortSignal.timeout(
+    dependencies.perCallTimeoutMs ?? TEACH_BACK_LIMITS.perCallTimeoutMs,
+  );
   const signals = [timeout, ...(caller ? [caller] : [])];
   const signal = AbortSignal.any(signals);
   try {
@@ -144,7 +149,10 @@ async function once(
   } catch (error) {
     if (caller?.aborted) throw abortError(caller);
     if (error instanceof TeachBackModelError) throw error;
-    if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    if (
+      error instanceof DOMException &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+    ) {
       throw new TeachBackModelError('timeout', 'Teach-back model call timed out');
     }
     throw new TeachBackModelError(
@@ -167,7 +175,10 @@ export async function runTeachBackPrepare(
 ): Promise<Extract<TeachBackApiOutput, { operation: 'prepare' }>> {
   assertUsableSource(input.source);
   if (peer.id !== input.peer.id || peer.role === 'teacher') {
-    throw new TeachBackModelError('invalid_request', 'Teach-back peer is not a configured companion');
+    throw new TeachBackModelError(
+      'invalid_request',
+      'Teach-back peer is not a configured companion',
+    );
   }
   const prompt = [
     `Course title: ${input.source.courseTitle}`,
@@ -220,7 +231,13 @@ export async function runTeachBackEvaluate(
   if (raw.nextQuestion === null) delete raw.nextQuestion;
   if (raw.endReason === null) delete raw.endReason;
   try {
-    const result = parseTeachBackTurnResult(raw, input.plan, input.explanations, input.turnId);
+    const result = parseTeachBackTurnResult(
+      raw,
+      input.plan,
+      input.explanations,
+      input.turnId,
+      input.locale,
+    );
     return { operation: 'evaluate', result };
   } catch (error) {
     throw new TeachBackModelError(

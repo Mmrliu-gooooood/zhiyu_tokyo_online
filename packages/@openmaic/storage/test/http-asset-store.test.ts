@@ -631,10 +631,12 @@ describe('asset HTTP handler contract', () => {
     ['name smuggled in a quoted filename', 'form-data; filename="x; name=meta; y"'],
     ['unterminated quote', 'form-data; name="meta'],
     ['trailing text after a quote', 'form-data; name="meta"junk'],
+    ['trailing text before a filename', 'form-data; name="meta"junk; filename="metadata.json"'],
+    ['trailing text after a filename', 'form-data; name="meta"; filename="metadata.json"junk'],
     ['continuation parameter', 'form-data; name=meta; name*0=bytes'],
     ['non-ASCII separator', 'form-data;\u00a0name=meta'],
     ['bare LF in a quoted filename', 'form-data; name=meta; filename="a\nb"'],
-  ] as const)('platform parser rejects %s', async (_label, metaDisposition) => {
+  ] as const)('multipart validation rejects %s', async (_label, metaDisposition) => {
     const boundary = 'asset-test-boundary';
     const body = Buffer.concat([
       Buffer.from(
@@ -661,6 +663,42 @@ describe('asset HTTP handler contract', () => {
         message: '@openmaic/storage: malformed multipart body',
       },
     });
+  });
+
+  test('accepts quoted boundaries and filenames without inspecting payload bytes as headers', async () => {
+    const boundary = 'asset-test-boundary';
+    const headers = multipartHeaders(`quoted-multipart-${namespace++}`);
+    headers['content-type'] = `multipart/form-data; boundary="${boundary}"`;
+    const payload = Buffer.concat([
+      Buffer.from([0, 255, 128]),
+      Buffer.from('\r\nContent-Disposition: form-data; name="meta"junk\r\n\r\n'),
+    ]);
+    const response = await rawRequest({
+      method: 'POST',
+      path: '/assets',
+      headers,
+      body: multipart(
+        [
+          {
+            name: 'meta',
+            value: '{}',
+            contentType: 'application/json',
+            filename: 'meta;data.json',
+          },
+          { name: 'bytes', value: payload, filename: 'asset;data' },
+        ],
+        boundary,
+      ),
+    });
+    expect(response.status, response.body.toString()).toBe(201);
+    const { id } = JSON.parse(response.body.toString());
+    const read = await rawRequest({
+      method: 'GET',
+      path: `/assets/${id}/content`,
+      headers,
+    });
+    expect(read.status).toBe(200);
+    expect(read.body).toEqual(payload);
   });
 
   test('rejects a meta part without filename as text-decoded data', async () => {

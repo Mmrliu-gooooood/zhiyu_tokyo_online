@@ -1,0 +1,134 @@
+# Isolated hosted-auth UI. Never loaded by scripts/generation-compose.ps1.
+# Confirmed project: zhiyu / lzomhnjyymalupgvcato
+#   https://lzomhnjyymalupgvcato.supabase.co
+#
+# Do NOT combine this file with docker-compose.persistence.yml: that overlay
+# pins container_name zhiyu / zhiyu-worker, 127.0.0.1:3000, and live volumes.
+#
+#   docker compose -p openmaic-hosted --env-file .env.hosted.local \
+#     -f docker-compose.yml -f docker-compose.hosted.yml up -d --build openmaic generation-worker
+#
+# Safer after proofs (does not touch openmaic-main / zhiyu / port 3000):
+#   docker compose -p openmaic-hosted --env-file .env.hosted.local \
+#     -f docker-compose.yml -f docker-compose.hosted.yml down
+#
+# Do not also load docker-compose.dns.local.yml here: that file defines
+# generation-worker. This overlay already sets openmaic DNS.
+#
+# NEXT_PUBLIC_* is a build-arg: rebuild after filling .env.hosted.local.
+# The live openmaic-main classroom stack stays AUTH_MODE unset.
+# Dashboard Site URL stays http://localhost:3000. This overlay is password-grant
+# only on :3001 — do not change Site URL for these proofs.
+
+name: openmaic-hosted
+
+services:
+  postgres:
+    profiles: !override
+      - hosted-never
+  render-service:
+    profiles: !override
+      - hosted-never
+  openmaic:
+    image: openmaic-hosted-ui:local
+    container_name: openmaic-hosted-ui
+    restart: 'no'
+    ports: !override
+      - '127.0.0.1:3001:3000'
+    env_file: !reset []
+    environment:
+      AUTH_MODE: supabase
+      NEXT_PUBLIC_AUTH_MODE: supabase
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?Set in .env.hosted.local}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?Set in .env.hosted.local}
+      APP_ORIGIN: http://localhost:3001
+      # LOGIN zhiyu_app_web. Never the live classroom DATABASE_URL.
+      DATABASE_URL: ${DATABASE_URL_APP_WEB:?Set DATABASE_URL_APP_WEB in .env.hosted.local}
+      WORKER_DATABASE_URL: ${WORKER_DATABASE_URL:?Set WORKER_DATABASE_URL in .env.hosted.local}
+      DATABASE_LISTEN_URL: ''
+      GENERATION_ALLOWED_ORIGINS: http://localhost:3001,http://127.0.0.1:3001
+      GENERATION_TRUST_LEGACY_OWNER: '0'
+      GENERATION_BACKGROUND_ENABLED: '1'
+      GENERATION_ACCEPTING_JOBS: '0'
+      ACCESS_CODE: ''
+      OPENMAIC_AGENT_RUNTIME_ENABLED: 'true'
+      ASSET_COLLECTION_ENABLED: 'false'
+      ASSET_BYTE_BACKEND: local
+      ASSET_LOCAL_ROOT: /app/data/assets
+      MEDIA_CONFIG_ENCRYPTION_KEY: ${MEDIA_CONFIG_ENCRYPTION_KEY:-}
+      GENERATION_MODEL_ENCRYPTION_KEY: ${GENERATION_MODEL_ENCRYPTION_KEY:-}
+    volumes: !override
+      - openmaic-hosted-data:/app/data
+    networks: !override
+      - default
+    # Same operator DNS as gitignored docker-compose.dns.local.yml (live stack).
+    # Docker Desktop's default resolver cannot reach the Session pooler here.
+    dns:
+      - 223.5.5.5
+      - 119.29.29.29
+    build:
+      args:
+        NEXT_PUBLIC_AUTH_MODE: supabase
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?Set in .env.hosted.local}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?Set in .env.hosted.local}
+        ALPINE_MIRROR: ${ALPINE_MIRROR:-}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  generation-worker:
+    image: openmaic-hosted-worker:local
+    container_name: openmaic-hosted-worker
+    restart: 'no'
+    env_file: !reset []
+    environment:
+      AUTH_MODE: supabase
+      NEXT_PUBLIC_AUTH_MODE: supabase
+      DATABASE_URL: ${DATABASE_URL_APP_WEB:?Set DATABASE_URL_APP_WEB in .env.hosted.local}
+      WORKER_DATABASE_URL: ${WORKER_DATABASE_URL:?Set WORKER_DATABASE_URL in .env.hosted.local}
+      DATABASE_LISTEN_URL: ''
+      GENERATION_BACKGROUND_ENABLED: '1'
+      GENERATION_ACCEPTING_JOBS: '0'
+      ASSET_BYTE_BACKEND: local
+      ASSET_LOCAL_ROOT: /app/data/assets
+      MEDIA_CONFIG_ENCRYPTION_KEY: ${MEDIA_CONFIG_ENCRYPTION_KEY:-}
+      GENERATION_MODEL_ENCRYPTION_KEY: ${GENERATION_MODEL_ENCRYPTION_KEY:-}
+    volumes: !override
+      - openmaic-hosted-data:/app/data
+    networks: !override
+      - default
+    dns:
+      - 223.5.5.5
+      - 119.29.29.29
+    build:
+      context: .
+      target: generation-worker
+      args:
+        ALPINE_MIRROR: ${ALPINE_MIRROR:-}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+    healthcheck:
+      test: ['CMD', 'node', 'dist-worker/generation.mjs', '--check']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    stop_grace_period: 45s
+    init: true
+
+volumes:
+  openmaic-data:
+    name: openmaic-hosted_unused-openmaic-data
+  openmaic-postgres:
+    name: openmaic-hosted_unused-openmaic-postgres
+  openmaic-hosted-data:
+    name: openmaic-hosted_openmaic-data

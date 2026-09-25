@@ -170,6 +170,19 @@ describe('outline fallbacks', () => {
     expect(applyOutlineFallbacks(pbl, true)).toBe(pbl);
   });
 
+  test('keeps an interactive scene usable when a supplied plan invents a widget type', () => {
+    const outline = {
+      ...baseOutline,
+      type: 'interactive' as const,
+      widgetType: 'fractionVisualizer' as SceneOutline['widgetType'],
+      widgetOutline: { concept: 'Adding quarters', keyVariables: ['numerator'] },
+    };
+    const safe = applyOutlineFallbacks(outline, true);
+    expect(safe.type).toBe('interactive');
+    expect(safe.widgetType).toBe('simulation');
+    expect(safe.widgetOutline).toEqual(outline.widgetOutline);
+  });
+
   test('logs a fallback through the injected structural logger', () => {
     const warn = vi.fn();
     const logger: GenerationLogger = {

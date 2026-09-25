@@ -9,12 +9,28 @@ import { useWorkbenchStream } from '@/lib/workbench/use-workbench-session';
 
 class FakeEventSource {
   static readonly CLOSED = 2;
-  readonly readyState = 1;
+  static instances: FakeEventSource[] = [];
+  readyState = 1;
+  readonly listeners = new Map<string, Set<EventListener>>();
   onerror: ((event: Event) => void) | null = null;
-  constructor(readonly url: string) {}
-  addEventListener(): void {}
-  removeEventListener(): void {}
-  close(): void {}
+  constructor(readonly url: string) {
+    FakeEventSource.instances.push(this);
+  }
+  addEventListener(type: string, listener: EventListener): void {
+    const listeners = this.listeners.get(type) ?? new Set<EventListener>();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+  removeEventListener(type: string, listener: EventListener): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+  close(): void {
+    this.readyState = 2;
+  }
+  emit(type: string, data: unknown = {}): void {
+    for (const listener of this.listeners.get(type) ?? [])
+      listener(new MessageEvent(type, { data: JSON.stringify(data) }));
+  }
 }
 
 function deferred<T>() {
@@ -55,6 +71,8 @@ describe('session detail bootstrap attachment lifetime', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    FakeEventSource.instances = [];
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     vi.stubGlobal('EventSource', FakeEventSource);
   });
 
@@ -63,6 +81,63 @@ describe('session detail bootstrap attachment lifetime', () => {
     useWorkbenchStore.getState().detach();
     container.remove();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('replays unapplied durable events after hide, resumes from the applied cursor, and cleans up reconnect/unmount', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ prompt: 'task' })));
+    await act(async () => root.render(createElement(Harness, { sessionId: 'session-a' })));
+    const first = FakeEventSource.instances[0]!;
+    // Buffered replay is not yet in the store: hiding must resume before it, not skip it.
+    const start = { id: 1, type: 'session_start', attempt: 1, data: { prompt: 'durable prompt' } };
+    await act(async () => first.emit('session_start', start));
+    expect(useWorkbenchStore.getState().lastEventId).toBe(0);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    expect(first.readyState).toBe(2);
+    expect([...first.listeners.values()].every((listeners) => listeners.size === 0)).toBe(true);
+    expect(first.onerror).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    const second = FakeEventSource.instances[1]!;
+    expect(second.url).toContain('lastEventId=0');
+    await act(async () => {
+      second.emit('session_start', start);
+      second.emit('caught_up');
+    });
+    expect(useWorkbenchStore.getState()).toMatchObject({
+      lastEventId: 1,
+      attached: true,
+      status: 'running',
+    });
+    await act(async () => {
+      second.readyState = 0;
+      second.onerror?.(new Event('error'));
+    });
+    expect(useWorkbenchStore.getState().attached).toBe(false);
+    await act(async () => second.emit('caught_up'));
+    expect(useWorkbenchStore.getState().attached).toBe(true);
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    const third = FakeEventSource.instances[2]!;
+    expect(third.url).toContain('lastEventId=1');
+    await act(async () => {
+      third.emit('session_start', start);
+      third.emit('caught_up');
+    });
+    expect(useWorkbenchStore.getState().chat.filter((node) => node.kind === 'user')).toHaveLength(
+      1,
+    );
+    await act(async () => root.render(null));
+    expect(third.readyState).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(FakeEventSource.instances).toHaveLength(3);
   });
 
   it('ignores an old A detail response after navigating A to B to A', async () => {

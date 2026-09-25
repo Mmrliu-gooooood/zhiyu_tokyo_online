@@ -13,6 +13,7 @@ vi.mock('@/lib/config/feature-flags', () => ({
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: () => 'owner-1',
+  resolveRequestOwnerIdAsync: async () => 'owner-1',
 }));
 vi.mock('@/lib/server/agent-runtime/store', () => ({
   getAgentSessionStore: async () => ({

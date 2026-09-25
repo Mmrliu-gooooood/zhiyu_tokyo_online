@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from '@/tests/helpers/signed-owner-request';
 
 const mocks = vi.hoisted(() => ({
@@ -6,13 +6,22 @@ const mocks = vi.hoisted(() => ({
   resolveRequestOwnerId: vi.fn(),
   accessRow: null as Record<string, unknown> | null,
   updatedRows: [] as unknown[],
+  bindOwner: vi.fn(),
 }));
 
 vi.mock('@/lib/config/feature-flags', () => ({
   isAgentRuntimeConfigured: () => mocks.runtimeConfigured,
+  isCloudCourseLibraryEnabled: () => mocks.runtimeConfigured,
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
+  resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
+}));
+vi.mock('@/lib/db/request-queryable', () => ({
+  createOwnerBoundQueryable: (pool: { query: typeof vi.fn }, ownerId: string) => {
+    mocks.bindOwner(pool, ownerId);
+    return pool;
+  },
 }));
 vi.mock('@/lib/persistence/server-provider', () => ({
   getServerPersistenceProvider: async () => ({
@@ -38,12 +47,15 @@ vi.mock('@/lib/persistence/server-provider', () => ({
 import { GET as getStageMeta } from '@/app/api/stage-meta/[stageId]/route';
 import { GET as getStatus } from '@/app/api/stages/[id]/status/route';
 import { POST as postGenerationComplete } from '@/app/api/stages/[id]/generation-complete/route';
+import { POST as postGenerationCancel } from '@/app/api/stages/[id]/generation-cancel/route';
 import { POST as postPublish } from '@/app/api/stages/[id]/publish/route';
 import { POST as postUnpublish } from '@/app/api/stages/[id]/unpublish/route';
 
 const STAGE_ID = 'stage-1';
 const stageMetaParams = (stageId: string) => ({ params: Promise.resolve({ stageId }) });
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
+
+afterEach(() => vi.unstubAllEnvs());
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +79,7 @@ describe('GET /api/stage-meta/[stageId]', () => {
       stageMetaParams(STAGE_ID),
     );
     expect(response.status).toBe(200);
+    expect(mocks.bindOwner).toHaveBeenCalledWith(expect.anything(), 'owner-1');
     await expect(response.json()).resolves.toEqual({
       isOwner: true,
       isPublic: false,
@@ -113,6 +126,16 @@ describe('GET /api/stage-meta/[stageId]', () => {
 });
 
 describe('GET /api/stages/[id]/status', () => {
+  it('binds hosted reads to the authenticated owner', async () => {
+    vi.stubEnv('AUTH_MODE', 'supabase');
+    vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', 'supabase');
+    const response = await getStatus(
+      new NextRequest(`http://localhost/api/stages/${STAGE_ID}/status`),
+      params(STAGE_ID),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.bindOwner).toHaveBeenCalledWith(expect.anything(), 'owner-1');
+  });
   it('returns the public state without auth', async () => {
     mocks.accessRow!.meta_is_public = true;
     mocks.accessRow!.meta_published_at = 1_700_000_000_000;
@@ -149,11 +172,16 @@ describe('POST /api/stages/[id]/generation-complete', () => {
     const response = await postGenerationComplete(
       new NextRequest(`http://localhost/api/stages/${STAGE_ID}/generation-complete`, {
         method: 'POST',
+        headers: {
+          'x-generation-root-stage-id': STAGE_ID,
+          'x-generation-root-session-id': 'session-1',
+        },
       }),
       params(STAGE_ID),
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.bindOwner).toHaveBeenCalledWith(expect.anything(), 'owner-1');
   });
 
   it('forbids a visitor', async () => {
@@ -166,6 +194,22 @@ describe('POST /api/stages/[id]/generation-complete', () => {
     );
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: 'forbidden' });
+  });
+});
+
+describe('POST /api/stages/[id]/generation-cancel', () => {
+  it('releases an authenticated pre-persistence root without requiring a stage row', async () => {
+    mocks.accessRow = null;
+    const response = await postGenerationCancel(
+      new NextRequest(`http://localhost/api/stages/${STAGE_ID}/generation-cancel`, {
+        method: 'POST',
+        headers: { 'x-generation-root-session-id': 'session-1' },
+      }),
+      params(STAGE_ID),
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.bindOwner).toHaveBeenCalledWith(expect.anything(), 'owner-1');
   });
 });
 
@@ -189,6 +233,7 @@ describe('POST /api/stages/[id]/publish and unpublish', () => {
       params(STAGE_ID),
     );
     expect(response.status).toBe(200);
+    expect(mocks.bindOwner).toHaveBeenCalledWith(expect.anything(), 'owner-1');
     await expect(response.json()).resolves.toEqual({ success: true });
   });
 

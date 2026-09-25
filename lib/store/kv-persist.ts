@@ -43,10 +43,9 @@ import type { PersistStorage, StorageValue } from 'zustand/middleware';
 
 import { createLogger } from '@/lib/logger';
 import { reportPersistHealth } from '@/lib/store/persist-health';
+import { accountKvNamespace } from '@/lib/auth/account-environment';
 
 const log = createLogger('KVPersist');
-
-let defaultKv: KVStore | undefined;
 
 /** What a backend operation yields when the backend could not answer. */
 const UNAVAILABLE = Symbol('kv-unavailable');
@@ -467,10 +466,18 @@ function ambientLocalStorage(): Storage | null {
   }
 }
 
+let defaultKv: BrowserKVStore | undefined;
+let defaultKvNamespace: string | undefined;
+
 function resolveKv(deps: KVPersistDeps): KVStore | null {
   if (deps.kv) return deps.kv;
   if (!ambientLocalStorage()) return null;
-  return (defaultKv ??= new BrowserKVStore());
+  const namespace = accountKvNamespace();
+  if (!defaultKv || defaultKvNamespace !== namespace) {
+    defaultKv = new BrowserKVStore({ namespace });
+    defaultKvNamespace = namespace;
+  }
+  return defaultKv;
 }
 
 /** True when a KV backend keeps its `device` scope on the machine. */

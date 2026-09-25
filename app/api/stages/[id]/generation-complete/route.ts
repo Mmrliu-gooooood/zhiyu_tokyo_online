@@ -8,22 +8,36 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
+import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
 import { markStageGenerationComplete } from '@/lib/persistence/stage-meta';
-import { getStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
+import { getOwnerBoundStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
+import {
+  FOREGROUND_GENERATION_ROOT_HEADER,
+  FOREGROUND_GENERATION_SESSION_HEADER,
+  releaseForegroundGenerationRoot,
+} from '@/lib/server/heavy-task-admission/foreground-generation';
 
 export const runtime = 'nodejs';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const { id: stageId } = await params;
+    const rootStageId = req.headers.get(FOREGROUND_GENERATION_ROOT_HEADER)?.trim();
+    const sessionId = req.headers.get(FOREGROUND_GENERATION_SESSION_HEADER)?.trim();
+    if ((rootStageId && rootStageId !== stageId) || (sessionId && sessionId.length > 200)) {
+      return NextResponse.json(
+        { error: 'invalid_generation_root' },
+        { status: 400, headers: responseHeaders },
+      );
+    }
     try {
-      const access = await resolveStageAccess(stageId);
+      const db = await getOwnerBoundStageAccessDb(ownerId);
+      const access = await resolveStageAccess(stageId, db);
 
       // Absent and tombstoned are the same 404 — the caller must not learn
       // that an id used to be a real course, and a deleted course has no
@@ -37,12 +51,16 @@ export async function POST(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: responseHeaders });
       }
 
-      const db = await getStageAccessDb();
       const touched = await markStageGenerationComplete(db, stageId);
 
       if (!touched) {
         return NextResponse.json({ error: 'not_found' }, { status: 404, headers: responseHeaders });
       }
+
+      // The client-driven foreground pipeline owns one course-level capacity
+      // lease from its first outline request through the final durable save.
+      // Release only after the completion bit landed; retries are idempotent.
+      if (sessionId) await releaseForegroundGenerationRoot(ownerId, stageId, sessionId, db);
 
       console.info('Stage generation marked complete', { stageId, ownerId });
       return NextResponse.json({ ok: true }, { status: 200, headers: responseHeaders });

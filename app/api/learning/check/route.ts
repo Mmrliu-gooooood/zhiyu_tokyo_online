@@ -1,3 +1,4 @@
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 
 import { LEARNING_CHECK_LIMITS } from '@/lib/learning/contracts';
@@ -30,6 +31,12 @@ async function readBoundedBody(req: NextRequest): Promise<string | undefined> {
 }
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   if (!isLearningChecksEnabled()) {
     return apiError('PROVIDER_DISABLED', 404, 'Learning checks are not enabled');
   }

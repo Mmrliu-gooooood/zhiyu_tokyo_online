@@ -1,3 +1,6 @@
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
+import { withProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
+import { refuseForeignStagePost } from '@/lib/auth/stage-owner-gate';
 import { NextRequest, NextResponse } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { isTeachBackEnabled } from '@/lib/learning/feature-flags';
@@ -43,6 +46,8 @@ async function readBoundedBody(req: NextRequest): Promise<string | undefined> {
 }
 
 export async function POST(req: NextRequest) {
+  const principal = await requirePrincipalIfHosted(req);
+  if (principal instanceof Response) return principal;
   if (!isTeachBackEnabled()) {
     return errorResponse('feature_disabled', 404, 'Teach-back is not enabled');
   }
@@ -67,6 +72,8 @@ export async function POST(req: NextRequest) {
   try {
     if (!isRecord(raw)) throw new Error('Invalid request body');
     const input = parseTeachBackApiInput(raw.learning);
+    const deniedStage = await refuseForeignStagePost(req, input.source.stageId);
+    if (deniedStage) return deniedStage;
     const resolved = await resolveModel({
       modelString: typeof raw.model === 'string' ? raw.model : undefined,
       stage: 'chat-adapter',
@@ -97,19 +104,21 @@ export async function POST(req: NextRequest) {
       maxRetries: 0;
       maxOutputTokens: number;
     }) => {
-      const result = await callLLM(
-        {
-          model: resolved.model,
-          system,
-          prompt,
-          abortSignal: signal,
-          maxRetries,
-          maxOutputTokens,
-        },
-        'learning-teach-back',
-        undefined,
-        resolved.thinkingConfig,
-      );
+      const work = () =>
+        callLLM(
+          {
+            model: resolved.model,
+            system,
+            prompt,
+            abortSignal: signal,
+            maxRetries,
+            maxOutputTokens,
+          },
+          'learning-teach-back',
+          undefined,
+          resolved.thinkingConfig,
+        );
+      const result = await (principal ? withProviderQuotaOwner(principal.ownerId, work) : work());
       return { text: result.text };
     };
 
@@ -139,7 +148,11 @@ export async function POST(req: NextRequest) {
     }
     const resolutionError = getModelResolutionError(error);
     if (resolutionError) {
-      return errorResponse('model_unavailable', resolutionError.httpStatus, resolutionError.message);
+      return errorResponse(
+        'model_unavailable',
+        resolutionError.httpStatus,
+        resolutionError.message,
+      );
     }
     const invalid =
       error instanceof Error &&

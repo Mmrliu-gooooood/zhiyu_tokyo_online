@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listSkills: vi.fn(),
   findSkill: vi.fn(),
   inferSkillIdFromPrompt: vi.fn(),
+  refuseForeignStagePost: vi.fn(),
 }));
 
 vi.mock('@/lib/server/agent-runtime/session-model-binding', () => ({
@@ -24,6 +25,10 @@ vi.mock('@/lib/config/feature-flags', () => ({
 }));
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
+  resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
+}));
+vi.mock('@/lib/auth/stage-owner-gate', () => ({
+  refuseForeignStagePost: mocks.refuseForeignStagePost,
 }));
 // The route reads skills off the explicit `skill` param AND the prompt; pin the
 // lookup to a fixed installed set so no user-skill store or skill directory is
@@ -89,6 +94,7 @@ beforeEach(() => {
   mocks.postUserMessage.mockResolvedValue({ seq: 1, delivery: 'queued', requeued: true });
   mocks.softDeleteSession.mockResolvedValue(true);
   mocks.bindOwnerMaterialsToSession.mockResolvedValue([]);
+  mocks.refuseForeignStagePost.mockResolvedValue(null);
 });
 
 describe('agent session collection route', () => {
@@ -238,10 +244,15 @@ describe('agent session collection route', () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
-  it('creates an idle existing-course session without a stage access dependency', async () => {
+  it('creates an idle existing-course session after the owner gate allows the stage', async () => {
     const response = await post({ existingCourse: true, stageId: 'stage-1' });
 
     expect(response.status).toBe(202);
+    expect(mocks.refuseForeignStagePost).toHaveBeenCalledWith(
+      expect.anything(),
+      'stage-1',
+      expect.objectContaining({ ownerId: 'anon:test', requireExisting: true }),
+    );
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: 'stage-1',
@@ -252,6 +263,14 @@ describe('agent session collection route', () => {
     );
   });
 
+  it('answers 404 for a foreign or missing existing-course stage and never creates a session', async () => {
+    mocks.refuseForeignStagePost.mockResolvedValue(new Response('Not found', { status: 404 }));
+    const response = await post({ existingCourse: true, stageId: 'stage-1' });
+
+    expect(response.status).toBe(404);
+    expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
   it('requires a stage id for an existing-course session', async () => {
     const response = await post({ existingCourse: true });
 
@@ -259,11 +278,11 @@ describe('agent session collection route', () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
-  it('rejects an existing-course stage id that fails the classroom id format', async () => {
+  it('rejects an existing-course stage id that fails the classroom id format after the owner gate', async () => {
     const response = await post({ existingCourse: true, stageId: 'not a valid id!' });
 
     expect(response.status).toBe(400);
-    expect(mocks.resolveRequestOwnerId).not.toHaveBeenCalled();
+    expect(mocks.refuseForeignStagePost).toHaveBeenCalled();
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 

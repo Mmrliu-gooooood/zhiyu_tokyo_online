@@ -5,6 +5,7 @@
  * Simple JSON request/response using the configured web search provider.
  */
 
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { formatSearchResultsAsContext, searchWeb } from '@/lib/web-search';
@@ -30,6 +31,12 @@ import { resolveWebSearchRouteBaseUrl } from '@/lib/server/web-search-config';
 const log = createLogger('WebSearch');
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let query: string | undefined;
   try {
     const body = await req.json();

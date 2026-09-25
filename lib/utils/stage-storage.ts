@@ -72,6 +72,7 @@ import {
   type MediaTaskLookupEntry,
 } from '@/lib/media/media-task-resolution';
 import { slideMediaReferenceSlots } from '@/lib/media/slide-media-slots';
+import { mapWithConcurrency } from '@/lib/utils/concurrency';
 
 const log = createLogger('StageStorage');
 
@@ -899,163 +900,174 @@ export function revokeThumbnailSlideMediaUrls(slides: Record<string, ThumbnailSl
  */
 export async function getFirstSlideByStages(
   stageIds: string[],
+  options?: { shouldContinue?: () => boolean },
 ): Promise<Record<string, ThumbnailSlide>> {
   const result: Record<string, ThumbnailSlide> = {};
   try {
-    await Promise.all(
-      stageIds.map(async (stageId) => {
-        const document = (await accessDocument(stageId)).document;
-        const firstSlide = document?.scenes.find((s) => s.content?.type === 'slide');
-        if (firstSlide && firstSlide.content.type === 'slide') {
-          const slide = structuredClone(firstSlide.content.canvas);
+    // Leave browser HTTP connections available for navigation and generation.
+    // A migrated library can contain hundreds of documents; loading every
+    // cover at once otherwise queues interactive requests behind the library.
+    await mapWithConcurrency(
+      stageIds,
+      3,
+      async (stageId) => {
+        try {
+          const document = (await accessDocument(stageId)).document;
+          const firstSlide = document?.scenes.find((s) => s.content?.type === 'slide');
+          if (firstSlide && firstSlide.content.type === 'slide') {
+            const slide = structuredClone(firstSlide.content.canvas);
 
-          const mediaSlots = [...slideMediaReferenceSlots(slide)];
-          const mediaElements = new Set<ThumbnailMediaElement>();
-          for (const slot of mediaSlots) {
+            const mediaSlots = [...slideMediaReferenceSlots(slide)];
+            const mediaElements = new Set<ThumbnailMediaElement>();
+            for (const slot of mediaSlots) {
+              if (
+                slot.element &&
+                (slot.element.type === 'video' ||
+                  !!getThumbnailMediaRef(slot.element as ThumbnailMediaElement))
+              ) {
+                mediaElements.add(slot.element as ThumbnailMediaElement);
+              }
+            }
+            const backgroundSlot = mediaSlots.find((slot) => slot.kind === 'background-image');
+            const backgroundRef = backgroundSlot?.read();
             if (
-              slot.element &&
-              (slot.element.type === 'video' ||
-                !!getThumbnailMediaRef(slot.element as ThumbnailMediaElement))
+              mediaElements.size > 0 ||
+              (backgroundRef && isResolvableThumbnailMediaRef(backgroundRef))
             ) {
-              mediaElements.add(slot.element as ThumbnailMediaElement);
-            }
-          }
-          const backgroundSlot = mediaSlots.find((slot) => slot.kind === 'background-image');
-          const backgroundRef = backgroundSlot?.read();
-          if (
-            mediaElements.size > 0 ||
-            (backgroundRef && isResolvableThumbnailMediaRef(backgroundRef))
-          ) {
-            const settings = useSettingsStore.getState();
-            const mediaRecords = await db.mediaFiles.where('stageId').equals(stageId).toArray();
-            const mediaMap = new Map(
-              mediaRecords.map((record) => [getMediaRecordElementId(record.id), record] as const),
-            );
-            type ThumbnailTaskEntry = MediaTaskLookupEntry & {
-              readonly record: (typeof mediaRecords)[number];
-            };
-            const taskEntries = Object.fromEntries(
-              mediaRecords.map((record) => [
-                getMediaRecordElementId(record.id),
-                {
-                  stageId: record.stageId,
-                  type: record.type,
-                  status: record.error ? 'failed' : 'done',
-                  placeholderRef: record.placeholderRef,
-                  poster: record.poster ? `${record.id}:poster` : undefined,
-                  record,
-                } satisfies ThumbnailTaskEntry,
-              ]),
-            );
-            const documentElements = collectDocumentMediaElements(
-              document?.stage,
-              document?.scenes ?? [],
-            );
-
-            if (backgroundSlot && backgroundRef && isResolvableThumbnailMediaRef(backgroundRef)) {
-              const selectedRecord = mediaMap.get(backgroundRef);
-              const task = selectedRecord?.error
-                ? ({
-                    status: 'failed',
-                    errorCode: selectedRecord.errorCode,
-                    retryCount: 0,
-                  } satisfies MediaTaskState)
-                : undefined;
-              const record = selectedRecord && !selectedRecord.error ? selectedRecord : undefined;
-              backgroundSlot.write(
-                (await resolveThumbnailMediaValue(
-                  backgroundRef,
-                  task,
-                  record?.type === 'image' ? record.blob : undefined,
-                  record?.mimeType || 'image/png',
-                  !settings.imageGenerationEnabled,
-                )) ?? '',
+              const settings = useSettingsStore.getState();
+              const mediaRecords = await db.mediaFiles.where('stageId').equals(stageId).toArray();
+              const mediaMap = new Map(
+                mediaRecords.map((record) => [getMediaRecordElementId(record.id), record] as const),
               );
-            }
+              type ThumbnailTaskEntry = MediaTaskLookupEntry & {
+                readonly record: (typeof mediaRecords)[number];
+              };
+              const taskEntries = Object.fromEntries(
+                mediaRecords.map((record) => [
+                  getMediaRecordElementId(record.id),
+                  {
+                    stageId: record.stageId,
+                    type: record.type,
+                    status: record.error ? 'failed' : 'done',
+                    placeholderRef: record.placeholderRef,
+                    poster: record.poster ? `${record.id}:poster` : undefined,
+                    record,
+                  } satisfies ThumbnailTaskEntry,
+                ]),
+              );
+              const documentElements = collectDocumentMediaElements(
+                document?.stage,
+                document?.scenes ?? [],
+              );
 
-            for (const el of mediaElements) {
-              const videoBinding =
-                el.type === 'video'
-                  ? resolveVideoMediaForElement(
-                      taskEntries,
-                      el as import('@openmaic/dsl').PPTVideoElement,
-                      stageId,
-                      documentElements,
-                    )
+              if (backgroundSlot && backgroundRef && isResolvableThumbnailMediaRef(backgroundRef)) {
+                const selectedRecord = mediaMap.get(backgroundRef);
+                const task = selectedRecord?.error
+                  ? ({
+                      status: 'failed',
+                      errorCode: selectedRecord.errorCode,
+                      retryCount: 0,
+                    } satisfies MediaTaskState)
                   : undefined;
-              const mediaRef = videoBinding?.sourceRef ?? getThumbnailMediaRef(el);
-              if (!mediaRef) continue;
-              const selected =
-                el.type === 'video'
-                  ? videoBinding?.task
-                  : resolveMediaTaskForElement(
-                      taskEntries,
-                      el as import('@openmaic/dsl').PPTElement,
-                      stageId,
-                    );
-              const selectedRecord = selected?.record;
-              const task = selectedRecord?.error
-                ? ({
-                    status: 'failed',
-                    errorCode: selectedRecord.errorCode,
-                    retryCount: 0,
-                  } satisfies MediaTaskState)
-                : undefined;
-              const record = selectedRecord && !selectedRecord.error ? selectedRecord : undefined;
-
-              if (el.type === 'image') {
-                el.src =
+                const record = selectedRecord && !selectedRecord.error ? selectedRecord : undefined;
+                backgroundSlot.write(
                   (await resolveThumbnailMediaValue(
-                    mediaRef,
+                    backgroundRef,
                     task,
                     record?.type === 'image' ? record.blob : undefined,
                     record?.mimeType || 'image/png',
                     !settings.imageGenerationEnabled,
-                  )) ?? '';
-              } else if (el.type === 'video') {
-                el.src =
-                  (await resolveThumbnailMediaValue(
-                    mediaRef,
-                    task,
-                    record?.type === 'video' ? record.blob : undefined,
-                    record?.mimeType || 'video/mp4',
-                    !settings.videoGenerationEnabled,
-                  )) ?? '';
-                const posterRef = videoBinding?.posterRef;
-                const posterRecord =
-                  posterRef && isResolvableThumbnailMediaRef(posterRef)
-                    ? mediaMap.get(posterRef)
+                  )) ?? '',
+                );
+              }
+
+              for (const el of mediaElements) {
+                const videoBinding =
+                  el.type === 'video'
+                    ? resolveVideoMediaForElement(
+                        taskEntries,
+                        el as import('@openmaic/dsl').PPTVideoElement,
+                        stageId,
+                        documentElements,
+                      )
                     : undefined;
-                const posterBlob =
-                  posterRecord && !posterRecord.error && posterRecord.type === 'image'
-                    ? blobWithType(posterRecord.blob, posterRecord.mimeType)
-                    : record?.poster
-                      ? blobWithType(record.poster, 'image/jpeg')
+                const mediaRef = videoBinding?.sourceRef ?? getThumbnailMediaRef(el);
+                if (!mediaRef) continue;
+                const selected =
+                  el.type === 'video'
+                    ? videoBinding?.task
+                    : resolveMediaTaskForElement(
+                        taskEntries,
+                        el as import('@openmaic/dsl').PPTElement,
+                        stageId,
+                      );
+                const selectedRecord = selected?.record;
+                const task = selectedRecord?.error
+                  ? ({
+                      status: 'failed',
+                      errorCode: selectedRecord.errorCode,
+                      retryCount: 0,
+                    } satisfies MediaTaskState)
+                  : undefined;
+                const record = selectedRecord && !selectedRecord.error ? selectedRecord : undefined;
+
+                if (el.type === 'image') {
+                  el.src =
+                    (await resolveThumbnailMediaValue(
+                      mediaRef,
+                      task,
+                      record?.type === 'image' ? record.blob : undefined,
+                      record?.mimeType || 'image/png',
+                      !settings.imageGenerationEnabled,
+                    )) ?? '';
+                } else if (el.type === 'video') {
+                  el.src =
+                    (await resolveThumbnailMediaValue(
+                      mediaRef,
+                      task,
+                      record?.type === 'video' ? record.blob : undefined,
+                      record?.mimeType || 'video/mp4',
+                      !settings.videoGenerationEnabled,
+                    )) ?? '';
+                  const posterRef = videoBinding?.posterRef;
+                  const posterRecord =
+                    posterRef && isResolvableThumbnailMediaRef(posterRef)
+                      ? mediaMap.get(posterRef)
                       : undefined;
-                if (posterRef) {
-                  const posterTask = posterRecord?.error
-                    ? ({
-                        status: 'failed',
-                        errorCode: posterRecord.errorCode,
-                        retryCount: 0,
-                      } satisfies MediaTaskState)
-                    : undefined;
-                  el.poster = await resolveThumbnailMediaValue(
-                    posterRef,
-                    posterTask,
-                    posterBlob,
-                    posterRecord?.mimeType || 'image/jpeg',
-                  );
-                } else if (posterBlob) {
-                  el.poster = URL.createObjectURL(posterBlob);
+                  const posterBlob =
+                    posterRecord && !posterRecord.error && posterRecord.type === 'image'
+                      ? blobWithType(posterRecord.blob, posterRecord.mimeType)
+                      : record?.poster
+                        ? blobWithType(record.poster, 'image/jpeg')
+                        : undefined;
+                  if (posterRef) {
+                    const posterTask = posterRecord?.error
+                      ? ({
+                          status: 'failed',
+                          errorCode: posterRecord.errorCode,
+                          retryCount: 0,
+                        } satisfies MediaTaskState)
+                      : undefined;
+                    el.poster = await resolveThumbnailMediaValue(
+                      posterRef,
+                      posterTask,
+                      posterBlob,
+                      posterRecord?.mimeType || 'image/jpeg',
+                    );
+                  } else if (posterBlob) {
+                    el.poster = URL.createObjectURL(posterBlob);
+                  }
                 }
               }
             }
-          }
 
-          result[stageId] = slide;
+            result[stageId] = slide;
+          }
+        } catch (error) {
+          log.error('Failed to load thumbnail:', error);
         }
-      }),
+      },
+      options,
     );
   } catch (error) {
     log.error('Failed to load thumbnails:', error);

@@ -1,5 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
+import { getHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 import type {
   ClassroomGenerationProgress,
   ClassroomGenerationStep,
@@ -100,6 +104,7 @@ export function isValidClassroomJobId(jobId: string): boolean {
 export async function createClassroomGenerationJob(
   jobId: string,
   input: GenerateClassroomInput,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob> {
   const now = new Date().toISOString();
   const job: ClassroomGenerationJob = {
@@ -114,14 +119,34 @@ export async function createClassroomGenerationJob(
     scenesGenerated: 0,
   };
 
-  await ensureClassroomJobsDir();
-  await writeJsonFileAtomic(jobFilePath(jobId), job);
+  if (isHostedAuthEnabled()) {
+    const owner = hostedJobOwner(ownerId);
+    const db = createOwnerBoundQueryable(getPersistencePool(), owner);
+    await db.query(
+      `INSERT INTO classroom_generation_jobs (job_id, owner_id, payload)
+       VALUES ($1,$2,$3::jsonb)`,
+      [jobId, owner, JSON.stringify(job)],
+    );
+  } else {
+    await ensureClassroomJobsDir();
+    await writeJsonFileAtomic(jobFilePath(jobId), job);
+  }
   return job;
 }
 
 export async function readClassroomGenerationJob(
   jobId: string,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob | null> {
+  if (isHostedAuthEnabled()) {
+    const owner = hostedJobOwner(ownerId);
+    const db = createOwnerBoundQueryable(getPersistencePool(), owner);
+    const result = await db.query<{ payload: ClassroomGenerationJob }>(
+      'SELECT payload FROM classroom_generation_jobs WHERE job_id=$1',
+      [jobId],
+    );
+    return result.rows[0] ? markStaleIfNeeded(result.rows[0].payload) : null;
+  }
   try {
     const content = await fs.readFile(jobFilePath(jobId), 'utf-8');
     const job = JSON.parse(content) as ClassroomGenerationJob;
@@ -137,7 +162,9 @@ export async function readClassroomGenerationJob(
 export async function updateClassroomGenerationJob(
   jobId: string,
   patch: Partial<ClassroomGenerationJob>,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob> {
+  if (isHostedAuthEnabled()) return updateHostedJob(jobId, patch, ownerId);
   return withJobLock(jobId, async () => {
     const existing = await readClassroomGenerationJob(jobId);
     if (!existing) {
@@ -157,7 +184,21 @@ export async function updateClassroomGenerationJob(
 
 export async function markClassroomGenerationJobRunning(
   jobId: string,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob> {
+  if (isHostedAuthEnabled()) {
+    const existing = await readClassroomGenerationJob(jobId, ownerId);
+    if (!existing) throw new Error(`Classroom generation job not found: ${jobId}`);
+    return updateClassroomGenerationJob(
+      jobId,
+      {
+        status: 'running',
+        startedAt: existing.startedAt || new Date().toISOString(),
+        message: 'Classroom generation started',
+      },
+      ownerId,
+    );
+  }
   return withJobLock(jobId, async () => {
     const existing = await readClassroomGenerationJob(jobId);
     if (!existing) {
@@ -180,45 +221,98 @@ export async function markClassroomGenerationJobRunning(
 export async function updateClassroomGenerationJobProgress(
   jobId: string,
   progress: ClassroomGenerationProgress,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob> {
-  return updateClassroomGenerationJob(jobId, {
-    status: 'running',
-    step: progress.step,
-    progress: progress.progress,
-    message: progress.message,
-    scenesGenerated: progress.scenesGenerated,
-    totalScenes: progress.totalScenes,
-  });
+  return updateClassroomGenerationJob(
+    jobId,
+    {
+      status: 'running',
+      step: progress.step,
+      progress: progress.progress,
+      message: progress.message,
+      scenesGenerated: progress.scenesGenerated,
+      totalScenes: progress.totalScenes,
+    },
+    ownerId,
+  );
 }
 
 export async function markClassroomGenerationJobSucceeded(
   jobId: string,
   result: GenerateClassroomResult,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob> {
-  return updateClassroomGenerationJob(jobId, {
-    status: 'succeeded',
-    step: 'completed',
-    progress: 100,
-    message: 'Classroom generation completed',
-    completedAt: new Date().toISOString(),
-    scenesGenerated: result.scenesCount,
-    result: {
-      classroomId: result.id,
-      url: result.url,
-      scenesCount: result.scenesCount,
+  return updateClassroomGenerationJob(
+    jobId,
+    {
+      status: 'succeeded',
+      step: 'completed',
+      progress: 100,
+      message: 'Classroom generation completed',
+      completedAt: new Date().toISOString(),
+      scenesGenerated: result.scenesCount,
+      result: {
+        classroomId: result.id,
+        url: result.url,
+        scenesCount: result.scenesCount,
+      },
     },
-  });
+    ownerId,
+  );
 }
 
 export async function markClassroomGenerationJobFailed(
   jobId: string,
   error: string,
+  ownerId?: string,
 ): Promise<ClassroomGenerationJob> {
-  return updateClassroomGenerationJob(jobId, {
-    status: 'failed',
-    step: 'failed',
-    message: 'Classroom generation failed',
-    completedAt: new Date().toISOString(),
-    error,
+  return updateClassroomGenerationJob(
+    jobId,
+    {
+      status: 'failed',
+      step: 'failed',
+      message: 'Classroom generation failed',
+      completedAt: new Date().toISOString(),
+      error,
+    },
+    ownerId,
+  );
+}
+
+function hostedJobOwner(explicitOwnerId?: string): string {
+  const ownerId = explicitOwnerId ?? getHeavyTaskRootContext()?.ownerId;
+  if (!ownerId) throw new Error('HOSTED_CLASSROOM_JOB_OWNER_REQUIRED');
+  return ownerId;
+}
+
+async function updateHostedJob(
+  jobId: string,
+  patch: Partial<ClassroomGenerationJob>,
+  explicitOwnerId?: string,
+): Promise<ClassroomGenerationJob> {
+  const ownerId = hostedJobOwner(explicitOwnerId);
+  const db = createOwnerBoundQueryable(getPersistencePool(), ownerId);
+  return db.withTransaction(async (transaction) => {
+    const result = await transaction.query<{ payload: ClassroomGenerationJob }>(
+      `SELECT payload
+         FROM classroom_generation_jobs
+        WHERE job_id=$1
+        FOR UPDATE`,
+      [jobId],
+    );
+    const existing = result.rows[0]?.payload;
+    if (!existing) throw new Error(`Classroom generation job not found: ${jobId}`);
+    const updated: ClassroomGenerationJob = {
+      ...markStaleIfNeeded(existing),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    await transaction.query(
+      `UPDATE classroom_generation_jobs
+          SET payload=$1::jsonb, updated_at=clock_timestamp()
+        WHERE job_id=$2 AND owner_id=$3`,
+      [JSON.stringify(updated), jobId, ownerId],
+    );
+    return updated;
   });
 }

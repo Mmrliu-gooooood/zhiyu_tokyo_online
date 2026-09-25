@@ -1,14 +1,14 @@
 /**
  * Server-side media and TTS generation for classrooms.
  *
- * Generates image/video files and TTS audio for a classroom,
- * writes them to disk, and returns serving URL mappings.
+ * Generates image/video files and TTS audio for a classroom, persists them
+ * through the deployment's classroom-media backend, and returns serving URL
+ * mappings.
  */
 
-import { promises as fs } from 'fs';
 import path from 'path';
 import { createLogger } from '@/lib/logger';
-import { CLASSROOMS_DIR } from '@/lib/server/classroom-storage';
+import { persistClassroomMediaBytes } from '@/lib/server/classroom-media-bytes';
 import { generateImage } from '@/lib/media/image-providers';
 import { generateVideo, normalizeVideoOptions } from '@/lib/media/video-providers';
 import { generateTTS } from '@/lib/audio/tts-providers';
@@ -123,10 +123,6 @@ type ServerTransportSpeechAction = SpeechAction & { audioUrl?: string };
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function ensureDir(dir: string) {
-  await fs.mkdir(dir, { recursive: true });
-}
-
 const DOWNLOAD_TIMEOUT_MS = 120_000; // 2 minutes
 const DOWNLOAD_MAX_SIZE = 100 * 1024 * 1024; // 100 MB
 
@@ -154,9 +150,6 @@ export async function generateMediaForClassroom(
   baseUrl: string,
   selections: ClassroomMediaSelections = {},
 ): Promise<Record<string, string>> {
-  const mediaDir = path.join(CLASSROOMS_DIR, classroomId, 'media');
-  await ensureDir(mediaDir);
-
   // Collect all media generation requests from outlines
   const requests = outlines.flatMap((o) => o.mediaGenerations ?? []);
   if (requests.length === 0) return {};
@@ -244,7 +237,18 @@ export async function generateMediaForClassroom(
         }
 
         const filename = `${req.elementId}.${ext}`;
-        await fs.writeFile(path.join(mediaDir, filename), buf);
+        const mime =
+          ext === 'jpg' || ext === 'jpeg'
+            ? 'image/jpeg'
+            : ext === 'webp'
+              ? 'image/webp'
+              : 'image/png';
+        await persistClassroomMediaBytes({
+          stageId: classroomId,
+          bytes: buf,
+          mime,
+          filename,
+        });
         mediaMap[req.elementId] = mediaServingUrl(baseUrl, classroomId, `media/${filename}`);
         log.info(`Generated image: ${filename}`);
       } catch (err) {
@@ -288,7 +292,12 @@ export async function generateMediaForClassroom(
               : null;
         if (!buf?.length) throw new Error('Video generation returned no data');
         const filename = `${req.elementId}.mp4`;
-        await fs.writeFile(path.join(mediaDir, filename), buf);
+        await persistClassroomMediaBytes({
+          stageId: classroomId,
+          bytes: buf,
+          mime: 'video/mp4',
+          filename,
+        });
         mediaMap[req.elementId] = mediaServingUrl(baseUrl, classroomId, `media/${filename}`);
         log.info(`Generated video: ${filename}`);
       } catch (err) {
@@ -352,9 +361,6 @@ export async function generateTTSForClassroom(
   baseUrl: string,
   selection?: ClassroomMediaSelection,
 ): Promise<void> {
-  const audioDir = path.join(CLASSROOMS_DIR, classroomId, 'audio');
-  await ensureDir(audioDir);
-
   // Resolve TTS provider (exclude browser-native-tts and operator force-disabled
   // providers — server precedence, #665).
   const ttsProviderIds = Object.entries(getServerTTSProviders())
@@ -435,7 +441,16 @@ export async function generateTTSForClassroom(
         );
 
         const filename = `${audioId}.${result.format || format}`;
-        await fs.writeFile(path.join(audioDir, filename), result.audio);
+        const audioFormat = result.format || format;
+        const mime =
+          audioFormat === 'wav' ? 'audio/wav' : audioFormat === 'ogg' ? 'audio/ogg' : 'audio/mpeg';
+        await persistClassroomMediaBytes({
+          stageId: classroomId,
+          bytes: result.audio,
+          mime,
+          filename,
+          subdir: 'audio',
+        });
 
         speechAction.audioId = audioId;
         speechAction.audioUrl = mediaServingUrl(baseUrl, classroomId, `audio/${filename}`);

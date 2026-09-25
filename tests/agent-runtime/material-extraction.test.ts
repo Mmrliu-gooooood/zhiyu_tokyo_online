@@ -13,7 +13,10 @@ import {
 
 import { buildMaterialTools } from '@/lib/server/agent-runtime/material-tools';
 import { extractClaimedSessionMaterial } from '@/lib/server/material-extraction/extract';
-import { runNextMaterialExtraction } from '@/lib/server/material-extraction/runner';
+import {
+  runNextMaterialExtraction,
+  startMaterialExtractionRunner,
+} from '@/lib/server/material-extraction/runner';
 import { LocalMediaExtractionError } from '@/lib/document/extractors/local-media';
 import type { MediaExtractorProvider } from '@/lib/document';
 
@@ -42,7 +45,32 @@ describe('uploaded material extraction lifecycle', () => {
   let db: PGlite | undefined;
 
   afterEach(async () => {
+    vi.useRealTimers();
     await db?.close();
+  });
+
+  it('serializes empty-queue claims and does not overlap periodic scans', async () => {
+    vi.useFakeTimers();
+    let finishClaim!: (value: null) => void;
+    const pendingClaim = new Promise<null>((resolve) => {
+      finishClaim = resolve;
+    });
+    const store = {
+      expirePendingExtractions: vi.fn(async () => 0),
+      claimNextExtraction: vi.fn(() => pendingClaim),
+    } as unknown as PgAgentSessionMaterialStore;
+    const runner = startMaterialExtractionRunner({
+      getStore: async () => store,
+      execute: vi.fn(),
+    });
+
+    await vi.waitFor(() => expect(store.claimNextExtraction).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(store.claimNextExtraction).toHaveBeenCalledTimes(1);
+
+    finishClaim(null);
+    await vi.runAllTicks();
+    await runner.stop({ timeoutMs: 0 });
   });
 
   it('uploads a source, extracts it through the registry, and reads the extracted text', async () => {

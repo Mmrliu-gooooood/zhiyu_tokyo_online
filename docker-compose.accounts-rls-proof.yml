@@ -1,0 +1,33 @@
+# DISPOSABLE local Postgres for accounts RLS proofs.
+# Never loaded by scripts/generation-compose.ps1.
+# Does not mount openmaic-main_openmaic-postgres or openmaic-main_openmaic-data.
+#
+#   docker compose -p openmaic-accounts-rls-proof -f docker-compose.accounts-rls-proof.yml up -d
+#   docker compose -p openmaic-accounts-rls-proof -f docker-compose.accounts-rls-proof.yml down -v
+
+name: openmaic-accounts-rls-proof
+
+services:
+  postgres:
+    # Same locally cached image as docker-compose.persistence.yml. New volume, new project.
+    image: postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+    pull_policy: never
+    container_name: openmaic-accounts-rls-proof-pg
+    ports:
+      - '127.0.0.1:55432:5432'
+    environment:
+      POSTGRES_DB: accounts_rls_proof
+      POSTGRES_USER: proof_admin
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U proof_admin -d accounts_rls_proof']
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+    name: openmaic-accounts-rls-proof_pgdata

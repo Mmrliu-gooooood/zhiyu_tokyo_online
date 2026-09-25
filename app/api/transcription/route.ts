@@ -1,3 +1,4 @@
+import { hostedAuthGate } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { transcribeAudio } from '@/lib/audio/asr-providers';
 import {
@@ -26,6 +27,8 @@ const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const MAX_MULTIPART_BYTES = MAX_AUDIO_BYTES + 256 * 1024;
 
 export async function POST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let resolvedProviderId: string | undefined;
   let resolvedModelId: string | undefined;
   try {

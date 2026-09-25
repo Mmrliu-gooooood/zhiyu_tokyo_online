@@ -1,3 +1,5 @@
+import { webLockManager } from './web-locks';
+
 const CHAT_STORAGE_GLOBAL_LOCK = 'openmaic:chat-storage:all';
 const DEFAULT_EXCLUSIVE_ACQUIRE_TIMEOUT_MS = 5_000;
 type FallbackLockMode = 'shared' | 'exclusive';
@@ -16,7 +18,7 @@ export function chatStoragePartitionLockName(key: string): string {
 }
 
 function locks(): LockManager | undefined {
-  return typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  return webLockManager();
 }
 
 function pumpFallbackLocks(): void {

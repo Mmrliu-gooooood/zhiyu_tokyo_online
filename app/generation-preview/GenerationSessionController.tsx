@@ -23,6 +23,10 @@ import {
 } from '@/lib/audio/voice-resolver';
 import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants';
 import { isTTSProviderEnabled } from '@/lib/audio/provider-enablement';
+import {
+  bindGeneratedPlatformTTSVoices,
+  withPlatformTTSAvailability,
+} from '@/lib/audio/platform-tts-selection';
 import { useAllVoiceProfiles } from '@/lib/audio/voxcpm-voices';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import {
@@ -31,6 +35,10 @@ import {
   generateTTSForScene,
 } from '@/lib/hooks/use-scene-generator';
 import { isAbortError } from '@openmaic/generation';
+import {
+  cancelForegroundGenerationRoot,
+  foregroundGenerationHeaders,
+} from '@/lib/generation/foreground-root-client';
 import { FOREGROUND_SCENE_RETRY_OPTIONS } from './foreground-retry';
 import {
   loadImageMapping,
@@ -97,6 +105,28 @@ import { getDocumentStore } from '@/lib/document-store';
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
 
+async function waitForSettingsHydration(signal: AbortSignal): Promise<void> {
+  const persistence = useSettingsStore.persist;
+  if (!persistence?.hasHydrated || persistence.hasHydrated()) return;
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let unsubscribe: (() => void) | undefined;
+    const finish = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      unsubscribe?.();
+      signal.removeEventListener('abort', onAbort);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onAbort = () => finish(new DOMException('Aborted', 'AbortError'));
+    unsubscribe = persistence.onFinishHydration(() => finish());
+    signal.addEventListener('abort', onAbort, { once: true });
+    // Close the check/subscribe race if hydration finished between them.
+    if (persistence.hasHydrated()) finish();
+  });
+}
+
 type ParsedDocumentResponseImage = {
   id: string;
   src?: string;
@@ -151,6 +181,7 @@ function GenerationPreviewContent() {
   const backgroundObservationEpoch = useRef(0);
   const backgroundAgentRevealRef = useRef<'unseen' | 'revealing' | 'revealed'>('unseen');
   const backgroundReadyStageRef = useRef<string | null>(null);
+  const foregroundStageRef = useRef<string | null>(null);
   const [canonicalPhase, setCanonicalPhase] = useState<GenerationCanonicalPhase>('idle');
   const generationRuntimeRef = useRef<GenerationSessionRuntime | null>(null);
   if (!generationRuntimeRef.current) {
@@ -534,6 +565,11 @@ function GenerationPreviewContent() {
     // server ownership is sticky even when submission fails or its response is lost.
     const ownershipRun = generationRuntimeRef.current!.restart('outline-streaming');
     try {
+      // Account-scoped settings rehydrate asynchronously. Starting from the
+      // default in-memory model before that finishes drops the selected
+      // platform snapshot and makes a valid background submission fail
+      // preflight after a refresh or container rebuild.
+      await waitForSettingsHydration(ownershipRun.signal);
       const capability =
         generationSession.generationBackend === 'server-job'
           ? { enabled: true, available: true }
@@ -828,6 +864,7 @@ function GenerationPreviewContent() {
 
       // Create stage client-side
       const stageId = nanoid(10);
+      foregroundStageRef.current = stageId;
       const stage: Stage = {
         id: stageId,
         name: extractTopicFromRequirement(currentSession.requirements.requirement),
@@ -863,9 +900,10 @@ function GenerationPreviewContent() {
 
           fetch('/api/generate/scene-outlines-stream', {
             method: 'POST',
-            headers: getApiHeaders(),
+            headers: { ...getApiHeaders(), ...foregroundGenerationHeaders(stageId) },
             body: JSON.stringify(
               withThinkingConfig({
+                stageId,
                 requirements: currentSession.requirements,
                 pdfText: currentSession.pdfText,
                 pdfImages: currentSession.pdfImages,
@@ -1036,6 +1074,11 @@ function GenerationPreviewContent() {
 
       // ── Agent generation (after outlines — uses languageDirective + outlines) ──
       const settings = useSettingsStore.getState();
+      const ttsProvidersConfig = withPlatformTTSAvailability(
+        settings.ttsProvidersConfig,
+        settings.ttsSelection,
+        settings.platformDefaults,
+      );
       let agents: Array<{
         id: string;
         name: string;
@@ -1101,7 +1144,7 @@ function GenerationPreviewContent() {
 
           const getAvailableVoicesForGeneration = () => {
             const providers = getEnabledProvidersWithVoices(
-              settings.ttsProvidersConfig,
+              ttsProvidersConfig,
               voiceProfiles,
             );
             return providers.flatMap((p) =>
@@ -1137,14 +1180,15 @@ function GenerationPreviewContent() {
             resolveNarratorVoiceForGeneration(
               settings.ttsProviderId,
               settings.ttsVoice,
-              settings.ttsProvidersConfig[settings.ttsProviderId],
+              ttsProvidersConfig[settings.ttsProviderId],
             );
 
           const agentResp = await fetch('/api/generate/agent-profiles', {
             method: 'POST',
-            headers: getApiHeaders(),
+            headers: { ...getApiHeaders(), ...foregroundGenerationHeaders(stage.id) },
             body: JSON.stringify(
               withThinkingConfig({
+                stageId: stage.id,
                 stageInfo: { name: stage.name, description: stage.description },
                 sceneOutlines: outlines.map((o) => ({
                   title: o.title,
@@ -1172,7 +1216,12 @@ function GenerationPreviewContent() {
           // already bound each agent's voice (from availableVoices); the
           // fallback for an invalid/unavailable voice is applied later at the
           // live TTS call.
-          const generatedConfigs = agentData.agents as GeneratedAgentConfig[];
+          const generatedConfigs = bindGeneratedPlatformTTSVoices(
+            agentData.agents as GeneratedAgentConfig[],
+            getAvailableVoicesForGeneration(),
+            settings.ttsSelection,
+            settings.platformDefaults,
+          );
           stage.generatedAgentConfigs = generatedConfigs;
           const savedIds = generatedConfigs.map((agent) => agent.id);
           stage.agentIds = savedIds;
@@ -1325,7 +1374,7 @@ function GenerationPreviewContent() {
         settings.ttsProviderId !== 'browser-native-tts' &&
         isTTSProviderEnabled(
           settings.ttsProviderId,
-          settings.ttsProvidersConfig?.[settings.ttsProviderId],
+          ttsProvidersConfig?.[settings.ttsProviderId],
         )
       ) {
         const ttsResult = await generateTTSForScene(
@@ -1399,6 +1448,13 @@ function GenerationPreviewContent() {
         return;
       }
       const imageStorageIds = currentSession.imageStorageIds ?? [];
+      const abandonedStageId = foregroundStageRef.current;
+      if (abandonedStageId) {
+        foregroundStageRef.current = null;
+        void cancelForegroundGenerationRoot(abandonedStageId).catch((releaseError) => {
+          log.warn('[GenerationPreview] Failed to release foreground generation root:', releaseError);
+        });
+      }
       const errorMessage = err instanceof Error ? err.message : String(err);
       await runtime.failAfterRevoking(epoch, {
         revoke: () => {
@@ -1513,6 +1569,13 @@ function GenerationPreviewContent() {
       return;
     }
     generationRuntimeRef.current?.cancel();
+    const abandonedStageId = foregroundStageRef.current;
+    if (abandonedStageId) {
+      foregroundStageRef.current = null;
+      void cancelForegroundGenerationRoot(abandonedStageId).catch((error) => {
+        log.warn('[GenerationPreview] Failed to release foreground generation root:', error);
+      });
+    }
     clearOutlineReviewTimer();
     outlineReviewIntentRef.current = false;
     void deleteStoredImages(session?.imageStorageIds ?? []).catch((cleanupError) => {

@@ -1,3 +1,4 @@
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
@@ -6,6 +7,12 @@ import { callLLM } from '@/lib/ai/llm';
 const log = createLogger('Verify Model');
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let model: string | undefined;
   try {
     const body = await req.json();

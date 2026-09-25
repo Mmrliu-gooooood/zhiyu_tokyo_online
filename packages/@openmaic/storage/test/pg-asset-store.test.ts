@@ -406,6 +406,45 @@ describe('PgAssetStore registry behavior with PGlite', () => {
     expect(writes).toEqual(['write']);
   });
 
+  test('external byte I/O never holds a registry transaction or row lock', async () => {
+    let transactionDepth = 0;
+    const values = new Map<ContentHash, Uint8Array>();
+    const externalBytes: AssetByteStore = {
+      writesOutsideRegistryDatabase: true,
+      async write(hash, value) {
+        expect(transactionDepth).toBe(0);
+        values.set(hash, new Uint8Array(value));
+      },
+      async read(hash) {
+        expect(transactionDepth).toBe(0);
+        return values.get(hash) ?? null;
+      },
+      async delete(hash) {
+        expect(transactionDepth).toBe(0);
+        values.delete(hash);
+      },
+    };
+    const external = new PgAssetStore(db, {
+      byteStore: externalBytes,
+      withTransaction: (body) =>
+        db.transaction(async (tx: Queryable) => {
+          transactionDepth += 1;
+          try {
+            return await body(tx);
+          } finally {
+            transactionDepth -= 1;
+          }
+        }),
+    });
+
+    const id = await external.put(PRINCIPAL, blob('outside transaction'));
+    expect((await external.resolve(PRINCIPAL, id))?.bytes).toEqual(bytes('outside transaction'));
+    await external.replace(PRINCIPAL, id, blob('replacement outside transaction'));
+    expect((await external.resolve(PRINCIPAL, id))?.bytes).toEqual(
+      bytes('replacement outside transaction'),
+    );
+  });
+
   test('principal quota locks use the 64-bit hash function', async () => {
     const statements: string[] = [];
     const instrumented = new PgAssetStore(recordingQueryable(db, statements), {
@@ -501,6 +540,39 @@ describe('PgAssetStore registry behavior with PGlite', () => {
     expect(existing[0]).toContain('lock_timeout');
   });
 
+  test('delegates restricted blob claims and releases without changing entry semantics', async () => {
+    const mutations: string[] = [];
+    const restricted = new PgAssetStore(db, {
+      ...options(db, byteStore),
+      blobMutations: {
+        async claim(queryable, hash, byteSize) {
+          mutations.push('claim');
+          await queryable.query(
+            `INSERT INTO asset_blobs(content_hash,byte_size,unreferenced_at)
+             VALUES($1,$2,NULL)
+             ON CONFLICT(content_hash) DO UPDATE SET unreferenced_at=NULL,byte_size=EXCLUDED.byte_size`,
+            [hash, byteSize],
+          );
+        },
+        async release(queryable, hash) {
+          mutations.push('release');
+          await queryable.query(
+            `UPDATE asset_blobs SET unreferenced_at=now()
+              WHERE content_hash=$1
+                AND NOT EXISTS(SELECT 1 FROM asset_entries WHERE content_hash=$1)`,
+            [hash],
+          );
+        },
+      },
+    });
+
+    const id = await restricted.put(PRINCIPAL, blob('restricted-one'));
+    expect(await restricted.resolve(PRINCIPAL, id)).not.toBeNull();
+    await restricted.replace(PRINCIPAL, id, blob('restricted-two'));
+    await restricted.remove(PRINCIPAL, id);
+    expect(mutations).toEqual(['claim', 'claim', 'release', 'release']);
+  });
+
   test('remove emits the same statements with and without another principal reference', async () => {
     async function observe(shared: boolean): Promise<string[]> {
       const local = new PGlite();
@@ -550,12 +622,10 @@ describe('PgAssetStore registry behavior with PGlite', () => {
     await local.close();
   });
 
-  test('a non-transactional byte layer leaves an orphan the collector cannot see', async () => {
-    // An object store cannot join the registry transaction, so a rollback
-    // strands its bytes -- and strands them with no blob row, which is what
-    // puts them beyond reference counting. Recovering them is deployment
-    // housekeeping (a lifecycle rule or a bucket-versus-table reconciliation),
-    // not something the collector can do.
+  test('a failed external reservation writes neither bytes nor an untracked orphan', async () => {
+    // External bytes are written only after a short reservation transaction
+    // commits. A reservation failure therefore cannot strand an object that
+    // the registry and collector have no row for.
     const local = new PGlite();
     await local.waitReady;
     await ensureAssetSchema(local);
@@ -575,7 +645,7 @@ describe('PgAssetStore registry behavior with PGlite', () => {
 
     expect((await local.query('SELECT * FROM asset_entries')).rows).toEqual([]);
     expect((await local.query('SELECT * FROM asset_blobs')).rows).toEqual([]);
-    expect(await layer.read(contentHash)).toEqual(bytes('crash window'));
+    expect(await layer.read(contentHash)).toBeNull();
 
     const collector = new AssetCollector(local, layer, {
       withTransaction: transactions(local),
@@ -583,7 +653,7 @@ describe('PgAssetStore registry behavior with PGlite', () => {
       now: () => new Date('2026-01-01T00:00:00.000Z'),
     });
     expect(await collector.collect()).toBe(0);
-    expect(await layer.read(contentHash)).toEqual(bytes('crash window'));
+    expect(await layer.read(contentHash)).toBeNull();
     await local.close();
   });
 

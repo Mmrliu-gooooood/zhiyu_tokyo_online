@@ -2,6 +2,8 @@
 
 ## Status
 
+Superseded for the current rollout by the user's 2026-09-20/21 decisions: existing Supabase Pro project in Singapore, all durable user files in private Storage, historical courses migrated to the administrator, and site/owner generation limits of 16/2. The confirmed Rainyun Tokyo host is 4 vCPU / 8 GB / 40 GB with 20 Mbps upload and 30 Mbps download. See [the current implementation plan](../plans/2026-09-20-supabase-storage-and-generation-capacity.md), especially section 13. The earlier decision below is retained as history, not deployment instructions.
+
 Planning decision on 2026-09-08, following the user's deployment interview answers. Supersedes ADR-0015's mandatory Supabase Pro subscription and hosted file storage. Keeps the Tokyo region, application host, account/privacy requirements and deferred features. Infrastructure provisioning and implementation are not completed by this record.
 
 ## Context

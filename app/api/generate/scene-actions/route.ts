@@ -1,4 +1,5 @@
 import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 /**
  * Scene Actions Generation API
  *
@@ -36,6 +37,10 @@ const log = createLogger('Scene Actions API');
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePost(req));
+}
+
+async function handlePost(req: NextRequest) {
   const generationGuard = await guardClientGeneration(req);
   if (generationGuard) return generationGuard;
   let outlineTitle: string | undefined;

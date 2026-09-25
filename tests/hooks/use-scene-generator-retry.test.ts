@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   poolPut: vi.fn(),
   poolReplace: vi.fn(),
   poolRemove: vi.fn(),
+  serverBacked: vi.fn(),
   isTTSProviderEnabled: vi.fn(),
   pickNarratorAgent: vi.fn(),
   resolveAgentVoiceOptions: vi.fn(),
@@ -45,6 +46,7 @@ vi.mock('@/lib/media/asset-pool', () => ({
   putAsset: mocks.poolPut,
   replaceAsset: mocks.poolReplace,
   removeAsset: mocks.poolRemove,
+  isAssetPoolServerBacked: mocks.serverBacked,
 }));
 
 vi.mock('@/lib/audio/provider-enablement', () => ({
@@ -102,6 +104,7 @@ describe('browser scene generation retry wrappers', () => {
     mocks.poolReplace.mockReset().mockResolvedValue(undefined);
     mocks.poolRemove.mockReset().mockResolvedValue(undefined);
     mocks.poolPut.mockResolvedValue('ast_audio_allocated');
+    mocks.serverBacked.mockReset().mockReturnValue(false);
     mocks.getCurrentModelConfig.mockReturnValue({});
     mocks.settingsState.mockReturnValue({
       imageProviderId: '',
@@ -145,6 +148,9 @@ describe('browser scene generation retry wrappers', () => {
 
     expect(result).toMatchObject({ success: true, content: { elements: [] } });
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'x-generation-root-stage-id': 'stage-1',
+    });
   }, 2_000);
 
   it('does not retry permanent scene action HTTP failures', async () => {
@@ -163,6 +169,9 @@ describe('browser scene generation retry wrappers', () => {
 
     expect(result).toMatchObject({ success: false, error: 'unauthorized' });
     expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'x-generation-root-stage-id': 'stage-1',
+    });
   });
 
   it('preserves scene content error metadata for localized UI messages', async () => {
@@ -287,6 +296,31 @@ describe('browser scene generation retry wrappers', () => {
         format: 'wav',
       }),
     );
+  });
+
+  it('binds foreground TTS to the same stage root', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, base64: btoa('stage-audio'), format: 'wav' }),
+    );
+
+    await expect(
+      generateAndStoreTTS(
+        'tts-stage-root',
+        'Hello class',
+        'English',
+        undefined,
+        undefined,
+        undefined,
+        'stage-1',
+      ),
+    ).resolves.toBe('tts-stage-root');
+
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'x-generation-root-stage-id': 'stage-1',
+    });
+    expect(JSON.parse(String(mockFetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      stageId: 'stage-1',
+    });
   });
 
   it('sends a platform TTS stable reference without browser credentials', async () => {
@@ -432,6 +466,42 @@ describe('browser scene generation retry wrappers', () => {
     await expect(generateAndStoreTTS('request-1', 'Hello class')).resolves.toBe('request-1');
     expect(mocks.poolPut).not.toHaveBeenCalled();
     expect(mocks.audioPut).toHaveBeenCalledOnce();
+  });
+
+  it('allocates hosted narration before publishing its audio id, even when the local mirror fails', async () => {
+    mocks.serverBacked.mockReturnValue(true);
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, base64: btoa('hosted-audio'), format: 'wav' }),
+    );
+    mocks.audioPut.mockRejectedValueOnce(new Error('local cache full'));
+
+    await expect(generateAndStoreTTS('request-hosted', 'Hello class')).resolves.toBe(
+      'ast_audio_allocated',
+    );
+    expect(mocks.poolPut).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'audio/wav' }),
+      { contentType: 'audio/wav' },
+    );
+    expect(mocks.audioPut).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'ast_audio_allocated' }),
+    );
+  });
+
+  it('replaces an exclusively owned hosted audio asset without allocating another id', async () => {
+    mocks.serverBacked.mockReturnValue(true);
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, base64: btoa('new-audio'), format: 'wav' }),
+    );
+
+    await expect(
+      generateAndStoreTTS('request-hosted', 'Updated class', undefined, undefined, undefined, 'ast_existing'),
+    ).resolves.toBe('ast_existing');
+    expect(mocks.poolReplace).toHaveBeenCalledWith(
+      'ast_existing',
+      expect.objectContaining({ type: 'audio/wav' }),
+      { contentType: 'audio/wav' },
+    );
+    expect(mocks.poolPut).not.toHaveBeenCalled();
   });
 
   it('does not report an allocated id when the compatibility write fails', async () => {

@@ -2,11 +2,16 @@
 
 import { useCallback, useRef } from 'react';
 import { canGenerateLocally } from '@/lib/generation/ownership';
+import {
+  cancelForegroundGenerationRoot,
+  foregroundGenerationHeaders,
+} from '@/lib/generation/foreground-root-client';
 import { useStageStore } from '@/lib/store/stage';
 import { isSceneEditLocked } from '@/lib/edit/regen-lock';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { useSettingsStore } from '@/lib/store/settings';
 import { db } from '@/lib/utils/database';
+import { isAssetPoolServerBacked, putAsset, removeAsset, replaceAsset } from '@/lib/media/asset-pool';
 import type {
   SceneOutline,
   PdfImage,
@@ -189,7 +194,7 @@ export async function fetchSceneContent(
       async () => {
         const response = await fetch('/api/generate/scene-content', {
           method: 'POST',
-          headers: getApiHeaders(),
+          headers: { ...getApiHeaders(), ...foregroundGenerationHeaders(params.stageId) },
           body: JSON.stringify(withThinkingConfig(params)),
           signal,
         });
@@ -238,7 +243,7 @@ export async function fetchSceneActions(
       async () => {
         const response = await fetch('/api/generate/scene-actions', {
           method: 'POST',
-          headers: getApiHeaders(),
+          headers: { ...getApiHeaders(), ...foregroundGenerationHeaders(params.stageId) },
           body: JSON.stringify(withThinkingConfig(params)),
           signal,
         });
@@ -400,6 +405,7 @@ export async function generateAndStoreTTS(
     providerConfig: { ...ttsProviderConfig, modelId: ttsModelId },
     voiceId: ttsVoice,
     language,
+    stageId,
   });
   const requestSelection = platformTTSRequestFields(
     ttsSelection,
@@ -416,7 +422,10 @@ export async function generateAndStoreTTS(
       async () => {
         const response = await fetch('/api/generate/tts', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(stageId ? foregroundGenerationHeaders(stageId) : {}),
+          },
           body: JSON.stringify({
             text,
             audioId: requestId,
@@ -437,6 +446,7 @@ export async function generateAndStoreTTS(
             ttsProtocol: ttsProviderConfig?.protocol,
             ttsRequiresApiKey: ttsProviderConfig?.requiresApiKey,
             ttsProviderOptions: providerOptions,
+            stageId,
           }),
           signal,
         });
@@ -534,8 +544,16 @@ export async function generateAndStoreTTS(
   // clip onto a timeline without re-decoding. null → leave undefined; the audio
   // still persists and plays.
   const duration = measureAudioDuration(bytes, data.format) ?? undefined;
-  const audioId = existingAudioId ?? requestId;
-  await db.audioFiles.put({
+  const serverBacked = isAssetPoolServerBacked();
+  let audioId = existingAudioId ?? requestId;
+  if (serverBacked) {
+    if (existingAudioId) {
+      await replaceAsset(existingAudioId, blob, { contentType: blob.type });
+    } else {
+      audioId = await putAsset(blob, { contentType: blob.type });
+    }
+  }
+  const mirror = Promise.resolve(db.audioFiles.put({
     id: audioId,
     stageId,
     blob,
@@ -544,13 +562,25 @@ export async function generateAndStoreTTS(
     text,
     voice: ttsVoice,
     createdAt: Date.now(),
-  });
+  }));
+  if (serverBacked) {
+    // The pool is authoritative in hosted mode; a full local cache must not
+    // discard an otherwise durable narration clip.
+    await mirror.catch((error) => log.warn('Audio cache mirror failed:', error));
+  } else {
+    await mirror;
+  }
   return audioId;
 }
 
 export async function removeFreshTtsAllocations(assetIds: readonly string[]): Promise<void> {
   for (const assetId of new Set(assetIds)) {
     await db.audioFiles.delete(assetId).catch(() => undefined);
+    if (isAssetPoolServerBacked()) {
+      await removeAsset(assetId).catch((error) =>
+        log.warn('Failed to discard uncommitted audio asset:', error),
+      );
+    }
   }
 }
 
@@ -734,7 +764,11 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
 
       // Launch media generation in parallel — does not block content/action generation
       mediaAbortRef.current = new AbortController();
-      generateMediaForOutlines(outlines, stage.id, mediaAbortRef.current.signal).catch((err) => {
+      const mediaGeneration = generateMediaForOutlines(
+        outlines,
+        stage.id,
+        mediaAbortRef.current.signal,
+      ).catch((err) => {
         log.warn('Media generation error:', err);
       });
 
@@ -938,6 +972,9 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
             // surface them for retry instead of signalling a clean completion.
             store.getState().setGenerationStatus('paused');
           } else {
+            // Media shares this course root and may outlive content/actions.
+            // Do not emit the completion/release signal while it is still active.
+            await mediaGeneration;
             store.getState().setGenerationStatus('completed');
             store.getState().setGeneratingOutlines([]);
             store.getState().setGenerationComplete(true);
@@ -964,10 +1001,16 @@ export function useSceneGenerator(options: UseSceneGeneratorOptions = {}) {
   generateRemainingRef.current = generateRemaining;
 
   const stop = useCallback(() => {
+    const stageId = store.getState().stage?.id;
     abortRef.current = true;
     store.getState().bumpGenerationEpoch();
     fetchAbortRef.current?.abort();
     mediaAbortRef.current?.abort();
+    if (stageId) {
+      void cancelForegroundGenerationRoot(stageId).catch((error) => {
+        log.warn('Failed to release cancelled foreground generation root:', error);
+      });
+    }
   }, [store]);
 
   const isGenerating = useCallback(() => generatingRef.current, []);

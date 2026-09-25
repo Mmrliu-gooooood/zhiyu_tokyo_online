@@ -9,6 +9,7 @@ import { validateAppScene, validateAppStage } from '@/lib/document-store/validat
 import type { Scene, Stage } from '@/lib/types/stage';
 import type { SceneOutline } from '@/lib/types/generation';
 import { generationConfig, type GenerationConfig } from './config';
+import { GenerationTransactionQueue } from './transaction-queue';
 import { generationRequestHash } from './config-snapshot';
 import { notifyDurableAgentEvent } from '@/lib/server/agent-runtime/event-notify-bus';
 import { agentRuntimeConfig } from '@/lib/server/agent-runtime/config';
@@ -21,11 +22,13 @@ import {
   checkHeavyTaskAdmission,
   checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
+  heavyTaskOwnerLimit,
   isHeavyTaskFairTurn,
   reserveHeavyTaskAttention,
 } from '@/lib/server/heavy-task-admission';
 import { assertGenerationSchema } from './migrations';
 import { providerFailureDiagnostic, type ProviderFailureDiagnostic } from './failure-diagnostics';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import {
   canonicalHash,
   parseGenerationInput,
@@ -129,6 +132,7 @@ function view(r: JobRow): GenerationJobView {
 }
 export class GenerationJobRepository {
   readonly config: GenerationConfig;
+  private readonly leaseTransactions = new GenerationTransactionQueue();
   constructor(
     readonly pool: TransactionSource,
     options: Partial<GenerationConfig> = {},
@@ -154,6 +158,25 @@ export class GenerationJobRepository {
     } finally {
       c.release();
     }
+  }
+
+  private leaseTransaction<T>(
+    lease: GenerationLease,
+    body: (q: Queryable) => Promise<T>,
+    heartbeat = false,
+  ): Promise<T> {
+    return this.leaseTransactions.run(lease.jobId, () => this.transaction(body), heartbeat);
+  }
+
+  private assetStore(): PgAssetStore {
+    const queryable: Queryable = {
+      query: <R extends Record<string, unknown>>(sql: string, params?: unknown[]) =>
+        this.transaction((transaction) => transaction.query<R>(sql, params)),
+    };
+    return new PgAssetStore(queryable, {
+      withTransaction: (body) => this.transaction(body),
+      byteStore: lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable),
+    });
   }
   private async job(q: Queryable, id: string, owner?: string, lock = true): Promise<JobRow> {
     const r = await q.query<JobRow>(
@@ -374,7 +397,11 @@ export class GenerationJobRepository {
       meta.rows[0].deleted_at !== null ||
       stage.rows[0]?.owner_id !== lease.ownerId
     )
-      throw new GenerationJobError('COURSE_NOT_FOUND', 404);
+      // A worker lease becomes invalid the instant its course is deleted or
+      // tombstoned. Report the same fencing error as an epoch/owner mismatch so
+      // the worker never treats deletion as a recoverable missing read and
+      // cannot publish a late checkpoint into a recreated course id.
+      throw new GenerationJobError('STALE_GENERATION_LEASE');
     await this.assertAssetPins(q, lease.jobId);
     return r;
   }
@@ -404,26 +431,37 @@ export class GenerationJobRepository {
         return this.projectedView(q, found.rows[0]);
       }
       const id = randomUUID();
-      const queue = await checkHeavyTaskQueueCapacity(q, {
-        ownerId,
-        rootTaskId:
-          input.source?.kind === 'pro' && input.source.sessionId
-            ? `agent:${input.source.sessionId}`
-            : `generation:${id}`,
-      });
+      const queue = await checkHeavyTaskQueueCapacity(
+        q,
+        {
+          ownerId,
+          rootTaskId:
+            input.source?.kind === 'pro' && input.source.sessionId
+              ? `agent:${input.source.sessionId}`
+              : `generation:${id}`,
+        },
+        { ownerLimit: this.config.maxQueuedPerOwner, siteLimit: this.config.maxQueued },
+      );
       if (!queue.allowed) {
         throw new GenerationJobError(
           queue.reason === 'personal_queue_limit' ? 'OWNER_QUEUE_LIMIT' : 'GENERATION_QUEUE_FULL',
           queue.reason === 'personal_queue_limit' ? 429 : 503,
         );
       }
-      const attention = await checkHeavyTaskAttentionCapacity(q, {
-        ownerId,
-        rootTaskId:
-          input.source?.kind === 'pro' && input.source.sessionId
-            ? `agent:${input.source.sessionId}`
-            : `generation:${id}`,
-      });
+      const attention = await checkHeavyTaskAttentionCapacity(
+        q,
+        {
+          ownerId,
+          rootTaskId:
+            input.source?.kind === 'pro' && input.source.sessionId
+              ? `agent:${input.source.sessionId}`
+              : `generation:${id}`,
+        },
+        {
+          ownerLimit: this.config.maxReviewAttentionPerOwner,
+          siteLimit: this.config.maxReviewAttention,
+        },
+      );
       if (!attention.allowed) {
         throw new GenerationJobError(
           attention.reason === 'personal_attention_limit'
@@ -432,28 +470,6 @@ export class GenerationJobRepository {
           attention.reason === 'personal_attention_limit' ? 429 : 503,
         );
       }
-      const count = await q.query<{
-        owner_count: number;
-        total: number;
-        owner_review_attention: number;
-        review_attention: number;
-      }>(
-        `SELECT
-           count(*) FILTER(WHERE owner_id=$1 AND status='queued')::int owner_count,
-           count(*) FILTER(WHERE status='queued')::int total,
-           count(*) FILTER(WHERE owner_id=$1 AND status IN ('awaiting_confirmation','needs_attention'))::int owner_review_attention,
-           count(*) FILTER(WHERE status IN ('awaiting_confirmation','needs_attention'))::int review_attention
-         FROM generation_jobs`,
-        [ownerId],
-      );
-      if (count.rows[0].owner_count >= this.config.maxQueuedPerOwner)
-        throw new GenerationJobError('OWNER_QUEUE_LIMIT', 429);
-      if (count.rows[0].total >= this.config.maxQueued)
-        throw new GenerationJobError('GENERATION_QUEUE_FULL', 503);
-      if (count.rows[0].owner_review_attention >= this.config.maxReviewAttentionPerOwner)
-        throw new GenerationJobError('OWNER_REVIEW_ATTENTION_LIMIT', 429);
-      if (count.rows[0].review_attention >= this.config.maxReviewAttention)
-        throw new GenerationJobError('GENERATION_REVIEW_ATTENTION_FULL', 503);
       const stageId = input.target?.stageId ?? randomUUID(),
         now = Date.now();
       if (input.destination?.folderId) {
@@ -543,7 +559,10 @@ export class GenerationJobRepository {
           input.review.mode,
         ],
       );
-      if (input.review.mode === 'manual' && !(await reserveHeavyTaskAttention(q, id))) {
+      if (
+        input.review.mode === 'manual' &&
+        !(await reserveHeavyTaskAttention(q, id, this.config.maxReviewAttention))
+      ) {
         throw new GenerationJobError('GENERATION_REVIEW_ATTENTION_FULL', 503);
       }
       await q.query(
@@ -708,15 +727,40 @@ export class GenerationJobRepository {
   ): Promise<GenerationLease | null> {
     return this.transaction(async (q) => {
       await assertGenerationSchema(q);
+      // Serialize candidate selection before taking row locks. Without this lock, one
+      // claimant can lock the whole LIMIT batch while every other process observes an
+      // empty SKIP LOCKED result, leaving capacity idle until the next polling cycle.
+      // checkHeavyTaskAdmission uses the same transaction-scoped lock; PostgreSQL
+      // advisory locks are re-entrant for the owning transaction.
+      await q.query("SELECT pg_advisory_xact_lock(hashtext('heavy-task:admission:v1'))");
+      const ownerLimit = heavyTaskOwnerLimit();
+      const accountFence = isHostedAuthEnabled()
+        ? `AND candidate.cancel_requested_at IS NULL
+           AND EXISTS (
+             SELECT 1 FROM app_accounts account
+              WHERE account.owner_id=candidate.owner_id AND account.status='active'
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM deleted_account_tombstones tombstone
+              WHERE tombstone.owner_id=candidate.owner_id
+           )`
+        : 'AND candidate.cancel_requested_at IS NULL';
       let offset = 0;
       for (;;) {
         const rows = await q.query<JobRow>(
           `SELECT * FROM generation_jobs AS candidate
          WHERE ((status='queued' AND updated_at>clock_timestamp()-$2*interval '1 millisecond') OR status='retry_wait')
+           ${accountFence}
            AND available_at<=clock_timestamp()
            AND pipeline_version=ANY($1::text[])
-           AND NOT EXISTS (
-             SELECT 1 FROM generation_jobs AS active
+           AND (
+             SELECT COUNT(DISTINCT CASE
+               WHEN active.input_snapshot->'source'->>'kind'='pro'
+                AND NULLIF(active.input_snapshot->'source'->>'sessionId','') IS NOT NULL
+               THEN 'agent:' || (active.input_snapshot->'source'->>'sessionId')
+               ELSE 'generation:' || active.id
+             END)
+             FROM generation_jobs AS active
              WHERE active.owner_id=candidate.owner_id AND active.status='running'
                AND active.lease_expires_at>clock_timestamp()
                AND NOT (
@@ -725,10 +769,10 @@ export class GenerationJobRepository {
                  AND active.input_snapshot->'source'->>'kind'='pro'
                  AND active.input_snapshot->'source'->>'sessionId'=candidate.input_snapshot->'source'->>'sessionId'
                )
-           )
+           ) < $4
          ORDER BY priority DESC,available_at,created_at,id
          LIMIT 20 OFFSET $3 FOR UPDATE SKIP LOCKED`,
-          [pipelineVersions, this.config.queueWaitMs, offset],
+          [pipelineVersions, this.config.queueWaitMs, offset, ownerLimit],
         );
         for (const r of rows.rows) {
           const lock = await q.query<{ locked: boolean }>(
@@ -785,13 +829,17 @@ export class GenerationJobRepository {
     });
   }
   async heartbeat(lease: GenerationLease): Promise<boolean> {
-    return this.transaction(async (q) => {
-      const r = await q.query<{ id: string }>(
-        "UPDATE generation_jobs SET active_elapsed_ms=active_elapsed_ms+GREATEST(0,EXTRACT(EPOCH FROM (clock_timestamp()-heartbeat_at))*1000)::bigint,heartbeat_at=clock_timestamp(),lease_expires_at=clock_timestamp()+$4*interval '1 millisecond' WHERE id=$1 AND worker_id=$2 AND lease_epoch=$3 AND status='running' AND lease_expires_at>clock_timestamp() RETURNING id",
-        [lease.jobId, lease.workerId, lease.leaseEpoch, this.config.leaseMs],
-      );
-      return r.rows.length === 1;
-    });
+    return this.leaseTransaction(
+      lease,
+      async (q) => {
+        const r = await q.query<{ id: string }>(
+          "UPDATE generation_jobs SET active_elapsed_ms=active_elapsed_ms+GREATEST(0,EXTRACT(EPOCH FROM (clock_timestamp()-heartbeat_at))*1000)::bigint,heartbeat_at=clock_timestamp(),lease_expires_at=clock_timestamp()+$4*interval '1 millisecond' WHERE id=$1 AND worker_id=$2 AND lease_epoch=$3 AND status='running' AND lease_expires_at>clock_timestamp() RETURNING id",
+          [lease.jobId, lease.workerId, lease.leaseEpoch, this.config.leaseMs],
+        );
+        return r.rows.length === 1;
+      },
+      true,
+    );
   }
   async workerHeartbeat(
     workerId: string,
@@ -806,7 +854,7 @@ export class GenerationJobRepository {
     );
   }
   async getSnapshot(lease: GenerationLease) {
-    return this.transaction(async (q) => {
+    return this.leaseTransaction(lease, async (q) => {
       const job = await this.assertLease(q, lease);
       const scenes = await this.scenes(q, lease.jobId);
       const steps = await q.query<{ key: string; status: string; result: unknown }>(
@@ -817,7 +865,7 @@ export class GenerationJobRepository {
     });
   }
   async getCheckpoint(lease: GenerationLease, key: string): Promise<unknown | undefined> {
-    return this.transaction(async (q) => {
+    return this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       const r = await q.query<StepRow>(
         'SELECT * FROM generation_steps WHERE job_id=$1 AND step_key=$2',
@@ -827,7 +875,7 @@ export class GenerationJobRepository {
     });
   }
   async beginStep(lease: GenerationLease, input: StepStart): Promise<StepReceipt> {
-    return this.transaction(async (q) => {
+    return this.leaseTransaction(lease, async (q) => {
       const job = await this.assertLease(q, lease);
       if (Number(job.active_elapsed_ms) >= (lease.input.budget?.activeMs ?? 3_600_000))
         throw new GenerationJobError('GENERATION_BUDGET_EXCEEDED');
@@ -932,7 +980,7 @@ export class GenerationJobRepository {
   ): Promise<void> {
     if (!input.taskId || input.taskId.length > 500)
       throw new GenerationJobError('INVALID_PROVIDER_REQUEST_ID', 400);
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       const updated = await q.query<{ id: string }>(
         `UPDATE generation_attempts a SET provider_request_id=$3
@@ -956,7 +1004,7 @@ export class GenerationJobRepository {
       previousSpeechesHash?: string;
     },
   ): Promise<void> {
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       await this.checkpoint(q, lease, input.stepKey, input.result);
       if (input.outlineId)
@@ -1006,7 +1054,7 @@ export class GenerationJobRepository {
   ): Promise<void> {
     if (!['MEDIA_REQUEST_REJECTED', 'MEDIA_TASK_FAILED'].includes(input.code))
       throw new GenerationJobError('INVALID_MEDIA_WARNING');
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       const step = (
         await q.query<StepRow>(
@@ -1044,7 +1092,7 @@ export class GenerationJobRepository {
     stagePatch?: Partial<Stage>,
   ): Promise<void> {
     validatePlan(outlines);
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       const job = await this.assertLease(q, lease);
       if (job.plan_revision !== 0) throw new GenerationJobError('PLAN_ALREADY_FROZEN');
       if (stagePatch) await this.patchStage(q, lease, stagePatch);
@@ -1061,7 +1109,7 @@ export class GenerationJobRepository {
     });
   }
   async updateStage(lease: GenerationLease, patch: Partial<Stage>): Promise<void> {
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       await this.patchStage(q, lease, patch);
     });
@@ -1277,10 +1325,14 @@ export class GenerationJobRepository {
         throw new GenerationJobError('EXTERNAL_RESULT_ACKNOWLEDGEMENT_REQUIRED');
       await q.query("SELECT pg_advisory_xact_lock(hashtext('generation:create'))");
       await q.query("SELECT pg_advisory_xact_lock(hashtext('generation:owner:' || $1))", [ownerId]);
-      const sharedQueue = await checkHeavyTaskQueueCapacity(q, {
-        ownerId,
-        rootTaskId: this.rootTaskId(j),
-      });
+      const sharedQueue = await checkHeavyTaskQueueCapacity(
+        q,
+        {
+          ownerId,
+          rootTaskId: this.rootTaskId(j),
+        },
+        { ownerLimit: this.config.maxQueuedPerOwner, siteLimit: this.config.maxQueued },
+      );
       if (!sharedQueue.allowed) {
         throw new GenerationJobError(
           sharedQueue.reason === 'personal_queue_limit'
@@ -1289,14 +1341,6 @@ export class GenerationJobRepository {
           sharedQueue.reason === 'personal_queue_limit' ? 429 : 503,
         );
       }
-      const queued = await q.query<{ owner_count: number; total: number }>(
-        "SELECT count(*) FILTER(WHERE owner_id=$1)::int owner_count,count(*)::int total FROM generation_jobs WHERE id<>$2 AND status='queued'",
-        [ownerId, id],
-      );
-      if (queued.rows[0].owner_count >= this.config.maxQueuedPerOwner)
-        throw new GenerationJobError('OWNER_QUEUE_LIMIT', 429);
-      if (queued.rows[0].total >= this.config.maxQueued)
-        throw new GenerationJobError('GENERATION_QUEUE_FULL', 503);
       const meta = await q.query<{ deleted_at: unknown }>(
         'SELECT deleted_at FROM stage_meta WHERE stage_id=$1 FOR UPDATE',
         [j.stage_id],
@@ -1340,7 +1384,7 @@ export class GenerationJobRepository {
   }
   async publishScene(lease: GenerationLease, outlineId: string, scene: Scene): Promise<void> {
     if (!validateAppScene(scene).valid) throw new GenerationJobError('INVALID_SCENE_RESULT');
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       const rows = await this.scenes(q, lease.jobId);
       const slot = rows.find((s) => s.outlineId === outlineId);
@@ -1398,7 +1442,7 @@ export class GenerationJobRepository {
     });
   }
   async complete(lease: GenerationLease): Promise<void> {
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       const job = await this.assertLease(q, lease);
       const pending = await q.query<{ n: number }>(
         "SELECT count(*)::int n FROM generation_steps WHERE job_id=$1 AND status NOT IN ('succeeded','skipped')",
@@ -1433,7 +1477,7 @@ export class GenerationJobRepository {
       diagnostic?: ProviderFailureDiagnostic;
     },
   ): Promise<void> {
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       const job = await this.assertLease(q, lease);
       const step = (
         await q.query<StepRow>(
@@ -1508,7 +1552,7 @@ export class GenerationJobRepository {
     });
   }
   async fail(lease: GenerationLease, code = 'GENERATION_FAILED', uncertain = false): Promise<void> {
-    await this.transaction(async (q) => {
+    await this.leaseTransaction(lease, async (q) => {
       const job = await this.assertLease(q, lease);
       const attempts = await q.query<{ id: string }>(
         "UPDATE generation_attempts a SET outcome='uncertain' FROM generation_steps s WHERE a.step_id=s.id AND s.job_id=$1 AND a.outcome='running' RETURNING a.id",
@@ -1625,36 +1669,27 @@ export class GenerationJobRepository {
     ownerId: string,
     assetId: string,
   ): Promise<{ bytes: Uint8Array; mimeType: string }> {
-    return this.transaction(async (q) => {
-      const row = (
-        await q.query<{
-          bytes: Uint8Array | null;
-          mime: string;
-          content_hash: string;
-          byte_size: number;
-        }>(
-          'SELECT b.bytes,e.mime,e.content_hash,b.byte_size FROM asset_entries e JOIN asset_blobs b ON b.content_hash=e.content_hash WHERE e.id=$1 AND e.principal=$2 FOR SHARE OF e,b',
-          [assetId, ownerId],
-        )
-      ).rows[0];
-      if (!row || Number(row.byte_size) > 100_000_000)
-        throw new GenerationJobError('BACKGROUND_MATERIAL_UNAVAILABLE', 422);
-      const bytes =
-        row.bytes ??
-        (await lazyAssetByteStore(process.env.ASSET_S3_BUCKET, q).read(row.content_hash as never));
-      if (!bytes || bytes.byteLength !== Number(row.byte_size))
-        throw new GenerationJobError('BACKGROUND_MATERIAL_UNAVAILABLE', 422);
-      return { bytes, mimeType: row.mime };
-    });
+    const store = this.assetStore();
+    const identity = await store.identify({ key: ownerId }, assetId);
+    if (!identity || identity.byteLength > 100_000_000)
+      throw new GenerationJobError('BACKGROUND_MATERIAL_UNAVAILABLE', 422);
+    const asset = await store.resolve({ key: ownerId }, assetId);
+    if (
+      !asset ||
+      asset.bytes.byteLength !== identity.byteLength ||
+      asset.bytes.byteLength > 100_000_000
+    )
+      throw new GenerationJobError('BACKGROUND_MATERIAL_UNAVAILABLE', 422);
+    return { bytes: asset.bytes, mimeType: asset.mime };
   }
-  /** Asset bytes + allocated identity + logical job mapping share the live lease transaction. */
+  /** Upload bytes without a checked-out DB client; bind the result under a fresh live-lease fence. */
   async writeAsset(
     lease: GenerationLease,
     input: { logicalKey: string; bytes: Uint8Array; mimeType: string; sceneId?: string },
   ): Promise<string> {
     if (input.bytes.byteLength > (lease.input.budget?.maxAssetBytes ?? 100_000_000))
       throw new GenerationJobError('GENERATION_ASSET_BUDGET_EXCEEDED');
-    return this.transaction(async (q) => {
+    const preflight = await this.leaseTransaction(lease, async (q) => {
       await this.assertLease(q, lease);
       const existing = await q.query<{ asset_id: string }>(
         'SELECT asset_id FROM generation_job_assets WHERE job_id=$1 AND logical_key=$2',
@@ -1670,26 +1705,49 @@ export class GenerationJobRepository {
         (lease.input.budget?.maxAssetBytes ?? 100_000_000)
       )
         throw new GenerationJobError('GENERATION_ASSET_BUDGET_EXCEEDED');
-      const assetStore = new PgAssetStore(q, {
-        withTransaction: (body) => body(q),
-        byteStore: lazyAssetByteStore(process.env.ASSET_S3_BUCKET, q),
-      });
-      const copied = new Uint8Array(input.bytes.byteLength);
-      copied.set(input.bytes);
-      const id = await assetStore.put(
-        { key: lease.ownerId },
-        new Blob([copied], { type: input.mimeType }),
-        { contentType: input.mimeType },
-      );
-      await q.query(
-        "INSERT INTO generation_job_assets(job_id,logical_key,asset_id,role,scene_id,lifecycle,asset_revision,content_hash) SELECT $1,$2,id,'output',$4,'staged',revision,content_hash FROM asset_entries WHERE id=$3",
-        [lease.jobId, input.logicalKey, id, input.sceneId ?? null],
-      );
-      // A byte backend may await I/O. Expiry while writing must not commit an
-      // identity under a lease that was only valid before the upload started.
-      await this.assertLease(q, lease);
-      return id;
+      return null;
     });
+    if (preflight) return preflight;
+
+    const copied = new Uint8Array(input.bytes.byteLength);
+    copied.set(input.bytes);
+    const assetStore = this.assetStore();
+    const uploadedId = await assetStore.put(
+      { key: lease.ownerId },
+      new Blob([copied], { type: input.mimeType }),
+      { contentType: input.mimeType },
+    );
+    try {
+      const boundId = await this.leaseTransaction(lease, async (q) => {
+        await this.assertLease(q, lease);
+        const existing = await q.query<{ asset_id: string }>(
+          'SELECT asset_id FROM generation_job_assets WHERE job_id=$1 AND logical_key=$2',
+          [lease.jobId, input.logicalKey],
+        );
+        if (existing.rows[0]) return existing.rows[0].asset_id;
+        const usage = await q.query<{ bytes: number }>(
+          "SELECT COALESCE(sum(b.byte_size),0)::bigint AS bytes FROM generation_job_assets a JOIN asset_entries e ON e.id=a.asset_id JOIN asset_blobs b ON b.content_hash=e.content_hash WHERE a.job_id=$1 AND a.role='output'",
+          [lease.jobId],
+        );
+        if (
+          Number(usage.rows[0].bytes) + input.bytes.byteLength >
+          (lease.input.budget?.maxAssetBytes ?? 100_000_000)
+        )
+          throw new GenerationJobError('GENERATION_ASSET_BUDGET_EXCEEDED');
+        await q.query(
+          "INSERT INTO generation_job_assets(job_id,logical_key,asset_id,role,scene_id,lifecycle,asset_revision,content_hash) SELECT $1,$2,id,'output',$4,'staged',revision,content_hash FROM asset_entries WHERE id=$3",
+          [lease.jobId, input.logicalKey, uploadedId, input.sceneId ?? null],
+        );
+        return uploadedId;
+      });
+      if (boundId !== uploadedId) {
+        await assetStore.remove({ key: lease.ownerId }, uploadedId).catch(() => undefined);
+      }
+      return boundId;
+    } catch (error) {
+      await assetStore.remove({ key: lease.ownerId }, uploadedId).catch(() => undefined);
+      throw error;
+    }
   }
   /** Only discard terminal, unattached outputs. Input/shared/published assets remain pinned. */
   async releaseExpiredStagedAssets(): Promise<number> {

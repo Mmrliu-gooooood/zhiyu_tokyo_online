@@ -12,6 +12,8 @@
  * the fetch request, which triggers req.signal on the server side.
  */
 
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
+import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
 import { statelessGenerate } from '@/lib/orchestration/stateless-generate';
 import { isProviderKeyRequired } from '@/lib/ai/providers';
@@ -42,6 +44,12 @@ export const maxDuration = 60;
  * Response: SSE stream of StatelessEvent
  */
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   const encoder = new TextEncoder();
   let chatModel: string | undefined;
   let chatMessageCount: number | undefined;
@@ -50,6 +58,9 @@ export async function POST(req: NextRequest) {
     const body: StatelessChatRequest = await req.json();
     chatModel = body.model;
     chatMessageCount = body.messages?.length;
+
+    const deniedStage = await refuseForeignStagePost(req, stageIdFromStoreState(body.storeState));
+    if (deniedStage) return deniedStage;
 
     // Validate required fields
     if (!body.messages || !Array.isArray(body.messages)) {

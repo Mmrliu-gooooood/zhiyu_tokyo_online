@@ -72,4 +72,42 @@ describe('signed PRO owner identity', () => {
     expect(handler).not.toHaveBeenCalled();
     expect(await response.json()).toEqual({ error: 'ORIGIN_NOT_ALLOWED' });
   });
+
+  it.each([
+    [new Error('timeout exceeded when trying to connect: secret-url'), { category: 'timeout' }],
+    [
+      Object.assign(new Error('private-host'), { code: 'EAI_AGAIN' }),
+      { category: 'dns', code: 'EAI_AGAIN' },
+    ],
+    [
+      Object.assign(new Error('private SQL values'), { code: '42501' }),
+      { category: 'sqlstate', code: '42501' },
+    ],
+    [
+      Object.assign(new Error('private message'), { code: 'secret-connection-string' }),
+      { category: 'unknown' },
+    ],
+  ])(
+    'logs only a safe classification for an unexpected request failure',
+    async (error, expected) => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const response = await withRequestOwnerId(
+          new Request('http://localhost:3000/api/stages'),
+          async () => {
+            throw error;
+          },
+        );
+        expect(response.status).toBe(500);
+        expect(await response.text()).toBe('Internal Server Error');
+        expect(log).toHaveBeenCalledWith(
+          '[agent-runtime] request failed under a signed owner',
+          expected,
+        );
+        expect(log).toHaveBeenCalledTimes(1);
+      } finally {
+        log.mockRestore();
+      }
+    },
+  );
 });

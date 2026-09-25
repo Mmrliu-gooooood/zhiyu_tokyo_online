@@ -65,4 +65,13 @@ describe('generation preflight capability diagnostics', () => {
       httpStatus: 422,
     });
   });
+
+  it('accepts the shared S3 asset backend used by hosted workers', async () => {
+    vi.stubEnv('ASSET_S3_BUCKET', 'zhiyu-assets');
+    const input = parseGenerationInput({
+      version: 1,
+      requirements: { requirement: '同分母分数相加' },
+    });
+    await expect(validateBackgroundProviders(input)).resolves.toBeUndefined();
+  });
 });

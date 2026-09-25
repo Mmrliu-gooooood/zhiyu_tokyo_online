@@ -17,6 +17,8 @@
  */
 import { Client, type Notification } from 'pg';
 
+import { appPostgresConnectionConfig } from '@/lib/db/app-pool';
+import { getListenDatabaseUrl } from '@/lib/db/database-urls';
 import { createLogger } from '@/lib/logger';
 
 /** The minimal query surface a transaction handle must expose for pg_notify. */
@@ -57,6 +59,7 @@ interface PendingProbe {
 
 interface BusState {
   client: Client | null;
+  connectionStringOverride: string | null;
   connecting: Promise<void> | null;
   retryTimer: ReturnType<typeof setTimeout> | null;
   reconnectDelayMs: number;
@@ -78,6 +81,11 @@ export interface AgentEventNotifyBusHandle {
   connecting: Promise<void>;
 }
 
+export interface AgentEventNotifyBusOptions {
+  /** Process-role-specific session/direct URL; never logged. */
+  connectionString?: string;
+}
+
 const log = createLogger('AgentEventNotifyBus');
 const GLOBAL_KEY = '__openmaicAgentEventNotifyBus';
 const globalWithBus = globalThis as typeof globalThis & { [GLOBAL_KEY]?: BusState };
@@ -85,6 +93,7 @@ const globalWithBus = globalThis as typeof globalThis & { [GLOBAL_KEY]?: BusStat
 function createState(): BusState {
   return {
     client: null,
+    connectionStringOverride: null,
     connecting: null,
     retryTimer: null,
     reconnectDelayMs: 100,
@@ -232,8 +241,10 @@ function disconnected(client: Client, generation: number, error?: unknown) {
 }
 
 async function connect(generation: number): Promise<void> {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
+  let connectionString: string;
+  try {
+    connectionString = state.connectionStringOverride ?? getListenDatabaseUrl();
+  } catch {
     throw new Error('DATABASE_URL environment variable is required for agent event LISTEN');
   }
 
@@ -242,7 +253,7 @@ async function connect(generation: number): Promise<void> {
   // process-wide state above gives one application instance exactly one live
   // LISTEN connection and fans notifications out in memory.
   const client = new Client({
-    connectionString,
+    ...appPostgresConnectionConfig(connectionString),
     application_name: AGENT_EVENT_NOTIFY_APPLICATION_NAME,
     connectionTimeoutMillis: 10_000,
   });
@@ -323,7 +334,19 @@ async function ensureConnected(): Promise<void> {
   return state.connecting;
 }
 
-export function startAgentEventNotifyBus(): AgentEventNotifyBusHandle {
+export function startAgentEventNotifyBus(
+  options: AgentEventNotifyBusOptions = {},
+): AgentEventNotifyBusHandle {
+  const requested = options.connectionString?.trim() || null;
+  if (
+    !state.stopped &&
+    requested &&
+    state.connectionStringOverride &&
+    requested !== state.connectionStringOverride
+  ) {
+    throw new Error('Agent event notify bus is already using a different connection role');
+  }
+  if (requested) state.connectionStringOverride = requested;
   state.stopped = false;
   const connecting = ensureConnected();
   return { stop: stopAgentEventNotifyBus, connecting };
@@ -339,6 +362,7 @@ export async function stopAgentEventNotifyBus(): Promise<void> {
   state.client = null;
   state.hasConnected = false;
   state.reconnectDelayMs = 100;
+  state.connectionStringOverride = null;
   // generation already advanced above, so cancel the probe directly.
   const pending = state.pendingProbe;
   if (pending) {

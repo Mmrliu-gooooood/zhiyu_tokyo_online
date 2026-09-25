@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as authApi from '@/lib/auth/api';
+import * as stageGate from '@/lib/auth/stage-owner-gate';
+import { createPrincipal } from '@/lib/auth/principal';
+import { getProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
 
 const mocks = vi.hoisted(() => ({
   callLLM: vi.fn(),
@@ -112,7 +116,32 @@ describe('teach-back API route', () => {
     expect(mocks.callLLM.mock.calls[0][0].maxRetries).toBe(0);
   });
 
-  it('keeps a correct first-turn evaluation when the model cites unknown wording', async () => {
+  it('binds provider quota to the verified principal rather than a submitted owner', async () => {
+    const principal = createPrincipal({
+      userId: '11111111-1111-4111-8111-111111111111',
+      role: 'user',
+      sessionId: 'verified-session',
+      email: 'quota@example.test',
+    });
+    const auth = vi.spyOn(authApi, 'requirePrincipalIfHosted').mockResolvedValue(principal);
+    const stage = vi.spyOn(stageGate, 'refuseForeignStagePost').mockResolvedValue(null);
+    const original = mocks.callLLM.getMockImplementation()!;
+    mocks.callLLM.mockImplementation((...args) => {
+      expect(getProviderQuotaOwner()).toBe(principal.ownerId);
+      return original(...args);
+    });
+    try {
+      const response = await POST(makeRequest({ ownerId: 'user:attacker-supplied' }));
+      expect(response.status).toBe(200);
+      expect(mocks.callLLM).toHaveBeenCalledTimes(1);
+      expect(getProviderQuotaOwner()).toBeUndefined();
+    } finally {
+      auth.mockRestore();
+      stage.mockRestore();
+    }
+  });
+
+  it('keeps a correct first-turn evaluation when the model cites the current answer', async () => {
     mocks.callLLM.mockResolvedValue({
       text: JSON.stringify({
         turnId: 'turn-1',
@@ -121,7 +150,7 @@ describe('teach-back API route', () => {
             criterionId: 'criterion-1',
             status: 'explained',
             reason: 'Said glucose',
-            citation: { turnId: 'turn-1', excerpt: 'not in the student text' },
+            citation: { turnId: 'turn-1', excerpt: 'stored in glucose' },
           },
         ],
         nextQuestion: {
@@ -176,7 +205,10 @@ describe('teach-back API route', () => {
     expect(body.success).toBe(true);
     expect(body.result.nextQuestion).toBeUndefined();
     expect(body.result.endReason).toBe('all_explained');
-    expect(body.result.criteria[0].citation).toBeUndefined();
+    expect(body.result.criteria[0].citation).toEqual({
+      turnId: 'turn-1',
+      excerpt: 'stored in glucose',
+    });
   });
 
   it('accepts a third-turn result even if the model still asks another question', async () => {

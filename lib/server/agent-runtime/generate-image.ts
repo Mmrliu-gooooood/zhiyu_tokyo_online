@@ -1,7 +1,3 @@
-import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { Type, type Static } from 'typebox';
 
@@ -30,7 +26,7 @@ import {
   MAX_REMOTE_IMAGE_BYTES,
   readResponseBodyWithLimit,
 } from '@/lib/server/bounded-download';
-import { CLASSROOMS_DIR } from '@/lib/server/classroom-storage';
+import { persistClassroomMediaBytes } from '@/lib/server/classroom-media-bytes';
 import type { CourseToolDeps } from './course-tools';
 import { COURSE_STAGE_ID_DESCRIPTION } from './course-stage';
 import { errorResult, MEDIA_TOOL_ERROR_REASONS } from './media-tool-result';
@@ -184,7 +180,7 @@ async function imageBytes(
 }
 
 /**
- * Persist through the same local classroom-media path used by classic mode,
+ * Persist through the same classroom-media path used by classic mode,
  * returning an origin-independent RELATIVE serving path. The agent runtime has
  * no request to derive an origin from, and the durable value must stay valid
  * regardless of the origin the app is served from; the browser resolves the
@@ -197,16 +193,14 @@ export async function defaultPersistGeneratedImage({
   signal,
 }: PersistImageInput): Promise<string> {
   const { bytes, mime } = await imageBytes(result, signal);
-  const hash = createHash('sha256').update(bytes).digest('hex');
   throwIfAborted(signal);
-
-  const mediaDir = path.join(CLASSROOMS_DIR, stageId, 'media');
-  const filename = `generated-${hash}.${extensionForMime(mime)}`;
-  await fs.mkdir(mediaDir, { recursive: true });
-  throwIfAborted(signal);
-  await fs.writeFile(path.join(mediaDir, filename), bytes);
-  throwIfAborted(signal);
-  return `/api/classroom-media/${stageId}/media/${filename}`;
+  return persistClassroomMediaBytes({
+    stageId,
+    bytes,
+    mime,
+    prefix: 'generated',
+    signal,
+  });
 }
 
 /**

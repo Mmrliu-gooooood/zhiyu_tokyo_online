@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const session = await resolveOwnedSession(sessionId, ownerId);
     if (!session) return ownerNotFound(responseHeaders);
     const { id } = await params;
-    const material = await getSessionMaterial(sessionId, id);
+    const material = await getSessionMaterial(sessionId, id, ownerId);
     if (!material) return ownerNotFound(responseHeaders);
     return ownerJson({ material: publicMaterialView(material) }, 200, responseHeaders);
   });

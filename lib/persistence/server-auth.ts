@@ -16,6 +16,9 @@ import type { IncomingMessage } from 'node:http';
 
 import type { AssetPrincipal } from '@openmaic/storage';
 import type { RuntimeHttpPrincipal } from '@openmaic/storage/server';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { tryPrincipal } from '@/lib/auth/session';
+import { hasSupabaseBrowserConfig } from '@/lib/supabase/env';
 import { resolveGenerationOwner } from '@/lib/server/generation-jobs/auth';
 
 type PersistencePrincipal = RuntimeHttpPrincipal & Partial<Pick<AssetPrincipal, 'key'>>;
@@ -54,6 +57,15 @@ function authenticatePersistenceCredentials(
   return { key: SHARED_ASSET_PRINCIPAL, ...(learnerKey ? { learnerKey } : {}) };
 }
 
+function incomingToRequest(req: IncomingMessage): Request {
+  const headers = new Headers();
+  for (const key of ['authorization', 'x-learner-key', 'cookie', 'origin', 'host']) {
+    const value = singleHeader(req.headers[key]);
+    if (value) headers.set(key, value);
+  }
+  return new Request('http://localhost:3000/api/persistence', { headers });
+}
+
 export function authenticatePersistenceHeaders(headers: Headers): PersistencePrincipal | undefined {
   const principal = authenticatePersistenceCredentials(
     headers.get('authorization') ?? undefined,
@@ -80,7 +92,28 @@ export function authenticatePersistenceHeaders(headers: Headers): PersistencePri
 
 export async function authenticatePersistenceRequest(
   req: IncomingMessage,
+  originalRequest?: Request,
 ): Promise<PersistencePrincipal | undefined> {
+  if (hasSupabaseBrowserConfig()) {
+    try {
+      // The embedded adapter has already authenticated this exact request.
+      // Reuse its request-scoped verification; standalone callers still verify
+      // their incoming credentials normally. Learner binding remains below.
+      const principal = await tryPrincipal(originalRequest ?? incomingToRequest(req));
+      if (principal) {
+        if (
+          req.headers['x-learner-key'] &&
+          singleHeader(req.headers['x-learner-key']) !== principal.learnerKey
+        ) {
+          return undefined;
+        }
+        return { key: principal.assetPrincipal, learnerKey: principal.learnerKey };
+      }
+    } catch {
+      return undefined;
+    }
+  }
+  if (isHostedAuthEnabled()) return undefined;
   const headers = new Headers();
   for (const key of ['authorization', 'x-learner-key', 'cookie']) {
     const value = singleHeader(req.headers[key]);

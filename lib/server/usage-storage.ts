@@ -1,6 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { randomUUID } from 'node:crypto';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
 import { createLogger } from '@/lib/logger';
+import { getHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
+import { getProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
 import { hasBillableTokens, type NormalizedUsage } from '@/lib/usage/normalize';
 
 const log = createLogger('UsageStorage');
@@ -36,6 +43,13 @@ export interface UsageRecordInput {
   quantity?: number;
   /** Unit for `quantity`. */
   unit?: UsageUnit;
+  /** Hosted-account owner. Absent on historical deployment-wide rows. */
+  ownerId?: string;
+  /** Stable caller identifier used to make retried usage writes idempotent. */
+  eventKey?: string;
+  jobId?: string;
+  sessionId?: string;
+  requestId?: string;
 }
 
 /** A persisted usage row — pure usage, no cost. */
@@ -56,6 +70,7 @@ export interface UsageRecord {
   // Non-token usage (e.g. image count, video seconds, TTS characters).
   quantity?: number;
   unit?: UsageUnit;
+  ownerId?: string;
 }
 
 interface RecordOptions {
@@ -64,10 +79,8 @@ interface RecordOptions {
   now?: Date;
 }
 
-let counter = 0;
 function makeId(now: Date): string {
-  counter = (counter + 1) % 1_000_000;
-  return `${now.getTime()}-${counter.toString(36)}`;
+  return `${now.getTime()}-${randomUUID()}`;
 }
 
 const ZERO_USAGE: NormalizedUsage = {
@@ -97,7 +110,13 @@ export async function recordUsage(
   // next to production traffic, corrupting any real usage analysis. Tests that
   // mean to exercise storage pass an explicit `baseDir` (or mock this module),
   // so both of those keep working.
-  if (!opts.baseDir && (process.env.VITEST || process.env.NODE_ENV === 'test')) return;
+  if (
+    !opts.baseDir &&
+    !isHostedAuthEnabled() &&
+    (process.env.VITEST || process.env.NODE_ENV === 'test')
+  ) {
+    return;
+  }
 
   try {
     const kind: UsageKind = input.kind ?? 'llm';
@@ -110,6 +129,8 @@ export async function recordUsage(
     }
 
     const now = opts.now ?? new Date();
+    const rootContext = getHeavyTaskRootContext();
+    const ownerId = input.ownerId ?? rootContext?.ownerId ?? getProviderQuotaOwner();
     const record: UsageRecord = {
       id: makeId(now),
       createdAt: now.getTime(),
@@ -125,7 +146,49 @@ export async function recordUsage(
       reasoningTokens: usage.reasoningTokens,
       ...(input.quantity != null ? { quantity: input.quantity } : {}),
       ...(input.unit ? { unit: input.unit } : {}),
+      ...(ownerId ? { ownerId } : {}),
     };
+
+    if (isHostedAuthEnabled() && !opts.baseDir) {
+      if (!record.ownerId) {
+        log.warn('Skipped hosted usage event without a verified owner');
+        return;
+      }
+      const db = createOwnerBoundQueryable(getPersistencePool(), record.ownerId);
+      await db.query(
+        `INSERT INTO usage_events (
+           owner_id, event_key, source, kind, job_id, session_id, request_id,
+           model, provider_id, model_id, model_string,
+           input_tokens, output_tokens, cache_read_tokens,
+           cache_creation_tokens, reasoning_tokens, quantity, unit, created_at
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+         )
+         ON CONFLICT (owner_id, event_key) WHERE event_key IS NOT NULL DO NOTHING`,
+        [
+          record.ownerId,
+          input.eventKey ?? record.id,
+          record.source,
+          record.kind,
+          input.jobId ?? rootContext?.rootTaskId ?? null,
+          input.sessionId ?? null,
+          input.requestId ?? null,
+          record.modelString,
+          record.providerId,
+          record.modelId,
+          record.modelString,
+          record.inputTokens,
+          record.outputTokens,
+          record.cacheReadTokens,
+          record.cacheCreationTokens,
+          record.reasoningTokens,
+          record.quantity ?? null,
+          record.unit ?? null,
+          new Date(record.createdAt),
+        ],
+      );
+      return;
+    }
 
     const dir = usageDir(opts.baseDir);
     await fs.mkdir(dir, { recursive: true });
@@ -143,6 +206,11 @@ export interface GenerationUsageInput {
   /** The client-requested model id; falls back to providerId when absent. */
   modelId?: string;
   quantity: number;
+  ownerId?: string;
+  eventKey?: string;
+  jobId?: string;
+  sessionId?: string;
+  requestId?: string;
 }
 
 /**
@@ -161,6 +229,11 @@ export function recordGenerationUsage(input: GenerationUsageInput): Promise<void
     modelId,
     modelString: `${input.providerId}:${modelId}`,
     quantity: input.quantity,
+    ...(input.ownerId ? { ownerId: input.ownerId } : {}),
+    ...(input.eventKey ? { eventKey: input.eventKey } : {}),
+    ...(input.jobId ? { jobId: input.jobId } : {}),
+    ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+    ...(input.requestId ? { requestId: input.requestId } : {}),
   });
 }
 
@@ -175,7 +248,59 @@ interface ReadOptions {
  * absent. Malformed lines are skipped. Legacy rows without `kind` are treated as
  * 'llm'; any legacy cost fields are simply ignored.
  */
-export async function readUsageRecords(opts: ReadOptions = {}): Promise<UsageRecord[]> {
+export async function readUsageRecords(
+  opts: ReadOptions & { ownerId?: string } = {},
+): Promise<UsageRecord[]> {
+  if (isHostedAuthEnabled() && !opts.baseDir) {
+    if (!opts.ownerId) throw new Error('HOSTED_USAGE_OWNER_REQUIRED');
+    const db = createOwnerBoundQueryable(getPersistencePool(), opts.ownerId);
+    const months = opts.months?.filter((month) => /^\d{4}-\d{2}$/.test(month));
+    const result = await db.query<{
+      id: string | number;
+      created_at: Date | string;
+      kind: UsageKind;
+      source: string;
+      provider_id: string | null;
+      model_id: string | null;
+      model_string: string | null;
+      model: string | null;
+      input_tokens: number;
+      output_tokens: number;
+      cache_read_tokens: number;
+      cache_creation_tokens: number;
+      reasoning_tokens: number;
+      quantity: string | number | null;
+      unit: UsageUnit | null;
+      owner_id: string;
+    }>(
+      `SELECT id, created_at, kind, source, provider_id, model_id, model_string, model,
+              input_tokens, output_tokens, cache_read_tokens,
+              cache_creation_tokens, reasoning_tokens, quantity, unit, owner_id
+         FROM usage_events
+        WHERE owner_id=$1
+          AND ($2::text[] IS NULL OR to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM') = ANY($2))
+        ORDER BY created_at, id`,
+      [opts.ownerId, months?.length ? months : null],
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      createdAt: new Date(row.created_at).getTime(),
+      kind: row.kind || 'llm',
+      source: row.source,
+      providerId: row.provider_id ?? 'unknown',
+      modelId: row.model_id ?? row.model ?? 'unknown',
+      modelString: row.model_string ?? row.model ?? row.model_id ?? 'unknown',
+      inputTokens: row.input_tokens,
+      outputTokens: row.output_tokens,
+      cacheReadTokens: row.cache_read_tokens,
+      cacheCreationTokens: row.cache_creation_tokens,
+      reasoningTokens: row.reasoning_tokens,
+      ...(row.quantity == null ? {} : { quantity: Number(row.quantity) }),
+      ...(row.unit ? { unit: row.unit } : {}),
+      ownerId: row.owner_id,
+    }));
+  }
+
   const dir = usageDir(opts.baseDir);
   let files: string[];
   try {
@@ -201,6 +326,11 @@ export async function readUsageRecords(opts: ReadOptions = {}): Promise<UsageRec
       try {
         const row = JSON.parse(trimmed) as UsageRecord;
         if (!row.kind) row.kind = 'llm'; // backward-compat
+        if (opts.ownerId) {
+          if (row.ownerId !== opts.ownerId) continue;
+        } else if (shouldIsolateOwner(row.ownerId)) {
+          continue;
+        }
         records.push(row);
       } catch {
         // skip malformed line

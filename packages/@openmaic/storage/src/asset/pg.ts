@@ -1,13 +1,12 @@
 /**
  * PostgreSQL registry for server assets over a pluggable byte layer.
  *
- * Within a write, the blob row is claimed first, then the bytes are written,
- * then the entry that references them. The order is load-bearing at both ends:
- * claiming the row first serializes the write against the collector, which
- * could otherwise delete those bytes while this upsert waited for the lock, and
- * writing bytes before the entry keeps every surviving entry backed by bytes
- * that were actually stored. The byte write is unconditional, so both existence
- * paths emit the same statements.
+ * Transactional byte layers claim the blob row, write bytes and bind the entry
+ * on one connection. External object stores instead use three phases: a short
+ * reservation transaction gives an unreferenced row a fresh collection grace,
+ * network I/O runs without a database connection or row lock, then a second
+ * short transaction rechecks quota and binds the entry. A crash after upload
+ * leaves a row the collector can reclaim, never an untracked object.
  *
  * The byte write itself must go through the transaction-pinned queryable
  * (`writeWith`) whenever the bytes live in the registry's own PostgreSQL:
@@ -57,6 +56,13 @@ export interface PgAssetStoreOptions {
   byteStore: AssetByteStore;
   /** Optional logical-byte ceiling for each principal. */
   quotaBytes?: number;
+  /** Optional narrow registry mutations for a restricted database login. */
+  blobMutations?: AssetBlobMutations;
+}
+
+export interface AssetBlobMutations {
+  claim(queryable: Queryable, hash: string, byteSize: number): Promise<void>;
+  release(queryable: Queryable, hash: string): Promise<void>;
 }
 
 /** One PGlite-compatible statement per entry, in dependency order. */
@@ -173,6 +179,7 @@ export class PgAssetStore implements AssetStore {
   private readonly transactionHook: WithTransaction;
   private readonly byteStore: AssetByteStore;
   private readonly quotaBytes?: number;
+  private readonly blobMutations?: AssetBlobMutations;
 
   constructor(
     private readonly queryable: Queryable,
@@ -195,6 +202,42 @@ export class PgAssetStore implements AssetStore {
     this.transactionHook = options.withTransaction;
     this.byteStore = options.byteStore;
     this.quotaBytes = options.quotaBytes;
+    this.blobMutations = options.blobMutations;
+  }
+
+  private async claimBlob(
+    queryable: Queryable,
+    hash: ContentHash,
+    byteSize: number,
+  ): Promise<void> {
+    if (this.blobMutations) {
+      await this.blobMutations.claim(queryable, hash, byteSize);
+      return;
+    }
+    await queryable.query(
+      `INSERT INTO asset_blobs (content_hash, byte_size, unreferenced_at)
+       VALUES ($1, $2, NULL)
+       ON CONFLICT (content_hash) DO UPDATE
+         SET unreferenced_at = NULL,
+             byte_size = EXCLUDED.byte_size`,
+      [hash, byteSize],
+    );
+  }
+
+  private async releaseBlob(queryable: Queryable, hash: ContentHash): Promise<void> {
+    if (this.blobMutations) {
+      await this.blobMutations.release(queryable, hash);
+      return;
+    }
+    await queryable.query(
+      `UPDATE asset_blobs
+          SET unreferenced_at = now()
+        WHERE content_hash = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM asset_entries WHERE content_hash = $1
+          )`,
+      [hash],
+    );
   }
 
   private transaction<T>(body: (queryable: Queryable) => Promise<T>): Promise<T> {
@@ -257,6 +300,28 @@ export class PgAssetStore implements AssetStore {
     this.assertByteWriteIsCoordinatable();
   }
 
+  private usesExternalByteStore(): boolean {
+    return (
+      !hasTransactionalWriter(this.byteStore) &&
+      this.byteStore.writesOutsideRegistryDatabase === true
+    );
+  }
+
+  /**
+   * Protect an out-of-database upload from the collector without retaining a
+   * PostgreSQL connection while the network write runs. The immediate release
+   * gives a brand-new, still-unreferenced row a fresh grace timestamp; a
+   * successful final binding claims it again and clears that timestamp.
+   */
+  private async reserveExternalBlob(
+    queryable: Queryable,
+    hash: ContentHash,
+    byteSize: number,
+  ): Promise<void> {
+    await this.claimBlob(queryable, hash, byteSize);
+    await this.releaseBlob(queryable, hash);
+  }
+
   private readBytes(queryable: Queryable, hash: ContentHash): Promise<Uint8Array | null> {
     return hasTransactionalReader(this.byteStore)
       ? this.byteStore.readWith(queryable, hash)
@@ -275,8 +340,8 @@ export class PgAssetStore implements AssetStore {
    */
   private async lockPrincipal(queryable: Queryable, principal: AssetPrincipal): Promise<void> {
     // hashtextextended is 64-bit: hashtext is 32-bit, and colliding principals
-    // would block each other for the whole transaction -- which spans a byte
-    // write that may be a network upload.
+    // would block each other for the whole registry transaction. External
+    // network uploads run between transactions and never retain this lock.
     await queryable.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [principal.key]);
   }
 
@@ -355,19 +420,20 @@ export class PgAssetStore implements AssetStore {
       throw registryFailure('put');
     }
 
+    const external = this.usesExternalByteStore();
     try {
+      if (external) {
+        await this.writeTransaction(async (queryable) => {
+          await this.assertPutQuota(queryable, principal, bytes.byteLength);
+          await this.reserveExternalBlob(queryable, contentHash, bytes.byteLength);
+        });
+        await this.byteStore.write(contentHash, bytes);
+      }
       await this.writeTransaction(async (queryable) => {
         // Inside the transaction, and before anything is written: a check on
         // the pool is already stale when it is acted on.
         await this.assertPutQuota(queryable, principal, bytes.byteLength);
-        await queryable.query(
-          `INSERT INTO asset_blobs (content_hash, byte_size, unreferenced_at)
-           VALUES ($1, $2, NULL)
-           ON CONFLICT (content_hash) DO UPDATE
-             SET unreferenced_at = NULL,
-                 byte_size = EXCLUDED.byte_size`,
-          [contentHash, bytes.byteLength],
-        );
+        await this.claimBlob(queryable, contentHash, bytes.byteLength);
         // Bytes are written only after the upsert above has taken the blob
         // row's lock. Writing before it instead would not be safe: the
         // collector can hold that lock, delete those bytes, and commit while
@@ -375,7 +441,7 @@ export class PgAssetStore implements AssetStore {
         // write is unconditional, so both existence paths still emit the same
         // sequence. The entry is inserted after it, so no row ever references
         // bytes that were not stored first.
-        await this.coordinatedWrite(queryable, contentHash, bytes);
+        if (!external) await this.coordinatedWrite(queryable, contentHash, bytes);
         await queryable.query(
           `INSERT INTO asset_entries
              (id, principal, content_hash, mime, meta, revision, created_at)
@@ -384,6 +450,11 @@ export class PgAssetStore implements AssetStore {
         );
       });
     } catch (error) {
+      if (external) {
+        await this.writeTransaction((queryable) => this.releaseBlob(queryable, contentHash)).catch(
+          () => undefined,
+        );
+      }
       if (error instanceof RegistryAssetQuotaExceeded) throw new AssetQuotaExceededError();
       throw registryFailure('put');
     }
@@ -393,27 +464,53 @@ export class PgAssetStore implements AssetStore {
   async resolve(principal: AssetPrincipal, ref: AssetRef): Promise<AssetBytes | null> {
     if (!isLosslessJsonString(ref) || !isLosslessJsonString(principal.key)) return null;
     try {
-      return await this.transaction(async (queryable) => {
+      if (hasTransactionalReader(this.byteStore)) {
+        return await this.transaction(async (queryable) => {
+          const result = await queryable.query<EntryRow>(
+            `SELECT content_hash, mime, revision
+               FROM asset_entries
+              WHERE id = $1 AND principal = $2`,
+            [ref, principal.key],
+          );
+          const entry = result.rows[0];
+          if (!entry) return null;
+          const locked = await queryable.query(
+            `SELECT 1
+               FROM asset_blobs
+              WHERE content_hash = $1
+              FOR SHARE`,
+            [entry.content_hash],
+          );
+          if (!locked.rows[0]) return null;
+          const bytes = await this.readBytes(queryable, entry.content_hash);
+          if (bytes === null) return null;
+          return { bytes, mime: entry.mime, revision: Number(entry.revision) };
+        });
+      }
+      const entry = await this.transaction(async (queryable) => {
         const result = await queryable.query<EntryRow>(
           `SELECT content_hash, mime, revision
              FROM asset_entries
             WHERE id = $1 AND principal = $2`,
           [ref, principal.key],
         );
-        const entry = result.rows[0];
-        if (!entry) return null;
+        const row = result.rows[0];
+        if (!row) return null;
         const locked = await queryable.query(
           `SELECT 1
              FROM asset_blobs
             WHERE content_hash = $1
             FOR SHARE`,
-          [entry.content_hash],
+          [row.content_hash],
         );
         if (!locked.rows[0]) return null;
-        const bytes = await this.readBytes(queryable, entry.content_hash);
-        if (bytes === null) return null;
-        return { bytes, mime: entry.mime, revision: Number(entry.revision) };
+        return row;
       });
+      if (!entry) return null;
+      const bytes = await this.byteStore.read(entry.content_hash);
+      return bytes === null
+        ? null
+        : { bytes, mime: entry.mime, revision: Number(entry.revision) };
     } catch {
       throw registryFailure('resolve');
     }
@@ -523,15 +620,7 @@ export class PgAssetStore implements AssetStore {
         );
         const hash = deleted.rows[0]?.content_hash;
         if (!hash) return;
-        await queryable.query(
-          `UPDATE asset_blobs
-              SET unreferenced_at = now()
-            WHERE content_hash = $1
-              AND NOT EXISTS (
-                SELECT 1 FROM asset_entries WHERE content_hash = $1
-              )`,
-          [hash],
-        );
+        await this.releaseBlob(queryable, hash);
       });
     } catch {
       throw registryFailure('remove');
@@ -553,7 +642,15 @@ export class PgAssetStore implements AssetStore {
     const { contentHash, bytes: buffer } = await contentHashOf(data);
     const bytes = byteView(buffer);
     this.assertByteWriteIsCoordinatable();
+    const external = this.usesExternalByteStore();
     try {
+      if (external) {
+        await this.writeTransaction(async (queryable) => {
+          await this.assertReplaceQuota(queryable, principal, ref, bytes.byteLength);
+          await this.reserveExternalBlob(queryable, contentHash, bytes.byteLength);
+        });
+        await this.byteStore.write(contentHash, bytes);
+      }
       return await this.writeTransaction(async (queryable) => {
         await this.assertReplaceQuota(queryable, principal, ref, bytes.byteLength);
         const existing = await queryable.query<EntryRow>(
@@ -566,15 +663,8 @@ export class PgAssetStore implements AssetStore {
         const oldEntry = existing.rows[0];
         if (!oldEntry) throw new RegistryAssetNotFound();
 
-        await queryable.query(
-          `INSERT INTO asset_blobs (content_hash, byte_size, unreferenced_at)
-           VALUES ($1, $2, NULL)
-           ON CONFLICT (content_hash) DO UPDATE
-             SET unreferenced_at = NULL,
-                 byte_size = EXCLUDED.byte_size`,
-          [contentHash, bytes.byteLength],
-        );
-        await this.coordinatedWrite(queryable, contentHash, bytes);
+        await this.claimBlob(queryable, contentHash, bytes.byteLength);
+        if (!external) await this.coordinatedWrite(queryable, contentHash, bytes);
 
         let updated;
         if (storedMeta === undefined) {
@@ -600,18 +690,15 @@ export class PgAssetStore implements AssetStore {
           );
         }
 
-        await queryable.query(
-          `UPDATE asset_blobs
-              SET unreferenced_at = now()
-            WHERE content_hash = $1
-              AND NOT EXISTS (
-                SELECT 1 FROM asset_entries WHERE content_hash = $1
-              )`,
-          [oldEntry.content_hash],
-        );
+        await this.releaseBlob(queryable, oldEntry.content_hash);
         return Number(updated.rows[0]!.revision);
       });
     } catch (error) {
+      if (external) {
+        await this.writeTransaction((queryable) => this.releaseBlob(queryable, contentHash)).catch(
+          () => undefined,
+        );
+      }
       if (error instanceof RegistryAssetNotFound) throw new AssetNotFoundError();
       if (error instanceof RegistryAssetQuotaExceeded) throw new AssetQuotaExceededError();
       throw registryFailure('replace');

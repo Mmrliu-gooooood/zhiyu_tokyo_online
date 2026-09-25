@@ -1,6 +1,7 @@
 import type {
   DocumentFolderStore,
   DocumentStore,
+  DocumentSummary,
   StageFreshnessManifestStore,
 } from '@openmaic/storage';
 
@@ -18,16 +19,21 @@ import type { Queryable } from '@openmaic/storage/document/pg';
  */
 export type OwnerScopedDocumentStore = DocumentStore<AppScene, AppStage> &
   DocumentFolderStore &
-  StageFreshnessManifestStore;
+  StageFreshnessManifestStore & {
+    listLibraryDocuments(folderId?: string): Promise<DocumentSummary[]>;
+  };
 
 /**
  * The owner-bound document store for one HTTP request.
  *
  * This is the exact seam the agent runner uses (`runner.ts`): the document
  * provider is bound to the resolved owner through the stage access layer.
- * Reads are capability-by-id, writes and listings are owner-only, and every
- * operation re-checks `stage_meta` inside its transaction. A browser holding a
- * course id may therefore read it without gaining mutation authority.
+ * Reads are capability-by-id, writes stay owner-only, and every operation
+ * re-checks `stage_meta` inside its transaction. Home listing for unsigned
+ * dual-mode traffic uses `listLibraryDocuments` (the live `anon:` pile) so a
+ * new cookie does not hide the shared classroom library; `user:{uuid}`
+ * sessions stay owner-scoped. A browser holding a course id may therefore
+ * read it without gaining mutation authority.
  * `withPlainJsonDocumentWrites` keeps the write
  * boundary identical to the agent tools' (undefined-valued members are never
  * persisted as JSON nulls).

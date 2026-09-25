@@ -7,9 +7,9 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
+import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
 import { setStagePublished } from '@/lib/persistence/stage-meta';
-import { getStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
+import { getOwnerBoundStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
 export const runtime = 'nodejs';
@@ -17,7 +17,7 @@ export const runtime = 'nodejs';
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const { id: stageId } = await params;
@@ -29,7 +29,8 @@ export async function POST(req: NextRequest, { params }: Params) {
         );
       }
 
-      const access = await resolveStageAccess(stageId);
+      const db = await getOwnerBoundStageAccessDb(ownerId);
+      const access = await resolveStageAccess(stageId, db);
       if (!access) {
         return NextResponse.json({ error: 'not_found' }, { status: 404, headers: responseHeaders });
       }
@@ -37,7 +38,6 @@ export async function POST(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: responseHeaders });
       }
 
-      const db = await getStageAccessDb();
       await setStagePublished(db, stageId, false, null);
 
       console.info('Stage unpublished', { stageId, ownerId });

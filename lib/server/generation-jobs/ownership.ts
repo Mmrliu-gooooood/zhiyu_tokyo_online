@@ -18,6 +18,14 @@ export async function readGenerationOwnership(
     "SELECT to_regclass('generation_ownership')::text AS name",
   );
   if (!schema.rows[0]?.name) return null;
+  const columns = await q.query<{ column_name: string }>(
+    `SELECT column_name
+       FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'generation_ownership'
+        AND column_name = 'stage_id'`,
+  );
+  if (!columns.rows[0]) return null;
   const result = await q.query<GenerationOwnership>(
     `SELECT * FROM generation_ownership WHERE stage_id=$1 ${lock ? 'FOR UPDATE' : ''}`,
     [stageId],
@@ -59,12 +67,21 @@ export async function assertGenerationMutationAllowed(
   );
   let job: { id: string; owner_id: string; status: string } | undefined;
   if (schema.rows[0]?.name) {
-    const jobs = await q.query<{ id: string; owner_id: string; status: string }>(
-      'SELECT id,owner_id,status FROM generation_jobs WHERE stage_id=$1 FOR UPDATE',
-      [stageId],
+    const columns = await q.query<{ column_name: string }>(
+      `SELECT column_name
+         FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'generation_jobs'
+          AND column_name = 'status'`,
     );
-    job = jobs.rows[0];
-    if (job && job.owner_id !== ownerId) throw new GenerationJobError('COURSE_NOT_FOUND', 404);
+    if (columns.rows[0]) {
+      const jobs = await q.query<{ id: string; owner_id: string; status: string }>(
+        'SELECT id,owner_id,status FROM generation_jobs WHERE stage_id=$1 FOR UPDATE',
+        [stageId],
+      );
+      job = jobs.rows[0];
+      if (job && job.owner_id !== ownerId) throw new GenerationJobError('COURSE_NOT_FOUND', 404);
+    }
   }
   const ownership = await readGenerationOwnership(q, stageId, true);
   if (ownership) {

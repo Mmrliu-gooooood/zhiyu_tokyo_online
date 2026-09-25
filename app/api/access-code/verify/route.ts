@@ -1,9 +1,13 @@
 import { cookies } from 'next/headers';
 import { timingSafeEqual } from 'crypto';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { createAccessToken } from '@/lib/server/access-token';
 
 export async function POST(request: Request) {
+  if (isHostedAuthEnabled()) {
+    return apiError('INVALID_REQUEST', 404, 'Not found');
+  }
   const accessCode = process.env.ACCESS_CODE;
   if (!accessCode) {
     return apiSuccess({ valid: true });

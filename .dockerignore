@@ -42,6 +42,7 @@ assets
 !packages/@openmaic/generation/prompts-pbl/**/*.md
 *.pdf
 *.pem
+*.crt
 .DS_Store
 .vercel
 coverage

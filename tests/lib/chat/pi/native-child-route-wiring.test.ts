@@ -8,12 +8,17 @@ import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators
 
 const mocks = vi.hoisted(() => ({
   resolveModel: vi.fn(),
+  getModelResolutionError: vi.fn(() => undefined),
   streamLLM: vi.fn(),
   searchWeb: vi.fn(),
+  persistenceQuery: vi.fn(),
   getServerPersistenceProvider: vi.fn(),
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({ resolveModel: mocks.resolveModel }));
+vi.mock('@/lib/server/resolve-model', () => ({
+  resolveModel: mocks.resolveModel,
+  getModelResolutionError: mocks.getModelResolutionError,
+}));
 vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
 vi.mock('@/lib/web-search', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/web-search')>();
@@ -164,8 +169,11 @@ describe('PR2 Native Child route production wiring', () => {
     mocks.resolveModel.mockReset();
     mocks.streamLLM.mockReset();
     mocks.searchWeb.mockReset();
+    mocks.persistenceQuery.mockReset();
     mocks.getServerPersistenceProvider.mockReset();
+    mocks.persistenceQuery.mockResolvedValue({ rows: [] });
     mocks.getServerPersistenceProvider.mockResolvedValue({
+      pool: { query: mocks.persistenceQuery },
       runtimeStore: new BrowserRuntimeStore({
         indexedDB: new IDBFactory(),
         payloadValidators: APP_RUNTIME_PAYLOAD_VALIDATORS,

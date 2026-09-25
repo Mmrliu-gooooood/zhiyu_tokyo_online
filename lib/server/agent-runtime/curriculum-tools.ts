@@ -16,6 +16,7 @@ import type { Queryable } from '@openmaic/storage/document/pg';
 import type { StageLinkLifecycleData } from '@/lib/agent-runtime/lifecycle';
 
 import type { AppDocumentOutline } from '@/lib/document-store/persistence-types';
+import { getAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 import type { CourseDocument, CourseStore } from './course-tools';
 import { folderIdForCall, stageIdForCall } from './course-stage';
@@ -57,7 +58,7 @@ export async function probeStageAccess(
   queryable?: Queryable,
 ): Promise<StageAccess> {
   const db = (queryable ??
-    (await getServerPersistenceProvider(process.env.DATABASE_URL ?? '')).pool) as Queryable;
+    (await getServerPersistenceProvider(getAgentRuntimeDatabaseUrl())).pool) as Queryable;
   const rows = await db.query<StageProbeRow>(
     `SELECT meta.owner_id, meta.deleted_at, stages.name
        FROM stage_meta AS meta

@@ -11,6 +11,7 @@ import {
   type ProviderWithVoices,
 } from '@/lib/audio/voice-resolver';
 import { QWEN_TTS_VOICE_CLONE_MODEL } from '@/lib/audio/constants';
+import { platformTTSRequestFields } from '@/lib/audio/platform-tts-selection';
 
 const agent = (id: string, voiceConfig?: AgentConfig['voiceConfig']) =>
   ({ id, voiceConfig }) as AgentConfig;
@@ -26,6 +27,56 @@ const qwen: ProviderWithVoices = {
 };
 
 describe('resolveAgentVoice with overrides', () => {
+  const platformQwen: ProviderWithVoices = {
+    ...qwen,
+    source: 'platform',
+    defaultId: 'platform-tts',
+    revision: 'r1',
+    modelId: 'qwen3-tts-flash',
+  };
+
+  it('keeps the configured platform source on an automatically assigned assistant voice', () => {
+    const resolved = resolveAgentVoice(agent('assistant'), 1, [platformQwen]);
+    expect(resolved).toEqual({
+      providerId: 'qwen-tts',
+      voiceId: 'Dylan',
+      modelId: 'qwen3-tts-flash',
+      source: 'platform',
+      defaultId: 'platform-tts',
+      revision: 'r1',
+    });
+    expect(
+      platformTTSRequestFields(undefined, 'qwen-tts', 'qwen-tts', undefined, undefined, resolved!),
+    ).toEqual({ modelSource: 'platform', platformDefaultId: 'platform-tts' });
+  });
+
+  it.each([undefined, 'user', 'legacy-managed'] as const)(
+    'does not transfer an explicit %s voice binding to the platform credential',
+    (source) => {
+      const resolved = resolveAgentVoice(
+        agent('assistant', {
+          providerId: 'qwen-tts',
+          voiceId: 'Cherry',
+          ...(source ? { source } : {}),
+        }),
+        0,
+        [platformQwen],
+      );
+      expect(resolved?.source).toBe(source);
+      expect(resolved?.defaultId).toBeUndefined();
+      expect(
+        platformTTSRequestFields(
+          undefined,
+          'qwen-tts',
+          'qwen-tts',
+          undefined,
+          undefined,
+          resolved!,
+        ),
+      ).toEqual({ modelSource: source ?? 'user' });
+    },
+  );
+
   it('prefers the override over voiceConfig and fallback', () => {
     const resolved = resolveAgentVoice(
       agent('default-2', { providerId: 'qwen-tts', voiceId: 'Cherry' }),

@@ -1,0 +1,106 @@
+'use client';
+
+import { useEffect, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+
+import { AuthHashCleanup } from '@/components/auth/AuthHashCleanup';
+import { AccessCodeGuard } from '@/components/access-code-guard';
+import { DocumentMetadataSync } from '@/components/document-metadata-sync';
+import { ServerProvidersInit } from '@/components/server-providers-init';
+import { StorageHealthNotice } from '@/components/storage-health-notice';
+import { ProSwapWatcher } from '@/components/workbench/ProSwapWatcher';
+import { Toaster } from '@/components/ui/sonner';
+import {
+  clearAccountEnvironment,
+  requireAccountEnvironment,
+  setAccountUserId,
+} from '@/lib/auth/account-environment';
+import { isAuthPagePath } from '@/lib/auth/public-paths';
+import { canUseHostedAuthUi, isHostedAuthEnabled } from '@/lib/auth/mode';
+import { useI18n } from '@/lib/hooks/use-i18n';
+
+export function AuthAppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname() ?? '/';
+  const authPage = isAuthPagePath(pathname);
+  const hosted = isHostedAuthEnabled();
+  const sessionUi = canUseHostedAuthUi();
+  const { t } = useI18n();
+  const [ready, setReady] = useState(authPage || (!sessionUi && !hosted));
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    if (authPage) {
+      setReady(true);
+      return;
+    }
+    if (!sessionUi) {
+      setReady(true);
+      return;
+    }
+    let cancelled = false;
+    requireAccountEnvironment()
+      .then((account) => {
+        if (cancelled) return;
+        setAccountUserId(account.userId);
+        setSignedIn(true);
+        setReady(true);
+        window.dispatchEvent(new Event('auth-change'));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        if (hosted) {
+          window.location.assign(`/auth/login?next=${encodeURIComponent(pathname)}`);
+          return;
+        }
+        clearAccountEnvironment();
+        setSignedIn(false);
+        setReady(true);
+      });
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      void requireAccountEnvironment().catch(() => {
+        if (hosted) window.location.assign('/auth/login');
+      });
+    };
+    window.addEventListener('pageshow', onPageShow);
+    let channel: BroadcastChannel | undefined;
+    try {
+      channel = new BroadcastChannel('zhiyu-auth');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'sign-out') {
+          if (hosted) window.location.assign('/auth/login');
+          else window.location.reload();
+        }
+      };
+    } catch {
+      channel = undefined;
+    }
+    return () => {
+      cancelled = true;
+      window.removeEventListener('pageshow', onPageShow);
+      channel?.close();
+    };
+  }, [hosted, sessionUi, authPage, pathname]);
+
+  const business = !authPage && ready;
+
+  return (
+    <>
+      <AuthHashCleanup />
+      {business ? <DocumentMetadataSync /> : null}
+      {business ? <ServerProvidersInit /> : null}
+      {business ? <ProSwapWatcher /> : null}
+      {!ready && !authPage ? (
+        <div className="flex min-h-[100dvh] items-center justify-center text-sm text-muted-foreground">
+          {t('auth.loadingSession')}
+        </div>
+      ) : hosted || authPage || signedIn ? (
+        children
+      ) : (
+        <AccessCodeGuard>{children}</AccessCodeGuard>
+      )}
+      <Toaster position="top-center" />
+      {business ? <StorageHealthNotice /> : null}
+    </>
+  );
+}

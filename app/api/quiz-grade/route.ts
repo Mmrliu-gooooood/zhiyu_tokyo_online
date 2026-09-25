@@ -5,6 +5,7 @@
  * Used for short-answer (text) questions that cannot be graded locally.
  */
 
+import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
@@ -31,6 +32,12 @@ function isOptionalBoundedString(value: unknown, maxLength: number): value is st
 }
 
 export async function POST(req: NextRequest) {
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let questionSnippet: string | undefined;
   let resolvedPoints: number | undefined;
   let gradingTimeoutSignal: AbortSignal | undefined;

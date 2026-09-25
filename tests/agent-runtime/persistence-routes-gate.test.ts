@@ -47,6 +47,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerId: mocks.resolveRequestOwnerId,
+  resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
+}));
+vi.mock('@/lib/db/request-queryable', () => ({
+  createOwnerBoundQueryable: () => mocks.queryPool,
 }));
 vi.mock('@/lib/persistence/server-provider', () => ({
   getServerPersistenceProvider: async () => ({

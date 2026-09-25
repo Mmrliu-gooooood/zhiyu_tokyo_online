@@ -1,4 +1,5 @@
 import { guardClientGeneration } from '@/lib/server/generation-jobs/route-guard';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 /**
  * Single TTS Generation API
  *
@@ -42,11 +43,18 @@ const log = createLogger('TTS API');
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
-  return runIndependentHeavyTaskRequest(req, 'media', (signal) => handlePost(req, signal));
+  return withHostedProviderQuota(req, () =>
+    runIndependentHeavyTaskRequest(req, 'media', (signal) => handlePost(req, signal)),
+  );
 }
 
 async function handlePost(req: NextRequest, signal: AbortSignal) {
-  const generationGuard = await guardClientGeneration(req);
+  // Classroom discussion and teach-back can synthesize speech outside a course
+  // generation job. The independent media wrapper already acquires a global
+  // and per-owner capacity lease; keep auth and origin checks in the guard.
+  const generationGuard = await guardClientGeneration(req, {
+    allowBackgroundIndependentMedia: true,
+  });
   if (generationGuard) return generationGuard;
   let ttsProviderId: string | undefined;
   let ttsVoice: string | undefined;

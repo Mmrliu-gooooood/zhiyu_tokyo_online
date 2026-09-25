@@ -11,7 +11,6 @@ import {
   generationProviderConfigVersion,
   generationRequestHash,
 } from '@/lib/server/generation-jobs/config-snapshot';
-import { getGenerationPool } from '@/lib/server/generation-jobs/runtime';
 import { GenerationJobError } from '@/lib/server/generation-jobs/contracts';
 
 export const dynamic = 'force-dynamic';
@@ -19,10 +18,10 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   return withGenerationRequest(
     req,
-    async ({ ownerId, headers, repository }) => {
+    async ({ ownerId, headers, repository, queryable }) => {
       const key = parseCommand(commandKey, req.headers.get('Idempotency-Key'));
       const input = parseGenerationInput(await readGenerationJson(req));
-      const found = await getGenerationPool().query(
+      const found = await queryable.query<{ id: string; request_hash: string }>(
         'SELECT id,request_hash FROM generation_jobs WHERE owner_id=$1 AND idempotency_key=$2',
         [ownerId, key],
       );
@@ -36,7 +35,7 @@ export async function POST(req: Request) {
       }
       await validateBackgroundProviders(input, {
         ownerId,
-        queryable: getGenerationPool(),
+        queryable,
       });
       input.model = { ...input.model, configVersion: generationProviderConfigVersion() };
       const job = await repository.createJob(ownerId, key, input);

@@ -46,6 +46,11 @@ const nextConfig: NextConfig = {
   ],
   experimental: {
     proxyClientMaxBodySize: '200mb',
+    // Keep production image builds within the 8 GiB Docker Desktop VM. This
+    // controls build/static-generation workers only; runtime request and
+    // generation concurrency remains governed by the distributed admission
+    // controller.
+    cpus: 2,
   },
   // Windows + Tailwind v4: Turbopack's PostCSS worker hits a hard deadline on
   // first compile of app/globals.css. Official `next dev` is Turbopack; local
@@ -90,6 +95,15 @@ const nextConfig: NextConfig = {
       },
     ];
     return config;
+  },
+  async redirects() {
+    return [
+      {
+        source: '/auth/signup',
+        destination: '/auth/sign-up',
+        permanent: false,
+      },
+    ];
   },
   async headers() {
     const extraAncestors = process.env.ALLOWED_FRAME_ANCESTORS?.trim();

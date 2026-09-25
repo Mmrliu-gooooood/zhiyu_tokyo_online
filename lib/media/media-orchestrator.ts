@@ -13,6 +13,10 @@ import type { SceneOutline } from '@/lib/types/generation';
 import type { MediaGenerationRequest } from '@/lib/media/types';
 import { fetchProxiedMediaUrl } from '@/lib/media/proxy-media-cache';
 import { createLogger } from '@/lib/logger';
+import { foregroundGenerationHeaders } from '@/lib/generation/foreground-root-client';
+import { isAssetPoolServerBacked, putAsset } from './asset-pool';
+import { promoteOutlineMediaRef, promoteSceneMediaRef } from './generated-media-promotion';
+import { useStageStore } from '@/lib/store/stage';
 
 const log = createLogger('MediaOrchestrator');
 
@@ -34,6 +38,31 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw createAbortError();
 }
 
+async function publishHostedMediaRef(
+  stageId: string,
+  placeholder: string,
+  assetId: string,
+  objectUrl: string,
+  poster?: string,
+  posterAssetId?: string,
+): Promise<void> {
+  const state = useStageStore.getState();
+  if (state.stage?.id !== stageId) throw new Error('The media course is no longer open');
+  // Re-key first so a scene arriving while the document save is in flight
+  // replaces the same placeholder in addScene before it becomes durable.
+  useMediaGenerationStore.getState().rekeyDone(placeholder, assetId, objectUrl, poster, posterAssetId);
+  state.setOutlines(state.outlines.map((outline) =>
+    promoteOutlineMediaRef(outline, placeholder, assetId),
+  ));
+  for (const scene of useStageStore.getState().scenes) {
+    const promoted = promoteSceneMediaRef(scene, placeholder, assetId);
+    if (promoted !== scene) state.updateScene(scene.id, { content: promoted.content });
+  }
+  if (!(await useStageStore.getState().saveToStorage())) {
+    throw new Error('Generated media reference was not saved');
+  }
+}
+
 /**
  * Launch media generation for all mediaGenerations declared in outlines.
  * Runs in parallel with content/action generation — does not block.
@@ -51,6 +80,9 @@ export async function generateMediaForOutlines(
   for (const outline of outlines) {
     if (!outline.mediaGenerations) continue;
     for (const mg of outline.mediaGenerations) {
+      // Hosted documents replace completed placeholder refs with durable asset
+      // ids. Reopening the course must read that object, not buy another image.
+      if (isAssetPoolServerBacked() && mg.elementId.startsWith('ast_')) continue;
       // Filter by enabled flags
       if (mg.type === 'image' && !settings.imageGenerationEnabled) continue;
       if (mg.type === 'video' && !settings.videoGenerationEnabled) continue;
@@ -69,7 +101,7 @@ export async function generateMediaForOutlines(
   // Process requests serially — image/video APIs have limited concurrency
   for (const req of allRequests) {
     if (abortSignal?.aborted) break;
-    await generateSingleMedia(req, stageId, abortSignal);
+    await generateSingleMedia(req, stageId, abortSignal, true);
   }
 }
 
@@ -131,6 +163,7 @@ async function generateSingleMedia(
   req: MediaGenerationRequest,
   stageId: string,
   abortSignal?: AbortSignal,
+  foregroundRoot = false,
 ): Promise<void> {
   const store = useMediaGenerationStore.getState();
   store.markGenerating(req.elementId);
@@ -141,8 +174,48 @@ async function generateSingleMedia(
       style: req.style,
     });
 
+    if (isAssetPoolServerBacked()) {
+      const result = req.type === 'image'
+        ? await callImageApi(req, stageId, abortSignal, foregroundRoot)
+        : await callVideoApi(req, stageId, abortSignal, foregroundRoot);
+      throwIfAborted(abortSignal);
+      const blob = await fetchAsBlob(result.ossUrl || result.url);
+      throwIfAborted(abortSignal);
+      const mimeType = blob.type || result.mimeType || (req.type === 'image' ? 'image/png' : 'video/mp4');
+      const assetId = await putAsset(blob, { contentType: mimeType });
+      const videoResult = req.type === 'video'
+        ? result as Awaited<ReturnType<typeof callVideoApi>>
+        : undefined;
+      const posterSource = videoResult?.posterOssUrl || videoResult?.poster;
+      const posterBlob = posterSource ? await fetchAsBlob(posterSource) : undefined;
+      const posterAssetId = posterBlob
+        ? await putAsset(posterBlob, { contentType: posterBlob.type || 'image/jpeg' })
+        : undefined;
+      await db.mediaFiles.put({
+        id: mediaFileKey(stageId, assetId),
+        stageId,
+        type: req.type,
+        blob,
+        mimeType,
+        size: blob.size,
+        ...(posterBlob ? { poster: posterBlob } : {}),
+        prompt: req.prompt,
+        params: paramsJson,
+        createdAt: Date.now(),
+      }).catch((error) => log.warn('Generated media cache mirror failed:', error));
+      await publishHostedMediaRef(
+        stageId,
+        req.elementId,
+        assetId,
+        URL.createObjectURL(blob),
+        posterBlob ? URL.createObjectURL(posterBlob) : undefined,
+        posterAssetId,
+      );
+      return;
+    }
+
     if (req.type === 'image') {
-      const result = await callImageApi(req, stageId, abortSignal);
+      const result = await callImageApi(req, stageId, abortSignal, foregroundRoot);
 
       // CDN path: server already uploaded to OSS
       if (result.ossUrl) {
@@ -180,7 +253,7 @@ async function generateSingleMedia(
       const objectUrl = URL.createObjectURL(blob);
       useMediaGenerationStore.getState().markDone(req.elementId, objectUrl);
     } else {
-      const result = await callVideoApi(req, abortSignal);
+      const result = await callVideoApi(req, stageId, abortSignal, foregroundRoot);
 
       // CDN path: server already uploaded to OSS
       if (result.ossUrl) {
@@ -269,6 +342,7 @@ async function callImageApi(
   req: MediaGenerationRequest,
   stageId: string,
   abortSignal?: AbortSignal,
+  foregroundRoot = false,
 ): Promise<{ url: string; ossUrl?: string; mimeType?: string }> {
   const settings = useSettingsStore.getState();
   const providerConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
@@ -295,6 +369,7 @@ async function callImageApi(
         platform || settings.imageProviderId.startsWith('custom-image-')
           ? ''
           : providerConfig?.baseUrl || '',
+      ...(foregroundRoot ? foregroundGenerationHeaders(stageId) : {}),
     },
     body: JSON.stringify({
       prompt: req.prompt,
@@ -340,7 +415,9 @@ async function callImageApi(
 
 async function callVideoApi(
   req: MediaGenerationRequest,
+  stageId: string,
   abortSignal?: AbortSignal,
+  foregroundRoot = false,
 ): Promise<{
   url: string;
   poster?: string;
@@ -376,10 +453,12 @@ async function callVideoApi(
         platform || settings.videoProviderId.startsWith('custom-video-')
           ? ''
           : providerConfig?.baseUrl || '',
+      ...(foregroundRoot ? foregroundGenerationHeaders(stageId) : {}),
     },
     body: JSON.stringify({
       prompt: req.prompt,
       aspectRatio: req.aspectRatio,
+      stageId,
       ...(!platform && String(settings.videoProviderId).startsWith('custom-video-')
         ? {
             providerConfig: {

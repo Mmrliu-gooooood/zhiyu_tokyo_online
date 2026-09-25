@@ -1,4 +1,5 @@
 import type { ModelSelection, PlatformDefaultCatalog } from '@/lib/types/platform-default-models';
+import type { GeneratedAgentConfig } from '@/lib/types/stage';
 
 interface TTSAvailabilityConfig {
   enabled?: boolean;
@@ -27,6 +28,40 @@ export function withPlatformTTSAvailability<
       serverDisabled: false,
     },
   } as T;
+}
+
+/** Stamp newly generated roster voices that came from the advertised platform list. */
+export function bindGeneratedPlatformTTSVoices(
+  agents: GeneratedAgentConfig[],
+  advertisedVoices: readonly { providerId: string; voiceId: string; modelId?: string }[],
+  selection: ModelSelection | undefined,
+  catalog: PlatformDefaultCatalog | null,
+): GeneratedAgentConfig[] {
+  if (selection?.source !== 'platform') return agents;
+  const entry = catalog?.entries.find((candidate) =>
+    candidate.capability === 'tts' && candidate.defaultId === selection.defaultId,
+  );
+  if (!entry?.available) return agents;
+  return agents.map((agent) => {
+    const voice = agent.voiceConfig;
+    if (
+      !voice || voice.source || voice.providerId !== entry.providerId ||
+      (voice.modelId && voice.modelId !== entry.modelId) ||
+      !advertisedVoices.some((candidate) =>
+        candidate.providerId === voice.providerId && candidate.voiceId === voice.voiceId &&
+        (!voice.modelId || !candidate.modelId || candidate.modelId === voice.modelId),
+      )
+    ) return agent;
+    return {
+      ...agent,
+      voiceConfig: {
+        ...voice,
+        source: 'platform',
+        defaultId: entry.defaultId,
+        revision: entry.revision,
+      },
+    };
+  });
 }
 
 export function platformTTSRequestFields(

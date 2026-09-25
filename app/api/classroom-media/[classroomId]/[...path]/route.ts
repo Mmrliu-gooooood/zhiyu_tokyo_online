@@ -1,8 +1,19 @@
 import { promises as fs, createReadStream, type ReadStream } from 'fs';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
-import { CLASSROOMS_DIR, isValidClassroomId } from '@/lib/server/classroom-storage';
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import {
+  CLASSROOMS_DIR,
+  classroomMediaAllows,
+  isValidClassroomId,
+  readClassroom,
+} from '@/lib/server/classroom-storage';
 import { parseRangeHeader } from '@/lib/server/http-range';
+import {
+  identifyHostedClassroomMediaObject,
+  resolveHostedClassroomMediaObject,
+} from '@/lib/server/classroom-media-bytes';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ClassroomMedia');
@@ -21,7 +32,8 @@ const MIME_TYPES: Record<string, string> = {
   '.aac': 'audio/aac',
 };
 
-const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=86400, immutable' } as const;
+const PUBLIC_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=86400, immutable' } as const;
+const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, no-store' } as const;
 
 /** Bridge a fs ReadStream into a web ReadableStream, propagating errors and cancel. */
 function toWebStream(stream: ReadStream): ReadableStream {
@@ -41,7 +53,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ classroomId: string; path: string[] }> },
 ) {
+  const principal = await requirePrincipalIfHosted(req);
+  if (principal instanceof Response) return principal;
+
   const { classroomId, path: pathSegments } = await params;
+  const cacheHeaders =
+    principal || isHostedAuthEnabled() ? PRIVATE_CACHE_HEADERS : PUBLIC_CACHE_HEADERS;
 
   // Validate classroomId
   if (!isValidClassroomId(classroomId)) {
@@ -56,8 +73,78 @@ export async function GET(
 
   // Only allow media/ and audio/ subdirectories
   const subDir = pathSegments[0];
-  if (subDir !== 'media' && subDir !== 'audio') {
+  if (pathSegments.length !== 2 || (subDir !== 'media' && subDir !== 'audio')) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 404 });
+  }
+
+  const classroom = await readClassroom(classroomId, principal?.ownerId);
+  if (!classroomMediaAllows(classroom, principal?.ownerId)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  if (isHostedAuthEnabled()) {
+    if (!principal) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    try {
+      const identity = await identifyHostedClassroomMediaObject({
+        ownerId: principal.ownerId,
+        classroomId,
+        legacyPath: joined,
+      });
+      if (!identity) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      const size = identity.byteSize;
+      const range = parseRangeHeader(req.headers.get('range'), size);
+      if (range.kind === 'unsatisfiable') {
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            'Cache-Control': 'no-store',
+            'Content-Range': `bytes */${size}`,
+          },
+        });
+      }
+      if (range.kind === 'range') {
+        const media = await resolveHostedClassroomMediaObject({
+          ownerId: principal.ownerId,
+          classroomId,
+          legacyPath: joined,
+          identity,
+          range,
+        });
+        if (!media) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return new NextResponse(Buffer.from(media.bytes), {
+          status: 206,
+          headers: {
+            ...cacheHeaders,
+            'Content-Type': media.mime || 'application/octet-stream',
+            'Content-Length': String(media.bytes.byteLength),
+            'Content-Range': `bytes ${range.start}-${range.end}/${size}`,
+            'Accept-Ranges': 'bytes',
+          },
+        });
+      }
+      const media = await resolveHostedClassroomMediaObject({
+        ownerId: principal.ownerId,
+        classroomId,
+        legacyPath: joined,
+        identity,
+      });
+      if (!media) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return new NextResponse(Buffer.from(media.bytes), {
+        status: 200,
+        headers: {
+          ...cacheHeaders,
+          'Content-Type': media.mime || 'application/octet-stream',
+          'Content-Length': String(size),
+          'Accept-Ranges': 'bytes',
+        },
+      });
+    } catch (error) {
+      log.error(
+        `Hosted classroom media serving failed [classroomId=${classroomId}, path=${joined}]:`,
+        error,
+      );
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    }
   }
 
   const filePath = path.join(CLASSROOMS_DIR, classroomId, ...pathSegments);
@@ -99,7 +186,7 @@ export async function GET(
       return new NextResponse(toWebStream(stream), {
         status: 206,
         headers: {
-          ...CACHE_HEADERS,
+          ...cacheHeaders,
           'Content-Type': contentType,
           'Content-Length': String(range.end - range.start + 1),
           'Content-Range': `bytes ${range.start}-${range.end}/${stat.size}`,
@@ -112,7 +199,7 @@ export async function GET(
     return new NextResponse(toWebStream(createReadStream(realPath)), {
       status: 200,
       headers: {
-        ...CACHE_HEADERS,
+        ...cacheHeaders,
         'Content-Type': contentType,
         'Content-Length': String(stat.size),
         'Accept-Ranges': 'bytes',

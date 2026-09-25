@@ -26,6 +26,7 @@
  * string, which is cheap and obvious.
  */
 
+import { hostedAuthGate } from '@/lib/auth/api';
 import type { NextRequest } from 'next/server';
 
 import { createLogger } from '@/lib/logger';
@@ -55,6 +56,8 @@ interface EvaluateRequest {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let body: EvaluateRequest;
   try {
     body = (await req.json()) as EvaluateRequest;

@@ -22,10 +22,9 @@
  * the stream. Native `EventSource` then reconnects with `Last-Event-ID` and
  * resumes through the same replay path without losing durable events.
  *
- * Access model: there is no per-route auth challenge. Every request is
- * granted an anonymous cookie identity, and every store read is scoped to
- * that identity. A session owned by another identity is indistinguishable
- * from a missing one — both are 404 with the same response.
+ * Access model: identity is resolved from the request (hosted principal or
+ * signed generation cookie). A session owned by another identity is
+ * indistinguishable from a missing one — both are 404 with the same response.
  *
  * This handler is a pure READER of the store. A disconnect closes this
  * reader and nothing else: the runner keeps running, and its events keep
@@ -37,12 +36,15 @@ import type { NextRequest } from 'next/server';
 import { HOST_AGENT_LIFECYCLE as LIFECYCLE } from '@/lib/agent-runtime/lifecycle';
 import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { subscribeAgentEventWakeup } from '@/lib/server/agent-runtime/event-notify-bus';
-import { resolveRequestOwnerId } from '@/lib/server/agent-runtime/owner';
+import { resolveRequestOwnerIdAsync } from '@/lib/server/agent-runtime/owner';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
 import {
   SESSION_EVENT_POLL_INTERVAL_MS as POLL_INTERVAL_MS,
   TERMINAL_SESSION_EVENT_POLL_INTERVAL_MS as TERMINAL_POLL_INTERVAL_MS,
 } from '@/lib/server/agent-runtime/route-constants';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
+import { tryPrincipal } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 // Self-hosted `next start` does not enforce maxDuration; it remains useful to
@@ -67,17 +69,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
   const { id } = await params;
   const responseHeaders = new Headers();
-  // The identity cookie is minted for the requester regardless of the target
-  // session, and the owner is resolved before the session lookup: a request
-  // for a missing session and one for a session owned by someone else return
-  // byte-identical 404s (same status, body, and cookie headers), so the
-  // response cannot be used to probe whether a session UUID exists. This
-  // slice resolves only the anonymous cookie identity; a future auth
-  // integration must thread `authenticatedOwnerId` through here, or sessions
-  // created under authenticated identities would be unreachable by their own
-  // owner.
-  const ownerId = resolveRequestOwnerId(req, responseHeaders);
-  const store = await getAgentSessionStore();
+  const ownerId = await resolveRequestOwnerIdAsync(req, responseHeaders);
+  const store = await getAgentSessionStore(ownerId);
   const meta = await store.getSession(id);
   if (!meta) {
     return new Response('Not found', { status: 404, headers: responseHeaders });
@@ -211,6 +204,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
       const poll = async () => {
         if (closed) return;
+        if (isHostedAuthEnabled() || shouldIsolateOwner(ownerId)) {
+          try {
+            const principal = await tryPrincipal(req);
+            if (!principal || principal.ownerId !== ownerId) {
+              close();
+              return;
+            }
+          } catch {
+            close();
+            return;
+          }
+        }
         let page;
         try {
           page = await store.readEventsAfterForReplay(id, cursor, BACKLOG_PAGE);

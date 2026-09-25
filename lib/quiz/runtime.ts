@@ -1,6 +1,7 @@
 import type { QuizAttemptPhase, RuntimeRecord, RuntimeSession } from '@openmaic/dsl';
 import { RuntimeAppendConflictError, type RuntimeStore } from '@openmaic/storage';
 import type { QuestionResult } from '@/lib/quiz/grading';
+import { webLockManager } from '@/lib/utils/web-locks';
 import {
   isQuizAttemptPayloadV2,
   type QuizAttemptPayload,
@@ -232,9 +233,8 @@ function enqueue<T>(store: RuntimeStore, attemptId: string, work: () => Promise<
 }
 
 async function withAttemptLock<T>(attemptId: string, work: () => Promise<T>): Promise<T> {
-  if (typeof navigator !== 'undefined' && navigator.locks) {
-    return navigator.locks.request(`maic:quiz-attempt:${attemptId}`, work);
-  }
+  const locks = webLockManager();
+  if (locks) return locks.request(`maic:quiz-attempt:${attemptId}`, work);
   return work();
 }
 

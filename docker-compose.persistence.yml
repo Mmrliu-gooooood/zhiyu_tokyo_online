@@ -2,6 +2,9 @@
 # Use scripts/generation-compose.ps1 for one consistent project/env/override entry.
 x-generation-environment: &generation-environment
   DATABASE_URL: ${DATABASE_URL:?Persist the verified existing database URL in .env.local}
+  # Hosted only: app_worker URL. Empty on the live AUTH_MODE-unset stack.
+  WORKER_DATABASE_URL: ${WORKER_DATABASE_URL:-}
+  DATABASE_LISTEN_URL: ${DATABASE_LISTEN_URL:-}
   # Web and worker decrypt owner-scoped media and generation-model snapshots with
   # dedicated keys. The worker must not receive the unrelated PRO model key.
   MEDIA_CONFIG_ENCRYPTION_KEY: ${MEDIA_CONFIG_ENCRYPTION_KEY:?Persistent 32-byte hex media snapshot key required}
@@ -235,6 +238,11 @@ services:
       ASR_OPENAI_ENABLED: ${ASR_OPENAI_ENABLED:-}
       ASR_BROWSER_NATIVE_ENABLED: ${ASR_BROWSER_NATIVE_ENABLED:-}
       ASSET_COLLECTION_ENABLED: ${ASSET_COLLECTION_ENABLED:-false}
+      AUTH_MODE: ${AUTH_MODE:-}
+      NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -257,6 +265,9 @@ services:
         NEXT_PUBLIC_PERSISTENCE: ${NEXT_PUBLIC_PERSISTENCE:?Set to 1 at build time}
         NEXT_PUBLIC_PERSISTENCE_TOKEN: ${NEXT_PUBLIC_PERSISTENCE_TOKEN:?Public compatibility token required}
         NEXT_PUBLIC_PRO_WORKBENCH_ENABLED: ${NEXT_PUBLIC_PRO_WORKBENCH_ENABLED:-}
+        NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
   generation-worker:
     image: zhiyu-worker:latest
     container_name: zhiyu-worker

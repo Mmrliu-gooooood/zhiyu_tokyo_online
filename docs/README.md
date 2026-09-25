@@ -11,12 +11,22 @@
 
 ## 决策与调研
 
+- [Supabase 全量存储与 16 并发实施方案](plans/2026-09-20-supabase-storage-and-generation-capacity.md)：基于实际 Docker/Supabase 盘点，迁移用户与旧课程、统一管理员归属、账号删除清理，并实现全站 16 / 每用户 2 的生成容量；方案已确认目标，尚未实施。
 - [架构决策记录（ADR）](adr/)：已经接受、替代或仍影响实现的架构决定。状态以各文件头部为准。
 - [技术调研](research/)：部署、数据库与认证等选型依据；结论不自动代表已经实施。
 - [智域学生端参赛定位访谈](research/zhiyu-student-competition-interview-2026-09-14.md)：学生端范围、代码观察和待讨论的差异化方案；建议不等于已批准实施。
 - [智域学生端最高 / 核心改进实施方案](plans/2026-09-14-zhiyu-student-core-implementation.md)：评分、可控互动、学习反馈与补学的原规格；用户已报告完成，当前代码已有对应实现，后续验证见[学生端回归记录](investigations/2026-09-14-student-regression-fixes.md)。原方案的状态描述不替代当前代码。
 - [教会学伴：反向教学实施方案](plans/2026-09-14-zhiyu-teach-back-implementation.md)：已实施独立领域模块与课堂接入；默认开关关闭。普通前台、后台和 Pro 生成保持原链路。验证细节见实施报告。
-- [Supabase 邮箱账号与用户数据隔离实施方案](plans/2026-09-19-zhiyu-supabase-accounts-implementation.md)：GitHub 认证方案调研、现有代码审查、全链路数据隔离、预置测试 admin、迁移与上线验收；供新对话实施，当前尚未接入账号。
+- [Supabase 邮箱账号与用户数据隔离实施方案](plans/2026-09-19-zhiyu-supabase-accounts-implementation.md)：GitHub 认证方案调研、现有代码审查、全链路数据隔离、预置测试 admin、迁移与上线验收。代码已按双模式接入；项目 `lzomhnjyymalupgvcato` 已确认并写入 accounts SQL。真实 Resend SMTP、本机 Site URL、admin 邮箱仍待操作者。可选托管 overlay 见 `docker-compose.hosted.yml`（默认 compose **不会**加载）。
+- [Resend SMTP 与本机 Site URL](guides/zhiyu-resend-smtp.md)
+- [Auth 邮件模板](guides/zhiyu-auth-email-templates.md)
+- [认证路由矩阵](security/auth-route-matrix.md)
+- [所有权清单](security/ownership-inventory.md)
+- [测试报告](reports/2026-09-19-zhiyu-supabase-accounts-test-report.md)
+- [迁移记录](reports/2026-09-19-zhiyu-supabase-accounts-migration-record.md)
+- [环境配置](reports/2026-09-19-zhiyu-supabase-accounts-env.md)
+- [回滚方案](reports/2026-09-19-zhiyu-supabase-accounts-rollback.md)
+- [测试 admin 生命周期](guides/zhiyu-test-admin-lifecycle.md)
 
 ## 模块内文档
 

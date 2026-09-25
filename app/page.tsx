@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { AccountMenu } from '@/components/auth/AccountMenu';
 import { createLogger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupInput, InputGroupButton } from '@/components/ui/input-group';
@@ -78,6 +79,7 @@ import { SlideThumbnail } from '@/components/slide-renderer/SlideThumbnail';
 import type { Slide } from '@openmaic/dsl';
 import { useMediaGenerationStore } from '@/lib/store/media-generation';
 import { toast } from 'sonner';
+import { isOwnerListingAuthFailure } from '@/lib/utils/owner-listing-error';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDraftCache } from '@/lib/hooks/use-draft-cache';
 import { SpeechButton } from '@/components/audio/speech-button';
@@ -260,6 +262,7 @@ function HomePage() {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const thumbnailsRef = useRef<Record<string, Slide>>({});
+  const classroomLoadEpochRef = useRef(0);
 
   const replaceThumbnails = (slides: Record<string, Slide>) => {
     const previous = thumbnailsRef.current;
@@ -281,19 +284,31 @@ function HomePage() {
   }, [themeOpen]);
 
   const loadClassrooms = async () => {
+    const epoch = ++classroomLoadEpochRef.current;
+    const isCurrent = () => classroomLoadEpochRef.current === epoch;
     try {
       const list = await listStages();
+      if (!isCurrent()) return;
       setClassrooms(list);
-      // Load first slide thumbnails
+      // Covers are optional background work. Do not hold library hydration or
+      // keep starting network requests after navigation/account replacement.
       if (list.length > 0) {
-        const slides = await getFirstSlideByStages(list.map((c) => c.id));
-        replaceThumbnails(slides);
+        void getFirstSlideByStages(
+          list.map((c) => c.id),
+          { shouldContinue: isCurrent },
+        ).then((slides) => {
+          if (isCurrent()) replaceThumbnails(slides);
+          else revokeThumbnailSlideMediaUrls(slides);
+        });
       } else {
         replaceThumbnails({});
       }
     } catch (err) {
+      if (!isCurrent()) return;
       log.error('Failed to load classrooms:', err);
-      toast.error('Persistence is unavailable. Saved classrooms could not be loaded.');
+      if (!isOwnerListingAuthFailure(err)) {
+        toast.error('Persistence is unavailable. Saved classrooms could not be loaded.');
+      }
     }
   };
 
@@ -349,8 +364,14 @@ function HomePage() {
     // Both reads resolve before flipping `hydrated`, so the hero layout does
     // not thrash as each lands independently.
     void Promise.all([loadClassrooms(), loadFolders()]).finally(() => setHydrated(true));
+    const onAuthChange = () => {
+      void Promise.all([loadClassrooms(), loadFolders()]);
+    };
+    window.addEventListener('auth-change', onAuthChange);
 
     return () => {
+      classroomLoadEpochRef.current += 1;
+      window.removeEventListener('auth-change', onAuthChange);
       revokeThumbnailSlideMediaUrls(thumbnailsRef.current);
       thumbnailsRef.current = {};
     };
@@ -810,6 +831,7 @@ function HomePage() {
               <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
             </button>
           </div>
+          <AccountMenu triggerClassName="rounded-md text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-none dark:hover:bg-muted" />
         </div>
       </div>
       <SettingsDialog

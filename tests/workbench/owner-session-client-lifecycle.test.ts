@@ -2,7 +2,7 @@
 
 import { act, createElement, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OwnerSessionClient, type OwnerEventSource } from '@/lib/workbench/owner-session-client';
 
 function deferred<T>() {
@@ -21,15 +21,27 @@ class CountingEventSource implements OwnerEventSource {
   readyState = 1;
   onerror: ((event: Event) => void) | null = null;
   private isClosed = false;
+  readonly listeners = new Map<string, Set<EventListener>>();
 
   constructor() {
     CountingEventSource.created += 1;
     CountingEventSource.live += 1;
   }
 
-  addEventListener(_type: string, _listener: EventListener): void {}
+  addEventListener(type: string, listener: EventListener): void {
+    const listeners = this.listeners.get(type) ?? new Set<EventListener>();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
 
-  removeEventListener(_type: string, _listener: EventListener): void {}
+  removeEventListener(type: string, listener: EventListener): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  emit(type: string, data: unknown): void {
+    for (const listener of this.listeners.get(type) ?? [])
+      listener(new MessageEvent(type, { data: JSON.stringify(data) }));
+  }
 
   close(): void {
     if (this.isClosed) return;
@@ -55,6 +67,10 @@ function OwnerSessionLifecycleHarness() {
   return null;
 }
 
+beforeEach(() => {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -63,6 +79,92 @@ afterEach(() => {
 });
 
 describe('OwnerSessionClient lifecycle baseline', () => {
+  it('releases hidden streams/timers, resumes the exact decimal cursor and retires stale snapshots', async () => {
+    vi.useFakeTimers();
+    const stale = deferred<[]>();
+    const fetchSessions = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockReturnValueOnce(stale.promise)
+      .mockResolvedValue([]);
+    const sources: CountingEventSource[] = [];
+    const urls: string[] = [];
+    const onSessions = vi.fn();
+    const client = new OwnerSessionClient({
+      fetchSessions,
+      createEventSource: (url) => {
+        urls.push(url);
+        const source = new CountingEventSource();
+        sources.push(source);
+        return source;
+      },
+      onSessions,
+      onState: vi.fn(),
+    });
+    client.start();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    sources[0]!.emit('session_title', {
+      id: '9007199254740993',
+      type: 'session_title',
+      sessionId: 's1',
+      title: 'new',
+      ts: 100,
+    });
+    expect(fetchSessions).toHaveBeenCalledTimes(2);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(sources[0]!.readyState).toBe(2);
+    expect([...sources[0]!.listeners.values()].every((listeners) => listeners.size === 0)).toBe(
+      true,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    client.requestFullFetch();
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(fetchSessions).toHaveBeenCalledTimes(2);
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(urls[1]).toBe('/api/agent/owner-events?lastEventId=9007199254740993');
+    expect(fetchSessions).toHaveBeenCalledTimes(3);
+    const beforeStale = onSessions.mock.calls.length;
+    stale.resolve([]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onSessions).toHaveBeenCalledTimes(beforeStale);
+    sources[1]!.emit('owner_moved', { type: 'owner_moved' });
+    expect(sources[1]!.readyState).toBe(2);
+    expect(urls[2]).toBe('/api/agent/owner-events');
+    client.stop();
+    expect(sources[2]!.readyState).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(sources).toHaveLength(3);
+  });
+
+  it('does not open or fetch while starting hidden', () => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    const fetchSessions = vi.fn(async () => []);
+    const createEventSource = vi.fn(() => new CountingEventSource());
+    const client = new OwnerSessionClient({
+      fetchSessions,
+      createEventSource,
+      onSessions: vi.fn(),
+      onState: vi.fn(),
+    });
+    client.start();
+    expect(createEventSource).not.toHaveBeenCalled();
+    expect(fetchSessions).not.toHaveBeenCalled();
+    client.stop();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(createEventSource).not.toHaveBeenCalled();
+  });
+
   it('starts a fresh fetch immediately after stop/start and ignores the retired fetch', async () => {
     const first = deferred<[]>();
     const second = deferred<[]>();

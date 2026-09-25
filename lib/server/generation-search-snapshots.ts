@@ -1,6 +1,9 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Queryable, WithTransaction } from '@openmaic/storage/document/pg';
+import { tryAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
+import { getPersistencePool } from '@/lib/db/pool-registry';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 import { nodePostgresTransaction } from '@/lib/server/agent-runtime/store';
 import {
@@ -107,6 +110,22 @@ function unseal(
     if (error instanceof GenerationSearchSnapshotError) throw error;
     throw new GenerationSearchSnapshotError('GENERATION_SEARCH_DECRYPTION_FAILED', 503);
   }
+}
+
+/** Operator-only migration helper for owner-bound search snapshot AAD/digests. */
+export function reassignGenerationSearchSnapshot(
+  ciphertext: string,
+  fromOwnerId: string,
+  toOwnerId: string,
+  ref: GenerationSearchRef,
+): { ciphertext: string; intentDigest: string } {
+  const content = unseal(ciphertext, fromOwnerId, ref);
+  return {
+    ciphertext: seal(content, toOwnerId, ref),
+    intentDigest: createHmac('sha256', key())
+      .update(`generation-search:v1\0${toOwnerId}\0${canonical(content)}`)
+      .digest('hex'),
+  };
 }
 
 export function generationSearchSnapshotContent(value: unknown): GenerationSearchSnapshotContent {
@@ -278,9 +297,10 @@ export class GenerationSearchSnapshotStore {
 
 const stores = new WeakMap<object, Promise<GenerationSearchSnapshotStore>>();
 async function store() {
-  if (!process.env.DATABASE_URL)
+  const connectionString = tryAgentRuntimeDatabaseUrl();
+  if (!connectionString)
     throw new GenerationSearchSnapshotError('GENERATION_SEARCH_DATABASE_UNAVAILABLE', 503);
-  const { pool } = await getServerPersistenceProvider(process.env.DATABASE_URL);
+  const { pool } = await getServerPersistenceProvider(connectionString);
   let pending = stores.get(pool);
   if (!pending) {
     pending = assertGenerationSchema(pool).then(
@@ -292,11 +312,16 @@ async function store() {
   return pending;
 }
 
+function ownerStore(ownerId: string): GenerationSearchSnapshotStore {
+  const db = createOwnerBoundQueryable(getPersistencePool(), ownerId);
+  return new GenerationSearchSnapshotStore(db, db.withTransaction);
+}
+
 export async function syncGenerationSearchSnapshot(ownerId: string, value: unknown) {
-  return (await store()).create(ownerId, value);
+  return ownerStore(ownerId).create(ownerId, value);
 }
 export async function loadGenerationSearchSnapshot(ownerId: string, ref: GenerationSearchRef) {
-  return (await store()).load(ownerId, ref);
+  return ownerStore(ownerId).load(ownerId, ref);
 }
 export async function cleanupGenerationSearchSnapshots(retentionMs: number) {
   return (await store()).cleanupExpired(retentionMs);

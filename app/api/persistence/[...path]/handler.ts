@@ -18,12 +18,19 @@ import {
 import { createOwnerBoundDocumentStore } from '@/lib/persistence/owner-bound-document-store';
 import { createPersistenceDocumentConflictMapper } from '@/lib/persistence/document-http-conflicts';
 import { authenticatePersistenceRequest } from '@/lib/persistence/server-auth';
+import { AuthError, authJsonResponse } from '@/lib/auth/errors';
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
+import type { Queryable } from '@openmaic/storage/document/pg';
 import {
+  createHostedOwnerBoundStores,
   getServerPersistenceProvider,
   type PersistencePoolFactory,
 } from '@/lib/persistence/server-provider';
 import { readStageMeta } from '@/lib/persistence/stage-meta';
 import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators';
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
+import { tryPrincipal } from '@/lib/auth/session';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
 const ROUTE_PREFIX = '/api/persistence';
@@ -81,23 +88,23 @@ async function createPersistenceHandler(
   ownerId: string,
   access: DocumentAccess,
   requestId: string,
+  originalRequest: Request,
   poolFactory?: PersistencePoolFactory,
 ): Promise<RequestListener> {
-  const { pool, runtimeStore, assetStore } = await getServerPersistenceProvider(
-    connectionString,
-    poolFactory,
-  );
+  const provider = await getServerPersistenceProvider(connectionString, poolFactory);
+  const isolated = isHostedAuthEnabled() || shouldIsolateOwner(ownerId);
+  const hostedStores = isolated ? createHostedOwnerBoundStores(provider.pool, ownerId) : null;
+  const runtimeStore = hostedStores?.runtimeStore ?? provider.runtimeStore;
+  const assetStore = hostedStores?.assetStore ?? provider.assetStore;
   const documentStore = createOwnerBoundDocumentStore({
-    pool,
+    pool: provider.pool,
     ownerId,
     validateScene: validateAppScene,
     validateStage: validateAppStage,
   });
-  // Runtime and asset requests retain the development authenticator, which
-  // takes their partition key from a client-supplied header. Document requests
-  // use the server-resolved anonymous owner below. Before runtime or asset
-  // routes carry production data, their authenticator must also be replaced
-  // with real session verification.
+  // Isolated sessions authenticate from the verified principal. Unsigned
+  // legacy still uses the development token for runtime/asset routes and
+  // the signed generation cookie for document routes.
   // Reclamation is not scheduled from here, and must not be: a route module
   // has no once-per-process guarantee and no shutdown hook. AssetCollector
   // runs from instrumentation.ts instead, over the byte store this same
@@ -107,10 +114,19 @@ async function createPersistenceHandler(
     configuredAssetByteEgress(process.env.ASSET_BYTE_EGRESS),
   );
   return createStorageHttpHandler(runtimeStore, documentStore, {
-    authenticate: async (request) =>
-      request.url?.startsWith('/documents')
-        ? { learnerKey: ownerId }
-        : authenticatePersistenceRequest(request),
+    authenticate: async (incoming) => {
+      try {
+        if (isolated) {
+          return authenticatePersistenceRequest(incoming, originalRequest);
+        }
+        return incoming.url?.startsWith('/documents')
+          ? { learnerKey: ownerId }
+          : authenticatePersistenceRequest(incoming);
+      } catch (error) {
+        if (error instanceof AuthError) return undefined;
+        throw error;
+      }
+    },
     authorizeMerge: async () => false,
     authorizeAdmin: async () => false,
     authorizeDocuments: async () => access === 'allow',
@@ -290,7 +306,17 @@ export async function handlePersistenceRequest(
       requestId,
     );
   }
-  if (!process.env.PERSISTENCE_DEV_TOKEN) {
+  const probeHeaders = new Headers({ 'Cache-Control': 'private, no-store' });
+  let sessionPrincipal;
+  try {
+    sessionPrincipal = await tryPrincipal(request, probeHeaders);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return withPersistenceRequestId(authJsonResponse(error, probeHeaders), requestId);
+    }
+    throw error;
+  }
+  if (!sessionPrincipal && !isHostedAuthEnabled() && !process.env.PERSISTENCE_DEV_TOKEN) {
     return withPersistenceRequestId(
       jsonError(
         503,
@@ -308,13 +334,16 @@ export async function handlePersistenceRequest(
       let access: DocumentAccess = 'allow';
       if (path === '/documents' || path.startsWith('/documents/')) {
         const { pool } = await getServerPersistenceProvider(connectionString, deps.poolFactory);
-        const queryable = pool;
+        const queryable: Queryable =
+          isHostedAuthEnabled() || shouldIsolateOwner(ownerId)
+            ? createOwnerBoundQueryable(pool, ownerId)
+            : (pool as unknown as Queryable);
         access = await decideDocumentAccess(
           action,
           ownerId,
           (stageId) => readStageMeta(queryable, stageId),
           (stageId) =>
-            pool
+            queryable
               .query('SELECT 1 FROM document_stages WHERE id = $1', [stageId])
               .then((result) => result.rows.length > 0),
           (stageId) => readStageMeta(queryable, stageId),
@@ -330,6 +359,7 @@ export async function handlePersistenceRequest(
                 ownerId,
                 access,
                 requestId,
+                request,
                 deps.poolFactory,
               ),
               request,
@@ -347,5 +377,9 @@ export async function handlePersistenceRequest(
       return response;
     }
   });
+  // Authentication can refresh cookies on the first probe. Later checks reuse
+  // that principal and must not drop the response headers from its verification.
+  for (const cookie of probeHeaders.getSetCookie()) response.headers.append('set-cookie', cookie);
+  response.headers.set('cache-control', 'private, no-store');
   return withPersistenceRequestId(response, requestId);
 }

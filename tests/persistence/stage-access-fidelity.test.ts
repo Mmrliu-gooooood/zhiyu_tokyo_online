@@ -151,7 +151,10 @@ describe('reference-fidelity stage access', () => {
     await expect(ownerList.json()).resolves.toMatchObject({
       stages: [expect.objectContaining({ id: stageId })],
     });
-    await expect(visitorList.json()).resolves.toEqual({ stages: [] });
+    // Unsigned dual-mode home lists the shared `anon:` pile, not the visitor cookie.
+    await expect(visitorList.json()).resolves.toMatchObject({
+      stages: [expect.objectContaining({ id: stageId })],
+    });
   });
 
   it('tombstones deletions and permanently retires the stage id', async () => {
@@ -161,6 +164,30 @@ describe('reference-fidelity stage access', () => {
     const stageId = 'stage-retired-id';
     const owner = ownerStore(pool, `anon:${ownerCookie}`);
     await owner.saveDocument(courseDocument(stageId));
+    // The hosted deletion transaction fences in-flight jobs. This focused
+    // fixture installs only the columns touched by that fence after the
+    // persistence provider has completed its own schema initialization.
+    await pool.query(`CREATE TABLE generation_jobs (
+      id UUID,
+      stage_id TEXT PRIMARY KEY,
+      owner_id TEXT,
+      status TEXT NOT NULL,
+      worker_id TEXT,
+      lease_epoch BIGINT NOT NULL DEFAULT 0,
+      lease_expires_at TIMESTAMPTZ,
+      heartbeat_at TIMESTAMPTZ,
+      cancel_requested_at TIMESTAMPTZ,
+      finished_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+      state_version BIGINT NOT NULL DEFAULT 1
+    )`);
+    await pool.query(`CREATE TABLE generation_ownership (
+      stage_id TEXT PRIMARY KEY,
+      owner_id TEXT,
+      ownership_epoch BIGINT NOT NULL DEFAULT 1,
+      write_mode TEXT NOT NULL DEFAULT 'editable',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+    )`);
     await owner.deleteDocument(stageId);
 
     await expect(owner.loadDocument(stageId)).resolves.toBeNull();

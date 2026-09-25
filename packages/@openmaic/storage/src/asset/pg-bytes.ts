@@ -63,6 +63,22 @@ export class PgAssetByteStore implements AssetByteStore {
     }
   }
 
+  async readRange(hash: ContentHash, start: number, end: number): Promise<Uint8Array | null> {
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start) {
+      throw new Error('@openmaic/storage: invalid PostgreSQL asset byte range');
+    }
+    try {
+      const result = await this.queryable.query<ByteRow>(
+        'SELECT substring(bytes FROM $2 FOR $3) AS bytes FROM asset_blobs WHERE content_hash = $1',
+        [hash, start + 1, end - start + 1],
+      );
+      const bytes = result.rows[0]?.bytes;
+      return bytes === undefined || bytes === null ? null : asUint8Array(bytes);
+    } catch {
+      throw byteStoreFailure('range read');
+    }
+  }
+
   /** Use a transaction-pinned queryable when the registry resolves an entry. */
   async readWith(queryable: Queryable, hash: ContentHash): Promise<Uint8Array | null> {
     const result = await queryable.query<ByteRow>(

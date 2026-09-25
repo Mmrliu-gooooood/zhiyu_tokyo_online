@@ -273,6 +273,11 @@ ALTER TABLE agent_sessions
 ALTER TABLE agent_sessions
   ADD COLUMN IF NOT EXISTS title TEXT;
 
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS model_ref JSONB;
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS active_model_ref JSONB;
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS media_config_ref JSONB;
+ALTER TABLE agent_sessions ADD COLUMN IF NOT EXISTS active_media_config_ref JSONB;
+
 CREATE INDEX IF NOT EXISTS agent_sessions_status_live_idx
   ON agent_sessions (status, created_at) WHERE deleted_at IS NULL;
 

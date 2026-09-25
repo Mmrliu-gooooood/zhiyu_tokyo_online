@@ -26,6 +26,37 @@ const lease = {
 describe('generation worker stop diagnostics', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('publishes the local health marker only after a durable database heartbeat succeeds', async () => {
+    const controller = new AbortController();
+    const order: string[] = [];
+    const worker = runWorker({
+      repository: {
+        claim: async () => {
+          controller.abort();
+          return null;
+        },
+        heartbeat: async () => true,
+        workerHeartbeat: async () => {
+          order.push('database');
+        },
+        reapExpired: async () => 0,
+        expireWaitingJobs: async () => 0,
+        confirmDuePlans: async () => 0,
+      },
+      workerId: 'worker-1',
+      concurrency: 1,
+      heartbeatMs: 1000,
+      signal: controller.signal,
+      execute: async () => undefined,
+      onDatabaseHeartbeat: async () => {
+        order.push('marker');
+      },
+    });
+
+    await worker;
+    expect(order.slice(0, 2)).toEqual(['database', 'marker']);
+  });
+
   it.each([
     ['GENERATION_LEASE_LOST', 'lease_lost', false],
     ['WORKER_DRAIN_TIMEOUT', 'drain_timeout', false],

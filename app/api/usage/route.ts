@@ -1,3 +1,4 @@
+import { requirePrincipalIfHosted } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
@@ -65,15 +66,21 @@ function dayKey(createdAt: number): string {
 /**
  * GET /api/usage
  *
- * Aggregates the deployment-wide usage log (data/usage/*.jsonl) by model, by
- * day, and by modality. Pure usage — no cost. Optional `?months=YYYY-MM,...`.
+ * Aggregates usage (data/usage/*.jsonl) by model, by day, and by modality.
+ * Signed-in `user:{uuid}` sees only that owner's rows. Unsigned traffic keeps
+ * legacy unowned rows and never sees `user:` rows. Pure usage — no cost.
+ * Optional `?months=YYYY-MM,...`.
  */
 export async function GET(req: NextRequest) {
   try {
     const monthsParam = req.nextUrl.searchParams.get('months');
     const months = monthsParam ? monthsParam.split(',').map((s) => s.trim()) : undefined;
-
-    const records = await readUsageRecords({ months });
+    const principal = await requirePrincipalIfHosted(req);
+    if (principal instanceof Response) return principal;
+    const records = await readUsageRecords({
+      months,
+      ...(principal ? { ownerId: principal.ownerId } : {}),
+    });
 
     const byModel = new Map<string, Bucket>();
     const byDay = new Map<string, Bucket>();

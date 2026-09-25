@@ -303,7 +303,7 @@ const TEMPORARY_VENDOR_DEBT: readonly AllowedVendorDebt[] = [
     'Temporary: asset-byte-store selection still switches between concrete storage implementations.',
     [
       ['pg', 12],
-      ['s3', 16],
+      ['s3', 12],
     ],
   ),
   ...groupedDebt(

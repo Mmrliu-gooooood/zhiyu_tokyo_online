@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "postinstall": "cd packages/mathml2omml && npm run build && cd ../pptxgenjs && npm run build && cd ../@openmaic/dsl && pnpm run build && cd ../generation && pnpm run build && cd ../storage && pnpm run build && cd ../importer && pnpm run build && cd ../renderer && pnpm run build && cd ../editor && pnpm run build && cd ../../.. && node scripts/sync-maic-importer.mjs",
@@ -34,7 +34,23 @@
     "eval:orchestration:answer-content": "tsx eval/orchestration/answer-content-runner.ts",
     "build:worker": "node scripts/build-generation-worker.mjs",
     "generation:worker": "node dist-worker/generation.mjs",
-    "generation:migrate": "node dist-worker/migrate.mjs"
+    "generation:migrate": "node dist-worker/migrate.mjs",
+    "accounts:migrate": "node scripts/run-accounts-migration.mjs",
+    "accounts:apply-hosted-v12-v13": "tsx scripts/apply-hosted-accounts-v12-v13.ts",
+    "accounts:migrate-classroom-registry": "tsx scripts/migrate-classroom-session-registry.ts",
+    "accounts:create-hosted-logins": "tsx scripts/create-hosted-db-logins.ts",
+    "accounts:apply-hosted-logins": "tsx scripts/apply-hosted-db-logins.ts",
+    "accounts:prove-hosted-login": "tsx scripts/prove-hosted-login-isolation.ts",
+    "accounts:prove-hosted-data-api": "tsx scripts/prove-hosted-data-api-stages.ts",
+    "accounts:prove-classroom-app": "tsx scripts/prove-classroom-app-isolation.ts",
+    "accounts:prove-classroom-chat-pro": "tsx scripts/prove-classroom-chat-pro.ts",
+    "accounts:prove-hosted-compose": "tsx scripts/prove-hosted-compose.ts",
+    "accounts:apply-hosted-v9": "tsx scripts/apply-hosted-accounts-v9.ts",
+    "accounts:prove-hosted-isolation": "tsx scripts/prove-hosted-isolation.ts",
+    "accounts:provision-test-admin": "tsx scripts/provision-test-admin.ts",
+    "accounts:remove-test-admin": "tsx scripts/remove-test-admin.ts",
+    "accounts:delete": "tsx scripts/delete-account.ts",
+    "storage:migrate-supabase": "node scripts/run-storage-migration.mjs"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.103",
@@ -87,6 +103,8 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@streamdown/code": "^1.1.1",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.116.0",
     "@types/js-yaml": "^4.0.9",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.168",
@@ -146,6 +164,7 @@
     "react-colorful": "^5.7.0",
     "react-dom": "19.2.3",
     "react-i18next": "^17.0.1",
+    "remark-cjk-friendly": "^2.3.1",
     "sanitize-html": "2.17.0",
     "shadcn": "^3.6.3",
     "sharp": "^0.34.5",
@@ -165,8 +184,7 @@
     "unpdf": "^1.4.0",
     "use-stick-to-bottom": "^1.1.1",
     "zod": "^4.3.5",
-    "zustand": "^5.0.10",
-    "remark-cjk-friendly": "^2.3.1"
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",
@@ -185,6 +203,7 @@
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
     "@types/tinycolor2": "^1.4.6",
+    "esbuild": "0.27.7",
     "eslint": "^9",
     "eslint-config-next": "16.1.2",
     "fake-indexeddb": "^6.2.5",

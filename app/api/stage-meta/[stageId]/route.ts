@@ -24,8 +24,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
-import { resolveStageAccess } from '@/lib/server/stage-access';
+import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
+import { getOwnerBoundStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 
 // Per-viewer and mutable on every publish/unpublish/delete: this response must
@@ -36,12 +36,13 @@ export const runtime = 'nodejs';
 type Params = { params: Promise<{ stageId: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
-  if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
+  if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const { stageId } = await params;
     try {
-      const access = await resolveStageAccess(stageId);
+      const db = await getOwnerBoundStageAccessDb(ownerId);
+      const access = await resolveStageAccess(stageId, db);
 
       // Absent or tombstoned — indistinguishable, deliberately.
       if (!access) {

@@ -18,7 +18,11 @@ export type QuotaKind = 'llm' | 'tts' | 'media';
 export class PostgresGenerationLimiter {
   private readonly repo: GenerationJobRepository;
   private readonly limits: Record<QuotaKind, number>;
-  constructor(pool: TransactionSource, limits: Partial<Record<QuotaKind, number>> = {}) {
+  constructor(
+    pool: TransactionSource,
+    limits: Partial<Record<QuotaKind, number>> = {},
+    private readonly options: { ownerId?: string } = {},
+  ) {
     this.repo = new GenerationJobRepository(pool);
     const c = generationConfig();
     this.limits = {
@@ -37,12 +41,23 @@ export class PostgresGenerationLimiter {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
       throw new GenerationJobError('INVALID_PROVIDER_LIMIT', 400);
     return this.repo.transaction(async (q) => {
+      if (this.options.ownerId) {
+        await q.query("SELECT set_config('app.owner_id',$1,true)", [this.options.ownerId]);
+        const row = (
+          await q.query<{ slot_no: number; lease_epoch: string }>(
+            'SELECT * FROM app_internal.acquire_provider_quota($1,$2,$3,$4)',
+            [group, limit, holder, deadlineMs],
+          )
+        ).rows[0];
+        return row ? { group, slot: row.slot_no, holder, epoch: Number(row.lease_epoch) } : null;
+      }
       await q.query("SELECT pg_advisory_xact_lock(hashtext('generation:quota:' || $1))", [group]);
-      for (let i = 0; i < limit; i++)
-        await q.query(
-          'INSERT INTO generation_provider_slots(quota_group,slot_no) VALUES($1,$2) ON CONFLICT DO NOTHING',
-          [group, i],
-        );
+      await q.query(
+        `INSERT INTO generation_provider_slots(quota_group,slot_no)
+         SELECT $1, slot_no FROM generate_series(0, $2 - 1) AS slot_no
+         ON CONFLICT DO NOTHING`,
+        [group, limit],
+      );
       // Expiry does not imply a provider stopped. A dead holder stays isolated until deadline + grace.
       const row = (
         await q.query<{ slot_no: number; lease_epoch: number }>(
@@ -63,6 +78,17 @@ export class PostgresGenerationLimiter {
   }
   async release(slot: ProviderSlot, uncertain = false): Promise<void> {
     await this.repo.transaction(async (q) => {
+      if (this.options.ownerId) {
+        await q.query("SELECT set_config('app.owner_id',$1,true)", [this.options.ownerId]);
+        await q.query('SELECT app_internal.release_provider_quota($1,$2,$3,$4,$5)', [
+          slot.group,
+          slot.slot,
+          slot.holder,
+          slot.epoch,
+          uncertain,
+        ]);
+        return;
+      }
       await q.query(
         `UPDATE generation_provider_slots SET holder_attempt_id=NULL,expires_at=NULL,quarantine_until=${uncertain ? 'quarantine_until' : 'NULL'} WHERE quota_group=$1 AND slot_no=$2 AND holder_attempt_id=$3 AND lease_epoch=$4`,
         [slot.group, slot.slot, slot.holder, slot.epoch],
@@ -71,6 +97,17 @@ export class PostgresGenerationLimiter {
   }
   async heartbeat(slot: ProviderSlot, deadlineMs: number): Promise<boolean> {
     return this.repo.transaction(async (q) => {
+      if (this.options.ownerId) {
+        await q.query("SELECT set_config('app.owner_id',$1,true)", [this.options.ownerId]);
+        return (
+          (
+            await q.query<{ alive: boolean }>(
+              'SELECT app_internal.heartbeat_provider_quota($1,$2,$3,$4,$5) AS alive',
+              [slot.group, slot.slot, slot.holder, slot.epoch, deadlineMs],
+            )
+          ).rows[0]?.alive === true
+        );
+      }
       const result = await q.query<{ slot_no: number }>(
         "UPDATE generation_provider_slots SET expires_at=clock_timestamp()+$5*interval '1 millisecond',quarantine_until=GREATEST(quarantine_until,clock_timestamp()+($5+30000)*interval '1 millisecond') WHERE quota_group=$1 AND slot_no=$2 AND holder_attempt_id=$3 AND lease_epoch=$4 AND expires_at>clock_timestamp() RETURNING slot_no",
         [slot.group, slot.slot, slot.holder, slot.epoch, deadlineMs],
@@ -78,7 +115,21 @@ export class PostgresGenerationLimiter {
       return result.rows.length === 1;
     });
   }
-  async cooldown(group: string, retryAfterMs: number): Promise<void> {
+  async cooldown(group: string, retryAfterMs: number, slot?: ProviderSlot): Promise<void> {
+    if (this.options.ownerId) {
+      if (!slot || slot.group !== group) throw new GenerationJobError('PROVIDER_SLOT_REQUIRED');
+      await this.repo.transaction(async (q) => {
+        await q.query("SELECT set_config('app.owner_id',$1,true)", [this.options.ownerId]);
+        return q.query('SELECT app_internal.cooldown_provider_quota($1,$2,$3,$4,$5)', [
+          group,
+          slot.slot,
+          slot.holder,
+          slot.epoch,
+          Math.max(0, Math.min(3_600_000, retryAfterMs)),
+        ]);
+      });
+      return;
+    }
     await this.repo.transaction((q) =>
       q.query(
         "UPDATE generation_provider_slots SET cooldown_until=GREATEST(COALESCE(cooldown_until,clock_timestamp()),clock_timestamp()+$2*interval '1 millisecond') WHERE quota_group=$1",
@@ -152,6 +203,7 @@ export class PostgresGenerationLimiter {
         await this.cooldown(
           `${kind}:${group}`,
           Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 5000,
+          held,
         );
       }
       throw error;

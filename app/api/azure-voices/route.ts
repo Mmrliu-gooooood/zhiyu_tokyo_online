@@ -1,3 +1,4 @@
+import { hostedAuthGate } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
@@ -11,6 +12,8 @@ export const maxDuration = 30;
  * Fetches available voices from Azure Speech Services
  */
 export async function POST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   let baseUrl: string | undefined;
   try {
     const body = await req.json();

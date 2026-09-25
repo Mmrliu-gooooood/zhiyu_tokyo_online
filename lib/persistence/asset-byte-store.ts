@@ -10,6 +10,14 @@
 import { PgAssetByteStore } from '@openmaic/storage/asset/pg-bytes';
 import type { AssetByteStore, Queryable } from '@openmaic/storage/asset/pg';
 
+import {
+  configuredFileAssetByteStoreFactory,
+  type AssetByteStoreFactory,
+} from './asset-byte-file-adapter';
+import { configuredAssetS3Client, configuredS3Bucket } from './s3-client-config';
+
+export { configuredS3Bucket } from './s3-client-config';
+
 // Tracing anchors for the standalone build. The store implementations below
 // reach both packages through deliberately untraced dynamic imports (they
 // are optional peers of the storage package), so without a literal reference
@@ -21,9 +29,6 @@ const _assetSdkTraceAnchors = {
   presigner: () => import('@aws-sdk/s3-request-presigner'),
 };
 void _assetSdkTraceAnchors;
-
-const S3_RESERVED_PREFIXES = ['xn--', 'sthree-', 'amzn-s3-demo-'];
-const S3_RESERVED_SUFFIXES = ['-s3alias', '--ol-s3', '.mrap', '--x-s3', '--table-s3'];
 
 /**
  * The no-bucket byte layer widened with the transaction-pinned methods the
@@ -40,33 +45,14 @@ interface PgForwardedByteStore extends AssetByteStore {
 }
 
 /**
- * ASSET_S3_BUCKET: a valid bucket name opts asset bytes into S3. The optional
- * AWS SDK owns its standard region, credential, and endpoint configuration;
- * nothing here reads an AWS environment variable itself.
+ * ASSET_S3_BUCKET: a valid bucket name opts asset bytes into S3. Explicit
+ * ASSET_S3_* client overrides are resolved separately; when absent, the
+ * optional AWS SDK owns its standard region, credential, and endpoint chains.
  *
  * Validated eagerly and separately from store construction so a caller can
  * reject a malformed name before it opens a database connection or resolves
  * the optional SDK.
  */
-export function configuredS3Bucket(value: string | undefined): string | undefined {
-  const bucket = value?.trim();
-  if (!bucket) return undefined;
-  const invalid =
-    bucket.length < 3 ||
-    bucket.length > 63 ||
-    !/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(bucket) ||
-    bucket.includes('..') ||
-    /^\d{1,3}(?:\.\d{1,3}){3}$/.test(bucket) ||
-    S3_RESERVED_PREFIXES.some((prefix) => bucket.startsWith(prefix)) ||
-    S3_RESERVED_SUFFIXES.some((suffix) => bucket.endsWith(suffix));
-  if (invalid) {
-    throw new Error(
-      'Invalid ASSET_S3_BUCKET: expected a valid Amazon S3 general purpose bucket name',
-    );
-  }
-  return bucket;
-}
-
 /**
  * The byte store for a configured bucket, or the PostgreSQL byte layer.
  *
@@ -75,13 +61,25 @@ export function configuredS3Bucket(value: string | undefined): string | undefine
  * package that declares the peer rather than from this app — and only when a
  * bucket is actually configured.
  */
-export async function createAssetByteStore(
+async function createSelectedAssetByteStore(
+  fileStoreFactory: AssetByteStoreFactory | undefined,
   bucket: string | undefined,
   queryable: Queryable,
 ): Promise<AssetByteStore> {
+  if (fileStoreFactory) return fileStoreFactory();
   if (!bucket) return new PgAssetByteStore(queryable);
   const storage = await import('@openmaic/storage/asset/s3-bytes');
-  return storage.loadS3AssetByteStore(bucket);
+  const clientConfig = configuredAssetS3Client();
+  return Object.keys(clientConfig).length === 0
+    ? storage.loadS3AssetByteStore(bucket)
+    : storage.loadS3AssetByteStore(bucket, clientConfig);
+}
+
+export function createAssetByteStore(
+  bucket: string | undefined,
+  queryable: Queryable,
+): Promise<AssetByteStore> {
+  return createSelectedAssetByteStore(configuredFileAssetByteStoreFactory(), bucket, queryable);
 }
 
 /**
@@ -101,14 +99,17 @@ export function lazyAssetByteStore(
   bucketValue: string | undefined,
   queryable: Queryable,
 ): AssetByteStore {
+  const fileStoreFactory = configuredFileAssetByteStoreFactory();
   let pending: Promise<AssetByteStore> | undefined;
   const resolve = (): Promise<AssetByteStore> =>
-    (pending ??= createAssetByteStore(configuredS3Bucket(bucketValue), queryable).catch(
-      (error: unknown) => {
-        pending = undefined;
-        throw error;
-      },
-    ));
+    (pending ??= createSelectedAssetByteStore(
+      fileStoreFactory,
+      fileStoreFactory ? undefined : configuredS3Bucket(bucketValue),
+      queryable,
+    ).catch((error: unknown) => {
+      pending = undefined;
+      throw error;
+    }));
   const base = {
     write: async (hash, bytes) => (await resolve()).write(hash, bytes),
     read: async (hash) => (await resolve()).read(hash),
@@ -120,6 +121,18 @@ export function lazyAssetByteStore(
   // With no bucket configured the layer is known now, so the method is
   // simply absent. With a bucket, lazy validation is preserved: the wrapper
   // answers `undefined` when the resolved layer turns out not to sign.
+  if (fileStoreFactory) {
+    return {
+      ...base,
+      readRange: async (hash, start, end) => {
+        const store = await resolve();
+        return typeof store.readRange === 'function'
+          ? store.readRange(hash, start, end)
+          : ((await store.read(hash))?.slice(start, end + 1) ?? null);
+      },
+      writesOutsideRegistryDatabase: true as const,
+    };
+  }
   if (!bucketValue?.trim()) {
     // No bucket means the layer is statically PgAssetByteStore, whose bytes
     // live in the registry's own PostgreSQL. Its transaction-pinned
@@ -131,6 +144,12 @@ export function lazyAssetByteStore(
     // present; nothing here is probed lazily.
     const forwarded: PgForwardedByteStore = {
       ...base,
+      readRange: async (hash, start, end) => {
+        const store = await resolve();
+        return typeof store.readRange === 'function'
+          ? store.readRange(hash, start, end)
+          : ((await store.read(hash))?.slice(start, end + 1) ?? null);
+      },
       writeWith: async (queryable, hash, bytes) =>
         ((await resolve()) as PgAssetByteStore).writeWith(queryable, hash, bytes),
       readWith: async (queryable, hash) =>
@@ -147,6 +166,12 @@ export function lazyAssetByteStore(
     // AssetByteStore.writesOutsideRegistryDatabase). S3 has no transactional
     // writer, so nothing is forwarded here, exactly as before.
     writesOutsideRegistryDatabase: true as const,
+    readRange: async (hash, start, end) => {
+      const store = await resolve();
+      return typeof store.readRange === 'function'
+        ? store.readRange(hash, start, end)
+        : ((await store.read(hash))?.slice(start, end + 1) ?? null);
+    },
     signReadUrl: async (hash, headers) => {
       const store = await resolve();
       return typeof store.signReadUrl === 'function' ? store.signReadUrl(hash, headers) : undefined;

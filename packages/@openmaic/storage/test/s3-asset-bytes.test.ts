@@ -28,8 +28,10 @@ class MemoryS3Client {
       return {};
     }
     if (command instanceof GetObjectCommand) {
-      const bytes = this.objects.get(command.input.Key!);
+      let bytes = this.objects.get(command.input.Key!);
       if (!bytes) throw Object.assign(new Error('missing'), { name: 'NoSuchKey' });
+      const match = /^bytes=(\d+)-(\d+)$/.exec(command.input.Range ?? '');
+      if (match) bytes = bytes.slice(Number(match[1]), Number(match[2]) + 1);
       return {
         Body: {
           transformToByteArray: async () => new Uint8Array(bytes),
@@ -82,6 +84,14 @@ describe('S3AssetByteStore commands and failures', () => {
     const store = makeStore();
     const { contentHash } = await contentHashOf(new Blob(['absent']));
     await expect(store.read(contentHash)).resolves.toBeNull();
+  });
+
+  test('uses an inclusive S3 Range instead of reading a whole object', async () => {
+    const store = makeStore();
+    const { contentHash, bytes } = await contentHashOf(new Blob(['0123456789']));
+    await store.write(contentHash, new Uint8Array(bytes));
+    const selected = await store.readRange(contentHash, 3, 6);
+    expect(new TextDecoder().decode(selected!)).toBe('3456');
   });
 
   test('a bucket-level 404 is a failure, not an absent object', async () => {

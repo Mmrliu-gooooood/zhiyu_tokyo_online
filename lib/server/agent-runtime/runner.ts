@@ -24,7 +24,7 @@ import { parseElementRefs, type ElementRef } from '@/lib/workbench/element-refs'
 import type { Scene, SlideContent } from '@/lib/types/stage';
 
 import { AGENT_DRIVER_STAGE, resolveAgentDriverModel } from './agent-driver-model';
-import { loadModelConnection } from './model-connections';
+import { loadModelConnectionForWorker } from './model-connections';
 import { preflightProModel } from './model-preflight';
 import { isModelConfigurationError, safeModelError } from './model-errors';
 import { buildAskUserTool } from './ask-user';
@@ -1293,7 +1293,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     }
 
     const modelContext = meta.activeModelRef
-      ? await loadModelConnection(meta.ownerId, meta.activeModelRef)
+      ? await loadModelConnectionForWorker(meta.ownerId, meta.activeModelRef)
       : undefined;
     if (meta.activeMediaConfigRef && !ctx.loadMediaConfigSnapshot) {
       throw new Error('media configuration snapshot loader is unavailable');

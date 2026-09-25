@@ -1,3 +1,5 @@
+import { hostedAuthGate } from '@/lib/auth/api';
+import { tryPrincipal } from '@/lib/auth/session';
 import { NextRequest } from 'next/server';
 
 import { settleWhiteboardVisibility } from '@/lib/chat/pi/whiteboard-visibility';
@@ -29,7 +31,12 @@ function validBody(value: unknown): value is {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const principal = authenticatePersistenceHeaders(req.headers);
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
+  const account = await tryPrincipal(req);
+  const principal = account
+    ? { key: account.assetPrincipal, learnerKey: account.learnerKey }
+    : authenticatePersistenceHeaders(req.headers);
   if (!principal?.learnerKey) {
     return apiError('INVALID_CREDENTIALS', 401, 'Invalid persistence development binding');
   }

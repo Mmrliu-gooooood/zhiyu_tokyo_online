@@ -1,3 +1,4 @@
+import { hostedAuthGate } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
@@ -21,6 +22,8 @@ const NON_CHAT_PATTERN = /(tts|asr|whisper|embedding|rerank|mineru|image|video|v
  * a typed status so the UI can fall back to manual model entry.
  */
 export async function POST(req: NextRequest) {
+  const denied = await hostedAuthGate(req);
+  if (denied) return denied;
   try {
     const source = normalizeProviderSelectionSource(
       req.headers.get('x-model-source')?.trim() || undefined,

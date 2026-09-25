@@ -112,6 +112,47 @@ describe('stage thumbnail allocated assets', () => {
     });
   });
 
+  it('bounds library reads and settles remaining covers after one document fails', async () => {
+    let active = 0;
+    let peak = 0;
+    const completed: string[] = [];
+    mocks.accessDocument.mockImplementation(async (stageId: string) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      completed.push(stageId);
+      if (stageId === 'stage-0') throw new Error('one unavailable document');
+      return { document: { scenes: [] } };
+    });
+    const ids = Array.from({ length: 52 }, (_, index) => `stage-${index}`);
+
+    await getFirstSlideByStages(ids);
+
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThanOrEqual(3);
+    expect(active).toBe(0);
+    expect(completed.sort()).toEqual([...ids].sort());
+  });
+
+  it('stops scheduling covers after the caller leaves the library', async () => {
+    let current = true;
+    mocks.accessDocument.mockImplementation(async () => {
+      await Promise.resolve();
+      current = false;
+      return { document: { scenes: [] } };
+    });
+
+    await getFirstSlideByStages(
+      Array.from({ length: 52 }, (_, i) => `stage-${i}`),
+      {
+        shouldContinue: () => current,
+      },
+    );
+
+    expect(mocks.accessDocument).toHaveBeenCalledTimes(3);
+  });
+
   it('hydrates and revokes an allocated image background', async () => {
     mocks.accessDocument.mockResolvedValueOnce({
       document: {

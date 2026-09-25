@@ -1,3 +1,5 @@
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
+import { shouldIsolateOwner } from '@/lib/auth/principal';
 import type { StageMetaRow } from './stage-meta';
 
 export type DocumentAction =
@@ -70,7 +72,14 @@ export async function decideDocumentAccess(
     case 'read': {
       const meta = await readMeta(action.stageId);
       if (!meta) return 'not-found';
-      return meta.deletedAt === null ? 'allow' : 'not-found';
+      if (meta.deletedAt !== null) return 'not-found';
+      if (
+        (isHostedAuthEnabled() || shouldIsolateOwner(ownerId)) &&
+        meta.ownerId !== ownerId
+      ) {
+        return 'not-found';
+      }
+      return 'allow';
     }
     case 'write': {
       const meta = await readMeta(action.stageId);
