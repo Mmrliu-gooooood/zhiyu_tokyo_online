@@ -1,6 +1,6 @@
 # Isolated hosted-auth UI. Never loaded by scripts/generation-compose.ps1.
-# Confirmed project: zhiyu / lzomhnjyymalupgvcato
-#   https://lzomhnjyymalupgvcato.supabase.co
+# Confirmed project: zhiyu / lvbtgwlsebzbtcvjwktq
+#   https://lvbtgwlsebzbtcvjwktq.supabase.co
 #
 # Do NOT combine this file with docker-compose.persistence.yml: that overlay
 # pins container_name zhiyu / zhiyu-worker, 127.0.0.1:3000, and live volumes.

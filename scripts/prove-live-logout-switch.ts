@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 
 import { loadHostedOperatorEnv } from './lib/hosted-operator-env';
 
-const PROJECT_REF = 'lzomhnjyymalupgvcato';
+const PROJECT_REF = 'lvbtgwlsebzbtcvjwktq';
 const PROJECT_URL = `https://${PROJECT_REF}.supabase.co`;
 const EMAIL_A = 'lzg0724aaa@163.com';
 const EMAIL_B = 'zhigngliu0724@gmail.com';

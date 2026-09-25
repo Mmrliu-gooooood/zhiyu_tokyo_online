@@ -1,10 +1,7 @@
 import { builtinModules } from 'node:module';
 import type { NextConfig } from 'next';
 
-const nodeBuiltinNames = [
-  ...builtinModules,
-  ...builtinModules.map((name) => `node:${name}`),
-];
+const nodeBuiltinNames = [...builtinModules, ...builtinModules.map((name) => `node:${name}`)];
 const nodeBuiltinSet = new Set(nodeBuiltinNames);
 
 const nextConfig: NextConfig = {
@@ -50,7 +47,9 @@ const nextConfig: NextConfig = {
     // controls build/static-generation workers only; runtime request and
     // generation concurrency remains governed by the distributed admission
     // controller.
-    cpus: 2,
+    cpus: 1,
+    webpackMemoryOptimizations: true,
+    webpackBuildWorker: true,
   },
   // Windows + Tailwind v4: Turbopack's PostCSS worker hits a hard deadline on
   // first compile of app/globals.css. Official `next dev` is Turbopack; local
@@ -64,18 +63,13 @@ const nextConfig: NextConfig = {
       // webpack rejects the node: scheme before resolve.fallback runs. Strip
       // the scheme in client graphs so the existing false fallbacks apply.
       config.plugins.push(
-        new webpack.NormalModuleReplacementPlugin(
-          /^node:/,
-          (resource: { request: string }) => {
-            resource.request = resource.request.slice('node:'.length);
-          },
-        ),
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {
+          resource.request = resource.request.slice('node:'.length);
+        }),
       );
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        ...Object.fromEntries(
-          builtinModules.map((name) => [name, false as const]),
-        ),
+        ...Object.fromEntries(builtinModules.map((name) => [name, false as const])),
         'pg-native': false,
       };
       return config;
@@ -83,7 +77,10 @@ const nextConfig: NextConfig = {
     const prev = config.externals;
     config.externals = [
       ...(Array.isArray(prev) ? prev : prev ? [prev] : []),
-      ({ request }: { request?: string }, callback: (error?: Error | null, result?: string) => void) => {
+      (
+        { request }: { request?: string },
+        callback: (error?: Error | null, result?: string) => void,
+      ) => {
         // The route/instrumentation graph imports undici's public entry point
         // directly. Keep it native: bundling that entry point traverses the
         // optional SQLite cache store and webpack cannot load node:sqlite.

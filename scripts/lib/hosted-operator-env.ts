@@ -13,9 +13,9 @@ import { appPostgresConnectionConfig } from '../../lib/db/app-pool';
 const ROOT = existsSync(resolve(process.cwd(), 'package.json'))
   ? resolve(process.cwd())
   : resolve(__dirname, '..', '..');
-const HOSTED_REF = 'lzomhnjyymalupgvcato';
+const HOSTED_REF = 'lvbtgwlsebzbtcvjwktq';
 const HOSTED_DIRECT_HOST = `db.${HOSTED_REF}.supabase.co`;
-const HOSTED_POOLER_HOST = 'aws-0-ap-southeast-1.pooler.supabase.com';
+const HOSTED_POOLER_HOST = 'aws-0-ap-northeast-1.pooler.supabase.com';
 const WEB_ROLE = 'zhiyu_app_web';
 const WORKER_ROLE = 'zhiyu_app_worker';
 

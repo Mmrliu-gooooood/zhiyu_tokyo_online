@@ -27,7 +27,7 @@ function assertClassroomDatabaseUrl(connectionString: string): void {
   }
   const host = parsed.hostname.toLowerCase();
   const db = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
-  if (host.includes('supabase.co') || host.startsWith('db.lzomhnjyymalupgvcato')) {
+  if (host.includes('supabase.co') || host.startsWith('db.lvbtgwlsebzbtcvjwktq')) {
     throw new Error('Refusing classroom registry migrate against hosted Supabase');
   }
   if (db !== 'openmaic') {

@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 
 import { loadHostedOperatorEnv } from './lib/hosted-operator-env';
 
-const PROJECT_REF = 'lzomhnjyymalupgvcato';
+const PROJECT_REF = 'lvbtgwlsebzbtcvjwktq';
 const PROJECT_URL = `https://${PROJECT_REF}.supabase.co`;
 const ORIGIN = 'http://localhost:3001';
 const HOSTED_UI = 'openmaic-hosted-ui';

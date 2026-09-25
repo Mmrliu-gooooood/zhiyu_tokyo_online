@@ -10,7 +10,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 import { loadHostedOperatorEnv } from './lib/hosted-operator-env';
 
-const PROJECT_REF = 'lzomhnjyymalupgvcato';
+const PROJECT_REF = 'lvbtgwlsebzbtcvjwktq';
 const PROJECT_URL = `https://${PROJECT_REF}.supabase.co`;
 const APP_ORIGIN = 'http://127.0.0.1:3000';
 const OWNER_A = 'user:09ee0532-7110-4bd4-ae73-e95f4d5126b0';

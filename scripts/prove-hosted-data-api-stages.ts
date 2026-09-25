@@ -6,7 +6,7 @@
  */
 import { loadHostedOperatorEnv } from './lib/hosted-operator-env';
 
-const PROJECT_URL_FALLBACK = 'https://lzomhnjyymalupgvcato.supabase.co';
+const PROJECT_URL_FALLBACK = 'https://lvbtgwlsebzbtcvjwktq.supabase.co';
 const USER_B_EMAIL = 'zhigngliu0724@gmail.com';
 
 function redact(text: string): string {
@@ -78,7 +78,7 @@ async function probeStages(opts: {
 async function main() {
   loadHostedOperatorEnv();
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? PROJECT_URL_FALLBACK).replace(/\/$/, '');
-  if (!base.endsWith('lzomhnjyymalupgvcato.supabase.co')) {
+  if (!base.endsWith('lvbtgwlsebzbtcvjwktq.supabase.co')) {
     console.info(JSON.stringify({ ok: false, reason: 'refusing-non-hosted-api-url' }));
     process.exitCode = 1;
     return;
@@ -136,7 +136,7 @@ async function main() {
     JSON.stringify({
       ok,
       proof: 'data-api-stages-negative',
-      project: 'lzomhnjyymalupgvcato',
+      project: 'lvbtgwlsebzbtcvjwktq',
       fixtureIdSet: Boolean(fixtureId),
       anon: {
         httpStatus: anon.httpStatus,
