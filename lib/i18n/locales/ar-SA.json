@@ -714,6 +714,9 @@
       "regenerate": "إعادة توليد التعليق الصوتي",
       "statusReady": "مُصوّت",
       "statusNone": "غير مُصوّت",
+      "statusChecking": "جارٍ التحقق",
+      "statusMissing": "الصوت مفقود",
+      "statusUnknown": "غير معروف",
       "statusGenerating": "جارٍ التوليد",
       "stopPreview": "إيقاف المعاينة",
       "statusError": "فشل"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "جارٍ تنسيق السرد والتسليط والتفاعلات...",
     "generationComplete": "اكتمل التوليد!",
     "generationFailed": "فشل التوليد",
+    "completionSyncFailed": "تم حفظ الدورة، لكن تعذّر إبلاغ الخادم بانتهاء الإنشاء، لذا قد تبقى حصة إنشاء محجوزة لمدة تصل إلى 60 دقيقة. ستؤدي إعادة تحميل علامة التبويب هذه إلى إعادة المحاولة تلقائيًا.",
     "speechFailed": "فشل توليد الكلام",
     "retryScene": "إعادة المحاولة",
     "retryCourseGeneration": "استئناف إنشاء الدورة",

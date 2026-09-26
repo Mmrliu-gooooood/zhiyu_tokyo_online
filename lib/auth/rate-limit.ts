@@ -1,3 +1,5 @@
+import { trustProxyHeaders } from './trust-proxy';
+
 interface Bucket {
   count: number;
   resetAt: number;
@@ -37,7 +39,7 @@ export function consumeRateLimit(
 export function clientRateKey(request: Request, action: string): string {
   // Forwarded headers are caller-controlled unless the deployment explicitly
   // declares that a trusted reverse proxy overwrites them.
-  const trustProxy = process.env.TRUST_PROXY_HEADERS === '1';
+  const trustProxy = trustProxyHeaders();
   const forwarded = trustProxy ? request.headers.get('x-forwarded-for') : null;
   const ip =
     forwarded?.split(',')[0]?.trim() ||

@@ -7,7 +7,15 @@ export interface StageMetaRow {
   isPublic: boolean;
   /** Epoch millis when the owner published the course; null while private. */
   publishedAt: number | null;
-  /** Server-side mirror of the document outline's generation-complete flag. */
+  /**
+   * Non-authoritative mirror written only by the foreground completion route
+   * and the background worker. Outlines written directly by the Pro agent's
+   * curriculum tools or by PPTX import never write it, so it stays false for
+   * them by design (Pro sessions that run a worker job do get it via the
+   * worker). Whether a course finished
+   * generating is decided by the document outline's `generationComplete`;
+   * promoting this field to an authority needs its own migration and backfill.
+   */
   generationComplete: boolean;
   deletedAt: Date | null;
 }

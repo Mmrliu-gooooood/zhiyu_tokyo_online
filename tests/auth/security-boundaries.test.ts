@@ -14,6 +14,9 @@ describe('authentication security boundaries', () => {
 
     vi.stubEnv('TRUST_PROXY_HEADERS', '1');
     expect(clientRateKey(request, 'resend')).toBe('resend:198.51.100.10');
+
+    vi.stubEnv('TRUST_PROXY_HEADERS', 'true');
+    expect(clientRateKey(request, 'resend')).toBe('resend:198.51.100.10');
   });
 
   it('rejects render job ids that could escape the owner registry directory', async () => {

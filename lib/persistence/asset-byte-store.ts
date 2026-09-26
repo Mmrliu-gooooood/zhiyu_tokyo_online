@@ -15,6 +15,11 @@ import {
   type AssetByteStoreFactory,
 } from './asset-byte-file-adapter';
 import { configuredAssetS3Client, configuredS3Bucket } from './s3-client-config';
+import {
+  instrumentObjectStoreClient,
+  requestTimingEnabled,
+  timeRequestStage,
+} from '@/lib/server/request-timing';
 
 export { configuredS3Bucket } from './s3-client-config';
 
@@ -70,9 +75,13 @@ async function createSelectedAssetByteStore(
   if (!bucket) return new PgAssetByteStore(queryable);
   const storage = await import('@openmaic/storage/asset/s3-bytes');
   const clientConfig = configuredAssetS3Client();
-  return Object.keys(clientConfig).length === 0
+  // Request stage timing wraps the SDK client only when sampling is on.
+  const timing = requestTimingEnabled()
+    ? ([{ wrapClient: instrumentObjectStoreClient }] as const)
+    : ([] as const);
+  return Object.keys(clientConfig).length === 0 && timing.length === 0
     ? storage.loadS3AssetByteStore(bucket)
-    : storage.loadS3AssetByteStore(bucket, clientConfig);
+    : storage.loadS3AssetByteStore(bucket, clientConfig, ...timing);
 }
 
 export function createAssetByteStore(
@@ -161,17 +170,19 @@ export function lazyAssetByteStore(
   }
   return {
     ...base,
+    read: (hash) => timeRequestStage('storage.read', () => base.read(hash)),
     // S3 objects never live in the registry's database, so the registry may
     // run the plain write inside its transaction (see
     // AssetByteStore.writesOutsideRegistryDatabase). S3 has no transactional
     // writer, so nothing is forwarded here, exactly as before.
     writesOutsideRegistryDatabase: true as const,
-    readRange: async (hash, start, end) => {
-      const store = await resolve();
-      return typeof store.readRange === 'function'
-        ? store.readRange(hash, start, end)
-        : ((await store.read(hash))?.slice(start, end + 1) ?? null);
-    },
+    readRange: (hash, start, end) =>
+      timeRequestStage('storage.read', async () => {
+        const store = await resolve();
+        return typeof store.readRange === 'function'
+          ? store.readRange(hash, start, end)
+          : ((await store.read(hash))?.slice(start, end + 1) ?? null);
+      }),
     signReadUrl: async (hash, headers) => {
       const store = await resolve();
       return typeof store.signReadUrl === 'function' ? store.signReadUrl(hash, headers) : undefined;

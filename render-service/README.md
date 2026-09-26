@@ -73,8 +73,8 @@ silently multiplying browser, FFmpeg, and temporary-disk usage.
 Client identity for the per-user guard is taken from the `x-openmaic-client`
 header, which the app's proxy sets. A client-supplied `userId` form field is
 ignored. The app derives that header from `x-forwarded-for`/`x-real-ip` **only
-when the operator sets `TRUST_PROXY_HEADERS=true`** (and a real reverse proxy
-overwrites those headers); otherwise all callers share one `direct` identity, so
+when the operator sets `TRUST_PROXY_HEADERS=1`** (`true` is also accepted) and
+a real reverse proxy overwrites those headers; otherwise all callers share one `direct` identity, so
 the default directly-exposed Compose topology can't be gamed by spoofing
 forwarding headers.
 

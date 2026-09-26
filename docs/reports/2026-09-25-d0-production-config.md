@@ -1,0 +1,22 @@
+# D0 生产环境最小验收：无输入部分（生产配置入库 + 本机镜像构建）
+
+- **环境/日期/代码版本/镜像：** 2026-09-25（UTC+8），本机 Windows 11 + Docker Desktop 29.7.2（VM 8 GiB）。东京 Supabase `lvbtgwlsebzbtcvjwktq`（`ap-northeast-1`）。基线提交 `a0484f3e` + 本轮未提交改动。**未 SSH 登录服务器，未改 Supabase Auth Site URL/回调，未配置域名/HTTPS。**
+- **初始问题：** 方案第 2 节：仓库没有生产 compose 覆盖文件和 Linux 启停脚本；`docker-compose.supabase.yml` 写死 localhost origin；`docker-compose.dns.local.yml` 会被 PowerShell 启动器自动叠加国内 DNS。上述事实均与代码一致。
+- **修改范围与原因（第 2 步）：**
+  - 新增 `docker-compose.production.yml`：Web / worker / readiness 设 `APP_ORIGIN=https://zhiyulearn.online`，`GENERATION_ALLOWED_ORIGINS` 只含该 origin；镜像改为必填的发布标签 `ZHIYU_WEB_IMAGE` / `ZHIYU_WORKER_IMAGE`；`TRUST_PROXY_HEADERS` 默认 `0`，现场确认后再设 `1`；json-file 日志轮转（20 MB × 5）。不新增端口（Compose 会追加端口列表，Web 仍只有基础文件里的 `127.0.0.1:3000:3000`），不含 DNS，不启用 `video-export`。未修改受契约锁定的 `docker-compose.supabase.yml` 中的 origin 和 hosted compose。
+  - 新增 `scripts/supabase-compose.sh`（`config|start|apply|readiness|status`，`--tier 4|8|16`、`--mode`、`--env-file`、`--accept-jobs --confirm-writes`）：分档值、2 个 worker、写入门槛与 PowerShell 版一致；每用户上限仍取 Supabase compose 的 `'2'`；**不叠加** `docker-compose.dns.local.yml`，不启用 `--profile`，`start/apply` 只用 `--no-build` 的已发布镜像（8 GB 服务器不现场构建）。有 `set -euo pipefail`、只检查变量名不打印值；按 `.gitattributes` 保持 LF。
+  - 新增 `tests/config/production-compose-contract.test.ts`：锁定正式 origin、无 localhost、无国内 DNS、无 `video-export`/profile、覆盖文件不加端口且基础文件只绑定 127.0.0.1、镜像标签必填、代理信任默认关闭、日志轮转、启动器分档/2 worker/写入门槛/不构建/不 down。
+- **合并配置实测：** 用本机私有 env 文件和临时镜像变量执行 `scripts/supabase-compose.sh config`（通过）；并对 `docker compose ... -f docker-compose.supabase.yml -f docker-compose.production.yml config --format json` 只提取非敏感字段：Web 端口只有 `127.0.0.1:3000→3000`；三个服务 `APP_ORIGIN`、`GENERATION_ALLOWED_ORIGINS` 均为 `https://zhiyulearn.online`；`dns` 为空；无 profile；`ASSET_BYTE_EGRESS=direct`；`APP_HEAVY_TASK_PER_OWNER_LIMIT=2`；`TRUST_PROXY_HEADERS=0`。
+- **第 3 步（本机镜像构建）：**
+  - 回滚点：原运行镜像打标签 `zhiyu-supabase-web:rollback-20260925-pre-postlaunch`（`sha256:8618bed6…`）、`zhiyu-supabase-worker:rollback-20260925-pre-postlaunch`（`sha256:811f548b…`）；二者都是东京配置构建的，兼容当前 schema。旧的 `*:singapore-pre-tokyo` 标签仍在，但绑定已删除项目，不能用于回滚。
+  - 用现有 `scripts/supabase-compose.ps1 -Action Start -CapacityTier 4 -GenerationMode Background -AcceptJobs -ConfirmWrites` 构建（构建前确认东京无活动生成任务、无未终态 Pro 会话、无有效占用槽）。新镜像：Web `sha256:c7f92d1993a0bd37ff22b83f50bbb3f609eaed387d200e2d2e3e86090ee31467`，worker `sha256:80325b9721889e1e22a59fdaaa59d94d787cdf16c3aa9331c8bb1d4c605dcc87`，`OPENMAIC_SOURCE_REVISION=a0484f3e+post-launch-uncommitted`。
+  - 构建后：3 个容器 healthy，`/api/health` 200；readiness `ready=true`（账号 schema v19、生成 schema v4、worker 2/2、3 个私有桶可达）。浏览器静态产物 52 个文件含东京 ref，0 个含已删除项目 ref。
+  - **这些镜像是本机 `:local` 标签，公开参数来自本机 env 文件（东京 URL/key），尚未按发布名打标签、未导出到服务器。**
+  - 构建时 Alpine `apk add` 第 1 次失败后自动重试成功（网络波动）。另外，第一次启动时我把 PowerShell 5.1 的输出重定向到文件，docker 的 stderr 进度被当成终止错误，脚本在 `stop` 之后退出，没有构建；去掉重定向重跑成功。期间本机应用停止约 10 分钟，无活动任务受影响。
+- **前后指标：** 不涉及。
+- **自动测试命令及结果：** `node node_modules/vitest/vitest.mjs run tests/config --maxWorkers=2`：14 个文件 108 项通过（含原 hosted/supabase compose 契约）。
+- **真实操作与课程/任务/会话 ID：** 无（第 4–9 步未执行）。
+- **权限与持久化检查：** 未改 RLS/owner；readiness 证明私有桶可达。
+- **回退方式及是否验证：** 配置：删除两个新文件与新测试即可。本机镜像：`docker tag zhiyu-supabase-web:rollback-20260925-pre-postlaunch zhiyu-supabase-web:local`（worker 同理）后 `-Action Apply`。回退命令未实际演练。
+- **结论：** 受外部条件限制（第 2 步完成并通过契约测试；第 3 步完成本机构建；第 1、4–9 步需要服务器与域名输入）。
+- **剩余事项（需用户提供）：** 服务器 SSH 访问方式与可操作范围；域名 DNS/HTTPS 现状；东京 Supabase Auth Site URL/回调修改授权；专用测试账号。拿到后：给镜像打发布标签并导出、服务器上 `config/readiness/start`、宝塔 Nginx 反代与 SSE 不缓冲、正式域名链路、媒体中转基线（P1-3 的前提）、重建后读回。本次不启用 MP4 导出，只保留 ZIP。

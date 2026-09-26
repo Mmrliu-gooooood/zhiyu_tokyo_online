@@ -177,12 +177,17 @@ function missingPresigner(error: unknown): Error {
 export async function loadS3AssetByteStore(
   bucket: string,
   clientConfig: S3AssetClientConfig = {},
+  options: {
+    /** Optional host wrapper around the SDK client, e.g. for request timing. */
+    wrapClient?: (client: S3AssetByteStoreClient) => S3AssetByteStoreClient;
+  } = {},
 ): Promise<AssetByteStore> {
   try {
     const sdk = await importS3Sdk();
+    const client = new sdk.S3Client(clientConfig);
     return new S3AssetByteStore({
       bucket,
-      client: new sdk.S3Client(clientConfig),
+      client: options.wrapClient ? options.wrapClient(client) : client,
       commands: sdkCommands(sdk),
     });
   } catch (error) {

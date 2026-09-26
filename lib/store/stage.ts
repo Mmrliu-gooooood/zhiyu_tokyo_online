@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import {
   makeScene,
   type PBLContent,
@@ -23,7 +24,11 @@ import { hydratePBLScenesFromRuntime } from '@/lib/pbl/v2/runtime/hydration';
 import type { ChatStorageSnapshot } from '@/lib/utils/chat-storage';
 import type { DocumentProducer } from '@/lib/document-store/persistence-types';
 import { canGenerateLocally } from '@/lib/generation/ownership';
-import { completeForegroundGenerationRoot } from '@/lib/generation/foreground-root-client';
+import {
+  completeForegroundGenerationRoot,
+  ForegroundCompletionError,
+} from '@/lib/generation/foreground-root-client';
+import { getClientTranslation } from '@/lib/i18n';
 import { isBrowserPersistenceEnabled } from '@/lib/persistence/bootstrap';
 import type { PendingChange, StageStoreData, StaleDroppedSave } from '@/lib/utils/stage-storage';
 import { collectStageAssetRefs } from '@/lib/media/collect-stage-asset-refs';
@@ -335,6 +340,18 @@ export function clearStoreForDeletedStage(stageId: string): void {
   resetPendingChanges();
   useStageStore.setState((state) => clearedStageState(state));
   log.info('Evicted deleted stage from the store:', stageId);
+}
+
+/**
+ * The load-time self-heal save of a legacy finished deck, per stage. Reopen
+ * compensation waits on it so the server mirror is never marked complete
+ * before the document itself records completion.
+ */
+const selfHealSaves = new Map<string, Promise<boolean>>();
+
+/** Resolves true when no self-heal save is pending or it succeeded. */
+export function awaitStageSelfHealSave(stageId: string): Promise<boolean> {
+  return selfHealSaves.get(stageId) ?? Promise.resolve(true);
 }
 
 export function claimStageSceneLoadToken(): StageSceneLoadToken {
@@ -919,6 +936,12 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
       })
       .catch((error) => {
         log.warn('Failed to persist/release foreground generation completion:', error);
+        // Retries are exhausted. Say so rather than failing silently: the
+        // course itself is saved, but its generation slot may stay reserved
+        // until the lease expires unless a reload of this tab repairs it.
+        if (error instanceof ForegroundCompletionError && error.status !== 404) {
+          toast.warning(getClientTranslation('generation.completionSyncFailed'));
+        }
       });
   },
 
@@ -1244,7 +1267,13 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
         });
         resetPendingChanges(stageId);
         if (generationComplete && !persistedComplete && canGenerateLocally(get())) {
-          void get().saveToStorage();
+          const healed = get()
+            .saveToStorage()
+            .catch(() => false);
+          selfHealSaves.set(stageId, healed);
+          void healed.finally(() => {
+            if (selfHealSaves.get(stageId) === healed) selfHealSaves.delete(stageId);
+          });
         }
         log.info('Loaded from storage:', stageId);
       } else {

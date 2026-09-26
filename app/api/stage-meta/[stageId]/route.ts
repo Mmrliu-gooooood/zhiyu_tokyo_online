@@ -21,12 +21,14 @@
  * `isOwner` is a boolean derived server-side. Returning the owner's identity
  * key would hand every visitor a stable cross-course identifier for the author.
  */
+import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { isCloudCourseLibraryEnabled } from '@/lib/config/feature-flags';
 import { getOwnerBoundStageAccessDb, resolveStageAccess } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
+import { withRequestTiming } from '@/lib/server/request-timing';
 
 // Per-viewer and mutable on every publish/unpublish/delete: this response must
 // never be cached, by Next or by anything in front of it.
@@ -38,6 +40,12 @@ type Params = { params: Promise<{ stageId: string }> };
 export async function GET(req: NextRequest, { params }: Params) {
   if (!isCloudCourseLibraryEnabled()) return new Response('Not found', { status: 404 });
 
+  return withRequestTiming({ requestId: randomUUID(), route: 'stage-meta' }, () =>
+    resolveStageMeta(req, params),
+  );
+}
+
+async function resolveStageMeta(req: NextRequest, params: Params['params']): Promise<Response> {
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const { stageId } = await params;
     try {

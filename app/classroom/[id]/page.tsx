@@ -6,7 +6,11 @@ import { useClassroomGenerationJob } from '@/lib/hooks/use-generation-job';
 import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { useStageStore } from '@/lib/store';
 import { useSettingsStore } from '@/lib/store/settings';
-import { claimStageSceneLoadToken, isCurrentStageSceneLoadToken } from '@/lib/store/stage';
+import {
+  awaitStageSelfHealSave,
+  claimStageSceneLoadToken,
+  isCurrentStageSceneLoadToken,
+} from '@/lib/store/stage';
 import { loadImageMapping } from '@/lib/utils/image-storage';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
@@ -18,6 +22,8 @@ import { MediaStageProvider } from '@/lib/contexts/media-stage-context';
 import { generateMediaForOutlines } from '@/lib/media/media-orchestrator';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { fetchStageMeta } from '@/lib/classroom/stage-meta-client';
+import { compensateForegroundCompletion } from '@/lib/generation/foreground-completion-compensation';
+import { isBrowserPersistenceEnabled } from '@/lib/persistence/bootstrap';
 import { noteStageOwnership } from '@/lib/classroom/stage-ownership-signal';
 import {
   applyClassroomStageAndScenes,
@@ -110,6 +116,25 @@ export default function ClassroomDetailPage() {
               useStageStore.getState().setViewerAccess({
                 isOwner: result.meta.isOwner,
               });
+              // Repair a completion request that never succeeded (the
+              // document is complete, the server mirror or the capacity lease
+              // is not). Background-only: once per course, silent on failure.
+              void compensateForegroundCompletion(
+                classroomId,
+                result.meta,
+                () => {
+                  const state = useStageStore.getState();
+                  return {
+                    stageId: state.stage?.id,
+                    generationComplete: state.generationComplete,
+                    outlineProducer: state.outlineProducer,
+                  };
+                },
+                {
+                  persistenceEnabled: isBrowserPersistenceEnabled,
+                  awaitSelfHealSave: awaitStageSelfHealSave,
+                },
+              );
             } else if (result.outcome === 'unavailable') {
               // A silent sidecar is not "this is a stranger's course": record
               // the outage so nothing treats `isOwner === false` as a visitor

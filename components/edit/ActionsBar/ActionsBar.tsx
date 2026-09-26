@@ -86,7 +86,7 @@ import { useEditDock } from '@/components/edit/EditDock/dock-context';
 import { ActionPicker } from './ActionPicker';
 import type { PickerType } from './picker-options';
 import {
-  audioExists,
+  speechAudioAvailable,
   audioObjectUrl,
   discardSpeechAudio,
   regenerateSpeechAudio,
@@ -266,7 +266,12 @@ function MoveButtons({
   );
 }
 
-type TtsStatus = 'none' | 'ready' | 'generating' | 'error';
+/**
+ * `checking`: availability not yet known. `missing`: the line is stamped with
+ * an audioId whose bytes neither the cloud pool nor this browser holds.
+ * `unknown`: the check itself failed, so nothing is claimed either way.
+ */
+type TtsStatus = 'checking' | 'none' | 'missing' | 'unknown' | 'ready' | 'generating' | 'error';
 
 /** TTS preview lifecycle: idle → loading (awaiting the blob URL) → playing → idle. */
 type PreviewPhase = 'idle' | 'loading' | 'playing';
@@ -303,7 +308,9 @@ export function SpeechTtsBar({
   onGenerated: (audioId: string) => void;
 }) {
   const { t } = useI18n();
-  const [status, setStatus] = useState<TtsStatus>('none');
+  const [status, setStatus] = useState<TtsStatus>(() =>
+    resolveSpeechAudioId(sceneOrder, { id: actionId, audioId }) || audioUrl ? 'checking' : 'none',
+  );
   // Holds this line in the generating state across a batch ("Voice all") run
   // and — crucially — until its OWN audio re-check resolves, so it can't
   // briefly flash back to not voiced in the window between the batch clearing
@@ -364,14 +371,20 @@ export function SpeechTtsBar({
           : await resolveLegacySpeechAudioId(sceneOrder, { id: actionId, audioInvalidated });
         const candidateId = lookupId ?? legacyId;
         // An unconverted pair's legacy URL is narration that exists: the id
-        // lookup may find nothing while the URL is still live.
-        const has = (candidateId ? await audioExists(candidateId) : false) || !!audioUrl;
+        // lookup may find nothing while the URL is still live. Otherwise the
+        // line is voiced when the pool or this browser holds its bytes —
+        // the same sources classroom playback reads.
+        const has = !!audioUrl || (candidateId ? await speechAudioAvailable(candidateId) : false);
         if (alive) {
           setReadAudioId(has ? candidateId : undefined);
-          setStatus((s) => (s === 'generating' ? s : has ? 'ready' : 'none'));
+          setStatus((s) =>
+            s === 'generating' ? s : has ? 'ready' : lookupId ? 'missing' : 'none',
+          );
         }
       } catch {
-        /* IndexedDB read failed — leave status as-is (as before this change) */
+        // Availability unknown: keep a settled status; never claim voiced or
+        // not voiced from a failed check.
+        if (alive) setStatus((s) => (s === 'checking' ? 'unknown' : s));
       } finally {
         // Clear the batch latch only once the batch itself is over — its
         // end-of-batch re-check runs with regenerating=false. A *stale*
@@ -450,8 +463,11 @@ export function SpeechTtsBar({
   };
 
   const STATUS: Record<TtsStatus, { label: string; cls: string }> = {
+    checking: { label: t('edit.tts.statusChecking'), cls: 'text-muted-foreground' },
     ready: { label: t('edit.tts.statusReady'), cls: 'text-emerald-600 dark:text-emerald-400' },
     none: { label: t('edit.tts.statusNone'), cls: 'text-muted-foreground' },
+    missing: { label: t('edit.tts.statusMissing'), cls: 'text-amber-600 dark:text-amber-400' },
+    unknown: { label: t('edit.tts.statusUnknown'), cls: 'text-muted-foreground' },
     generating: {
       label: t('edit.tts.statusGenerating'),
       cls: 'text-amber-600 dark:text-amber-400',

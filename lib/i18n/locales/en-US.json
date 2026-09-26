@@ -714,6 +714,9 @@
       "regenerate": "Regenerate voiceover",
       "statusReady": "Voiced",
       "statusNone": "Not voiced",
+      "statusChecking": "Checking",
+      "statusMissing": "Audio missing",
+      "statusUnknown": "Unknown",
       "statusGenerating": "Generating",
       "stopPreview": "Stop preview",
       "statusError": "Failed"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "Orchestrating narration, spotlights, and interactions...",
     "generationComplete": "Generation complete!",
     "generationFailed": "Generation failed",
+    "completionSyncFailed": "The course is saved, but the server was not told that generation finished, so a generation slot may stay reserved for up to 60 minutes. Reloading this tab retries automatically.",
     "speechFailed": "Speech generation failed",
     "retryScene": "Retry",
     "retryCourseGeneration": "Recover generation",

@@ -714,6 +714,9 @@
       "regenerate": "Tạo lại giọng đọc",
       "statusReady": "Đã lồng tiếng",
       "statusNone": "Chưa lồng tiếng",
+      "statusChecking": "Đang kiểm tra",
+      "statusMissing": "Thiếu âm thanh",
+      "statusUnknown": "Không xác định",
       "statusGenerating": "Đang tạo",
       "stopPreview": "Dừng xem trước",
       "statusError": "Không thành công"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "Đang dàn dựng lời giảng, đèn rọi và tương tác…",
     "generationComplete": "Đã tạo xong!",
     "generationFailed": "Tạo không thành công",
+    "completionSyncFailed": "Khóa học đã được lưu, nhưng máy chủ chưa được thông báo rằng quá trình tạo đã hoàn tất, nên một suất tạo có thể bị giữ tối đa 60 phút. Tải lại tab này sẽ tự động thử lại.",
     "speechFailed": "Tạo giọng đọc không thành công",
     "retryScene": "Thử lại",
     "retryCourseGeneration": "Khôi phục tạo khóa học",

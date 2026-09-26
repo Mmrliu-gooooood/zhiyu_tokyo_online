@@ -1,0 +1,44 @@
+# Production overlay for the Tokyo server (zhiyulearn.online).
+#
+# Always combine with docker-compose.supabase.yml through
+# scripts/supabase-compose.sh. Never combine with docker-compose.dns.local.yml:
+# that file pins mainland-China resolvers for the local workstation only, and
+# the server keeps its own default resolver.
+#
+# Images are built elsewhere with the Tokyo project's public build arguments and
+# referenced by explicit release tags; the 8 GB server must not compile Next.js.
+# MP4 export (the video-export profile) is intentionally not enabled here, so
+# the runtime /health probe fails and the UI keeps ZIP export only.
+
+x-production-origin: &production-origin
+  APP_ORIGIN: https://zhiyulearn.online
+  GENERATION_ALLOWED_ORIGINS: https://zhiyulearn.online
+
+# Bounded json-file logs; business state and deletion ledgers stay in the database.
+x-production-logging: &production-logging
+  driver: json-file
+  options:
+    max-size: 20m
+    max-file: '5'
+
+services:
+  openmaic:
+    image: ${ZHIYU_WEB_IMAGE:?Set the released Web image tag}
+    environment:
+      <<: *production-origin
+      # Set to 1 only after confirming the Web port is bound to 127.0.0.1 and
+      # the host reverse proxy overwrites x-forwarded-for / x-real-ip.
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-0}
+    logging: *production-logging
+
+  generation-worker:
+    image: ${ZHIYU_WORKER_IMAGE:?Set the released worker image tag}
+    environment:
+      <<: *production-origin
+    logging: *production-logging
+
+  supabase-readiness:
+    image: ${ZHIYU_WORKER_IMAGE:?Set the released worker image tag}
+    environment:
+      <<: *production-origin
+    logging: *production-logging

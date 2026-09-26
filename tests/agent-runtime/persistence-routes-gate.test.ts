@@ -50,7 +50,10 @@ vi.mock('@/lib/server/agent-runtime/owner', () => ({
   resolveRequestOwnerIdAsync: mocks.resolveRequestOwnerId,
 }));
 vi.mock('@/lib/db/request-queryable', () => ({
-  createOwnerBoundQueryable: () => mocks.queryPool,
+  createOwnerBoundQueryable: () =>
+    Object.assign(Object.create(mocks.queryPool), {
+      withTransaction: async <T>(body: (tx: unknown) => Promise<T>) => body(mocks.queryPool),
+    }),
 }));
 vi.mock('@/lib/persistence/server-provider', () => ({
   getServerPersistenceProvider: async () => ({

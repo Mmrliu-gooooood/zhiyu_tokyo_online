@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto';
 
 import { Pool, type QueryResult } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
+import { markStageGenerationComplete } from '@/lib/persistence/stage-meta';
+import {
+  foregroundGenerationRootId,
+  releaseForegroundGenerationRoot,
+} from '@/lib/server/heavy-task-admission/foreground-generation';
+import type { Queryable } from '@openmaic/storage/document/pg';
 
 import { ACCOUNTS_MIGRATION_11 } from '@/lib/server/accounts/sql-accounts';
 import { ACCOUNTS_RLS_SQL_V19 } from '@/lib/server/accounts/sql-provider-quota';
@@ -124,6 +132,23 @@ CREATE TABLE agent_session_events (
   data jsonb NOT NULL DEFAULT '{}'::jsonb,
   PRIMARY KEY (session_id, seq)
 );
+
+-- Same shape and owner policy as the accounts schema/sql-rls stage_meta_web_all.
+CREATE TABLE stage_meta (
+  stage_id text PRIMARY KEY,
+  owner_id text NOT NULL,
+  is_public boolean NOT NULL DEFAULT false,
+  deleted_at timestamptz,
+  published_at double precision,
+  generation_complete boolean NOT NULL DEFAULT false
+);
+ALTER TABLE stage_meta ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stage_meta FORCE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON stage_meta TO app_web;
+CREATE POLICY stage_meta_web_all ON stage_meta
+  FOR ALL TO app_web
+  USING (owner_id = app_internal.current_owner_id())
+  WITH CHECK (owner_id = app_internal.current_owner_id());
 
 ALTER TABLE generation_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generation_jobs FORCE ROW LEVEL SECURITY;
@@ -740,5 +765,136 @@ describe.skipIf(!enabled)('hosted capacity SECURITY DEFINER seam under real Post
         )
       ).rows[0],
     ).toEqual({ reserved: true });
+  });
+  describe('foreground completion: mark and release in one owner-bound transaction', () => {
+    const stageId = 'stage-complete-proof';
+    const sessionId = 'session-complete-proof';
+    const holderOf = (ownerId: string) =>
+      foregroundGenerationRootId(ownerId, stageId, sessionId).replace(/^foreground:/, '');
+
+    /** Mirror of the route body, with an optional fault injected at the release step. */
+    async function completeInTransaction(
+      pool: Pool,
+      ownerId: string,
+      failRelease = false,
+    ): Promise<boolean> {
+      return createOwnerBoundQueryable(pool, ownerId).withTransaction(async (tx) => {
+        if (!(await markStageGenerationComplete(tx, stageId))) return false;
+        const releaseTx: Queryable = failRelease
+          ? {
+              query: async () => {
+                throw Object.assign(new Error('injected release failure'), { code: '08006' });
+              },
+            }
+          : tx;
+        await releaseForegroundGenerationRoot(ownerId, stageId, sessionId, releaseTx);
+        return true;
+      });
+    }
+
+    async function heldSlots(ownerId: string): Promise<number> {
+      const result = await admin.query<{ count: number }>(
+        `SELECT count(*)::int AS count FROM generation_provider_slots
+          WHERE quota_group=$1 AND holder_attempt_id=$2`,
+        [`heavy-task:sync-owner:${ownerId}`, holderOf(ownerId)],
+      );
+      return result.rows[0]!.count;
+    }
+
+    async function mirror(): Promise<boolean | undefined> {
+      const result = await admin.query<{ generation_complete: boolean }>(
+        'SELECT generation_complete FROM stage_meta WHERE stage_id=$1',
+        [stageId],
+      );
+      return result.rows[0]?.generation_complete;
+    }
+
+    async function reset(): Promise<void> {
+      await admin.query('DELETE FROM generation_provider_slots');
+      await admin.query('DELETE FROM generation_jobs');
+      await admin.query("UPDATE app_accounts SET status='active'");
+      await admin.query('DELETE FROM deleted_account_tombstones');
+      await admin.query('DELETE FROM stage_meta');
+      await admin.query(
+        'INSERT INTO stage_meta(stage_id,owner_id,generation_complete) VALUES($1,$2,false)',
+        [stageId, ownerA],
+      );
+    }
+
+    afterAll(() => vi.unstubAllEnvs());
+
+    it('hosted mode: commits both, or rolls the mark back when the release fails', async () => {
+      vi.stubEnv('AUTH_MODE', 'supabase');
+      vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', 'supabase');
+      await reset();
+      const acquire = () =>
+        asOwner<{ allowed: boolean }>(
+          ownerA,
+          'SELECT * FROM app_internal.acquire_foreground_generation_root($1,$2,100000,0,0,2,16,3600000)',
+          [ownerA, holderOf(ownerA)],
+        );
+      expect((await acquire()).rows[0]?.allowed).toBe(true);
+      expect(await heldSlots(ownerA)).toBe(1);
+
+      await expect(completeInTransaction(web, ownerA, true)).rejects.toThrow(
+        'injected release failure',
+      );
+      expect(await mirror()).toBe(false);
+      expect(await heldSlots(ownerA)).toBe(1);
+
+      await expect(completeInTransaction(web, ownerA)).resolves.toBe(true);
+      expect(await mirror()).toBe(true);
+      expect(await heldSlots(ownerA)).toBe(0);
+
+      // Idempotent retry: mark stays true, release deletes nothing, no error.
+      await expect(completeInTransaction(web, ownerA)).resolves.toBe(true);
+      expect(await mirror()).toBe(true);
+    });
+
+    it('hosted mode: another owner can neither mark nor release the course', async () => {
+      vi.stubEnv('AUTH_MODE', 'supabase');
+      vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', 'supabase');
+      await reset();
+      await asOwner(
+        ownerA,
+        'SELECT * FROM app_internal.acquire_foreground_generation_root($1,$2,100000,0,0,2,16,3600000)',
+        [ownerA, holderOf(ownerA)],
+      );
+      await expect(completeInTransaction(web, ownerB)).resolves.toBe(false);
+      expect(await mirror()).toBe(false);
+      expect(await heldSlots(ownerA)).toBe(1);
+    });
+
+    it('legacy mode: the DELETE release shares the transaction too', async () => {
+      vi.stubEnv('AUTH_MODE', '');
+      vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', '');
+      await reset();
+      await admin.query(
+        `INSERT INTO generation_provider_slots(quota_group,slot_no,holder_attempt_id,lease_epoch,expires_at)
+         VALUES($1,0,$2,1,clock_timestamp()+interval '1 hour')`,
+        [`heavy-task:sync-owner:${ownerA}`, holderOf(ownerA)],
+      );
+
+      await expect(completeInTransaction(admin, ownerA, true)).rejects.toThrow(
+        'injected release failure',
+      );
+      expect(await mirror()).toBe(false);
+      expect(await heldSlots(ownerA)).toBe(1);
+
+      await expect(completeInTransaction(admin, ownerA)).resolves.toBe(true);
+      expect(await mirror()).toBe(true);
+      expect(await heldSlots(ownerA)).toBe(0);
+    });
+
+    it('does not mark a deleted course', async () => {
+      vi.stubEnv('AUTH_MODE', 'supabase');
+      vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', 'supabase');
+      await reset();
+      await admin.query('UPDATE stage_meta SET deleted_at=clock_timestamp() WHERE stage_id=$1', [
+        stageId,
+      ]);
+      await expect(completeInTransaction(web, ownerA)).resolves.toBe(false);
+      expect(await mirror()).toBe(false);
+    });
   });
 });

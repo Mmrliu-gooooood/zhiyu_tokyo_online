@@ -32,6 +32,7 @@ import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { shouldIsolateOwner } from '@/lib/auth/principal';
 import { tryPrincipal } from '@/lib/auth/session';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
+import { persistenceTimingRoute, withRequestTiming } from '@/lib/server/request-timing';
 
 const ROUTE_PREFIX = '/api/persistence';
 
@@ -299,6 +300,17 @@ export async function handlePersistenceRequest(
   deps: PersistenceRequestDeps = {},
 ): Promise<Response> {
   const requestId = persistenceRequestId(request);
+  return withRequestTiming(
+    { requestId, route: persistenceTimingRoute(routeRelativePath(request)) },
+    () => handleTimedPersistenceRequest(request, requestId, deps),
+  );
+}
+
+async function handleTimedPersistenceRequest(
+  request: Request,
+  requestId: string,
+  deps: PersistenceRequestDeps,
+): Promise<Response> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     return withPersistenceRequestId(

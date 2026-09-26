@@ -49,6 +49,7 @@ try {
     tests/server/generation-worker-pipeline.pg.test.ts `
     tests/server/hosted-capacity-rls.pg.test.ts `
     tests/server/account-deletion-lifecycle.test.ts `
+    tests/auth/hosted-principal-registry.pg.test.ts `
     --maxWorkers=1 --reporter=verbose
   if ($LASTEXITCODE -ne 0) { throw 'Capacity/deletion proof failed.' }
 } finally {

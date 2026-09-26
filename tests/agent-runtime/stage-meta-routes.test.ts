@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   accessRow: null as Record<string, unknown> | null,
   updatedRows: [] as unknown[],
   bindOwner: vi.fn(),
+  transactions: [] as string[],
+  releaseError: null as Error | null,
+  queries: [] as string[],
 }));
 
 vi.mock('@/lib/config/feature-flags', () => ({
@@ -20,13 +23,35 @@ vi.mock('@/lib/server/agent-runtime/owner', () => ({
 vi.mock('@/lib/db/request-queryable', () => ({
   createOwnerBoundQueryable: (pool: { query: typeof vi.fn }, ownerId: string) => {
     mocks.bindOwner(pool, ownerId);
-    return pool;
+    return {
+      query: (...args: unknown[]) => (pool.query as (...a: unknown[]) => unknown)(...args),
+      // Mirrors the real helper: one transaction, rolled back when the body throws.
+      withTransaction: async <T>(body: (tx: unknown) => Promise<T>) => {
+        mocks.transactions.push('BEGIN');
+        try {
+          const value = await body(pool);
+          mocks.transactions.push('COMMIT');
+          return value;
+        } catch (error) {
+          mocks.transactions.push('ROLLBACK');
+          throw error;
+        }
+      },
+    };
   },
 }));
 vi.mock('@/lib/persistence/server-provider', () => ({
   getServerPersistenceProvider: async () => ({
     pool: {
       query: vi.fn(async (text: string) => {
+        mocks.queries.push(text);
+        if (
+          text.includes('release_heavy_task_foreground_lease') ||
+          text.includes('DELETE FROM generation_provider_slots')
+        ) {
+          if (mocks.releaseError) throw mocks.releaseError;
+          return { rows: [] };
+        }
         if (text.includes('UPDATE stage_meta')) {
           return { rows: mocks.updatedRows };
         }
@@ -70,6 +95,9 @@ beforeEach(() => {
     document_name: 'Course',
   };
   mocks.updatedRows = [{ stage_id: STAGE_ID }];
+  mocks.transactions = [];
+  mocks.releaseError = null;
+  mocks.queries = [];
 });
 
 describe('GET /api/stage-meta/[stageId]', () => {
@@ -182,6 +210,78 @@ describe('POST /api/stages/[id]/generation-complete', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(mocks.bindOwner).toHaveBeenCalledWith(expect.anything(), 'owner-1');
+  });
+
+  it('marks and releases inside one transaction', async () => {
+    const response = await postGenerationComplete(
+      new NextRequest(`http://localhost/api/stages/${STAGE_ID}/generation-complete`, {
+        method: 'POST',
+        headers: {
+          'x-generation-root-stage-id': STAGE_ID,
+          'x-generation-root-session-id': 'session-1',
+        },
+      }),
+      params(STAGE_ID),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.transactions).toEqual(['BEGIN', 'COMMIT']);
+    const mark = mocks.queries.findIndex((text) => text.includes('UPDATE stage_meta'));
+    const release = mocks.queries.findIndex(
+      (text) =>
+        text.includes('release_heavy_task_foreground_lease') ||
+        text.includes('DELETE FROM generation_provider_slots'),
+    );
+    expect(mark).toBeGreaterThanOrEqual(0);
+    expect(release).toBeGreaterThan(mark);
+  });
+
+  it('rolls the mark back and answers 500 when the release fails', async () => {
+    mocks.releaseError = new Error('pooler dropped the connection');
+    const response = await postGenerationComplete(
+      new NextRequest(`http://localhost/api/stages/${STAGE_ID}/generation-complete`, {
+        method: 'POST',
+        headers: {
+          'x-generation-root-stage-id': STAGE_ID,
+          'x-generation-root-session-id': 'session-1',
+        },
+      }),
+      params(STAGE_ID),
+    );
+    expect(response.status).toBe(500);
+    expect(mocks.transactions).toEqual(['BEGIN', 'ROLLBACK']);
+  });
+
+  it('marks without releasing when no session header is sent', async () => {
+    const response = await postGenerationComplete(
+      new NextRequest(`http://localhost/api/stages/${STAGE_ID}/generation-complete`, {
+        method: 'POST',
+      }),
+      params(STAGE_ID),
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.queries.some((text) => text.includes('UPDATE stage_meta'))).toBe(true);
+    expect(
+      mocks.queries.some(
+        (text) =>
+          text.includes('release_heavy_task_foreground_lease') ||
+          text.includes('DELETE FROM generation_provider_slots'),
+      ),
+    ).toBe(false);
+  });
+
+  it('answers 404 and releases nothing for a deleted course', async () => {
+    mocks.updatedRows = [];
+    const response = await postGenerationComplete(
+      new NextRequest(`http://localhost/api/stages/${STAGE_ID}/generation-complete`, {
+        method: 'POST',
+        headers: { 'x-generation-root-session-id': 'session-1' },
+      }),
+      params(STAGE_ID),
+    );
+    expect(response.status).toBe(404);
+    expect(
+      mocks.queries.some((text) => text.includes('DELETE FROM generation_provider_slots')),
+    ).toBe(false);
   });
 
   it('forbids a visitor', async () => {

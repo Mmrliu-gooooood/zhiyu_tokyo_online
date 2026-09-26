@@ -94,6 +94,23 @@ describe('embedded persistence request-scoped authentication', () => {
     expect(response.headers.getSetCookie()).toEqual([mocks.cookie]);
   });
 
+  it('skips the classroom-only registry in hosted mode but still checks the session', async () => {
+    expect((await handlePersistenceRequest(request())).status).toBe(200);
+    const sql = mocks.query.mock.calls.map(([statement]) => String(statement));
+    expect(sql.some((statement) => statement.includes('ensure_account'))).toBe(false);
+    expect(sql.some((statement) => /FROM app_accounts/i.test(statement))).toBe(false);
+    expect(sql.filter((statement) => statement.includes('session_is_active'))).toHaveLength(1);
+  });
+
+  it('keeps the classroom registry path when hosted auth is off', async () => {
+    vi.stubEnv('AUTH_MODE', '');
+    vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', '');
+    await handlePersistenceRequest(request());
+    const sql = mocks.query.mock.calls.map(([statement]) => String(statement));
+    expect(sql.some((statement) => statement.includes('ensure_account'))).toBe(true);
+    expect(sql.some((statement) => /FROM app_accounts/i.test(statement))).toBe(true);
+  });
+
   it('does not share verification across requests and rejects a subsequently revoked session', async () => {
     expect((await handlePersistenceRequest(request())).status).toBe(200);
     mocks.query.mockResolvedValue({ rows: [{ role: 'user', status: 'active', ok: false }] });

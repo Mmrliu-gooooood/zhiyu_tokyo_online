@@ -53,6 +53,7 @@ import {
   regenerateSpeechAudio,
   resolveLegacySpeechAudioId,
   resolveSpeechAudioId,
+  speechAudioAvailable,
 } from '@/lib/audio/regenerate-speech-tts';
 
 describe('allocated speech audio identities', () => {
@@ -199,5 +200,49 @@ describe('allocated speech audio identities', () => {
       undefined,
     );
     expect(mocks.poolRemove).not.toHaveBeenCalled();
+  });
+});
+
+describe('speechAudioAvailable (editor voiced label)', () => {
+  beforeEach(() => {
+    mocks.audioGet.mockReset().mockResolvedValue(undefined);
+    mocks.assetRefExists.mockReset().mockResolvedValue(false);
+  });
+
+  it('reports pool-only (Pro/background) narration as available without a Dexie copy', async () => {
+    mocks.assetRefExists.mockResolvedValueOnce(true);
+    await expect(speechAudioAvailable('ast_pro_audio')).resolves.toBe(true);
+    expect(mocks.assetRefExists).toHaveBeenCalledWith('ast_pro_audio');
+  });
+
+  it('answers from the local copy first without probing the pool', async () => {
+    mocks.audioGet.mockResolvedValueOnce({ id: 'tts_s1_legacy' });
+    await expect(speechAudioAvailable('tts_s1_legacy')).resolves.toBe(true);
+    expect(mocks.assetRefExists).not.toHaveBeenCalled();
+  });
+
+  it('reports a truly missing object as unavailable', async () => {
+    await expect(speechAudioAvailable('ast_gone')).resolves.toBe(false);
+  });
+
+  it('throws (unknown) when the pool check fails and Dexie has nothing', async () => {
+    mocks.assetRefExists.mockRejectedValueOnce(new Error('network'));
+    await expect(speechAudioAvailable('ast_unknown')).rejects.toThrow('unknown');
+  });
+
+  it('throws (unknown) when Dexie fails and the pool has nothing', async () => {
+    mocks.audioGet.mockRejectedValueOnce(new Error('IndexedDB blocked'));
+    await expect(speechAudioAvailable('ast_unknown')).rejects.toThrow('unknown');
+  });
+
+  it('still reports available when Dexie fails but the pool has it', async () => {
+    mocks.audioGet.mockRejectedValueOnce(new Error('IndexedDB blocked'));
+    mocks.assetRefExists.mockResolvedValueOnce(true);
+    await expect(speechAudioAvailable('ast_pooled')).resolves.toBe(true);
+  });
+
+  it('never probes the pool for a concrete URL', async () => {
+    await expect(speechAudioAvailable('https://cdn.example/a.mp3')).resolves.toBe(false);
+    expect(mocks.assetRefExists).not.toHaveBeenCalled();
   });
 });

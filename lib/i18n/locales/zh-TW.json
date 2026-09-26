@@ -642,6 +642,9 @@
       "regenerate": "重新生成配音",
       "statusReady": "已配音",
       "statusNone": "未配音",
+      "statusChecking": "檢查中",
+      "statusMissing": "音訊遺失",
+      "statusUnknown": "無法確認",
       "statusGenerating": "生成中",
       "stopPreview": "停止試聽",
       "statusError": "失敗"
@@ -1185,6 +1188,7 @@
     "generatingActionsDesc": "正在編排講解、聚焦和互動流程...",
     "generationComplete": "生成完成！",
     "generationFailed": "生成失敗",
+    "completionSyncFailed": "課程已儲存，但未能通知伺服器生成已完成，生成名額可能被佔用最長 60 分鐘。在此分頁重新整理頁面會自動重試。",
     "speechFailed": "語音合成失敗",
     "retryScene": "重試生成",
     "retryCourseGeneration": "恢復課程生成",

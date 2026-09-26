@@ -714,6 +714,9 @@
       "regenerate": "Vertonung neu erstellen",
       "statusReady": "Vertont",
       "statusNone": "Nicht vertont",
+      "statusChecking": "Wird geprüft",
+      "statusMissing": "Audio fehlt",
+      "statusUnknown": "Unbekannt",
       "statusGenerating": "Wird erstellt",
       "stopPreview": "Vorschau stoppen",
       "statusError": "Fehlgeschlagen"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "Sprechertexte, Spotlights und Interaktionen werden abgestimmt…",
     "generationComplete": "Generierung abgeschlossen!",
     "generationFailed": "Generierung fehlgeschlagen",
+    "completionSyncFailed": "Der Kurs ist gespeichert, aber der Server wurde nicht über das Ende der Generierung informiert. Ein Generierungsplatz kann bis zu 60 Minuten belegt bleiben. Ein Neuladen dieses Tabs versucht es automatisch erneut.",
     "speechFailed": "Spracherzeugung fehlgeschlagen",
     "retryScene": "Erneut versuchen",
     "retryCourseGeneration": "Generierung fortsetzen",

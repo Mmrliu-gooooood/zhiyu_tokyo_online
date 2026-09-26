@@ -714,6 +714,9 @@
       "regenerate": "音声を再生成",
       "statusReady": "音声あり",
       "statusNone": "音声なし",
+      "statusChecking": "確認中",
+      "statusMissing": "音声が見つかりません",
+      "statusUnknown": "確認できません",
       "statusGenerating": "生成中",
       "stopPreview": "試聴を停止",
       "statusError": "失敗"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "ナレーション、スポットライト、インタラクションを構成しています...",
     "generationComplete": "生成が完了しました！",
     "generationFailed": "生成に失敗しました",
+    "completionSyncFailed": "コースは保存されましたが、生成完了をサーバーに通知できませんでした。生成枠が最大 60 分間占有される可能性があります。このタブを再読み込みすると自動的に再試行します。",
     "speechFailed": "音声の生成に失敗しました",
     "retryScene": "やり直す",
     "retryCourseGeneration": "コース生成を再開",

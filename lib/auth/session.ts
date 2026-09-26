@@ -11,6 +11,7 @@ import {
 import { AUTH_EPOCH_HEADER, SESSION_ID_HEADER, USER_ID_HEADER, isHostedAuthEnabled } from '@/lib/auth/mode';
 import { createSupabaseRequestClient } from '@/lib/supabase/server';
 import { hasSupabaseBrowserConfig } from '@/lib/supabase/env';
+import { recordRequestStage, timeRequestStage } from '@/lib/server/request-timing';
 
 const principalCache = new WeakMap<Request, Promise<Principal>>();
 
@@ -77,7 +78,9 @@ async function withRegistryRetry<T>(work: () => Promise<T>): Promise<T> {
     } catch (error) {
       last = error;
       if (!isTransientRegistryError(error) || attempt === 2) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+      const waitMs = 200 * (attempt + 1);
+      recordRequestStage('auth.retry_wait', waitMs);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
   }
   throw last;
@@ -113,12 +116,14 @@ async function loadAccount(userId: string): Promise<AccountRow | undefined> {
   const pool = getSharedPool();
   if (!pool) return undefined;
   try {
-    const result = await withRegistryRetry(() =>
-      pool.query<AccountRow>(
-        `SELECT role, status, session_valid_after
-         FROM app_accounts
-         WHERE user_id = $1`,
-        [userId],
+    const result = await timeRequestStage('auth.load_account', () =>
+      withRegistryRetry(() =>
+        pool.query<AccountRow>(
+          `SELECT role, status, session_valid_after
+           FROM app_accounts
+           WHERE user_id = $1`,
+          [userId],
+        ),
       ),
     );
     return result.rows[0];
@@ -133,11 +138,9 @@ async function loadHostedAccountFromJwt(
   userId: string,
 ): Promise<{ role: AppRole; status: AccountStatus } | undefined> {
   try {
-    const { data, error } = await supabase
-      .from('app_accounts')
-      .select('role,status')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const { data, error } = await timeRequestStage('auth.account_self', async () =>
+      supabase.from('app_accounts').select('role,status').eq('user_id', userId).maybeSingle(),
+    );
     if (error) throw error;
     if (!data) return undefined;
     const row = data as { role?: unknown; status?: unknown };
@@ -155,13 +158,15 @@ async function ensureAccountRow(
   const pool = getSharedPool();
   if (!pool) return undefined;
   try {
-    await withRegistryRetry(() =>
-      pool.query(`SELECT app_internal.ensure_account($1::uuid, $2, $3, $4)`, [
-        userId,
-        email.split('@')[0] ?? 'user',
-        hosted?.role ?? null,
-        hosted?.status ?? null,
-      ]),
+    await timeRequestStage('auth.ensure_account', () =>
+      withRegistryRetry(() =>
+        pool.query(`SELECT app_internal.ensure_account($1::uuid, $2, $3, $4)`, [
+          userId,
+          email.split('@')[0] ?? 'user',
+          hosted?.role ?? null,
+          hosted?.status ?? null,
+        ]),
+      ),
     );
     return loadAccount(userId);
   } catch (error) {
@@ -174,10 +179,12 @@ async function sessionIsActive(userId: string, sessionId: string): Promise<boole
   const pool = getSharedPool();
   if (!pool) return true;
   try {
-    const result = await withRegistryRetry(() =>
-      pool.query<{ ok: boolean }>(
-        `SELECT app_internal.session_is_active($1::uuid, $2::uuid) AS ok`,
-        [userId, sessionId],
+    const result = await timeRequestStage('auth.session_active', () =>
+      withRegistryRetry(() =>
+        pool.query<{ ok: boolean }>(
+          `SELECT app_internal.session_is_active($1::uuid, $2::uuid) AS ok`,
+          [userId, sessionId],
+        ),
       ),
     );
     return result.rows[0]?.ok === true;
@@ -206,7 +213,7 @@ async function resolvePrincipal(request: Request, responseHeaders?: Headers): Pr
   const supabase = createSupabaseRequestClient(request, responseHeaders);
   let claims: ClaimsLike | undefined;
   try {
-    const result = await supabase.auth.getClaims();
+    const result = await timeRequestStage('auth.claims', () => supabase.auth.getClaims());
     claims = result.data?.claims as ClaimsLike | undefined;
   } catch {
     throw new AuthError('AUTH_UNAVAILABLE', 'Auth service is unavailable');
@@ -224,7 +231,16 @@ async function resolvePrincipal(request: Request, responseHeaders?: Headers): Pr
   const hosted = await loadHostedAccountFromJwt(supabase, userId);
   let account: AccountRow | undefined;
   try {
-    account = (await ensureAccountRow(userId, email, hosted)) ?? (await loadAccount(userId));
+    // ensure_account / app_accounts via the unbound pool belong to the
+    // dual-mode classroom registry. Hosted schema never installs
+    // ensure_account (42883 made pg destroy a pooled connection on every
+    // request) and app_web RLS hides app_accounts without an owner binding,
+    // so hosted role/status come from the JWT self-select above. Account
+    // deletion sets status='deleting' together with session_valid_after, and
+    // session_is_active below still runs on every request.
+    if (!isHostedAuthEnabled()) {
+      account = (await ensureAccountRow(userId, email, hosted)) ?? (await loadAccount(userId));
+    }
   } catch (error) {
     // Hosted JWT already carries role/status. Pooler flakes must not 503
     // list/GET after Auth succeeded.

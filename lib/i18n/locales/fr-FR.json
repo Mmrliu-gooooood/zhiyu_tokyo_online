@@ -714,6 +714,9 @@
       "regenerate": "Régénérer la voix off",
       "statusReady": "Sonorisé",
       "statusNone": "Non sonorisé",
+      "statusChecking": "Vérification",
+      "statusMissing": "Audio manquant",
+      "statusUnknown": "Inconnu",
       "statusGenerating": "Génération",
       "stopPreview": "Arrêter l'aperçu",
       "statusError": "Échec"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "Orchestration de la narration, des mises en lumière et des interactions…",
     "generationComplete": "Génération terminée !",
     "generationFailed": "Échec de la génération",
+    "completionSyncFailed": "Le cours est enregistré, mais le serveur n'a pas été informé de la fin de la génération : un créneau de génération peut rester réservé jusqu'à 60 minutes. Recharger cet onglet réessaie automatiquement.",
     "speechFailed": "Échec de la génération vocale",
     "retryScene": "Réessayer",
     "retryCourseGeneration": "Reprendre la génération",

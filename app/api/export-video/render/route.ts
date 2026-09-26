@@ -6,6 +6,7 @@ import { resolveRenderServiceUrl } from '@/lib/server/render-service';
 import { capBodyStream } from '@/lib/server/capped-stream';
 import { createLogger } from '@/lib/logger';
 import { recordRenderJobOwner } from '@/lib/server/render-job-owners';
+import { trustProxyHeaders } from '@/lib/auth/trust-proxy';
 
 const log = createLogger('ExportVideo Render API');
 
@@ -27,13 +28,13 @@ const SUBMIT_TIMEOUT_MS = 300_000;
  *
  * `x-forwarded-for` / `x-real-ip` are only trustworthy when a trusted reverse
  * proxy sets them; if the app is exposed directly (as the default Compose does),
- * a client can rotate them to defeat the guard. So we only honor them when
- * `TRUST_PROXY_HEADERS=true` is set by the operator (who then must ensure a real
- * proxy overwrites the headers). Otherwise every caller collapses to a single
+ * a client can rotate them to defeat the guard. So we only honor them when the
+ * operator sets `TRUST_PROXY_HEADERS` to `1` or `true` (and then must ensure a
+ * real proxy overwrites the headers). Otherwise every caller collapses to a single
  * `direct` bucket — a conservative shared limit rather than a spoofable one.
  */
 function clientIdentity(req: NextRequest): string {
-  if (process.env.TRUST_PROXY_HEADERS !== 'true') return 'direct';
+  if (!trustProxyHeaders()) return 'direct';
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0].trim() || 'anonymous';
   return req.headers.get('x-real-ip')?.trim() || 'anonymous';

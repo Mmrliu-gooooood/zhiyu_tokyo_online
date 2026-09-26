@@ -714,6 +714,9 @@
       "regenerate": "重新生成配音",
       "statusReady": "已配音",
       "statusNone": "未配音",
+      "statusChecking": "检查中",
+      "statusMissing": "音频缺失",
+      "statusUnknown": "无法确认",
       "statusGenerating": "生成中",
       "stopPreview": "停止试听",
       "statusError": "失败"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "正在编排讲解、聚焦和互动流程...",
     "generationComplete": "生成完成！",
     "generationFailed": "生成失败",
+    "completionSyncFailed": "课程已保存，但未能通知服务器生成已完成，生成名额可能被占用最长 60 分钟。在此标签页刷新页面会自动重试。",
     "speechFailed": "语音合成失败",
     "retryScene": "重试生成",
     "retryCourseGeneration": "恢复课程生成",

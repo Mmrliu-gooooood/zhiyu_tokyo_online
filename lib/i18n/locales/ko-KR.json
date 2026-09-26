@@ -641,6 +641,9 @@
       "regenerate": "음성 다시 생성",
       "statusReady": "음성 있음",
       "statusNone": "음성 없음",
+      "statusChecking": "확인 중",
+      "statusMissing": "오디오 없음",
+      "statusUnknown": "확인 불가",
       "statusGenerating": "생성 중",
       "stopPreview": "미리듣기 중지",
       "statusError": "실패"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "내레이션, 하이라이트, 인터랙션을 구성하고 있어요...",
     "generationComplete": "생성 완료!",
     "generationFailed": "생성에 실패했습니다",
+    "completionSyncFailed": "코스는 저장되었지만 생성 완료를 서버에 알리지 못해 생성 슬롯이 최대 60분간 점유될 수 있습니다. 이 탭을 새로 고치면 자동으로 다시 시도합니다.",
     "speechFailed": "음성 생성에 실패했습니다",
     "retryScene": "다시 시도",
     "retryCourseGeneration": "강좌 생성 복구",

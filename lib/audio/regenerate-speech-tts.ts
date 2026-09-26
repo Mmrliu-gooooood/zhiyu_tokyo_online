@@ -12,6 +12,7 @@ import { useStageStore } from '@/lib/store/stage';
 import { proveExclusiveAssetOwnership } from '@/lib/media/collect-stage-asset-refs';
 import { resolveAudioBlob } from '@/lib/media/resolve-audio-bytes';
 import { assetRefExists } from '@/lib/media/use-asset-url';
+import { isConcreteMediaAddress } from '@/lib/media/resolve-media-ref';
 
 /** Legacy deterministic Dexie key used before pool allocation. */
 export function speechAudioId(sceneOrder: number, actionId: string): string {
@@ -59,6 +60,37 @@ export async function audioExistsBulk(audioIds: string[]): Promise<Set<string>> 
     if (r) have.add(audioIds[i]);
   });
   return have;
+}
+
+/**
+ * Whether a speech line's audio is available where classroom playback looks:
+ * the local Dexie copy or the cloud asset pool (pool first in playback; Dexie
+ * is checked first here only because it is local and free). Pro/background
+ * narration lives only in the pool, so a Dexie-only check reports it missing.
+ *
+ * The pool probe is metadata-only when the store supports it — never a byte
+ * download per line. Throws when the answer is unknown (a source failed and
+ * the other found nothing), so the caller can keep its previous state rather
+ * than misreport "not voiced" and invite a paid regeneration.
+ */
+export async function speechAudioAvailable(audioId: string): Promise<boolean> {
+  let localFailed = false;
+  try {
+    if (await audioExists(audioId)) return true;
+  } catch {
+    localFailed = true;
+  }
+  let pooled = false;
+  if (!isConcreteMediaAddress(audioId)) {
+    try {
+      pooled = await assetRefExists(audioId);
+    } catch {
+      throw new Error('Speech audio availability is unknown');
+    }
+  }
+  if (pooled) return true;
+  if (localFailed) throw new Error('Speech audio availability is unknown');
+  return false;
 }
 
 /** Object URL for the audio this id currently resolves to (caller revokes). */

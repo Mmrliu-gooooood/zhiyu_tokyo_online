@@ -3,7 +3,9 @@
  *
  * Monotonically marks an existing stage outline as generation-complete.
  * Owner-only. This route deliberately performs a narrow UPDATE so a stale
- * load-time repair cannot overwrite newer classroom content.
+ * load-time repair cannot overwrite newer classroom content. With a
+ * foreground session header it also releases that session's capacity lease in
+ * the same transaction.
  */
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -51,16 +53,20 @@ export async function POST(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: 'forbidden' }, { status: 403, headers: responseHeaders });
       }
 
-      const touched = await markStageGenerationComplete(db, stageId);
+      // The client-driven foreground pipeline owns one course-level capacity
+      // lease from its first outline request through the final durable save.
+      // Mark and release commit together in one owner-bound transaction, so a
+      // failed release rolls the mark back and never leaves "marked, still
+      // holding the slot" behind. Both steps are idempotent, so retries are safe.
+      const touched = await db.withTransaction(async (tx) => {
+        if (!(await markStageGenerationComplete(tx, stageId))) return false;
+        if (sessionId) await releaseForegroundGenerationRoot(ownerId, stageId, sessionId, tx);
+        return true;
+      });
 
       if (!touched) {
         return NextResponse.json({ error: 'not_found' }, { status: 404, headers: responseHeaders });
       }
-
-      // The client-driven foreground pipeline owns one course-level capacity
-      // lease from its first outline request through the final durable save.
-      // Release only after the completion bit landed; retries are idempotent.
-      if (sessionId) await releaseForegroundGenerationRoot(ownerId, stageId, sessionId, db);
 
       console.info('Stage generation marked complete', { stageId, ownerId });
       return NextResponse.json({ ok: true }, { status: 200, headers: responseHeaders });

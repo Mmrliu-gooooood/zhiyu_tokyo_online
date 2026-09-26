@@ -271,6 +271,9 @@ x-runtime-environment: &runtime-environment
   ALLOW_LOCAL_NETWORKS: ${ALLOW_LOCAL_NETWORKS:-}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   LOG_FORMAT: ${LOG_FORMAT:-json}
+  # Request stage timing (P1-0). Empty/0 keeps it off; see lib/server/request-timing.ts.
+  REQUEST_TIMING_SAMPLE_RATE: ${REQUEST_TIMING_SAMPLE_RATE:-}
+  REQUEST_TIMING_SERVER_HEADER: ${REQUEST_TIMING_SERVER_HEADER:-}
 
 services:
   openmaic:

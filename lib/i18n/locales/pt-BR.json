@@ -699,6 +699,9 @@
       "regenerate": "Regenerar narração",
       "statusReady": "Narrado",
       "statusNone": "Sem narração",
+      "statusChecking": "Verificando",
+      "statusMissing": "Áudio ausente",
+      "statusUnknown": "Desconhecido",
       "statusGenerating": "Gerando",
       "stopPreview": "Parar prévia",
       "statusError": "Falhou"
@@ -1204,6 +1207,7 @@
     "generatingActionsDesc": "Orquestrando narração, destaques e interações...",
     "generationComplete": "Geração concluída!",
     "generationFailed": "Falha na geração",
+    "completionSyncFailed": "O curso foi salvo, mas o servidor não foi avisado de que a geração terminou, então uma vaga de geração pode ficar reservada por até 60 minutos. Recarregar esta aba tenta novamente automaticamente.",
     "speechFailed": "Falha ao gerar a fala",
     "retryScene": "Tentar novamente",
     "retryCourseGeneration": "Recuperar geração",

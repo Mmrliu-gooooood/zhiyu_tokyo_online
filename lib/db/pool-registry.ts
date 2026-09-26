@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { createAppPool, HOSTED_POOL_DEFAULTS } from '@/lib/db/app-pool';
 import { getPersistenceDatabaseUrl, getSystemDatabaseUrl } from '@/lib/db/database-urls';
+import { instrumentPoolTiming, requestTimingEnabled } from '@/lib/server/request-timing';
 
 interface PoolRegistryState {
   pools: Map<string, Pool>;
@@ -57,6 +58,8 @@ export function getRegisteredPool(connectionString: string): Pool {
     // node-postgres requires an idle-client error listener. Never include the
     // connection string in diagnostics because it may contain credentials.
   });
+  // Stage timing hooks exist only when sampling is on; otherwise the pool is untouched.
+  if (requestTimingEnabled()) instrumentPoolTiming(pool);
   state.pools.set(connectionString, pool);
   return pool;
 }
