@@ -78,6 +78,7 @@ export default function UpdatePasswordPage() {
           value={password}
           onChange={setPassword}
           minLength={HOSTED_NEW_PASSWORD_MIN_LENGTH}
+          hint={t('auth.passwordTooShort')}
         />
         <AuthField
           id="confirm"
@@ -92,7 +93,7 @@ export default function UpdatePasswordPage() {
         <Button
           type="submit"
           className="w-full"
-          disabled={loading || password.length < HOSTED_NEW_PASSWORD_MIN_LENGTH}
+          disabled={loading || !password}
         >
           {loading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
           {t('auth.updatePasswordSubmit')}

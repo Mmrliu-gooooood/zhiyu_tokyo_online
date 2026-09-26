@@ -12,6 +12,7 @@ export function AuthField({
   onChange,
   minLength,
   readOnly,
+  hint,
 }: {
   id: string;
   label: string;
@@ -21,6 +22,7 @@ export function AuthField({
   onChange: (value: string) => void;
   minLength?: number;
   readOnly?: boolean;
+  hint?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -39,7 +41,13 @@ export function AuthField({
         readOnly={readOnly}
         onChange={(event) => onChange(event.target.value)}
         required={!readOnly}
+        aria-describedby={hint ? `${id}-hint` : undefined}
       />
+      {hint ? (
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
