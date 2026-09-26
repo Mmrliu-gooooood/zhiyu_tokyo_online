@@ -123,7 +123,7 @@ vi.mock('@/lib/server/heavy-task-admission', () => ({
 }));
 
 import { assertRenderJobOwner, recordRenderJobOwner } from '@/lib/server/render-job-owners';
-import { readUsageRecords, recordUsage } from '@/lib/server/usage-storage';
+import { readUsageRecords, recordGenerationUsage, recordUsage } from '@/lib/server/usage-storage';
 import { persistClassroom, readClassroom } from '@/lib/server/classroom-storage';
 import {
   ClassroomSnapshotS3Store,
@@ -258,6 +258,40 @@ describe('hosted durable adapters', () => {
     });
     const rows = await readUsageRecords({ ownerId: owner, months: ['2026-09'] });
     expect(rows[0]).toMatchObject({ ownerId: owner, cacheReadTokens: 3, reasoningTokens: 1 });
+  });
+
+  it('persists worker TTS usage for an explicit owner and job, idempotently', async () => {
+    // Background workers may run without a heavy-task root context.
+    state.rootOwner = undefined;
+    const input = {
+      kind: 'tts',
+      unit: 'character',
+      providerId: 'minimax-tts',
+      modelId: 'speech-2.8-hd',
+      quantity: 42,
+      ownerId: owner,
+      jobId: 'job-tts',
+      eventKey: 'generation:job-tts:tts:one:speech',
+    } as const;
+    await recordGenerationUsage(input);
+    await recordGenerationUsage(input);
+    expect(state.boundOwners).toContain(owner);
+    expect(state.usageRows).toHaveLength(1);
+    const row = state.usageRows[0];
+    expect(row.slice(0, 11)).toEqual([
+      owner,
+      'generation:job-tts:tts:one:speech',
+      'tts',
+      'tts',
+      'job-tts',
+      null,
+      null,
+      'minimax-tts:speech-2.8-hd',
+      'minimax-tts',
+      'speech-2.8-hd',
+      'minimax-tts:speech-2.8-hd',
+    ]);
+    expect(row.slice(16, 18)).toEqual([42, 'character']);
   });
 
   it('writes immutable classroom snapshots and advances the database version', async () => {

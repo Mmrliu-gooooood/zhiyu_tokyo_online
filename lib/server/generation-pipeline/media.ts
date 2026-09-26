@@ -35,6 +35,7 @@ import {
 } from '@/lib/server/media-provider-config';
 import { isServerProviderDisabled } from '@/lib/server/provider-config';
 import { withMediaProviderFetch } from '@/lib/server/media-provider-fetch';
+import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import type { PipelineAssets } from './services';
 import { PipelineExecution, mapBounded } from './execution';
 import {
@@ -62,6 +63,11 @@ async function download(url: string, signal: AbortSignal, maxBytes: number): Pro
   } finally {
     await dispatcher.close();
   }
+}
+
+/** Idempotency key for a worker TTS step's usage_events row. */
+export function workerTTSUsageEventKey(jobId: string, stepKey: string): string {
+  return `generation:${jobId}:${stepKey}`;
 }
 
 function customSnapshotInput<T extends { providerId: string }>(config: T | undefined): unknown {
@@ -528,6 +534,18 @@ export class GenerationMediaServices {
           signal.throwIfAborted();
           if (!result.audio.length) throw new Error('EMPTY_TTS_OUTPUT');
           lifecycle.markResponseReceived();
+          // The provider has billed these characters. The deterministic key keeps
+          // a re-run of the same step (resume, persist/commit retry) to one row.
+          void recordGenerationUsage({
+            kind: 'tts',
+            unit: 'character',
+            providerId,
+            modelId,
+            quantity: action.text.length,
+            ownerId: this.execution.lease.ownerId,
+            jobId: this.execution.lease.jobId,
+            eventKey: workerTTSUsageEventKey(this.execution.lease.jobId, key),
+          });
           return this.assets.write(
             `scene:${scene.outlineId}:${key}`,
             result.audio,
