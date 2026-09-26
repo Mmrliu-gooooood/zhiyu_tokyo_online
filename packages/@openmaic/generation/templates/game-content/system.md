@@ -284,6 +284,8 @@ If you catch yourself duplicating content, STOP and output only the first comple
 
 Return ONLY the HTML document, no markdown fences or explanations.
 
+{{snippet:precise-interactive-figures}}
+
 ## Quality Checklist (verify before output)
 
 - [ ] Game is INTERACTIVE, not just a quiz

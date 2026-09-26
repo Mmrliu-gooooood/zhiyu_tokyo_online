@@ -272,6 +272,16 @@ function updateButton(text) {
 - Don't create objects in render loop
 - Throttle slider input events if needed
 
+## Exact Math Figures (fractions, equal parts, counts, clocks)
+
+If the widget shows a figure whose correctness depends on exact parts, counts or positions, compute it from the numbers in the scene description; never approximate or draw a fixed decorative grid.
+
+- **Parts come from the fraction**: a fraction a/b is drawn with exactly b equal parts and a highlighted. A grid for b parts uses rows × cols = b (e.g. 2/4 → 2 × 2 or 1 × 4; never 3 × 3). Equivalent fractions (2/4 = 1/2) are shown as two separate figures of the same total size, each with its own part count.
+- **Generate parts in a loop** from the denominator (\`for (let i = 0; i < b; i++)\`), with equal widths/angles computed as \`size / b\` or \`360 / b\`; the figure updates when the learner changes the numbers.
+- **Clock faces**: 12 numbers at angle 30° × k; minute hand at 6° × m, hour hand at 30° × (h mod 12) + 0.5° × m; hour hand shorter.
+- **Fit, never clip**: size the figure from the container (\`Math.min(width, height)\` with padding, recomputed on resize); every part and label must be fully visible on a 375 px wide screen. Do not use fixed pixel sizes that overflow.
+- Before output, check that part counts, highlighted counts and labels in the code match the scene description.
+
 ## Common Bugs to Avoid
 
 | Bug | Cause | Solution |
@@ -1037,6 +1047,42 @@ Minimum recommended gap between elements for connector arrows: **60-80px**. If t
 - \`series\`: 2D array, one row per legend
 
 **Optional Fields**: \`rotate\`, \`options\` (\`lineSmooth\`, \`stack\`), \`fill\`, \`outline\`, \`textColor\`
+
+---
+
+### Precise Teaching Diagrams (fractions, counts, number lines)
+
+When the scene description asks for a figure whose correctness depends on exact equal parts, counts, positions or values, build it from native elements (never a generated image). Every part must be a separate ShapeElement so the count is exact; give unshaded parts a white fill and all parts the same visible border: \`"outline": { "style": "solid", "width": 2, "color": "#333333" }\`.
+
+- **Fraction bar (n equal parts, k shaded)**: n rectangles (\`path: "M 0 0 L 1 0 L 1 1 L 0 1 Z"\`, \`viewBox: [1, 1]\`) with identical \`width\` w and \`height\`, placed at \`left = x0 + i × w\` (no gaps). The first k use the highlight fill, the rest \`#ffffff\`.
+- **Circle or pizza in n equal sectors**: n ShapeElements that all share the same \`left\`, \`top\`, \`width\` = \`height\` (the circle's bounding box), \`viewBox: [1, 1]\`, \`fixedRatio: true\`. Sector i uses \`path: "M 0.5 0.5 L {Pi} A 0.5 0.5 0 0 1 {Pi+1} Z"\` where P0…P(n−1) are the boundary points below (clockwise from the top; after the last point wrap to P0):
+  - n=2: (0.5, 0), (0.5, 1)
+  - n=3: (0.5, 0), (0.933, 0.75), (0.067, 0.75)
+  - n=4: (0.5, 0), (1, 0.5), (0.5, 1), (0, 0.5)
+  - n=5: (0.5, 0), (0.9755, 0.3455), (0.7939, 0.9045), (0.2061, 0.9045), (0.0245, 0.3455)
+  - n=6: (0.5, 0), (0.933, 0.25), (0.933, 0.75), (0.5, 1), (0.067, 0.75), (0.067, 0.25)
+  - n=8: (0.5, 0), (0.8536, 0.1464), (1, 0.5), (0.8536, 0.8536), (0.5, 1), (0.1464, 0.8536), (0, 0.5), (0.1464, 0.1464)
+  - Example, quarter 1 of 4: \`"path": "M 0.5 0.5 L 0.5 0 A 0.5 0.5 0 0 1 1 0.5 Z"\`
+- **Taking away / singling out part of a whole** (e.g. "a pizza in 6 slices, take 1 away"): the removed part must look removed, not just be named in text. Keep the remaining n − 1 sectors exactly as above. Draw the removed sector twice with the same \`path\`, \`width\` and \`height\`:
+  - a "ghost" at the original \`left\`/\`top\` with fill \`#ffffff\` and \`"outline": { "style": "dashed", "width": 2, "color": "#999999" }\`, marking the gap;
+  - the moved piece, with a different fill from the remaining pieces, shifted outward along its bisector: for sector i of n, φ = (i + 0.5) × 360° / n (clockwise from the top), offset s ≈ 0.25 × diameter, \`left = left0 + s × sin φ\`, \`top = top0 − s × cos φ\`. Example, n = 6, i = 0 (φ = 30°), diameter 240: \`left = left0 + 30\`, \`top = top0 − 52\`.
+  - Make sure the moved piece stays inside the canvas margins; if not, move the whole figure. Labels state both parts (e.g. "拿走 1 块，还剩 5 块" with LaTeX \`\\frac{5}{6}\`).
+- **Square in 2 × 2 (or r × c) equal cells**: r × c equal rectangles tiled without gaps.
+- **Number line from a to b with n equal steps** (axis starts at x0, length L, tick spacing s = L / n):
+  - Axis: one LineElement \`left = x0\`, \`start: [0, 0]\`, \`end: [L, 0]\`, \`points: ["", "arrow"]\` (arrowhead on the right end only).
+  - Ticks: n + 1 vertical LineElements, tick i at \`left = x0 + i × s\`, \`start: [0, -10]\`, \`end: [0, 10]\` (same \`top\` as the axis).
+  - Labels: one LatexElement per tick (e.g. \`\\frac{3}{8}\`; plain integers for the ends), height 40–50 and **centered on its tick**: \`left = x0 + i × s − width / 2\`. Never use narrow TextElements for fractions (they wrap into "3/" and "8").
+  - Target mark: a small circle whose **center** is exactly on the target tick: \`left = x0 + k × s − d / 2\`, \`top = axisTop − d / 2\`, where d is its diameter; put its label directly above with the same center x.
+- **Clock face showing h:m** (face diameter D, bounding box \`left = X\`, \`top = Y\`, center \`cx = X + D/2\`, \`cy = Y + D/2\`):
+  - Face: one ShapeElement circle (\`path: "M 0.5 0 A 0.5 0.5 0 1 1 0.5 1 A 0.5 0.5 0 1 1 0.5 0 Z"\`, \`viewBox: [1, 1]\`, \`fixedRatio: true\`), white fill, 3 px dark outline.
+  - Numbers 1–12: exactly 12 TextElements (never repeat or skip a number), each **centered** on its point: \`left = X + u × D − w/2\`, \`top = Y + v × D − h/2\`, with (u, v):
+    1 (0.7, 0.1536), 2 (0.8464, 0.3), 3 (0.9, 0.5), 4 (0.8464, 0.7), 5 (0.7, 0.8464), 6 (0.5, 0.9), 7 (0.3, 0.8464), 8 (0.1536, 0.7), 9 (0.1, 0.5), 10 (0.1536, 0.3), 11 (0.3, 0.1536), 12 (0.5, 0.1). Use w ≈ 0.14 × D, centered text.
+  - Hands: two LineElements with \`left = cx\`, \`top = cy\`, \`start: [0, 0]\`. Minute angle a_m = 6° × m; hour angle a_h = 30° × (h mod 12) + 0.5° × m (angles clockwise from 12). \`end = [L × sin a, −L × cos a]\`. Minute hand L = 0.37 × D, \`width: 3\`; hour hand L = 0.24 × D, \`width: 6\` (shorter and thicker). Add a small center dot.
+  - Example 3:30 with D = 300: minute a_m = 180° → \`end: [0, 111]\`; hour a_h = 105° → \`end: [69.5, 18.6]\` (between 3 and 4, not on 3).
+- **Exact counts / arrays**: draw each object as its own small shape (e.g. r × c circles on a regular grid), never "about N".
+- **Values**: use ChartElement for data charts and LatexElement for every fraction or equation (e.g. \`\\frac{1}{5}+\\frac{2}{5}=\\frac{3}{5}\`).
+- Before output, count the shapes of each figure and check that the count, the shaded count and every label match the scene description.
+- Keep every part of a figure, its labels and any hint bar inside the canvas margins; no label may sit under a marker or another shape.
 
 ---
 

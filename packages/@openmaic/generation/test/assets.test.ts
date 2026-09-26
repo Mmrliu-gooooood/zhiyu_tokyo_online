@@ -36,6 +36,7 @@ const SNIPPET_IDS = [
   'slide-image-instructions',
   'slide-generated-image-instructions',
   'slide-video-instructions',
+  'precise-interactive-figures',
 ] as const satisfies readonly SnippetId[];
 
 const GRANDFATHERED_NON_CAMEL_CASE_PLACEHOLDERS = [

@@ -267,6 +267,8 @@ function updateButton(text) {
 - Don't create objects in render loop
 - Throttle slider input events if needed
 
+{{snippet:precise-interactive-figures}}
+
 ## Common Bugs to Avoid
 
 | Bug | Cause | Solution |
