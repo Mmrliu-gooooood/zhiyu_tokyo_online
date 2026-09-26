@@ -357,7 +357,7 @@ When the scene description asks for a figure whose correctness depends on exact 
   - n=6: (0.5, 0), (0.933, 0.25), (0.933, 0.75), (0.5, 1), (0.067, 0.75), (0.067, 0.25)
   - n=8: (0.5, 0), (0.8536, 0.1464), (1, 0.5), (0.8536, 0.8536), (0.5, 1), (0.1464, 0.8536), (0, 0.5), (0.1464, 0.1464)
   - Example, quarter 1 of 4: `"path": "M 0.5 0.5 L 0.5 0 A 0.5 0.5 0 0 1 1 0.5 Z"`
-- **Taking away / singling out part of a whole** (e.g. "a pizza in 6 slices, take 1 away"): the removed part must look removed, not just be named in text. Keep the remaining n − 1 sectors exactly as above. Draw the removed sector twice with the same `path`, `width` and `height`:
+- **Taking away / singling out part of a whole** (e.g. "a pizza in 6 slices, take 1 away"): the removed part must look removed, not just be named in text. Keep the remaining n − 1 sectors exactly as above, **all with the same fill** (none of them white). Draw the removed sector twice with the same `path`, `width` and `height`:
   - a "ghost" at the original `left`/`top` with fill `#ffffff` and `"outline": { "style": "dashed", "width": 2, "color": "#999999" }`, marking the gap;
   - the moved piece, with a different fill from the remaining pieces, shifted outward along its bisector: for sector i of n, φ = (i + 0.5) × 360° / n (clockwise from the top), offset s ≈ 0.25 × diameter, `left = left0 + s × sin φ`, `top = top0 − s × cos φ`. Example, n = 6, i = 0 (φ = 30°), diameter 240: `left = left0 + 30`, `top = top0 − 52`.
   - Make sure the moved piece stays inside the canvas margins; if not, move the whole figure. Labels state both parts (e.g. "拿走 1 块，还剩 5 块" with LaTeX `\frac{5}{6}`).
@@ -367,12 +367,15 @@ When the scene description asks for a figure whose correctness depends on exact 
   - Ticks: n + 1 vertical LineElements, tick i at `left = x0 + i × s`, `start: [0, -10]`, `end: [0, 10]` (same `top` as the axis).
   - Labels: one LatexElement per tick (e.g. `\frac{3}{8}`; plain integers for the ends), height 40–50 and **centered on its tick**: `left = x0 + i × s − width / 2`. Never use narrow TextElements for fractions (they wrap into "3/" and "8").
   - Target mark: a small circle whose **center** is exactly on the target tick: `left = x0 + k × s − d / 2`, `top = axisTop − d / 2`, where d is its diameter; put its label directly above with the same center x.
-- **Clock face showing h:m** (face diameter D, bounding box `left = X`, `top = Y`, center `cx = X + D/2`, `cy = Y + D/2`):
-  - Face: one ShapeElement circle (`path: "M 0.5 0 A 0.5 0.5 0 1 1 0.5 1 A 0.5 0.5 0 1 1 0.5 0 Z"`, `viewBox: [1, 1]`, `fixedRatio: true`), white fill, 3 px dark outline.
-  - Numbers 1–12: exactly 12 TextElements (never repeat or skip a number), each **centered** on its point: `left = X + u × D − w/2`, `top = Y + v × D − h/2`, with (u, v):
-    1 (0.7, 0.1536), 2 (0.8464, 0.3), 3 (0.9, 0.5), 4 (0.8464, 0.7), 5 (0.7, 0.8464), 6 (0.5, 0.9), 7 (0.3, 0.8464), 8 (0.1536, 0.7), 9 (0.1, 0.5), 10 (0.1536, 0.3), 11 (0.3, 0.1536), 12 (0.5, 0.1). Use w ≈ 0.14 × D, centered text.
-  - Hands: two LineElements with `left = cx`, `top = cy`, `start: [0, 0]`. Minute angle a_m = 6° × m; hour angle a_h = 30° × (h mod 12) + 0.5° × m (angles clockwise from 12). `end = [L × sin a, −L × cos a]`. Minute hand L = 0.37 × D, `width: 3`; hour hand L = 0.24 × D, `width: 6` (shorter and thicker). Add a small center dot.
-  - Example 3:30 with D = 300: minute a_m = 180° → `end: [0, 111]`; hour a_h = 105° → `end: [69.5, 18.6]` (between 3 and 4, not on 3).
+- **Clock face showing h:m** — always use face diameter 300 and copy the numbers below; do not compute angles yourself. Choose the center (cx, cy), then:
+  - Face: one ShapeElement circle `left = cx − 150`, `top = cy − 150`, `width = height = 300`, `path: "M 0.5 0 A 0.5 0.5 0 1 1 0.5 1 A 0.5 0.5 0 1 1 0.5 0 Z"`, `viewBox: [1, 1]`, `fixedRatio: true`, white fill, 3 px dark outline.
+  - Numbers 1–12: exactly 12 TextElements, 18px font, `width: 42`, `height: 49` (lookup table), centered text, `left = cx + dx − 21`, `top = cy + dy − 24`, with (dx, dy): 12 (0, −120), 1 (60, −104), 2 (104, −60), 3 (120, 0), 4 (104, 60), 5 (60, 104), 6 (0, 120), 7 (−60, 104), 8 (−104, 60), 9 (−120, 0), 10 (−104, −60), 11 (−60, −104). The horizontal offsets are as large as the vertical ones — the numbers form a circle, not an oval.
+  - Hands: LineElements with `left = cx`, `top = cy`, `start: [0, 0]`, and `end` copied from these tables.
+    - Minute hand (`width: 3`): :00 → [0, −111]; :15 → [111, 0]; :30 → [0, 111]; :45 → [−111, 0].
+    - Hour hand (`width: 6`), on the hour: 1 [36, −62], 2 [62, −36], 3 [72, 0], 4 [62, 36], 5 [36, 62], 6 [0, 72], 7 [−36, 62], 8 [−62, 36], 9 [−72, 0], 10 [−62, −36], 11 [−36, −62], 12 [0, −72].
+    - Hour hand at half past (between h and h+1): 1:30 [51, −51], 2:30 [70, −19], 3:30 [70, 19], 4:30 [51, 51], 5:30 [19, 70], 6:30 [−19, 70], 7:30 [−51, 51], 8:30 [−70, 19], 9:30 [−70, −19], 10:30 [−51, −51], 11:30 [−19, −70], 12:30 [19, −70].
+    - Any other time: hour angle a = 30° × (h mod 12) + 0.5° × m, minute angle 6° × m, `end = [L × sin a, −L × cos a]` with L = 72 (hour) or 111 (minute).
+  - Add a small center dot at (cx, cy).
 - **Exact counts / arrays**: draw each object as its own small shape (e.g. r × c circles on a regular grid), never "about N".
 - **Values**: use ChartElement for data charts and LatexElement for every fraction or equation (e.g. `\frac{1}{5}+\frac{2}{5}=\frac{3}{5}`).
 - Before output, count the shapes of each figure and check that the count, the shaded count and every label match the scene description.
