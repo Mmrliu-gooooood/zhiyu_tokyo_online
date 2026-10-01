@@ -239,3 +239,31 @@ The user-approved next student feature: one existing AI peer asks a concrete que
 _Avoid_: mastery percentage, full teacher product, additional competition-feature bundle
 
 The specification has been implemented as an independent `teachBack` runtime kind, JSON prepare/evaluate API, and ChatArea-hosted executor. Ordinary classroom Q&A, reviewed tutoring, and foreground/background/Pro generation remain separate. The feature is gated by `NEXT_PUBLIC_TEACH_BACK_ENABLED` (default off). Broader misconception tracking, spaced repetition, transfer challenges and account-isolation verification remain outside this feature scope.
+
+## Model access (2026-10-01)
+
+See [ADR-0019](docs/adr/0019-adopt-model-gateway-on-pi-ai.md) and [the model gateway refactor plan](docs/plans/2026-09-30-model-gateway-refactor.md). Until the plan's P3 cut-over lands, the legacy `lib/ai` layer still serves production calls; these terms describe the target boundary.
+
+**Model gateway / 模型网关**:
+The single server-side boundary (`lib/model-gateway`) between business code and text models. Business code passes a `ModelBinding` and calls `stream`, `complete` or `runToolLoop`; providers, authentication, wire protocols, thinking parameters, error classification, retries, quota, usage and settlement live inside it. Runs on pi-ai.
+_Avoid_: calling pi-ai or the AI SDK directly from routes, "LLM wrapper"
+
+**ModelSelection**:
+The client's or a stored record's intent: platform default, operator-managed provider, or a user connection (API key, stored credential, or keyless local endpoint) plus thinking settings. Untrusted until the server resolves it.
+_Avoid_: resolved model, apiKey in business code
+
+**ModelBinding**:
+The immutable server-side result of resolving a `ModelSelection` (stage routes, platform policy, operator config): provider, model, resolved pi model, capabilities, effective thinking, funding source and endpoint kind. It exposes `credentialReady` but never the credential itself.
+_Avoid_: ResolvedModel with an enumerable key, mutating a binding
+
+**Funding source / 资金来源**:
+Who pays for one model call: `platform` (a Zhiyu platform model), `operator` (deployment-managed provider), `byok` (user API key), `subscription` (user sign-in credential) or `local`. Only `platform` calls go through entitlement checks; all calls are quota-limited and usage-recorded (ADR-0011).
+_Avoid_: inferring payment from the provider name
+
+**Platform model / 平台模型**:
+A Zhiyu-provided text model such as `zhiyu-default-text`, defined by the platform default definitions, guarded by a revision HMAC and never silently replaced by another credential when it fails.
+_Avoid_: hard-coding `zhiyu-default-text` in gateway code, falling back to user keys
+
+**Credential vault / 凭据库**:
+The encrypted, owner-scoped `model_credentials` store (R2) for subscription sign-in tokens, read at each outbound call so revocation takes effect immediately. API keys keep their existing storage in this round.
+_Avoid_: storing OAuth tokens in browser settings or generation snapshots
