@@ -12,7 +12,6 @@
  * This is the only module in the project that touches the 0.78 runtime. Delete
  * it when the agent kernel is upgraded.
  */
-import { createRequire } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -55,6 +54,16 @@ export interface AgentLegacyPiLocation {
 
 const PI_AI = '@earendil-works/pi-ai';
 
+/**
+ * webpack statically rewrites `createRequire(...)` / `require.resolve(...)`
+ * in server bundles (it replaced the lookup below with a bundled module id).
+ * Fetching the builtin at runtime keeps Node's real resolver.
+ */
+function nodeCreateRequire(anchorFile: string): NodeJS.Require {
+  const nodeModule = process.getBuiltinModule('node:module');
+  return nodeModule.createRequire(anchorFile);
+}
+
 function exportsImportEntry(pkg: { exports?: unknown; module?: string; main?: string }): string {
   const root = (pkg.exports as Record<string, unknown> | undefined)?.['.'];
   if (typeof root === 'string') return root;
@@ -82,10 +91,10 @@ function exportsImportEntry(pkg: { exports?: unknown; module?: string; main?: st
 export function locateAgentLegacyPi(fromDir?: string): AgentLegacyPiLocation {
   const anchor = fromDir
     ? path.join(fromDir, 'package.json')
-    : createRequire(path.join(process.cwd(), 'package.json')).resolve(
+    : nodeCreateRequire(path.join(process.cwd(), 'package.json')).resolve(
         '@earendil-works/pi-agent-core/package.json',
       );
-  const agentCoreRequire = createRequire(anchor);
+  const agentCoreRequire = nodeCreateRequire(anchor);
   const candidates = agentCoreRequire.resolve.paths(PI_AI) ?? [];
   for (const base of candidates) {
     const packageDir = path.join(base, ...PI_AI.split('/'));

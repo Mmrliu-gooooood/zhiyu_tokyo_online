@@ -28,6 +28,10 @@ export async function register(): Promise<void> {
   const { validateServerConfig } = await import('@/lib/server/config-validation');
   validateServerConfig();
 
+  // Keeps the lazily loaded pi-ai runtime in the standalone file trace. The
+  // module only declares tracing anchors; it does not load pi-ai.
+  await import('@/lib/model-gateway/runtime/pi-registry');
+
   let runner: import('@/lib/server/agent-runtime/runner').AgentRunnerHandle | undefined;
   let extractionRunner:
     | import('@/lib/server/material-extraction/runner').MaterialExtractionRunnerHandle
