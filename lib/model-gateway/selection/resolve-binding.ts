@@ -21,8 +21,10 @@ import {
   resolveProxy,
   type ResolvedPlatformDefault,
 } from '@/lib/server/provider-config';
+import { getDefaultThinkingConfig } from '@/lib/ai/thinking-config';
 import {
   findLegacyPlatformDefault,
+  hasExplicitPlatformThinkingIntent,
   isLegacyPlatformBacking,
   isPlatformThinkingConfigSupported,
   normalizePlatformThinkingConfig,
@@ -305,7 +307,13 @@ export async function resolveBinding(input: ResolveBindingInput): Promise<ModelB
   );
   const endpointReady = declared.every((name) => requestEnv[name]);
 
-  const thinking: ThinkingConfig | undefined = routed ? intent.route?.thinking : selection.thinking;
+  const requested: ThinkingConfig | undefined = routed
+    ? intent.route?.thinking
+    : selection.thinking;
+  const thinking =
+    descriptor?.defaultThinkingFromCapability && !hasExplicitPlatformThinkingIntent(requested)
+      ? (getDefaultThinkingConfig(spec.capabilities.thinking) ?? requested)
+      : requested;
   return createBinding(
     {
       source: selection.source,

@@ -33,6 +33,8 @@ export type DescriptorUpstream =
       piProviderId: string;
       /** Regional / plan variants; the first one is the default. */
       profiles?: Readonly<Record<string, EndpointProfile>>;
+      /** Reviewed corrections over pi's per-model compat flags. */
+      compat?: Readonly<Record<string, unknown>>;
     }
   | {
       kind: 'custom';
@@ -70,6 +72,11 @@ export interface ProviderDescriptor {
    * (`{CLOUDFLARE_ACCOUNT_ID}`); passed per request, never read from env.
    */
   endpointParams?: readonly string[];
+  /**
+   * Without an explicit thinking choice, send the reviewed capability's default
+   * (local chat templates that would otherwise think by default).
+   */
+  defaultThinkingFromCapability?: boolean;
   /** Key prefixes the upstream expects as `Authorization: Bearer` (MiniMax Token Plan). */
   bearerKeyPrefixes?: readonly string[];
   docsUrl?: string;
@@ -330,7 +337,8 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
     name: 'OpenRouter',
     icon: '/logos/openrouter.svg',
     group: 'aggregator',
-    upstream: { kind: 'pi', piProviderId: 'openrouter' },
+    // Legacy wire field; OpenRouter accepts both.
+    upstream: { kind: 'pi', piProviderId: 'openrouter', compat: { maxTokensField: 'max_tokens' } },
     auth: ['api-key', 'oauth'],
     userConfigurable: true,
     allowCustomBaseUrl: true,
@@ -383,7 +391,11 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
     name: 'Xiaomi MiMo',
     icon: '/logos/xiaomi.svg',
     group: 'china',
-    upstream: { kind: 'pi', piProviderId: 'xiaomi' },
+    upstream: {
+      kind: 'pi',
+      piProviderId: 'xiaomi',
+      compat: { maxTokensField: 'max_tokens', supportsDeveloperRole: false },
+    },
     auth: ['api-key'],
     userConfigurable: true,
     allowCustomBaseUrl: true,
@@ -451,6 +463,7 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
     inlineThinkTags: true,
     legacyProviderType: 'openai',
     defaultBaseUrl: 'http://localhost:13305/v1',
+    defaultThinkingFromCapability: true,
   },
 
   // ---------------------------------------------------------------- new: official / aggregators

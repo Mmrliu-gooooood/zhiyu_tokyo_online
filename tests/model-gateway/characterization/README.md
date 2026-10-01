@@ -44,6 +44,41 @@ shared harness in `thinking-equivalence.ts`. Data the P2 overlays must carry (fo
 opt-in `xhigh`/`max`/`minimal` levels from the reviewed capability, `supportsReasoningEffort:false`
 for non-effort capabilities on OpenAI-compatible formats, and GPT-5.6 (absent from pi 0.99).
 
+## Golden replay through bindings (P2-5)
+
+`golden-replay.test.ts` replays every golden case (1653) through the real path
+`upgradeLegacyModelParams → resolveBinding → gateway → fake server` and compares a semantic
+projection of each request: host, path, query, auth scheme, thinking fields (incl. Gemini
+`thinkingConfig`, Bedrock request fields and the effective Claude 5 effort), max-tokens field and
+value, tool names, `tool_choice`, `stream_options`, message roles, replayed reasoning / tool calls
+and image count. Bindings are rerouted to the fake server with the original host recorded.
+Bedrock is replayed as an operator binding (user Bedrock is rejected by design).
+
+Every difference is claimed in `golden-allowlist.json` by exact case ids, the fields that may
+differ and a rule with its reason (stale entries fail). Rules, in short:
+
+| Rule | Meaning |
+| --- | --- |
+| STREAMS | pi always streams (no non-streaming `:generateContent` / `/converse`; `stream_options` present) |
+| GROK_RESPONSES | grok moves to the OpenAI Responses API (plan 3.6); effort still compared |
+| ANTHROPIC_BETA / PI_DEFERRED_TOOL / CLAUDE5_EFFORT_CONTROL | pi's Anthropic beta endpoint, hidden cache placeholder tool and mid-conversation effort entry (effective effort verified) |
+| ANTHROPIC_CAP | uncapped Anthropic calls send the catalog maximum (unknown models 8192) instead of SDK defaults |
+| TOOL_RESULT_TURN | tool result and next user text as two user turns |
+| REPLAY_REASONING | reasoning replayed in `reasoning_content` on later turns of the same model (plan 3.11) |
+| NON_VISION | images dropped for reviewed non-vision models (plan 3.4) |
+| MODE_DEFAULT / ANTHROPIC_DISABLED | P1 decisions (`mode:'default'` = provider default; explicit Anthropic disable) |
+| ENABLED_NOT_OFF / BUDGET_ZERO_OFF / MINIMAX_ENABLE | legacy bugs fixed: "enabled" sent effort `none`; budget 0 sent "enable + 0"; MiniMax "enabled" sent nothing |
+| OPENROUTER_EFFORT / GOOGLE_DYNAMIC | same API semantics in pi's wire form (`reasoning.effort`; omitted Gemini budget = dynamic) |
+
+Real differences found and fixed instead of allowlisted: `max_tokens` / `system` role / no
+`store` for OpenAI-compatible endpoints, Xiaomi and OpenRouter compat, unknown-model templates
+(main protocol, dialect-only compat, 8192 cap), reviewed effort/levels not clamped by pi's map,
+budget-only SiliconFlow models, Lemonade default thinking, Azure endpoint normalization and
+explicit Azure options, Hunyuan "enabled", Google/Bedrock cap and budget stripping, and the
+Claude 5 mid-conversation effort entry overriding the requested effort (a P1 gap).
+
+`GOLDEN_REPLAY_REPORT=<file>` dumps all mismatches for review.
+
 ## Behavior checklist from legacy unit tests
 
 Tick an ID (☐ → ☑) once it is covered by a gateway-era test (or explicitly waived with a reason)

@@ -134,8 +134,13 @@ export function planThinking(
   const mode = getThinkingMode(config);
   switch (capability.control) {
     case 'effort': {
-      const effort = pickThinkingEffort(capability, config);
+      let effort = pickThinkingEffort(capability, config);
       if (!effort) return providerDefault();
+      // "Enabled" never means off, even when the model's default effort is none.
+      if (effort === 'none' && mode === 'enabled' && config.effort === undefined) {
+        effort = capability.effortValues?.find((value) => value !== 'none');
+        if (!effort) return off();
+      }
       if (effort === 'none') return off();
       return isPiLevel(effort) ? on(effort) : providerDefault();
     }
@@ -147,6 +152,15 @@ export function planThinking(
     case 'budget-only': {
       if (mode === 'disabled' && capability.toggleable !== false) return off();
       const budget = pickThinkingBudget(capability, config);
+      // The capability's disable value (budget 0) is the off switch, not "on with no budget".
+      const disableValue = capability.budgetRange?.disableValue;
+      if (
+        disableValue !== undefined &&
+        budget === disableValue &&
+        capability.toggleable !== false
+      ) {
+        return off();
+      }
       return on(defaultThinkingLevel(capability), budget);
     }
     case 'toggle':
@@ -191,6 +205,32 @@ const THINKING_FIELDS = [
   'chat_template_kwargs',
 ] as const;
 
+/** pi's Anthropic mid-conversation effort entry: `{ role: 'system', content: [], output_config }`. */
+function isEffortControlMessage(message: unknown): boolean {
+  if (!message || typeof message !== 'object') return false;
+  const record = message as Record<string, unknown>;
+  return (
+    record.role === 'system' &&
+    Array.isArray(record.content) &&
+    record.content.length === 0 &&
+    !!record.output_config &&
+    typeof record.output_config === 'object'
+  );
+}
+
+/** Apply `edit` to a copy of a nested object field (the payload is a shallow copy). */
+function withNested(
+  payload: Record<string, unknown>,
+  key: string,
+  edit: (value: Record<string, unknown>) => void,
+): void {
+  const value = payload[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const copy = { ...(value as Record<string, unknown>) };
+  edit(copy);
+  payload[key] = copy;
+}
+
 interface PatchContext {
   config: ThinkingConfig | undefined;
   level?: PiThinkingLevel;
@@ -215,11 +255,19 @@ const PATCHES: Record<PayloadPatchId, (ctx: PatchContext) => PayloadPatch> = {
     delete payload.max_tokens;
     delete payload.max_completion_tokens;
     delete payload.max_output_tokens;
+    // Google (`config.maxOutputTokens`) and Bedrock (`inferenceConfig.maxTokens`).
+    withNested(payload, 'config', (config) => delete config.maxOutputTokens);
+    withNested(payload, 'inferenceConfig', (inference) => delete inference.maxTokens);
   },
   'omit-thinking-budget': () => (payload) => {
     delete payload.thinking_budget;
     delete payload.thinking_token_budget;
     delete payload.thinking_budget_tokens;
+    withNested(payload, 'chat_template_kwargs', (kwargs) => delete kwargs.thinking_budget);
+    // Google: thinking on without a budget is the model's dynamic budget.
+    withNested(payload, 'config', (config) =>
+      withNested(config, 'thinkingConfig', (thinking) => delete thinking.thinkingBudget),
+    );
   },
   'anthropic-managed-effort':
     ({ level, model }) =>
@@ -229,7 +277,20 @@ const PATCHES: Record<PayloadPatchId, (ctx: PatchContext) => PayloadPatch> = {
         payload.output_config && typeof payload.output_config === 'object'
           ? (payload.output_config as Record<string, unknown>)
           : {};
-      payload.output_config = { ...outputConfig, effort: anthropicEffort(model, level) };
+      const effort = anthropicEffort(model, level);
+      payload.output_config = { ...outputConfig, effort };
+      // pi also appends a mid-conversation control entry carrying the active
+      // effort (pinned to high); it applies from that point on, so it must agree.
+      const messages = payload.messages;
+      const last = Array.isArray(messages) ? messages[messages.length - 1] : undefined;
+      if (isEffortControlMessage(last)) {
+        const copy = [...(messages as unknown[])];
+        copy[copy.length - 1] = {
+          ...(last as Record<string, unknown>),
+          output_config: { ...((last as Record<string, unknown>).output_config as object), effort },
+        };
+        payload.messages = copy;
+      }
     },
   'zai-default-clear-thinking': () => (payload) => {
     // pi's zai format pins clear_thinking:false (preserved thinking). The
@@ -242,6 +303,10 @@ const PATCHES: Record<PayloadPatchId, (ctx: PatchContext) => PayloadPatch> = {
     }
   },
   'provider-default-thinking': () => (payload) => {
+    // Claude mid-conversation effort controls (pi pins them to high).
+    if (Array.isArray(payload.messages) && payload.messages.some(isEffortControlMessage)) {
+      payload.messages = payload.messages.filter((message) => !isEffortControlMessage(message));
+    }
     for (const field of THINKING_FIELDS) {
       if (field === 'reasoning' && payload.reasoning && typeof payload.reasoning === 'object') {
         // Responses API: drop the effort but keep summary/encrypted-content plumbing.
@@ -252,6 +317,7 @@ const PATCHES: Record<PayloadPatchId, (ctx: PatchContext) => PayloadPatch> = {
       }
       delete payload[field];
     }
+    withNested(payload, 'config', (config) => delete config.thinkingConfig);
     const outputConfig = payload.output_config as Record<string, unknown> | undefined;
     if (outputConfig && 'effort' in outputConfig) {
       const { effort: _effort, ...rest } = outputConfig;

@@ -41,7 +41,21 @@ export class ModelSpecError extends Error {
   }
 }
 
-const LEVELS_FROM_CAPABILITY = ['minimal', 'xhigh', 'max'] as const;
+const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+/**
+ * What the legacy OpenAI-compatible transport sent to non-OpenAI endpoints:
+ * `max_tokens`, a `system` role and no `store` (pi would otherwise detect an
+ * unknown host as OpenAI and send max_completion_tokens / developer).
+ */
+const COMPATIBLE_ENDPOINT_DEFAULTS = {
+  maxTokensField: 'max_tokens',
+  supportsDeveloperRole: false,
+  supportsStore: false,
+} as const;
+
+/** Unknown models: conservative output cap (plan 3.7; Anthropic requires one). */
+const UNKNOWN_MODEL_MAX_TOKENS = 8_192;
 
 function findReviewed(providerId: string, modelId: string): ModelInfo | undefined {
   const canonical = getCanonicalModelId(providerId, modelId);
@@ -88,8 +102,21 @@ function adapterCompat(capability: ThinkingCapability | undefined): Record<strin
       return { thinkingFormat: 'deepseek', supportsReasoningEffort: false };
     case 'glm':
       return { thinkingFormat: 'zai', supportsReasoningEffort: capability.control === 'effort' };
-    case 'qwen':
     case 'siliconflow':
+      // Budget-only models take just the budget field (no enable switch).
+      if (capability.control === 'budget-only') {
+        return {
+          thinkingFormat: 'openai',
+          thinkingTokenBudgetField: 'thinking_budget',
+          supportsReasoningEffort: false,
+        };
+      }
+      return {
+        thinkingFormat: 'qwen',
+        thinkingTokenBudgetField: 'thinking_budget',
+        supportsReasoningEffort: false,
+      };
+    case 'qwen':
       return {
         thinkingFormat: 'qwen',
         thinkingTokenBudgetField: 'thinking_budget',
@@ -142,21 +169,76 @@ function adapterLevelMap(
   if (capability.requestAdapter === 'doubao' && capability.control === 'effort') {
     return { off: 'minimal' };
   }
+  // Every reviewed effort / level is sendable as itself, even where pi's catalog
+  // marks it unsupported (pi would otherwise clamp it to another level).
   const map: Record<string, string> = {};
-  for (const level of LEVELS_FROM_CAPABILITY) {
-    if (capability.effortValues?.includes(level)) map[level] = level;
+  for (const level of [...(capability.effortValues ?? []), ...(capability.levelValues ?? [])]) {
+    if ((EFFORT_LEVELS as readonly string[]).includes(level)) map[level] = level;
   }
   return Object.keys(map).length > 0 ? map : undefined;
 }
 
+/**
+ * Azure portal URLs → the resource base the OpenAI SDK appends `/responses`
+ * to: strip operation / deployment suffixes, add `/openai` on classic hosts
+ * and the `/v1` the legacy @ai-sdk/azure client appended.
+ */
+function normalizeAzureBaseUrl(value: string): string {
+  const url = new URL(value.trim());
+  url.search = '';
+  url.hash = '';
+  let path = url.pathname.replace(/\/+$/, '');
+  path = path.replace(/\/(?:chat\/completions|responses)$/i, '');
+  path = path.replace(/\/deployments\/[^/]+$/i, '');
+  path = path.replace(/\/v1$/i, '');
+  if (url.hostname.endsWith('.openai.azure.com') && !path) path = '/openai';
+  url.pathname = `${path}/v1`;
+  return url.toString().replace(/\/$/, '');
+}
+
 /** pi's Anthropic SDK appends `/v1`; legacy base URLs include it. */
 function normalizeBaseUrl(api: string, providerId: string, baseUrl: string): string {
+  if (api === 'azure-openai-responses') return normalizeAzureBaseUrl(baseUrl);
   let url = baseUrl.trim().replace(/\/+$/, '');
   if (api === 'anthropic-messages') {
     if (providerId === 'minimax' && !/\/anthropic(\/v1)?$/.test(url)) url = `${url}/anthropic`;
     url = url.replace(/\/v1$/, '');
   }
   return url;
+}
+
+/**
+ * Compat keys that describe the endpoint's dialect (safe for any model of the
+ * provider). Model feature flags (mid-conversation effort / tool changes,
+ * adaptive thinking, fallbacks) are not inherited by unknown ids: a relay or an
+ * older model may reject them.
+ */
+const DIALECT_COMPAT_KEYS = [
+  'thinkingFormat',
+  'maxTokensField',
+  'supportsDeveloperRole',
+  'supportsStore',
+  'supportsReasoningEffort',
+  'supportsStrictMode',
+  'supportsUsageInStreaming',
+  'requiresReasoningContentOnAssistantMessages',
+  'thinkingTokenBudgetField',
+  'chatTemplateKwargs',
+  'sendSessionAffinityHeaders',
+  'sessionAffinityFormat',
+] as const;
+
+/** Template for an unknown id: a model speaking the provider's main protocol. */
+function providerTemplate(models: readonly PiModel[]): PiModel {
+  const counts = new Map<string, number>();
+  for (const model of models) counts.set(model.api, (counts.get(model.api) ?? 0) + 1);
+  const main = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+  const template = models.find((model) => model.api === main)!;
+  const compat = (template.compat ?? {}) as Record<string, unknown>;
+  const dialect = Object.fromEntries(
+    DIALECT_COMPAT_KEYS.filter((key) => compat[key] !== undefined).map((key) => [key, compat[key]]),
+  );
+  return { ...template, compat: dialect } as PiModel;
 }
 
 function customTemplate(
@@ -175,7 +257,7 @@ function customTemplate(
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128_000,
-    maxTokens: 8_192,
+    maxTokens: UNKNOWN_MODEL_MAX_TOKENS,
     ...(compat ? { compat: { ...compat } } : {}),
   } as PiModel;
 }
@@ -210,15 +292,15 @@ export async function buildModelSpec(input: ModelSpecInput): Promise<ModelSpec> 
       piModels.find((model) => model.id === modelId) ??
       piModels.find((model) => model.id === canonical);
     foundInPi = Boolean(found);
-    const template = found ?? piModels[0]!;
     base = found
       ? { ...found, id: modelId }
       : ({
-          ...template,
+          ...providerTemplate(piModels),
           id: modelId,
           name: modelId,
           reasoning: false,
           thinkingLevelMap: undefined,
+          maxTokens: UNKNOWN_MODEL_MAX_TOKENS,
         } as PiModel);
     const wantedApi =
       explicitApi ??
@@ -257,8 +339,12 @@ export async function buildModelSpec(input: ModelSpecInput): Promise<ModelSpec> 
   const reviewedVision = reviewed?.capabilities?.vision;
   const thinkingOn = Boolean(capability?.control && capability.control !== 'none');
   const levelMap = adapterLevelMap(capability);
+  const compatibleEndpoint =
+    upstream === 'custom' && base.api === 'openai-completions' && providerId !== 'openai';
   const compat: Record<string, unknown> = {
+    ...(compatibleEndpoint ? COMPATIBLE_ENDPOINT_DEFAULTS : {}),
     ...((base.compat as Record<string, unknown> | undefined) ?? {}),
+    ...(descriptor?.upstream.kind === 'pi' ? (descriptor.upstream.compat ?? {}) : {}),
     ...(upstream === 'custom' || hint ? adapterCompat(capability) : {}),
     ...(hint?.compat ?? {}),
   };

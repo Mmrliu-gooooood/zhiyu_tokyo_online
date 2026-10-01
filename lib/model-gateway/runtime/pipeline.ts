@@ -298,6 +298,21 @@ function apiKeyFor(binding: ModelBinding): string | undefined {
   }
 }
 
+/**
+ * Provider settings pi would otherwise read from process.env (plan P2-7):
+ * always passed explicitly from the binding.
+ */
+function explicitProviderOptions(binding: ModelBinding): Record<string, string> {
+  if (binding.model.api === 'azure-openai-responses') {
+    return {
+      azureBaseUrl: binding.model.baseUrl,
+      azureApiVersion: binding.requestEnv?.AZURE_OPENAI_API_VERSION ?? 'v1',
+      azureDeploymentName: binding.model.id,
+    };
+  }
+  return {};
+}
+
 interface AttemptOutcome {
   ok: boolean;
   message: AssistantMessage;
@@ -551,6 +566,7 @@ export function runStream(
         apiKey,
         ...(bearer ? { headers: { Authorization: `Bearer ${apiKey}`, 'x-api-key': null } } : {}),
         ...(binding.requestEnv ? { env: { ...binding.requestEnv } } : {}),
+        ...explicitProviderOptions(binding),
         ...(NO_CUSTOM_FETCH.has(binding.model.api) ? {} : { fetch: transport.fetch }),
         signal: attemptSignal,
         maxRetries: 0,

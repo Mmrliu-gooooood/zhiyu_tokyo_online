@@ -17,6 +17,16 @@
   {
     "group": "qwen",
     "case": "^qwen3[.](6-max-preview|7-plus)[|]thinking=budget-min[|]",
-    "reason": "A zero budget is not sent. Legacy sent enable_thinking:true with thinking_budget:0, a contradictory request; the gateway enables thinking with the provider's default budget."
+    "reason": "A budget equal to the capability's disable value (0) turns thinking off (enable_thinking:false). Legacy sent the contradictory enable_thinking:true with thinking_budget:0."
+  },
+  {
+    "group": "openai",
+    "case": "gpt-5.4|thinking=enabled|tools=0|stream",
+    "reason": "mode:'enabled' never means off: on a model whose reviewed default effort is 'none' it sends the lowest real effort. Legacy sent effort 'none', so enabling thinking had no effect."
+  },
+  {
+    "group": "grok",
+    "case": "grok-4.3|thinking=enabled|tools=0|stream",
+    "reason": "Same rule as gpt-5.4: mode:'enabled' sends the lowest real effort instead of the default effort 'none'."
   }
 ]
