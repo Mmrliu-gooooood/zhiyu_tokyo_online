@@ -186,4 +186,24 @@ describe('Pi Director compaction runtime', () => {
     expect(toHistoryMessages(messages)).toHaveLength(12);
     expect(toHistoryMessages(messages, null)).toHaveLength(20);
   });
+  it('bridges a StreamFn that resolves its event stream asynchronously', async () => {
+    const onSummaryCall = vi.fn();
+    const syncStreamFn = summaryStream('Goal: async bridge summary.', onSummaryCall);
+    const asyncStreamFn = ((...args: Parameters<StreamFn>) =>
+      Promise.resolve().then(() => syncStreamFn(...args))) as StreamFn;
+    const runtime = createDirectorCompactionRuntime({
+      streamFn: asyncStreamFn,
+      contextWindow: 600,
+      maxOutputTokens: 200,
+      settings: { enabled: true, reserveTokens: 160, keepRecentTokens: 120 },
+    });
+
+    const compacted = await runtime.transformContext(longHistory());
+
+    expect(onSummaryCall).toHaveBeenCalledTimes(1);
+    expect(compacted[0]?.role).toBe('compactionSummary');
+    expect(runtime.getTrace().failures).toEqual([]);
+    expect(runtime.getTrace().events[0]?.summary).toContain('async bridge summary');
+    runtime.dispose();
+  });
 });

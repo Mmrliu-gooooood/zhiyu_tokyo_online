@@ -32,6 +32,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     '@earendil-works/pi-ai',
     '@earendil-works/pi-agent-core',
+    '@earendil-works/pi-telemetry',
     '@openmaic/generation',
     // Optional peers of @openmaic/storage, reached through deliberately
     // untraced dynamic imports. Externalizing keeps them out of the bundle,

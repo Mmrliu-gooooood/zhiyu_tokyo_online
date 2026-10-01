@@ -38,7 +38,11 @@
  * Ported verbatim (semantics) from the runtime spike prototype.
  */
 import type { AgentMessage } from '@earendil-works/pi-agent-core';
-import type { AssistantMessage, ToolCall, ToolResultMessage } from '@earendil-works/pi-ai';
+import type {
+  AgentAssistantMessage as AssistantMessage,
+  AgentToolCall as ToolCall,
+  AgentToolResultMessage as ToolResultMessage,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
 
 export type ResumeAction =
   | { kind: 'start' }

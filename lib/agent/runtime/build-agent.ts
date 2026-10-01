@@ -18,7 +18,7 @@ import {
   type AgentTool,
   type StreamFn,
 } from '@earendil-works/pi-agent-core';
-import type { Api, Model } from '@earendil-works/pi-ai';
+import type { AgentLlmModel } from '@/lib/model-gateway/adapters/agent-pi-types';
 import { makeAllowlistGate } from './allowlist';
 import { makeQuotaHook } from './quota';
 import { hasLengthToolCallProvenance } from './stream-fn';
@@ -38,7 +38,7 @@ const STUB_MODEL = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 1_000_000,
   maxTokens: 8192,
-} as unknown as Model<Api>;
+} as unknown as AgentLlmModel;
 
 export interface BuildAgentOptions {
   streamFn: StreamFn;
@@ -48,7 +48,7 @@ export interface BuildAgentOptions {
    * Optional pi model for the agent's initial state. Defaults to the connector
    * metadata stub; the injected StreamFn resolves the real model itself.
    */
-  model?: Model<Api>;
+  model?: AgentLlmModel;
   /** Tool names allowed for this agent. Callers must declare their boundary. */
   allowedToolNames: ReadonlySet<string>;
   /** Prior conversation turns to seed the agent with, so it has multi-turn memory. */

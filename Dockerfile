@@ -3,6 +3,9 @@
 # ---- Stage 1: Base ----
 FROM node:22-alpine AS base
 
+# pi-ai requires Node >= 22.19.0; fail the build early on an older base image.
+RUN node -v && node -e "const [a,b]=process.versions.node.split('.').map(Number);if(a<22||(a===22&&b<19)){console.error('Node >= 22.19.0 required, got '+process.version);process.exit(1)}"
+
 ARG ALPINE_MIRROR=""
 ARG NPM_REGISTRY=""
 
@@ -115,6 +118,9 @@ RUN pnpm build
 
 # ---- Stage 4: Runner ----
 FROM node:22-alpine AS runner
+
+# pi-ai requires Node >= 22.19.0; fail the build early on an older base image.
+RUN node -v && node -e "const [a,b]=process.versions.node.split('.').map(Number);if(a<22||(a===22&&b<19)){console.error('Node >= 22.19.0 required, got '+process.version);process.exit(1)}"
 
 ARG ALPINE_MIRROR=""
 ARG OPENMAIC_SOURCE_REVISION="unknown"

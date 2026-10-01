@@ -12,17 +12,17 @@
  * one LLM turn (assistant text + tool *calls*, not tool results) into pi events.
  */
 import type {
-  AssistantMessage,
-  AssistantMessageEvent,
-  AssistantMessageEventStream,
-  Context as PiContext,
-  Message as PiMessage,
-  TextContent,
-  ThinkingContent,
-  Tool as PiTool,
-  ToolCall,
-  SimpleStreamOptions,
-} from '@earendil-works/pi-ai';
+  AgentAssistantMessage as AssistantMessage,
+  AgentAssistantMessageEvent as AssistantMessageEvent,
+  AgentEventStream as AssistantMessageEventStream,
+  AgentLlmContext as PiContext,
+  AgentLlmMessage as PiMessage,
+  AgentTextContent as TextContent,
+  AgentThinkingContent as ThinkingContent,
+  AgentLlmTool as PiTool,
+  AgentToolCall as ToolCall,
+  AgentStreamOptions as SimpleStreamOptions,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
 import type { StreamFn } from '@earendil-works/pi-agent-core';
 import {
   jsonSchema,

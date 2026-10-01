@@ -1,8 +1,11 @@
 import {
-  createAssistantMessageEventStream,
-  type AssistantMessage,
-  type AssistantMessageEvent,
-} from '@earendil-works/pi-ai';
+  loadAgentLegacyPi,
+  type AgentLegacyPi,
+} from '@/lib/model-gateway/adapters/agent-legacy-pi';
+import type {
+  AgentAssistantMessage as AssistantMessage,
+  AgentAssistantMessageEvent as AssistantMessageEvent,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
 import type {
   AgentEvent,
   AgentMessage,
@@ -61,8 +64,8 @@ function terminalMessage(stopReason: 'error' | 'aborted', message: string): Assi
   };
 }
 
-function abortAwareStream(streamFn: StreamFn, args: Parameters<StreamFn>) {
-  const proxy = createAssistantMessageEventStream();
+function abortAwareStream(legacyPi: AgentLegacyPi, streamFn: StreamFn, args: Parameters<StreamFn>) {
+  const proxy = legacyPi.createAssistantMessageEventStream();
   const signal = args[2]?.signal;
   let settled = false;
 
@@ -193,6 +196,8 @@ export async function runNativeChild(opts: RunNativeChildOptions): Promise<Nativ
   if (!Number.isInteger(opts.maxProviderTransports) || opts.maxProviderTransports <= 0) {
     throw new Error('runNativeChild requires a positive maxProviderTransports');
   }
+  // The agent kernel consumes event streams created by its own pi-ai instance.
+  const legacyPi = await loadAgentLegacyPi();
 
   let attemptCount = 0;
   let executionCount = 0;
@@ -227,14 +232,14 @@ export async function runNativeChild(opts: RunNativeChildOptions): Promise<Nativ
 
   const boundedStreamFn: StreamFn = (...args) => {
     if (args[2]?.signal?.aborted) {
-      return abortAwareStream(opts.streamFn, args);
+      return abortAwareStream(legacyPi, opts.streamFn, args);
     }
     if (providerTransportCount >= opts.maxProviderTransports) {
       claimInternalTerminal('native_provider_transport_budget');
-      return abortAwareStream(opts.streamFn, args);
+      return abortAwareStream(legacyPi, opts.streamFn, args);
     }
     providerTransportCount += 1;
-    return abortAwareStream(opts.streamFn, args);
+    return abortAwareStream(legacyPi, opts.streamFn, args);
   };
 
   const child = buildAgent({

@@ -101,7 +101,10 @@
  */
 import { randomBytes } from 'node:crypto';
 import type { AgentMessage } from '@earendil-works/pi-agent-core';
-import type { AssistantMessage, ToolResultMessage } from '@earendil-works/pi-ai';
+import type {
+  AgentAssistantMessage as AssistantMessage,
+  AgentToolResultMessage as ToolResultMessage,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
 
 import {
   readProvesCoverage,

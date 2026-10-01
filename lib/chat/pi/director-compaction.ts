@@ -10,17 +10,18 @@ import {
   type CompactionSettings,
   type StreamFn,
 } from '@earendil-works/pi-agent-core';
-import {
-  registerApiProvider,
-  unregisterApiProviders,
-  type Api,
-  type AssistantMessageEventStream,
-  type Context,
-  type Model,
-  type SimpleStreamOptions,
-  type StreamOptions,
-} from '@earendil-works/pi-ai';
 import { nanoid } from 'nanoid';
+import {
+  loadAgentLegacyPi,
+  type AgentLegacyPi,
+} from '@/lib/model-gateway/adapters/agent-legacy-pi';
+import type {
+  AgentApi,
+  AgentEventStream,
+  AgentLlmContext,
+  AgentLlmModel,
+  AgentStreamOptions,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
 
 export interface DirectorCompactionEvent {
   tokensBefore: number;
@@ -67,7 +68,11 @@ function resolveSettings(
   };
 }
 
-function createConnectorModel(api: Api, contextWindow: number, maxTokens: number): Model<Api> {
+function createConnectorModel(
+  api: AgentApi,
+  contextWindow: number,
+  maxTokens: number,
+): AgentLlmModel {
   return {
     id: 'maic-director-compaction',
     name: 'MAIC Director Compaction',
@@ -79,6 +84,54 @@ function createConnectorModel(api: Api, contextWindow: number, maxTokens: number
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow,
     maxTokens,
+  };
+}
+
+/**
+ * The kernel's API registry expects a synchronous event stream, while a
+ * `StreamFn` may resolve one asynchronously. Forward async streams through a
+ * stream created by the same (agent-core) pi-ai instance.
+ */
+function createRegistryBridge(legacyPi: AgentLegacyPi, streamFn: StreamFn) {
+  return (
+    model: AgentLlmModel,
+    context: AgentLlmContext,
+    streamOptions?: AgentStreamOptions,
+  ): AgentEventStream => {
+    const source = streamFn(model, context, streamOptions);
+    if (!(source instanceof Promise)) return source;
+    const proxy = legacyPi.createAssistantMessageEventStream();
+    void source.then(
+      async (stream) => {
+        for await (const event of stream) proxy.push(event);
+        proxy.end();
+      },
+      (error: unknown) => {
+        proxy.push({
+          type: 'error',
+          reason: 'error',
+          error: {
+            role: 'assistant',
+            content: [],
+            api: model.api,
+            provider: model.provider,
+            model: model.id,
+            usage: {
+              input: 0,
+              output: 0,
+              cacheRead: 0,
+              cacheWrite: 0,
+              totalTokens: 0,
+              cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+            },
+            stopReason: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Compaction stream failed.',
+            timestamp: Date.now(),
+          },
+        });
+      },
+    );
+    return proxy;
   };
 }
 
@@ -115,21 +168,22 @@ export function createDirectorCompactionRuntime(opts: {
       : 128_000;
   const settings = resolveSettings(contextWindow, opts.settings);
   const sourceId = `maic-director-compaction:${nanoid()}`;
-  const api = sourceId as Api;
+  const api: AgentApi = sourceId;
   const model = createConnectorModel(api, contextWindow, opts.maxOutputTokens ?? 8_192);
-  const bridge = (
-    bridgeModel: Model<Api>,
-    context: Context,
-    streamOptions?: StreamOptions | SimpleStreamOptions,
-  ) => opts.streamFn(bridgeModel, context, streamOptions as never) as AssistantMessageEventStream;
-  registerApiProvider(
-    {
-      api,
-      stream: bridge,
-      streamSimple: bridge,
-    },
-    sourceId,
-  );
+  // The agent kernel's compact() dispatches through its own (nested pi-ai
+  // 0.78) API registry, so the bridge is registered on that instance, lazily
+  // before the first compaction.
+  let registration: Promise<AgentLegacyPi> | undefined;
+  const ensureRegistered = () => {
+    registration ??= loadAgentLegacyPi().then((legacyPi) => {
+      if (!disposed) {
+        const bridge = createRegistryBridge(legacyPi, opts.streamFn);
+        legacyPi.registerApiProvider({ api, stream: bridge, streamSimple: bridge }, sourceId);
+      }
+      return legacyPi;
+    });
+    return registration;
+  };
 
   let sessionPromise = new InMemorySessionRepo().create();
   let syncedSourceMessages: AgentMessage[] = [];
@@ -184,6 +238,7 @@ export function createDirectorCompactionRuntime(opts: {
         if (!preparationResult.ok) throw preparationResult.error;
         if (!preparationResult.value) return beforeContext.messages;
 
+        await ensureRegistered();
         const compactResult = await compact(
           preparationResult.value,
           model,
@@ -227,7 +282,10 @@ export function createDirectorCompactionRuntime(opts: {
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      unregisterApiProviders(sourceId);
+      void registration?.then(
+        (legacyPi) => legacyPi.unregisterApiProviders(sourceId),
+        () => undefined,
+      );
     },
   };
 }

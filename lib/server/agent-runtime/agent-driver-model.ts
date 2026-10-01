@@ -1,4 +1,4 @@
-import type { Api, Model } from '@earendil-works/pi-ai';
+import type { AgentApi as Api, AgentLlmModel } from '@/lib/model-gateway/adapters/agent-pi-types';
 
 import { getStageRoute } from '@/lib/server/model-routes';
 import { resolveModel, type ResolvedModel } from '@/lib/server/resolve-model';
@@ -18,7 +18,7 @@ export function buildPiDriverModel(
   connection: ResolvedModel,
   configuredApi?: string,
   routeContextWindow?: number,
-): Model<Api> {
+): AgentLlmModel {
   if (!configuredApi || !OPENAI_PI_APIS.has(configuredApi)) {
     throw new Error(
       `MODEL_ROUTES stage "${AGENT_DRIVER_STAGE}" has unsupported pi api/dialect ` +
@@ -45,13 +45,13 @@ export function buildPiDriverModel(
     // compaction reservation; resolveAgentDriverModel deliberately exposes an
     // independent undefined wireMaxOutputTokens so it never becomes an API cap.
     maxTokens: connection.modelInfo?.outputWindow ?? UNKNOWN_MODEL_RESERVED_OUTPUT_TOKENS,
-  } as Model<Api>;
+  } as AgentLlmModel;
 }
 
 /** Dedicated route wins; otherwise use the run's bound Home connection. */
 export async function resolveAgentDriverModel(modelContext?: ProModelContext): Promise<{
   connection: ResolvedModel;
-  piModel: Model<Api>;
+  piModel: AgentLlmModel;
   /** Catalog-backed API limit; undefined means omit max_tokens on the wire. */
   wireMaxOutputTokens?: number;
   /** Internal compaction output-space estimate; never used as a conversation API limit. */
