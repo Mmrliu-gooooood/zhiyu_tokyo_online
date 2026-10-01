@@ -2,19 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { QWEN_TTS_VOICE_CLONE_MODEL } from '@/lib/audio/constants';
 
-const callLLM = vi.fn();
-
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: (...args: unknown[]) => callLLM(...args),
+const { callLLM, resolveRequestBinding } = vi.hoisted(() => ({
+  callLLM: vi.fn(),
+  resolveRequestBinding: vi.fn(async () => ({ modelString: 'test-model' })),
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: async () => ({
-    model: {},
-    modelString: 'test-model',
-    thinkingConfig: undefined,
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    complete: callLLM,
+    resolveRequestBinding,
   }),
-}));
+);
 
 import { POST } from '@/app/api/generate/agent-profiles/route';
 
@@ -385,7 +383,7 @@ describe('agent-profiles route — voiceDesign', () => {
       voiceId: 'clone-ghost',
     });
     // …but the schema example token is always an advertised voice.
-    const prompt = callLLM.mock.calls[0][0].prompt as string;
+    const prompt = callLLM.mock.calls[0][1].messages[0].content as string;
     expect(prompt).toContain("e.g. 'qwen-tts::Cherry'");
     expect(prompt).not.toContain(`e.g. 'qwen-tts::${QWEN_TTS_VOICE_CLONE_MODEL}::clone-ghost'`);
   });
@@ -412,7 +410,7 @@ describe('agent-profiles route — voiceDesign', () => {
     );
     const body = await res.json();
     expect(body.success).toBe(true);
-    const prompt = callLLM.mock.calls[0][0].prompt as string;
+    const prompt = callLLM.mock.calls[0][1].messages[0].content as string;
     // The softened phrasing still requires a voice field on every non-teacher
     // agent (the old "ONLY to the other agents" over-generalized into omissions).
     expect(prompt).toContain('Every OTHER agent must still be assigned a voice from this list');

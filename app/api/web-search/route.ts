@@ -7,7 +7,6 @@
 
 import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
-import { callLLM } from '@/lib/ai/llm';
 import { formatSearchResultsAsContext, searchWeb } from '@/lib/web-search';
 import {
   isServerConfiguredProvider,
@@ -22,7 +21,7 @@ import {
   buildSearchQuery,
   SEARCH_QUERY_REWRITE_EXCERPT_LENGTH,
 } from '@/lib/server/search-query-builder';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { gateway, resolveRequestBinding, userText } from '@/lib/model-gateway';
 import type { AICallFn } from '@openmaic/generation';
 import { WEB_SEARCH_PROVIDERS } from '@/lib/web-search/constants';
 import type { BaiduSubSources, WebSearchProviderId } from '@/lib/web-search/types';
@@ -131,24 +130,12 @@ async function handlePOST(req: NextRequest) {
 
     let aiCall: AICallFn | undefined;
     try {
-      const { model: languageModel, thinkingConfig } = await resolveModelFromRequest(
-        req,
-        body,
-        'web-search-query-rewrite',
-      );
+      const binding = await resolveRequestBinding(req, body, 'web-search-query-rewrite');
       aiCall = async (systemPrompt, userPrompt) => {
-        const result = await callLLM(
-          {
-            model: languageModel,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-            maxOutputTokens: 256,
-          },
-          'web-search-query-rewrite',
-          undefined,
-          thinkingConfig,
+        const result = await gateway.complete(
+          binding,
+          { system: systemPrompt, messages: [userText(userPrompt)], maxOutputTokens: 256 },
+          { source: 'web-search-query-rewrite' },
         );
         return result.text;
       };

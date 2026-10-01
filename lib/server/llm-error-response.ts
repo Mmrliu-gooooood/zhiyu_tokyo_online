@@ -1,6 +1,7 @@
 import { APICallError, RetryError } from 'ai';
 import { apiError } from '@/lib/server/api-response';
 import { getModelResolutionError } from '@/lib/server/resolve-model';
+import { getBindingResolutionError } from '@/lib/model-gateway/selection/resolve-binding';
 
 const HTTP_ERROR_MIN = 400;
 const HTTP_ERROR_MAX = 599;
@@ -62,7 +63,7 @@ function messageForStatus(status: number): string {
  * exposing provider response bodies, URLs, or credential-adjacent details.
  */
 export function llmApiError(error: unknown) {
-  const resolutionError = getModelResolutionError(error);
+  const resolutionError = getModelResolutionError(error) ?? getBindingResolutionError(error);
   if (resolutionError) {
     return apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message);
   }

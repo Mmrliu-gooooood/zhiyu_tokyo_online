@@ -9,7 +9,7 @@ import {
   parseLearningCheckRequest,
 } from '@/lib/server/learning/check';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { getModelResolutionError } from '@/lib/server/resolve-model';
+import { getBindingResolutionError } from '@/lib/model-gateway';
 
 async function readBoundedBody(req: NextRequest): Promise<string | undefined> {
   if (!req.body) return '';
@@ -65,7 +65,7 @@ async function handlePOST(req: NextRequest) {
         error.message,
       );
     }
-    const resolution = getModelResolutionError(error);
+    const resolution = getBindingResolutionError(error);
     if (resolution) return apiError(resolution.code, resolution.httpStatus, resolution.message);
     if (req.signal.aborted)
       return apiError('GENERATION_FAILED', 499, 'Learning check request cancelled');

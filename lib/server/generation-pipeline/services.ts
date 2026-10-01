@@ -14,8 +14,14 @@ import {
 } from '@openmaic/generation';
 import { callLLM } from '@/lib/ai/llm';
 import { resolveModel } from '@/lib/server/resolve-model';
+import {
+  gateway,
+  resolveParamsBinding,
+  userParts,
+  userText,
+  type ModelBinding,
+} from '@/lib/model-gateway';
 import type { LlmStage } from '@/lib/server/model-routes';
-import { isProviderKeyRequired } from '@/lib/ai/providers';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
 import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import { getDefaultAgents } from '@/lib/orchestration/registry/defaults';
@@ -37,6 +43,15 @@ import { PipelineExecution } from './execution';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('GenerationSearch');
+
+/** Diagnostic hostname of the bound endpoint (never a URL or credential). */
+function endpointHostname(binding: ModelBinding): string | undefined {
+  try {
+    return binding.model.baseUrl ? new URL(binding.model.baseUrl).hostname : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export const AUTO_AGENT_STRATEGY_VERSION = 'difficulty-v1';
 
@@ -81,17 +96,18 @@ export class GenerationServices {
   async modelCall(
     stage: LlmStage,
     key: string,
-  ): Promise<{ aiCall: AICallFn; resolved: Awaited<ReturnType<typeof resolveModel>> }> {
+  ): Promise<{ aiCall: AICallFn; binding: ModelBinding }> {
     await this.modelContext?.assertActive?.();
-    const modelInput = { ...this.input.model, ...this.modelContext };
     const thinkingConfig = this.modelContext?.thinkingConfig ?? this.input.model?.thinkingConfig;
-    const resolved = await resolveModel({
-      ...modelInput,
-      ...(thinkingConfig ? { thinkingConfig } : {}),
+    const binding = await resolveParamsBinding(
+      {
+        ...this.input.model,
+        ...this.modelContext,
+        ...(thinkingConfig ? { thinkingConfig } : {}),
+      },
       stage,
-    });
-    if (isProviderKeyRequired(resolved.providerId) && !resolved.apiKey)
-      throw new Error('PROVIDER_NOT_CONFIGURED');
+    );
+    if (!binding.credentialReady) throw new Error('PROVIDER_NOT_CONFIGURED');
     let callIndex = 0;
     let failure: unknown;
     const aiCall: AICallFn = async (system, prompt, images) => {
@@ -106,13 +122,13 @@ export class GenerationServices {
             system,
             prompt,
             images,
-            model: resolved.modelString,
-            thinking: resolved.thinkingConfig,
+            model: binding.modelString,
+            thinking: binding.thinking,
           },
           'llm',
-          resolved.providerId,
+          binding.providerId,
           async (signal) => {
-            const vision = images?.length && resolved.modelInfo?.capabilities?.vision;
+            const vision = images?.length && binding.capabilities.vision;
             const resolvedImages = vision
               ? await Promise.all(
                   images!.map(async (image) => {
@@ -126,42 +142,30 @@ export class GenerationServices {
                 )
               : undefined;
             signal.throwIfAborted();
-            const result = await callLLM(
+            // The gateway retries pre-send DNS failures itself (plan 3.8).
+            const result = await gateway.complete(
+              binding,
               {
-                model: resolved.model,
                 system,
-                ...(resolvedImages
-                  ? {
-                      messages: [
-                        {
-                          role: 'user' as const,
-                          content: buildVisionUserContent(prompt, resolvedImages),
-                        },
-                      ],
-                    }
-                  : { prompt }),
-                maxOutputTokens: resolved.modelInfo?.outputWindow,
-                maxRetries: 0,
-                abortSignal: signal,
+                messages: [
+                  resolvedImages
+                    ? userParts(buildVisionUserContent(prompt, resolvedImages))
+                    : userText(prompt),
+                ],
               },
-              stage,
-              undefined,
-              resolved.thinkingConfig,
+              { source: stage, signal, retry: 'none' },
             );
             return result.text;
           },
           false,
-          {
-            retryPreSendDns: true,
-            hostname: resolved.baseUrl ? new URL(resolved.baseUrl).hostname : undefined,
-          },
+          { hostname: endpointHostname(binding) },
         );
       } catch (error) {
         failure = error;
         throw error;
       }
     };
-    return { aiCall, resolved };
+    return { aiCall, binding };
   }
 
   async research(): Promise<string> {
@@ -214,7 +218,7 @@ export class GenerationServices {
   }
 
   async plan(researchContext: string): Promise<GenerationPlan> {
-    const { aiCall, resolved } = await this.modelCall('scene-outlines-stream', 'plan');
+    const { aiCall, binding } = await this.modelCall('scene-outlines-stream', 'plan');
     const images = (this.input.materials?.images ?? []).map((image) => ({
       ...image,
       src: '',
@@ -259,7 +263,7 @@ export class GenerationServices {
       outlineCall,
       {
         imageMapping: Object.fromEntries(images.map((image) => [image.id, image.assetId!])),
-        visionEnabled: !!resolved.modelInfo?.capabilities?.vision,
+        visionEnabled: binding.capabilities.vision,
         imageGenerationEnabled: this.input.enableImageGeneration,
         videoGenerationEnabled: this.input.enableVideoGeneration,
         researchContext,
@@ -378,10 +382,8 @@ export class GenerationServices {
     plan: GenerationPlan,
   ): Promise<ContentCheckpoint> {
     const key = `content:${outline.id}`;
-    const { aiCall, resolved } = await this.modelCall(
-      `scene-content:${outline.type}` as LlmStage,
-      key,
-    );
+    const stage = `scene-content:${outline.type}` as LlmStage;
+    const { aiCall, binding } = await this.modelCall(stage, key);
     const allowProceduralSkill = resolveVocationalActive(this.input.requirements);
     const effective = applyOutlineFallbacks(outline, true, { allowProceduralSkill });
     const assignedImages = (this.input.materials?.images ?? [])
@@ -395,17 +397,26 @@ export class GenerationServices {
       allowProceduralSkill,
       assignedImages,
       imageMapping: Object.fromEntries(assignedImages.map((image) => [image.id, image.assetId!])),
-      visionEnabled: !!resolved.modelInfo?.capabilities?.vision,
+      visionEnabled: binding.capabilities.vision,
       ...(effective.type === 'pbl'
         ? {
             pblLoopFallback: (input) =>
               this.execution.external(
                 `${key}:planner`,
-                { input, model: resolved.modelString },
+                { input, model: binding.modelString },
                 'llm',
-                resolved.providerId,
-                (signal) =>
-                  generatePBLV2Project(
+                binding.providerId,
+                async (signal) => {
+                  // The PBL planner moves to the gateway's tool loop in P3-2.
+                  const thinkingConfig =
+                    this.modelContext?.thinkingConfig ?? this.input.model?.thinkingConfig;
+                  const resolved = await resolveModel({
+                    ...this.input.model,
+                    ...this.modelContext,
+                    ...(thinkingConfig ? { thinkingConfig } : {}),
+                    stage,
+                  });
+                  return generatePBLV2Project(
                     input,
                     resolved.model,
                     (params, source, retries, thinking) => {
@@ -419,7 +430,8 @@ export class GenerationServices {
                     },
                     {},
                     resolved.thinkingConfig,
-                  ),
+                  );
+                },
               ),
           }
         : {}),

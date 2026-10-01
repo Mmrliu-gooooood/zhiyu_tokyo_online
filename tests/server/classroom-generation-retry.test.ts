@@ -3,15 +3,14 @@ import { containPBLGenerationError, generateClassroom } from '@/lib/server/class
 import type { MediaConfigSnapshotContent } from '@/lib/server/media-config-snapshots';
 
 const mocks = vi.hoisted(() => ({
-  resolveModel: vi.fn(),
-  isProviderKeyRequired: vi.fn(),
+  resolveParamsBinding: vi.fn(),
   generateSceneOutlinesFromRequirements: vi.fn(),
   applyOutlineFallbacks: vi.fn(),
   generateSceneContent: vi.fn(),
   generateSceneActions: vi.fn(),
   createSceneWithActions: vi.fn(),
   persistClassroom: vi.fn(),
-  callLLM: vi.fn(),
+  complete: vi.fn(),
   generateMediaForClassroom: vi.fn(),
   replaceMediaPlaceholders: vi.fn(),
   generateTTSForClassroom: vi.fn(),
@@ -29,20 +28,12 @@ const PBLGenerationErrorMock = vi.hoisted(
     },
 );
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-}));
-
-vi.mock('@/lib/ai/providers', async (importOriginal) => ({
-  // The module graph now reaches the settings store (stage store -> settings),
-  // whose init reads PROVIDERS - keep the real exports and stub only the probe.
-  ...(await importOriginal<typeof import('@/lib/ai/providers')>()),
-  isProviderKeyRequired: mocks.isProviderKeyRequired,
-}));
-
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: mocks.callLLM,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    complete: mocks.complete,
+    resolveParamsBinding: mocks.resolveParamsBinding,
+  }),
+);
 
 vi.mock('@openmaic/generation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@openmaic/generation')>()),
@@ -110,15 +101,12 @@ describe('classroom scene generation retries', () => {
     for (const mock of Object.values(mocks)) {
       mock.mockReset();
     }
-    mocks.resolveModel.mockResolvedValue({
-      model: { id: 'language-model' },
-      modelInfo: {},
+    mocks.resolveParamsBinding.mockResolvedValue({
       modelString: 'test:model',
       providerId: 'test',
-      apiKey: '',
+      credentialReady: true,
     });
-    mocks.isProviderKeyRequired.mockReturnValue(false);
-    mocks.callLLM.mockResolvedValue({ text: 'ok' });
+    mocks.complete.mockResolvedValue({ text: 'ok' });
     mocks.generateSceneOutlinesFromRequirements.mockResolvedValue({
       success: true,
       data: {
@@ -177,14 +165,13 @@ describe('classroom scene generation retries', () => {
 
   it('forwards classroom thinking config to scene retry LLM calls', async () => {
     const thinkingConfig = { enabled: true, effort: 'high' };
-    mocks.resolveModel.mockResolvedValue({
-      model: { id: 'language-model' },
-      modelInfo: {},
+    const binding = {
       modelString: 'test:model',
       providerId: 'test',
-      apiKey: '',
-      thinkingConfig,
-    });
+      credentialReady: true,
+      thinking: thinkingConfig,
+    };
+    mocks.resolveParamsBinding.mockResolvedValue(binding);
     mocks.generateSceneContent.mockImplementation(async (_outline, aiCall) => {
       await aiCall('system', 'user');
       return slideContent;
@@ -192,12 +179,11 @@ describe('classroom scene generation retries', () => {
 
     await generateWithProgress();
 
-    expect(mocks.callLLM).toHaveBeenCalledWith(
-      expect.objectContaining({ maxRetries: 0 }),
-      'generate-classroom-scene',
-      undefined,
-      thinkingConfig,
-    );
+    // The classroom binding (with its thinking config) reaches the scene call.
+    expect(mocks.complete).toHaveBeenCalledWith(binding, expect.anything(), {
+      source: 'generate-classroom-scene',
+      retry: 'none',
+    });
   });
 
   it('forwards the owner-loaded media snapshot selections to legacy classroom media calls', async () => {

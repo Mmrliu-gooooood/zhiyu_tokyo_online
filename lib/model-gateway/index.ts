@@ -3,8 +3,32 @@
  * `@/lib/model-gateway/types` (types) and `@/lib/model-gateway/catalog/*`.
  */
 export * from './types';
-export { assistantText, messageText, toolResult, userContent, userText } from './messages';
-export type { ImageInput } from './messages';
+export {
+  assistantText,
+  messageText,
+  toolResult,
+  userContent,
+  userParts,
+  userText,
+} from './messages';
+export type { ImageInput, UserPart } from './messages';
+export { readModelSelection, thinkingFromBody } from './selection/read-request';
+export type { RequestModelSelection } from './selection/read-request';
+export { getBindingResolutionError, resolveBinding } from './selection/resolve-binding';
+export type { ResolveBindingInput } from './selection/resolve-binding';
+export {
+  resolveHeaderBinding,
+  resolveParamsBinding,
+  resolveRequestBinding,
+  selectionFromParams,
+} from './selection/request-binding';
+export { ModelSelectionError } from './selection/errors';
+export {
+  modelSelectionSchema,
+  parseModelString,
+  upgradeLegacyModelParams,
+} from './selection/schema';
+export type { LegacyModelParams, ModelSelection, UserConnection } from './selection/schema';
 export { GatewayError, isGatewayError } from './runtime/errors';
 export type { GatewayErrorCode } from './runtime/errors';
 export { gateway, createGateway } from './runtime/gateway';

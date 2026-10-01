@@ -2,15 +2,16 @@ import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  callLLM: vi.fn(),
-  resolveModelFromRequest: vi.fn(),
+  complete: vi.fn(),
+  resolveRequestBinding: vi.fn(),
 }));
 
-vi.mock('@/lib/ai/llm', () => ({ callLLM: mocks.callLLM }));
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: mocks.resolveModelFromRequest,
-  getModelResolutionError: () => undefined,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(
+    await importOriginal(),
+    mocks,
+  ),
+);
 
 import { POST } from '@/app/api/learning/check/route';
 import { LEARNING_SCORING_VERSION, type LearningContentSnapshot } from '@/lib/learning/contracts';
@@ -74,7 +75,7 @@ describe('POST /api/learning/check', () => {
     vi.clearAllMocks();
     originalFlag = process.env.NEXT_PUBLIC_LEARNING_CHECKS_ENABLED;
     process.env.NEXT_PUBLIC_LEARNING_CHECKS_ENABLED = '1';
-    mocks.resolveModelFromRequest.mockResolvedValue({
+    mocks.resolveRequestBinding.mockResolvedValue({
       model: 'test-model',
       modelString: 'openai/test',
       thinkingConfig: undefined,
@@ -92,8 +93,8 @@ describe('POST /api/learning/check', () => {
       request({ requestId: 'request-1', scope: 'course', snapshot: snapshot() }),
     );
     expect(response.status).toBe(404);
-    expect(mocks.resolveModelFromRequest).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.resolveRequestBinding).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('rejects more than 128 KiB of raw JSON before parsing or calling a model', async () => {
@@ -101,8 +102,8 @@ describe('POST /api/learning/check', () => {
       request(`{"requestId":"request-1","padding":"${'x'.repeat(131_072)}"}`),
     );
     expect(response.status).toBe(413);
-    expect(mocks.resolveModelFromRequest).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.resolveRequestBinding).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('rejects evidence limits before model resolution', async () => {
@@ -115,12 +116,12 @@ describe('POST /api/learning/check', () => {
       request({ requestId: 'request-1', scope: 'course', snapshot: evidence }),
     );
     expect(response.status).toBe(400);
-    expect(mocks.resolveModelFromRequest).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.resolveRequestBinding).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('uses exactly one generation and one independent review call with retries disabled', async () => {
-    mocks.callLLM
+    mocks.complete
       .mockResolvedValueOnce({
         text: candidate(),
         totalUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
@@ -144,22 +145,23 @@ describe('POST /api/learning/check', () => {
       review: { status: 'passed' },
       generation: { calls: 2, model: 'openai/test' },
     });
-    expect(mocks.resolveModelFromRequest).toHaveBeenCalledWith(
+    expect(mocks.resolveRequestBinding).toHaveBeenCalledWith(
       expect.any(NextRequest),
       body,
       'quiz-grade',
     );
-    expect(mocks.callLLM).toHaveBeenCalledTimes(2);
-    for (const [params] of mocks.callLLM.mock.calls) {
-      expect(params).toMatchObject({ maxRetries: 0, maxOutputTokens: 4_000 });
-      expect(params.abortSignal).toBeInstanceOf(AbortSignal);
+    expect(mocks.complete).toHaveBeenCalledTimes(2);
+    for (const [, params, opts] of mocks.complete.mock.calls) {
+      expect(params).toMatchObject({ maxOutputTokens: 4_000 });
+      expect(opts).toMatchObject({ retry: 'none' });
+      expect(opts.signal).toBeInstanceOf(AbortSignal);
     }
-    expect(mocks.callLLM.mock.calls[0]![1]).toBe('learning-check-generation');
-    expect(mocks.callLLM.mock.calls[1]![1]).toBe('learning-check-review');
+    expect(mocks.complete.mock.calls[0]![2].source).toBe('learning-check-generation');
+    expect(mocks.complete.mock.calls[1]![2].source).toBe('learning-check-review');
   });
 
   it('binds question-set identity to each request instead of trusting a repeated model id', async () => {
-    mocks.callLLM
+    mocks.complete
       .mockResolvedValueOnce({ text: candidate() })
       .mockResolvedValueOnce({ text: '{"status":"passed","notes":[]}' })
       .mockResolvedValueOnce({ text: candidate() })
@@ -183,7 +185,7 @@ describe('POST /api/learning/check', () => {
   });
 
   it('returns a retryable failure and no empty success when independent review rejects the set', async () => {
-    mocks.callLLM
+    mocks.complete
       .mockResolvedValueOnce({ text: candidate() })
       .mockResolvedValueOnce({ text: '{"status":"rejected","notes":["ambiguous answer"]}' });
     const response = await POST(
@@ -196,7 +198,7 @@ describe('POST /api/learning/check', () => {
   });
 
   it('rejects duplicate question ids before independent review', async () => {
-    mocks.callLLM.mockResolvedValueOnce({
+    mocks.complete.mockResolvedValueOnce({
       text: JSON.stringify({
         questionSetId: 'duplicate-question-set',
         scoringVersion: LEARNING_SCORING_VERSION,
@@ -210,11 +212,11 @@ describe('POST /api/learning/check', () => {
     );
 
     expect(response.status).toBe(502);
-    expect(mocks.callLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.complete).toHaveBeenCalledTimes(1);
   });
 
   it('binds a remediation question to the frozen concept and requires a new prompt', async () => {
-    mocks.callLLM
+    mocks.complete
       .mockResolvedValueOnce({
         text: JSON.stringify({
           questionSetId: 'remediation-set-1',
@@ -234,11 +236,11 @@ describe('POST /api/learning/check', () => {
     const response = await POST(request(body));
     const responseBody = await response.json();
 
-    expect(mocks.callLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.complete).toHaveBeenCalledTimes(2);
     expect(responseBody.questionSet.questionSetId).toBe(
       'learning-question-set:remediation:request-remediation-1',
     );
-    const generationPrompt = mocks.callLLM.mock.calls[0]![0].prompt as string;
+    const generationPrompt = mocks.complete.mock.calls[0]![1].messages[0].content as string;
     expect(generationPrompt).toContain('"focus":{"conceptId":"force"');
   });
 
@@ -251,7 +253,7 @@ describe('POST /api/learning/check', () => {
     ['reused prompt', question('q-remediation', 'Which statement describes net force?'), 'force'],
   ])('rejects remediation output with a %s before review', async (_label, generated, conceptId) => {
     generated.conceptId = conceptId;
-    mocks.callLLM.mockResolvedValueOnce({
+    mocks.complete.mockResolvedValueOnce({
       text: JSON.stringify({
         questionSetId: 'remediation-set-1',
         scoringVersion: LEARNING_SCORING_VERSION,
@@ -270,6 +272,6 @@ describe('POST /api/learning/check', () => {
     );
 
     expect(response.status).toBe(502);
-    expect(mocks.callLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.complete).toHaveBeenCalledTimes(1);
   });
 });

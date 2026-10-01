@@ -2,15 +2,16 @@ import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  callLLM: vi.fn(),
-  resolveModel: vi.fn(),
+  complete: vi.fn(),
+  resolveParamsBinding: vi.fn(),
 }));
 
-vi.mock('@/lib/ai/llm', () => ({ callLLM: mocks.callLLM }));
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-  getModelResolutionError: () => undefined,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(
+    await importOriginal(),
+    mocks,
+  ),
+);
 
 import { POST } from '@/app/api/learning/coach/route';
 
@@ -88,10 +89,7 @@ describe('learning coach route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('NEXT_PUBLIC_GUIDED_LEARNING_ENABLED', 'true');
-    mocks.resolveModel.mockResolvedValue({
-      model: 'resolved-model',
-      thinkingConfig: { enabled: false },
-    });
+    mocks.resolveParamsBinding.mockResolvedValue({ modelString: 'resolved-model' });
   });
 
   afterEach(() => {
@@ -100,7 +98,7 @@ describe('learning coach route', () => {
   });
 
   it('emits only the public checked answer followed by exactly one cue and done', async () => {
-    mocks.callLLM
+    mocks.complete
       .mockResolvedValueOnce({
         text: JSON.stringify({
           explanation: 'PRIVATE CANDIDATE: Energy is stored in glucose.',
@@ -146,13 +144,13 @@ describe('learning coach route', () => {
       type: 'done',
       data: { agentHadContent: true, cueUserReceived: true },
     });
-    expect(mocks.callLLM).toHaveBeenCalledTimes(4);
-    expect(mocks.callLLM.mock.calls.every(([params]) => params.maxRetries === 0)).toBe(true);
-    expect(mocks.callLLM.mock.calls.every(([params]) => params.tools === undefined)).toBe(true);
+    expect(mocks.complete).toHaveBeenCalledTimes(4);
+    expect(mocks.complete.mock.calls.every(([, , opts]) => opts.retry === 'none')).toBe(true);
+    expect(mocks.complete.mock.calls.every(([, req]) => req.tools === undefined)).toBe(true);
   });
 
   it('preserves the selected chat model binding when resolving guided requests', async () => {
-    mocks.callLLM
+    mocks.complete
       .mockResolvedValueOnce({
         text: JSON.stringify({ explanation: 'Stored in glucose.', checkPrompt: 'Where?' }),
       })
@@ -166,16 +164,18 @@ describe('learning coach route', () => {
 
     await POST(makeRequest());
 
-    expect(mocks.resolveModel).toHaveBeenCalledWith({
-      modelString: 'openai/test-model',
-      stage: 'chat-adapter',
-      apiKey: 'client-key',
-      baseUrl: 'https://provider.example/v1',
-      providerType: 'openai',
-      source: 'user',
-      platformDefaultId: undefined,
-      thinkingConfig: undefined,
-    });
+    expect(mocks.resolveParamsBinding).toHaveBeenCalledWith(
+      {
+        modelString: 'openai/test-model',
+        apiKey: 'client-key',
+        baseUrl: 'https://provider.example/v1',
+        providerType: 'openai',
+        source: 'user',
+        platformDefaultId: undefined,
+        thinkingConfig: undefined,
+      },
+      'chat-adapter',
+    );
   });
 
   it('rejects disabled, malformed, or mismatched contexts before any model call', async () => {
@@ -214,8 +214,8 @@ describe('learning coach route', () => {
       }),
     );
     expect(substitutedAttempt.status).toBe(400);
-    expect(mocks.callLLM).not.toHaveBeenCalled();
-    expect(mocks.resolveModel).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.resolveParamsBinding).not.toHaveBeenCalled();
   });
 
   it('rejects an oversized chat envelope before model resolution', async () => {
@@ -231,8 +231,8 @@ describe('learning coach route', () => {
     );
 
     expect(response.status).toBe(413);
-    expect(mocks.resolveModel).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.resolveParamsBinding).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('rejects stale scene evidence before resolving or calling the model', async () => {
@@ -266,8 +266,8 @@ describe('learning coach route', () => {
     );
 
     expect(response.status).toBe(400);
-    expect(mocks.resolveModel).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.resolveParamsBinding).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('rejects an oversized Content-Length before reading or resolving the model', async () => {
@@ -287,7 +287,7 @@ describe('learning coach route', () => {
     );
 
     expect(response.status).toBe(413);
-    expect(mocks.resolveModel).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.resolveParamsBinding).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 });

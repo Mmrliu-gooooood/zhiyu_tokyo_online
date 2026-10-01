@@ -2,14 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseGenerationInput } from '@/lib/server/generation-jobs/contracts';
 
 const mocks = vi.hoisted(() => ({ failModel: false }));
-vi.mock('@/lib/server/resolve-model', () => ({
-  getModelResolutionError: () => undefined,
-  resolveModel: async () => ({
-    providerId: 'openai',
-    modelId: 'test',
-    apiKey: mocks.failModel ? '' : 'test-key',
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: vi.fn(async () => ({
+      source: 'legacy-managed',
+      providerId: 'openai',
+      modelId: 'test',
+      modelString: 'openai:test',
+      credentialReady: !mocks.failModel,
+    })),
   }),
-}));
+);
 vi.mock('@/lib/server/provider-config', () => ({
   getServerProviders: () => ({ openai: { models: ['test'] } }),
   getServerTTSProviders: () => ({}),

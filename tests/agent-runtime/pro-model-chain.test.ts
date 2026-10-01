@@ -16,12 +16,19 @@ import type { ProModelContext } from '@/types/pro-model';
 
 const mocks = vi.hoisted(() => ({
   resolveModel: vi.fn(),
-  callLLM: vi.fn(),
+  complete: vi.fn(),
+  resolveParamsBinding: vi.fn(),
   streamLLM: vi.fn(),
   getStageRoute: vi.fn(),
 }));
 vi.mock('@/lib/server/resolve-model', () => ({ resolveModel: mocks.resolveModel }));
-vi.mock('@/lib/ai/llm', () => ({ callLLM: mocks.callLLM, streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    complete: mocks.complete,
+    resolveParamsBinding: mocks.resolveParamsBinding,
+  }),
+);
 vi.mock('@/lib/server/model-routes', () => ({ getStageRoute: mocks.getStageRoute }));
 
 const prior = '学过微积分、想练一阶微分方程方法判断';
@@ -49,6 +56,12 @@ beforeEach(() => {
     modelId: 'gpt-5.6',
     ...params,
   }));
+  mocks.resolveParamsBinding.mockImplementation(async (_params, stage) => ({
+    providerId: 'openai',
+    modelId: 'gpt-5.6',
+    modelString: 'openai:gpt-5.6',
+    stage,
+  }));
 });
 
 describe('PRO Home model complete generation chain', () => {
@@ -71,9 +84,9 @@ describe('PRO Home model complete generation chain', () => {
     const assertActive = vi.fn(async () => undefined);
     const context = { ...home, assertActive };
     const driver = await resolveAgentDriverModel(context);
-    mocks.callLLM.mockImplementation(async (params, stage) => {
+    mocks.complete.mockImplementation(async (_binding, req, { source: stage }) => {
       if (stage === 'scene-content:quiz') {
-        expect(params.prompt).toContain(prior);
+        expect(req.messages[0].content).toContain(prior);
         return {
           text: JSON.stringify([
             { id: 'q1', type: 'short_answer', question: '如何判断一阶微分方程是否可分离变量？' },
@@ -137,12 +150,14 @@ describe('PRO Home model complete generation chain', () => {
     expect(doc.scenes[0]?.type).toBe('quiz');
     expect(JSON.stringify(doc.scenes[0]?.content)).toContain('可分离变量');
     expect(doc.scenes[0]?.actions?.length).toBeGreaterThan(0);
-    expect(mocks.resolveModel.mock.calls.map(([p]) => p.stage)).toEqual([
-      'maic-agent-driver',
+    expect(mocks.resolveModel.mock.calls.map(([p]) => p.stage)).toEqual(['maic-agent-driver']);
+    expect(mocks.resolveParamsBinding.mock.calls.map(([, stage]) => stage)).toEqual([
       'scene-content:quiz',
       'scene-actions',
     ]);
     for (const [params] of mocks.resolveModel.mock.calls) expect(params.apiKey).toBe(home.apiKey);
+    for (const [params] of mocks.resolveParamsBinding.mock.calls)
+      expect(params.apiKey).toBe(home.apiKey);
     expect(assertActive.mock.calls.length).toBeGreaterThanOrEqual(5);
     expect(JSON.stringify(doc)).not.toContain(home.apiKey);
   });
@@ -160,17 +175,23 @@ describe('PRO Home model complete generation chain', () => {
         if (revoked) throw new Error('PRO_MODEL_REVOKED');
       },
     };
-    mocks.callLLM.mockResolvedValue({ text: 'ok' });
+    mocks.complete.mockResolvedValue({ text: 'ok' });
     const factory = createGenerationAiCallFactory({ modelContext: context });
     await factory('scene-content:slide')('system', 'page');
     await factory('scene-actions')('system', 'actions');
-    expect(mocks.resolveModel.mock.calls[0]?.[0]).toMatchObject({ apiKey: home.apiKey });
-    expect(mocks.resolveModel.mock.calls[1]?.[0]).toEqual({ stage: 'scene-actions' });
+    // resolveBinding lets a configured stage route override the connection
+    // context (tests/model-gateway/selection/resolve-binding.test.ts).
+    expect(mocks.resolveParamsBinding.mock.calls[0]).toEqual([
+      expect.objectContaining({ apiKey: home.apiKey }),
+      'scene-content:slide',
+    ]);
+    expect(mocks.resolveParamsBinding.mock.calls[1]?.[1]).toBe('scene-actions');
     revoked = true;
     await expect(factory('scene-content:slide')('system', 'page')).rejects.toThrow(
       'PRO_MODEL_REVOKED',
     );
-    expect(mocks.callLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.complete).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveParamsBinding).toHaveBeenCalledTimes(2);
   });
 
   it('preflight separates chatting from generating and strips remote secrets from errors', async () => {

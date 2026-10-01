@@ -1,18 +1,17 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { SceneOutline } from '@/lib/types/generation';
 
 const callLLMMock = vi.hoisted(() => vi.fn());
-const resolveModelFromRequestMock = vi.hoisted(() => vi.fn());
+const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const resolveVisionImagesMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: callLLMMock,
-}));
-
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: resolveModelFromRequestMock,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    complete: callLLMMock,
+    resolveRequestBinding: resolveRequestBindingMock,
+  }),
+);
 
 vi.mock('@/lib/persistence/resolve-vision-images', () => ({
   resolveVisionImagesForPrompt: resolveVisionImagesMock,
@@ -26,15 +25,19 @@ vi.mock('@/lib/persistence/resolve-vision-images', () => ({
  * into `PPTImageElement.src` for the renderer to resolve through the pool.
  */
 describe('scene-content route — asset-id image transport', () => {
+  // Each test re-imports the route after vi.resetModules(); transform the
+  // (pi-ai backed) module graph once up front so those imports stay fast.
+  beforeAll(async () => {
+    await import('@/app/api/generate/scene-content/route');
+  }, 60_000);
+
   beforeEach(() => {
     callLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
     resolveVisionImagesMock.mockReset();
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'test.chat', modelId: 'test-model' },
-      modelInfo: { outputWindow: 4096, capabilities: { vision: true } },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'test:test-model',
-      thinkingConfig: undefined,
+      capabilities: { vision: true },
     });
   });
 
@@ -89,11 +92,11 @@ describe('scene-content route — asset-id image transport', () => {
     );
     // The LLM received the resolved bytes (same content the base64 path would
     // send — `buildVisionUserContent` strips the data-URL prefix).
-    const messages = callLLMMock.mock.calls[0][0].messages;
+    const messages = callLLMMock.mock.calls[0][1].messages;
     const imagePart = messages[0].content.find((part: { type: string }) => part.type === 'image');
     expect(imagePart).toMatchObject({
       type: 'image',
-      image: Buffer.from('resolved-bytes').toString('base64'),
+      data: Buffer.from('resolved-bytes').toString('base64'),
       mimeType: 'image/png',
     });
     // The generated element's src is the ALLOCATED ID, resolved by the
@@ -191,7 +194,7 @@ describe('scene-content route — asset-id image transport', () => {
     expect(body.success).toBe(true);
     // The prompt text promised `[see attached]` only for img_1 — img_2's
     // text mention is gone with its attachment (no dangling promise).
-    const content = callLLMMock.mock.calls[0][0].messages[0].content;
+    const content = callLLMMock.mock.calls[0][1].messages[0].content;
     const textPart = content.find((part: { type: string }) => part.type === 'text');
     expect(textPart.text).toContain('img_1');
     expect(textPart.text).toContain('[see attached]');
@@ -199,7 +202,7 @@ describe('scene-content route — asset-id image transport', () => {
     // Only img_1's bytes were attached.
     const imageParts = content.filter((part: { type: string }) => part.type === 'image');
     expect(imageParts).toHaveLength(1);
-    expect(imageParts[0].image).toBe(Buffer.from('bytes-for-img_1').toString('base64'));
+    expect(imageParts[0].data).toBe(Buffer.from('bytes-for-img_1').toString('base64'));
     // The surviving image still resolves to the ALLOCATED ID in the element
     // src (part 2 B transport preserved).
     expect(body.content.elements[0].src).toBe('ast_ok');
@@ -257,7 +260,7 @@ describe('scene-content route — asset-id image transport', () => {
 
     expect(body.success).toBe(true);
     // The LLM received both images (id resolved, data URL passed through).
-    const content = callLLMMock.mock.calls[0][0].messages[0].content;
+    const content = callLLMMock.mock.calls[0][1].messages[0].content;
     const imageParts = content.filter((part: { type: string }) => part.type === 'image');
     expect(imageParts).toHaveLength(2);
     // resolveImageIds writes each mapping value verbatim: the allocated id
@@ -309,7 +312,7 @@ describe('scene-content route — asset-id image transport', () => {
     const body = await response.json();
     expect(body.success).toBe(true);
 
-    const content = callLLMMock.mock.calls[0][0].messages[0].content;
+    const content = callLLMMock.mock.calls[0][1].messages[0].content;
     const textPart = content.find((part: { type: string }) => part.type === 'text');
     const text = textPart.text as string;
     // The dropped ids are gone from the text entirely (no dangling mention).
@@ -326,8 +329,8 @@ describe('scene-content route — asset-id image transport', () => {
     const expectedResolved = ids.filter((id) => !gone.has(id)).slice(0, 20);
     const imageParts = content.filter((part: { type: string }) => part.type === 'image');
     expect(imageParts).toHaveLength(20);
-    imageParts.forEach((part: { image: string }, index: number) => {
-      expect(part.image).toBe(
+    imageParts.forEach((part: { data: string }, index: number) => {
+      expect(part.data).toBe(
         Buffer.from(`bytes-for-${expectedResolved[index]}`).toString('base64'),
       );
     });
@@ -363,12 +366,13 @@ describe('scene-content route — asset-id image transport', () => {
     // probed (no N-warn churn).
     expect(resolveVisionImagesMock).toHaveBeenCalledTimes(3);
     // Generation proceeded with an empty resolved set: text-only (the aiCall
-    // sees no vision images, so callLLM gets a plain `prompt`), no dangling
+    // sees no vision images, so the gateway gets a plain text turn), no dangling
     // `[see attached]` promise.
     expect(callLLMMock).toHaveBeenCalledTimes(1);
-    const prompt = callLLMMock.mock.calls[0][0].prompt as string;
+    const prompt = callLLMMock.mock.calls[0][1].messages[0].content;
+    // A text-only turn: a plain string, no image parts.
+    expect(typeof prompt).toBe('string');
     expect(prompt).not.toContain('[see attached]');
-    expect(callLLMMock.mock.calls[0][0].messages).toBeUndefined();
     // ONE summary warn names the fuse (the per-candidate warns are collapsed).
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]?.[0])).toContain('consecutive-failure fuse');
@@ -402,9 +406,10 @@ describe('scene-content route — asset-id image transport', () => {
     // Only the FIRST candidate was probed before the budget fired.
     expect(resolveVisionImagesMock).toHaveBeenCalledTimes(1);
     expect(callLLMMock).toHaveBeenCalledTimes(1);
-    const prompt = callLLMMock.mock.calls[0][0].prompt as string;
+    const prompt = callLLMMock.mock.calls[0][1].messages[0].content;
+    // A text-only turn: a plain string, no image parts.
+    expect(typeof prompt).toBe('string');
     expect(prompt).not.toContain('[see attached]');
-    expect(callLLMMock.mock.calls[0][0].messages).toBeUndefined();
     // ONE summary warn names the budget.
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]?.[0])).toContain('aggregate resolution budget');
@@ -489,14 +494,14 @@ describe('scene-content route — asset-id image transport', () => {
     const body = await response.json();
     expect(body.success).toBe(true);
 
-    const content = callLLMMock.mock.calls[0][0].messages[0].content;
+    const content = callLLMMock.mock.calls[0][1].messages[0].content;
     const textPart = content.find((part: { type: string }) => part.type === 'text');
     // The same 20 + 5 split as before part 2: 20 attached, 5 plain text.
     expect((textPart.text as string).match(/\[see attached\]/g)).toHaveLength(20);
     const imageParts = content.filter((part: { type: string }) => part.type === 'image');
     expect(imageParts).toHaveLength(20);
-    imageParts.forEach((part: { image: string }, index: number) => {
-      expect(part.image).toBe(Buffer.from(ids[index]).toString('base64'));
+    imageParts.forEach((part: { data: string }, index: number) => {
+      expect(part.data).toBe(Buffer.from(ids[index]).toString('base64'));
     });
     // The element src is the data URL verbatim, exactly as before.
     expect(body.content.elements[0].src).toBe(dataUrlFor('img_1'));

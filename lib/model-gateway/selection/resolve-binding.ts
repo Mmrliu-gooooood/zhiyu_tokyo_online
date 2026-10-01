@@ -19,8 +19,10 @@ import {
   resolveBaseUrl,
   resolvePlatformDefault,
   resolveProxy,
+  type PlatformDefaultModelError,
   type ResolvedPlatformDefault,
 } from '@/lib/server/provider-config';
+import type { ApiErrorCode } from '@/lib/server/api-response';
 import { getDefaultThinkingConfig } from '@/lib/ai/thinking-config';
 import {
   findLegacyPlatformDefault,
@@ -360,12 +362,12 @@ export async function resolveBinding(input: ResolveBindingInput): Promise<ModelB
 /** Client-facing status for resolution failures (legacy getModelResolutionError shape). */
 export function getBindingResolutionError(
   error: unknown,
-): { code: string; httpStatus: number; message: string } | undefined {
+): { code: ApiErrorCode; httpStatus: number; message: string } | undefined {
   if (error instanceof ModelSelectionError) {
     return { code: error.code, httpStatus: error.httpStatus, message: error.message };
   }
   if (error && typeof error === 'object' && (error as Error).name === 'PlatformDefaultModelError') {
-    const platform = error as Error & { code: string; httpStatus: number };
+    const platform = error as PlatformDefaultModelError;
     return { code: platform.code, httpStatus: platform.httpStatus, message: platform.message };
   }
   if (error instanceof GatewayError) {

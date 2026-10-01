@@ -7,10 +7,14 @@
 
 import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { NextRequest } from 'next/server';
-import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { getModelResolutionError, resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  gateway,
+  getBindingResolutionError,
+  resolveRequestBinding,
+  userText,
+} from '@/lib/model-gateway';
 const log = createLogger('Quiz Grade');
 
 interface GradeRequest {
@@ -88,11 +92,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Resolve model from request headers/body
-    const { model: languageModel, thinkingConfig } = await resolveModelFromRequest(
-      req,
-      body,
-      'quiz-grade',
-    );
+    const binding = await resolveRequestBinding(req, body, 'quiz-grade');
 
     const isZh = language === 'zh-CN';
 
@@ -116,17 +116,10 @@ You must reply in the following JSON format only (no other content):
 
     gradingTimeoutSignal = AbortSignal.timeout(45_000);
     const abortSignal = AbortSignal.any([req.signal, gradingTimeoutSignal]);
-    const result = await callLLM(
-      {
-        model: languageModel,
-        system: systemPrompt,
-        prompt: userPrompt,
-        abortSignal,
-        maxRetries: 0,
-      },
-      'quiz-grade',
-      undefined,
-      thinkingConfig,
+    const result = await gateway.complete(
+      binding,
+      { system: systemPrompt, messages: [userText(userPrompt)] },
+      { source: 'quiz-grade', signal: abortSignal, retry: 'none' },
     );
 
     // Accept one complete JSON document only. Grading output is a score-bearing
@@ -157,7 +150,7 @@ You must reply in the following JSON format only (no other content):
       `Quiz grading failed [question="${questionSnippet ?? 'unknown'}...", points=${resolvedPoints ?? 'unknown'}]:`,
       error,
     );
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     if (gradingTimeoutSignal?.aborted && !req.signal.aborted) {
       return apiError('GRADING_TIMEOUT', 504, 'Quiz grading timed out');
     }

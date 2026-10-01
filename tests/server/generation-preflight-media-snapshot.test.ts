@@ -17,14 +17,20 @@ vi.mock('@/lib/server/provider-config', () => ({
   resolveTTSApiKey: (_id: string, key?: string) => key || '',
   resolveTTSModel: (_id: string, model?: string) => model,
 }));
-vi.mock('@/lib/server/resolve-model', () => ({
-  getModelResolutionError: () => undefined,
-  resolveModel: async (input: unknown) => {
-    mocks.modelInputs.push(input);
-    return { providerId: 'openai', modelId: 'gpt-test', apiKey: 'server-key' };
-  },
-}));
-vi.mock('@/lib/ai/providers', () => ({ isProviderKeyRequired: () => true }));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: vi.fn(async (input: unknown) => {
+      mocks.modelInputs.push(input);
+      return {
+        source: 'legacy-managed',
+        providerId: 'openai',
+        modelId: 'gpt-test',
+        modelString: 'openai:gpt-test',
+        credentialReady: true,
+      };
+    }),
+  }),
+);
 
 import { MediaConfigSnapshotStore } from '@/lib/server/media-config-snapshots';
 import { GenerationModelSnapshotStore } from '@/lib/server/generation-model-snapshots';

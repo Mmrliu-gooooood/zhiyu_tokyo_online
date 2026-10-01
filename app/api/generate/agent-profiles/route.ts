@@ -9,10 +9,14 @@ import { withHostedProviderQuota } from '@/lib/auth/api';
 
 import { NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
-import { callLLM } from '@/lib/ai/llm';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { getModelResolutionError, resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  gateway,
+  getBindingResolutionError,
+  resolveRequestBinding,
+  userText,
+} from '@/lib/model-gateway';
 import { AGENT_COLOR_PALETTE } from '@/lib/constants/agent-defaults';
 import { normalizeVoiceDesign } from '@/lib/audio/voice-design';
 import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants';
@@ -167,12 +171,8 @@ async function handlePost(req: NextRequest) {
     }
 
     // ── Model resolution from request headers/body ──
-    const {
-      model: languageModel,
-      modelString: _modelString,
-      thinkingConfig,
-    } = await resolveModelFromRequest(req, body, 'agent-profiles');
-    modelString = _modelString;
+    const binding = await resolveRequestBinding(req, body, 'agent-profiles');
+    modelString = binding.modelString;
 
     // ── Build prompt ──
     const sceneSummary = sceneOutlines?.length
@@ -266,15 +266,10 @@ Return a JSON object with this exact structure:
     log.info(`Generating agent profiles for "${stageInfo.name}" [model=${modelString}]`);
 
     const rawResult = (
-      await callLLM(
-        {
-          model: languageModel,
-          system: systemPrompt,
-          prompt: userPrompt,
-        },
-        'agent-profiles',
-        undefined,
-        thinkingConfig,
+      await gateway.complete(
+        binding,
+        { system: systemPrompt, messages: [userText(userPrompt)] },
+        { source: 'agent-profiles' },
       )
     ).text;
 
@@ -371,7 +366,7 @@ Return a JSON object with this exact structure:
       `Agent profiles generation failed [stage="${stageName ?? 'unknown'}", model=${modelString ?? 'unknown'}]:`,
       error,
     );
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     return resolutionError
       ? apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message)
       : apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));

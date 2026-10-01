@@ -9,7 +9,6 @@ import { withHostedProviderQuota } from '@/lib/auth/api';
  */
 
 import { NextRequest } from 'next/server';
-import { callLLM } from '@/lib/ai/llm';
 import {
   generateSceneActions,
   buildCompleteScene,
@@ -30,7 +29,7 @@ import { createLogger } from '@/lib/logger';
 import { normalizeLegacyPBLContent } from '@/lib/pbl/legacy/read';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { llmApiError } from '@/lib/server/llm-error-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { gateway, resolveRequestBinding, userParts, userText } from '@/lib/model-gateway';
 
 const log = createLogger('Scene Actions API');
 
@@ -91,17 +90,13 @@ async function handlePost(req: NextRequest) {
     }
 
     // ── Model resolution from request headers/body ──
-    const {
-      model: languageModel,
-      modelInfo,
-      modelString,
-      thinkingConfig,
-    } = await resolveModelFromRequest(req, body, 'scene-actions');
+    const binding = await resolveRequestBinding(req, body, 'scene-actions');
+    const modelString = binding.modelString;
     outlineTitle = outline?.title;
     resolvedModelString = modelString;
 
     // Detect vision capability
-    const hasVision = !!modelInfo?.capabilities?.vision;
+    const hasVision = binding.capabilities.vision;
 
     // AI call function (actions typically don't use vision, but kept for consistency)
     const aiCall = async (
@@ -109,37 +104,18 @@ async function handlePost(req: NextRequest) {
       userPrompt: string,
       images?: Array<{ id: string; src: string }>,
     ): Promise<string> => {
-      if (images?.length && hasVision) {
-        const result = await callLLM(
-          {
-            model: languageModel,
-            system: systemPrompt,
-            messages: [
-              {
-                role: 'user' as const,
-                content: buildVisionUserContent(userPrompt, images),
-              },
-            ],
-            maxOutputTokens: modelInfo?.outputWindow,
-            maxRetries: 0,
-          },
-          'scene-actions',
-          undefined,
-          thinkingConfig,
-        );
-        return result.text;
-      }
-      const result = await callLLM(
+      // Retries stay with the client's scene retry helper (retry: 'none').
+      const result = await gateway.complete(
+        binding,
         {
-          model: languageModel,
           system: systemPrompt,
-          prompt: userPrompt,
-          maxOutputTokens: modelInfo?.outputWindow,
-          maxRetries: 0,
+          messages: [
+            images?.length && hasVision
+              ? userParts(buildVisionUserContent(userPrompt, images))
+              : userText(userPrompt),
+          ],
         },
-        'scene-actions',
-        undefined,
-        thinkingConfig,
+        { source: 'scene-actions', retry: 'none' },
       );
       return result.text;
     };

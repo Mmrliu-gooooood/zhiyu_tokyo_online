@@ -2,7 +2,6 @@ import { requirePrincipalIfHosted } from '@/lib/auth/api';
 import { withProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
 import { refuseForeignStagePost } from '@/lib/auth/stage-owner-gate';
 import { NextRequest, NextResponse } from 'next/server';
-import { callLLM } from '@/lib/ai/llm';
 import { isTeachBackEnabled } from '@/lib/learning/feature-flags';
 import {
   parseTeachBackApiInput,
@@ -14,7 +13,12 @@ import {
   runTeachBackPrepare,
   TeachBackModelError,
 } from '@/lib/server/learning/teach-back';
-import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
+import {
+  gateway,
+  getBindingResolutionError,
+  resolveParamsBinding,
+  userText,
+} from '@/lib/model-gateway';
 
 export const maxDuration = 40;
 
@@ -74,28 +78,29 @@ export async function POST(req: NextRequest) {
     const input = parseTeachBackApiInput(raw.learning);
     const deniedStage = await refuseForeignStagePost(req, input.source.stageId);
     if (deniedStage) return deniedStage;
-    const resolved = await resolveModel({
-      modelString: typeof raw.model === 'string' ? raw.model : undefined,
-      stage: 'chat-adapter',
-      apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : undefined,
-      baseUrl: typeof raw.baseUrl === 'string' ? raw.baseUrl : undefined,
-      providerType: typeof raw.providerType === 'string' ? raw.providerType : undefined,
-      source:
-        raw.modelSource === 'platform' ||
-        raw.modelSource === 'user' ||
-        raw.modelSource === 'legacy-managed'
-          ? raw.modelSource
-          : undefined,
-      platformDefaultId:
-        typeof raw.platformDefaultId === 'string' ? raw.platformDefaultId : undefined,
-      thinkingConfig: isRecord(raw.thinkingConfig) ? raw.thinkingConfig : undefined,
-    });
+    const binding = await resolveParamsBinding(
+      {
+        modelString: typeof raw.model === 'string' ? raw.model : undefined,
+        apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : undefined,
+        baseUrl: typeof raw.baseUrl === 'string' ? raw.baseUrl : undefined,
+        providerType: typeof raw.providerType === 'string' ? raw.providerType : undefined,
+        source:
+          raw.modelSource === 'platform' ||
+          raw.modelSource === 'user' ||
+          raw.modelSource === 'legacy-managed'
+            ? raw.modelSource
+            : undefined,
+        platformDefaultId:
+          typeof raw.platformDefaultId === 'string' ? raw.platformDefaultId : undefined,
+        thinkingConfig: isRecord(raw.thinkingConfig) ? raw.thinkingConfig : undefined,
+      },
+      'chat-adapter',
+    );
 
     const callModel = async ({
       system,
       prompt,
       signal,
-      maxRetries,
       maxOutputTokens,
     }: {
       system: string;
@@ -105,18 +110,10 @@ export async function POST(req: NextRequest) {
       maxOutputTokens: number;
     }) => {
       const work = () =>
-        callLLM(
-          {
-            model: resolved.model,
-            system,
-            prompt,
-            abortSignal: signal,
-            maxRetries,
-            maxOutputTokens,
-          },
-          'learning-teach-back',
-          undefined,
-          resolved.thinkingConfig,
+        gateway.complete(
+          binding,
+          { system, messages: [userText(prompt)], maxOutputTokens },
+          { source: 'learning-teach-back', signal, retry: 'none' },
         );
       const result = await (principal ? withProviderQuotaOwner(principal.ownerId, work) : work());
       return { text: result.text };
@@ -146,7 +143,7 @@ export async function POST(req: NextRequest) {
                 : 400;
       return errorResponse(error.code, status, error.message);
     }
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     if (resolutionError) {
       return errorResponse(
         'model_unavailable',

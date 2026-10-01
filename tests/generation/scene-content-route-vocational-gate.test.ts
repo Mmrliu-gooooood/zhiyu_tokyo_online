@@ -1,31 +1,34 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeAll, afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { SceneOutline } from '@/lib/types/generation';
 
 const callLLMMock = vi.hoisted(() => vi.fn());
-const resolveModelFromRequestMock = vi.hoisted(() => vi.fn());
+const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const VOCATIONAL_FLAG = 'OPENMAIC_ENABLE_VOCATIONAL';
 let originalVocationalFlag: string | undefined;
 
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: callLLMMock,
-}));
-
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: resolveModelFromRequestMock,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    complete: callLLMMock,
+    resolveRequestBinding: resolveRequestBindingMock,
+  }),
+);
 
 describe('scene-content vocational gate', () => {
+  // Each test re-imports the route after vi.resetModules(); transform the
+  // (pi-ai backed) module graph once up front so those imports stay fast.
+  beforeAll(async () => {
+    await import('@/app/api/generate/scene-content/route');
+  }, 60_000);
+
   beforeEach(() => {
     originalVocationalFlag = process.env[VOCATIONAL_FLAG];
     delete process.env[VOCATIONAL_FLAG];
     callLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'test.chat', modelId: 'test-model' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockReset();
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'test:test-model',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
   });
 
@@ -56,7 +59,7 @@ describe('scene-content vocational gate', () => {
     expect(body.content.widgetType).toBe('diagram');
     expect(body.content.widgetConfig.type).toBe('diagram');
     expect(callLLMMock).toHaveBeenCalledTimes(1);
-    expect(callLLMMock.mock.calls[0][0].system).not.toContain('Procedural Skill');
+    expect(callLLMMock.mock.calls[0][1].system).not.toContain('Procedural Skill');
   });
 
   test('flag off without requirements defaults to safe false for persisted procedural-skill outlines', async () => {
@@ -91,7 +94,7 @@ describe('scene-content vocational gate', () => {
     expect(body.effectiveOutline.widgetType).toBe('procedural-skill');
     expect(body.content.widgetType).toBe('procedural-skill');
     expect(body.content.widgetConfig.type).toBe('procedural-skill');
-    expect(callLLMMock.mock.calls[0][0].system).toContain('Procedural Skill');
+    expect(callLLMMock.mock.calls[0][1].system).toContain('Procedural Skill');
   });
 });
 

@@ -6,15 +6,16 @@ import { createPrincipal } from '@/lib/auth/principal';
 import { getProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
 
 const mocks = vi.hoisted(() => ({
-  callLLM: vi.fn(),
-  resolveModel: vi.fn(),
+  complete: vi.fn(),
+  resolveParamsBinding: vi.fn(),
 }));
 
-vi.mock('@/lib/ai/llm', () => ({ callLLM: mocks.callLLM }));
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-  getModelResolutionError: () => undefined,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(
+    await importOriginal(),
+    mocks,
+  ),
+);
 
 import { POST } from '@/app/api/learning/teach-back/route';
 import type { TeachBackSource } from '@/lib/learning/teach-back/contracts';
@@ -69,11 +70,11 @@ function makeRequest(overrides: Record<string, unknown> = {}) {
 describe('teach-back API route', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_TEACH_BACK_ENABLED', 'true');
-    mocks.resolveModel.mockResolvedValue({
+    mocks.resolveParamsBinding.mockResolvedValue({
       model: 'openai/test-model',
       thinkingConfig: undefined,
     });
-    mocks.callLLM.mockResolvedValue({
+    mocks.complete.mockResolvedValue({
       text: JSON.stringify({
         topic: 'Stored energy',
         criteria: [
@@ -95,15 +96,15 @@ describe('teach-back API route', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
-    mocks.callLLM.mockReset();
-    mocks.resolveModel.mockReset();
+    mocks.complete.mockReset();
+    mocks.resolveParamsBinding.mockReset();
   });
 
   it('returns 404 and does not call the model when the flag is off', async () => {
     vi.stubEnv('NEXT_PUBLIC_TEACH_BACK_ENABLED', 'false');
     const response = await POST(makeRequest());
     expect(response.status).toBe(404);
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('prepares a valid plan with a single model call', async () => {
@@ -112,8 +113,8 @@ describe('teach-back API route', () => {
     const body = await response.json();
     expect(body.success).toBe(true);
     expect(body.plan.openingQuestion.text).toContain('energy');
-    expect(mocks.callLLM).toHaveBeenCalledTimes(1);
-    expect(mocks.callLLM.mock.calls[0][0].maxRetries).toBe(0);
+    expect(mocks.complete).toHaveBeenCalledTimes(1);
+    expect(mocks.complete.mock.calls[0][2].retry).toBe('none');
   });
 
   it('binds provider quota to the verified principal rather than a submitted owner', async () => {
@@ -125,15 +126,15 @@ describe('teach-back API route', () => {
     });
     const auth = vi.spyOn(authApi, 'requirePrincipalIfHosted').mockResolvedValue(principal);
     const stage = vi.spyOn(stageGate, 'refuseForeignStagePost').mockResolvedValue(null);
-    const original = mocks.callLLM.getMockImplementation()!;
-    mocks.callLLM.mockImplementation((...args) => {
+    const original = mocks.complete.getMockImplementation()!;
+    mocks.complete.mockImplementation((...args) => {
       expect(getProviderQuotaOwner()).toBe(principal.ownerId);
       return original(...args);
     });
     try {
       const response = await POST(makeRequest({ ownerId: 'user:attacker-supplied' }));
       expect(response.status).toBe(200);
-      expect(mocks.callLLM).toHaveBeenCalledTimes(1);
+      expect(mocks.complete).toHaveBeenCalledTimes(1);
       expect(getProviderQuotaOwner()).toBeUndefined();
     } finally {
       auth.mockRestore();
@@ -142,7 +143,7 @@ describe('teach-back API route', () => {
   });
 
   it('keeps a correct first-turn evaluation when the model cites the current answer', async () => {
-    mocks.callLLM.mockResolvedValue({
+    mocks.complete.mockResolvedValue({
       text: JSON.stringify({
         turnId: 'turn-1',
         criteria: [
@@ -212,7 +213,7 @@ describe('teach-back API route', () => {
   });
 
   it('accepts a third-turn result even if the model still asks another question', async () => {
-    mocks.callLLM.mockResolvedValue({
+    mocks.complete.mockResolvedValue({
       text: JSON.stringify({
         turnId: 'turn-3',
         criteria: [
@@ -313,7 +314,7 @@ describe('teach-back API route', () => {
       }),
     );
     expect(response.status).toBe(400);
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
   it('rejects unusable source without calling the model', async () => {
@@ -332,6 +333,6 @@ describe('teach-back API route', () => {
     expect(response.status).toBe(422);
     const body = await response.json();
     expect(body.code).toBe('insufficient_source');
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 });

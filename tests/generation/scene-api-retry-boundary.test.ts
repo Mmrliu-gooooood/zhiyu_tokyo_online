@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SceneOutline } from '@/lib/types/generation';
 import { legacyPBLSceneFixture } from '@/tests/fixtures/pbl-v1-scene';
 
 const mocks = vi.hoisted(() => ({
-  callLLM: vi.fn(),
-  resolveModelFromRequest: vi.fn(),
+  complete: vi.fn(),
+  resolveRequestBinding: vi.fn(),
   applyOutlineFallbacks: vi.fn(),
   generateSceneContent: vi.fn(),
   generateSceneActions: vi.fn(),
@@ -13,14 +13,12 @@ const mocks = vi.hoisted(() => ({
   resolveVocationalActive: vi.fn(),
 }));
 
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: mocks.callLLM,
-}));
-
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: mocks.resolveModelFromRequest,
-  getModelResolutionError: () => undefined,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(
+    await importOriginal(),
+    mocks,
+  ),
+);
 
 vi.mock('@/lib/config/feature-flags', () => ({
   resolveVocationalActive: mocks.resolveVocationalActive,
@@ -69,22 +67,27 @@ const pblOutline = {
 } as SceneOutline;
 
 describe('scene API retry boundary', () => {
+  // Each test re-imports the route after vi.resetModules(); transform the
+  // (pi-ai backed) module graph once up front so those imports stay fast.
+  beforeAll(async () => {
+    await import('@/app/api/generate/scene-content/route');
+    await import('@/app/api/generate/scene-actions/route');
+  }, 60_000);
+
   beforeEach(() => {
     for (const mock of Object.values(mocks)) {
       mock.mockReset();
     }
-    mocks.resolveModelFromRequest.mockResolvedValue({
-      model: { id: 'language-model' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    mocks.resolveRequestBinding.mockResolvedValue({
       modelString: 'test:model',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
     mocks.applyOutlineFallbacks.mockImplementation((value) => value);
-    mocks.callLLM.mockResolvedValue({ text: 'ok' });
+    mocks.complete.mockResolvedValue({ text: 'ok' });
     mocks.resolveVocationalActive.mockReturnValue(false);
   });
 
-  it('disables AI SDK retries for scene-content model calls', async () => {
+  it('disables transport retries for scene-content model calls', async () => {
     vi.resetModules();
     mocks.generateSceneContent.mockImplementation(async (_outline, aiCall) => {
       await aiCall('system', 'user');
@@ -96,10 +99,10 @@ describe('scene API retry boundary', () => {
     const body = await response.json();
 
     expect(body.success).toBe(true);
-    expect(mocks.callLLM.mock.calls[0][0].maxRetries).toBe(0);
+    expect(mocks.complete.mock.calls[0][2].retry).toBe('none');
   });
 
-  it('disables AI SDK retries for scene-actions model calls', async () => {
+  it('disables transport retries for scene-actions model calls', async () => {
     vi.resetModules();
     mocks.generateSceneActions.mockImplementation(async (_outline, _content, aiCall) => {
       await aiCall('system', 'user');
@@ -123,7 +126,7 @@ describe('scene API retry boundary', () => {
     const body = await response.json();
 
     expect(body.success).toBe(true);
-    expect(mocks.callLLM.mock.calls[0][0].maxRetries).toBe(0);
+    expect(mocks.complete.mock.calls[0][2].retry).toBe('none');
   });
 
   it('normalizes stored legacy PBL content before generating actions and building the scene', async () => {
@@ -252,7 +255,7 @@ describe('scene API retry boundary', () => {
       await aiCall('system', 'user');
       return { elements: [], remark: 'ok' };
     });
-    mocks.callLLM.mockRejectedValueOnce(unauthorized);
+    mocks.complete.mockRejectedValueOnce(unauthorized);
 
     const { POST } = await import('@/app/api/generate/scene-content/route');
     const response = await POST(mockRequest());
@@ -273,7 +276,7 @@ describe('scene API retry boundary', () => {
       await aiCall('system', 'user');
       return { elements: [], remark: 'ok' };
     });
-    mocks.callLLM.mockRejectedValueOnce(unavailable);
+    mocks.complete.mockRejectedValueOnce(unavailable);
 
     const { POST } = await import('@/app/api/generate/scene-content/route');
     const response = await POST(mockRequest());
@@ -317,7 +320,7 @@ describe('scene API retry boundary', () => {
       await aiCall('system', 'user');
       return [];
     });
-    mocks.callLLM.mockRejectedValueOnce(unauthorized);
+    mocks.complete.mockRejectedValueOnce(unauthorized);
 
     const { POST } = await import('@/app/api/generate/scene-actions/route');
     const response = await POST(mockRequest({ content: { elements: [], remark: 'ok' } }));
@@ -338,7 +341,7 @@ describe('scene API retry boundary', () => {
       await aiCall('system', 'user');
       return [];
     });
-    mocks.callLLM.mockRejectedValueOnce(unavailable);
+    mocks.complete.mockRejectedValueOnce(unavailable);
 
     const { POST } = await import('@/app/api/generate/scene-actions/route');
     const response = await POST(mockRequest({ content: { elements: [], remark: 'ok' } }));

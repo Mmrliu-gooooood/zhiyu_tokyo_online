@@ -27,6 +27,7 @@ import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { llmApiError } from '@/lib/server/llm-error-response';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { gateway, resolveRequestBinding, userParts, userText } from '@/lib/model-gateway';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
@@ -116,17 +117,13 @@ async function handlePost(req: NextRequest) {
     // Route per scene-content type (e.g. `scene-content:quiz`); getStageModel
     // falls back to the base `scene-content` route when the type is unrouted.
     const stage = outline.type ? (`scene-content:${outline.type}` as const) : 'scene-content';
-    const {
-      model: languageModel,
-      modelInfo,
-      modelString,
-      thinkingConfig,
-    } = await resolveModelFromRequest(req, body, stage);
+    const binding = await resolveRequestBinding(req, body, stage);
+    const modelString = binding.modelString;
     outlineTitle = rawOutline?.title;
     resolvedModelString = modelString;
 
     // Detect vision capability
-    const hasVision = !!modelInfo?.capabilities?.vision;
+    const hasVision = binding.capabilities.vision;
 
     // Vision-aware AI call function. On a server-backed transport the
     // `imageMapping` values are allocated asset ids; the N3 pre-resolution
@@ -142,49 +139,31 @@ async function handlePost(req: NextRequest) {
       userPrompt: string,
       images?: Array<{ id: string; src: string }>,
     ): Promise<string> => {
-      if (images?.length && hasVision) {
-        // Server-backed transport: `imageMapping` values are allocated asset
-        // ids, so the image srcs reach here as ids. Resolve them to the same
-        // bytes the base64 path would send BEFORE prompt assembly, keeping the
-        // vision prompt byte-identical in both modes (RFC #1153 part 2 B).
-        const resolvedImages = await resolveVisionImagesForPrompt(images, req.headers);
-        const result = await callLLM(
-          {
-            model: languageModel,
-            system: systemPrompt,
-            messages: [
-              {
-                role: 'user' as const,
-                content: buildVisionUserContent(userPrompt, resolvedImages),
-              },
-            ],
-            maxOutputTokens: modelInfo?.outputWindow,
-            maxRetries: 0,
-          },
-          'scene-content',
-          undefined,
-          thinkingConfig,
-        );
-        return result.text;
-      }
-      const result = await callLLM(
-        {
-          model: languageModel,
-          system: systemPrompt,
-          prompt: userPrompt,
-          maxOutputTokens: modelInfo?.outputWindow,
-          maxRetries: 0,
-        },
-        'scene-content',
-        undefined,
-        thinkingConfig,
+      // Server-backed transport: `imageMapping` values are allocated asset
+      // ids, so the image srcs reach here as ids. Resolve them to the same
+      // bytes the base64 path would send BEFORE prompt assembly, keeping the
+      // vision prompt byte-identical in both modes (RFC #1153 part 2 B).
+      const message =
+        images?.length && hasVision
+          ? userParts(
+              buildVisionUserContent(
+                userPrompt,
+                await resolveVisionImagesForPrompt(images, req.headers),
+              ),
+            )
+          : userText(userPrompt);
+      // Retries stay with the client's scene retry helper (retry: 'none').
+      const result = await gateway.complete(
+        binding,
+        { system: systemPrompt, messages: [message] },
+        { source: 'scene-content', retry: 'none' },
       );
       return result.text;
     };
 
     // ── Apply fallbacks ──
     const vocationalActive = resolveVocationalActive(requirements);
-    const effectiveOutline = applyOutlineFallbacks(outline, !!languageModel, {
+    const effectiveOutline = applyOutlineFallbacks(outline, true, {
       allowProceduralSkill: vocationalActive,
     });
 
@@ -342,8 +321,17 @@ async function handlePost(req: NextRequest) {
       allowProceduralSkill: vocationalActive,
       ...(effectiveOutline.type === 'pbl'
         ? {
-            pblLoopFallback: (input) =>
-              generatePBLV2Project(input, languageModel, callLLM, { logger: log }, thinkingConfig),
+            // The PBL planner moves to the gateway's tool loop in P3-2.
+            pblLoopFallback: async (input) => {
+              const legacy = await resolveModelFromRequest(req, body, stage);
+              return generatePBLV2Project(
+                input,
+                legacy.model,
+                callLLM,
+                { logger: log },
+                legacy.thinkingConfig,
+              );
+            },
           }
         : {}),
     });

@@ -1,7 +1,6 @@
 import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { refuseForeignStagePost } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
-import { callLLM } from '@/lib/ai/llm';
 import { isGuidedLearningEnabled } from '@/lib/learning/feature-flags';
 import {
   parseGuidedLearningContext,
@@ -16,8 +15,12 @@ import {
   validateGuidedSourceContext,
   type GuidedModelCall,
 } from '@/lib/server/learning/coach';
-import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
-import { normalizeUsage } from '@/lib/usage/normalize';
+import {
+  gateway,
+  getBindingResolutionError,
+  resolveParamsBinding,
+  userText,
+} from '@/lib/model-gateway';
 
 export const maxDuration = 100;
 const GUIDED_LEARNING_REQUEST_BYTES = 128 * 1024;
@@ -194,57 +197,39 @@ async function handlePOST(req: NextRequest) {
       throw new Error('Guided request context does not match the current session');
     }
 
-    const resolved = await resolveModel({
-      modelString: typeof raw.model === 'string' ? raw.model : undefined,
-      stage: 'chat-adapter',
-      apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : undefined,
-      baseUrl: typeof raw.baseUrl === 'string' ? raw.baseUrl : undefined,
-      providerType: typeof raw.providerType === 'string' ? raw.providerType : undefined,
-      source:
-        raw.modelSource === 'platform' ||
-        raw.modelSource === 'user' ||
-        raw.modelSource === 'legacy-managed'
-          ? raw.modelSource
-          : undefined,
-      platformDefaultId:
-        typeof raw.platformDefaultId === 'string' ? raw.platformDefaultId : undefined,
-      thinkingConfig: isRecord(raw.thinkingConfig) ? raw.thinkingConfig : undefined,
-    });
+    const binding = await resolveParamsBinding(
+      {
+        modelString: typeof raw.model === 'string' ? raw.model : undefined,
+        apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : undefined,
+        baseUrl: typeof raw.baseUrl === 'string' ? raw.baseUrl : undefined,
+        providerType: typeof raw.providerType === 'string' ? raw.providerType : undefined,
+        source:
+          raw.modelSource === 'platform' ||
+          raw.modelSource === 'user' ||
+          raw.modelSource === 'legacy-managed'
+            ? raw.modelSource
+            : undefined,
+        platformDefaultId:
+          typeof raw.platformDefaultId === 'string' ? raw.platformDefaultId : undefined,
+        thinkingConfig: isRecord(raw.thinkingConfig) ? raw.thinkingConfig : undefined,
+      },
+      'chat-adapter',
+    );
 
     const guidedCall: GuidedModelCall = async ({
       system,
       prompt: callPrompt,
       signal,
-      maxRetries,
       maxOutputTokens,
     }) => {
-      const result = await callLLM(
-        {
-          model: resolved.model,
-          system,
-          prompt: callPrompt,
-          abortSignal: signal,
-          maxRetries,
-          maxOutputTokens,
-        },
-        'learning-coach',
-        undefined,
-        resolved.thinkingConfig,
+      const result = await gateway.complete(
+        binding,
+        { system, messages: [userText(callPrompt)], maxOutputTokens },
+        { source: 'learning-coach', signal, retry: 'none' },
       );
-      const rawUsage = result.totalUsage ?? result.usage;
       return {
         text: result.text,
-        ...(rawUsage
-          ? {
-              usage: (() => {
-                const normalized = normalizeUsage(rawUsage);
-                return {
-                  inputTokens: normalized.inputTokens,
-                  outputTokens: normalized.outputTokens,
-                };
-              })(),
-            }
-          : {}),
+        usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens },
       };
     };
 
@@ -258,7 +243,7 @@ async function handlePOST(req: NextRequest) {
     return sseResponse(outcome);
   } catch (error) {
     if (req.signal.aborted) return new Response(null, { status: 499 });
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     if (resolutionError) {
       return apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message);
     }

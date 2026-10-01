@@ -185,11 +185,11 @@ describe('automatic classroom roster strategy', () => {
     );
     vi.spyOn(introductoryServices, 'modelCall').mockResolvedValue({
       aiCall: introductoryCall,
-      resolved: {} as never,
+      binding: {} as never,
     });
     vi.spyOn(complexServices, 'modelCall').mockResolvedValue({
       aiCall: complexCall,
-      resolved: {} as never,
+      binding: {} as never,
     });
 
     const introductory = await introductoryServices.agents(introductoryPlan);
@@ -246,7 +246,7 @@ describe('automatic classroom roster strategy', () => {
         ],
       }),
     );
-    vi.spyOn(services, 'modelCall').mockResolvedValue({ aiCall, resolved: {} as never });
+    vi.spyOn(services, 'modelCall').mockResolvedValue({ aiCall, binding: {} as never });
 
     const checkpoint = await services.agents(plan);
 
@@ -366,7 +366,7 @@ describe('automatic classroom roster strategy', () => {
     const aiCall = vi.fn(async (_systemPrompt: string, _userPrompt: string) =>
       JSON.stringify(result),
     );
-    vi.spyOn(services, 'modelCall').mockResolvedValue({ aiCall, resolved: {} as never });
+    vi.spyOn(services, 'modelCall').mockResolvedValue({ aiCall, binding: {} as never });
 
     await expect(services.agents(plan)).rejects.toThrow('INVALID_AGENT_RESULT');
     expect(aiCall).toHaveBeenCalledTimes(1);
@@ -389,7 +389,7 @@ describe('automatic classroom roster strategy', () => {
         ],
       }),
     );
-    vi.spyOn(services, 'modelCall').mockResolvedValue({ aiCall, resolved: {} as never });
+    vi.spyOn(services, 'modelCall').mockResolvedValue({ aiCall, binding: {} as never });
 
     const checkpoint = await services.agents(plan);
 

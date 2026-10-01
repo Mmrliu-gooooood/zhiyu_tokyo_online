@@ -7,8 +7,12 @@ import {
   isServerProviderDisabled,
 } from '@/lib/server/provider-config';
 import type { Queryable } from '@openmaic/storage/document/pg';
-import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
-import { isProviderKeyRequired } from '@/lib/ai/providers';
+import {
+  getBindingResolutionError,
+  isGatewayError,
+  parseModelString,
+  resolveParamsBinding,
+} from '@/lib/model-gateway';
 import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
 import { TTS_PROVIDERS } from '@/lib/audio/constants';
@@ -39,6 +43,13 @@ import {
   resolveEffectiveSessionVoice,
 } from '@/lib/server/agent-runtime/effective-voice-directory';
 import { resolveProviderSelection } from '@/lib/server/resolve-provider-selection';
+
+/** Bindings name models `provider:model`; legacy snapshots may hold a bare OpenAI id. */
+function sameModelString(bound: string, stored: string | undefined): boolean {
+  if (!stored) return false;
+  const { providerId, modelId } = parseModelString(stored);
+  return bound === `${providerId}:${modelId}`;
+}
 
 export interface BackgroundProviderValidationContext {
   ownerId: string;
@@ -354,7 +365,7 @@ export async function validateBackgroundProviders(
       'scene-actions',
     ] as const) {
       const { version: _version, ...modelContext } = modelSnapshot ?? { version: 1 as const };
-      const resolved = await resolveModel({ ...input.model, ...modelContext, stage });
+      const resolved = await resolveParamsBinding({ ...input.model, ...modelContext }, stage);
       const managed = providers[resolved.providerId];
       // Only the authenticated owner snapshot authorizes an unmanaged model.
       // Explicit operator routes still require server configuration, even when
@@ -370,13 +381,13 @@ export async function validateBackgroundProviders(
           : 'modelString' in modelSnapshot &&
             resolved.source ===
               (modelSnapshot.version === 2 ? modelSnapshot.source : 'legacy-managed') &&
-            resolved.modelString === modelSnapshot.modelString);
+            sameModelString(resolved.modelString, modelSnapshot.modelString));
       if (
         (!managed && !ownerConfigured && resolved.source !== 'platform') ||
         (resolved.source !== 'platform' &&
           managed?.models?.length &&
           !managed.models.includes(resolved.modelId)) ||
-        (isProviderKeyRequired(resolved.providerId) && !resolved.apiKey)
+        !resolved.credentialReady
       )
         throw new Error('Unavailable provider');
     }
@@ -417,7 +428,8 @@ export async function validateBackgroundProviders(
       }
     }
   } catch (error) {
-    const resolutionError = getModelResolutionError(error);
+    // Client selection errors keep their status; unusable models are a 422 below.
+    const resolutionError = isGatewayError(error) ? undefined : getBindingResolutionError(error);
     if (resolutionError) {
       throw new GenerationJobError(resolutionError.code, resolutionError.httpStatus);
     }

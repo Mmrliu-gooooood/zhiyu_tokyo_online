@@ -1,5 +1,21 @@
+const GATEWAY_CODE_MESSAGES: Partial<Record<string, string>> = {
+  MODEL_CONFIGURATION: 'PRO_MODEL_AUTH: 模型凭据缺失或无效，请打开模型设置后重新检查。',
+  MODEL_UNSAFE_ENDPOINT: 'PRO_MODEL_PROTOCOL: 模型协议不受支持，请打开模型设置后重新检查。',
+  MODEL_AUTH_FAILED: 'PRO_MODEL_AUTH: 模型凭据缺失或无效，请打开模型设置后重新检查。',
+  MODEL_REAUTH_REQUIRED: 'PRO_MODEL_AUTH: 模型凭据缺失或无效，请打开模型设置后重新检查。',
+  MODEL_RATE_LIMITED: 'PRO_MODEL_RATE_LIMIT: 模型服务限流，请稍后重试。',
+  MODEL_ABORTED: 'PRO_MODEL_CANCELLED: 模型调用已取消。',
+};
+
 /** Never expose provider response bodies, request headers, or connection secrets. */
 export function safeModelError(error: unknown): string {
+  const gatewayCode =
+    error instanceof Error && error.name === 'GatewayError'
+      ? (error as Error & { code?: string }).code
+      : undefined;
+  const mapped = gatewayCode ? GATEWAY_CODE_MESSAGES[gatewayCode] : undefined;
+  if (mapped) return mapped;
+  if (gatewayCode) return 'PRO_MODEL_EXECUTION: 模型调用未完成，请检查模型设置或稍后重试。';
   const message = error instanceof Error ? error.message : String(error ?? '');
   if (/PRO_SKILL_UNAVAILABLE|session skill .* is unavailable for its owner/i.test(message))
     return 'PRO_SKILL_UNAVAILABLE: 当前会话的 skill 不可用，请重新选择可用的 skill。';

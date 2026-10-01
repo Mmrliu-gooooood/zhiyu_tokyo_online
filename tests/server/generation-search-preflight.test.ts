@@ -6,10 +6,17 @@ import { GenerationSearchSnapshotStore } from '@/lib/server/generation-search-sn
 import { parseGenerationInput } from '@/lib/server/generation-jobs/contracts';
 import { validateBackgroundProviders } from '@/lib/server/generation-jobs/preflight';
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: async () => ({ providerId: 'openai', modelId: 'gpt-test', apiKey: 'server-key' }),
-  getModelResolutionError: () => undefined,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: vi.fn(async () => ({
+      source: 'legacy-managed',
+      providerId: 'openai',
+      modelId: 'gpt-test',
+      modelString: 'openai:gpt-test',
+      credentialReady: true,
+    })),
+  }),
+);
 vi.mock('@/lib/server/provider-config', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/server/provider-config')>()),
   getServerProviders: () => ({ openai: { models: ['gpt-test'] } }),

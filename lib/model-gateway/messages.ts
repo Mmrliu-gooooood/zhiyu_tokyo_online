@@ -43,6 +43,23 @@ export function userContent(
   return { role: 'user', content, timestamp };
 }
 
+/** Interleaved text / image parts (the generation package's vision prompt shape). */
+export type UserPart =
+  | { type: 'text'; text: string }
+  | { type: 'image'; image: string; mimeType?: string };
+
+/** A user turn from ordered parts; bare base64 images need their `mimeType`. */
+export function userParts(parts: readonly UserPart[], timestamp = Date.now()): GatewayUserMessage {
+  const content: (TextContent | ImageContent | ImageUrlContent)[] = parts.map((part) => {
+    if (part.type === 'text') return { type: 'text', text: part.text };
+    if (part.mimeType && !/^(data:|https?:)/i.test(part.image)) {
+      return { type: 'image', data: part.image, mimeType: part.mimeType };
+    }
+    return toImagePart(part.image);
+  });
+  return { role: 'user', content, timestamp };
+}
+
 const ZERO_USAGE: AssistantMessage['usage'] = {
   input: 0,
   output: 0,

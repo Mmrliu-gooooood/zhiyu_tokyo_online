@@ -1,9 +1,7 @@
 import type { AICallFn } from '@openmaic/generation';
 
-import { callLLM } from '@/lib/ai/llm';
+import { gateway, resolveParamsBinding, userText, type ModelBinding } from '@/lib/model-gateway';
 import type { LlmStage } from '@/lib/server/model-routes';
-import { resolveModel } from '@/lib/server/resolve-model';
-import { getStageRoute } from '@/lib/server/model-routes';
 import type { ProModelContext } from '@/types/pro-model';
 import { safeModelError } from './model-errors';
 
@@ -22,26 +20,17 @@ export function createGenerationAiCallFactory(options?: {
   return (stage) => {
     const cached = calls.get(stage);
     if (cached) return cached;
-    let resolved: Awaited<ReturnType<typeof resolveModel>> | undefined;
+    let binding: ModelBinding | undefined;
     const call: AICallFn = async (systemPrompt, userPrompt) => {
       try {
         options?.abortSignal?.throwIfAborted();
         await options?.modelContext?.assertActive?.();
-        resolved ??= await resolveModel(
-          getStageRoute(stage) ? { stage } : { ...options?.modelContext, stage },
-        );
-        const result = await callLLM(
-          {
-            model: resolved.model,
-            system: systemPrompt,
-            prompt: userPrompt,
-            maxOutputTokens: resolved.modelInfo?.outputWindow,
-            maxRetries: 0,
-            abortSignal: options?.abortSignal,
-          },
-          stage,
-          undefined,
-          resolved.thinkingConfig,
+        // A configured stage route ignores the connection context (resolveBinding).
+        binding ??= await resolveParamsBinding(options?.modelContext, stage);
+        const result = await gateway.complete(
+          binding,
+          { system: systemPrompt, messages: [userText(userPrompt)] },
+          { source: stage, signal: options?.abortSignal, retry: 'none' },
         );
         return result.text;
       } catch (error) {
