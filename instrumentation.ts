@@ -28,9 +28,12 @@ export async function register(): Promise<void> {
   const { validateServerConfig } = await import('@/lib/server/config-validation');
   validateServerConfig();
 
-  // Keeps the lazily loaded pi-ai runtime in the standalone file trace. The
-  // module only declares tracing anchors; it does not load pi-ai.
-  await import('@/lib/model-gateway/runtime/pi-registry');
+  // Warm the model gateway's pi runtime (and keep its lazily loaded entry points
+  // in the standalone file trace) without delaying readiness: the platform
+  // default model speaks OpenAI Chat Completions.
+  void import('@/lib/model-gateway/runtime/pi-registry')
+    .then((registry) => registry.warmApi('openai-completions'))
+    .catch(() => undefined);
 
   let runner: import('@/lib/server/agent-runtime/runner').AgentRunnerHandle | undefined;
   let extractionRunner:
