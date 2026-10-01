@@ -21,6 +21,7 @@ out/
 # Generated files
 *.min.js
 *.min.css
+lib/model-gateway/catalog/generated/
 
 # Markdown & YAML
 *.md
