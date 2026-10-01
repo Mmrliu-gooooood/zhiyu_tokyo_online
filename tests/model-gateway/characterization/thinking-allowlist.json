@@ -15,11 +15,6 @@
     "reason": "pi sends an explicit thinking:{type:'disabled'} where the AI SDK omitted the field; the Anthropic API treats both as thinking off."
   },
   {
-    "group": "glm",
-    "case": "^glm-5[.](1|2)[|]thinking=(enabled|effort-[a-z]+)[|]",
-    "reason": "pi's zai thinking format adds clear_thinking:false (keep prior reasoning across turns); thinking type and effort match legacy. Accepted: pi replays reasoning_content for GLM, which needs it."
-  },
-  {
     "group": "qwen",
     "case": "^qwen3[.](6-max-preview|7-plus)[|]thinking=budget-min[|]",
     "reason": "A zero budget is not sent. Legacy sent enable_thinking:true with thinking_budget:0, a contradictory request; the gateway enables thinking with the provider's default budget."

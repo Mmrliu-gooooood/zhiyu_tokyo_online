@@ -118,6 +118,9 @@ export function planThinking(
         ...patches,
         ...(hasBudget ? [] : (['omit-thinking-budget'] as const)),
         ...(managedEffort ? (['anthropic-managed-effort'] as const) : []),
+        ...(binding.model.api === 'openai-completions'
+          ? (['zai-default-clear-thinking'] as const)
+          : []),
       ],
       effective: config,
     };
@@ -228,6 +231,16 @@ const PATCHES: Record<PayloadPatchId, (ctx: PatchContext) => PayloadPatch> = {
           : {};
       payload.output_config = { ...outputConfig, effort: anthropicEffort(model, level) };
     },
+  'zai-default-clear-thinking': () => (payload) => {
+    // pi's zai format pins clear_thinking:false (preserved thinking). The
+    // legacy stack never sent it, so GLM keeps its API default; the history
+    // (text, tool calls, tool results) is sent either way.
+    const thinking = payload.thinking;
+    if (thinking && typeof thinking === 'object' && 'clear_thinking' in thinking) {
+      const { clear_thinking: _clear, ...rest } = thinking as Record<string, unknown>;
+      payload.thinking = rest;
+    }
+  },
   'provider-default-thinking': () => (payload) => {
     for (const field of THINKING_FIELDS) {
       if (field === 'reasoning' && payload.reasoning && typeof payload.reasoning === 'object') {

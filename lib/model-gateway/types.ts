@@ -134,7 +134,9 @@ export type PayloadPatchId =
   /** Anthropic managed-effort models: pi pins effort to high; send the requested one. */
   | 'anthropic-managed-effort'
   /** Thinking on without a chosen budget: do not send a top-level budget field. */
-  | 'omit-thinking-budget';
+  | 'omit-thinking-budget'
+  /** GLM (zai format): drop pi's clear_thinking:false so the API default applies. */
+  | 'zai-default-clear-thinking';
 
 export interface ModelCapabilities {
   tools: boolean | 'unknown';

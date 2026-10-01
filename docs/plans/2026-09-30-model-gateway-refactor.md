@@ -796,7 +796,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | 阶段 | 状态 | 提交 | 测试证据 | 未完成 / 备注 |
 | --- | --- | --- | --- | --- |
 | P0 | 已完成（2026-10-01） | 6ceed08d, 7492f751, 8739e846, f10b4610, 2d1a32cd + 本次进度提交 | 见下方 P0 记录 | 无阻断；全量 vitest 有 6 个负载下超时（单独复跑全绿），见记录 |
-| P1 | 已完成（2026-10-01） | e685d617, fb61d7bc, 1b087555, 31a97a3f, 26494258, ebf14626 + 本次 P1-7 提交 | 见下方 P1 记录 | 思考映射有 5 类白名单差异（17 例）；P2 overlay 需补的数据已记录 |
+| P1 | 已完成（2026-10-01） | e685d617, fb61d7bc, 1b087555, 31a97a3f, 26494258, ebf14626 + 本次 P1-7 提交 | 见下方 P1 记录 | 思考映射有 4 类白名单差异（9 例；GLM clear_thinking 已在 P1 收尾修正）；P2 overlay 需补的数据已记录 |
 | P2 | 未开始 | | | |
 | P3 | 未开始 | | | |
 | P4 | 未开始 | | | |
@@ -877,10 +877,11 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 黄金数据差异白名单（P1-4，tests/model-gateway/characterization/thinking-allowlist.json，单轮/无工具/流式思考矩阵，8 个 provider）：
   1. mode:'default' 视同"未设置"（不发送思考字段）——无任何代码产生该值，旧适配器各自行为不一（deepseek-flash、claude-haiku-4-5 各 1 例）
   2. Anthropic 关闭思考时 pi 显式发送 thinking:{type:'disabled'}，旧栈省略；API 语义相同（5 例）
-  3. GLM 的 zai 格式附带 clear_thinking:false（保留历史推理），思考类型与 effort 与旧栈一致（8 例）
+  3. （已移除）GLM 的 zai 格式附带 clear_thinking:false：P1 收尾新增 zai-default-clear-thinking 补丁去掉该字段，与旧栈完全一致；tests/model-gateway/multi-turn-glm.test.ts 验证同一会话多轮对话与轮内工具循环
   4. Qwen budget=0：不再发送"开启思考 + 预算 0"的矛盾请求（2 例）
   执行中修正的真实差异：未设置时 pi 会显式发送关闭/默认等级（已改为保持服务商默认）；不可关闭模型的"关闭"需降到最低 effort；预算型模型使用目录默认预算；Claude 5 系列 pi 固定发送 effort high，已用声明式补丁发送用户所选等级
-  P2 overlay 需补的数据：按审核能力开放 xhigh/max/minimal 等级；非 effort 型能力在 OpenAI 兼容格式下 supportsReasoningEffort:false；GPT-5.6 不在 pi 0.99 目录中需 overlay 定义
+  mode:'default' 语义由 tests/model-gateway/thinking-default-mode.test.ts 固定：单独出现等同未设置，与 enabled/effort/budget 同时出现时按显式字段执行
+  P2 overlay 需补的数据：GLM descriptor 必须显式设置 compat（thinkingFormat:'zai'、supportsDeveloperRole:false、supportsStore:false、maxTokensField:'max_tokens'），否则经中转 URL 时 pi 无法按域名识别 GLM，会发送 developer 角色；按审核能力开放 xhigh/max/minimal 等级；非 effort 型能力在 OpenAI 兼容格式下 supportsReasoningEffort:false；GPT-5.6 不在 pi 0.99 目录中需 overlay 定义
 性能数据（tests/fixtures/model-gateway/perf-gateway-p1.json，同机同假服务器，各 200 次）：
   - 每调用 Models 视图构造 p50 < 0.01 ms（门槛 0.2 ms）
   - 网关相对直接 pi 调用的开销（交替配对）：首 token 50 ms 场景 p50 −0.89 ms / p95 9.78 ms；零延迟场景 p50 0.08 ms / p95 0.8 ms（门槛 p50 ≤ 5、p95 ≤ 15）
