@@ -1,5 +1,6 @@
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { PlatformDefaultId } from '@/lib/types/platform-default-models';
+import type { WireApi } from '@/lib/model-gateway/types';
 
 /** Public, owner-scoped reference. It never authorizes access by itself. */
 export interface ProModelRef {
@@ -19,7 +20,8 @@ export interface ProModelContext {
   apiKey?: string;
   baseUrl?: string;
   providerType?: string;
-  api?: 'openai-completions' | 'openai-responses';
+  /** Wire protocol (any gateway WireApi the provider allows). */
+  api?: WireApi;
   thinkingConfig?: ThinkingConfig;
   /** Server-only revocation fence, checked before each outgoing call. */
   assertActive?: () => Promise<void>;

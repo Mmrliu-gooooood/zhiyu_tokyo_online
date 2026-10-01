@@ -21,8 +21,8 @@ import type * as GatewayModule from '@/lib/model-gateway';
 import type { BindingFields } from '@/lib/model-gateway';
 import type { Mock } from 'vitest';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.fn() of any signature
-type AnyMock = Mock<(...args: any[]) => any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.fn() / functions of any signature
+type AnyMock = Mock<(...args: any[]) => any> | ((...args: any[]) => any);
 
 export interface GatewayModuleMocks {
   complete?: AnyMock;

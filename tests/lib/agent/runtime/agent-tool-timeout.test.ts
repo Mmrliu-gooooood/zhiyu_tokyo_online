@@ -15,10 +15,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
 
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
-import { createCallLlmStreamFn } from '@/lib/agent/runtime/stream-fn';
+import { createGatewayStreamFn } from '@/lib/model-gateway/adapters/agent-stream-fn';
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import { AGENT_TOOL_TIMEOUT_ENV } from '@/lib/agent/runtime/tool-timeout';
 
 const ZERO_USAGE = {
@@ -101,7 +107,7 @@ describe('agent loop tool-execution bound', () => {
       [{ type: 'text-delta', text: 'complete' }, finish('stop')],
     ]);
     const agent = buildAgent({
-      streamFn: createCallLlmStreamFn({ languageModel: {} as never }),
+      streamFn: createGatewayStreamFn({ binding: testBinding(), source: 'maic-agent' }),
       systemPrompt: 'system',
       tools: [makeHungTool(captured, started)],
       allowedToolNames: new Set(['demo']),

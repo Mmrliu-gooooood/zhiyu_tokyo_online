@@ -1,3 +1,4 @@
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
@@ -7,7 +8,12 @@ const mocks = vi.hoisted(() => ({
   injectOwnErrorWithOkStatus: false,
 }));
 
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 
 vi.mock('@/lib/chat/pi/tools/read-scene', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/chat/pi/tools/read-scene')>();
@@ -43,7 +49,10 @@ const ZERO_USAGE = {
   outputTokens: 0,
   inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
 };
-const resolvedModel = { provider: 'test.provider', modelId: 'director-model' };
+const resolvedModel = testBinding({
+  modelId: 'director-model',
+  modelString: 'openai:director-model',
+});
 const teacher: AgentConfig = {
   id: 'teacher-1',
   name: 'Teacher',
@@ -137,8 +146,7 @@ describe('Director shared Pi transport consumer', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: resolvedModel as never,
-      thinkingConfig: { mode: 'disabled', enabled: false },
+      binding: resolvedModel,
       maxOutputTokens: 640,
       abortSignal: abortController.signal,
       signal: abortController.signal,
@@ -203,8 +211,7 @@ describe('Director shared Pi transport consumer', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: resolvedModel as never,
-      thinkingConfig: { mode: 'disabled', enabled: false },
+      binding: resolvedModel,
       maxOutputTokens: 640,
       abortSignal: abortController.signal,
       signal: abortController.signal,

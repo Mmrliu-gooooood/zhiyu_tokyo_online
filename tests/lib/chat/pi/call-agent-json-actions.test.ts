@@ -178,10 +178,9 @@ function baseToolOpts(events: StatelessEvent[]) {
     send: async (event: StatelessEvent) => {
       events.push(event);
     },
-    languageModel: {} as never,
+    binding: {} as never,
     onAgentDone: vi.fn(),
     onActionDone: vi.fn(),
-    thinkingConfig: { mode: 'disabled' as const, enabled: false },
     abortSignal: new AbortController().signal,
     maxAgentTurns: 6,
     getAgentTurnCount: () => 0,
@@ -322,10 +321,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -375,10 +373,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -665,10 +662,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -731,10 +727,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -802,10 +797,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -849,10 +843,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -902,10 +895,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -959,10 +951,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1015,10 +1006,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1077,10 +1067,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1133,10 +1122,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1187,10 +1175,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1249,10 +1236,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1301,10 +1287,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1366,10 +1351,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 1,
@@ -1426,10 +1410,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1494,10 +1477,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1549,10 +1531,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1594,10 +1575,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1679,10 +1659,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1788,10 +1767,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1885,10 +1863,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -1968,10 +1945,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -2050,10 +2026,9 @@ describe('Pi call_agent JSON action output', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: vi.fn(),
       onActionDone,
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -2097,10 +2072,9 @@ describe('Pi call_agent JSON action output', () => {
       body: makeBody(),
       agentConfigs: [teacher],
       send: vi.fn(),
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,
@@ -2138,10 +2112,9 @@ describe('Pi call_agent JSON action output', () => {
       body: makeBody(),
       agentConfigs: [teacher],
       send: vi.fn(),
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone,
       onActionDone: vi.fn(),
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 6,
       getAgentTurnCount: () => 0,

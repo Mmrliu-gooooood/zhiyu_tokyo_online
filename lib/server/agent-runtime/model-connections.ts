@@ -1,7 +1,13 @@
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
-import { getProvider, parseModelString } from '@/lib/ai/providers';
+import {
+  ModelSelectionError,
+  parseModelString,
+  upgradeLegacyModelParams,
+} from '@/lib/model-gateway';
+import { apiForLegacyProviderType, getDescriptor } from '@/lib/model-gateway/catalog/descriptors';
+import { WIRE_APIS } from '@/lib/model-gateway/selection/schema';
 import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { getPersistenceDatabaseUrl, tryAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
 import { getPersistencePool } from '@/lib/db/pool-registry';
@@ -50,7 +56,7 @@ const contextSchema = z.object({
   apiKey: z.string().max(16384).optional(),
   baseUrl: z.string().trim().max(2048).optional(),
   providerType: z.enum(['openai', 'azure', 'anthropic', 'bedrock', 'google']).optional(),
-  api: z.enum(['openai-completions', 'openai-responses']).optional(),
+  api: z.enum(WIRE_APIS).optional(),
   thinkingConfig: z
     .object({
       mode: z.enum(['default', 'disabled', 'enabled', 'auto']).optional(),
@@ -178,17 +184,21 @@ async function normalizeModelConnectionContextWithPolicy(
     throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
   }
   const { providerId } = parseModelString(context.modelString);
-  const provider = getProvider(providerId);
+  const descriptor = getDescriptor(providerId);
   const managed = context.source !== 'user' && isServerConfiguredProvider('providers', providerId);
-  // Home's existing OpenAI API mode is explicitly the chat-completions
-  // transport (getModel uses .chat); preserve that existing selection.
-  if (!provider && !context.api && context.providerType === 'openai') {
-    context.api = 'openai-completions';
+  // A custom provider needs its wire protocol; Home's legacy provider type
+  // names it (OpenAI mode = chat completions).
+  if (!descriptor && !context.api) {
+    context.api = apiForLegacyProviderType(context.providerType);
   }
-  if (!provider && !context.api) {
+  if (!descriptor && !context.api) {
     throw new ProModelConnectionError('PRO_MODEL_PROTOCOL_REQUIRED');
   }
-  if (provider?.type && context.providerType && provider.type !== context.providerType) {
+  if (
+    descriptor?.legacyProviderType &&
+    context.providerType &&
+    descriptor.legacyProviderType !== context.providerType
+  ) {
     throw new ProModelConnectionError('PRO_MODEL_PROVIDER_TYPE_MISMATCH');
   }
   if (managed) {
@@ -197,7 +207,7 @@ async function normalizeModelConnectionContextWithPolicy(
     delete context.baseUrl;
     delete context.providerType;
   } else {
-    if (provider?.requiresApiKey !== false && !context.apiKey?.trim()) {
+    if (!descriptor?.auth.includes('none') && !context.apiKey?.trim()) {
       throw new ProModelConnectionError('PRO_MODEL_KEY_REQUIRED');
     }
     if (context.baseUrl) {
@@ -208,6 +218,15 @@ async function normalizeModelConnectionContextWithPolicy(
         throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
       }
     }
+  }
+  // The stored context must upgrade to a gateway ModelSelection (plan 3.14).
+  try {
+    upgradeLegacyModelParams(context);
+  } catch (error) {
+    if (error instanceof ModelSelectionError) {
+      throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+    }
+    throw error;
   }
   return context;
 }

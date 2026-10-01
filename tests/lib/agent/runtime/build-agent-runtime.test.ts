@@ -4,11 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
 
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
 import { buildAskUserTool } from '@/lib/server/agent-runtime/ask-user';
-import { createCallLlmStreamFn, hasLengthToolCallProvenance } from '@/lib/agent/runtime/stream-fn';
+import {
+  createGatewayStreamFn,
+  hasLengthToolCallProvenance,
+} from '@/lib/model-gateway/adapters/agent-stream-fn';
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 
 const ZERO_USAGE = {
   inputTokens: 0,
@@ -35,7 +44,7 @@ describe('Pro ask_user argument preparation', () => {
         ],
       ]);
       const agent = buildAgent({
-        streamFn: createCallLlmStreamFn({ languageModel: {} as never }),
+        streamFn: createGatewayStreamFn({ binding: testBinding(), source: 'maic-agent' }),
         systemPrompt: 'Ask one question.',
         tools: [buildAskUserTool({ onUserQuestion })],
         allowedToolNames: new Set(['ask_user']),
@@ -59,7 +68,7 @@ describe('Pro ask_user argument preparation', () => {
         ],
       ]);
       const agent = buildAgent({
-        streamFn: createCallLlmStreamFn({ languageModel: {} as never }),
+        streamFn: createGatewayStreamFn({ binding: testBinding(), source: 'maic-agent' }),
         systemPrompt: 'Ask one question.',
         tools: [buildAskUserTool({ onUserQuestion })],
         allowedToolNames: new Set(['ask_user']),
@@ -132,7 +141,7 @@ function makeAgent(options: {
   allowedToolNames?: ReadonlySet<string>;
 }) {
   return buildAgent({
-    streamFn: createCallLlmStreamFn({ languageModel: {} as never }),
+    streamFn: createGatewayStreamFn({ binding: testBinding(), source: 'maic-agent' }),
     systemPrompt: 'system',
     tools: [options.tool ?? makeTool()],
     allowedToolNames: options.allowedToolNames ?? new Set(['demo']),

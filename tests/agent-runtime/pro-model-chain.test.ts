@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
-import { createCallLlmStreamFn } from '@/lib/agent/runtime/stream-fn';
+import { createGatewayStreamFn } from '@/lib/model-gateway/adapters/agent-stream-fn';
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import {
   buildDslCourseToolset,
   type CourseDocument,
@@ -15,20 +16,21 @@ import type { Scene } from '@/lib/types/stage';
 import type { ProModelContext } from '@/types/pro-model';
 
 const mocks = vi.hoisted(() => ({
-  resolveModel: vi.fn(),
   complete: vi.fn(),
   resolveParamsBinding: vi.fn(),
   streamLLM: vi.fn(),
   getStageRoute: vi.fn(),
 }));
-vi.mock('@/lib/server/resolve-model', () => ({ resolveModel: mocks.resolveModel }));
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
-vi.mock('@/lib/model-gateway', async (importOriginal) =>
-  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const driverGateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), {
+    delegate: () => driverGateway,
     complete: mocks.complete,
     resolveParamsBinding: mocks.resolveParamsBinding,
-  }),
-);
+  });
+});
 vi.mock('@/lib/server/model-routes', () => ({ getStageRoute: mocks.getStageRoute }));
 
 const prior = '学过微积分、想练一阶微分方程方法判断';
@@ -49,19 +51,9 @@ beforeEach(() => {
   mocks.getStageRoute.mockReturnValue(undefined);
   delete process.env.MODEL_ROUTES;
   delete process.env.DEFAULT_MODEL;
-  mocks.resolveModel.mockImplementation(async (params) => ({
-    model: { provider: 'openai.responses', modelId: 'gpt-5.6' },
-    modelInfo: { capabilities: { tools: true }, outputWindow: 16384 },
-    providerId: 'openai',
-    modelId: 'gpt-5.6',
-    ...params,
-  }));
-  mocks.resolveParamsBinding.mockImplementation(async (_params, stage) => ({
-    providerId: 'openai',
-    modelId: 'gpt-5.6',
-    modelString: 'openai:gpt-5.6',
-    stage,
-  }));
+  mocks.resolveParamsBinding.mockImplementation(async () =>
+    testBinding({ modelId: 'gpt-5.6', modelString: 'openai:gpt-5.6' }),
+  );
 });
 
 describe('PRO Home model complete generation chain', () => {
@@ -134,8 +126,9 @@ describe('PRO Home model complete generation chain', () => {
     });
     const agent = buildAgent({
       model: driver.piModel,
-      streamFn: createCallLlmStreamFn({
-        languageModel: driver.connection.model,
+      streamFn: createGatewayStreamFn({
+        binding: driver.binding,
+        source: 'agent-runtime',
         beforeCall: assertActive,
       }),
       tools,
@@ -150,12 +143,11 @@ describe('PRO Home model complete generation chain', () => {
     expect(doc.scenes[0]?.type).toBe('quiz');
     expect(JSON.stringify(doc.scenes[0]?.content)).toContain('可分离变量');
     expect(doc.scenes[0]?.actions?.length).toBeGreaterThan(0);
-    expect(mocks.resolveModel.mock.calls.map(([p]) => p.stage)).toEqual(['maic-agent-driver']);
     expect(mocks.resolveParamsBinding.mock.calls.map(([, stage]) => stage)).toEqual([
+      'maic-agent-driver',
       'scene-content:quiz',
       'scene-actions',
     ]);
-    for (const [params] of mocks.resolveModel.mock.calls) expect(params.apiKey).toBe(home.apiKey);
     for (const [params] of mocks.resolveParamsBinding.mock.calls)
       expect(params.apiKey).toBe(home.apiKey);
     expect(assertActive.mock.calls.length).toBeGreaterThanOrEqual(5);
@@ -195,14 +187,9 @@ describe('PRO Home model complete generation chain', () => {
   });
 
   it('preflight separates chatting from generating and strips remote secrets from errors', async () => {
-    mocks.resolveModel.mockImplementation(async ({ stage }) => {
+    mocks.resolveParamsBinding.mockImplementation(async (_params, stage) => {
       if (stage === 'maic-agent-driver')
-        return {
-          model: {},
-          providerId: 'openai',
-          modelId: 'gpt-5.6',
-          modelString: home.modelString,
-        };
+        return testBinding({ modelId: 'gpt-5.6', modelString: home.modelString });
       throw new Error('401 invalid api key personal-secret https://secret.example?token=123');
     });
     expect(await preflightProModel(home)).toMatchObject({

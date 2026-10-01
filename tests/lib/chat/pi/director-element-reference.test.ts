@@ -1,3 +1,4 @@
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
@@ -9,7 +10,12 @@ const mocks = vi.hoisted(() => ({
   callAgentExecutions: 0,
 }));
 
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 vi.mock('@/lib/chat/pi/tools/call-agent', () => ({
   buildCallAgentTool: (options: { elementReferenceEvidence?: unknown }) => ({
     name: 'call_agent',
@@ -147,8 +153,7 @@ describe('Pi Director request-scoped selected-element evidence', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: { provider: 'test', modelId: 'director' } as never,
-      thinkingConfig: { mode: 'disabled', enabled: false },
+      binding: testBinding({ modelId: 'director', modelString: 'openai:director' }),
       abortSignal: controller.signal,
       signal: controller.signal,
       maxAgentTurns: 2,

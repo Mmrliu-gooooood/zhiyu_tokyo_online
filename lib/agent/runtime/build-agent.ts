@@ -21,7 +21,7 @@ import {
 import type { AgentLlmModel } from '@/lib/model-gateway/adapters/agent-pi-types';
 import { makeAllowlistGate } from './allowlist';
 import { makeQuotaHook } from './quota';
-import { hasLengthToolCallProvenance } from './stream-fn';
+import { hasLengthToolCallProvenance } from '@/lib/model-gateway/adapters/agent-stream-fn';
 import { withAgentToolTimeout } from './tool-timeout';
 
 // pi needs *a* model object on state; the injected StreamFn ignores it and uses

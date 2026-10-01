@@ -1,3 +1,4 @@
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { AgentTurnSummary } from '@/lib/orchestration/types';
@@ -5,7 +6,12 @@ import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import type { NativeWebSearchConfig } from '@/lib/chat/pi/tools/web-search';
 
 const mocks = vi.hoisted(() => ({ streamLLM: vi.fn(), searchWeb: vi.fn() }));
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 vi.mock('@/lib/web-search', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/web-search')>();
   return { ...actual, searchWeb: mocks.searchWeb };
@@ -18,7 +24,7 @@ const ZERO_USAGE = {
   outputTokens: 0,
   inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
 };
-const resolvedModel = { provider: 'test.provider', modelId: 'shared-model' };
+const resolvedModel = testBinding({ modelId: 'shared-model', modelString: 'openai:shared-model' });
 const registeredSearchConfig: NativeWebSearchConfig = {
   providerId: 'tavily',
   apiKey: 'registered-search-key',
@@ -189,10 +195,9 @@ function makeHarness(
       (async (event) => {
         events.push(event);
       }),
-    languageModel: resolvedModel as never,
+    binding: resolvedModel,
     onAgentDone: (summary) => summaries.push(summary),
     onActionDone,
-    thinkingConfig: { mode: 'disabled', enabled: false },
     maxOutputTokens: 384,
     abortSignal: options.abortController?.signal ?? new AbortController().signal,
     maxAgentTurns: 3,

@@ -1,11 +1,10 @@
 import { convertToLlm, type AgentTool } from '@earendil-works/pi-agent-core';
-import type { LanguageModel } from 'ai';
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
-import { createCallLlmStreamFn } from '@/lib/agent/runtime/stream-fn';
+import { createGatewayStreamFn } from '@/lib/model-gateway/adapters/agent-stream-fn';
+import type { ModelBinding } from '@/lib/model-gateway';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { AgentTurnSummary, WhiteboardActionRecord } from '@/lib/orchestration/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
-import type { ThinkingConfig } from '@/lib/types/provider';
 import { buildDirectorPrompt, buildUserPrompt, toHistoryMessages } from './prompts';
 import { createDirectorCompactionRuntime } from './director-compaction';
 import type { DirectorToolTraceEntry, SendEvent } from './types';
@@ -32,8 +31,9 @@ export async function runPiDirectorLoop(opts: {
   elementReference?: ResolvedSlideElementReference;
   agentConfigs: AgentConfig[];
   send: SendEvent;
-  languageModel: LanguageModel;
-  thinkingConfig: ThinkingConfig;
+  /** Resolved chat model; its thinking configuration travels with it. */
+  binding: ModelBinding;
+  /** Catalog output window; undefined (unknown model) omits the wire cap. */
   maxOutputTokens?: number;
   contextWindow?: number;
   abortSignal: AbortSignal;
@@ -123,10 +123,10 @@ export async function runPiDirectorLoop(opts: {
     return true;
   };
 
-  const streamFn = createCallLlmStreamFn({
-    languageModel: opts.languageModel,
+  const streamFn = createGatewayStreamFn({
+    binding: opts.binding,
     maxOutputTokens: opts.maxOutputTokens,
-    thinkingConfig: opts.thinkingConfig,
+    omitMaxOutputTokens: opts.maxOutputTokens === undefined,
     source: 'pi-chat-director',
     abortSignal: opts.abortSignal,
   });
@@ -147,7 +147,7 @@ export async function runPiDirectorLoop(opts: {
       body: opts.body,
       agentConfigs: opts.agentConfigs,
       send: opts.send,
-      languageModel: opts.languageModel,
+      binding: opts.binding,
       onAgentDone: (summary) => {
         totalAgents += 1;
         if (summary.contentPreview || summary.actionCount > 0) agentHadContent = true;
@@ -157,7 +157,6 @@ export async function runPiDirectorLoop(opts: {
         totalActions += 1;
         if (record) piWhiteboardLedger.push(record);
       },
-      thinkingConfig: opts.thinkingConfig,
       maxOutputTokens: opts.maxOutputTokens,
       abortSignal: opts.abortSignal,
       maxAgentTurns,

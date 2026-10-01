@@ -1,3 +1,4 @@
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
 import type { RuntimeRecord } from '@openmaic/dsl';
@@ -15,11 +16,17 @@ const mocks = vi.hoisted(() => ({
   getServerPersistenceProvider: vi.fn(),
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-  getModelResolutionError: mocks.getModelResolutionError,
-}));
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const { bindingFromLegacyResolved } = await import('@/tests/helpers/legacy-stream-gateway');
+  return mockGatewayModule(await importOriginal(), {
+    delegate: () => gateway,
+    resolveParamsBinding: async (...args: unknown[]) =>
+      bindingFromLegacyResolved(await mocks.resolveModel(...args)),
+  });
+});
 vi.mock('@/lib/web-search', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/web-search')>();
   return { ...actual, searchWeb: mocks.searchWeb };
@@ -41,7 +48,10 @@ const ZERO_USAGE = {
   outputTokens: 0,
   inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
 };
-const resolvedModel = { provider: 'test.provider', modelId: 'openmaic-resolved-model' };
+const resolvedModel = testBinding({
+  modelId: 'openmaic-resolved-model',
+  modelString: 'openai:openmaic-resolved-model',
+});
 const envNames = [
   'NEXT_PUBLIC_PI_CHAT_ENABLED',
   'OPENMAIC_ENABLE_PI_NATIVE_CHILD_RUNTIME',
@@ -184,7 +194,6 @@ describe('PR2 Native Child route production wiring', () => {
       apiKey: 'resolved-key',
       providerId: 'test-provider',
       modelInfo: { outputWindow: 512, contextWindow: 16_000 },
-      thinkingConfig: { mode: 'disabled', enabled: false },
     });
   });
 
@@ -233,7 +242,13 @@ describe('PR2 Native Child route production wiring', () => {
     expect(response.status).toBe(200);
     expect(mocks.resolveModel).toHaveBeenCalledTimes(1);
     expect(payloads).toHaveLength(5);
-    expect(payloads.every((payload) => payload.options.model === resolvedModel)).toBe(true);
+    expect(
+      payloads.every(
+        (payload) =>
+          (payload.options.model as { modelString?: string }).modelString ===
+          resolvedModel.modelString,
+      ),
+    ).toBe(true);
     expect(payloads.map((payload) => payload.source)).toEqual([
       'pi-chat-director',
       'pi-chat-director',
@@ -723,7 +738,13 @@ describe('PR2 Native Child route production wiring', () => {
 
     expect(response.status).toBe(200);
     expect(mocks.resolveModel).toHaveBeenCalledTimes(1);
-    expect(payloads.every((payload) => payload.options.model === resolvedModel)).toBe(true);
+    expect(
+      payloads.every(
+        (payload) =>
+          (payload.options.model as { modelString?: string }).modelString ===
+          resolvedModel.modelString,
+      ),
+    ).toBe(true);
     expect(payloads.map((payload) => payload.source)).toEqual([
       'pi-chat-director',
       'pi-chat-director',
@@ -865,7 +886,13 @@ describe('PR2 Native Child route production wiring', () => {
         }),
       );
       expect(payloads).toHaveLength(4);
-      expect(payloads.every((payload) => payload.options.model === resolvedModel)).toBe(true);
+      expect(
+        payloads.every(
+          (payload) =>
+            (payload.options.model as { modelString?: string }).modelString ===
+            resolvedModel.modelString,
+        ),
+      ).toBe(true);
       expect(payloads.map((payload) => payload.source)).toEqual([
         'pi-chat-director',
         'pi-chat-native-child',

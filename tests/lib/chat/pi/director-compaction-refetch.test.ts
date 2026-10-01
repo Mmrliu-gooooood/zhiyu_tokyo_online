@@ -21,12 +21,13 @@ const mocks = vi.hoisted(() => ({
   childContexts: [] as string[],
 }));
 
-vi.mock('@/lib/agent/runtime/stream-fn', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/agent/runtime/stream-fn')>();
+vi.mock('@/lib/model-gateway/adapters/agent-stream-fn', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/lib/model-gateway/adapters/agent-stream-fn')>();
   const { createAssistantMessageEventStream: createStream } = await import('@earendil-works/pi-ai');
   return {
     ...actual,
-    createCallLlmStreamFn: vi.fn(
+    createGatewayStreamFn: vi.fn(
       () =>
         ((_model, context) => {
           mocks.childContexts.push(contextText(context));
@@ -258,10 +259,9 @@ describe('Pi Director post-compaction refetch', () => {
       send: async (event) => {
         events.push(event);
       },
-      languageModel: {} as never,
+      binding: {} as never,
       onAgentDone: (summary) => childTurns.push(summary),
       onActionDone: () => {},
-      thinkingConfig: { mode: 'disabled', enabled: false },
       abortSignal: new AbortController().signal,
       maxAgentTurns: 2,
       getAgentTurnCount: () => childTurns.length,

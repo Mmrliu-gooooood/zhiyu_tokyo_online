@@ -8,7 +8,6 @@
 import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
-import { isProviderKeyRequired } from '@/lib/ai/providers';
 import {
   isPiChatEnabled,
   isPiNativeChildRuntimeEnabled,
@@ -22,9 +21,8 @@ import {
 } from '@/lib/chat/pi/config';
 import { runPiDirectorLoop } from '@/lib/chat/pi/director-loop';
 import type { SendEvent } from '@/lib/chat/pi/types';
-import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
+import { getBindingResolutionError, resolveParamsBinding, withThinking } from '@/lib/model-gateway';
 import { apiError } from '@/lib/server/api-response';
-import type { ThinkingConfig } from '@/lib/types/provider';
 import type { StatelessChatRequest } from '@/lib/types/chat';
 import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
 import { authenticatePersistenceHeaders } from '@/lib/persistence/server-auth';
@@ -100,26 +98,22 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    const {
-      model: languageModel,
-      apiKey: resolvedApiKey,
-      providerId,
-      modelInfo,
-      thinkingConfig: resolvedThinkingConfig,
-    } = await resolveModel({
-      modelString: body.model,
-      stage: 'chat-adapter',
-      apiKey: body.apiKey,
-      baseUrl: body.baseUrl,
-      providerType: body.providerType,
-      source: body.modelSource,
-      platformDefaultId: body.platformDefaultId,
-      // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
-      // wins, an unrouted one honors this client thinking (see resolve-model.ts).
-      thinkingConfig: body.thinkingConfig ?? body.thinking,
-    });
+    const resolvedBinding = await resolveParamsBinding(
+      {
+        modelString: body.model,
+        apiKey: body.apiKey,
+        baseUrl: body.baseUrl,
+        providerType: body.providerType,
+        source: body.modelSource,
+        platformDefaultId: body.platformDefaultId,
+        // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
+        // thinking wins, an unrouted one honors this client thinking.
+        thinkingConfig: body.thinkingConfig ?? body.thinking,
+      },
+      'chat-adapter',
+    );
 
-    if (isProviderKeyRequired(providerId) && !resolvedApiKey) {
+    if (!resolvedBinding.credentialReady) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');
     }
 
@@ -152,10 +146,10 @@ async function handlePOST(req: NextRequest) {
       await writer.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
     };
 
-    const thinkingConfig: ThinkingConfig = resolvedThinkingConfig ?? {
-      mode: 'disabled',
-      enabled: false,
-    };
+    // Route-pinned or client thinking; otherwise off for low-latency chat.
+    const binding = resolvedBinding.thinking
+      ? resolvedBinding
+      : withThinking(resolvedBinding, { mode: 'disabled', enabled: false });
 
     const maxAgentTurns = getPiMaxAgentTurns(body);
     const maxActionsPerAgent = getPiMaxActionsPerAgent(body);
@@ -241,10 +235,11 @@ async function handlePOST(req: NextRequest) {
           elementReference,
           agentConfigs,
           send,
-          languageModel,
-          thinkingConfig,
-          maxOutputTokens: modelInfo?.outputWindow,
-          contextWindow: modelInfo?.contextWindow,
+          binding,
+          maxOutputTokens: binding.capabilities.knownModel
+            ? binding.capabilities.maxOutputTokens
+            : undefined,
+          contextWindow: binding.capabilities.contextWindow,
           abortSignal: abortController.signal,
           signal,
           maxAgentTurns,
@@ -309,7 +304,7 @@ async function handlePOST(req: NextRequest) {
       `Pi chat request failed [model=${chatModel ?? 'unknown'}, messages=${chatMessageCount ?? 0}]:`,
       error,
     );
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     if (resolutionError) {
       return apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message);
     }

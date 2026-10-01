@@ -12,8 +12,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/agent/runtime/build-agent', () => ({ buildAgent: mocks.buildAgent }));
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
-vi.mock('@/lib/server/resolve-model', () => ({ resolveModel: mocks.resolveModel }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const { bindingFromLegacyResolved } = await import('@/tests/helpers/legacy-stream-gateway');
+  return mockGatewayModule(await importOriginal(), {
+    delegate: () => gateway,
+    resolveParamsBinding: async (...args: unknown[]) =>
+      bindingFromLegacyResolved(await mocks.resolveModel(...args)),
+  });
+});
 vi.mock('@/lib/ai/providers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/ai/providers')>();
   return { ...actual, isProviderKeyRequired: () => false };
@@ -243,7 +252,6 @@ describe('PPT element reference Route → Director → real call_agent L2', () =
       apiKey: '',
       providerId: 'test',
       modelInfo: { outputWindow: 1024, contextWindow: 8192 },
-      thinkingConfig: { mode: 'disabled', enabled: false },
     });
   });
 

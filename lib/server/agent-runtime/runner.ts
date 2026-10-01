@@ -16,14 +16,14 @@ import {
 } from '@openmaic/storage';
 
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
-import { createCallLlmStreamFn } from '@/lib/agent/runtime/stream-fn';
+import { createGatewayStreamFn } from '@/lib/model-gateway/adapters/agent-stream-fn';
 import { HOST_AGENT_LIFECYCLE as LIFECYCLE } from '@/lib/agent-runtime/lifecycle';
 import { createLogger } from '@/lib/logger';
 import { parseCourseRefs, type CourseRef } from '@/lib/workbench/course-refs';
 import { parseElementRefs, type ElementRef } from '@/lib/workbench/element-refs';
 import type { Scene, SlideContent } from '@/lib/types/stage';
 
-import { AGENT_DRIVER_STAGE, resolveAgentDriverModel } from './agent-driver-model';
+import { resolveAgentDriverModel } from './agent-driver-model';
 import { loadModelConnectionForWorker } from './model-connections';
 import { preflightProModel } from './model-preflight';
 import { isModelConfigurationError, safeModelError } from './model-errors';
@@ -1330,28 +1330,16 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       throw new Error(modelReadiness.error);
     }
     const driver = await resolveAgentDriverModel(modelContext);
-    let driverHostname = 'unknown';
-    try {
-      driverHostname = new URL(driver.connection.baseUrl ?? '').hostname || 'unknown';
-    } catch {
-      // Diagnostics deliberately retain only the parsed hostname.
-    }
-    const streamFn = createCallLlmStreamFn({
-      languageModel: driver.connection.model,
+    // Pre-send DNS retries and their diagnostics live in the gateway (plan 3.8).
+    const streamFn = createGatewayStreamFn({
+      binding: driver.binding,
       maxOutputTokens: driver.wireMaxOutputTokens,
       omitMaxOutputTokens: driver.wireMaxOutputTokens === undefined,
-      thinkingConfig: driver.connection.thinkingConfig,
       source: 'agent-runtime',
       abortSignal: abort.signal,
       beforeCall: modelContext?.assertActive,
-      maxRetries: 0,
+      retry: 'none',
       formatError: safeModelError,
-      retryPreSendDns: true,
-      dnsDiagnostic: {
-        providerId: driver.connection.providerId,
-        hostname: driverHostname,
-        step: AGENT_DRIVER_STAGE,
-      },
     });
     let questionEmitted = false;
     const askUserTool = buildAskUserTool({
@@ -1528,7 +1516,14 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         ids.flatMap((skillId) => {
           const skill = installedSkills.find((candidate) => candidate.id === skillId);
           return skill
-            ? [{ id: skill.id, ...(skill.constraints ? { constraints: skill.constraints as Record<string, unknown> } : {}) }]
+            ? [
+                {
+                  id: skill.id,
+                  ...(skill.constraints
+                    ? { constraints: skill.constraints as Record<string, unknown> }
+                    : {}),
+                },
+              ]
             : [];
         }),
       onCompleted: (job) =>

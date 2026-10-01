@@ -1,3 +1,4 @@
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { AgentTurnSummary } from '@/lib/orchestration/types';
@@ -5,7 +6,12 @@ import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 
 const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
 
-vi.mock('@/lib/ai/llm', () => ({ streamLLM: mocks.streamLLM }));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 
 import { buildCallAgentTool } from '@/lib/chat/pi/tools/call-agent';
 
@@ -14,7 +20,7 @@ const ZERO_USAGE = {
   outputTokens: 0,
   inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
 };
-const resolvedModel = { provider: 'test.provider', modelId: 'child-model' };
+const resolvedModel = testBinding({ modelId: 'child-model', modelString: 'openai:child-model' });
 const teacher: AgentConfig = {
   id: 'teacher-1',
   name: 'Teacher',
@@ -99,10 +105,9 @@ function makeHarness() {
     send: async (event) => {
       events.push(event);
     },
-    languageModel: resolvedModel as never,
+    binding: resolvedModel,
     onAgentDone: (summary) => summaries.push(summary),
     onActionDone,
-    thinkingConfig: { mode: 'disabled', enabled: false },
     maxOutputTokens: 384,
     abortSignal: abortController.signal,
     maxAgentTurns: 3,

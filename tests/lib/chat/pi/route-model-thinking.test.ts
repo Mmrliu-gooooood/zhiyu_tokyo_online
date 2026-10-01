@@ -9,9 +9,14 @@ const mocks = vi.hoisted(() => ({
   runPiDirectorLoop: vi.fn(),
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { bindingFromLegacyResolved } = await import('@/tests/helpers/legacy-stream-gateway');
+  return mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: async (...args: unknown[]) =>
+      bindingFromLegacyResolved(await mocks.resolveModel(...args)),
+  });
+});
 
 vi.mock('@/lib/ai/providers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/ai/providers')>();
@@ -166,15 +171,17 @@ describe('POST /api/chat/pi model and thinking resolution', () => {
     expect(mocks.resolveModel).toHaveBeenCalledWith(
       expect.objectContaining({
         modelString: 'client:model',
-        stage: 'chat-adapter',
         apiKey: 'client-key',
         thinkingConfig: { enabled: true, level: 'high' },
       }),
+      'chat-adapter',
     );
     expect(mocks.runPiDirectorLoop).toHaveBeenCalledWith(
       expect.objectContaining({
-        languageModel: { id: 'language-model' },
-        thinkingConfig: { enabled: false },
+        binding: expect.objectContaining({
+          providerId: 'test-provider',
+          thinking: { enabled: false },
+        }),
         maxOutputTokens: 4096,
       }),
     );

@@ -34,9 +34,14 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { bindingFromLegacyResolved } = await import('@/tests/helpers/legacy-stream-gateway');
+  return mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: async (...args: unknown[]) =>
+      bindingFromLegacyResolved(await mocks.resolveModel(...args)),
+  });
+});
 
 vi.mock('@/lib/ai/providers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/ai/providers')>();
@@ -50,8 +55,9 @@ vi.mock('@/lib/live-mode', () => ({
   isLiveMode: false,
 }));
 
-vi.mock('@/lib/agent/runtime/stream-fn', () => ({
-  createCallLlmStreamFn: mocks.createCallLlmStreamFn,
+vi.mock('@/lib/model-gateway/adapters/agent-stream-fn', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/model-gateway/adapters/agent-stream-fn')>()),
+  createGatewayStreamFn: mocks.createCallLlmStreamFn,
 }));
 
 vi.mock('@/lib/agent/runtime/build-agent', () => ({

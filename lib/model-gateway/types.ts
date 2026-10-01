@@ -147,6 +147,8 @@ export interface ModelCapabilities {
   knownModel: boolean;
   /** Reviewed application thinking capability (drives defaults and the UI). */
   thinking?: ThinkingCapability;
+  /** Reviewed: the API rejects a reasoning effort combined with function tools. */
+  rejectsReasoningWithTools?: boolean;
 }
 
 export interface ModelTransforms {

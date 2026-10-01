@@ -1,8 +1,18 @@
 import type { ProModelContext } from '@/types/pro-model';
-import { resolveModel } from '@/lib/server/resolve-model';
-import { getStageRoute, type LlmStage } from '@/lib/server/model-routes';
+import { GatewayError, resolveParamsBinding, type ModelBinding } from '@/lib/model-gateway';
+import type { LlmStage } from '@/lib/server/model-routes';
 import { resolveAgentDriverModel } from './agent-driver-model';
 import { safeModelError } from './model-errors';
+
+/** A binding that would be refused before sending (missing credential / endpoint value). */
+function assertCredentialReady(binding: ModelBinding): void {
+  if (!binding.credentialReady) {
+    throw new GatewayError('MODEL_CONFIGURATION', {
+      providerId: binding.providerId,
+      modelId: binding.modelId,
+    });
+  }
+}
 
 /** Static resolution only: upstream key acceptance/tool support still require a real call. */
 export async function preflightProModel(modelContext?: ProModelContext): Promise<{
@@ -14,7 +24,8 @@ export async function preflightProModel(modelContext?: ProModelContext): Promise
   let driverModel: string | undefined;
   try {
     const driver = await resolveAgentDriverModel(modelContext);
-    driverModel = driver.connection.modelString;
+    assertCredentialReady(driver.binding);
+    driverModel = driver.binding.modelString;
   } catch (error) {
     return { chatReady: false, generationReady: false, error: safeModelError(error) };
   }
@@ -28,7 +39,8 @@ export async function preflightProModel(modelContext?: ProModelContext): Promise
       'scene-content:pbl',
       'scene-actions',
     ] as LlmStage[]) {
-      await resolveModel(getStageRoute(stage) ? { stage } : { ...modelContext, stage });
+      // A configured stage route ignores the connection context (resolveBinding).
+      assertCredentialReady(await resolveParamsBinding(modelContext ?? {}, stage));
     }
     return { chatReady: true, generationReady: true, driverModel };
   } catch (error) {

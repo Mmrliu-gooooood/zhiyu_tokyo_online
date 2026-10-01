@@ -1,10 +1,10 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { Type, type Static } from 'typebox';
-import type { LanguageModel } from 'ai';
 import { nanoid } from 'nanoid';
 import { buildAgent } from '@/lib/agent/runtime/build-agent';
 import { runNativeChild } from '@/lib/agent/runtime/run-native-child';
-import { createCallLlmStreamFn } from '@/lib/agent/runtime/stream-fn';
+import { createGatewayStreamFn } from '@/lib/model-gateway/adapters/agent-stream-fn';
+import type { ModelBinding } from '@/lib/model-gateway';
 import {
   createParserState,
   finalizeParser,
@@ -14,7 +14,6 @@ import {
 } from '@/lib/orchestration/stateless-generate';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { AgentTurnSummary, WhiteboardActionRecord } from '@/lib/orchestration/types';
-import type { ThinkingConfig } from '@/lib/types/provider';
 import type { ChildRuntimeMode } from '../child-runtime';
 import type { DirectorSceneEvidenceMetadata } from './read-scene';
 import { buildNativeWebSearchTool, type NativeWebSearchConfig } from './web-search';
@@ -533,10 +532,9 @@ export function buildCallAgentTool(opts: {
   body: StatelessChatRequest;
   agentConfigs: AgentConfig[];
   send: SendEvent;
-  languageModel: LanguageModel;
+  binding: ModelBinding;
   onAgentDone: (summary: AgentTurnSummary) => void;
   onActionDone: (record?: WhiteboardActionRecord) => void;
-  thinkingConfig: ThinkingConfig;
   maxOutputTokens?: number;
   abortSignal: AbortSignal;
   maxAgentTurns: number;
@@ -796,11 +794,11 @@ export function buildCallAgentTool(opts: {
         let nativeResult: Awaited<ReturnType<typeof runNativeChild>>;
         try {
           nativeResult = await runNativeChild({
-            streamFn: createCallLlmStreamFn({
-              languageModel: opts.languageModel,
+            streamFn: createGatewayStreamFn({
+              binding: opts.binding,
               source: 'pi-chat-native-child',
-              thinkingConfig: opts.thinkingConfig,
               maxOutputTokens: opts.maxOutputTokens,
+              omitMaxOutputTokens: opts.maxOutputTokens === undefined,
               abortSignal: childAbort.signal,
             }),
             systemPrompt: buildNativeChildPrompt(
@@ -899,11 +897,11 @@ export function buildCallAgentTool(opts: {
       const childToolsByName = new Map(childTools.map((tool) => [tool.name, tool]));
 
       const child = buildAgent({
-        streamFn: createCallLlmStreamFn({
-          languageModel: opts.languageModel,
+        streamFn: createGatewayStreamFn({
+          binding: opts.binding,
           source: 'pi-chat-child',
-          thinkingConfig: opts.thinkingConfig,
           maxOutputTokens: opts.maxOutputTokens,
+          omitMaxOutputTokens: opts.maxOutputTokens === undefined,
           abortSignal: childAbort.signal,
         }),
         systemPrompt: buildChildPrompt(

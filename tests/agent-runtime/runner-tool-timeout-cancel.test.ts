@@ -1,3 +1,4 @@
+import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
 /**
  * Runner-level pins for the global tool-call execution bound and prompt
  * cancellation of a hung tool.
@@ -72,10 +73,12 @@ vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) =>
   return { ...actual, resolveAgentDriverModel: mocks.resolveAgentDriverModel };
 });
 
-vi.mock('@/lib/ai/llm', () => ({
-  streamLLM: mocks.streamLLM,
-  callLLM: vi.fn(),
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) => {
+  const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
+  const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
+  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
+});
 
 // The tool assembly seam is mocked so the runner's agent executes exactly one
 // instrumented hung tool instead of the full production toolset.
@@ -232,9 +235,7 @@ const setToolTimeout = (value: string | undefined): void => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.resolveAgentDriverModel.mockResolvedValue({
-    // A truthy model stub: the real stream-fn adapter reads `.provider` off
-    // the language model while mapping the first turn.
-    connection: { model: {} as never, thinkingConfig: undefined },
+    binding: testBinding({ modelId: 'driver-model', modelString: 'openai:driver-model' }),
     piModel: { api: 'openai-completions', provider: 'openai', id: 'driver-model' },
     wireMaxOutputTokens: undefined,
     reservedOutputTokens: 8192,
