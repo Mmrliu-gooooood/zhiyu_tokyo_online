@@ -18,9 +18,8 @@
  * - Events are streamed via LangGraph's custom stream mode
  */
 
-import type { LanguageModel } from 'ai';
+import type { ModelBinding } from '@/lib/model-gateway';
 import type { StatelessChatRequest, StatelessEvent, ParsedAction } from '@/lib/types/chat';
-import type { ThinkingConfig } from '@/lib/types/provider';
 import type { WhiteboardActionRecord } from './types';
 import { createOrchestrationGraph, buildInitialState } from './director-graph';
 import { parse as parsePartialJson, Allow } from 'partial-json';
@@ -392,8 +391,7 @@ export function finalizeParser(state: ParserState): ParseResult {
 export async function* statelessGenerate(
   request: StatelessChatRequest,
   abortSignal: AbortSignal,
-  languageModel: LanguageModel,
-  thinkingConfig?: ThinkingConfig,
+  binding: ModelBinding,
 ): AsyncGenerator<StatelessEvent> {
   log.info(
     `[StatelessGenerate] Starting orchestration for agents: ${request.config.agentIds.join(', ')}`,
@@ -404,7 +402,7 @@ export async function* statelessGenerate(
 
   try {
     const graph = createOrchestrationGraph();
-    const initialState = buildInitialState(request, languageModel, thinkingConfig);
+    const initialState = buildInitialState(request, binding);
 
     const stream = await graph.stream(initialState, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

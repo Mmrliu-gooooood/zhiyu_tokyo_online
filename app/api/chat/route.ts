@@ -16,12 +16,10 @@ import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
 import { statelessGenerate } from '@/lib/orchestration/stateless-generate';
-import { isProviderKeyRequired } from '@/lib/ai/providers';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { getModelResolutionError, resolveModel } from '@/lib/server/resolve-model';
-import type { ThinkingConfig } from '@/lib/types/provider';
+import { getBindingResolutionError, resolveParamsBinding, withThinking } from '@/lib/model-gateway';
 const log = createLogger('Chat API');
 
 // Allow streaming responses up to 60 seconds
@@ -75,25 +73,22 @@ async function handlePOST(req: NextRequest) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: config.agentIds');
     }
 
-    const {
-      model: languageModel,
-      apiKey: resolvedApiKey,
-      providerId,
-      thinkingConfig: resolvedThinking,
-    } = await resolveModel({
-      modelString: body.model,
-      stage: 'chat-adapter',
-      apiKey: body.apiKey,
-      baseUrl: body.baseUrl,
-      providerType: body.providerType,
-      source: body.modelSource,
-      platformDefaultId: body.platformDefaultId,
-      // Let resolveModel arbitrate thinking too: a routed chat-adapter's thinking
-      // wins, an unrouted one honors this client thinking (see resolve-model.ts).
-      thinkingConfig: body.thinkingConfig ?? body.thinking,
-    });
+    const resolvedBinding = await resolveParamsBinding(
+      {
+        modelString: body.model,
+        apiKey: body.apiKey,
+        baseUrl: body.baseUrl,
+        providerType: body.providerType,
+        source: body.modelSource,
+        platformDefaultId: body.platformDefaultId,
+        // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
+        // thinking wins, an unrouted one honors this client thinking.
+        thinkingConfig: body.thinkingConfig ?? body.thinking,
+      },
+      'chat-adapter',
+    );
 
-    if (isProviderKeyRequired(providerId) && !resolvedApiKey) {
+    if (!resolvedBinding.credentialReady) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');
     }
 
@@ -137,20 +132,11 @@ async function handlePOST(req: NextRequest) {
 
         // Use the resolved thinking (route-pinned for a routed chat-adapter,
         // else the client's). Default to disabled for low-latency chat.
-        const thinkingConfig: ThinkingConfig = resolvedThinking ?? {
-          mode: 'disabled',
-          enabled: false,
-        };
+        const binding = resolvedBinding.thinking
+          ? resolvedBinding
+          : withThinking(resolvedBinding, { mode: 'disabled', enabled: false });
 
-        const generator = statelessGenerate(
-          {
-            ...body,
-            apiKey: resolvedApiKey,
-          },
-          signal,
-          languageModel,
-          thinkingConfig,
-        );
+        const generator = statelessGenerate(body, signal, binding);
 
         for await (const event of generator) {
           if (signal.aborted) {
@@ -211,7 +197,7 @@ async function handlePOST(req: NextRequest) {
       `Chat request failed [model=${chatModel ?? 'unknown'}, messages=${chatMessageCount ?? 0}]:`,
       error,
     );
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     if (resolutionError) {
       return apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message);
     }

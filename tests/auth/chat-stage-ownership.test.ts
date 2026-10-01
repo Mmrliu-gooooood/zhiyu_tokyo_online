@@ -38,17 +38,14 @@ vi.mock('@/lib/auth/session', () => ({
   },
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-  getModelResolutionError: () => undefined,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: mocks.resolveModel,
+  }),
+);
 
 vi.mock('@/lib/orchestration/stateless-generate', () => ({
   statelessGenerate: vi.fn(),
-}));
-
-vi.mock('@/lib/ai/providers', () => ({
-  isProviderKeyRequired: () => false,
 }));
 
 import { POST as postChat } from '@/app/api/chat/route';
@@ -88,10 +85,10 @@ describe('chat/agent stage POST owner gate', () => {
     mocks.ownerId = undefined;
     mocks.resolveModel.mockReset();
     mocks.resolveModel.mockResolvedValue({
-      model: 'openai:gpt-test',
-      apiKey: 'k',
+      modelString: 'openai:gpt-test',
       providerId: 'openai',
-      thinkingConfig: undefined,
+      credentialReady: true,
+      thinking: { mode: 'disabled' },
     });
     vi.stubEnv('AUTH_MODE', '');
     vi.stubEnv('NEXT_PUBLIC_AUTH_MODE', '');
@@ -113,30 +110,24 @@ describe('chat/agent stage POST owner gate', () => {
   });
 
   it('hides a foreign user stage and the unsigned library from a signed-in user', () => {
-    expect(
-      decideStagePostAccess({ callerOwnerId: OWNER_B, stageOwnerId: OWNER_A }),
-    ).toBe('not-found');
-    expect(
-      decideStagePostAccess({ callerOwnerId: OWNER_B, stageOwnerId: ANON_A }),
-    ).toBe('not-found');
-    expect(
-      decideStagePostAccess({ callerOwnerId: OWNER_A, stageOwnerId: OWNER_A }),
-    ).toBe('allow');
+    expect(decideStagePostAccess({ callerOwnerId: OWNER_B, stageOwnerId: OWNER_A })).toBe(
+      'not-found',
+    );
+    expect(decideStagePostAccess({ callerOwnerId: OWNER_B, stageOwnerId: ANON_A })).toBe(
+      'not-found',
+    );
+    expect(decideStagePostAccess({ callerOwnerId: OWNER_A, stageOwnerId: OWNER_A })).toBe('allow');
   });
 
   it('keeps the unsigned shared library chatable and hides user stages from unsigned traffic', () => {
-    expect(
-      decideStagePostAccess({ callerOwnerId: undefined, stageOwnerId: ANON_A }),
-    ).toBe('allow');
-    expect(
-      decideStagePostAccess({ callerOwnerId: ANON_B, stageOwnerId: ANON_A }),
-    ).toBe('allow');
-    expect(
-      decideStagePostAccess({ callerOwnerId: undefined, stageOwnerId: OWNER_A }),
-    ).toBe('not-found');
-    expect(
-      decideStagePostAccess({ callerOwnerId: ANON_A, stageOwnerId: OWNER_A }),
-    ).toBe('not-found');
+    expect(decideStagePostAccess({ callerOwnerId: undefined, stageOwnerId: ANON_A })).toBe('allow');
+    expect(decideStagePostAccess({ callerOwnerId: ANON_B, stageOwnerId: ANON_A })).toBe('allow');
+    expect(decideStagePostAccess({ callerOwnerId: undefined, stageOwnerId: OWNER_A })).toBe(
+      'not-found',
+    );
+    expect(decideStagePostAccess({ callerOwnerId: ANON_A, stageOwnerId: OWNER_A })).toBe(
+      'not-found',
+    );
   });
 
   it('requires an existing course to be present when attaching, and hides missing ids from signed-in callers', () => {
@@ -188,6 +179,15 @@ describe('chat/agent stage POST owner gate', () => {
       { readMeta: async () => meta(ANON_A) },
     );
     expect(response).toBeNull();
+  });
+
+  it('resolves the chat model when the owner posts against their own stage', async () => {
+    // Positive control for the "does not call the chat model" cases below.
+    mocks.ownerId = OWNER_A;
+    vi.mocked(stagePostMeta.read).mockResolvedValue(meta(OWNER_A));
+    const response = await postChat(chatRequest('stage-a'));
+    expect(response.status).toBe(200);
+    expect(mocks.resolveModel).toHaveBeenCalledWith(expect.anything(), 'chat-adapter');
   });
 
   it('does not call the chat model when B posts against A stage', async () => {

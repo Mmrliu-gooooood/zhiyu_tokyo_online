@@ -24,12 +24,11 @@
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
 import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import type { LanguageModel } from 'ai';
 
-import { AISdkLangGraphAdapter } from './ai-sdk-adapter';
+import { GatewayLangGraphAdapter } from '@/lib/model-gateway/adapters/langchain';
+import type { ModelBinding } from '@/lib/model-gateway';
 import type { StatelessEvent } from '@/lib/types/chat';
 import type { StatelessChatRequest } from '@/lib/types/chat';
-import type { ThinkingConfig } from '@/lib/types/provider';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { buildStructuredPrompt } from './prompt-builder';
@@ -54,8 +53,8 @@ const OrchestratorState = Annotation.Root({
   messages: Annotation<StatelessChatRequest['messages']>,
   storeState: Annotation<StatelessChatRequest['storeState']>,
   availableAgentIds: Annotation<string[]>,
-  languageModel: Annotation<LanguageModel>,
-  thinkingConfig: Annotation<ThinkingConfig | null>,
+  /** Resolved model; its thinking configuration travels with it. */
+  binding: Annotation<ModelBinding>,
   discussionContext: Annotation<{ topic: string; prompt?: string } | null>,
   triggerAgentId: Annotation<string | null>,
   userProfile: Annotation<{ nickname?: string; bio?: string } | null>,
@@ -194,7 +193,7 @@ async function directorNode(
     '\n' +
     buildUserReplyGuidance(state.messages);
 
-  const adapter = new AISdkLangGraphAdapter(state.languageModel, state.thinkingConfig ?? undefined);
+  const adapter = new GatewayLangGraphAdapter(state.binding);
 
   try {
     const result = await adapter._generate(
@@ -321,7 +320,7 @@ async function runAgentGeneration(
     '\n' +
     buildUserReplyGuidance(state.messages, agentConfig.role);
   const openaiMessages = convertMessagesToOpenAI(state.messages, agentId);
-  const adapter = new AISdkLangGraphAdapter(state.languageModel, state.thinkingConfig ?? undefined);
+  const adapter = new GatewayLangGraphAdapter(state.binding);
 
   const lcMessages = [
     new SystemMessage(systemPrompt),
@@ -533,12 +532,11 @@ export function createOrchestrationGraph() {
 
 /**
  * Build initial state for the orchestration graph from a StatelessChatRequest
- * and a pre-created LanguageModel instance.
+ * and the resolved model binding.
  */
 export function buildInitialState(
   request: StatelessChatRequest,
-  languageModel: LanguageModel,
-  thinkingConfig?: ThinkingConfig,
+  binding: ModelBinding,
 ): typeof OrchestratorState.State {
   // Build request-scoped agent config overrides for generated agents.
   // These travel with each request — no server-side persistence needed.
@@ -568,8 +566,7 @@ export function buildInitialState(
     messages: request.messages,
     storeState: request.storeState,
     availableAgentIds: request.config.agentIds,
-    languageModel,
-    thinkingConfig: thinkingConfig ?? null,
+    binding,
     discussionContext,
     triggerAgentId: request.config.triggerAgentId || null,
     userProfile: request.userProfile || null,
