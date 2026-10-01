@@ -35,6 +35,15 @@ pnpm exec vitest run tests/model-gateway/characterization
 $env:UPDATE_LEGACY_GOLDEN = '1'; pnpm exec vitest run tests/model-gateway/characterization
 ```
 
+## Thinking equivalence (P1-4 → P2-5)
+
+`thinking-p1.test.ts` replays the single-turn thinking matrix through `runtime/thinking.ts`
+with temporary pi model objects; every difference must be in `thinking-allowlist.json` with a
+reason (stale entries fail). P2-5 re-runs the whole golden set through real bindings with the
+shared harness in `thinking-equivalence.ts`. Data the P2 overlays must carry (found here):
+opt-in `xhigh`/`max`/`minimal` levels from the reviewed capability, `supportsReasoningEffort:false`
+for non-effort capabilities on OpenAI-compatible formats, and GPT-5.6 (absent from pi 0.99).
+
 ## Behavior checklist from legacy unit tests
 
 Tick an ID (☐ → ☑) once it is covered by a gateway-era test (or explicitly waived with a reason)
@@ -76,7 +85,7 @@ assertion (P2-5 replays the goldens through the gateway).
 | ☐ RS-03 | Non-streaming responses recover `reasoning_content` | `reasoning-sse.test.ts:198` | P1-5 (pi streams only; covered by RS-01) |
 | ☐ RS-04 | Custom gateway stream yields reasoning and clean text | `openai-provider.test.ts:710`, `openai-sdk-integration.test.ts:10` | P1-5 |
 | ☐ RS-05 | SSE error frames in a 200 stream surface as errors | `openai-sdk-integration.test.ts:125` | P1-5 error matrix |
-| ☐ RS-06 | Inline `<think>` text (Ollama, some SiliconFlow models) splits into reasoning | `lib/ai/providers.ts` `extractReasoningMiddleware` | P1-5 `think-tag-splitter` |
+| ☑ RS-06 | Inline `<think>` text (Ollama, some SiliconFlow models) splits into reasoning | `lib/ai/providers.ts` `extractReasoningMiddleware` | P1-5 `think-tag-splitter` — `tests/model-gateway/splitter-toolloop-images.test.ts` |
 
 ### Usage accounting
 
@@ -84,8 +93,8 @@ assertion (P2-5 replays the goldens through the gateway).
 | --- | --- | --- | --- |
 | ☐ US-01 | Usage is attributed to the canonical model id (alias → canonical) | `llm-thinking-options.test.ts:95` | P1-5 usage |
 | ☐ US-02 | Bedrock usage is attributed to the `bedrock` app provider id | `llm-thinking-options.test.ts:124` | P1-5 usage |
-| ☐ US-03 | Multi-step tool runs record every step's usage | `llm-thinking-options.test.ts:153` | P1-6 tool-loop |
-| ☐ US-04 | Every validation-retry attempt is recorded; the last attempt is recorded even when all fail | `llm-thinking-options.test.ts:181, 225` | P1-5 `complete()` validate |
+| ☑ US-03 | Multi-step tool runs record every step's usage | `llm-thinking-options.test.ts:153` | P1-6 tool-loop — `splitter-toolloop-images.test.ts` |
+| ☑ US-04 | Every validation-retry attempt is recorded; the last attempt is recorded even when all fail | `llm-thinking-options.test.ts:181, 225` | P1-5 `complete()` validate — `gateway-faux.test.ts` |
 | ☐ US-05 | Falls back to single-step usage when no aggregate exists | `llm-thinking-options.test.ts:256` | P1-5 usage |
 | ☐ US-06 | Agent StreamFn writes token usage into the completed pi assistant message | `stream-fn-usage.test.ts:12` | P3-4 agent-stream-fn |
 

@@ -1,0 +1,27 @@
+[
+  {
+    "group": "deepseek",
+    "case": "deepseek-flash|thinking=default|tools=0|stream",
+    "reason": "mode:'default' is treated as the provider default (no thinking fields), the same as no config. No producer emits mode:'default' (UI normalization never yields it); legacy adapters disagreed on it (DeepSeek enabled, Kimi/GLM omitted)."
+  },
+  {
+    "group": "anthropic",
+    "case": "claude-haiku-4-5|thinking=default|tools=0|stream",
+    "reason": "Same mode:'default' rule; legacy sent the catalog default budget although Haiku 4.5's capability defaults to thinking off."
+  },
+  {
+    "group": "anthropic",
+    "case": "^claude-(haiku-4-5|opus-4-6|opus-4-8)[|]thinking=(disabled|effort-none)[|]",
+    "reason": "pi sends an explicit thinking:{type:'disabled'} where the AI SDK omitted the field; the Anthropic API treats both as thinking off."
+  },
+  {
+    "group": "glm",
+    "case": "^glm-5[.](1|2)[|]thinking=(enabled|effort-[a-z]+)[|]",
+    "reason": "pi's zai thinking format adds clear_thinking:false (keep prior reasoning across turns); thinking type and effort match legacy. Accepted: pi replays reasoning_content for GLM, which needs it."
+  },
+  {
+    "group": "qwen",
+    "case": "^qwen3[.](6-max-preview|7-plus)[|]thinking=budget-min[|]",
+    "reason": "A zero budget is not sent. Legacy sent enable_thinking:true with thinking_budget:0, a contradictory request; the gateway enables thinking with the provider's default budget."
+  }
+]

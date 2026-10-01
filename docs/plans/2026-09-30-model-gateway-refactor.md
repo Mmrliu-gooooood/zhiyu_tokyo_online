@@ -796,7 +796,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | 阶段 | 状态 | 提交 | 测试证据 | 未完成 / 备注 |
 | --- | --- | --- | --- | --- |
 | P0 | 已完成（2026-10-01） | 6ceed08d, 7492f751, 8739e846, f10b4610, 2d1a32cd + 本次进度提交 | 见下方 P0 记录 | 无阻断；全量 vitest 有 6 个负载下超时（单独复跑全绿），见记录 |
-| P1 | 未开始 | | | |
+| P1 | 已完成（2026-10-01） | e685d617, fb61d7bc, 1b087555, 31a97a3f, 26494258, ebf14626 + 本次 P1-7 提交 | 见下方 P1 记录 | 思考映射有 5 类白名单差异（17 例）；P2 overlay 需补的数据已记录 |
 | P2 | 未开始 | | | |
 | P3 | 未开始 | | | |
 | P4 | 未开始 | | | |
@@ -850,6 +850,48 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
   - 旧 Docker 构建需 ALPINE_MIRROR=mirrors.aliyun.com（与 .env 中一致），否则 apk 下载卡住
   - 特征测试 README 的行为清单（RQ/RS/US/AG/CT）在删除旧测试前（P3-6）逐条勾选
 下一阶段可开始：是（P1 不依赖真实凭据或产品取舍）
+```
+
+```text
+阶段：P1
+提交：e685d617（P1-1）、fb61d7bc（P1-2）、1b087555（P1-3）、31a97a3f（P1-4）、26494258（P1-5）、ebf14626（P1-6）、本次 P1-7 + 进度提交
+新增/修改模块（全部在 lib/model-gateway，未改任何业务文件；instrumentation 仅改为非阻塞预热）：
+  - types.ts、messages.ts、index.ts；credentials/{handles,auth-context}.ts
+  - runtime/{pi-registry,transport,thinking,classify,errors,retry,quota,usage,entitlement,images,think-tag-splitter,pipeline,gateway,tool-loop}.ts
+  - testing/faux-gateway.ts（基于 pi fauxProvider，真实管线 + 内存记录用量/日志/配额）
+  - ModelBinding 相对 3.3.2 的微调：新增 upstream（pi 内置 / 自定义 descriptor）、transforms（inlineThinkTags、payloadPatches）、proxy，capabilities 增加 thinking（应用审核过的思考能力）
+通过的命令与结果：
+  - pnpm exec vitest run tests/model-gateway：12 文件 / 101 用例通过（perf 2 个默认跳过）
+  - 6.2 基线 A/B 组 + tests/model-gateway：32 文件，329 通过 / 2 跳过
+  - pnpm exec tsc --noEmit -p tsconfig.build.json：通过；tsconfig.json（含测试）在 model-gateway 范围内无错误
+  - eslint lib/model-gateway tests/model-gateway：0 错误 0 警告
+  - pnpm build:worker、pnpm build：通过；node scripts/smoke-pi-runtime.mjs：standalone 与 worker 均通过（本地，非严格模式）
+测试覆盖（计划 P1 测试要求）：
+  - 错误矩阵：401/403/404/400/422/上下文溢出/429+retry-after/5xx/DNS/连接重置/200 后断流/取消 × 前台/后台重试次数（tests/model-gateway/errors-retry.test.ts）
+  - 配额：完成/上游错误/调用方中止/消费方停止迭代四种终止均释放；429 错误传给 limiter 冷却；lease 丢失时中止（gateway-faux、quota）
+  - 用量：DeepSeek 缓存命中、OpenAI Responses 缓存、Anthropic 缓存写入+读取，inputTokens 口径不重复计缓存；每次尝试各记录一次
+  - 签名字段（thinkingSignature）在 AssistantMessage 中保留；截断（length）回合移除工具调用
+  - 设置假 DEEPSEEK_API_KEY / OPENAI_API_KEY：请求只用绑定的 key；绑定无 key 时报 MODEL_CONFIGURATION 且未发出请求
+  - 传输：IPv4/IPv6 回环、私网被拒且未发出请求；ALLOW_LOCAL_NETWORKS=true 放行；用户端点拒绝重定向；运维端点经代理
+  - 工具循环：多步、逐个执行一次、校验失败回灌、stopWhen/maxSteps、zod→JSON Schema
+黄金数据差异白名单（P1-4，tests/model-gateway/characterization/thinking-allowlist.json，单轮/无工具/流式思考矩阵，8 个 provider）：
+  1. mode:'default' 视同"未设置"（不发送思考字段）——无任何代码产生该值，旧适配器各自行为不一（deepseek-flash、claude-haiku-4-5 各 1 例）
+  2. Anthropic 关闭思考时 pi 显式发送 thinking:{type:'disabled'}，旧栈省略；API 语义相同（5 例）
+  3. GLM 的 zai 格式附带 clear_thinking:false（保留历史推理），思考类型与 effort 与旧栈一致（8 例）
+  4. Qwen budget=0：不再发送"开启思考 + 预算 0"的矛盾请求（2 例）
+  执行中修正的真实差异：未设置时 pi 会显式发送关闭/默认等级（已改为保持服务商默认）；不可关闭模型的"关闭"需降到最低 effort；预算型模型使用目录默认预算；Claude 5 系列 pi 固定发送 effort high，已用声明式补丁发送用户所选等级
+  P2 overlay 需补的数据：按审核能力开放 xhigh/max/minimal 等级；非 effort 型能力在 OpenAI 兼容格式下 supportsReasoningEffort:false；GPT-5.6 不在 pi 0.99 目录中需 overlay 定义
+性能数据（tests/fixtures/model-gateway/perf-gateway-p1.json，同机同假服务器，各 200 次）：
+  - 每调用 Models 视图构造 p50 < 0.01 ms（门槛 0.2 ms）
+  - 网关相对直接 pi 调用的开销（交替配对）：首 token 50 ms 场景 p50 −0.89 ms / p95 9.78 ms；零延迟场景 p50 0.08 ms / p95 0.8 ms（门槛 p50 ≤ 5、p95 ≤ 15）
+  - gateway.complete 总耗时 p50 57.9 ms（旧 callLLM 59.4 ms）；stream TTFT p50 57.4 ms（旧 58.6 ms），均优于 6.5 的 1.10 倍门槛
+真实供应商验证：未验证（P1 只用假服务器与 faux）
+遗留问题：
+  - google-generative-ai / bedrock 不能注入自定义 fetch，错误分类退化为消息模式匹配（计划已记为已知限制）
+  - pi 的 API 模块对非密钥配置（PI_CACHE_RETENTION、AZURE_OPENAI_*）仍会回退读取 process.env；密钥只来自绑定。P2 的 Azure descriptor 需显式传 azureBaseUrl
+  - vault 句柄（R2）当前直接报 MODEL_CONFIGURATION
+  - 本阶段未重新构建 Docker 镜像做严格模式冒烟（P0 已验证机制；P7 发布前必做）
+下一阶段可开始：是（P2 不依赖真实凭据或产品取舍）
 ```
 
 ---
