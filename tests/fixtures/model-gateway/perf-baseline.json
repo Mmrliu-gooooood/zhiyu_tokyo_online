@@ -1,0 +1,63 @@
+{
+  "recordedAt": "2026-10-01T04:12:18.460Z",
+  "stack": "legacy (getModel + AI SDK callLLM/streamLLM, deepseek compat transport)",
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32-x64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "cpus": 20,
+    "iterations": 200,
+    "warmup": 10,
+    "fakeServer": {
+      "firstTokenMs": 50,
+      "chunks": 20,
+      "chunkDelayMs": 0
+    }
+  },
+  "callLLM": {
+    "total": {
+      "n": 200,
+      "mean": 59.72,
+      "p50": 59.37,
+      "p95": 69.19,
+      "min": 52.76,
+      "max": 76.65
+    }
+  },
+  "streamLLM": {
+    "ttft": {
+      "n": 200,
+      "mean": 59.4,
+      "p50": 58.62,
+      "p95": 68.38,
+      "min": 51.65,
+      "max": 72.21
+    },
+    "total": {
+      "n": 200,
+      "mean": 61.92,
+      "p50": 61.11,
+      "p95": 71.02,
+      "min": 53.88,
+      "max": 74.18
+    }
+  },
+  "proStreamFnTurn": {
+    "ttft": {
+      "n": 200,
+      "mean": 58.7,
+      "p50": 58.17,
+      "p95": 67.85,
+      "min": 51.21,
+      "max": 72.79
+    },
+    "total": {
+      "n": 200,
+      "mean": 61.05,
+      "p50": 60.47,
+      "p95": 70.79,
+      "min": 53.24,
+      "max": 76.3
+    }
+  }
+}
