@@ -399,11 +399,11 @@ export interface ProviderDescriptor {
 | 应用 ID | 上游 | wire API | 说明 / 需特征测试核对的点 |
 | --- | --- | --- | --- |
 | `openai` | pi `openai` | openai-responses | 自定义 baseUrl 时视为 OpenAI 兼容网关（custom，openai-completions），与现状一致；`deepseek-v4-flash-vision-exp` 的 `chat_template_kwargs.thinking` 改为 overlay 数据 |
-| `azure` | pi `azure-openai-responses` | azure-openai-responses | 用户 baseUrl 经 `env.AZURE_OPENAI_BASE_URL`；核对部署名与 URL 规范化 |
+| `azure` | pi `azure-openai-responses` | azure-openai-responses | baseUrl、apiVersion、部署名一律经请求选项显式传入（`azureBaseUrl` 等），**不得**依赖 `AZURE_OPENAI_*` 环境变量回退（见 P2-7）；核对部署名与 URL 规范化 |
 | `atlascloud` | custom | openai-completions | |
 | `anthropic` | pi `anthropic` | anthropic-messages | R2 可选 OAuth（默认关闭） |
-| `bedrock` | pi `amazon-bedrock` | bedrock-converse-stream | 仅运维托管；ambient AWS 凭据 |
-| `google` | pi `google` | google-generative-ai | pi 该适配器**拒绝自定义 fetch**：只允许官方端点；代理经 `env.HTTPS_PROXY`；错误分类降级为 pi 消息 + 模式匹配（记录为已知限制） |
+| `bedrock` | pi `amazon-bedrock` | bedrock-converse-stream | **仅运维托管**（决策 2026-10-01）：descriptor `userConfigurable=false`，用户选择报 `MODEL_CONFIGURATION`；ambient AWS 凭据只对运维端点绑定开放；region 显式传入；不允许用户自带 Bedrock key（见 P2-6） |
+| `google` | pi `google` | google-generative-ai | pi 该适配器**拒绝自定义 fetch**，请求绕过网关传输层（SSRF/DNS 固定/禁重定向/代理均不生效）。决策 2026-10-01：端点锁定为官方 `generativelanguage.googleapis.com`，用户自定义 baseUrl 在发送前拒绝（`MODEL_UNSAFE_ENDPOINT`），需要中转的用户改用 OpenAI 兼容类型；运维为 google 配置代理时启动即报错而非静默直连；错误分类优先用 SDK 结构化字段，消息匹配兜底（见 P2-6） |
 | `deepseek` | pi `deepseek` | openai-completions | thinkingFormat `deepseek`；平台默认模型的上游 |
 | `qwen` | custom（DashScope） | openai-completions | `thinkingFormat:'qwen'` + `thinkingTokenBudgetField:'thinking_budget'` |
 | `kimi` | pi `moonshotai` / `moonshotai-cn`（profile） | openai-completions | kimi-k3 推理回放由 pi `requiresReasoningContentOnAssistantMessages` 处理，删除 Kimi 专用中间件前必须有特征测试 |
@@ -576,7 +576,8 @@ pi 0.99.1 设备码（device-code）流程：`github-copilot`、`kimi-coding`、
 1. 阶段路由优先级不变：stage route > 客户端选择 > `DEFAULT_MODEL`；路由命中时客户端的 key/baseUrl/api 不得泄漏到路由模型。
 2. 平台默认模型：revision 不匹配 → 409；未配置 → 503；禁用 → 403；未审核的模型 ID 不能继承平台策略；平台调用绝不回退到其他凭据。
 3. 运维托管 provider 的 key/baseUrl 由服务端决定，客户端覆盖一律忽略。
-4. pi 永远读不到 `process.env`（运维托管的 bedrock/vertex 除外，且仅限其前缀）。用户请求不可能用到平台或运维密钥。
+4. pi 永远读不到 `process.env`（运维托管的 bedrock/vertex 除外，且仅限其前缀）。用户请求不可能用到平台或运维密钥。注意 pi 的 bedrock/vertex/azure API 模块及 `PI_CACHE_RETENTION` 会绕过 AuthContext 直接读 `process.env`，该不变量由 P2-6/P2-7 的端点锁定、显式传参、发送前拒绝与"环境变量投毒"测试共同保证。
+4a. 不能注入请求级 fetch 的 API（google-generative-ai、google-vertex、bedrock-converse-stream）只能访问官方端点或运维配置端点，绝不访问用户提供的 URL。
 5. 用户自定义端点每个请求都做 SSRF 校验、禁止重定向；`ALLOW_LOCAL_NETWORKS` 语义不变。
 6. 密钥与 token 不出现在：`ModelBinding` 可枚举字段、日志、错误消息、SSE、job input JSON、`server-providers` 响应、设置导出、客户端存储（OAuth token）。
 7. 后台部署：上游尝试计数符合 3.8 表；配额槽位在 done/error/abort/取消任一情况下释放；429 冷却使用 `retry-after`。
@@ -639,8 +640,19 @@ pi 0.99.1 设备码（device-code）流程：`github-copilot`、`kimi-coding`、
 3. **P2-3 selection**：`schema.ts`（zod、互斥规则、升级器：请求头、PRO v1 context、快照 v1/v2）、`read-request.ts`（取代 `resolveModelFromHeaders/FromRequest`）。
 4. **P2-4 resolve-binding**：把 `resolve-model.ts` 82–334 的全部规则迁入，产出 `ModelBinding` 与私有凭据句柄；`platform.ts` 按 3.9；descriptor `userConfigurable=false` 的 provider 用户选择时报 `MODEL_CONFIGURATION`；运维托管判断沿用 `isServerConfiguredProvider`。
 5. **P2-5 等价性测试**：把 `tests/server/resolve-model.test.ts` 的全部用例复制一份改为断言 `resolveBinding` 结果（来源、provider、模型、路由命中、思考仲裁、错误码/HTTP 状态）完全一致；再用 P0-3 黄金数据跑"绑定 → 网关 → 假服务器"的请求体比对（这是 3.6/3.7 映射正确性的主证据）。
+6. **P2-6 无请求级 fetch 的 API 加固**（决策 2026-10-01，按推荐方案执行）：
+   - google（用户/BYOK）：端点锁定官方主机；用户 baseUrl 在 `resolveBinding` 与网关发送前双重拒绝（`MODEL_UNSAFE_ENDPOINT`，零请求）；UI 提示中转请改用 OpenAI 兼容类型。
+   - bedrock、google-vertex：仅运维托管，`userConfigurable=false`；用户来源绑定一律 `MODEL_CONFIGURATION`；不支持用户自带 Bedrock key。
+   - 运维为 google/bedrock/vertex 配置了代理：配置加载时报明确错误（不静默直连）。
+   - 错误分类：优先读 SDK 结构化字段（Google `ApiError.status`、AWS `$metadata.httpStatusCode` / `name` 如 `ThrottlingException`、`AccessDeniedException`），消息模式匹配兜底；用录制的真实错误形状做夹具测试（不含真实凭据）。
+7. **P2-7 pi 直读环境变量的防护**（决策 2026-10-01，按推荐方案执行；不改 node_modules、不删除进程环境变量——旧栈到 P5 前仍在读）：
+   - 显式传参，使 pi 永不需要回退：Azure `azureBaseUrl`/`azureApiVersion`/部署名；Vertex project/location；Bedrock region。
+   - 发送前拒绝：bedrock/vertex/azure 绑定缺任一必需值，或非运维端点却需 ambient 凭据 → `MODEL_CONFIGURATION`，零请求（扩展 `credentialReady` 判定）。
+   - "环境变量投毒"测试：把 `AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`、`AWS_SESSION_TOKEN`、`AWS_BEARER_TOKEN_BEDROCK`、`AWS_PROFILE`、`AWS_REGION`、`GOOGLE_APPLICATION_CREDENTIALS`、`GOOGLE_CLOUD_PROJECT`、`GOOGLE_CLOUD_LOCATION`、`AZURE_OPENAI_*`、`HTTP(S)_PROXY`、`PI_CACHE_RETENTION` 及各 provider `*_API_KEY` 设为哨兵值，断言每个 API 的请求只使用绑定的 key 与主机，无 key 的用户绑定零请求。
+   - 启动审计：启动时记录上述变量中**已设置的名称**（绝不记录值），供运维确认 pi 可能读到什么；`PI_CACHE_RETENTION` 视为允许的运维开关并写入运维文档。
+   - 后续：向 pi 上游提议"提供 `options.env` 时不回退 `process.env`"的选项（不阻塞本计划）。
 
-**门槛**：`resolveBinding` 通过全部 resolve-model 等价用例；黄金数据比对全部通过或有逐条注明原因的白名单（例如 grok 协议由 chat 变 responses）。
+**门槛**：`resolveBinding` 通过全部 resolve-model 等价用例；黄金数据比对全部通过或有逐条注明原因的白名单（例如 grok 协议由 chat 变 responses）；P2-6/P2-7 的端点锁定、发送前拒绝与环境变量投毒测试全部通过。
 
 ### P3：业务切换与旧栈删除（R1 核心）
 
@@ -773,7 +785,8 @@ pnpm exec vitest run tests/model-gateway/credentials tests/model-gateway/auth te
 | --- | --- |
 | 厂商请求体细节回退（思考开关、max tokens、推理回放） | P0 黄金数据 + P2 逐 provider 比对；差异逐条白名单 |
 | `mode:'default'` 语义差异导致思考被意外关闭/开启 | 3.7 规则 + 特征测试锁定 |
-| Google/Bedrock 无请求级 fetch，错误分类较弱 | 仅官方端点；记录为已知限制；模式匹配兜底有测试 |
+| Google/Bedrock/Vertex 无请求级 fetch：绕过 SSRF/代理，错误分类较弱 | P2-6：用户端点锁官方主机、bedrock/vertex 仅运维、代理配置启动即报错、结构化字段优先的错误分类 + 夹具测试 |
+| pi 的 API 模块绕过 AuthContext 直读 `process.env`（AWS/Google/Azure 凭据与端点） | P2-7：显式传参、发送前拒绝、环境变量投毒测试、启动审计（仅记录变量名） |
 | pi 0.99 与 agent-core 0.78 类型不兼容 | 类型从 agent-core 推导；唯一强转点有运行时形状测试 |
 | agent-core 0.78 的压缩走它自己那份 pi-ai 的全局注册表，根升级后注册落空 | `agent-legacy-pi.ts` 从 agent-core 所在位置解析同一实例；测试 + 打包冒烟双重验证 |
 | 旧 PRO 会话含 `provider:'unknown'` 消息 | 适配器剔除旧 thinking；专门测试 |
@@ -888,8 +901,8 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
   - gateway.complete 总耗时 p50 57.9 ms（旧 callLLM 59.4 ms）；stream TTFT p50 57.4 ms（旧 58.6 ms），均优于 6.5 的 1.10 倍门槛
 真实供应商验证：未验证（P1 只用假服务器与 faux）
 遗留问题：
-  - google-generative-ai / bedrock 不能注入自定义 fetch，错误分类退化为消息模式匹配（计划已记为已知限制）
-  - pi 的 API 模块对非密钥配置（PI_CACHE_RETENTION、AZURE_OPENAI_*）仍会回退读取 process.env；密钥只来自绑定。P2 的 Azure descriptor 需显式传 azureBaseUrl
+  - google-generative-ai / google-vertex / bedrock 不能注入自定义 fetch，请求绕过网关传输层，错误分类退化为消息模式匹配 → 已决策（2026-10-01）并列为 P2-6
+  - 更正：pi 的 bedrock/vertex/azure API 模块会绕过 AuthContext 直读 process.env，包括 AWS 凭据（AWS_ACCESS_KEY_ID 等）、GOOGLE_APPLICATION_CREDENTIALS、AZURE_OPENAI_* 端点与 PI_CACHE_RETENTION；当前仅靠"无 key 拒绝发送"防护 → 已决策（2026-10-01）并列为 P2-7
   - vault 句柄（R2）当前直接报 MODEL_CONFIGURATION
   - 本阶段未重新构建 Docker 镜像做严格模式冒烟（P0 已验证机制；P7 发布前必做）
 下一阶段可开始：是（P2 不依赖真实凭据或产品取舍）
