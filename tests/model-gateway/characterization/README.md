@@ -90,25 +90,25 @@ assertion (P2-5 replays the goldens through the gateway).
 
 | ID | Behavior | Source | Golden | Owner |
 | --- | --- | --- | --- | --- |
-| ☐ RQ-01 | OpenAI-compatible providers get vendor thinking fields injected for disabled / enabled independently | `tests/ai/openai-provider.test.ts:98` | yes | P1-4 / P2-5 |
-| ☐ RQ-02 | GPT-5.5 / 5.6 / pro / codex use the Responses API; others use Chat | `openai-provider.test.ts:197` | yes | P2-2 descriptor + P2-5 |
-| ☐ RQ-03 | Custom OpenAI base URL keeps Responses for Responses models by default | `openai-provider.test.ts:209` | yes | P2-5 |
+| ☑ RQ-01 | OpenAI-compatible providers get vendor thinking fields injected for disabled / enabled independently | `tests/ai/openai-provider.test.ts:98` | yes | P1-4 / P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-02 | GPT-5.5 / 5.6 / pro / codex use the Responses API; others use Chat | `openai-provider.test.ts:197` | yes | P2-2 descriptor + P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-03 | Custom OpenAI base URL keeps Responses for Responses models by default | `openai-provider.test.ts:209` | yes | P2-5 — covered by `golden-replay.test.ts` |
 | ☐ RQ-04 | Custom OpenAI base URL + `OPENAI_COMPAT_USE_STREAMING_CHAT` → Chat (variable retired, plan 3.15) | `openai-provider.test.ts:225` | n/a | waive in P3-6 (pi always streams) |
 | ☐ RQ-05 | Non-streaming calls through the streaming-chat compat buffer SSE into JSON (incl. preamble fields, missing finish reason) | `openai-provider.test.ts:265, 378` | n/a | waive in P3-6 (pi always streams) |
 | ☐ RQ-06 | Azure: deployment name as model; full inference endpoints and classic resource endpoints normalized | `openai-provider.test.ts:423, 446, 460` | yes (one endpoint form) | P2-2 descriptor test |
-| ☐ RQ-07 | Gateway model `deepseek-v4-flash-vision-exp` sends `chat_template_kwargs.thinking` | `openai-provider.test.ts:695`, `openai-sdk-integration.test.ts:10` | yes | P2-2 overlay + P2-5 |
-| ☐ RQ-08 | SiliconFlow omits a zero thinking budget when thinking is disabled | `openai-provider.test.ts:746` | yes | P2-5 |
-| ☐ RQ-09 | Lemonade disables thinking by default (catalog and manual model ids) | `openai-provider.test.ts:755, 763, 771` | yes (catalog + unknown id) | P1-4 / P2-5 |
-| ☐ RQ-10 | Lemonade strips `stream_options` while keeping thinking overrides | `openai-provider.test.ts:779` | yes | P2-2 compat (`supportsUsageInStreaming:false`) |
+| ☑ RQ-07 | Gateway model `deepseek-v4-flash-vision-exp` sends `chat_template_kwargs.thinking` | `openai-provider.test.ts:695`, `openai-sdk-integration.test.ts:10` | yes | P2-2 overlay + P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-08 | SiliconFlow omits a zero thinking budget when thinking is disabled | `openai-provider.test.ts:746` | yes | P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-09 | Lemonade disables thinking by default (catalog and manual model ids) | `openai-provider.test.ts:755, 763, 771` | yes (catalog + unknown id) | P1-4 / P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-10 | Lemonade strips `stream_options` while keeping thinking overrides | `openai-provider.test.ts:779` | yes | P2-2 compat (`supportsUsageInStreaming:false`) — covered by `golden-replay.test.ts` |
 | ☐ RQ-11 | GPT-5.6 `max` effort reaches OpenAI (Responses) incl. the Sol alias | `llm-thinking-options.test.ts:44, 69`, `openai-sdk-integration.test.ts:78` | yes (canonical id) | P2-5 + alias test in P2-2 |
-| ☐ RQ-12 | Claude Haiku 4.5 sends a thinking budget without effort | `llm-thinking-options.test.ts:281` | yes | P2-5 |
-| ☐ RQ-13 | MiniMax M3 thinking disablement via Anthropic-compatible endpoint; none for fixed-thinking models | `llm-thinking-options.test.ts:310`, `minimax-provider.test.ts:64, 109` | yes | P2-5 |
-| ☐ RQ-14 | Claude Fable 5: disabled thinking coerces to the lowest supported effort | `llm-thinking-options.test.ts:335` | yes | P2-5 |
-| ☐ RQ-15 | Claude 5 models accept `xhigh` effort | `llm-thinking-options.test.ts:361` | yes | P2-5 |
-| ☐ RQ-16 | MiniMax `sk-cp-` Token Plan keys use Bearer auth; default endpoint is `/anthropic/v1` | `minimax-provider.test.ts:11, 20` | yes | P2-2 descriptor + P2-5 |
-| ☐ RQ-17 | Atlas Cloud uses its base URL and the DeepSeek reasoning adapter for DeepSeek models | `atlascloud-provider.test.ts:122, 139` | yes | P2-5 |
+| ☑ RQ-12 | Claude Haiku 4.5 sends a thinking budget without effort | `llm-thinking-options.test.ts:281` | yes | P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-13 | MiniMax M3 thinking disablement via Anthropic-compatible endpoint; none for fixed-thinking models | `llm-thinking-options.test.ts:310`, `minimax-provider.test.ts:64, 109` | yes | P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-14 | Claude Fable 5: disabled thinking coerces to the lowest supported effort | `llm-thinking-options.test.ts:335` | yes | P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-15 | Claude 5 models accept `xhigh` effort | `llm-thinking-options.test.ts:361` | yes | P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-16 | MiniMax `sk-cp-` Token Plan keys use Bearer auth; default endpoint is `/anthropic/v1` | `minimax-provider.test.ts:11, 20` | yes | P2-2 descriptor + P2-5 — covered by `golden-replay.test.ts` |
+| ☑ RQ-17 | Atlas Cloud uses its base URL and the DeepSeek reasoning adapter for DeepSeek models | `atlascloud-provider.test.ts:122, 139` | yes | P2-5 — covered by `golden-replay.test.ts` |
 | ☐ RQ-18 | Bedrock: keyless built-in using the AWS credential chain; bearer token when a key is set; whitespace `BEDROCK_REGION` ignored; provider-type conflicts rejected | `bedrock-provider.test.ts:37, 66, 81, 93, 134` | bearer only | P1-2 (ambient AuthContext) + P2-4 |
-| ☐ RQ-19 | Kimi K3 replays `reasoning_content` on assistant messages, including across tool continuations | `reasoning-sse.test.ts:157`, `openai-sdk-integration.test.ts:188` | yes (replay cases) | P2-5 (pi `requiresReasoningContentOnAssistantMessages`) |
+| ☑ RQ-19 | Kimi K3 replays `reasoning_content` on assistant messages, including across tool continuations | `reasoning-sse.test.ts:157`, `openai-sdk-integration.test.ts:188` | yes (replay cases) | P2-5 (pi `requiresReasoningContentOnAssistantMessages`) — covered by `golden-replay.test.ts` |
 | ☐ RQ-20 | Direct thinking-option resolution keeps the compatible provider identity | `openai-sdk-integration.test.ts:168` | n/a | waive in P3-6 (no providerOptions layer) |
 
 ### Response / stream parsing

@@ -776,6 +776,7 @@ pnpm exec vitest run tests/model-gateway/credentials tests/model-gateway/auth te
 - **不变**：`DEFAULT_MODEL`、`MODEL_ROUTES`（`api` 可取更多值）、`LLM_THINKING_DISABLED`、`GENERATION_BACKGROUND_ENABLED`、`ZHIYU_DEFAULT_TEXT_*`、各 provider 的 `*_API_KEY`/`*_BASE_URL`/`server-providers.yml`。
 - 结构化日志 `event:'llm_call'` 可直接用于排障与后续计费对账。
 - 生产机 Node 以镜像为准（`node:22-alpine`），发布前确认 ≥ 22.19。
+- 启动检查（P2-6/P2-7，web 与 generation worker）：为 google/bedrock/google-vertex 配置了代理时启动失败并给出明确原因；启动日志 `pi_env_audit` 列出 pi 可读到的已设置变量名（不含值）。`PI_CACHE_RETENTION=long` 是允许的运维开关（提示缓存保留）。运维托管 Vertex 需要 `GOOGLE_CLOUD_PROJECT`（或 `GCLOUD_PROJECT`）与 `GOOGLE_CLOUD_LOCATION`，缺失时该绑定在发送前拒绝。
 
 ---
 
@@ -810,7 +811,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | --- | --- | --- | --- | --- |
 | P0 | 已完成（2026-10-01） | 6ceed08d, 7492f751, 8739e846, f10b4610, 2d1a32cd + 本次进度提交 | 见下方 P0 记录 | 无阻断；全量 vitest 有 6 个负载下超时（单独复跑全绿），见记录 |
 | P1 | 已完成（2026-10-01） | e685d617, fb61d7bc, 1b087555, 31a97a3f, 26494258, ebf14626 + 本次 P1-7 提交 | 见下方 P1 记录 | 思考映射有 4 类白名单差异（9 例；GLM clear_thinking 已在 P1 收尾修正）；P2 overlay 需补的数据已记录 |
-| P2 | 未开始 | | | |
+| P2 | 已完成（2026-10-01） | e3ddfeb8, c625ad10, 50d4cef8, 8892d3c9, da210b6f, 0568e98c, 857c9c92 + 本次进度提交 | 见下方 P2 记录 | 黄金数据 1653 例全部重放，差异由 16 条规则逐例白名单；修正一处 P1 遗漏（Claude 5 中途 effort）与一处 Azure 环境变量泄露；若干产品可见的行为修正见记录 |
 | P3 | 未开始 | | | |
 | P4 | 未开始 | | | |
 | P5 | 未开始 | | | |
@@ -906,6 +907,63 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
   - vault 句柄（R2）当前直接报 MODEL_CONFIGURATION
   - 本阶段未重新构建 Docker 镜像做严格模式冒烟（P0 已验证机制；P7 发布前必做）
 下一阶段可开始：是（P2 不依赖真实凭据或产品取舍）
+```
+
+```text
+阶段：P2
+提交：e3ddfeb8（P2-1）、c625ad10（P2-2）、50d4cef8（P2-3）、8892d3c9（P2-4）、da210b6f（P2-5）、0568e98c（P2-6）、857c9c92（P2-7）、本进度提交
+新增/修改模块：
+  - scripts/generate-model-catalog.mjs → catalog/generated/pi-models.json（135.7 KB，piVersion 0.99.1 + 内容哈希，聚合平台/Azure/Copilot 精选短名单；--check 容忍 CRLF 检出）
+  - catalog/descriptors.ts（19 个原有 + 官方/聚合/Coding&Token Plan/订阅 新增，共 46 个）、reviewed-models.ts（旧目录审核数据逐字迁入，含仅手填可达的 16 条思考能力）、overlays.ts（OpenAI Chat/Responses 规则、vLLM chat-template 模型提示）、thinking-capability.ts、client-catalog.ts
+  - selection/{schema,read-request,errors,model-spec,platform,resolve-binding}.ts
+  - runtime/fetchless.ts、credentials/env-exposure.ts、startup.ts（instrumentation.ts 与 workers/generation/main.ts 启动时调用）
+  - 对 P1 运行时的修改：thinking.ts（"enabled"不等于关闭、预算=disable 值即关闭、Claude 5 中途 effort 条目、Google/Bedrock 上限与预算剥离）、pipeline.ts（发送前 credentialReady 与 fetch-less 拒绝、requestEnv、Bearer 前缀）、classify.ts（结构化优先）、retry.ts（Bedrock 不叠加重试）
+相对计划文本的实现微调（语义不变）：
+  - legacy-managed 选择可携带客户端 connection：仅当该 provider 未被运维配置时使用，与旧 resolveModel 一致
+  - UserConnection 增加 endpointParams（Cloudflare 账号/网关 ID 等非秘密值，按 descriptor 声明过滤）；ModelBinding 增加 requestEnv 与 transforms.bearerKeyPrefixes（MiniMax sk-cp- key）
+  - overlays 拆为 reviewed-models.ts（展示/能力数据）与 overlays.ts（线格式提示）
+  - 无 x-model 时（DEFAULT_MODEL）忽略 x-model-source:user 的客户端凭据（旧实现会把客户端 key 用在 DEFAULT_MODEL 上），客户端思考配置仍保留
+通过的命令与结果：
+  - pnpm exec vitest run tests/model-gateway：20 文件 / 236 用例通过（perf 2 个默认跳过）
+  - 6.2 基线 A/B 组 + provider-config/model-routes/tests/config/generation-worker：38 文件 / 522 用例通过
+  - pnpm exec tsc --noEmit -p tsconfig.build.json：通过；eslint lib/model-gateway tests/model-gateway：0 问题
+  - pnpm build:worker、pnpm build：通过；node scripts/smoke-pi-runtime.mjs：standalone 与 worker 均通过（本地，非严格模式）
+  - node scripts/generate-model-catalog.mjs --check：通过
+P2 门槛证据：
+  - resolveBinding：tests/model-gateway/selection/resolve-binding.test.ts 覆盖 tests/server/resolve-model.test.ts 全部 27 个用例（来源、provider、模型、路由命中、思考仲裁、错误码/HTTP 状态）+ 新规则
+  - 黄金数据：tests/model-gateway/characterization/golden-replay.test.ts 以 "选择 → resolveBinding → 网关 → 假服务器" 重放 1653 例，比较语义投影（host/path/query/认证方式/思考字段/上限字段/工具/角色/推理回放/图片）；1022 例存在差异，全部由 golden-allowlist.json 按精确用例 + 字段 + 规则理由解释（16 条规则，见 characterization/README.md），过期条目失败
+  - P2-6：tests/model-gateway/fetchless.test.ts（端点锁定零请求、启动代理检查、真实 pi Google/Bedrock 适配器 + 录制错误形状的分类）
+  - P2-7：tests/model-gateway/env-poisoning.test.ts（全部 pi 可读变量与各 *_API_KEY 设为哨兵、代理指向不可达地址；7 种用户可达 API 仅使用请求 key 与绑定主机，无 key / 运维专用的用户绑定零请求）
+重放中发现并修正（而非白名单）：
+  - OpenAI 兼容自定义端点：max_tokens、system 角色、不发 store（pi 对未知主机默认 max_completion_tokens/developer）；Xiaomi、OpenRouter 的 descriptor compat
+  - 未知模型模板：取 provider 主协议的模型、只继承方言类 compat（不继承 Claude 5 中途 effort/工具变更等模型特性）、上限 8192
+  - 审核过的 effort/level 不被 pi 的 thinkingLevelMap 夹紧；SiliconFlow 仅预算型模型；Lemonade 未设置时按能力默认关闭思考；Hunyuan "enabled"
+  - Azure：端点按旧规则规范化（…/openai/v1）；Google/Bedrock 的上限与预算剥离
+  - P1 遗漏：Claude 5 托管 effort 模型上 pi 还会追加 mid-conversation output_config 条目（固定 high），P1 补丁只改了顶层 effort，用户选 low 实际仍为 high；现两处一致，重放投影按"最后一个控制条目"比较
+  - P2-7 环境投毒测试发现：pi 的 streamSimple 会丢弃 azureBaseUrl/azureApiVersion/azureDeploymentName、region、project、location 等类型化选项，导致设置了 AZURE_OPENAI_BASE_URL 时用户的 Azure key 会被发往运维的 Azure 端点；现改为经每请求 env（pi 优先读取）传入
+产品可见的行为变化（均已白名单并注明，供验收确认）：
+  1. 思考"开启"在默认 effort 为 none 的模型上（gpt-5.4、grok-4.3）改为发送最低实际等级；旧实现发送 none，开启无效
+  2. 预算 0（等于能力的 disable 值）即关闭思考（Qwen、Gemini 2.5 Flash-Lite、Lemonade）
+  3. MiniMax-M3 选择"开启思考"时真正发送 thinking enabled（旧适配器只实现了关闭）
+  4. 推理回放：同一模型后续轮次在 reasoning_content 中回放推理（计划 3.11；DeepSeek/Kimi 思考模式 + 工具需要）
+  5. 非视觉模型的图片被移除并记 warning（计划 3.4）
+  6. 未设上限的 Anthropic 调用发送目录最大值（未知模型 8192），旧 SDK 默认 4096/32000
+  7. Google 用户自定义 baseUrl、自定义 provider 选 google/bedrock 协议均被拒绝（决策 2026-10-01）
+  8. 本地/用户端点在所有环境都做 SSRF 校验（开发环境的本地 Ollama 也需 ALLOW_LOCAL_NETWORKS=true，与 .env.example 说明一致）
+  9. grok 改走 OpenAI Responses API（计划 3.6）
+已知限制：
+  - Bedrock：pi 0.99.1 构建 AWS SDK 客户端时未设 maxAttempts，SDK 标准重试（至多 3 次）无法经 pi 关闭；网关对 Bedrock 不再叠加重试（仅运维托管）
+  - pi 只保留格式化后的错误文本；Google/Bedrock 的结构化字段（异常名、status、RetryInfo）从 pi 的固定格式中解析，模式匹配兜底
+  - Cloudflare AI Gateway 的认证头（cf-aig-authorization）只经 pi 的 resolve 路径验证到请求构造层，未用真实账号验证（P7 冒烟时如启用需验证）
+  - 结构化错误夹具为按官方文档构造的典型响应（状态码、x-amzn-errortype、google.rpc 错误体），非线上抓包
+上游提议草稿（未提交，不阻塞）：
+  1. 提供 options.env 时不回退 process.env（或提供开关）
+  2. streamSimple 透传 provider 类型化选项（azureBaseUrl/azureApiVersion/azureDeploymentName、region、project、location）
+  3. Bedrock 客户端遵守 maxRetries（设置 maxAttempts）
+  4. 错误事件附带结构化字段（status、错误码、retryAfter）
+特征测试清单：RQ-01/02/03/07/08/09/10/12/13/14/15/16/17/19 已由 golden-replay 覆盖并勾选；RQ-06（Azure 多种端点形式）、RQ-11（Sol 别名）、RQ-18（Bedrock 凭据链）留给 P3
+真实供应商验证：未验证（P2 只用假服务器、faux 与录制形状）
+下一阶段可开始：是（P3 不依赖真实凭据或产品取舍；上面"产品可见的行为变化"可在 P3 期间确认，如需保留旧行为可逐条恢复）
 ```
 
 ---
