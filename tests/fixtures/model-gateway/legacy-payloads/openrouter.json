@@ -1,0 +1,2856 @@
+{
+  "cases": {
+    "characterization-unknown-model|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|env=LLM_THINKING_DISABLED|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "env": {
+          "LLM_THINKING_DISABLED": "true"
+        },
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": false
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|image|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "image",
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Describe the image.",
+                  "type": "text"
+                },
+                {
+                  "image_url": {
+                    "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                  },
+                  "type": "image_url"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": false
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": false
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": false
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": false
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-high|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "high",
+            "enabled": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-high|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "high",
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-high|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "high",
+            "enabled": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-high|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "high",
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-low|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "low",
+            "enabled": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-low|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "low",
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-low|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "low",
+            "enabled": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-low|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "low",
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-medium|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "medium",
+            "enabled": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-medium|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "medium",
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-medium|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "medium",
+            "enabled": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=effort-medium|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "effort": "medium",
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=exclude-reasoning|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "excludeReasoningOutput": true,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true,
+            "exclude": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=exclude-reasoning|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "excludeReasoningOutput": true,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true,
+            "exclude": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=exclude-reasoning|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "thinking": {
+          "excludeReasoningOutput": true,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true,
+            "exclude": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=exclude-reasoning|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "excludeReasoningOutput": true,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true,
+            "exclude": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 131072,
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 131072,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    },
+    "deepseek/deepseek-v4-pro|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-openrouter-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "deepseek/deepseek-v4-pro",
+        "providerId": "openrouter",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "deepseek/deepseek-v4-pro",
+          "reasoning": {
+            "enabled": true
+          },
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "openrouter.ai",
+        "method": "POST",
+        "path": "/api/v1/chat/completions"
+      }
+    }
+  },
+  "group": "openrouter"
+}

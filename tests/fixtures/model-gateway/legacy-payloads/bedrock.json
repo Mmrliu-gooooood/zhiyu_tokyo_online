@@ -1,0 +1,2217 @@
+{
+  "cases": {
+    "characterization-unknown-model|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "reasoningContent": {
+                    "reasoningText": {
+                      "text": "Add the two numbers."
+                    }
+                  }
+                },
+                {
+                  "text": "4"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "characterization-unknown-model|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Look up X."
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "reasoningContent": {
+                    "reasoningText": {
+                      "text": "I need the lookup tool."
+                    }
+                  }
+                },
+                {
+                  "toolUse": {
+                    "input": {
+                      "query": "X"
+                    },
+                    "name": "lookup",
+                    "toolUseId": "call_1"
+                  }
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "toolResult": {
+                    "content": [
+                      {
+                        "text": "{\"answer\":\"42\"}"
+                      }
+                    ],
+                    "toolUseId": "call_1"
+                  }
+                },
+                {
+                  "text": "Summarize."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/characterization-unknown-model/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|image|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "image",
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Describe the image."
+                },
+                {
+                  "image": {
+                    "format": "png",
+                    "source": {
+                      "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                    }
+                  }
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "reasoningContent": {
+                    "reasoningText": {
+                      "text": "Add the two numbers."
+                    }
+                  }
+                },
+                {
+                  "text": "4"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 128000,
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "inferenceConfig": {
+            "maxTokens": 128000
+          },
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    },
+    "us.anthropic.claude-sonnet-5|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-bedrock-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "us.anthropic.claude-sonnet-5",
+        "providerId": "bedrock",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "additionalModelResponseFieldPaths": [
+            "/delta/stop_sequence"
+          ],
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Look up X."
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "reasoningContent": {
+                    "reasoningText": {
+                      "text": "I need the lookup tool."
+                    }
+                  }
+                },
+                {
+                  "toolUse": {
+                    "input": {
+                      "query": "X"
+                    },
+                    "name": "lookup",
+                    "toolUseId": "call_1"
+                  }
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "toolResult": {
+                    "content": [
+                      {
+                        "text": "{\"answer\":\"42\"}"
+                      }
+                    ],
+                    "toolUseId": "call_1"
+                  }
+                },
+                {
+                  "text": "Summarize."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "system": [
+            {
+              "text": "You are a characterization test."
+            }
+          ],
+          "toolConfig": {
+            "toolChoice": {
+              "auto": {}
+            },
+            "tools": [
+              {
+                "toolSpec": {
+                  "description": "Look up a fact.",
+                  "inputSchema": {
+                    "json": {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "What to look up",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "name": "lookup"
+                }
+              }
+            ]
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "bedrock-runtime.us-east-1.amazonaws.com",
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5/converse-stream"
+      }
+    }
+  },
+  "group": "bedrock"
+}

@@ -1,0 +1,247 @@
+{
+  "cases": {
+    "custom-gateway|my-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-custom-0123456789",
+        "baseUrl": "https://custom-gateway.example/v1",
+        "conversation": "single",
+        "modelId": "my-model",
+        "providerId": "custom-gateway",
+        "providerType": "openai",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "my-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "custom-gateway.example",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    },
+    "custom-gateway|my-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-custom-0123456789",
+        "baseUrl": "https://custom-gateway.example/v1",
+        "conversation": "single",
+        "modelId": "my-model",
+        "providerId": "custom-gateway",
+        "providerType": "openai",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "my-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "custom-gateway.example",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    },
+    "custom-gateway|my-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-custom-0123456789",
+        "baseUrl": "https://custom-gateway.example/v1",
+        "conversation": "single",
+        "modelId": "my-model",
+        "providerId": "custom-gateway",
+        "providerType": "openai",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "my-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "custom-gateway.example",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    },
+    "custom-gateway|my-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-custom-0123456789",
+        "baseUrl": "https://custom-gateway.example/v1",
+        "conversation": "single",
+        "modelId": "my-model",
+        "providerId": "custom-gateway",
+        "providerType": "openai",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "my-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "custom-gateway.example",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    }
+  },
+  "group": "custom-provider"
+}

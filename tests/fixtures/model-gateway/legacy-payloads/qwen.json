@@ -1,0 +1,3755 @@
+{
+  "cases": {
+    "characterization-unknown-model|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "characterization-unknown-model|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-4096|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "thinking_budget": 4096
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-4096|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 4096
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-4096|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "thinking_budget": 4096,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-4096|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 4096,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-min|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "thinking_budget": 0
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-min|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 0
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-min|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "thinking_budget": 0,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=budget-min|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 0,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.6-max-preview|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "qwen3.6-max-preview",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.6-max-preview",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|env=LLM_THINKING_DISABLED|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "env": {
+          "LLM_THINKING_DISABLED": "true"
+        },
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|image|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "image",
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Describe the image.",
+                  "type": "text"
+                },
+                {
+                  "image_url": {
+                    "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                  },
+                  "type": "image_url"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-4096|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "thinking_budget": 4096
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-4096|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 4096
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-4096|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "thinking_budget": 4096,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-4096|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 4096,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 4096,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-min|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "thinking_budget": 0
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-min|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 0
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-min|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "thinking_budget": 0,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=budget-min|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "budgetTokens": 0,
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking_budget": 0,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": false,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 64000,
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 64000,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    },
+    "qwen3.7-plus|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-qwen-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "qwen3.7-plus",
+        "providerId": "qwen",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "enable_thinking": true,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "qwen3.7-plus",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "dashscope.aliyuncs.com",
+        "method": "POST",
+        "path": "/compatible-mode/v1/chat/completions"
+      }
+    }
+  },
+  "group": "qwen"
+}

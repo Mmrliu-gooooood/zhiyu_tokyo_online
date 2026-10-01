@@ -1,0 +1,3395 @@
+{
+  "cases": {
+    "MiniMax-M2.7|key=sk-cp|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-cp-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "text": "4",
+                  "type": "text"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 8192,
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 8192,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M2.7|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "MiniMax-M2.7",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Look up X.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "id": "call_1",
+                  "input": {
+                    "query": "X"
+                  },
+                  "name": "lookup",
+                  "type": "tool_use"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "content": "{\"answer\":\"42\"}",
+                  "tool_use_id": "call_1",
+                  "type": "tool_result"
+                },
+                {
+                  "text": "Summarize.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M2.7",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|env=LLM_THINKING_DISABLED|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "env": {
+          "LLM_THINKING_DISABLED": "true"
+        },
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|image|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "image",
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Describe the image.",
+                  "type": "text"
+                },
+                {
+                  "source": {
+                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                    "media_type": "image/png",
+                    "type": "base64"
+                  },
+                  "type": "image"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|key=sk-cp|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-cp-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "text": "4",
+                  "type": "text"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          },
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          },
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "MiniMax-M3|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "MiniMax-M3",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Look up X.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "id": "call_1",
+                  "input": {
+                    "query": "X"
+                  },
+                  "name": "lookup",
+                  "type": "tool_use"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "content": "{\"answer\":\"42\"}",
+                  "tool_use_id": "call_1",
+                  "type": "tool_result"
+                },
+                {
+                  "text": "Summarize.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "MiniMax-M3",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "text": "4",
+                  "type": "text"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    },
+    "characterization-unknown-model|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-minimax-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "minimax",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Look up X.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "id": "call_1",
+                  "input": {
+                    "query": "X"
+                  },
+                  "name": "lookup",
+                  "type": "tool_use"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "content": "{\"answer\":\"42\"}",
+                  "tool_use_id": "call_1",
+                  "type": "tool_result"
+                },
+                {
+                  "text": "Summarize.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a characterization test.",
+              "type": "text"
+            }
+          ],
+          "tool_choice": {
+            "type": "auto"
+          },
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "eager_input_streaming": true,
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "name": "lookup"
+            }
+          ]
+        },
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "<api-key>"
+        },
+        "host": "api.minimaxi.com",
+        "method": "POST",
+        "path": "/anthropic/v1/messages"
+      }
+    }
+  },
+  "group": "minimax"
+}

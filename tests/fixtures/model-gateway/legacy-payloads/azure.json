@@ -1,0 +1,2110 @@
+{
+  "cases": {
+    "characterization-unknown-model|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "reasoning-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "text": "4",
+                  "type": "output_text"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "characterization-unknown-model|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "tool-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Look up X.",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "arguments": "{\"query\":\"X\"}",
+              "call_id": "call_1",
+              "name": "lookup",
+              "type": "function_call"
+            },
+            {
+              "call_id": "call_1",
+              "output": "{\"answer\":\"42\"}",
+              "type": "function_call_output"
+            },
+            {
+              "content": [
+                {
+                  "text": "Summarize.",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|image|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "image",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Describe the image.",
+                  "type": "input_text"
+                },
+                {
+                  "image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                  "type": "input_image"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "reasoning-replay",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "What is 2+2?",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": [
+                {
+                  "text": "4",
+                  "type": "output_text"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "text": "And 3+3?",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4"
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "single",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    },
+    "gpt-5.4|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-azure-0123456789",
+        "baseUrl": "https://fake-resource.openai.azure.com/openai",
+        "conversation": "tool-replay",
+        "modelId": "gpt-5.4",
+        "providerId": "azure",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "input": [
+            {
+              "content": "You are a characterization test.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "Look up X.",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "arguments": "{\"query\":\"X\"}",
+              "call_id": "call_1",
+              "name": "lookup",
+              "type": "function_call"
+            },
+            {
+              "call_id": "call_1",
+              "output": "{\"answer\":\"42\"}",
+              "type": "function_call_output"
+            },
+            {
+              "content": [
+                {
+                  "text": "Summarize.",
+                  "type": "input_text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "gpt-5.4",
+          "stream": true,
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "description": "Look up a fact.",
+              "name": "lookup",
+              "parameters": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "description": "What to look up",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "type": "object"
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "api-key": "<api-key>"
+        },
+        "host": "fake-resource.openai.azure.com",
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "query": {
+          "api-version": "v1"
+        }
+      }
+    }
+  },
+  "group": "azure"
+}

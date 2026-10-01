@@ -1,0 +1,4944 @@
+{
+  "cases": {
+    "characterization-unknown-model|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "characterization-unknown-model|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "characterization-unknown-model",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "characterization-unknown-model",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=auto|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "auto"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "thinking": {
+            "type": "auto"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=auto|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "auto"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "auto"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=auto|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "auto"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "thinking": {
+            "type": "auto"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=auto|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "auto"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "auto"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "thinking": {
+            "type": "disabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "disabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-1-8-251228|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "doubao-seed-1-8-251228",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-1-8-251228",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|env=LLM_THINKING_DISABLED|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "env": {
+          "LLM_THINKING_DISABLED": "true"
+        },
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|image|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "image",
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": [
+                {
+                  "text": "Describe the image.",
+                  "type": "text"
+                },
+                {
+                  "image_url": {
+                    "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                  },
+                  "type": "image_url"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-high|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "high"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-high|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "high",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-high|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "high",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-high|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "high",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "high",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-low|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "low"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-low|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "low",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-low|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "low",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-low|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "low",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "low",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-medium|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-medium|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-medium|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-medium|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "medium",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-minimal|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "minimal",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-minimal|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "minimal",
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-minimal|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "effort": "minimal",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=effort-minimal|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "effort": "minimal",
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "minimal",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-2-1-pro-260628|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "doubao-seed-2-1-pro-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-2-1-pro-260628",
+          "reasoning_effort": "medium",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|reasoning-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "reasoning-replay",
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "What is 2+2?",
+              "role": "user"
+            },
+            {
+              "content": "4",
+              "role": "assistant"
+            },
+            {
+              "content": "And 3+3?",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=default|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=default|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=default|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=default|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "default"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=disabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=disabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=disabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "thinking": {
+            "type": "disabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=disabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "disabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "disabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=enabled|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=enabled|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=enabled|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=unset|tools=0|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628"
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=unset|tools=0|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": false
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=unset|tools=1|generate": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": false,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|thinking=unset|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "single",
+        "maxOutputTokens": 32768,
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "max_tokens": 32768,
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    },
+    "doubao-seed-character-260628|tool-replay|thinking=enabled|tools=1|stream": {
+      "input": {
+        "apiKey": "sk-test-doubao-0123456789",
+        "conversation": "tool-replay",
+        "modelId": "doubao-seed-character-260628",
+        "providerId": "doubao",
+        "stream": true,
+        "thinking": {
+          "mode": "enabled"
+        },
+        "tools": true
+      },
+      "request": {
+        "body": {
+          "messages": [
+            {
+              "content": "You are a characterization test.",
+              "role": "system"
+            },
+            {
+              "content": "Look up X.",
+              "role": "user"
+            },
+            {
+              "content": null,
+              "role": "assistant",
+              "tool_calls": [
+                {
+                  "function": {
+                    "arguments": "{\"query\":\"X\"}",
+                    "name": "lookup"
+                  },
+                  "id": "call_1",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "content": "{\"answer\":\"42\"}",
+              "role": "tool",
+              "tool_call_id": "call_1"
+            },
+            {
+              "content": "Summarize.",
+              "role": "user"
+            }
+          ],
+          "model": "doubao-seed-character-260628",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "thinking": {
+            "type": "enabled"
+          },
+          "tool_choice": "auto",
+          "tools": [
+            {
+              "function": {
+                "description": "Look up a fact.",
+                "name": "lookup",
+                "parameters": {
+                  "$schema": "http://json-schema.org/draft-07/schema#",
+                  "additionalProperties": false,
+                  "properties": {
+                    "query": {
+                      "description": "What to look up",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "query"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            }
+          ]
+        },
+        "headers": {
+          "authorization": "Bearer <api-key>"
+        },
+        "host": "ark.cn-beijing.volces.com",
+        "method": "POST",
+        "path": "/api/v3/chat/completions"
+      }
+    }
+  },
+  "group": "doubao"
+}
