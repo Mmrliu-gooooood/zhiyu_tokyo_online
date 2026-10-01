@@ -1,5 +1,4 @@
 import { nanoid } from 'nanoid';
-import { callLLM } from '@/lib/ai/llm';
 import { createStageAPI } from '@/lib/api/stage-api';
 import type { StageStore } from '@/lib/api/stage-api-types';
 import {
@@ -13,11 +12,10 @@ import {
   type AgentInfo,
 } from '@openmaic/generation';
 import { createSceneWithActions } from '@/lib/server/scene-generation';
-import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
+import { gatewayPlannerCall, generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import { getDefaultAgents } from '@/lib/orchestration/registry/store';
 import { createLogger } from '@/lib/logger';
 import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
-import { resolveModel } from '@/lib/server/resolve-model';
 import { getStageModel, type LlmStage } from '@/lib/server/model-routes';
 import { gateway, resolveParamsBinding, userText, type ModelBinding } from '@/lib/model-gateway';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
@@ -337,7 +335,7 @@ export async function generateClassroom(
       // Re-resolve the query-rewrite model only when explicitly routed. If
       // resolution itself fails (e.g. unknown provider in the route), fall back
       // to the classroom model here; a route with a missing key resolves fine
-      // and surfaces only later in callLLM, which the outer try/catch below
+      // and surfaces only later in the gateway call, which the outer try/catch below
       // degrades gracefully — either way the pipeline still works.
       const rewriteRoute = getStageModel('web-search-query-rewrite');
       if (rewriteRoute) {
@@ -515,21 +513,10 @@ export async function generateClassroom(
               allowProceduralSkill: vocationalActive,
               ...(safeOutline.type === 'pbl'
                 ? {
-                    // The PBL planner moves to the gateway's tool loop in P3-2.
-                    pblLoopFallback: async (input) => {
-                      const legacy = await resolveModel({
-                        stage: getStageModel(contentCall.stage)
-                          ? contentCall.stage
-                          : 'generate-classroom',
-                      });
-                      return generatePBLV2Project(
-                        input,
-                        legacy.model,
-                        callLLM,
-                        { logger: log },
-                        legacy.thinkingConfig,
-                      );
-                    },
+                    pblLoopFallback: (input) =>
+                      generatePBLV2Project(input, contentCall.binding, gatewayPlannerCall(), {
+                        logger: log,
+                      }),
                   }
                 : {}),
             }),

@@ -31,7 +31,7 @@ import type { NextRequest } from 'next/server';
 
 import { createLogger } from '@/lib/logger';
 import { apiError } from '@/lib/server/api-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { resolveRequestBinding, type ModelBinding } from '@/lib/model-gateway';
 
 import { createSSEResponse } from '@/lib/pbl/v2/api/sse';
 import {
@@ -82,15 +82,14 @@ export async function POST(req: NextRequest) {
     return apiError('MISSING_REQUIRED_FIELD', 400, "kind='milestone' requires milestoneId.");
   }
 
-  let resolved;
+  let binding: ModelBinding;
   try {
-    resolved = await resolveModelFromRequest(req, body, 'pbl-v2-runtime:evaluate');
+    binding = await resolveRequestBinding(req, body, 'pbl-v2-runtime:evaluate');
   } catch (err) {
     log.error('Model resolution failed:', err);
     return apiError('INVALID_REQUEST', 400, err instanceof Error ? err.message : String(err));
   }
-  const { model, thinkingConfig, modelInfo } = resolved;
-  const hasVision = !!modelInfo?.capabilities?.vision;
+  const hasVision = binding.capabilities.vision;
 
   if (body.kind === 'task') {
     return createSSEResponse(
@@ -98,8 +97,7 @@ export async function POST(req: NextRequest) {
         project: body.project,
         milestoneId: body.milestoneId!,
         microtaskId: body.microtaskId!,
-        languageModel: model,
-        thinkingConfig,
+        binding,
         recentChatSummary: body.recentChatSummary,
         hasVision,
         signal: req.signal,
@@ -112,8 +110,7 @@ export async function POST(req: NextRequest) {
       runMilestoneEvaluation({
         project: body.project,
         milestoneId: body.milestoneId!,
-        languageModel: model,
-        thinkingConfig,
+        binding,
         recentChatSummary: body.recentChatSummary,
         signal: req.signal,
       }),
@@ -124,8 +121,7 @@ export async function POST(req: NextRequest) {
   return createSSEResponse(
     runFinalEvaluation({
       project: body.project,
-      languageModel: model,
-      thinkingConfig,
+      binding,
       recentChatSummary: body.recentChatSummary,
       signal: req.signal,
     }),

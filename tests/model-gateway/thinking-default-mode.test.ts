@@ -59,3 +59,21 @@ describe("thinking mode:'default'", () => {
     expect(result.patches).not.toContain('provider-default-thinking');
   });
 });
+
+describe('LLM_THINKING_DISABLED (global kill switch)', () => {
+  it('turns thinking off only when the call carries no config', async () => {
+    process.env.LLM_THINKING_DISABLED = 'true';
+    try {
+      const unset = await plan(undefined);
+      expect(unset.effective).toEqual({ mode: 'disabled', enabled: false });
+      expect(unset.reasoning).toBeUndefined();
+      expect(unset.patches).not.toContain('provider-default-thinking');
+
+      // An explicit per-call config still wins over the global switch.
+      const explicit = await plan({ mode: 'enabled', effort: 'low' });
+      expect(explicit.reasoning).toBe('low');
+    } finally {
+      delete process.env.LLM_THINKING_DISABLED;
+    }
+  });
+});

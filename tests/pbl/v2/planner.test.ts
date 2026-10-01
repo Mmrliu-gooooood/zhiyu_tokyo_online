@@ -27,7 +27,6 @@ import {
   type PlannerV2Callbacks,
   type PlannerV2ProgressEvent,
 } from '@/lib/pbl/v2/agents/planner-core';
-import type { StepResult, ToolSet } from 'ai';
 
 describe('PBL v2 — scenario design block (free-first dialogue)', () => {
   const pblConfig = {
@@ -228,28 +227,30 @@ describe('PBL v2 Planner — error paths (no LLM needed)', () => {
   });
 
   it('forwards the loop planner tool contract through the injected call seam', async () => {
-    const callLLM = vi.fn(async () => ({ finishReason: 'stop', steps: [] }));
-    const thinkingConfig = { enabled: true, budgetTokens: 2048 } as const;
+    const callLoop = vi.fn(async () => ({ finishReason: 'stop', steps: [] }));
+    const binding = { thinking: { enabled: true, budgetTokens: 2048 } } as never;
 
-    await expect(
-      generatePBLV2Project(plannerInput(), {} as never, callLLM, undefined, thinkingConfig),
-    ).rejects.toBeInstanceOf(PlannerV2Error);
+    await expect(generatePBLV2Project(plannerInput(), binding, callLoop)).rejects.toBeInstanceOf(
+      PlannerV2Error,
+    );
 
-    expect(callLLM).toHaveBeenCalledOnce();
-    expect(callLLM).toHaveBeenCalledWith(
+    expect(callLoop).toHaveBeenCalledOnce();
+    expect(callLoop).toHaveBeenCalledWith(
+      binding,
       expect.objectContaining({
-        tools: expect.objectContaining({
-          set_project_info: expect.anything(),
-          add_role: expect.anything(),
-          add_milestone: expect.anything(),
-          add_microtask: expect.anything(),
-          mark_design_complete: expect.anything(),
-        }),
-        stopWhen: [expect.any(Function), expect.any(Function)],
+        tools: expect.arrayContaining(
+          [
+            'set_project_info',
+            'add_role',
+            'add_milestone',
+            'add_microtask',
+            'mark_design_complete',
+          ].map((name) => expect.objectContaining({ name })),
+        ),
+        maxSteps: 80,
+        stopWhen: expect.any(Function),
       }),
-      'pbl-v2-planner',
-      undefined,
-      thinkingConfig,
+      { source: 'pbl-v2-planner' },
     );
   });
 });
@@ -303,7 +304,9 @@ describe('PBL v2 Planner — completion gate', () => {
     const rejectedStep = {
       toolResults: [
         {
+          toolCallId: 'call-1',
           toolName: 'mark_design_complete',
+          isError: false,
           output: {
             ok: false,
             gaps: ['milestone "Prepare analysis plan" has no microtasks'],
@@ -311,15 +314,17 @@ describe('PBL v2 Planner — completion gate', () => {
           },
         },
       ],
-    } as StepResult<ToolSet>;
+    };
     const acceptedStep = {
       toolResults: [
         {
+          toolCallId: 'call-2',
           toolName: 'mark_design_complete',
+          isError: false,
           output: { ok: true },
         },
       ],
-    } as StepResult<ToolSet>;
+    };
 
     expect(plannerStepHasAcceptedCompletion(rejectedStep)).toBe(false);
     expect(plannerStepHasAcceptedCompletion(acceptedStep)).toBe(true);

@@ -5,13 +5,14 @@
 export * from './types';
 export {
   assistantText,
+  fromChatTurns,
   messageText,
   toolResult,
   userContent,
   userParts,
   userText,
 } from './messages';
-export type { ImageInput, UserPart } from './messages';
+export type { ChatTurn, ImageInput, UserPart } from './messages';
 export { readModelSelection, thinkingFromBody } from './selection/read-request';
 export type { RequestModelSelection } from './selection/read-request';
 export { getBindingResolutionError, resolveBinding } from './selection/resolve-binding';

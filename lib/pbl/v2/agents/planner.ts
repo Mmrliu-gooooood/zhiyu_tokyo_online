@@ -13,18 +13,25 @@
  * has already inferred the project topic into `outline.pblConfig` and
  * the student is not in the loop.
  *
- * Technology: Vercel AI SDK `generateText` + `tool` + `stopWhen` —
- * the same range v1 uses, kept identical so the upgrade path is
- * incremental.
+ * Technology: the model gateway's multi-step tool loop (`runToolLoop`):
+ * zod-validated tools, one gateway call per step, and a stop predicate
+ * on the accepted completion tool.
  */
 
-import type { LanguageModel, StepResult, StopCondition, ToolSet } from 'ai';
-import { tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 
 import { createLogger } from '@/lib/logger';
+import {
+  gateway,
+  runToolLoop,
+  userText,
+  type GatewayCallOptions,
+  type LoopTool,
+  type ModelBinding,
+  type ToolLoopRequest,
+  type ToolLoopStep,
+} from '@/lib/model-gateway';
 import { normalizeProjectRuntime, normalizeScenario } from '@openmaic/generation';
-import type { ThinkingConfig } from '@/lib/types/provider';
 
 import {
   SCENARIO_SCHEMA_VERSION,
@@ -50,20 +57,29 @@ import type {
 
 const log = createLogger('PBL v2 Planner');
 
-/** Narrow call seam used by the tool-calling planner. */
+/** Narrow call seam used by the tool-calling planner (tests inject a fake). */
 export type PlannerCallFn = (
-  params: {
-    model: LanguageModel;
-    system: string;
-    prompt: string;
-    tools: ToolSet;
-    stopWhen: StopCondition<ToolSet>[];
-    onStepFinish: (step: Pick<StepResult<ToolSet>, 'toolCalls'>) => void;
-  },
-  source: 'pbl-v2-planner',
-  retryOptions: undefined,
-  thinkingConfig?: ThinkingConfig,
+  binding: ModelBinding,
+  request: ToolLoopRequest,
+  options: { source: 'pbl-v2-planner' },
 ) => Promise<unknown>;
+
+/** The production seam: run the loop on the gateway with the caller's options. */
+export function gatewayPlannerCall(
+  options: Omit<GatewayCallOptions, 'source'> = {},
+): PlannerCallFn {
+  return (binding, request, { source }) =>
+    runToolLoop(gateway, binding, request, { ...options, source }).result();
+}
+
+/** Tool definition shape kept from the AI SDK `tool()` helper; named by its key. */
+function tool<Input>(definition: {
+  description: string;
+  inputSchema: z.ZodType<Input>;
+  execute: (input: Input) => unknown;
+}): Omit<LoopTool<Input>, 'name'> {
+  return definition;
+}
 
 // ---------------------------------------------------------------------------
 // Loop budgets
@@ -82,10 +98,10 @@ const MAX_PLANNER_STEPS = 80;
 /**
  * Run the v2 Planner agentic loop and return a complete `PBLProjectV2`.
  *
- * Caller responsibility: pass a `LanguageModel` instance and (for
- * thinking-capable models) a `ThinkingConfig`. The Planner does not
- * choose models or providers — it inherits whatever the course
- * generation pipeline already resolved.
+ * Caller responsibility: pass the resolved `ModelBinding` (its thinking
+ * configuration travels with it). The Planner does not choose models or
+ * providers — it inherits whatever the course generation pipeline
+ * already resolved.
  *
  * Throws `PlannerV2Error` if the model finished without producing a
  * usable project (no Instructor role or no milestones with
@@ -94,10 +110,9 @@ const MAX_PLANNER_STEPS = 80;
  */
 export async function generatePBLV2Project(
   input: PBLPlannerV2Input,
-  model: LanguageModel,
-  callLLM: PlannerCallFn,
+  binding: ModelBinding,
+  callLoop: PlannerCallFn,
   callbacks?: PlannerV2Callbacks,
-  thinkingConfig?: ThinkingConfig,
 ): Promise<PBLProjectV2> {
   // Pull all the fields the prompt needs out of the input bundle so the
   // template substitution is explicit rather than passing `input` as a
@@ -152,27 +167,27 @@ export async function generatePBLV2Project(
   // The agentic loop. The Planner emits tool calls until
   // `mark_design_complete` is accepted by the completion gate, or
   // until the defensive step budget is hit.
-  await callLLM(
+  await callLoop(
+    binding,
     {
-      model,
       system: systemPrompt,
-      prompt:
-        'Design the PBL project now. Call the tools in the documented order; do not write narrative text.',
-      tools,
-      stopWhen: [plannerDesignAccepted(), stepCountIs(MAX_PLANNER_STEPS)],
+      messages: [
+        userText(
+          'Design the PBL project now. Call the tools in the documented order; do not write narrative text.',
+        ),
+      ],
+      tools: Object.entries(tools).map(([name, definition]) => ({ name, ...definition })),
+      maxSteps: MAX_PLANNER_STEPS,
+      stopWhen: plannerStepHasAcceptedCompletion,
       onStepFinish: ({ toolCalls }) => {
         // Optional verbose log. Keep at debug-level so production
         // logs don't drown in tool noise.
-        if (toolCalls?.length) {
-          for (const tc of toolCalls) {
-            log.debug(`tool call: ${tc.toolName}`);
-          }
+        for (const tc of toolCalls) {
+          log.debug(`tool call: ${tc.name}`);
         }
       },
     },
-    'pbl-v2-planner',
-    undefined,
-    thinkingConfig,
+    { source: 'pbl-v2-planner' },
   );
 
   normalizeProjectRuntime(project);
@@ -774,15 +789,14 @@ function isAcceptedPlannerCompletion(output: unknown): output is { ok: true } {
   );
 }
 
-export function plannerStepHasAcceptedCompletion(step: StepResult<ToolSet>): boolean {
+/** Stop predicate: the completion tool accepted the design in this step. */
+export function plannerStepHasAcceptedCompletion(step: Pick<ToolLoopStep, 'toolResults'>): boolean {
   return step.toolResults.some(
     (result) =>
-      result.toolName === 'mark_design_complete' && isAcceptedPlannerCompletion(result.output),
+      result.toolName === 'mark_design_complete' &&
+      !result.isError &&
+      isAcceptedPlannerCompletion(result.output),
   );
-}
-
-function plannerDesignAccepted(): StopCondition<ToolSet> {
-  return ({ steps }) => steps.some(plannerStepHasAcceptedCompletion);
 }
 
 function validateProject(project: PBLProjectV2, scenarioRoleplay = false): void {

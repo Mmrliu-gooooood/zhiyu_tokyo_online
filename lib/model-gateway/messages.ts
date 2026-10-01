@@ -109,6 +109,32 @@ export function toolResult(
   };
 }
 
+/** Plain-text chat history (the shape prompts used with the AI SDK). */
+export interface ChatTurn {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * Plain-text chat turns → gateway request fields. System turns are appended to
+ * the system prompt in order (they carry instructions such as memory
+ * summaries); user / assistant turns become pi messages.
+ */
+export function fromChatTurns(
+  turns: readonly ChatTurn[],
+  system?: string,
+): { system?: string; messages: (GatewayUserMessage | AssistantMessage)[] } {
+  const systemParts = system ? [system] : [];
+  const messages: (GatewayUserMessage | AssistantMessage)[] = [];
+  const now = Date.now();
+  for (const turn of turns) {
+    if (turn.role === 'system') systemParts.push(turn.content);
+    else if (turn.role === 'user') messages.push(userText(turn.content, now));
+    else messages.push(assistantText(turn.content, {}, now));
+  }
+  return { ...(systemParts.length ? { system: systemParts.join('\n\n') } : {}), messages };
+}
+
 /** Concatenate the visible text of an assistant message. */
 export function messageText(message: Pick<AssistantMessage, 'content'>): string {
   return message.content

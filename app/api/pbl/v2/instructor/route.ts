@@ -18,7 +18,7 @@ import type { NextRequest } from 'next/server';
 
 import { createLogger } from '@/lib/logger';
 import { apiError } from '@/lib/server/api-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { resolveRequestBinding, type ModelBinding } from '@/lib/model-gateway';
 
 import { createSSEResponse } from '@/lib/pbl/v2/api/sse';
 import { applyRequestLocaleToProject } from '@/lib/pbl/v2/api/locale';
@@ -53,15 +53,14 @@ export async function POST(req: NextRequest) {
     return apiError('MISSING_REQUIRED_FIELD', 400, '`userMessage` is required.');
   }
 
-  let resolved;
+  let binding: ModelBinding;
   try {
-    resolved = await resolveModelFromRequest(req, body, 'pbl-v2-runtime:instructor');
+    binding = await resolveRequestBinding(req, body, 'pbl-v2-runtime:instructor');
   } catch (err) {
     log.error('Model resolution failed:', err);
     return apiError('INVALID_REQUEST', 400, err instanceof Error ? err.message : String(err));
   }
 
-  const { model, thinkingConfig } = resolved;
   const phase = body.phase ?? 'instructing';
   applyRequestLocaleToProject(req, body.project);
 
@@ -70,8 +69,7 @@ export async function POST(req: NextRequest) {
       project: body.project,
       userMessage: body.userMessage,
       phase,
-      languageModel: model,
-      thinkingConfig,
+      binding,
       signal: req.signal,
     }),
     { signal: req.signal },

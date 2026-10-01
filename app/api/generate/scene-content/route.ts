@@ -9,7 +9,6 @@ import { withHostedProviderQuota } from '@/lib/auth/api';
  */
 
 import { NextRequest } from 'next/server';
-import { callLLM } from '@/lib/ai/llm';
 import {
   applyOutlineFallbacks,
   generateSceneContent,
@@ -26,7 +25,6 @@ import type {
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { llmApiError } from '@/lib/server/llm-error-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
 import { gateway, resolveRequestBinding, userParts, userText } from '@/lib/model-gateway';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
@@ -35,7 +33,7 @@ import {
   resolveVisionImagesForPrompt,
   type VisionPromptImage,
 } from '@/lib/persistence/resolve-vision-images';
-import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
+import { gatewayPlannerCall, generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 
 const log = createLogger('Scene Content API');
 
@@ -321,17 +319,10 @@ async function handlePost(req: NextRequest) {
       allowProceduralSkill: vocationalActive,
       ...(effectiveOutline.type === 'pbl'
         ? {
-            // The PBL planner moves to the gateway's tool loop in P3-2.
-            pblLoopFallback: async (input) => {
-              const legacy = await resolveModelFromRequest(req, body, stage);
-              return generatePBLV2Project(
-                input,
-                legacy.model,
-                callLLM,
-                { logger: log },
-                legacy.thinkingConfig,
-              );
-            },
+            pblLoopFallback: (input) =>
+              generatePBLV2Project(input, binding, gatewayPlannerCall({ signal: req.signal }), {
+                logger: log,
+              }),
           }
         : {}),
     });

@@ -11,6 +11,9 @@
  *     ),
  *   );
  *
+ * Or pass `delegate: () => faux.gateway` to run the real pipeline against
+ * lib/model-gateway/testing/faux-gateway.ts.
+ *
  * `complete` mocks may resolve to a partial result (`{ text }`); the rest of
  * the GatewayResult is filled in.
  */
@@ -28,6 +31,8 @@ export interface GatewayModuleMocks {
   resolveRequestBinding?: AnyMock;
   resolveHeaderBinding?: AnyMock;
   resolveParamsBinding?: AnyMock;
+  /** Route `gateway` calls to another instance (e.g. createFauxGateway().gateway). */
+  delegate?: () => GatewayModule.ModelGateway;
 }
 
 const ZERO_USAGE = {
@@ -52,8 +57,17 @@ export function completeResult(partial: Record<string, unknown> = {}) {
 }
 
 export function mockGatewayModule(actual: typeof GatewayModule, mocks: GatewayModuleMocks) {
+  const delegate = mocks.delegate;
   const gateway = {
     ...actual.gateway,
+    ...(delegate
+      ? {
+          stream: (...args: Parameters<GatewayModule.ModelGateway['stream']>) =>
+            delegate().stream(...args),
+          complete: (...args: Parameters<GatewayModule.ModelGateway['complete']>) =>
+            delegate().complete(...args),
+        }
+      : {}),
     ...(mocks.complete
       ? {
           complete: async (...args: unknown[]) =>
@@ -108,5 +122,27 @@ export function fakeBinding(overrides: Partial<BindingFields> & Record<string, u
     credentialReady: true,
     fingerprint: 'test',
     ...overrides,
+  };
+}
+
+/**
+ * A gateway stream from text chunks (the shape AI SDK tests scripted as
+ * `{ textStream }`): one `text_delta` per chunk, then `done`.
+ */
+export function fromTextStream({ textStream }: { textStream: AsyncIterable<string> }) {
+  async function* events() {
+    let text = '';
+    for await (const delta of textStream) {
+      text += delta;
+      yield { type: 'text_delta' as const, contentIndex: 0, delta };
+    }
+    yield { type: 'done' as const, reason: 'stop' as const, message: { role: 'assistant', text } };
+  }
+  return {
+    [Symbol.asyncIterator]: events,
+    async *textStream() {
+      yield* textStream;
+    },
+    result: async () => completeResult(),
   };
 }

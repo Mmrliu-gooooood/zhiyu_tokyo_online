@@ -16,7 +16,6 @@ import { withHostedProviderQuota } from '@/lib/auth/api';
  */
 
 import { NextRequest } from 'next/server';
-import { streamLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/prompts';
 import {
   formatImageDescription,
@@ -38,7 +37,15 @@ import type {
 } from '@/lib/types/generation';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { getModelResolutionError, resolveModelFromRequest } from '@/lib/server/resolve-model';
+import {
+  gateway,
+  getBindingResolutionError,
+  resolveRequestBinding,
+  userParts,
+  userText,
+  type GatewayStream,
+} from '@/lib/model-gateway';
+
 import { sortDocumentImagesForVision } from '@/lib/document/bundle';
 import { resolveVisionImagesForPrompt } from '@/lib/persistence/resolve-vision-images';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
@@ -184,6 +191,14 @@ import {
   sanitizeNonTaskEngineOutline,
 } from '@/lib/server/generation-pipeline/outline-modes';
 
+/** Text deltas of a gateway stream; a terminal error is thrown (AI SDK textStream semantics). */
+async function* textChunks(stream: GatewayStream): AsyncGenerator<string> {
+  for await (const part of stream) {
+    if (part.type === 'error') throw part.gatewayError;
+    if (part.type === 'text_delta') yield part.delta;
+  }
+}
+
 function ensureUniqueOutlineId(outline: SceneOutline, usedIds: Set<string>): SceneOutline {
   const candidate = typeof outline.id === 'string' && outline.id.trim() ? outline.id : undefined;
   if (candidate && !usedIds.has(candidate)) {
@@ -212,13 +227,8 @@ async function handlePost(req: NextRequest) {
     const body = await req.json();
 
     // Get API configuration from request headers/body
-    const {
-      model: languageModel,
-      modelInfo,
-      modelString,
-      thinkingConfig,
-    } = await resolveModelFromRequest(req, body, 'scene-outlines-stream');
-    resolvedModelString = modelString;
+    const binding = await resolveRequestBinding(req, body, 'scene-outlines-stream');
+    resolvedModelString = binding.modelString;
 
     if (!body.requirements) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Requirements are required');
@@ -241,7 +251,7 @@ async function handlePost(req: NextRequest) {
         : '';
 
     // Detect vision capability
-    const hasVision = !!modelInfo?.capabilities?.vision;
+    const hasVision = binding.capabilities.vision;
 
     // Build prompt (same logic as generateSceneOutlinesFromRequirements)
     let availableImagesText = 'No images available';
@@ -373,7 +383,7 @@ async function handlePost(req: NextRequest) {
     }
 
     log.info(
-      `Generating outlines: "${requirements.requirement.substring(0, 50)}" [model=${modelString}]`,
+      `Generating outlines: "${requirements.requirement.substring(0, 50)}" [model=${resolvedModelString}]`,
     );
 
     // Create SSE stream with heartbeat to prevent connection timeout
@@ -409,28 +419,14 @@ async function handlePost(req: NextRequest) {
         try {
           startHeartbeat();
 
-          const streamParams = visionImages?.length
-            ? {
-                model: languageModel,
-                system: prompts.system,
-                messages: [
-                  {
-                    role: 'user' as const,
-                    content: buildVisionUserContent(prompts.user, visionImages),
-                  },
-                ],
-                maxOutputTokens: modelInfo?.outputWindow,
-                // Tear down the upstream LLM request when the client disconnects,
-                // instead of letting it run to completion for a dead connection.
-                abortSignal: req.signal,
-              }
-            : {
-                model: languageModel,
-                system: prompts.system,
-                prompt: prompts.user,
-                maxOutputTokens: modelInfo?.outputWindow,
-                abortSignal: req.signal,
-              };
+          const streamRequest = {
+            system: prompts.system,
+            messages: [
+              visionImages?.length
+                ? userParts(buildVisionUserContent(prompts.user, visionImages))
+                : userText(prompts.user),
+            ],
+          };
 
           let parsedOutlines: SceneOutline[] = [];
           let languageDirective: string | null = null;
@@ -445,11 +441,14 @@ async function handlePost(req: NextRequest) {
               languageDirective = null;
               courseTitle = null;
               const usedOutlineIds = new Set<string>();
-              const textStream = streamLLM(
-                streamParams,
-                'scene-outlines-stream',
-                thinkingConfig,
-              ).textStream;
+              const textStream = textChunks(
+                gateway.stream(binding, streamRequest, {
+                  source: 'scene-outlines-stream',
+                  // Tear down the upstream LLM request when the client disconnects,
+                  // instead of letting it run to completion for a dead connection.
+                  signal: req.signal,
+                }),
+              );
 
               for await (const chunk of textStream) {
                 // Stop doing work the moment the client goes away — otherwise
@@ -632,7 +631,7 @@ async function handlePost(req: NextRequest) {
       `Outline streaming failed [requirement="${requirementSnippet ?? 'unknown'}...", model=${resolvedModelString ?? 'unknown'}]:`,
       error,
     );
-    const resolutionError = getModelResolutionError(error);
+    const resolutionError = getBindingResolutionError(error);
     return resolutionError
       ? apiError(resolutionError.code, resolutionError.httpStatus, resolutionError.message)
       : apiError('INTERNAL_ERROR', 500, error instanceof Error ? error.message : String(error));

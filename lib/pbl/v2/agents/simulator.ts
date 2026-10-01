@@ -23,11 +23,8 @@
  * intentionally NOT here — they land in increment 4.
  */
 
-import type { LanguageModel } from 'ai';
-
 import { createLogger } from '@/lib/logger';
-import { callLLM, streamLLM } from '@/lib/ai/llm';
-import type { ThinkingConfig } from '@/lib/types/provider';
+import { fromChatTurns, gateway, type ModelBinding } from '@/lib/model-gateway';
 import { loadPBLV2Prompt } from '../prompts/loader';
 import { trimmedPBLText } from '../readers';
 
@@ -260,8 +257,7 @@ async function runDirectorNarratorPass(args: {
   microtask: PBLMicrotask;
   phase: SimulatorPhase;
   thread: PBLAgentThread | undefined;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   signal?: AbortSignal;
   /** SCENARIO ACT MODEL. On a greeting, whether this is the FIRST entry into the
    *  whole scene (no prior act) vs entering a LATER act (the shared Simulator
@@ -269,17 +265,7 @@ async function runDirectorNarratorPass(args: {
    *  warns against re-describing what the prior act already covered. */
   firstEntry?: boolean;
 }): Promise<string[]> {
-  const {
-    project,
-    milestone,
-    microtask,
-    phase,
-    thread,
-    languageModel,
-    thinkingConfig,
-    signal,
-    firstEntry,
-  } = args;
+  const { project, milestone, microtask, phase, thread, binding, signal, firstEntry } = args;
   const system = buildNarratorSystemPrompt(project, milestone, microtask);
   const history = buildSimulatorHistory(thread, 'director');
   const greetingNudge = firstEntry
@@ -294,21 +280,11 @@ async function runDirectorNarratorPass(args: {
   const messages = [...history, { role: 'user' as const, content: nudge }];
 
   try {
-    const result = await callLLM(
-      {
-        model: languageModel,
-        system,
-        messages,
-        ...(signal ? { abortSignal: signal } : {}),
-      },
-      'pbl-v2-simulator-narrator',
-      undefined,
-      // Same contract as every other site: the request / stage route decides.
-      // This pass used to drop the config on the floor — its callers passed one
-      // and the helper never forwarded it, so the provider silently fell back to
-      // the model default.
-      thinkingConfig,
-    );
+    // Thinking travels with the binding: the request / stage route decides.
+    const result = await gateway.complete(binding, fromChatTurns(messages, system), {
+      source: 'pbl-v2-simulator-narrator',
+      ...(signal ? { signal } : {}),
+    });
     const text = (result.text ?? '').trim();
     if (!text) return [];
     // Sentinel: model says nothing happened → no narration this turn.
@@ -331,8 +307,7 @@ interface RunSimulatorTurnArgs {
   project: PBLProjectV2;
   userMessage: string;
   phase: SimulatorPhase;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   signal?: AbortSignal;
 }
 
@@ -381,7 +356,7 @@ function buildActContext(milestone: PBLMilestone, current: PBLMicrotask): PBLMic
 export async function* runSimulatorTurn(
   args: RunSimulatorTurnArgs,
 ): AsyncGenerator<PBLSSEEvent, void, void> {
-  const { project, userMessage, phase, languageModel, thinkingConfig, signal } = args;
+  const { project, userMessage, phase, binding, signal } = args;
 
   // Guarantees the Simulator thread exists (scenario projects only).
   normalizeProjectRuntime(project);
@@ -435,8 +410,7 @@ export async function* runSimulatorTurn(
       microtask,
       phase: 'greeting',
       thread,
-      languageModel,
-      thinkingConfig,
+      binding,
       signal,
       firstEntry,
     });
@@ -526,28 +500,14 @@ export async function* runSimulatorTurn(
   // so the caller can decide retry vs surface.
   async function* streamCharacterLine(): AsyncGenerator<PBLSSEEvent, string, void> {
     let acc = '';
-    // The incoming per-request / stage-route config is what applies, handed to
-    // the wrapper: it resolves provider options for native adapters AND seeds the
-    // thinking context that the OpenAI-compatible fetch wrapper reads. The
-    // hand-rolled `resolveThinkingProviderOptions` call this replaced only ever
-    // covered the former, so a stage-route config was silently dropped on
-    // OpenAI-compatible providers.
-    const stream = streamLLM(
-      {
-        model: languageModel,
-        system,
-        messages,
-        ...(signal ? { abortSignal: signal } : {}),
-      },
-      'pbl-v2-simulator',
-      thinkingConfig,
-    );
-    for await (const part of stream.fullStream) {
-      if (part.type === 'text-delta') {
-        const delta =
-          (part as unknown as { text?: string; textDelta?: string }).text ??
-          (part as unknown as { textDelta?: string }).textDelta ??
-          '';
+    // The per-request / stage-route thinking config travels with the binding.
+    const stream = gateway.stream(binding, fromChatTurns(messages, system), {
+      source: 'pbl-v2-simulator',
+      ...(signal ? { signal } : {}),
+    });
+    for await (const part of stream) {
+      if (part.type === 'text_delta') {
+        const delta = part.delta;
         if (delta) {
           acc += delta;
           yield { type: 'token', delta };
@@ -619,8 +579,7 @@ export async function* runSimulatorTurn(
       microtask,
       phase: 'instructing',
       thread,
-      languageModel,
-      thinkingConfig,
+      binding,
       signal,
     });
     for (const chunk of narrationChunks) {

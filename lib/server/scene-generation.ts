@@ -2,7 +2,6 @@
  * App adapters around the store-independent @openmaic/generation scene layer.
  */
 
-import type { LanguageModel } from 'ai';
 import {
   applyOutlineFallbacks,
   buildCompleteScene,
@@ -17,10 +16,10 @@ import {
   type SceneGenerationContext,
   type SceneOutline,
 } from '@openmaic/generation';
-import { callLLM } from '@/lib/ai/llm';
+import type { ModelBinding } from '@/lib/model-gateway';
 import type { StageAPI } from '@/lib/api/stage-api';
 import { createLogger } from '@/lib/logger';
-import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
+import { gatewayPlannerCall, generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import type { Action } from '@/lib/types/action';
 import type { Scene, SceneContent } from '@/lib/types/stage';
 
@@ -56,7 +55,7 @@ export async function buildSceneFromOutline(
   stageId: string,
   assignedImages?: PdfImage[],
   imageMapping?: ImageMapping,
-  languageModel?: LanguageModel,
+  binding?: ModelBinding,
   visionEnabled?: boolean,
   ctx?: SceneGenerationContext,
   agents?: AgentInfo[],
@@ -64,7 +63,7 @@ export async function buildSceneFromOutline(
   userProfile?: string,
   languageDirective?: string,
 ): Promise<Scene | null> {
-  const safeOutline = applyOutlineFallbacks(outline, !!languageModel, { logger: log });
+  const safeOutline = applyOutlineFallbacks(outline, !!binding, { logger: log });
   const langText = buildLanguageText(languageDirective, safeOutline.languageNote);
 
   onPhaseChange?.('content');
@@ -75,10 +74,10 @@ export async function buildSceneFromOutline(
     agents,
     languageDirective: langText,
     logger: log,
-    ...(languageModel
+    ...(binding
       ? {
           pblLoopFallback: (input) =>
-            generatePBLV2Project(input, languageModel, callLLM, { logger: log }),
+            generatePBLV2Project(input, binding, gatewayPlannerCall(), { logger: log }),
         }
       : {}),
   });

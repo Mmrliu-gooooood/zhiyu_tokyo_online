@@ -11,13 +11,16 @@
  * owned by the right-side submission/evaluation flow, not by chat.
  */
 
-import { tool, stepCountIs } from 'ai';
-import type { LanguageModel } from 'ai';
-
 import { createLogger } from '@/lib/logger';
-import { streamLLM } from '@/lib/ai/llm';
+import {
+  fromChatTurns,
+  gateway,
+  runToolLoop,
+  type LoopTool,
+  type ModelBinding,
+  type ToolLoopEvent,
+} from '@/lib/model-gateway';
 import { loadPBLV2Prompt } from '../prompts/loader';
-import type { ThinkingConfig } from '@/lib/types/provider';
 import { tierGuidanceBlock } from './tier-guidance';
 import { compressIfNeeded } from './instructor-memory';
 
@@ -876,7 +879,7 @@ function buildSystemPrompt(args: {
 }
 
 // ---------------------------------------------------------------------------
-// Recent message history → AI SDK messages
+// Recent message history → plain chat turns (fromChatTurns → gateway)
 // ---------------------------------------------------------------------------
 
 export function buildHistoryMessagesForInstructor(
@@ -1275,6 +1278,11 @@ function difficultyAdjustAck(language: string | undefined): string {
   }
 }
 
+/** A named gateway loop tool (the AI SDK `tool()` shape plus its name). */
+function loopTool<Input>(name: string, definition: Omit<LoopTool<Input>, 'name'>): LoopTool<Input> {
+  return { name, ...definition };
+}
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
@@ -1283,8 +1291,8 @@ export interface RunInstructorTurnArgs {
   project: PBLProjectV2;
   userMessage: string;
   phase: InstructorPhase;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  /** Resolved model (its thinking configuration travels with it). */
+  binding: ModelBinding;
   /** AbortSignal from the incoming HTTP request. When the client
    *  disconnects, this signal aborts, and the instructor loop
    *  stops burning compute. */
@@ -1301,7 +1309,7 @@ export interface RunInstructorTurnArgs {
 export async function* runInstructorTurn(
   args: RunInstructorTurnArgs,
 ): AsyncGenerator<PBLSSEEvent, void, void> {
-  const { project, userMessage, phase, languageModel, thinkingConfig, signal } = args;
+  const { project, userMessage, phase, binding, signal } = args;
 
   normalizeProjectRuntime(project);
   const current = currentMicrotask(project);
@@ -1419,8 +1427,9 @@ export async function* runInstructorTurn(
   //   - record_observation: analytic learning events (never gates advance).
   //   - adjust_difficulty: applies a learner's explicit level request.
   let didAdjustDifficulty = false;
-  const tools = {
-    record_observation: tool({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous tool inputs
+  const tools: LoopTool<any>[] = [
+    loopTool('record_observation', {
       description:
         'Record a notable learning event mid-task (error, struggle, question) for the evaluator. Analytics only — this does NOT advance the task or gate completion. Use sparingly, for moments worth showing the evaluator.',
       inputSchema: RecordObservationArgs,
@@ -1469,7 +1478,7 @@ export async function* runInstructorTurn(
       },
     }),
 
-    adjust_difficulty: tool({
+    loopTool('adjust_difficulty', {
       description:
         "Apply the learner's EXPLICIT request to change the teaching difficulty, or their statement of their own level — in ANY language (e.g. 「改成中级」, 「もっと簡単に」, «сделай сложнее», “deixa mais difícil”, “I'm a beginner”). Use beginner/intermediate/advanced when they name a level or describe themselves; use easier/harder for a relative nudge. This takes effect immediately and overrides the platform's adaptive estimate (the learner's own word wins). Do NOT call it for an incidental mention or a question about the content (e.g. “is this an advanced topic?”) — only when the learner is actually asking to change difficulty.",
       inputSchema: AdjustDifficultyArgs,
@@ -1480,7 +1489,7 @@ export async function* runInstructorTurn(
         return { ok: true, tier: project.proficiency };
       },
     }),
-  };
+  ];
 
   // ----- Act -----
   //
@@ -1497,59 +1506,53 @@ export async function* runInstructorTurn(
     // speaking, leaving the learner with an empty chat. The instructing path
     // exposes only the two non-advance tools (record_observation /
     // adjust_difficulty).
-    const result = streamLLM(
-      {
-        model: languageModel,
-        system: systemPrompt,
-        messages: finalMessages,
-        // SCENARIO ONLY: prep-stage turns are pure Q&A — expose NO tools so the
-        // model cannot record/advance; advancing the prep stage is the sidebar
-        // "enter scenario" button's job.
-        // Never force a tool choice here. Measured against the live DeepSeek V4
-        // Pro API: thinking on + these `tools` + `stopWhen` streams fine, but
-        // thinking on + a FORCED `toolChoice` fails with 400 "Thinking mode does
-        // not support this tool_choice". A forced tool would also take the
-        // learner's turn away from the model, which the comment above is about.
-        ...(phase === 'instructing' && !scenarioPrepStage
-          ? { tools, stopWhen: stepCountIs(MAX_INSTRUCTOR_STEPS) }
-          : {}),
-        ...(signal ? { abortSignal: signal } : {}),
-      },
-      'pbl-v2-instructor',
-      // Thinking is whatever the request / stage route asked for — the runtime
-      // holds no opinion of its own, same as every other call in the tree. If a
-      // deployment wants these turns cheap and snappy (on the same probe a
-      // thinking-by-default model pushed the first token from ~1.4 s to ~3.0 s),
-      // pin `thinking` off on the `pbl-v2-runtime` stage route.
-      thinkingConfig,
-    );
+    // SCENARIO ONLY: prep-stage turns are pure Q&A — expose NO tools so the
+    // model cannot record/advance; advancing the prep stage is the sidebar
+    // "enter scenario" button's job.
+    // Never force a tool choice here. Measured against the live DeepSeek V4
+    // Pro API: thinking on + these `tools` streams fine, but thinking on + a
+    // FORCED tool choice fails with 400 "Thinking mode does not support this
+    // tool_choice". A forced tool would also take the learner's turn away
+    // from the model, which the comment above is about.
+    //
+    // Thinking is whatever the request / stage route asked for (it travels
+    // with the binding) — the runtime holds no opinion of its own. If a
+    // deployment wants these turns cheap and snappy (on the same probe a
+    // thinking-by-default model pushed the first token from ~1.4 s to
+    // ~3.0 s), pin `thinking` off on the `pbl-v2-runtime` stage route.
+    const request = fromChatTurns(finalMessages, systemPrompt);
+    const callOptions = { source: 'pbl-v2-instructor', ...(signal ? { signal } : {}) };
+    const events: AsyncIterable<ToolLoopEvent> =
+      phase === 'instructing' && !scenarioPrepStage
+        ? runToolLoop(
+            gateway,
+            binding,
+            { ...request, tools, maxSteps: MAX_INSTRUCTOR_STEPS },
+            callOptions,
+          )
+        : gateway.stream(binding, request, callOptions);
 
-    for await (const part of result.fullStream) {
+    for await (const part of events) {
       switch (part.type) {
-        case 'text-delta': {
-          // ai SDK 6.x uses `text` for the chunk content.
-          const delta =
-            (part as unknown as { text?: string; textDelta?: string }).text ??
-            (part as unknown as { textDelta?: string }).textDelta ??
-            '';
-          if (delta) {
-            assistantText += delta;
-            yield { type: 'token', delta };
+        case 'text_delta': {
+          if (part.delta) {
+            assistantText += part.delta;
+            yield { type: 'token', delta: part.delta };
           }
           break;
         }
-        case 'tool-call': {
+        case 'toolcall_end': {
           // Only the two non-advance teaching tools reach here
           // (record_observation / adjust_difficulty); forward them as-is.
           yield {
             type: 'tool_call',
-            toolName: part.toolName,
-            args: (part.input ?? {}) as Record<string, unknown>,
-            toolCallId: part.toolCallId,
+            toolName: part.toolCall.name,
+            args: (part.toolCall.arguments ?? {}) as Record<string, unknown>,
+            toolCallId: part.toolCall.id,
           };
           break;
         }
-        case 'tool-result': {
+        case 'tool_result': {
           // Flush engagement / proficiency patches queued by the tool execute,
           // in server-mutation order.
           while (pendingPatches.length > 0) {
@@ -1558,17 +1561,7 @@ export async function* runInstructorTurn(
           break;
         }
         case 'error': {
-          const errAny = (part as unknown as { error?: unknown }).error;
-          yield {
-            type: 'error',
-            code: 'LLM_ERROR',
-            message:
-              errAny instanceof Error ? errAny.message : String(errAny ?? 'unknown LLM error'),
-          };
-          break;
-        }
-        case 'finish': {
-          // End-of-step. Final assistant message is committed below.
+          yield { type: 'error', code: 'LLM_ERROR', message: part.gatewayError.message };
           break;
         }
         default:
@@ -1719,8 +1712,7 @@ export async function* runInstructorTurn(
       log.info(`[setup-followup] opening next microtask=${next.microtask.id}.`);
       for await (const ev of runSetupFollowup({
         project,
-        languageModel,
-        thinkingConfig,
+        binding,
         instructorRole: instructor,
         signal,
       })) {
@@ -1751,14 +1743,13 @@ export async function* runInstructorTurn(
 
 interface SetupFollowupArgs {
   project: PBLProjectV2;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   instructorRole?: PBLRole;
   signal?: AbortSignal;
 }
 
 async function* runSetupFollowup(args: SetupFollowupArgs): AsyncGenerator<PBLSSEEvent, void, void> {
-  const { project, languageModel, thinkingConfig, instructorRole, signal } = args;
+  const { project, binding, instructorRole, signal } = args;
   normalizeProjectRuntime(project);
   const current = currentMicrotask(project);
   if (!current || !instructorRole) return;
@@ -1779,33 +1770,25 @@ async function* runSetupFollowup(args: SetupFollowupArgs): AsyncGenerator<PBLSSE
   const historyMessages = buildSetupHistoryMessages(instructorThread);
 
   try {
-    const result = streamLLM(
-      {
-        model: languageModel,
-        system: systemPrompt,
-        messages: [
+    const result = gateway.stream(
+      binding,
+      fromChatTurns(
+        [
           ...historyMessages,
-          {
-            role: 'user' as const,
-            content: syntheticPlatformOpener('setup', project.language),
-          },
+          { role: 'user', content: syntheticPlatformOpener('setup', project.language) },
         ],
-        ...(signal ? { abortSignal: signal } : {}),
-      },
-      'pbl-v2-instructor-setup-followup',
-      thinkingConfig,
+        systemPrompt,
+      ),
+      { source: 'pbl-v2-instructor-setup-followup', ...(signal ? { signal } : {}) },
     );
 
     let rawAssistantText = '';
     let emittedPreview = '';
     let finalCleanedChanged = false;
-    for await (const part of result.fullStream) {
+    for await (const part of result) {
       switch (part.type) {
-        case 'text-delta': {
-          const delta =
-            (part as unknown as { text?: string; textDelta?: string }).text ??
-            (part as unknown as { textDelta?: string }).textDelta ??
-            '';
+        case 'text_delta': {
+          const delta = part.delta;
           if (!delta) break;
           rawAssistantText += delta;
           const cleaned = cleanSetupFollowupText(rawAssistantText);
@@ -1820,13 +1803,7 @@ async function* runSetupFollowup(args: SetupFollowupArgs): AsyncGenerator<PBLSSE
           break;
         }
         case 'error': {
-          const errAny = (part as unknown as { error?: unknown }).error;
-          yield {
-            type: 'error',
-            code: 'LLM_ERROR',
-            message:
-              errAny instanceof Error ? errAny.message : String(errAny ?? 'unknown LLM error'),
-          };
+          yield { type: 'error', code: 'LLM_ERROR', message: part.gatewayError.message };
           break;
         }
         default:

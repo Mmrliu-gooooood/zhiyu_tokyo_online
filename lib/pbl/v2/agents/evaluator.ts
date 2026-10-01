@@ -41,12 +41,9 @@
  * persist).
  */
 
-import type { LanguageModel } from 'ai';
-
 import { createLogger } from '@/lib/logger';
-import { streamLLM } from '@/lib/ai/llm';
+import { gateway, userParts, userText, type ModelBinding } from '@/lib/model-gateway';
 import { buildVisionUserContent } from '@openmaic/generation';
-import type { ThinkingConfig } from '@/lib/types/provider';
 
 import type {
   PBLEvaluation,
@@ -80,8 +77,7 @@ export interface RunTaskEvaluationArgs {
   project: PBLProjectV2;
   milestoneId: string;
   microtaskId: string;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   recentChatSummary?: string;
   /** True when the resolved model can read images. Gates whether an image
    *  submission is sent multimodally (else it degrades to text-only eval). */
@@ -92,16 +88,14 @@ export interface RunTaskEvaluationArgs {
 export interface RunMilestoneEvaluationArgs {
   project: PBLProjectV2;
   milestoneId: string;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   recentChatSummary?: string;
   signal?: AbortSignal;
 }
 
 export interface RunFinalEvaluationArgs {
   project: PBLProjectV2;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   recentChatSummary?: string;
   signal?: AbortSignal;
 }
@@ -117,8 +111,7 @@ interface RunSharedArgs {
   milestoneId?: string;
   systemPrompt: string;
   userPrompt: string;
-  languageModel: LanguageModel;
-  thinkingConfig?: ThinkingConfig;
+  binding: ModelBinding;
   /** When set (image submission + vision-capable model), the user turn is sent
    *  as a multimodal message carrying this image instead of a plain prompt.
    *  Accepts an http(s) URL or a base64 data URL. */
@@ -134,8 +127,7 @@ async function* runShared(args: RunSharedArgs): AsyncGenerator<PBLSSEEvent, void
     milestoneId,
     systemPrompt,
     userPrompt,
-    languageModel,
-    thinkingConfig,
+    binding,
     visionImageSrc,
     signal,
   } = args;
@@ -152,39 +144,27 @@ async function* runShared(args: RunSharedArgs): AsyncGenerator<PBLSSEEvent, void
   const isMilestone = kind === 'milestone';
   let lastSanitizedLength = 0;
   try {
-    const result = streamLLM(
+    const result = gateway.stream(
+      binding,
       {
-        model: languageModel,
         system: systemPrompt,
         // Image submission on a vision-capable model → send the picture as a
         // multimodal user turn (reusing OpenMAIC's buildVisionUserContent).
         // Everything else keeps the plain text prompt unchanged.
-        ...(visionImageSrc
-          ? {
-              messages: [
-                {
-                  role: 'user' as const,
-                  content: buildVisionUserContent(userPrompt, [
-                    { id: 'submission', src: visionImageSrc },
-                  ]),
-                },
-              ],
-            }
-          : { prompt: userPrompt }),
-        ...(signal ? { abortSignal: signal } : {}),
+        messages: [
+          visionImageSrc
+            ? userParts(
+                buildVisionUserContent(userPrompt, [{ id: 'submission', src: visionImageSrc }]),
+              )
+            : userText(userPrompt),
+        ],
       },
-      `pbl-v2-evaluator-${kind}`,
-      thinkingConfig,
+      { source: `pbl-v2-evaluator-${kind}`, ...(signal ? { signal } : {}) },
     );
-    for await (const part of result.fullStream) {
+    for await (const part of result) {
       switch (part.type) {
-        case 'text-delta': {
-          // AI SDK 6.x uses `text` for the chunk content; fall back to
-          // legacy `textDelta` for safety with older provider shims.
-          const delta =
-            (part as unknown as { text?: string; textDelta?: string }).text ??
-            (part as unknown as { textDelta?: string }).textDelta ??
-            '';
+        case 'text_delta': {
+          const delta = part.delta;
           if (delta) {
             fullText += delta;
             if (!shouldStreamTokens) {
@@ -208,16 +188,10 @@ async function* runShared(args: RunSharedArgs): AsyncGenerator<PBLSSEEvent, void
           break;
         }
         case 'error': {
-          const errAny = (part as unknown as { error?: unknown }).error;
-          yield {
-            type: 'error',
-            code: 'LLM_ERROR',
-            message: errAny instanceof Error ? errAny.message : String(errAny ?? 'LLM error'),
-          };
+          yield { type: 'error', code: 'LLM_ERROR', message: part.gatewayError.message };
           yield { type: 'done' };
           return;
         }
-        case 'finish':
         default:
           break;
       }
@@ -321,15 +295,7 @@ function persistEvaluation(args: {
 export async function* runTaskEvaluation(
   args: RunTaskEvaluationArgs,
 ): AsyncGenerator<PBLSSEEvent, void, void> {
-  const {
-    project,
-    milestoneId,
-    microtaskId,
-    languageModel,
-    thinkingConfig,
-    recentChatSummary,
-    signal,
-  } = args;
+  const { project, milestoneId, microtaskId, binding, recentChatSummary, signal } = args;
   const lookup = findMilestoneAndTask(project, milestoneId, microtaskId);
   if (!lookup) {
     yield {
@@ -361,8 +327,7 @@ export async function* runTaskEvaluation(
     milestoneId,
     systemPrompt: system,
     userPrompt: user,
-    languageModel,
-    thinkingConfig,
+    binding,
     visionImageSrc,
     signal,
   })) {
@@ -373,7 +338,7 @@ export async function* runTaskEvaluation(
 export async function* runMilestoneEvaluation(
   args: RunMilestoneEvaluationArgs,
 ): AsyncGenerator<PBLSSEEvent, void, void> {
-  const { project, milestoneId, languageModel, thinkingConfig, recentChatSummary, signal } = args;
+  const { project, milestoneId, binding, recentChatSummary, signal } = args;
   const milestone = project.milestones.find((m) => m.id === milestoneId);
   if (!milestone) {
     yield {
@@ -394,8 +359,7 @@ export async function* runMilestoneEvaluation(
     milestoneId,
     systemPrompt: system,
     userPrompt: user,
-    languageModel,
-    thinkingConfig,
+    binding,
     signal,
   })) {
     yield ev;
@@ -405,7 +369,7 @@ export async function* runMilestoneEvaluation(
 export async function* runFinalEvaluation(
   args: RunFinalEvaluationArgs,
 ): AsyncGenerator<PBLSSEEvent, void, void> {
-  const { project, languageModel, thinkingConfig, recentChatSummary, signal } = args;
+  const { project, binding, recentChatSummary, signal } = args;
   const { system, user } = buildFinalEvalPrompt(project, { recentChatSummary });
   log.info(`Final eval start: project=${project.title.slice(0, 40)}`);
   for await (const ev of runShared({
@@ -413,8 +377,7 @@ export async function* runFinalEvaluation(
     kind: 'final',
     systemPrompt: system,
     userPrompt: user,
-    languageModel,
-    thinkingConfig,
+    binding,
     signal,
   })) {
     yield ev;

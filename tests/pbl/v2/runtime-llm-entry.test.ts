@@ -1,65 +1,69 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MockLanguageModelV3, convertArrayToReadableStream } from 'ai/test';
+import type { ModelGateway, ThinkingConfig } from '@/lib/model-gateway';
+import {
+  createFauxGateway,
+  fauxAssistantMessage,
+  type FauxGateway,
+} from '@/lib/model-gateway/testing/faux-gateway';
 
 /**
- * #1003: the PBL v2 runtime reaches the model only through the shared entry
- * point, and holds no thinking opinion of its own.
+ * #1003: the PBL v2 runtime reaches the model only through the gateway, and
+ * holds no thinking opinion of its own.
  *
  * The runtime used to force thinking off on the teaching turns through a
- * hand-rolled helper that seeded the thinking AsyncLocalStorage directly — which
- * is also why those turns called the AI SDK directly. Both are gone: the agents
- * call `streamLLM` / `callLLM`, and what the request / stage route asked for is
- * what the provider sees.
+ * hand-rolled helper. That is gone: the agents call the gateway with the
+ * resolved binding, and what the request / stage route asked for (the
+ * binding's thinking) is what the provider sees.
  *
- * Asserted at the provider boundary, where a regression would actually bite:
+ * Asserted at the provider boundary (pi's faux provider, behind the real
+ * gateway pipeline), where a regression would actually bite:
  *
- *   1. an incoming thinking config arrives intact,
- *   2. NO config means NO config — nothing in the runtime substitutes one, which
- *      is the property a re-added policy constant would silently break,
- *   3. the global kill switch still applies,
- *   4. the turn is accounted for; going through the wrapper is what makes the
- *      call visible to usage recording at all.
+ *   1. an incoming thinking config arrives as the provider reasoning level,
+ *   2. NO config means NO reasoning level — nothing in the runtime substitutes
+ *      one, which is the property a re-added policy constant would break,
+ *   3. the turn is accounted for under its own usage source.
+ *
+ * The global kill switch (LLM_THINKING_DISABLED) is a gateway rule, covered in
+ * tests/model-gateway/thinking-default-mode.test.ts.
  */
-const usageMock = vi.hoisted(() => ({
-  normalizeUsage: vi.fn((usage: unknown) => usage),
-  recordUsage: vi.fn(async () => undefined),
-}));
+const holder = vi.hoisted(() => ({ gateway: undefined as unknown as ModelGateway }));
 
-vi.mock('@/lib/usage/normalize', () => ({
-  normalizeUsage: usageMock.normalizeUsage,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    delegate: () => holder.gateway,
+  }),
+);
 
-vi.mock('@/lib/server/usage-storage', () => ({
-  recordUsage: usageMock.recordUsage,
-}));
-
-import { thinkingContext } from '@/lib/ai/thinking-context';
 import { runTaskEvaluation } from '@/lib/pbl/v2/agents/evaluator';
 import { runSimulatorTurn } from '@/lib/pbl/v2/agents/simulator';
 import { addSubmission } from '@/lib/pbl/v2/operations/runtime/submission';
 import type { PBLProjectV2 } from '@/lib/pbl/v2/types';
 import type { PBLSSEEvent } from '@/lib/pbl/v2/api/sse';
-import type { ThinkingConfig } from '@/lib/types/provider';
 
-type DoStreamConfig = NonNullable<
-  NonNullable<ConstructorParameters<typeof MockLanguageModelV3>[0]>['doStream']
->;
-type StreamResult = Extract<DoStreamConfig, { stream: unknown }>;
-type StreamPart = StreamResult['stream'] extends ReadableStream<infer P> ? P : never;
+const NOT_CAPTURED = Symbol('provider was never invoked');
 
-const USAGE = {
-  inputTokens: { total: 12, noCache: 12, cacheRead: 0, cacheWrite: 0 },
-  outputTokens: { total: 8, text: 8, reasoning: 0 },
-};
+/** A faux binding for an effort-controlled reasoning model, with the given thinking. */
+function effortBinding(faux: FauxGateway, thinking?: ThinkingConfig) {
+  const base = faux.binding();
+  return faux.binding({
+    capabilities: {
+      ...base.capabilities,
+      thinking: { control: 'effort', effortValues: ['none', 'low', 'medium', 'high'] },
+    },
+    ...(thinking ? { thinking } : {}),
+  });
+}
 
-function textStep(text: string): StreamPart[] {
-  return [
-    { type: 'stream-start', warnings: [] },
-    { type: 'text-start', id: 'p1' },
-    { type: 'text-delta', id: 'p1', delta: text },
-    { type: 'text-end', id: 'p1' },
-    { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: USAGE },
-  ];
+/** A faux gateway whose every response records the reasoning level it saw. */
+function scriptedGateway(text: string, seen: unknown[]): FauxGateway {
+  const faux = createFauxGateway();
+  const respond = (_context: unknown, options: { reasoning?: unknown } | undefined) => {
+    seen.push(options?.reasoning);
+    return fauxAssistantMessage(text);
+  };
+  faux.faux.setResponses([respond, respond, respond, respond]);
+  holder.gateway = faux.gateway;
+  return faux;
 }
 
 function mkProject(): PBLProjectV2 {
@@ -142,11 +146,9 @@ function scenarioProject(): PBLProjectV2 {
   } as unknown as PBLProjectV2;
 }
 
-const NOT_CAPTURED = Symbol('provider was never invoked');
-
-/** Run one task evaluation against a scripted model, capturing what the
- *  provider saw in the thinking store at the moment it was invoked. */
-async function runEvaluation(thinkingConfig?: ThinkingConfig): Promise<{ seenThinking: unknown }> {
+async function runEvaluation(
+  thinking?: ThinkingConfig,
+): Promise<{ seenThinking: unknown; faux: FauxGateway }> {
   const project = mkProject();
   addSubmission(project, {
     microtaskId: 't1',
@@ -155,155 +157,89 @@ async function runEvaluation(thinkingConfig?: ThinkingConfig): Promise<{ seenThi
     content: 'submission',
   });
 
-  let seenThinking: unknown = NOT_CAPTURED;
-
-  const model = new MockLanguageModelV3({
-    doStream: async () => {
-      seenThinking = thinkingContext.getStore();
-      return {
-        stream: convertArrayToReadableStream(textStep('{"feedback":"ok","score":80}')),
-      };
-    },
-  });
+  const seen: unknown[] = [];
+  const faux = scriptedGateway('{"feedback":"ok","score":80}', seen);
 
   const events: PBLSSEEvent[] = [];
   for await (const ev of runTaskEvaluation({
     project,
     milestoneId: 'ms1',
     microtaskId: 't1',
-    languageModel: model,
-    ...(thinkingConfig ? { thinkingConfig } : {}),
+    binding: effortBinding(faux, thinking),
   })) {
     events.push(ev);
   }
 
   // Guard the guard: an evaluation that errored out before calling the model
   // would make every assertion below vacuous.
-  expect(seenThinking).not.toBe(NOT_CAPTURED);
+  expect(seen.length).toBe(1);
   expect(events.at(-1)?.type).toBe('done');
-  return { seenThinking };
+  return { seenThinking: seen[0] ?? NOT_CAPTURED, faux };
 }
 
-describe('PBL v2 runtime goes through the shared LLM entry point (#1003)', () => {
+describe('PBL v2 runtime goes through the model gateway (#1003)', () => {
   beforeEach(() => {
-    usageMock.normalizeUsage.mockClear();
-    usageMock.recordUsage.mockClear();
     delete process.env.LLM_THINKING_DISABLED;
   });
 
-  it('passes an incoming thinking config through to the provider unchanged', async () => {
-    const thinkingConfig: ThinkingConfig = { mode: 'enabled', effort: 'low' };
-    const { seenThinking } = await runEvaluation(thinkingConfig);
-    expect(seenThinking).toEqual(thinkingConfig);
+  it('passes an incoming thinking config through to the provider', async () => {
+    const { seenThinking } = await runEvaluation({ mode: 'enabled', effort: 'low' });
+    expect(seenThinking).toBe('low');
   });
 
   it('substitutes nothing when the request carries no thinking config', async () => {
     // The runtime holds no policy of its own. A re-added hardcoded constant
-    // would show up right here as a config the caller never asked for.
+    // would show up right here as a reasoning level the caller never asked for.
     const { seenThinking } = await runEvaluation();
-    expect(seenThinking).toBeUndefined();
-  });
-
-  it('still honours the global kill switch when no config is supplied', async () => {
-    process.env.LLM_THINKING_DISABLED = 'true';
-    try {
-      const { seenThinking } = await runEvaluation();
-      expect(seenThinking).toEqual({ mode: 'disabled', enabled: false });
-    } finally {
-      delete process.env.LLM_THINKING_DISABLED;
-    }
-  });
-
-  it('does not leak the config past the turn', async () => {
-    await runEvaluation({ mode: 'enabled', effort: 'low' });
-    expect(thinkingContext.getStore()).toBeUndefined();
+    expect(seenThinking).toBe(NOT_CAPTURED);
   });
 
   it('accounts for the turn under its own usage source', async () => {
-    await runEvaluation();
-    await vi.waitFor(() => {
-      expect(usageMock.recordUsage).toHaveBeenCalledWith(
-        expect.objectContaining({ kind: 'llm', source: 'pbl-v2-evaluator-task' }),
-      );
-    });
+    const { faux } = await runEvaluation();
+    expect(faux.usage).toEqual([expect.objectContaining({ source: 'pbl-v2-evaluator-task' })]);
   });
 });
 
 /**
  * The simulator turn makes TWO provider calls — the streamed character line and
  * the non-streamed director-narrator pass. The narrator was the last site still
- * dropping the resolved config: both callers passed one in and the helper never
- * forwarded it, so the provider silently fell back to the model default. Caught
- * in review on #1006.
+ * dropping the resolved config (caught in review on #1006); with the config on
+ * the binding, both passes now share it by construction.
  */
 describe('PBL v2 simulator turn — both provider calls see the resolved config', () => {
-  beforeEach(() => {
-    usageMock.normalizeUsage.mockClear();
-    usageMock.recordUsage.mockClear();
-    delete process.env.LLM_THINKING_DISABLED;
-  });
-
-  async function runSimulator(thinkingConfig?: ThinkingConfig) {
-    const seen: Array<{ kind: 'stream' | 'generate'; thinking: unknown }> = [];
-
-    const model = new MockLanguageModelV3({
-      doGenerate: async () => {
-        seen.push({ kind: 'generate', thinking: thinkingContext.getStore() });
-        return {
-          content: [{ type: 'text' as const, text: '她放下杯子，抬头看你。' }],
-          finishReason: { unified: 'stop' as const, raw: 'stop' },
-          usage: USAGE,
-          warnings: [],
-        };
-      },
-      doStream: async () => {
-        seen.push({ kind: 'stream', thinking: thinkingContext.getStore() });
-        return { stream: convertArrayToReadableStream(textStep('嗯……你来了。')) };
-      },
-    });
+  async function runSimulator(thinking?: ThinkingConfig) {
+    const seen: unknown[] = [];
+    const faux = scriptedGateway('嗯……你来了。', seen);
 
     const events: PBLSSEEvent[] = [];
     for await (const ev of runSimulatorTurn({
       project: scenarioProject(),
       userMessage: '',
       phase: 'greeting',
-      languageModel: model,
-      ...(thinkingConfig ? { thinkingConfig } : {}),
+      binding: effortBinding(faux, thinking),
     })) {
       events.push(ev);
     }
     expect(events.at(-1)?.type).toBe('done');
-    return seen;
+    return { seen, faux };
   }
 
   it('forwards an incoming config to the character line AND the narrator', async () => {
-    const thinkingConfig: ThinkingConfig = { mode: 'enabled', effort: 'low' };
-    const seen = await runSimulator(thinkingConfig);
-
+    const { seen } = await runSimulator({ mode: 'enabled', effort: 'low' });
     // Both passes must have run, or this test would silently cover only one.
-    expect(seen.map((s) => s.kind).sort()).toEqual(['generate', 'stream']);
-    for (const call of seen) {
-      expect(call.thinking).toEqual(thinkingConfig);
-    }
+    expect(seen).toEqual(['low', 'low']);
   });
 
   it('substitutes nothing on either call when the request carries no config', async () => {
-    const seen = await runSimulator();
-    expect(seen.map((s) => s.kind).sort()).toEqual(['generate', 'stream']);
-    for (const call of seen) {
-      expect(call.thinking).toBeUndefined();
-    }
+    const { seen } = await runSimulator();
+    expect(seen).toEqual([undefined, undefined]);
   });
 
   it('accounts for both passes under their own usage sources', async () => {
-    await runSimulator();
-    await vi.waitFor(() => {
-      expect(usageMock.recordUsage).toHaveBeenCalledWith(
-        expect.objectContaining({ source: 'pbl-v2-simulator' }),
-      );
-      expect(usageMock.recordUsage).toHaveBeenCalledWith(
-        expect.objectContaining({ source: 'pbl-v2-simulator-narrator' }),
-      );
-    });
+    const { faux } = await runSimulator();
+    expect(faux.usage.map((event) => event.source).sort()).toEqual([
+      'pbl-v2-simulator',
+      'pbl-v2-simulator-narrator',
+    ]);
   });
 });

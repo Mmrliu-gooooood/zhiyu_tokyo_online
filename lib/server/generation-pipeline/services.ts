@@ -12,8 +12,6 @@ import {
   type GeneratedSceneContent,
   isAbortError,
 } from '@openmaic/generation';
-import { callLLM } from '@/lib/ai/llm';
-import { resolveModel } from '@/lib/server/resolve-model';
 import {
   gateway,
   resolveParamsBinding,
@@ -23,7 +21,7 @@ import {
 } from '@/lib/model-gateway';
 import type { LlmStage } from '@/lib/server/model-routes';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
-import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
+import { gatewayPlannerCall, generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import { getDefaultAgents } from '@/lib/orchestration/registry/defaults';
 import { resolveGenerationSearchConfig } from './search';
 import type { GenerationSearchSnapshotContent } from '@/lib/server/generation-search-snapshots';
@@ -406,32 +404,13 @@ export class GenerationServices {
                 { input, model: binding.modelString },
                 'llm',
                 binding.providerId,
-                async (signal) => {
-                  // The PBL planner moves to the gateway's tool loop in P3-2.
-                  const thinkingConfig =
-                    this.modelContext?.thinkingConfig ?? this.input.model?.thinkingConfig;
-                  const resolved = await resolveModel({
-                    ...this.input.model,
-                    ...this.modelContext,
-                    ...(thinkingConfig ? { thinkingConfig } : {}),
-                    stage,
-                  });
-                  return generatePBLV2Project(
+                (signal) =>
+                  generatePBLV2Project(
                     input,
-                    resolved.model,
-                    (params, source, retries, thinking) => {
-                      signal.throwIfAborted();
-                      return callLLM(
-                        { ...params, maxRetries: 0, abortSignal: signal },
-                        source,
-                        retries,
-                        thinking,
-                      );
-                    },
+                    binding,
+                    gatewayPlannerCall({ signal, retry: 'none' }),
                     {},
-                    resolved.thinkingConfig,
-                  );
-                },
+                  ),
               ),
           }
         : {}),

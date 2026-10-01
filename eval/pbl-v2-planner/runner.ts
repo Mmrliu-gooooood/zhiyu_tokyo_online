@@ -42,8 +42,8 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, type LanguageModel } from 'ai';
 
-import { callLLM } from '@/lib/ai/llm';
-import { generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
+import { gateway, resolveParamsBinding, userText, type ModelBinding } from '@/lib/model-gateway';
+import { gatewayPlannerCall, generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
 import { generatePBLV2ProjectSingleCall } from '@/lib/pbl/v2/agents/planner-single-call';
 import { PlannerV2Error } from '@/lib/pbl/v2/agents/planner-core';
 import { parseJsonResponse } from '@openmaic/generation';
@@ -453,29 +453,46 @@ async function judgeCompletability(
 function runVariant(
   variant: Variant,
   input: PBLPlannerV2Input,
-  model: LanguageModel,
-  thinkingConfig?: ThinkingConfig,
+  binding: ModelBinding,
 ): Promise<PBLProjectV2> {
   return variant === 'single-call'
     ? generatePBLV2ProjectSingleCall(input, async (system, prompt) => {
-        const result = await callLLM(
-          { model, system, prompt },
-          'pbl-v2-planner-single',
-          undefined,
-          thinkingConfig,
+        const result = await gateway.complete(
+          binding,
+          { system, messages: [userText(prompt)] },
+          { source: 'pbl-v2-planner-single' },
         );
         return result.text;
       })
-    : generatePBLV2Project(input, model, callLLM, undefined, thinkingConfig);
+    : generatePBLV2Project(input, binding, gatewayPlannerCall());
+}
+
+/** The generation model as a gateway binding (same env vars as the AI SDK judge). */
+function createGenerationBinding(thinkingConfig?: ThinkingConfig): Promise<ModelBinding> {
+  const apiKey = process.env.EVAL_PBL_API_KEY;
+  if (!apiKey) {
+    console.error('Error: EVAL_PBL_API_KEY must be set.');
+    process.exit(1);
+  }
+  return resolveParamsBinding({
+    source: 'user',
+    modelString: process.env.EVAL_PBL_MODEL!,
+    apiKey,
+    baseUrl: process.env.EVAL_PBL_BASE_URL || undefined,
+    // The AI SDK judge speaks chat completions for `openai`; match it.
+    ...(process.env.EVAL_PBL_MODEL?.startsWith('openai:') && process.env.EVAL_PBL_BASE_URL
+      ? { api: 'openai-completions' }
+      : {}),
+    thinkingConfig,
+  });
 }
 
 async function runOne(
   tc: TestCase,
   variant: Variant,
   outlineOrder: number,
-  model: LanguageModel,
+  binding: ModelBinding,
   judgeModel: LanguageModel,
-  thinkingConfig?: ThinkingConfig,
 ): Promise<RunResult> {
   const outline = buildOutline(tc, outlineOrder);
   const input = buildInput(tc, outline);
@@ -483,7 +500,7 @@ async function runOne(
   const startedAt = performance.now();
 
   try {
-    const project = await runVariant(variant, input, model, thinkingConfig);
+    const project = await runVariant(variant, input, binding);
     const durationMs = Math.round(performance.now() - startedAt);
     const microtaskCount = project.milestones.reduce((sum, m) => sum + m.microtasks.length, 0);
     const passesCompletionGate = checkCompletionGate(project);
@@ -807,6 +824,7 @@ async function main(): Promise<void> {
   const model = createModel();
   const judgeModel = createJudgeModel(model);
   const thinkingConfig = createThinkingConfig();
+  const binding = await createGenerationBinding(thinkingConfig);
   const variants = selectedVariants();
 
   const allCases = loadTestCases();
@@ -854,7 +872,7 @@ async function main(): Promise<void> {
     const { tc, variant, n } = jobs[j];
     if (j > 0) await sleep(staggerMs);
     const p = (async () => {
-      const result = await runOne(tc, variant, n, model, judgeModel, thinkingConfig);
+      const result = await runOne(tc, variant, n, binding, judgeModel);
       results[j] = result;
 
       if (result.project) {

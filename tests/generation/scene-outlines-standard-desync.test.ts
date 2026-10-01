@@ -1,18 +1,18 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { fromTextStream } from '@/tests/helpers/model-gateway-mock';
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { ImageMapping, PdfImage } from '@/lib/types/generation';
 
 const streamLLMMock = vi.hoisted(() => vi.fn());
-const resolveModelFromRequestMock = vi.hoisted(() => vi.fn());
+const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const resolveVisionImagesMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/lib/ai/llm', () => ({
-  streamLLM: streamLLMMock,
-}));
-
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: resolveModelFromRequestMock,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    stream: streamLLMMock,
+    resolveRequestBinding: resolveRequestBindingMock,
+  }),
+);
 
 vi.mock('@/lib/persistence/resolve-vision-images', () => ({
   resolveVisionImagesForPrompt: resolveVisionImagesMock,
@@ -29,15 +29,19 @@ vi.mock('@/lib/persistence/resolve-vision-images', () => ({
  * text mention AND its attachment.
  */
 describe('scene-outlines-stream route — standard branch prompt parity on a dropped image (N3)', () => {
+  // Each test re-imports the route after vi.resetModules(); transform the
+  // (pi-ai backed) module graph once up front so those imports stay fast.
+  beforeAll(async () => {
+    await import('@/app/api/generate/scene-outlines-stream/route');
+  }, 60_000);
+
   beforeEach(() => {
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
     resolveVisionImagesMock.mockReset();
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'test.chat', modelId: 'test-model' },
-      modelInfo: { outputWindow: 4096, capabilities: { vision: true } },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'test:test-model',
-      thinkingConfig: undefined,
+      capabilities: { vision: true },
     });
   });
 
@@ -52,23 +56,25 @@ describe('scene-outlines-stream route — standard branch prompt parity on a dro
         .filter((image) => image.src !== 'ast_gone')
         .map((image) => ({ ...image, src: dataUrlFor(`outline-bytes-${image.id}`) })),
     );
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield JSON.stringify({
-          languageDirective: 'Teach in English.',
-          outlines: [
-            {
-              id: 'scene_1',
-              type: 'slide',
-              title: 'Safety Checklist',
-              description: 'Inspect the device.',
-              keyPoints: ['Inspect', 'Calibrate'],
-              order: 1,
-            },
-          ],
-        });
-      })(),
-    });
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield JSON.stringify({
+            languageDirective: 'Teach in English.',
+            outlines: [
+              {
+                id: 'scene_1',
+                type: 'slide',
+                title: 'Safety Checklist',
+                description: 'Inspect the device.',
+                keyPoints: ['Inspect', 'Calibrate'],
+                order: 1,
+              },
+            ],
+          });
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(
@@ -84,11 +90,11 @@ describe('scene-outlines-stream route — standard branch prompt parity on a dro
 
     // The standard branch ran with a vision-enabled model, so the LLM call is
     // multimodal and its text half is the standard prompt's user text.
-    const streamParams = streamLLMMock.mock.calls[0][0] as {
+    const streamParams = streamLLMMock.mock.calls[0][1] as {
       system: string;
       messages: Array<{
         role: string;
-        content: Array<{ type: string; text?: string; image?: string }>;
+        content: Array<{ type: string; text?: string; data?: string }>;
       }>;
     };
     expect(streamParams.messages).toBeDefined();
@@ -101,7 +107,7 @@ describe('scene-outlines-stream route — standard branch prompt parity on a dro
     expect(textPart?.text).not.toContain('img_2');
     const imageParts = content.filter((part) => part.type === 'image');
     expect(imageParts).toHaveLength(1);
-    expect(imageParts[0]?.image).toBe(Buffer.from('outline-bytes-img_1').toString('base64'));
+    expect(imageParts[0]?.data).toBe(Buffer.from('outline-bytes-img_1').toString('base64'));
   });
 });
 

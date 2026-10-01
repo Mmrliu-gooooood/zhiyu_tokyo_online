@@ -1,17 +1,17 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { fromTextStream } from '@/tests/helpers/model-gateway-mock';
+import { beforeAll, afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const streamLLMMock = vi.hoisted(() => vi.fn());
-const resolveModelFromRequestMock = vi.hoisted(() => vi.fn());
+const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const VOCATIONAL_FLAG = 'OPENMAIC_ENABLE_VOCATIONAL';
 let originalVocationalFlag: string | undefined;
 
-vi.mock('@/lib/ai/llm', () => ({
-  streamLLM: streamLLMMock,
-}));
-
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: resolveModelFromRequestMock,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    stream: streamLLMMock,
+    resolveRequestBinding: resolveRequestBindingMock,
+  }),
+);
 
 async function readStreamBody(response: Response) {
   const reader = response.body?.getReader();
@@ -51,6 +51,12 @@ function mockRequest(requirements: Record<string, unknown>) {
 }
 
 describe('task-engine outline route', () => {
+  // Each test re-imports the route after vi.resetModules(); transform the
+  // (pi-ai backed) module graph once up front so those imports stay fast.
+  beforeAll(async () => {
+    await import('@/app/api/generate/scene-outlines-stream/route');
+  }, 60_000);
+
   beforeEach(() => {
     originalVocationalFlag = process.env[VOCATIONAL_FLAG];
     delete process.env[VOCATIONAL_FLAG];
@@ -67,16 +73,12 @@ describe('task-engine outline route', () => {
   test('uses the task-engine prompt and preserves allowed mixed task-engine scene types', async () => {
     vi.resetModules();
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
     process.env[VOCATIONAL_FLAG] = 'true';
 
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'glm.chat', modelId: 'glm-5.1' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'glm:glm-5.1',
-      providerId: 'glm',
-      modelId: 'glm-5.1',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
 
     const outlineResponse = JSON.stringify({
@@ -176,11 +178,13 @@ describe('task-engine outline route', () => {
       ],
     });
 
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield outlineResponse;
-      })(),
-    });
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield outlineResponse;
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(
@@ -191,7 +195,7 @@ describe('task-engine outline route', () => {
       }) as unknown as Parameters<typeof POST>[0],
     );
 
-    const promptParams = streamLLMMock.mock.calls[0][0] as { system: string; prompt: string };
+    const promptParams = streamLLMMock.mock.calls[0][1] as { system: string; prompt: string };
     expect(promptParams.system).toContain('Task Engine');
     expect(promptParams.system).toContain('procedural-skill');
 
@@ -267,36 +271,34 @@ describe('task-engine outline route', () => {
   test('silently falls back to the existing interactive prompt when the server flag is off', async () => {
     vi.resetModules();
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
 
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'glm.chat', modelId: 'glm-5.1' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'glm:glm-5.1',
-      providerId: 'glm',
-      modelId: 'glm-5.1',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield JSON.stringify({
-          languageDirective: 'Teach in English.',
-          outlines: [
-            {
-              id: 'scene_1',
-              type: 'interactive',
-              title: 'Interactive Scene',
-              description: 'Explore a concept.',
-              keyPoints: ['Explore'],
-              order: 1,
-              widgetType: 'simulation',
-              widgetOutline: { concept: 'motion', keyVariables: ['speed'] },
-            },
-          ],
-        });
-      })(),
-    });
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield JSON.stringify({
+            languageDirective: 'Teach in English.',
+            outlines: [
+              {
+                id: 'scene_1',
+                type: 'interactive',
+                title: 'Interactive Scene',
+                description: 'Explore a concept.',
+                keyPoints: ['Explore'],
+                order: 1,
+                widgetType: 'simulation',
+                widgetOutline: { concept: 'motion', keyVariables: ['speed'] },
+              },
+            ],
+          });
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(
@@ -307,7 +309,7 @@ describe('task-engine outline route', () => {
       }) as unknown as Parameters<typeof POST>[0],
     );
 
-    const promptParams = streamLLMMock.mock.calls[0][0] as { system: string; prompt: string };
+    const promptParams = streamLLMMock.mock.calls[0][1] as { system: string; prompt: string };
     expect(promptParams.system).toContain('Interactive Mode Outline Generator');
     expect(promptParams.system).not.toContain('Task Engine Outline Generator');
 
@@ -320,42 +322,40 @@ describe('task-engine outline route', () => {
   test('sanitizes procedural-skill outlines when taskEngineMode is disabled', async () => {
     vi.resetModules();
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
 
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'glm.chat', modelId: 'glm-5.1' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'glm:glm-5.1',
-      providerId: 'glm',
-      modelId: 'glm-5.1',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield JSON.stringify({
-          languageDirective: 'Teach in English.',
-          outlines: [
-            {
-              id: 'scene_1',
-              type: 'interactive',
-              title: 'Operation Process',
-              description: 'A model mistakenly emitted the gated widget type.',
-              keyPoints: ['Step A', 'Step B'],
-              order: 1,
-              widgetType: 'procedural-skill',
-              widgetOutline: {
-                procedureType: 'inspection',
-                task: 'Inspect the device',
-                tools: ['checklist'],
-                steps: ['Check A', 'Check B'],
-                successCriteria: ['Complete'],
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield JSON.stringify({
+            languageDirective: 'Teach in English.',
+            outlines: [
+              {
+                id: 'scene_1',
+                type: 'interactive',
+                title: 'Operation Process',
+                description: 'A model mistakenly emitted the gated widget type.',
+                keyPoints: ['Step A', 'Step B'],
+                order: 1,
+                widgetType: 'procedural-skill',
+                widgetOutline: {
+                  procedureType: 'inspection',
+                  task: 'Inspect the device',
+                  tools: ['checklist'],
+                  steps: ['Check A', 'Check B'],
+                  successCriteria: ['Complete'],
+                },
               },
-            },
-          ],
-        });
-      })(),
-    });
+            ],
+          });
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(
@@ -385,42 +385,40 @@ describe('task-engine outline route', () => {
   test('preserves model-authored scenario PBL subtype through streamed outlines', async () => {
     vi.resetModules();
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
 
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'glm.chat', modelId: 'glm-5.1' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'glm:glm-5.1',
-      providerId: 'glm',
-      modelId: 'glm-5.1',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield JSON.stringify({
-          languageDirective: '用中文授课。',
-          outlines: [
-            {
-              id: 'scene_pbl',
-              type: 'pbl',
-              title: '同理沟通练习',
-              description: '练习安慰压力很大的朋友。',
-              keyPoints: ['倾听', '回应'],
-              order: 1,
-              pblConfig: {
-                projectTopic: '同理沟通练习',
-                projectDescription: '练习安慰压力很大的朋友。',
-                targetSkills: ['倾听', '回应'],
-                issueCount: 2,
-                scenarioRoleplay: true,
-                scenarioBrief: '朋友压力很大，学习者练习倾听和支持。',
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield JSON.stringify({
+            languageDirective: '用中文授课。',
+            outlines: [
+              {
+                id: 'scene_pbl',
+                type: 'pbl',
+                title: '同理沟通练习',
+                description: '练习安慰压力很大的朋友。',
+                keyPoints: ['倾听', '回应'],
+                order: 1,
+                pblConfig: {
+                  projectTopic: '同理沟通练习',
+                  projectDescription: '练习安慰压力很大的朋友。',
+                  targetSkills: ['倾听', '回应'],
+                  issueCount: 2,
+                  scenarioRoleplay: true,
+                  scenarioBrief: '朋友压力很大，学习者练习倾听和支持。',
+                },
               },
-            },
-          ],
-        });
-      })(),
-    });
+            ],
+          });
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(
@@ -443,42 +441,40 @@ describe('task-engine outline route', () => {
   test('ensures streamed outline ids are unique', async () => {
     vi.resetModules();
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
 
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'glm.chat', modelId: 'glm-5.1' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'glm:glm-5.1',
-      providerId: 'glm',
-      modelId: 'glm-5.1',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield JSON.stringify({
-          languageDirective: 'Teach in English.',
-          outlines: [
-            {
-              id: 'scene_4',
-              type: 'slide',
-              title: 'First Scene',
-              description: 'First scene.',
-              keyPoints: ['A'],
-              order: 1,
-            },
-            {
-              id: 'scene_4',
-              type: 'slide',
-              title: 'Second Scene',
-              description: 'Second scene.',
-              keyPoints: ['B'],
-              order: 2,
-            },
-          ],
-        });
-      })(),
-    });
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield JSON.stringify({
+            languageDirective: 'Teach in English.',
+            outlines: [
+              {
+                id: 'scene_4',
+                type: 'slide',
+                title: 'First Scene',
+                description: 'First scene.',
+                keyPoints: ['A'],
+                order: 1,
+              },
+              {
+                id: 'scene_4',
+                type: 'slide',
+                title: 'Second Scene',
+                description: 'Second scene.',
+                keyPoints: ['B'],
+                order: 2,
+              },
+            ],
+          });
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(
@@ -499,35 +495,33 @@ describe('task-engine outline route', () => {
   test('falls back to a slide for invalid task-engine outlines without regex promotion', async () => {
     vi.resetModules();
     streamLLMMock.mockReset();
-    resolveModelFromRequestMock.mockReset();
+    resolveRequestBindingMock.mockReset();
     process.env[VOCATIONAL_FLAG] = 'true';
 
-    resolveModelFromRequestMock.mockResolvedValue({
-      model: { provider: 'glm.chat', modelId: 'glm-5.1' },
-      modelInfo: { outputWindow: 4096, capabilities: {} },
+    resolveRequestBindingMock.mockResolvedValue({
       modelString: 'glm:glm-5.1',
-      providerId: 'glm',
-      modelId: 'glm-5.1',
-      thinkingConfig: undefined,
+      capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue({
-      textStream: (async function* () {
-        yield JSON.stringify({
-          languageDirective: 'Teach in English.',
-          outlines: [
-            {
-              id: 'scene_bad',
-              type: 'quiz',
-              title: 'Pythagorean theorem recap',
-              description: 'A non-vocational math topic with an invalid type.',
-              keyPoints: ['a squared plus b squared equals c squared'],
-              order: 1,
-            },
-          ],
-        });
-      })(),
-    });
+    streamLLMMock.mockReturnValue(
+      fromTextStream({
+        textStream: (async function* () {
+          yield JSON.stringify({
+            languageDirective: 'Teach in English.',
+            outlines: [
+              {
+                id: 'scene_bad',
+                type: 'quiz',
+                title: 'Pythagorean theorem recap',
+                description: 'A non-vocational math topic with an invalid type.',
+                keyPoints: ['a squared plus b squared equals c squared'],
+                order: 1,
+              },
+            ],
+          });
+        })(),
+      }),
+    );
 
     const { POST } = await import('@/app/api/generate/scene-outlines-stream/route');
     const response = await POST(

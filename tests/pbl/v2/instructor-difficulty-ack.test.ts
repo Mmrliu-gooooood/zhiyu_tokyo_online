@@ -18,59 +18,56 @@
  * (record_observation) do NOT trigger this fallback:
  * they are internal bookkeeping, not a learner request, and must stay silent.
  */
-import { describe, expect, it } from 'vitest';
-import { MockLanguageModelV3, convertArrayToReadableStream } from 'ai/test';
+import { describe, expect, it, vi } from 'vitest';
+import type { ModelBinding, ModelGateway } from '@/lib/model-gateway';
+import {
+  createFauxGateway,
+  fauxAssistantMessage,
+  fauxText,
+  fauxToolCall,
+  type FauxResponseStep,
+} from '@/lib/model-gateway/testing/faux-gateway';
+
+const holder = vi.hoisted(() => ({ gateway: undefined as unknown as ModelGateway }));
+
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    delegate: () => holder.gateway,
+  }),
+);
 
 import { runInstructorTurn } from '@/lib/pbl/v2/agents/instructor';
 import type { PBLProjectV2 } from '@/lib/pbl/v2/types';
 import type { PBLSSEEvent } from '@/lib/pbl/v2/api/sse';
 
-type DoStreamConfig = NonNullable<
-  NonNullable<ConstructorParameters<typeof MockLanguageModelV3>[0]>['doStream']
->;
-type StreamResult = Extract<DoStreamConfig, { stream: unknown }>;
-type StreamPart = StreamResult['stream'] extends ReadableStream<infer P> ? P : never;
-
-const USAGE = {
-  inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 },
-  outputTokens: { total: 0, text: 0, reasoning: 0 },
-};
-const FINISH_STOP = {
-  type: 'finish' as const,
-  finishReason: { unified: 'stop' as const, raw: 'stop' },
-  usage: USAGE,
-};
-const FINISH_TOOLS = {
-  type: 'finish' as const,
-  finishReason: { unified: 'tool-calls' as const, raw: 'tool-calls' },
-  usage: USAGE,
-};
-
-function toolCallStep(toolName: string, input: Record<string, unknown>): StreamPart[] {
-  return [
-    { type: 'stream-start', warnings: [] },
-    { type: 'tool-call', toolCallId: `tc-${toolName}`, toolName, input: JSON.stringify(input) },
-    FINISH_TOOLS,
-  ];
-}
-
-function textStep(toolName: string, input: Record<string, unknown>, text: string): StreamPart[] {
-  return [
-    { type: 'stream-start', warnings: [] },
-    { type: 'tool-call', toolCallId: `tc-${toolName}`, toolName, input: JSON.stringify(input) },
-    { type: 'text-start', id: 't1' },
-    { type: 'text-delta', id: 't1', delta: text },
-    { type: 'text-end', id: 't1' },
-    FINISH_STOP,
-  ];
-}
-
-function scriptedModel(steps: StreamPart[][]): MockLanguageModelV3 {
-  let i = 0;
-  const fallback: StreamPart[] = [{ type: 'stream-start', warnings: [] }, FINISH_STOP];
-  return new MockLanguageModelV3({
-    doStream: async () => ({ stream: convertArrayToReadableStream(steps[i++] ?? fallback) }),
+/** One model step that calls `toolName` (the loop then runs the tool). */
+function toolCallStep(
+  toolName: string,
+  input: Parameters<typeof fauxToolCall>[1],
+): FauxResponseStep {
+  return fauxAssistantMessage(fauxToolCall(toolName, input, { id: `tc-${toolName}` }), {
+    stopReason: 'toolUse',
   });
+}
+
+/** One model step that calls `toolName` and also writes `text`. */
+function textStep(
+  toolName: string,
+  input: Parameters<typeof fauxToolCall>[1],
+  text: string,
+): FauxResponseStep {
+  return fauxAssistantMessage(
+    [fauxToolCall(toolName, input, { id: `tc-${toolName}` }), fauxText(text)],
+    { stopReason: 'toolUse' },
+  );
+}
+
+/** A faux-backed binding answering with `steps`, then empty turns. */
+function scriptedModel(steps: FauxResponseStep[]): ModelBinding {
+  const empty = () => fauxAssistantMessage([]);
+  const faux = createFauxGateway({ responses: [...steps, empty(), empty(), empty(), empty()] });
+  holder.gateway = faux.gateway;
+  return faux.binding();
 }
 
 function makeProject(language = 'zh-CN'): PBLProjectV2 {
@@ -115,7 +112,7 @@ function makeProject(language = 'zh-CN'): PBLProjectV2 {
 }
 
 async function runTurn(
-  model: MockLanguageModelV3,
+  model: ModelBinding,
   userMessage: string,
   language = 'zh-CN',
 ): Promise<PBLSSEEvent[]> {
@@ -124,7 +121,7 @@ async function runTurn(
     project: makeProject(language),
     userMessage,
     phase: 'instructing',
-    languageModel: model as never,
+    binding: model,
   })) {
     events.push(ev);
   }

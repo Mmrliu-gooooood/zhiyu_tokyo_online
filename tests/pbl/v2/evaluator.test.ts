@@ -2,7 +2,7 @@
  * Tests for the evaluator agent.
  *
  * Strategy mirrors planner.test.ts in PR 2: full LLM streaming
- * (MockLanguageModelV3) is deferred to PR 8. PR 6.2 covers what we
+ * (a scripted model) is deferred to PR 8. PR 6.2 covers what we
  * can test without the LLM:
  *
  *   1. Public API surface (the entry points the route imports).
@@ -13,11 +13,21 @@
  * already covered indirectly by the eval-tail-parser + eval-prompts
  * tests in 6.1 — those exercise every normalize / build path. A
  * dedicated wiring-with-fake-stream test will land in 6.7 once we
- * write a small MockLanguageModelV3 helper for both Instructor and
+ * write a small scripted-model helper for both Instructor and
  * Evaluator together.
  */
-import { describe, expect, it } from 'vitest';
-import { MockLanguageModelV3, convertArrayToReadableStream } from 'ai/test';
+import { describe, expect, it, vi } from 'vitest';
+import type { ModelBinding, ModelGateway } from '@/lib/model-gateway';
+import { createFauxGateway, fauxAssistantMessage } from '@/lib/model-gateway/testing/faux-gateway';
+
+const holder = vi.hoisted(() => ({ gateway: undefined as unknown as ModelGateway }));
+
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    delegate: () => holder.gateway,
+  }),
+);
+
 import {
   runFinalEvaluation,
   runMilestoneEvaluation,
@@ -27,36 +37,11 @@ import type { PBLProjectV2 } from '@/lib/pbl/v2/types';
 import { addSubmission } from '@/lib/pbl/v2/operations/runtime/submission';
 import type { PBLSSEEvent } from '@/lib/pbl/v2/api/sse';
 
-type DoStreamConfig = NonNullable<
-  NonNullable<ConstructorParameters<typeof MockLanguageModelV3>[0]>['doStream']
->;
-type StreamResult = Extract<DoStreamConfig, { stream: unknown }>;
-type StreamPart = StreamResult['stream'] extends ReadableStream<infer P> ? P : never;
-
-const USAGE = {
-  inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 },
-  outputTokens: { total: 0, text: 0, reasoning: 0 },
-};
-const FINISH_STOP = {
-  type: 'finish' as const,
-  finishReason: { unified: 'stop' as const, raw: 'stop' },
-  usage: USAGE,
-};
-
-function textStep(text: string): StreamPart[] {
-  return [
-    { type: 'stream-start', warnings: [] },
-    { type: 'text-start', id: 'p1' },
-    { type: 'text-delta', id: 'p1', delta: text },
-    { type: 'text-end', id: 'p1' },
-    FINISH_STOP,
-  ];
-}
-
-function scriptedModel(text: string): MockLanguageModelV3 {
-  return new MockLanguageModelV3({
-    doStream: async () => ({ stream: convertArrayToReadableStream(textStep(text)) }),
-  });
+/** A binding to a faux model that answers once with `text`. */
+function scriptedModel(text: string): ModelBinding {
+  const faux = createFauxGateway({ responses: [fauxAssistantMessage(text)] });
+  holder.gateway = faux.gateway;
+  return faux.binding();
 }
 
 async function collectEvents(gen: AsyncGenerator<PBLSSEEvent, void, void>): Promise<PBLSSEEvent[]> {
@@ -124,7 +109,7 @@ describe('Evaluator agent — error paths (no LLM needed)', () => {
       project: mkProject(),
       milestoneId: 'does-not-exist',
       microtaskId: 't1',
-      languageModel: undefined as never,
+      binding: undefined as never,
     });
     const events: { type: string; code?: string }[] = [];
     for await (const ev of gen) {
@@ -141,7 +126,7 @@ describe('Evaluator agent — error paths (no LLM needed)', () => {
       project: mkProject(),
       milestoneId: 'ms1',
       microtaskId: 'nope',
-      languageModel: undefined as never,
+      binding: undefined as never,
     });
     const events: { type: string; code?: string }[] = [];
     for await (const ev of gen) {
@@ -156,7 +141,7 @@ describe('Evaluator agent — error paths (no LLM needed)', () => {
     const gen = runMilestoneEvaluation({
       project: mkProject(),
       milestoneId: 'nope',
-      languageModel: undefined as never,
+      binding: undefined as never,
     });
     const events: { type: string; code?: string }[] = [];
     for await (const ev of gen) {
@@ -186,7 +171,7 @@ describe('Evaluator agent — task JSON-only output', () => {
         project,
         milestoneId: 'ms1',
         microtaskId: 't1',
-        languageModel: model,
+        binding: model,
       }),
     );
 
@@ -212,7 +197,7 @@ describe('Evaluator agent — milestone/final JSON-only output', () => {
       runMilestoneEvaluation({
         project,
         milestoneId: 'ms1',
-        languageModel: model,
+        binding: model,
       }),
     );
 
@@ -235,7 +220,7 @@ describe('Evaluator agent — milestone/final JSON-only output', () => {
     const events = await collectEvents(
       runFinalEvaluation({
         project,
-        languageModel: model,
+        binding: model,
       }),
     );
 
