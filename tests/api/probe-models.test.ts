@@ -164,4 +164,33 @@ describe('POST /api/provider/probe-models', () => {
     expect(mocks.validateUrlForSSRF).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('answers catalog providers on their default endpoint from the reviewed catalog', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await postProbeModels({
+      providerId: 'anthropic',
+      baseUrl: 'https://api.anthropic.com/v1',
+      apiKey: 'k',
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.models.length).toBeGreaterThan(0);
+    expect(json.models.map((model: { id: string }) => model.id)).toContain('claude-sonnet-4-5');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks for manual entry for providers without model discovery', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await postProbeModels({
+      providerId: 'azure',
+      baseUrl: 'https://example.openai.azure.com/openai',
+      apiKey: 'k',
+    });
+
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

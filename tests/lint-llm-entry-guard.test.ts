@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ESLint } from 'eslint';
 
 /**
- * Executable contract for the single-LLM-entry-point lint guard (#1003).
+ * Executable contract for the single model boundary lint guard (#1003, plan 3.2).
  *
- * The guard is the thing that keeps `generateText` / `streamText` reachable only
- * through `callLLM` / `streamLLM` in `lib/ai/llm.ts`. Its weak spot is not the
+ * The guard is the thing that keeps text-model runtimes (`generateText` /
+ * `streamText`, `@ai-sdk/*` providers, the pi-ai runtime) reachable only through
+ * the model gateway (`@/lib/model-gateway`). Its weak spot is not the
  * rules — it is their SCOPE, and review found three separate holes in it: two
  * `@openmaic` package directories excluded from the dynamic-import ban, and both
  * blocks matching only `ts,tsx` so a `route.js` or a `scripts/*.mjs` could import
@@ -33,6 +34,14 @@ const BYPASS_FORMS = {
   // relaxed (allowing require in .cjs, say), this row goes red and whoever relaxes
   // it has to add an explicit `'ai'` selector instead of silently reopening the door.
   require: "const ai = require('ai');\nmodule.exports = ai;\n",
+  aiSdkProvider: "import { createOpenAI } from '@ai-sdk/openai';\nexport const a = createOpenAI;\n",
+  piRuntime:
+    "import { streamSimple } from '@earendil-works/pi-ai';\nexport const a = streamSimple;\n",
+  piProviderSubpath:
+    "import { deepseekProvider } from '@earendil-works/pi-ai/providers/deepseek';\nexport const a = deepseekProvider;\n",
+  piDynamic: "export async function a() {\n  return import('@earendil-works/pi-ai');\n}\n",
+  piDynamicTemplate:
+    'export async function a() {\n  return import(`@earendil-works/pi-ai/providers/deepseek`);\n}\n',
 } as const;
 
 /** The guard's own rules. Guarded paths assert the PROPERTY (the import is
@@ -54,8 +63,16 @@ const GUARDED_PATHS = [
   'scripts/probe',
 ] as const;
 
-/** Deliberate exemptions: the entry point itself, offline harnesses, and tests. */
-const EXEMPT_PATHS = ['lib/ai/llm', 'eval/probe', 'tests/probe'] as const;
+/** Deliberate exemptions: the gateway's runtime module, adapters and test doubles,
+ *  the legacy stack until P3-6 removes it, offline harnesses, and tests. */
+const EXEMPT_PATHS = [
+  'lib/model-gateway/runtime/pi-registry',
+  'lib/model-gateway/adapters/probe',
+  'lib/model-gateway/testing/probe',
+  'lib/ai/llm',
+  'eval/probe',
+  'tests/probe',
+] as const;
 
 const EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'] as const;
 
@@ -128,5 +145,71 @@ describe('LLM entry-point lint guard — coverage matrix', () => {
     const reactImport = "import 'react';\nexport const a = 1;\n";
     const choreographyErrors = await errorsFor('lib/choreography/probe.ts', reactImport);
     expect(choreographyErrors).toContain('no-restricted-imports');
+  });
+
+  it('allows type-only pi-ai imports and the AI SDK UI types everywhere', async () => {
+    const typeImports =
+      "import type { AssistantMessage } from '@earendil-works/pi-ai';\n" +
+      "import type { UIMessage } from 'ai';\n" +
+      'export type A = AssistantMessage | UIMessage;\n';
+    for (const filePath of [
+      'lib/server/probe.ts',
+      'lib/pbl/v2/agents/probe.ts',
+      'components/probe.tsx',
+    ]) {
+      const errors = await errorsFor(filePath, typeImports);
+      expect(
+        errors.filter((rule) => GUARD_RULES.includes(rule)),
+        filePath,
+      ).toEqual([]);
+    }
+  });
+});
+
+describe('model gateway client boundary', () => {
+  const CLIENT_PATHS = [
+    'components/probe.tsx',
+    'lib/store/probe.ts',
+    'lib/utils/probe.ts',
+    'app/probe/page.tsx',
+  ] as const;
+  const importOf = (specifier: string) =>
+    `import * as gateway from '${specifier}';\nexport const a = gateway;\n`;
+
+  it('rejects the server gateway surface from client entries', async () => {
+    for (const specifier of [
+      '@/lib/model-gateway',
+      '@/lib/model-gateway/runtime/gateway',
+      '@/lib/model-gateway/selection/resolve-binding',
+      '@/lib/model-gateway/credentials/handles',
+    ]) {
+      for (const filePath of CLIENT_PATHS) {
+        const errors = await errorsFor(filePath, importOf(specifier));
+        expect(errors, `${filePath} must reject ${specifier}`).toContain('no-restricted-imports');
+      }
+    }
+  });
+
+  it('allows the isomorphic types and catalog in client entries', async () => {
+    for (const specifier of [
+      '@/lib/model-gateway/types',
+      '@/lib/model-gateway/catalog/client-catalog',
+      '@/lib/model-gateway/catalog/descriptors',
+    ]) {
+      for (const filePath of CLIENT_PATHS) {
+        const errors = await errorsFor(filePath, importOf(specifier));
+        expect(errors, `${filePath} may import ${specifier}`).not.toContain(
+          'no-restricted-imports',
+        );
+      }
+    }
+  });
+
+  it('keeps the server-only polled-task carrier ban on the same client entries', async () => {
+    const errors = await errorsFor(
+      'components/probe.tsx',
+      importOf('@/lib/server/generation-jobs/polled-task-persistence'),
+    );
+    expect(errors).toContain('no-restricted-imports');
   });
 });

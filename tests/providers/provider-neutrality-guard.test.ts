@@ -60,10 +60,16 @@ const PROVIDER_NEUTRAL_FILES = [
   'lib/server/model-routes.ts',
   'lib/server/resolve-model.ts',
   'lib/server/provider-config.ts',
-  // NOTE: lib/server/agent-runtime/agent-driver-model.ts is not on main yet.
-  // Add it back here the moment the agent driver lands on main so the neutral
-  // driver surface is guarded from day one.
+  'lib/server/agent-runtime/agent-driver-model.ts',
+  'lib/server/agent-runtime/model-preflight.ts',
   'lib/orchestration/ai-sdk-adapter.ts',
+  // Model gateway: the call surface and its adapters are vendor-neutral; vendor
+  // knowledge lives in catalog/ descriptors and runtime/thinking.ts (data).
+  'lib/model-gateway/runtime/gateway.ts',
+  'lib/model-gateway/adapters/langchain.ts',
+  'lib/model-gateway/adapters/agent-stream-fn.ts',
+  'app/api/verify-model/route.ts',
+  'app/api/chat/route.ts',
   // Capability routes
   'app/api/generate/tts/route.ts',
   'app/api/generate/voice/route.ts',

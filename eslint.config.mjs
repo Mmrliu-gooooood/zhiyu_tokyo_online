@@ -2,26 +2,81 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
 
-// The AI SDK must be reached only through callLLM / streamLLM in lib/ai/llm.ts
-// (#1003). Static and namespace imports are handled by
-// @typescript-eslint/no-restricted-imports further down; a DYNAMIC import is an
-// ImportExpression, which no-restricted-imports cannot see, so it needs
-// no-restricted-syntax. That key is configured per-block and flat config replaces
-// rule options rather than merging them, so the ban lives here and is spread into
-// every block that sets the key, instead of one repo-wide block that would
-// silently drop those blocks' own module boundaries.
-const AI_SDK_DYNAMIC_IMPORT_BAN = [
+// Text models are reached only through the model gateway (@/lib/model-gateway,
+// ADR 0019 / plan 3.2; originally #1003 for the AI SDK). Static and namespace
+// imports are handled by @typescript-eslint/no-restricted-imports further down; a
+// DYNAMIC import is an ImportExpression, which no-restricted-imports cannot see,
+// so it needs no-restricted-syntax. That key is configured per-block and flat
+// config replaces rule options rather than merging them, so the ban lives here
+// and is spread into every block that sets the key, instead of one repo-wide
+// block that would silently drop those blocks' own module boundaries.
+const GATEWAY_BYPASS_MESSAGE =
+  'Call text models through the model gateway (@/lib/model-gateway: gateway.stream / complete / runToolLoop). The gateway is where credentials, quota, usage accounting, thinking and error classification are applied; a direct model SDK or pi-ai runtime import skips all of them.';
+const MODEL_RUNTIME_DYNAMIC_IMPORT_BAN = [
   {
     selector: "ImportExpression > Literal[value='ai']",
-    message:
-      "Call the model through callLLM / streamLLM in @/lib/ai/llm instead of importing the AI SDK dynamically. A dynamic import('ai') reaches the same generateText / streamText and skips usage accounting, the LLM_THINKING_DISABLED kill switch and per-provider thinking resolution.",
+    message: `${GATEWAY_BYPASS_MESSAGE} (dynamic import('ai'))`,
   },
   {
     selector: "ImportExpression > TemplateLiteral > TemplateElement[value.cooked='ai']",
-    message:
-      'Call the model through callLLM / streamLLM in @/lib/ai/llm instead of importing the AI SDK dynamically (template-literal form of the same bypass).',
+    message: `${GATEWAY_BYPASS_MESSAGE} (template-literal import of 'ai')`,
+  },
+  {
+    selector: 'ImportExpression > Literal[value=/^@ai-sdk\\//]',
+    message: `${GATEWAY_BYPASS_MESSAGE} (dynamic import of an @ai-sdk provider)`,
+  },
+  {
+    selector: 'ImportExpression > Literal[value=/^@earendil-works\\/pi-ai(?:\\/|$)/]',
+    message: `${GATEWAY_BYPASS_MESSAGE} (dynamic import of the pi-ai runtime)`,
+  },
+  {
+    selector:
+      'ImportExpression > TemplateLiteral > TemplateElement[value.cooked=/^@earendil-works\\/pi-ai(?:\\/|$)/]',
+    message: `${GATEWAY_BYPASS_MESSAGE} (template-literal import of the pi-ai runtime)`,
   },
 ];
+
+// The only production modules allowed to touch model runtimes directly (plan 3.2).
+const MODEL_RUNTIME_ALLOWED = [
+  // The gateway's single pi-ai runtime module, its pi-agent-core / LangChain
+  // adapters and its test doubles.
+  'lib/model-gateway/runtime/pi-registry.ts',
+  'lib/model-gateway/adapters/**',
+  'lib/model-gateway/testing/**',
+  // Exceptions that stay on the AI SDK (D13): Claude web search (provider
+  // built-in tool) and speech recognition (transcription API).
+  'lib/web-search/claude.ts',
+  'lib/audio/asr-providers.ts',
+  // Packaging smoke test: imports the runtime to prove it resolves in the bundle.
+  'scripts/smoke-pi-runtime.mjs',
+  // Legacy text stack, deleted in P3-6 (plan 3.15).
+  'lib/ai/llm.ts',
+  'lib/ai/providers.ts',
+  'lib/ai/reasoning-sse.ts',
+  'lib/ai/azure.ts',
+  'lib/agent/runtime/stream-fn.ts',
+  'lib/orchestration/ai-sdk-adapter.ts',
+  'lib/server/generation-jobs/model-quota.ts',
+];
+
+// Browser-reachable code may use the gateway's isomorphic surface only: types
+// (type-only) and the catalog. Everything else under lib/model-gateway pulls
+// in the server runtime (pi-ai, credentials, transport).
+const CLIENT_MODEL_GATEWAY_PATTERN = {
+  // Anything under @/lib/model-gateway except `types` and `catalog/*`.
+  regex: '^@/lib/model-gateway(?:/(?!types$|catalog(?:/|$)).*)?$',
+  message:
+    'Client code may import only @/lib/model-gateway/types (types) and @/lib/model-gateway/catalog/*; the rest of the gateway is server-only (pi-ai runtime, credentials).',
+};
+
+const POLLED_TASK_SERVER_CARRIER_PATTERN = {
+  group: [
+    '@/lib/server/generation-jobs/polled-task-persistence',
+    '**/server/generation-jobs/polled-task-persistence',
+  ],
+  message:
+    'Client-reachable code must read task persistence through @/lib/media/polled-task-context; the AsyncLocalStorage carrier is server-only.',
+};
 
 const POLLED_TASK_SERVER_CARRIER_DYNAMIC_IMPORT_BAN = [
   {
@@ -109,17 +164,25 @@ const eslintConfig = defineConfig([
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            {
-              group: [
-                '@/lib/server/generation-jobs/polled-task-persistence',
-                '**/server/generation-jobs/polled-task-persistence',
-              ],
-              message:
-                'Client-reachable code must read task persistence through @/lib/media/polled-task-context; the AsyncLocalStorage carrier is server-only.',
-            },
-          ],
+          patterns: [POLLED_TASK_SERVER_CARRIER_PATTERN],
         },
+      ],
+    },
+  },
+  // Model gateway client boundary (plan 3.2). Same rule key as the block above,
+  // so its pattern is repeated here for the files both blocks match.
+  {
+    files: [
+      'components/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'lib/store/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'lib/utils/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'app/**/page.{ts,tsx,js,jsx}',
+      'app/**/layout.{ts,tsx,js,jsx}',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [POLLED_TASK_SERVER_CARRIER_PATTERN, CLIENT_MODEL_GATEWAY_PATTERN] },
       ],
     },
   },
@@ -149,7 +212,7 @@ const eslintConfig = defineConfig([
     rules: {
       'no-restricted-syntax': [
         'error',
-        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN,
         {
           selector: 'Literal[value=/^@\\//]',
           message:
@@ -174,7 +237,7 @@ const eslintConfig = defineConfig([
     rules: {
       'no-restricted-syntax': [
         'error',
-        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN,
         {
           selector: 'Literal[value=/^@\\//]',
           message:
@@ -198,7 +261,7 @@ const eslintConfig = defineConfig([
     rules: {
       'no-restricted-syntax': [
         'error',
-        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN,
         {
           selector: 'Literal[value=/^@\\//]',
           message:
@@ -250,7 +313,7 @@ const eslintConfig = defineConfig([
     rules: {
       'no-restricted-syntax': [
         'error',
-        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN,
         {
           selector: 'Literal[value=/^@\\//]',
           message:
@@ -608,7 +671,7 @@ const eslintConfig = defineConfig([
       ],
       'no-restricted-syntax': [
         'error',
-        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN,
         {
           selector: 'Literal[value=/\\/runtime(?:\\/|$)/]',
           message:
@@ -622,47 +685,40 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Single LLM entry point (machine-enforced): server-side model calls go through
-  // `callLLM` / `streamLLM` in lib/ai/llm.ts. That wrapper is where usage
-  // accounting (`recordUsage`), the `LLM_THINKING_DISABLED` kill switch, and
-  // per-provider thinking resolution live — a direct `generateText` / `streamText`
-  // silently opts out of all three, and the opt-out is invisible at the call site.
-  // The PBL v2 runtime drifted exactly this way (#1003): five direct calls meant
-  // zero usage records for the busiest traffic in the product, plus three
-  // different meanings for one thinking config.
+  // Single model boundary (machine-enforced, plan 3.2): server-side text-model
+  // calls go through the model gateway. That is where credentials, quota, usage
+  // accounting (`recordUsage`), the `LLM_THINKING_DISABLED` kill switch, thinking
+  // mapping and error classification live — a direct `generateText` /
+  // `streamText`, an `@ai-sdk/*` provider or a pi-ai runtime import silently opts
+  // out of all of them, and the opt-out is invisible at the call site. The PBL v2
+  // runtime drifted exactly this way once (#1003).
   //
   // The rule uses the @typescript-eslint variant deliberately: the base
-  // `no-restricted-imports` is already configured for lib/choreography and
-  // lib/video-export, and flat config REPLACES a rule's options per key rather
-  // than merging them, so reusing that key here would silently drop those
-  // module-boundary bans. Different key, no interference.
+  // `no-restricted-imports` is already configured for client code,
+  // lib/choreography and lib/video-export, and flat config REPLACES a rule's
+  // options per key rather than merging them. Different key, no interference.
   //
   // Every reachable import form is covered, verified by feeding each one to
   // eslint rather than assumed:
   //   - `import { streamText } from 'ai'`  → this rule
-  //   - `import * as ai from 'ai'`         → this rule too; ESLint reports a
-  //     namespace import when `importNames` is set, since the namespace would
-  //     carry the restricted name
-  //   - `require('ai')`                    → the repo-wide
-  //     `@typescript-eslint/no-require-imports` (inherited from
-  //     eslint-config-next/typescript) already forbids require() anywhere
-  //   - `await import('ai')`               → the no-restricted-syntax block below
+  //   - `import * as ai from 'ai'`         → this rule too (the namespace would
+  //     carry the restricted names)
+  //   - `import { x } from '@ai-sdk/…'` / pi-ai values → this rule; pi-ai TYPE
+  //     imports stay allowed (they are erased; lib/model-gateway/types.ts
+  //     re-exports them)
+  //   - `require(…)`                       → the repo-wide
+  //     `@typescript-eslint/no-require-imports` already forbids require()
+  //   - `await import(…)`                  → the no-restricted-syntax block below
   // An `eslint-disable` comment defeats any of them, which is the point: the
   // bypass has to be written down where a reviewer sees it.
   //
-  // Scope is every linted source extension, matching the module-boundary blocks
-  // above — NOT just ts/tsx. An earlier revision guarded only ts/tsx, which left
-  // `app/api/route.js` and `scripts/*.mjs` free to import the SDK; review caught
-  // it. tests/lint-llm-entry-guard.test.ts pins the whole matrix so the scope
-  // cannot quietly narrow again.
+  // Scope is every linted source extension. tests/lint-llm-entry-guard.test.ts
+  // pins the whole matrix so the scope cannot quietly narrow again.
   {
     files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     ignores: [
-      // The entry point itself.
-      'lib/ai/llm.ts',
-      // Offline harnesses and a test whose subject IS the SDK: not server request
-      // paths, nothing to account for, and the integration test must be able to
-      // call the raw SDK to assert what the wrapper is built on.
+      ...MODEL_RUNTIME_ALLOWED,
+      // Offline harnesses and tests: not server request paths.
       'eval/**',
       'tests/**',
     ],
@@ -673,9 +729,16 @@ const eslintConfig = defineConfig([
           paths: [
             {
               name: 'ai',
-              importNames: ['generateText', 'streamText'],
-              message:
-                'Call the model through callLLM / streamLLM in @/lib/ai/llm instead of the AI SDK directly — that is where usage accounting, the LLM_THINKING_DISABLED kill switch, and per-provider thinking resolution are applied. Both wrappers pass every SDK option straight through, and take an optional per-call thinking config.',
+              importNames: ['generateText', 'streamText', 'generateObject', 'streamObject'],
+              message: GATEWAY_BYPASS_MESSAGE,
+            },
+          ],
+          patterns: [
+            { group: ['@ai-sdk/*'], message: GATEWAY_BYPASS_MESSAGE },
+            {
+              group: ['@earendil-works/pi-ai', '@earendil-works/pi-ai/*'],
+              allowTypeImports: true,
+              message: GATEWAY_BYPASS_MESSAGE,
             },
           ],
         },
@@ -690,7 +753,7 @@ const eslintConfig = defineConfig([
   // than by an argument:
   //   - packages/@openmaic/renderer, packages/@openmaic/storage, and
   //     packages/@openmaic/generation — the same
-  //     AI_SDK_DYNAMIC_IMPORT_BAN is spread into their own blocks above. An earlier
+  //     MODEL_RUNTIME_DYNAMIC_IMPORT_BAN is spread into their own blocks above. An earlier
   //     revision left them out on the reasoning that they are built in isolation
   //     against @openmaic/dsl; review showed `void import('ai')` under the renderer
   //     source path passing lint, which is exactly why that reasoning was not good
@@ -700,7 +763,7 @@ const eslintConfig = defineConfig([
   {
     files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     ignores: [
-      'lib/ai/llm.ts',
+      ...MODEL_RUNTIME_ALLOWED,
       'eval/**',
       'tests/**',
       // Blocks above that configure no-restricted-syntax for their own boundary.
@@ -712,7 +775,7 @@ const eslintConfig = defineConfig([
       'packages/@openmaic/generation/**',
     ],
     rules: {
-      'no-restricted-syntax': ['error', ...AI_SDK_DYNAMIC_IMPORT_BAN],
+      'no-restricted-syntax': ['error', ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN],
     },
   },
   // The static carrier ban near the top uses no-restricted-imports. Dynamic
@@ -725,9 +788,8 @@ const eslintConfig = defineConfig([
       'lib/**/*.{ts,tsx,js,jsx,mjs,cjs}',
     ],
     ignores: [
-      // The unified entry point may load its own accounting modules lazily and
-      // is the only production location allowed to reach the AI SDK directly.
-      'lib/ai/llm.ts',
+      // Modules allowed to load model runtimes (dynamic pi-ai provider imports).
+      ...MODEL_RUNTIME_ALLOWED,
       'app/api/**',
       'lib/server/**',
       'lib/choreography/**',
@@ -737,7 +799,7 @@ const eslintConfig = defineConfig([
     rules: {
       'no-restricted-syntax': [
         'error',
-        ...AI_SDK_DYNAMIC_IMPORT_BAN,
+        ...MODEL_RUNTIME_DYNAMIC_IMPORT_BAN,
         ...POLLED_TASK_SERVER_CARRIER_DYNAMIC_IMPORT_BAN,
       ],
     },

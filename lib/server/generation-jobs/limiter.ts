@@ -3,6 +3,8 @@ import type { TransactionSource } from '@/lib/persistence/owner-bound-document-s
 import { GenerationJobRepository } from './repository';
 import { GenerationJobError } from './contracts';
 import { generationConfig } from './config';
+// Direct module (not the gateway index): the gateway's quota stage imports this file.
+import { isGatewayError } from '@/lib/model-gateway/runtime/errors';
 
 export function quotaGroupForCredential(providerId: string, apiKey: string): string {
   return `${providerId}:${createHash('sha256').update(apiKey).digest('hex').slice(0, 16)}`;
@@ -192,6 +194,18 @@ export class PostgresGenerationLimiter {
       succeeded = true;
       return result;
     } catch (error) {
+      if (isGatewayError(error)) {
+        // Model calls: only an explicit provider rate limit cools the group down.
+        if (kind !== 'media' && error.code === 'MODEL_RATE_LIMITED') {
+          succeeded = true;
+          await this.cooldown(
+            `${kind}:${group}`,
+            error.retryAfterMs !== undefined && error.retryAfterMs > 0 ? error.retryAfterMs : 5000,
+            held,
+          );
+        }
+        throw error;
+      }
       const failure = error as {
         safeToRetry?: boolean;
         statusCode?: number;

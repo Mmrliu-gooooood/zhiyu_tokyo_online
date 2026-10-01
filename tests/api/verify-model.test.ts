@@ -6,13 +6,12 @@ const mocks = vi.hoisted(() => ({
   callLLM: vi.fn(),
 }));
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModel: mocks.resolveModel,
-}));
-
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: mocks.callLLM,
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    resolveParamsBinding: mocks.resolveModel,
+    complete: mocks.callLLM,
+  }),
+);
 
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
@@ -38,10 +37,11 @@ async function postVerifyModel(
 
 describe('POST /api/verify-model', () => {
   beforeEach(() => {
-    vi.resetModules();
     mocks.resolveModel.mockReset();
     mocks.callLLM.mockReset();
-    mocks.resolveModel.mockResolvedValue({ model: { id: 'language-model' } });
+    mocks.resolveModel.mockImplementation(async () =>
+      (await import('@/tests/helpers/legacy-stream-gateway')).testBinding(),
+    );
     mocks.callLLM.mockResolvedValue({ text: 'OK' });
   });
 
@@ -58,7 +58,7 @@ describe('POST /api/verify-model', () => {
     expect(mocks.callLLM).not.toHaveBeenCalled();
   });
 
-  it('uses the unified LLM wrapper with thinking disabled for connection checks', async () => {
+  it('calls the gateway once with thinking disabled for connection checks', async () => {
     const res = await postVerifyModel({
       model: 'xiaomi:mimo-v2.5-pro',
       apiKey: 'tp-test',
@@ -80,14 +80,14 @@ describe('POST /api/verify-model', () => {
       providerType: 'openai',
     });
     expect(mocks.callLLM).toHaveBeenCalledWith(
+      expect.objectContaining({ thinking: { mode: 'disabled', enabled: false } }),
       {
-        model: { id: 'language-model' },
-        prompt: 'Say "OK" if you can hear me.',
+        messages: [
+          expect.objectContaining({ role: 'user', content: 'Say "OK" if you can hear me.' }),
+        ],
         maxOutputTokens: 64,
       },
-      'verify-model',
-      undefined,
-      { mode: 'disabled', enabled: false },
+      expect.objectContaining({ source: 'verify-model', retry: 'none' }),
     );
   });
 
@@ -107,10 +107,6 @@ describe('POST /api/verify-model', () => {
 
     expect(res.status).toBe(200);
     expect(mocks.resolveModel).toHaveBeenCalledWith({
-      modelString: 'platform:zhiyu-default-text',
-      apiKey: undefined,
-      baseUrl: undefined,
-      providerType: undefined,
       source: 'platform',
       platformDefaultId: 'zhiyu-default-text',
     });
@@ -134,8 +130,27 @@ describe('POST /api/verify-model', () => {
       baseUrl: 'https://user.example/v1',
       providerType: 'openai',
       source: 'user',
-      platformDefaultId: undefined,
     });
+  });
+
+  it.each([
+    ['MODEL_AUTH_FAILED', 401, 'API key is invalid or expired'],
+    ['MODEL_RATE_LIMITED', 429, 'API rate limit exceeded, please try again later'],
+    ['MODEL_NETWORK', 502, 'Cannot connect to API server, please check the Base URL'],
+  ] as const)('maps %s to a fixed message without upstream text', async (code, status, message) => {
+    const { GatewayError } = await import('@/lib/model-gateway');
+    mocks.callLLM.mockRejectedValue(
+      new GatewayError(code, {
+        providerId: 'openai',
+        modelId: 'test-model',
+        cause: new Error('upstream body sk-secret'),
+      }),
+    );
+    const res = await postVerifyModel({ model: 'openai:test-model', apiKey: 'k' });
+    const json = await res.json();
+    expect(res.status).toBe(status);
+    expect(json.error).toBe(message);
+    expect(JSON.stringify(json)).not.toContain('sk-secret');
   });
 
   it('rejects a platform default ID mixed with a user source', async () => {

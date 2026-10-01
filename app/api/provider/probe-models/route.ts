@@ -4,6 +4,8 @@ import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { fetchModels, ModelFetchError } from '@/lib/server/model-fetch';
+import { getDescriptor } from '@/lib/model-gateway/catalog/descriptors';
+import { CLIENT_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import {
   normalizeProviderSelectionSource,
   ProviderSelectionError,
@@ -20,6 +22,12 @@ const NON_CHAT_PATTERN = /(tts|asr|whisper|embedding|rerank|mineru|image|video|v
  * Discovers the chat models a base URL + key exposes, via the OpenAI-compatible
  * /models endpoint (with multi-candidate fallback). Returns the lit-up list, or
  * a typed status so the UI can fall back to manual model entry.
+ *
+ * With a known `providerId`, discovery follows the catalog descriptor
+ * (plan 3.13): `manual` providers answer 404 (enter models by hand), and
+ * `catalog` providers on their default endpoint answer from the reviewed
+ * catalog. `pi-refresh` needs stored credentials (R2) and uses /models until
+ * then.
  */
 export async function POST(req: NextRequest) {
   const denied = await hostedAuthGate(req);
@@ -44,11 +52,27 @@ export async function POST(req: NextRequest) {
       );
     }
     const body = await req.json();
-    const { baseUrl, apiKey, modelsUrl } = body as {
+    const { baseUrl, apiKey, modelsUrl, providerId } = body as {
       baseUrl?: string;
       apiKey?: string;
       modelsUrl?: string;
+      providerId?: string;
     };
+
+    const descriptor = providerId ? getDescriptor(providerId) : undefined;
+    if (descriptor?.modelDiscovery === 'manual') {
+      return apiError('INVALID_REQUEST', 404, 'This provider does not expose a model list');
+    }
+    const onDefaultEndpoint =
+      !modelsUrl && (!baseUrl || baseUrl.replace(/\/+$/, '') === descriptor?.defaultBaseUrl);
+    if (descriptor?.modelDiscovery === 'catalog' && onDefaultEndpoint) {
+      const models = CLIENT_PROVIDERS[descriptor.id]?.models ?? [];
+      return apiSuccess({
+        models: models.map((model) => ({ id: model.id })),
+        total: models.length,
+        filtered: 0,
+      });
+    }
 
     if (!baseUrl) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'baseUrl is required');
