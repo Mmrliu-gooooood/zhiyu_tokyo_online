@@ -1,6 +1,9 @@
 /**
- * Bounded transport retry policy (plan 3.8). pi and SDK retries are always
- * disabled; this is the only retry layer. Nothing is retried once any output
+ * Bounded transport retry policy (plan 3.8). pi and SDK retries are disabled
+ * (`maxRetries: 0`), so this is the only retry layer — except Bedrock, whose
+ * AWS SDK client pi builds without `maxAttempts` (standard mode, up to 3
+ * attempts on throttling / 5xx; not configurable through pi 0.99.1). The
+ * gateway adds no retries on top of it. Nothing is retried once any output
  * was observed, and the provider/account never changes between attempts.
  */
 import type { GatewayError } from './errors';
@@ -8,6 +11,8 @@ import type { GatewayError } from './errors';
 export type RetryMode = 'foreground' | 'background';
 
 export const MAX_TRANSPORT_RETRIES = 2;
+/** The API whose SDK already retries internally (see above). */
+const SDK_RETRYING_API = 'bedrock-converse-stream';
 const PRE_SEND_DELAYS_MS = [1_000, 3_000] as const;
 const BACKOFF_DELAYS_MS = [500, 1_500] as const;
 const MAX_RATE_LIMIT_WAIT_MS = 10_000;
@@ -20,8 +25,10 @@ export function retryDelayMs(
   error: GatewayError,
   retriesSoFar: number,
   mode: RetryMode,
+  api?: string,
 ): number | undefined {
   if (retriesSoFar >= MAX_TRANSPORT_RETRIES || error.outputObserved) return undefined;
+  if (api === SDK_RETRYING_API) return undefined;
   // DNS / connect failures: the request never left, safe in both modes.
   if (!error.requestSent && (error.code === 'MODEL_NETWORK' || error.code === 'MODEL_TIMEOUT')) {
     return PRE_SEND_DELAYS_MS[retriesSoFar];

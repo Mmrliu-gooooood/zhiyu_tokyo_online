@@ -9,6 +9,7 @@ import { GenerationMediaServices } from '@/lib/server/generation-pipeline/media'
 import { prepareMaterials } from '@/lib/server/generation-pipeline/materials';
 import { runGenerationPipeline } from '@/lib/server/generation-pipeline/pipeline';
 import { runWorker } from './runner';
+import { GatewayStartupError, runGatewayStartupChecks } from '@/lib/model-gateway/startup';
 import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/config-snapshot';
 import { loadMediaConfigSnapshot } from '@/lib/server/media-config-snapshots';
 import {
@@ -39,6 +40,7 @@ async function main() {
     return;
   }
   await clearWorkerHealthMarker();
+  runGatewayStartupChecks();
   const pool = getGenerationPool();
   const controller = new AbortController();
   for (const event of ['SIGINT', 'SIGTERM'] as const) process.once(event, () => controller.abort());
@@ -167,7 +169,9 @@ async function main() {
   }
 }
 
-void main().catch(() => {
+void main().catch((error: unknown) => {
+  // Gateway startup errors carry an operator-facing, secret-free explanation.
+  if (error instanceof GatewayStartupError) process.stderr.write(`${error.message}\n`);
   process.stderr.write(
     'Generation worker startup failed; verify database, schema and server configuration.\n',
   );

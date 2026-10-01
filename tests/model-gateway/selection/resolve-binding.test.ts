@@ -7,7 +7,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ModelBinding } from '@/lib/model-gateway/types';
 
-const mocks = vi.hoisted(() => ({ serverManaged: false, ssrfBlocked: false }));
+const mocks = vi.hoisted(() => ({
+  serverManaged: false,
+  ssrfBlocked: false,
+  proxy: undefined as string | undefined,
+}));
 
 vi.mock('@/lib/server/provider-config', () => {
   class PlatformDefaultModelError extends Error {
@@ -27,7 +31,7 @@ vi.mock('@/lib/server/provider-config', () => {
       mocks.serverManaged ? 'server-key' : clientKey || '',
     resolveBaseUrl: (_id: string, clientBaseUrl?: string) =>
       mocks.serverManaged ? undefined : clientBaseUrl,
-    resolveProxy: () => undefined,
+    resolveProxy: () => (mocks.serverManaged ? mocks.proxy : undefined),
     resolvePlatformDefault: (defaultId: string) => ({
       source: 'platform',
       defaultId,
@@ -515,6 +519,62 @@ describe('resolveBinding — gateway-era rules', () => {
       model: { baseUrl: 'http://localhost:11434/v1' },
       transforms: { inlineThinkTags: true },
     });
+  });
+
+  it('locks Google user endpoints to the official host (P2-6)', async () => {
+    expect(
+      await rejection({
+        modelString: 'google:gemini-2.5-flash',
+        source: 'user',
+        apiKey: 'k',
+        baseUrl: 'https://gemini-relay.example/v1beta',
+      }),
+    ).toMatchObject({ code: 'MODEL_UNSAFE_ENDPOINT', httpStatus: 400 });
+    const official = await resolve({
+      modelString: 'google:gemini-2.5-flash',
+      source: 'user',
+      apiKey: 'k',
+    });
+    expect(official).toMatchObject({
+      endpoint: 'official',
+      model: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
+    });
+  });
+
+  it('keeps Vertex operator-only and custom providers off SDK transports (P2-6)', async () => {
+    expect(
+      await rejection({
+        modelString: 'google-vertex:gemini-2.5-flash',
+        source: 'user',
+        apiKey: 'k',
+      }),
+    ).toMatchObject({ code: 'MODEL_CONFIGURATION' });
+    for (const providerType of ['google', 'bedrock']) {
+      expect(
+        await rejection({
+          modelString: 'custom-relay:any-model',
+          source: 'user',
+          apiKey: 'k',
+          baseUrl: 'https://relay.example/v1',
+          providerType,
+        }),
+      ).toMatchObject({ code: 'MODEL_CONFIGURATION' });
+    }
+  });
+
+  it('refuses an operator-proxied Google binding instead of bypassing the proxy (P2-6)', async () => {
+    mocks.serverManaged = true;
+    mocks.proxy = 'http://proxy.internal:3128';
+    try {
+      expect(await rejection({ modelString: 'google:gemini-2.5-flash' })).toMatchObject({
+        code: 'MODEL_CONFIGURATION',
+      });
+      // A proxied OpenAI-compatible operator provider keeps its proxy.
+      const proxied = await resolve({ modelString: 'qwen:qwen3.7-plus' });
+      expect(proxied).toMatchObject({ endpoint: 'operator', proxy: 'http://proxy.internal:3128' });
+    } finally {
+      mocks.proxy = undefined;
+    }
   });
 
   it('requires the declared endpoint params before a Cloudflare binding is ready', async () => {

@@ -29,6 +29,7 @@ vi.mock('@/lib/server/provider-config', async (importOriginal) => {
 });
 
 import { createBinding, getCredentialHandle } from '@/lib/model-gateway/credentials/handles';
+import { FETCHLESS_APIS } from '@/lib/model-gateway/runtime/fetchless';
 import { toPiToolSchema } from '@/lib/model-gateway/runtime/pi-registry';
 import { assistantText, toolResult, userContent, userText } from '@/lib/model-gateway/messages';
 import {
@@ -279,6 +280,9 @@ function reroute(binding: ModelBinding, origin: string): { binding: ModelBinding
       {
         ...fields,
         model: { ...binding.model, baseUrl: `${origin}${pathname}` },
+        // Fetch-less SDK transports may only reach official / operator endpoints;
+        // the fake server stands in for an operator-configured one.
+        ...(FETCHLESS_APIS.has(binding.model.api) ? { endpoint: 'operator' as const } : {}),
         ...(requestEnv ? { requestEnv } : {}),
       },
       getCredentialHandle(binding),

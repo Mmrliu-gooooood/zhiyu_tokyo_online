@@ -6,7 +6,11 @@
  */
 import type { ModelInfo, ThinkingCapability } from '@/lib/types/provider';
 import { getCanonicalModelId } from '@/lib/ai/model-aliases';
-import { getDescriptor, type ProviderDescriptor } from '../catalog/descriptors';
+import {
+  CUSTOM_PROVIDER_APIS,
+  getDescriptor,
+  type ProviderDescriptor,
+} from '../catalog/descriptors';
 import { modelHint, openaiDefaultApi } from '../catalog/overlays';
 import { REVIEWED_MODELS } from '../catalog/reviewed-models';
 import {
@@ -35,7 +39,9 @@ export interface ModelSpec {
 }
 
 export class ModelSpecError extends Error {
-  constructor(readonly reason: 'unknown-provider' | 'missing-api' | 'missing-endpoint') {
+  constructor(
+    readonly reason: 'unknown-provider' | 'missing-api' | 'missing-endpoint' | 'unsupported-api',
+  ) {
     super(`Model cannot be resolved: ${reason}`);
     this.name = 'ModelSpecError';
   }
@@ -329,6 +335,9 @@ export async function buildModelSpec(input: ModelSpecInput): Promise<ModelSpec> 
   } else {
     // User-defined provider (`custom-*`): the connection names the protocol.
     if (!input.api) throw new ModelSpecError(descriptor ? 'missing-api' : 'unknown-provider');
+    // A user-defined endpoint must go through the gateway transport: only the
+    // OpenAI / Anthropic protocols (never Google / Bedrock SDK transports, P2-6).
+    if (!CUSTOM_PROVIDER_APIS.includes(input.api)) throw new ModelSpecError('unsupported-api');
     if (!input.baseUrl) throw new ModelSpecError('missing-endpoint');
     base = customTemplate(providerId, modelId, input.api, undefined);
     upstream = 'custom';

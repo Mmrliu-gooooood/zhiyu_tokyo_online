@@ -34,6 +34,7 @@ import type { ThinkingConfig } from '@/lib/types/provider';
 import { getDescriptor } from '../catalog/descriptors';
 import { createBinding, type CredentialHandle } from '../credentials/handles';
 import { GatewayError } from '../runtime/errors';
+import { fetchlessRefusal } from '../runtime/fetchless';
 import type {
   EndpointKind,
   FundingSource,
@@ -306,6 +307,14 @@ export async function resolveBinding(input: ResolveBindingInput): Promise<ModelB
     declared.filter((name) => provided[name]).map((name) => [name, provided[name]!]),
   );
   const endpointReady = declared.every((name) => requestEnv[name]);
+
+  // Refuse at resolve time what the gateway would refuse before sending (P2-6).
+  const refusal = fetchlessRefusal({
+    model: spec.model,
+    endpoint,
+    proxy: endpoint === 'operator' ? proxy : undefined,
+  });
+  if (refusal) throw new GatewayError(refusal, { providerId, modelId });
 
   const requested: ThinkingConfig | undefined = routed
     ? intent.route?.thinking

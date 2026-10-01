@@ -28,6 +28,11 @@ export async function register(): Promise<void> {
   const { validateServerConfig } = await import('@/lib/server/config-validation');
   validateServerConfig();
 
+  // Model gateway checks that must stop startup (e.g. a proxy configured for a
+  // provider whose SDK transport would silently bypass it).
+  const { runGatewayStartupChecks } = await import('@/lib/model-gateway/startup');
+  runGatewayStartupChecks();
+
   // Warm the model gateway's pi runtime (and keep its lazily loaded entry points
   // in the standalone file trace) without delaying readiness: the platform
   // default model speaks OpenAI Chat Completions.

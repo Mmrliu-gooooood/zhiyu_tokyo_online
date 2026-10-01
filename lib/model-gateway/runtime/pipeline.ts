@@ -39,6 +39,7 @@ import type {
 import { classifyFailure } from './classify';
 import { getEntitlementPolicy } from './entitlement';
 import { GatewayError } from './errors';
+import { FETCHLESS_APIS, fetchlessRefusal } from './fetchless';
 import { resolveImages, ImageInputError } from './images';
 import {
   KEYLESS_API_KEY,
@@ -58,12 +59,6 @@ import type { AuthContext, Provider } from '@earendil-works/pi-ai';
 
 const log = createLogger('ModelGateway');
 
-/** APIs whose pi adapter cannot take a custom fetch (plan 3.6 known limitation). */
-const NO_CUSTOM_FETCH = new Set([
-  'google-generative-ai',
-  'google-vertex',
-  'bedrock-converse-stream',
-]);
 const AMBIENT_PROVIDERS = new Set(['amazon-bedrock', 'google-vertex']);
 const TOOL_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
 const BACKGROUND_DEADLINE_MS = 300_000;
@@ -387,6 +382,16 @@ export function runStream(
       }
       const context = { systemPrompt: req.system, messages: resolved.messages, tools: req.tools };
 
+      // Fetch-less SDK transports: only official / operator endpoints, no proxy (P2-6).
+      const refusal = fetchlessRefusal(binding);
+      if (refusal) {
+        throw new GatewayError(refusal, {
+          providerId: binding.providerId,
+          modelId: binding.modelId,
+          requestSent: false,
+        });
+      }
+
       // 3 entitlement (platform-funded calls only)
       if (binding.funding.kind === 'platform') {
         grant = await policy.authorize({ ownerId: opts.ownerId, binding, source: opts.source });
@@ -465,7 +470,9 @@ export function runStream(
           return;
         }
         const error = outcome.error!;
-        const delay = attemptSignal.aborted ? undefined : retryDelayMs(error, attempt - 1, mode);
+        const delay = attemptSignal.aborted
+          ? undefined
+          : retryDelayMs(error, attempt - 1, mode, binding.model.api);
         if (delay === undefined) {
           finalError = error;
           await lease?.release(error);
@@ -567,7 +574,7 @@ export function runStream(
         ...(bearer ? { headers: { Authorization: `Bearer ${apiKey}`, 'x-api-key': null } } : {}),
         ...(binding.requestEnv ? { env: { ...binding.requestEnv } } : {}),
         ...explicitProviderOptions(binding),
-        ...(NO_CUSTOM_FETCH.has(binding.model.api) ? {} : { fetch: transport.fetch }),
+        ...(FETCHLESS_APIS.has(binding.model.api) ? {} : { fetch: transport.fetch }),
         signal: attemptSignal,
         maxRetries: 0,
         reasoning: plan.reasoning,
