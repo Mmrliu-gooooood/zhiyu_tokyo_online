@@ -224,7 +224,8 @@ function main() {
   if (check) {
     let current = '';
     try {
-      current = readFileSync(OUT_FILE, 'utf8');
+      // A Windows checkout (core.autocrlf) may turn the trailing newline into CRLF.
+      current = readFileSync(OUT_FILE, 'utf8').replace(/\r\n/g, '\n');
     } catch {
       // missing counts as stale
     }
