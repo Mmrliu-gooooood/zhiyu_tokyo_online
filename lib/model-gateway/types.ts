@@ -153,6 +153,8 @@ export interface ModelTransforms {
   /** Split inline `<think>…</think>` text into thinking blocks. */
   inlineThinkTags: boolean;
   payloadPatches: readonly PayloadPatchId[];
+  /** Keys with these prefixes are sent as `Authorization: Bearer` (MiniMax Token Plan). */
+  bearerKeyPrefixes?: readonly string[];
 }
 
 export type EndpointKind = 'official' | 'operator' | 'user' | 'local';
@@ -184,6 +186,11 @@ export interface ModelBinding {
   readonly endpoint: EndpointKind;
   /** Operator-configured outbound proxy (operator endpoints only). */
   readonly proxy?: string;
+  /**
+   * Non-secret per-request provider values passed to pi as `env` (endpoint
+   * placeholders, Azure / Vertex / Bedrock settings). Never read from process.env.
+   */
+  readonly requestEnv?: Readonly<Record<string, string>>;
   readonly credentialReady: boolean;
   /** Hash of non-secret fields for logs and diagnostics. */
   readonly fingerprint: string;

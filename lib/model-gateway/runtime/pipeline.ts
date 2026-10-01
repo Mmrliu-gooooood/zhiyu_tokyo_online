@@ -545,8 +545,12 @@ export function runStream(
       const apiKey = apiKeyFor(binding);
       const { provider, authContext } = await deps.resolveProvider(binding);
       const models = createCallModels(provider, authContext);
+      const bearer =
+        apiKey && binding.transforms.bearerKeyPrefixes?.some((prefix) => apiKey.startsWith(prefix));
       const source = streamModel(models, binding.model, context, {
         apiKey,
+        ...(bearer ? { headers: { Authorization: `Bearer ${apiKey}`, 'x-api-key': null } } : {}),
+        ...(binding.requestEnv ? { env: { ...binding.requestEnv } } : {}),
         ...(NO_CUSTOM_FETCH.has(binding.model.api) ? {} : { fetch: transport.fetch }),
         signal: attemptSignal,
         maxRetries: 0,

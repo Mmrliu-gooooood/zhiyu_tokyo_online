@@ -53,11 +53,18 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-/** Freeze a binding and attach its credential handle privately. */
-export function createBinding(fields: BindingFields, handle: CredentialHandle): ModelBinding {
+/**
+ * Freeze a binding and attach its credential handle privately. `endpointReady`
+ * is false when a required non-secret endpoint value is missing.
+ */
+export function createBinding(
+  fields: BindingFields,
+  handle: CredentialHandle,
+  endpointReady = true,
+): ModelBinding {
   const binding = deepFreeze({
     ...structuredClone(fields),
-    credentialReady: credentialReady(handle),
+    credentialReady: endpointReady && credentialReady(handle),
     fingerprint: fingerprintOf(fields),
   }) as ModelBinding;
   handles.set(binding, Object.freeze({ ...handle }));
@@ -75,6 +82,7 @@ export function withThinking(
   binding: ModelBinding,
   thinking: ThinkingConfig | undefined,
 ): ModelBinding {
-  const { fingerprint: _fingerprint, credentialReady: _ready, ...fields } = binding;
-  return createBinding({ ...fields, thinking }, getCredentialHandle(binding));
+  const { fingerprint: _fingerprint, credentialReady: ready, ...fields } = binding;
+  const handle = getCredentialHandle(binding);
+  return createBinding({ ...fields, thinking }, handle, ready || !credentialReady(handle));
 }

@@ -40,6 +40,7 @@ describe('readModelSelection (request headers)', () => {
         connection: { auth: 'api-key', apiKey: 'sk-user', baseUrl: 'https://relay.example/v1' },
         thinking: { mode: 'enabled', effort: 'high' },
       },
+      thinking: { mode: 'enabled', effort: 'high' },
     });
   });
 

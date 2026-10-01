@@ -15,6 +15,8 @@ import { thinkingConfigSchema, upgradeLegacyModelParams, type ModelSelection } f
 
 export interface RequestModelSelection {
   selection?: ModelSelection;
+  /** Body thinking, kept for the DEFAULT_MODEL fallback when no model was sent. */
+  thinking?: ThinkingConfig;
   error?: ModelSelectionError;
 }
 
@@ -66,7 +68,9 @@ export function readModelSelection(
   thinkingOverride?: ThinkingConfig,
 ): RequestModelSelection {
   try {
+    const thinking = thinkingOverride ?? thinkingFromBody(body);
     return {
+      ...(thinking ? { thinking } : {}),
       selection: upgradeLegacyModelParams({
         modelString: header(req, 'x-model'),
         apiKey: header(req, 'x-api-key'),
@@ -78,7 +82,7 @@ export function readModelSelection(
         credentialId: header(req, 'x-model-credential-id'),
         endpointProfile: header(req, 'x-model-endpoint-profile'),
         endpointParams: endpointParams(header(req, 'x-model-endpoint-params')),
-        thinkingConfig: thinkingOverride ?? thinkingFromBody(body),
+        thinkingConfig: thinking,
       }),
     };
   } catch (error) {
