@@ -4,8 +4,10 @@
  * - Fetch-less providers (Google, Bedrock, Vertex) talk through SDK
  *   transports that cannot use the gateway's operator proxy; a configured
  *   proxy would be silently bypassed, so startup fails instead (plan P2-6).
+ * - Logs which pi-readable environment variables are set, names only (P2-7).
  */
 import { resolveProxy } from '@/lib/server/provider-config';
+import { logPiEnvironmentAudit } from './credentials/env-exposure';
 import { FETCHLESS_PROVIDER_IDS } from './runtime/fetchless';
 
 export class GatewayStartupError extends Error {
@@ -31,4 +33,5 @@ export function assertFetchlessProxyConfig(
 /** Run every startup check; throws GatewayStartupError on a configuration that must not run. */
 export function runGatewayStartupChecks(): void {
   assertFetchlessProxyConfig();
+  logPiEnvironmentAudit();
 }

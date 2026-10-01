@@ -28,8 +28,6 @@ vi.mock('@/lib/server/provider-config', async (importOriginal) => {
   };
 });
 
-import { createBinding, getCredentialHandle } from '@/lib/model-gateway/credentials/handles';
-import { FETCHLESS_APIS } from '@/lib/model-gateway/runtime/fetchless';
 import { toPiToolSchema } from '@/lib/model-gateway/runtime/pi-registry';
 import { assistantText, toolResult, userContent, userText } from '@/lib/model-gateway/messages';
 import {
@@ -42,7 +40,7 @@ import {
   type FakeModelServer,
 } from '@/lib/model-gateway/testing/fake-openai-server';
 import type { GatewayMessage, GatewayTool, ModelBinding } from '@/lib/model-gateway/types';
-import { testGateway } from '../helpers';
+import { rerouteBinding, testGateway } from '../helpers';
 import type { Conversation, GoldenEntry, LegacyCaseInput } from './legacy-payloads.test';
 import { sortKeys } from './matrix';
 import { GOLDEN_DIR, thinkingFields } from './thinking-equivalence';
@@ -264,32 +262,6 @@ function conversation(kind: Conversation, binding: ModelBinding): GatewayMessage
   }
 }
 
-/** Point a binding at the fake server, keeping the path and remembering the host. */
-function reroute(binding: ModelBinding, origin: string): { binding: ModelBinding; host: string } {
-  const real = new URL(binding.model.baseUrl);
-  const { fingerprint: _f, credentialReady: _r, ...fields } = binding;
-  const pathname = real.pathname.replace(/\/+$/, '');
-  // The AWS SDK speaks HTTP/2 by default; the fake server is HTTP/1.1.
-  const requestEnv =
-    binding.model.api === 'bedrock-converse-stream'
-      ? { ...binding.requestEnv, AWS_BEDROCK_FORCE_HTTP1: '1' }
-      : binding.requestEnv;
-  return {
-    host: real.host,
-    binding: createBinding(
-      {
-        ...fields,
-        model: { ...binding.model, baseUrl: `${origin}${pathname}` },
-        // Fetch-less SDK transports may only reach official / operator endpoints;
-        // the fake server stands in for an operator-configured one.
-        ...(FETCHLESS_APIS.has(binding.model.api) ? { endpoint: 'operator' as const } : {}),
-        ...(requestEnv ? { requestEnv } : {}),
-      },
-      getCredentialHandle(binding),
-    ),
-  };
-}
-
 async function replay(
   server: FakeModelServer,
   group: string,
@@ -320,7 +292,7 @@ async function replay(
       const known = getBindingResolutionError(error);
       return { error: known ? known.code : `throw: ${(error as Error).message}` };
     }
-    const rerouted = reroute(binding, server.origin);
+    const rerouted = rerouteBinding(binding, server.origin);
     const before = server.requests.length;
     const { gateway } = testGateway();
     await gateway

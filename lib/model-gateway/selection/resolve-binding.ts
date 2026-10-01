@@ -32,6 +32,7 @@ import {
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import { getDescriptor } from '../catalog/descriptors';
+import { operatorProviderEnv } from '../credentials/env-exposure';
 import { createBinding, type CredentialHandle } from '../credentials/handles';
 import { GatewayError } from '../runtime/errors';
 import { fetchlessRefusal } from '../runtime/fetchless';
@@ -303,10 +304,15 @@ export async function resolveBinding(input: ResolveBindingInput): Promise<ModelB
     connection?.auth === 'api-key'
       ? (connection.endpointParams ?? {})
       : ({} as Record<string, string>);
-  const requestEnv = Object.fromEntries(
-    declared.filter((name) => provided[name]).map((name) => [name, provided[name]!]),
-  );
-  const endpointReady = declared.every((name) => requestEnv[name]);
+  // Operator-only ambient APIs get their settings explicitly, never via pi's env fallback (P2-7).
+  const operatorEnv = managed ? operatorProviderEnv(spec.model.api) : { env: {}, ready: true };
+  const requestEnv = {
+    ...Object.fromEntries(
+      declared.filter((name) => provided[name]).map((name) => [name, provided[name]!]),
+    ),
+    ...operatorEnv.env,
+  };
+  const endpointReady = declared.every((name) => requestEnv[name]) && operatorEnv.ready;
 
   // Refuse at resolve time what the gateway would refuse before sending (P2-6).
   const refusal = fetchlessRefusal({

@@ -1,8 +1,10 @@
 import {
   createBinding,
+  getCredentialHandle,
   type BindingFields,
   type CredentialHandle,
 } from '@/lib/model-gateway/credentials/handles';
+import { FETCHLESS_APIS } from '@/lib/model-gateway/runtime/fetchless';
 import { loadPiProvider } from '@/lib/model-gateway/runtime/pi-registry';
 import {
   createGateway,
@@ -76,4 +78,35 @@ export function testGateway(overrides: Partial<GatewayDeps> = {}): TestGateway {
     ...overrides,
   });
   return { gateway, calls, usage, sleeps };
+}
+
+/**
+ * Point a binding at the fake server, keeping its path and remembering the
+ * real host. Fetch-less SDK transports may only reach official / operator
+ * endpoints, so the fake server stands in for an operator-configured one.
+ */
+export function rerouteBinding(
+  binding: ModelBinding,
+  origin: string,
+): { binding: ModelBinding; host: string } {
+  const real = new URL(binding.model.baseUrl);
+  const { fingerprint: _f, credentialReady: _r, ...fields } = binding;
+  const pathname = real.pathname.replace(/\/+$/, '');
+  // The AWS SDK speaks HTTP/2 by default; the fake server is HTTP/1.1.
+  const requestEnv =
+    binding.model.api === 'bedrock-converse-stream'
+      ? { ...binding.requestEnv, AWS_BEDROCK_FORCE_HTTP1: '1' }
+      : binding.requestEnv;
+  return {
+    host: real.host,
+    binding: createBinding(
+      {
+        ...fields,
+        model: { ...binding.model, baseUrl: `${origin}${pathname}` },
+        ...(FETCHLESS_APIS.has(binding.model.api) ? { endpoint: 'operator' as const } : {}),
+        ...(requestEnv ? { requestEnv } : {}),
+      },
+      getCredentialHandle(binding),
+    ),
+  };
 }

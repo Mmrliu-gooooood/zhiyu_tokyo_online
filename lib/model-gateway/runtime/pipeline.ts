@@ -16,6 +16,7 @@
 import { createLogger } from '@/lib/logger';
 import { getCredentialHandle } from '../credentials/handles';
 import { ambientAuthContext, sealedAuthContext } from '../credentials/auth-context';
+import { explicitProviderEnv } from '../credentials/env-exposure';
 import { messageText } from '../messages';
 import type {
   AssistantMessage,
@@ -293,21 +294,6 @@ function apiKeyFor(binding: ModelBinding): string | undefined {
   }
 }
 
-/**
- * Provider settings pi would otherwise read from process.env (plan P2-7):
- * always passed explicitly from the binding.
- */
-function explicitProviderOptions(binding: ModelBinding): Record<string, string> {
-  if (binding.model.api === 'azure-openai-responses') {
-    return {
-      azureBaseUrl: binding.model.baseUrl,
-      azureApiVersion: binding.requestEnv?.AZURE_OPENAI_API_VERSION ?? 'v1',
-      azureDeploymentName: binding.model.id,
-    };
-  }
-  return {};
-}
-
 interface AttemptOutcome {
   ok: boolean;
   message: AssistantMessage;
@@ -382,6 +368,15 @@ export function runStream(
       }
       const context = { systemPrompt: req.system, messages: resolved.messages, tools: req.tools };
 
+      // A binding missing a credential or a required endpoint value is never sent:
+      // pi would otherwise fall back to process.env (P2-7).
+      if (!binding.credentialReady) {
+        throw new GatewayError('MODEL_CONFIGURATION', {
+          providerId: binding.providerId,
+          modelId: binding.modelId,
+          requestSent: false,
+        });
+      }
       // Fetch-less SDK transports: only official / operator endpoints, no proxy (P2-6).
       const refusal = fetchlessRefusal(binding);
       if (refusal) {
@@ -567,13 +562,13 @@ export function runStream(
       const apiKey = apiKeyFor(binding);
       const { provider, authContext } = await deps.resolveProvider(binding);
       const models = createCallModels(provider, authContext);
+      const providerEnv = explicitProviderEnv(binding);
       const bearer =
         apiKey && binding.transforms.bearerKeyPrefixes?.some((prefix) => apiKey.startsWith(prefix));
       const source = streamModel(models, binding.model, context, {
         apiKey,
         ...(bearer ? { headers: { Authorization: `Bearer ${apiKey}`, 'x-api-key': null } } : {}),
-        ...(binding.requestEnv ? { env: { ...binding.requestEnv } } : {}),
-        ...explicitProviderOptions(binding),
+        ...(Object.keys(providerEnv).length > 0 ? { env: providerEnv } : {}),
         ...(FETCHLESS_APIS.has(binding.model.api) ? {} : { fetch: transport.fetch }),
         signal: attemptSignal,
         maxRetries: 0,
