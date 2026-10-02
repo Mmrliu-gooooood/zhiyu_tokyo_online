@@ -13,7 +13,7 @@
  * milestone; `runSimulatorTurn` gates this and errors out otherwise.
  */
 
-import { hostedAuthGate } from '@/lib/auth/api';
+import { withHostedProviderQuota } from '@/lib/auth/api';
 import type { NextRequest } from 'next/server';
 
 import { createLogger } from '@/lib/logger';
@@ -38,8 +38,11 @@ interface SimulatorRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await hostedAuthGate(req);
-  if (denied) return denied;
+  // Model calls take provider quota as the signed-in owner (hosted RLS).
+  return withHostedProviderQuota(req, () => handlePOST(req));
+}
+
+async function handlePOST(req: NextRequest) {
   let body: SimulatorRequest;
   try {
     body = (await req.json()) as SimulatorRequest;
