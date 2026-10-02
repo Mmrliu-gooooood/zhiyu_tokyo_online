@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createAssistantMessageEventStream,
-  type AssistantMessage,
-  type Context,
-} from '@earendil-works/pi-ai';
 import { convertToLlm, type AgentMessage, type StreamFn } from '@earendil-works/pi-agent-core';
+import { loadAgentLegacyPi } from '@/lib/model-gateway/adapters/agent-legacy-pi';
+import type {
+  AgentAssistantMessage as AssistantMessage,
+  AgentLlmContext as Context,
+  AgentToolCall,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { AgentTurnSummary } from '@/lib/orchestration/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
@@ -24,21 +25,24 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/model-gateway/adapters/agent-stream-fn', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/lib/model-gateway/adapters/agent-stream-fn')>();
-  const { createAssistantMessageEventStream: createStream } = await import('@earendil-works/pi-ai');
+  const { loadAgentLegacyPi: load } = await import('@/lib/model-gateway/adapters/agent-legacy-pi');
+  const childPi = await load();
+  const childStream: StreamFn = (_model, context) => {
+    mocks.childContexts.push(contextText(context));
+    const stream = childPi.createAssistantMessageEventStream();
+    const message = assistantText(SCENE_TRUTH);
+    queueMicrotask(() => stream.push({ type: 'done', reason: 'stop', message }));
+    return stream;
+  };
   return {
     ...actual,
-    createGatewayStreamFn: vi.fn(
-      () =>
-        ((_model, context) => {
-          mocks.childContexts.push(contextText(context));
-          const stream = createStream();
-          const message = assistantText(SCENE_TRUTH);
-          queueMicrotask(() => stream.push({ type: 'done', reason: 'stop', message }));
-          return stream;
-        }) as StreamFn,
-    ),
+    createGatewayStreamFn: vi.fn(() => childStream),
   };
 });
+
+// Streams handed to the agent kernel come from its own pi-ai 0.78 instance.
+const legacyPi = await loadAgentLegacyPi();
+
 const EMPTY_USAGE = {
   input: 0,
   output: 0,
@@ -69,7 +73,7 @@ function assistantText(text: string): AssistantMessage {
 function assistantToolCall(
   id: string,
   name: string,
-  args: Record<string, unknown>,
+  args: AgentToolCall['arguments'],
 ): AssistantMessage {
   return {
     ...assistantText(''),
@@ -105,15 +109,15 @@ function contextText(context: Context): string {
 }
 
 function deterministicSummaryStream(): StreamFn {
-  return ((_model, _context, _options) => {
-    const stream = createAssistantMessageEventStream();
+  return () => {
+    const stream = legacyPi.createAssistantMessageEventStream();
     const message = assistantText(
       `${SUMMARY_MARKER}: preserve the early classroom goal and scene identity ${TARGET_SCENE_ID}; ` +
         'the previously attached scene evidence was already consumed and must be fetched again.',
     );
     queueMicrotask(() => stream.push({ type: 'done', reason: 'stop', message }));
     return stream;
-  }) as StreamFn;
+  };
 }
 
 function longHistory(): AgentMessage[] {
@@ -273,10 +277,10 @@ describe('Pi Director post-compaction refetch', () => {
     });
 
     const directorContexts: string[] = [];
-    const directorStream = ((_model, context) => {
+    const directorStream: StreamFn = (_model, context) => {
       const text = contextText(context);
       directorContexts.push(text);
-      const stream = createAssistantMessageEventStream();
+      const stream = legacyPi.createAssistantMessageEventStream();
       const hasReadResult = context.messages.some(
         (message) => message.role === 'toolResult' && message.toolName === 'read_scene',
       );
@@ -299,7 +303,7 @@ describe('Pi Director post-compaction refetch', () => {
       const reason = message.stopReason === 'toolUse' ? 'toolUse' : 'stop';
       queueMicrotask(() => stream.push({ type: 'done', reason, message }));
       return stream;
-    }) as StreamFn;
+    };
 
     const toolTrace: Array<{
       toolName: string;

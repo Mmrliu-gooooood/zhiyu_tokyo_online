@@ -1,8 +1,3 @@
-import {
-  createAssistantMessageEventStream,
-  type AssistantMessage,
-  type Context,
-} from '@earendil-works/pi-ai';
 import type { AgentTool, StreamFn } from '@earendil-works/pi-agent-core';
 import { Type } from 'typebox';
 import { describe, expect, it, vi } from 'vitest';
@@ -10,6 +5,15 @@ import { runNativeChild } from '@/lib/agent/runtime/run-native-child';
 import { buildNativeSpotlightTool } from '@/lib/chat/pi/tools/native-spotlight';
 import { buildNativeWebSearchTool } from '@/lib/chat/pi/tools/web-search';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
+import { loadAgentLegacyPi } from '@/lib/model-gateway/adapters/agent-legacy-pi';
+import type {
+  AgentAssistantMessage as AssistantMessage,
+  AgentLlmContext as Context,
+  AgentToolCall,
+} from '@/lib/model-gateway/adapters/agent-pi-types';
+
+// Streams handed to the agent kernel come from its own pi-ai 0.78 instance.
+const legacyPi = await loadAgentLegacyPi();
 
 const EMPTY_USAGE = {
   input: 0,
@@ -54,13 +58,11 @@ function text(value: string) {
   return assistant([{ type: 'text', text: value }]);
 }
 
-function call(id: string, name = 'demo', args: Record<string, unknown> = { value: 1 }) {
+function call(id: string, name = 'demo', args: AgentToolCall['arguments'] = { value: 1 }) {
   return assistant([{ type: 'toolCall', id, name, arguments: args }], 'toolUse');
 }
 
-function calls(
-  ...toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }>
-) {
+function calls(...toolCalls: Array<Pick<AgentToolCall, 'id' | 'name' | 'arguments'>>) {
   return assistant(
     toolCalls.map((toolCall) => ({ type: 'toolCall' as const, ...toolCall })),
     'toolUse',
@@ -72,9 +74,9 @@ function scriptedStream(
   contexts: Context[] = [],
   emitTextDeltas = false,
 ): StreamFn {
-  return ((_model, context) => {
+  return (_model, context) => {
     contexts.push(context);
-    const stream = createAssistantMessageEventStream();
+    const stream = legacyPi.createAssistantMessageEventStream();
     const message = messages.shift() ?? text('unexpected transport');
     queueMicrotask(() => {
       const textContent = message.content.find((content) => content.type === 'text');
@@ -100,12 +102,12 @@ function scriptedStream(
       });
     });
     return stream;
-  }) as StreamFn;
+  };
 }
 
 function deltaStream(value: string): StreamFn {
-  return ((_model, _context) => {
-    const stream = createAssistantMessageEventStream();
+  return () => {
+    const stream = legacyPi.createAssistantMessageEventStream();
     const message = text(value);
     const partial = { ...message, content: [{ type: 'text' as const, text: value }] };
     queueMicrotask(() => {
@@ -116,7 +118,7 @@ function deltaStream(value: string): StreamFn {
       stream.push({ type: 'done', reason: 'stop', message });
     });
     return stream;
-  }) as StreamFn;
+  };
 }
 
 const DemoParams = Type.Object({ value: Type.Number() });

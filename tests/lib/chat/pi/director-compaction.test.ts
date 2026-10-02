@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAssistantMessageEventStream, type AssistantMessage } from '@earendil-works/pi-ai';
 import type { AgentMessage, StreamFn } from '@earendil-works/pi-agent-core';
 import { createDirectorCompactionRuntime } from '@/lib/chat/pi/director-compaction';
 import { toHistoryMessages } from '@/lib/chat/pi/prompts';
+import { loadAgentLegacyPi } from '@/lib/model-gateway/adapters/agent-legacy-pi';
+import type { AgentAssistantMessage as AssistantMessage } from '@/lib/model-gateway/adapters/agent-pi-types';
+
+// Streams handed to the agent kernel come from its own pi-ai 0.78 instance.
+const legacyPi = await loadAgentLegacyPi();
 
 const EMPTY_USAGE = {
   input: 0,
@@ -14,9 +18,9 @@ const EMPTY_USAGE = {
 };
 
 function summaryStream(summary: string, callCount: () => void): StreamFn {
-  return ((_model, _context, _options) => {
+  return () => {
     callCount();
-    const stream = createAssistantMessageEventStream();
+    const stream = legacyPi.createAssistantMessageEventStream();
     const message: AssistantMessage = {
       role: 'assistant',
       content: [{ type: 'text', text: summary }],
@@ -29,7 +33,7 @@ function summaryStream(summary: string, callCount: () => void): StreamFn {
     };
     queueMicrotask(() => stream.push({ type: 'done', reason: 'stop', message }));
     return stream;
-  }) as StreamFn;
+  };
 }
 
 function longHistory(): AgentMessage[] {
