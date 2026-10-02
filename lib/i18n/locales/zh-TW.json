@@ -2079,7 +2079,14 @@
       "unitToken": "Token",
       "unitImage": "张",
       "unitSecond": "秒",
-      "unitCharacter": "字符"
+      "unitCharacter": "字符",
+      "byFunding": "文字模型 · 依資金來源",
+      "fundingPlatform": "智域平台",
+      "fundingOperator": "伺服器端設定",
+      "fundingByok": "自有 API Key",
+      "fundingSubscription": "訂閱帳號",
+      "fundingLocal": "本機模型",
+      "fundingUnknown": "未記錄"
     },
     "tokenPlan": {
       "nav": "Token Plan",

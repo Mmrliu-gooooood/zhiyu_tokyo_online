@@ -79,8 +79,18 @@ describe('usage normalization', () => {
     );
     expect(result.usage).toMatchObject(expected);
     expect(harness.usage).toEqual([
-      expect.objectContaining({ usage: result.usage, jobId: 'job-1', eventKey: 'evt:1' }),
+      expect.objectContaining({
+        usage: result.usage,
+        jobId: 'job-1',
+        eventKey: 'evt:1',
+        // Who paid and how the attempt ended (plan 3.9).
+        fundingKind: 'byok',
+        credentialKind: 'inline-key',
+        api: expect.any(String),
+        status: 'ok',
+      }),
     ]);
+    expect(harness.usage[0]).not.toHaveProperty('platformDefaultId');
   });
 });
 

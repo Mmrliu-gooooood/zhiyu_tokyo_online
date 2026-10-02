@@ -258,6 +258,76 @@ describe('hosted durable adapters', () => {
     });
     const rows = await readUsageRecords({ ownerId: owner, months: ['2026-09'] });
     expect(rows[0]).toMatchObject({ ownerId: owner, cacheReadTokens: 3, reasoningTokens: 1 });
+    // Rows written before v20 carry no funding fields.
+    expect(rows[0]).not.toHaveProperty('fundingKind');
+  });
+
+  it('persists and reads the funding columns of a gateway usage event', async () => {
+    await recordUsage({
+      source: 'scene-content',
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+      modelString: 'platform:zhiyu-default-text',
+      eventKey: 'evt-funding',
+      usage: {
+        inputTokens: 10,
+        outputTokens: 4,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        reasoningTokens: 0,
+      },
+      fundingKind: 'platform',
+      platformDefaultId: 'zhiyu-default-text',
+      platformRevision: 'text-r1',
+      credentialKind: 'platform',
+      api: 'openai-completions',
+      status: 'ok',
+      estimatedCostUsd: 0.000123,
+    });
+    expect(state.usageRows[0].slice(19)).toEqual([
+      'platform',
+      'zhiyu-default-text',
+      'text-r1',
+      'platform',
+      'openai-completions',
+      'ok',
+      0.000123,
+    ]);
+
+    state.usageReadRows.push({
+      id: '10',
+      created_at: '2026-10-02T00:00:00.000Z',
+      kind: 'llm',
+      source: 'scene-content',
+      provider_id: 'deepseek',
+      model_id: 'deepseek-flash',
+      model_string: 'platform:zhiyu-default-text',
+      model: 'platform:zhiyu-default-text',
+      input_tokens: 10,
+      output_tokens: 4,
+      cache_read_tokens: 0,
+      cache_creation_tokens: 0,
+      reasoning_tokens: 0,
+      quantity: null,
+      unit: null,
+      owner_id: owner,
+      funding_kind: 'byok',
+      platform_default_id: null,
+      platform_revision: null,
+      credential_kind: 'inline-key',
+      api: 'anthropic-messages',
+      status: 'error',
+      estimated_cost_usd: '0.00002000',
+    });
+    const [row] = await readUsageRecords({ ownerId: owner });
+    expect(row).toMatchObject({
+      fundingKind: 'byok',
+      credentialKind: 'inline-key',
+      api: 'anthropic-messages',
+      status: 'error',
+      estimatedCostUsd: 0.00002,
+    });
+    expect(row).not.toHaveProperty('platformDefaultId');
   });
 
   it('persists worker TTS usage for an explicit owner and job, idempotently', async () => {

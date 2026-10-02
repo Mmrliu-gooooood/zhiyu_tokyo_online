@@ -2098,7 +2098,14 @@
       "unitToken": "Tokens",
       "unitImage": "Bilder",
       "unitSecond": "Sek.",
-      "unitCharacter": "Zeichen"
+      "unitCharacter": "Zeichen",
+      "byFunding": "Textmodelle nach Kostenträger",
+      "fundingPlatform": "Zhiyu-Plattform",
+      "fundingOperator": "Serverkonfiguration",
+      "fundingByok": "Eigener API-Schlüssel",
+      "fundingSubscription": "Abonnement",
+      "fundingLocal": "Lokales Modell",
+      "fundingUnknown": "Nicht erfasst"
     },
     "tokenPlan": {
       "nav": "Token-Tarif",

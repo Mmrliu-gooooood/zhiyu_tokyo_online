@@ -2098,7 +2098,14 @@
       "unitToken": "tokens",
       "unitImage": "imágenes",
       "unitSecond": "seg",
-      "unitCharacter": "caract."
+      "unitCharacter": "caract.",
+      "byFunding": "Modelos de texto por fuente de pago",
+      "fundingPlatform": "Plataforma Zhiyu",
+      "fundingOperator": "Configurado en el servidor",
+      "fundingByok": "Tu clave de API",
+      "fundingSubscription": "Suscripción",
+      "fundingLocal": "Modelo local",
+      "fundingUnknown": "Sin registrar"
     },
     "tokenPlan": {
       "nav": "Plan de tokens",

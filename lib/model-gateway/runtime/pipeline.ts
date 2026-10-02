@@ -56,7 +56,7 @@ import { retryDelayMs, retryMode, type RetryMode } from './retry';
 import { buildPayloadPatcher, planMaxTokens, planThinking } from './thinking';
 import { splitInlineThinkTags } from './think-tag-splitter';
 import { createTransport, type SideChannel } from './transport';
-import { recordUsageEvent, toNormalizedUsage, type UsageRecorder } from './usage';
+import { recordUsageEvent, toNormalizedUsage, type UsageEvent, type UsageRecorder } from './usage';
 import type { AuthContext, Provider } from '@earendil-works/pi-ai';
 
 const log = createLogger('ModelGateway');
@@ -433,7 +433,7 @@ export function runStream(
         } catch {
           estimatedCostUsd = undefined;
         }
-        recordAttempt(usage, attempt);
+        recordAttempt(usage, attempt, status, estimatedCostUsd);
         if (grant) await settleSafely(policy, grant, { status, usage, estimatedCostUsd });
         deps.logCall({
           event: 'llm_call',
@@ -508,15 +508,31 @@ export function runStream(
     }
   }
 
-  function recordAttempt(usage: NormalizedUsage, attempt: number): void {
+  function recordAttempt(
+    usage: NormalizedUsage,
+    attempt: number,
+    status: UsageEvent['status'],
+    estimatedCostUsd: number | undefined,
+  ): void {
     // Usage is attributed to the canonical model id (aliases resolved).
     const modelId = getCanonicalModelId(binding.providerId, binding.modelId);
+    const funding = binding.funding;
     deps.recordUsage({
       source: opts.source,
       providerId: binding.providerId,
       modelId,
       modelString: binding.defaultId ? binding.modelString : `${binding.providerId}:${modelId}`,
       usage,
+      fundingKind: funding.kind,
+      ...(funding.kind === 'platform'
+        ? { platformDefaultId: funding.defaultId, platformRevision: funding.revision }
+        : {}),
+      credentialKind: getCredentialHandle(binding).kind,
+      api: binding.model.api,
+      status,
+      ...(estimatedCostUsd !== undefined && Number.isFinite(estimatedCostUsd)
+        ? { estimatedCostUsd }
+        : {}),
       jobId: opts.usage?.jobId,
       sessionId: opts.usage?.sessionId,
       requestId: opts.usage?.requestId,

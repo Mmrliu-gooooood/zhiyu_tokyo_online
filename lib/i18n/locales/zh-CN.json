@@ -2098,7 +2098,14 @@
       "unitToken": "Token",
       "unitImage": "张",
       "unitSecond": "秒",
-      "unitCharacter": "字符"
+      "unitCharacter": "字符",
+      "byFunding": "文本模型 · 按资金来源",
+      "fundingPlatform": "智域平台",
+      "fundingOperator": "服务端配置",
+      "fundingByok": "自有 API Key",
+      "fundingSubscription": "订阅账号",
+      "fundingLocal": "本地模型",
+      "fundingUnknown": "未记录"
     },
     "tokenPlan": {
       "nav": "Token Plan",

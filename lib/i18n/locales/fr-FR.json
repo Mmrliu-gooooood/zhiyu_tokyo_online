@@ -2098,7 +2098,14 @@
       "unitToken": "jetons",
       "unitImage": "images",
       "unitSecond": "s",
-      "unitCharacter": "caractères"
+      "unitCharacter": "caractères",
+      "byFunding": "Modèles de texte par source de financement",
+      "fundingPlatform": "Plateforme Zhiyu",
+      "fundingOperator": "Configuré sur le serveur",
+      "fundingByok": "Votre clé API",
+      "fundingSubscription": "Abonnement",
+      "fundingLocal": "Modèle local",
+      "fundingUnknown": "Non enregistré"
     },
     "tokenPlan": {
       "nav": "Forfait de jetons",

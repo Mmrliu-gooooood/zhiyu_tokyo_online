@@ -29,6 +29,8 @@ interface UsageResponse {
   byModel: Bucket[];
   byDay: Bucket[];
   byKind: Bucket[];
+  /** Text-model rows by funding source; older servers omit it. */
+  byFunding?: Bucket[];
 }
 
 function fmtNum(n: number): string {
@@ -50,6 +52,15 @@ const UNIT_LABEL_KEY: Record<UsageUnit, string> = {
   image: 'settings.usage.unitImage',
   second: 'settings.usage.unitSecond',
   character: 'settings.usage.unitCharacter',
+};
+
+const FUNDING_LABEL_KEY: Record<string, string> = {
+  platform: 'settings.usage.fundingPlatform',
+  operator: 'settings.usage.fundingOperator',
+  byok: 'settings.usage.fundingByok',
+  subscription: 'settings.usage.fundingSubscription',
+  local: 'settings.usage.fundingLocal',
+  unknown: 'settings.usage.fundingUnknown',
 };
 
 /** Display order of modality sections. */
@@ -212,6 +223,24 @@ export function UsageDashboard() {
                 </div>
               ),
           )}
+        </div>
+      ) : null}
+
+      {/* Text-model usage by who pays for it (platform / server / own key …). */}
+      {data?.byFunding?.length ? (
+        <div className="rounded-lg border p-3">
+          <div className="text-xs text-muted-foreground mb-2">{t('settings.usage.byFunding')}</div>
+          <div className="flex flex-wrap gap-2">
+            {data.byFunding.map((f) => (
+              <div key={f.key} className="rounded-md bg-muted/30 px-3 py-1.5 text-sm">
+                <span className="text-muted-foreground">
+                  {t(FUNDING_LABEL_KEY[f.key] ?? 'settings.usage.fundingUnknown')}
+                </span>
+                <span className="ml-2 font-medium">{usageDisplay(f)}</span>
+                <span className="ml-1 text-xs text-muted-foreground">({f.requests})</span>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

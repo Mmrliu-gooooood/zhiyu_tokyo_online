@@ -2098,7 +2098,14 @@
       "unitToken": "tokens",
       "unitImage": "images",
       "unitSecond": "sec",
-      "unitCharacter": "chars"
+      "unitCharacter": "chars",
+      "byFunding": "텍스트 모델 · 비용 출처별",
+      "fundingPlatform": "Zhiyu 플랫폼",
+      "fundingOperator": "서버 구성",
+      "fundingByok": "내 API 키",
+      "fundingSubscription": "구독",
+      "fundingLocal": "로컬 모델",
+      "fundingUnknown": "기록 없음"
     },
     "tokenPlan": {
       "nav": "Token Plan",

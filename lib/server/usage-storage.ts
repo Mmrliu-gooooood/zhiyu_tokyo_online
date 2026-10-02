@@ -9,6 +9,7 @@ import { createLogger } from '@/lib/logger';
 import { getHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 import { getProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
 import { hasBillableTokens, type NormalizedUsage } from '@/lib/usage/normalize';
+import type { UsageFunding } from '@/lib/model-gateway/runtime/usage';
 
 const log = createLogger('UsageStorage');
 
@@ -29,8 +30,8 @@ export type UsageKind = 'llm' | 'image' | 'video' | 'tts' | 'asr';
 /** Unit of the non-token quantity. */
 export type UsageUnit = 'token' | 'image' | 'second' | 'character';
 
-/** Input to record one generation's usage. */
-export interface UsageRecordInput {
+/** Input to record one generation's usage. LLM rows carry the gateway's funding fields. */
+export interface UsageRecordInput extends Partial<UsageFunding> {
   /** Modality. Defaults to 'llm'. */
   kind?: UsageKind;
   source: string;
@@ -52,8 +53,11 @@ export interface UsageRecordInput {
   requestId?: string;
 }
 
-/** A persisted usage row — pure usage, no cost. */
-export interface UsageRecord {
+/**
+ * A persisted usage row. `estimatedCostUsd` is the catalog estimate, not a
+ * bill; funding fields are absent on rows written before they existed.
+ */
+export interface UsageRecord extends Partial<UsageFunding> {
   id: string;
   createdAt: number;
   kind: UsageKind;
@@ -77,6 +81,23 @@ interface RecordOptions {
   baseDir?: string;
   /** Injected clock for deterministic tests. */
   now?: Date;
+}
+
+/** Only the funding fields that are set (a row omits unknown values). */
+function fundingFields(input: Partial<UsageFunding>): Partial<UsageFunding> {
+  return {
+    ...(input.fundingKind ? { fundingKind: input.fundingKind } : {}),
+    ...(input.platformDefaultId ? { platformDefaultId: input.platformDefaultId } : {}),
+    ...(input.platformRevision ? { platformRevision: input.platformRevision } : {}),
+    ...(input.credentialKind ? { credentialKind: input.credentialKind } : {}),
+    ...(input.api ? { api: input.api } : {}),
+    ...(input.status ? { status: input.status } : {}),
+    ...(input.estimatedCostUsd !== undefined &&
+    Number.isFinite(input.estimatedCostUsd) &&
+    input.estimatedCostUsd >= 0
+      ? { estimatedCostUsd: input.estimatedCostUsd }
+      : {}),
+  };
 }
 
 function makeId(now: Date): string {
@@ -147,6 +168,7 @@ export async function recordUsage(
       ...(input.quantity != null ? { quantity: input.quantity } : {}),
       ...(input.unit ? { unit: input.unit } : {}),
       ...(ownerId ? { ownerId } : {}),
+      ...fundingFields(input),
     };
 
     if (isHostedAuthEnabled() && !opts.baseDir) {
@@ -160,9 +182,12 @@ export async function recordUsage(
            owner_id, event_key, source, kind, job_id, session_id, request_id,
            model, provider_id, model_id, model_string,
            input_tokens, output_tokens, cache_read_tokens,
-           cache_creation_tokens, reasoning_tokens, quantity, unit, created_at
+           cache_creation_tokens, reasoning_tokens, quantity, unit, created_at,
+           funding_kind, platform_default_id, platform_revision, credential_kind,
+           api, status, estimated_cost_usd
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+           $20,$21,$22,$23,$24,$25,$26
          )
          ON CONFLICT (owner_id, event_key) WHERE event_key IS NOT NULL DO NOTHING`,
         [
@@ -185,6 +210,13 @@ export async function recordUsage(
           record.quantity ?? null,
           record.unit ?? null,
           new Date(record.createdAt),
+          record.fundingKind ?? null,
+          record.platformDefaultId ?? null,
+          record.platformRevision ?? null,
+          record.credentialKind ?? null,
+          record.api ?? null,
+          record.status ?? null,
+          record.estimatedCostUsd ?? null,
         ],
       );
       return;
@@ -272,10 +304,19 @@ export async function readUsageRecords(
       quantity: string | number | null;
       unit: UsageUnit | null;
       owner_id: string;
+      funding_kind: UsageFunding['fundingKind'] | null;
+      platform_default_id: string | null;
+      platform_revision: string | null;
+      credential_kind: UsageFunding['credentialKind'] | null;
+      api: string | null;
+      status: UsageFunding['status'] | null;
+      estimated_cost_usd: string | number | null;
     }>(
       `SELECT id, created_at, kind, source, provider_id, model_id, model_string, model,
               input_tokens, output_tokens, cache_read_tokens,
-              cache_creation_tokens, reasoning_tokens, quantity, unit, owner_id
+              cache_creation_tokens, reasoning_tokens, quantity, unit, owner_id,
+              funding_kind, platform_default_id, platform_revision, credential_kind,
+              api, status, estimated_cost_usd
          FROM usage_events
         WHERE owner_id=$1
           AND ($2::text[] IS NULL OR to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM') = ANY($2))
@@ -298,6 +339,16 @@ export async function readUsageRecords(
       ...(row.quantity == null ? {} : { quantity: Number(row.quantity) }),
       ...(row.unit ? { unit: row.unit } : {}),
       ownerId: row.owner_id,
+      ...fundingFields({
+        fundingKind: row.funding_kind ?? undefined,
+        platformDefaultId: row.platform_default_id ?? undefined,
+        platformRevision: row.platform_revision ?? undefined,
+        credentialKind: row.credential_kind ?? undefined,
+        api: row.api ?? undefined,
+        status: row.status ?? undefined,
+        estimatedCostUsd:
+          row.estimated_cost_usd == null ? undefined : Number(row.estimated_cost_usd),
+      }),
     }));
   }
 

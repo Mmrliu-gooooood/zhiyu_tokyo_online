@@ -45,6 +45,28 @@ describe('recordUsage — LLM', () => {
     expect(records[0].createdAt).toBeGreaterThan(0);
   });
 
+  it('keeps the gateway funding fields on jsonl rows and drops invalid costs', async () => {
+    await recordUsage(
+      {
+        ...llmInput,
+        fundingKind: 'operator',
+        credentialKind: 'operator',
+        api: 'openai-completions',
+        status: 'aborted',
+        estimatedCostUsd: Number.NaN,
+      },
+      { baseDir: tmpDir },
+    );
+    const [row] = await readUsageRecords({ baseDir: tmpDir });
+    expect(row).toMatchObject({
+      fundingKind: 'operator',
+      credentialKind: 'operator',
+      api: 'openai-completions',
+      status: 'aborted',
+    });
+    expect(row).not.toHaveProperty('estimatedCostUsd');
+  });
+
   it('defaults kind to llm when omitted', async () => {
     const { kind: _omit, ...noKind } = llmInput;
     await recordUsage(noKind, { baseDir: tmpDir });

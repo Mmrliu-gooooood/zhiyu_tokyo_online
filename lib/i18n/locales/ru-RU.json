@@ -2098,7 +2098,14 @@
       "unitToken": "tokens",
       "unitImage": "images",
       "unitSecond": "sec",
-      "unitCharacter": "chars"
+      "unitCharacter": "chars",
+      "byFunding": "Текстовые модели по источнику оплаты",
+      "fundingPlatform": "Платформа Zhiyu",
+      "fundingOperator": "Настроено на сервере",
+      "fundingByok": "Ваш API-ключ",
+      "fundingSubscription": "Подписка",
+      "fundingLocal": "Локальная модель",
+      "fundingUnknown": "Не записано"
     },
     "tokenPlan": {
       "nav": "Token Plan",

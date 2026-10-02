@@ -4,7 +4,8 @@
  * usage tables were built on), pi's `input` excludes it. Cache tokens are never
  * double counted.
  */
-import type { NormalizedUsage, PiUsage } from '../types';
+import type { CredentialHandle } from '../credentials/handles';
+import type { FundingSource, NormalizedUsage, PiUsage } from '../types';
 
 function count(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
@@ -49,7 +50,19 @@ export const ZERO_USAGE: NormalizedUsage = Object.freeze({
   reasoningTokens: 0,
 });
 
-export interface UsageEvent {
+/** Who paid for an upstream attempt and how it ended (plan 3.9). */
+export interface UsageFunding {
+  fundingKind: FundingSource['kind'];
+  platformDefaultId?: string;
+  platformRevision?: string;
+  credentialKind: CredentialHandle['kind'];
+  api: string;
+  status: 'ok' | 'error' | 'aborted';
+  /** pi's catalog estimate; absent for unknown / subscription models. Not a bill. */
+  estimatedCostUsd?: number;
+}
+
+export interface UsageEvent extends UsageFunding {
   source: string;
   providerId: string;
   modelId: string;

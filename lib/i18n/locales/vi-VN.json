@@ -2098,7 +2098,14 @@
       "unitToken": "token",
       "unitImage": "ảnh",
       "unitSecond": "giây",
-      "unitCharacter": "ký tự"
+      "unitCharacter": "ký tự",
+      "byFunding": "Mô hình văn bản theo nguồn chi trả",
+      "fundingPlatform": "Nền tảng Zhiyu",
+      "fundingOperator": "Cấu hình máy chủ",
+      "fundingByok": "Khóa API của bạn",
+      "fundingSubscription": "Gói đăng ký",
+      "fundingLocal": "Mô hình cục bộ",
+      "fundingUnknown": "Chưa ghi nhận"
     },
     "tokenPlan": {
       "nav": "Gói token",

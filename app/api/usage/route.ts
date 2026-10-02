@@ -66,7 +66,9 @@ function dayKey(createdAt: number): string {
 /**
  * GET /api/usage
  *
- * Aggregates usage (data/usage/*.jsonl) by model, by day, and by modality.
+ * Aggregates usage (data/usage/*.jsonl) by model, by day, by modality, and
+ * text-model rows by funding source (`unknown` for rows written before it
+ * was recorded).
  * Signed-in `user:{uuid}` sees only that owner's rows. Unsigned traffic keeps
  * legacy unowned rows and never sees `user:` rows. Pure usage — no cost.
  * Optional `?months=YYYY-MM,...`.
@@ -85,6 +87,7 @@ export async function GET(req: NextRequest) {
     const byModel = new Map<string, Bucket>();
     const byDay = new Map<string, Bucket>();
     const byKind = new Map<UsageKind, Bucket>();
+    const byFunding = new Map<string, Bucket>();
     let totalRequests = 0;
     let totalLlmTokens = 0;
 
@@ -92,6 +95,9 @@ export async function GET(req: NextRequest) {
       totalRequests += 1;
       if (r.kind === 'llm') {
         totalLlmTokens += r.inputTokens + r.outputTokens;
+        const fk = r.fundingKind ?? 'unknown';
+        if (!byFunding.has(fk)) byFunding.set(fk, emptyBucket(fk, 'llm', 'token'));
+        addTo(byFunding.get(fk)!, r);
       }
 
       const mk = r.modelString || r.modelId;
@@ -111,6 +117,7 @@ export async function GET(req: NextRequest) {
       byModel: [...byModel.values()].sort((a, b) => b.requests - a.requests),
       byDay: [...byDay.values()].sort((a, b) => a.key.localeCompare(b.key)),
       byKind: [...byKind.values()],
+      byFunding: [...byFunding.values()].sort((a, b) => b.requests - a.requests),
     });
   } catch (error) {
     log.error('Usage aggregation failed:', error);
