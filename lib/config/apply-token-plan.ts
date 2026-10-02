@@ -9,8 +9,8 @@ import type {
 } from './token-plan-presets';
 import { MODALITY_ORDER } from './token-plan-presets';
 import {
+  CLIENT_PROVIDERS,
   getCatalogThinkingCapability,
-  PROVIDERS,
 } from '@/lib/model-gateway/catalog/client-catalog';
 import { findModelById } from '@/lib/ai/model-aliases';
 import type { ModelInfo } from '@/lib/types/provider';
@@ -107,14 +107,10 @@ export function applyTokenPlan(
 }
 
 function catalogModelFor(target: TokenPlanModalityTarget, id: string): ModelInfo | undefined {
-  const direct = findModelById(
-    target.providerId,
-    PROVIDERS[target.providerId as ProviderId]?.models,
-    id,
-  );
+  const direct = findModelById(target.providerId, CLIENT_PROVIDERS[target.providerId]?.models, id);
   if (direct) return direct;
 
-  const allModels = Object.values(PROVIDERS).flatMap((provider) => provider.models);
+  const allModels = Object.values(CLIENT_PROVIDERS).flatMap((provider) => provider.models);
   return (
     allModels.find((m) => m.id === id) ??
     allModels.find((m) => m.id.toLowerCase() === id.toLowerCase())
@@ -155,11 +151,14 @@ function applyModality(
   actions: TokenPlanActions,
 ): void {
   switch (modality) {
-    case 'llm':
+    case 'llm': {
+      // A catalog provider with a fixed endpoint rejects any client base URL.
+      const catalog = CLIENT_PROVIDERS[target.providerId];
+      const fixedEndpoint = catalog?.allowCustomBaseUrl === false;
       actions.setProviderConfig(target.providerId as ProviderId, {
         apiKey,
-        baseUrl: target.baseUrl,
-        type: target.apiFormat ?? 'openai',
+        baseUrl: fixedEndpoint ? '' : (target.baseUrl ?? ''),
+        type: target.apiFormat ?? catalog?.type ?? 'openai',
         name: preset.name,
         icon: preset.icon,
         requiresApiKey: true,
@@ -170,10 +169,13 @@ function applyModality(
         // Overlay the built-in thinking capability so seeded models keep their
         // thinking control instead of silently losing it (the probe step does
         // the same when it replaces this list).
-        models: (target.defaultModels ?? []).map((id) => tokenPlanModelInfo(target, id)),
+        models: target.defaultModels?.length
+          ? target.defaultModels.map((id) => tokenPlanModelInfo(target, id))
+          : (catalog?.models ?? []),
         ...(target.modelsUrl ? { modelsUrl: target.modelsUrl } : {}),
       });
       break;
+    }
     case 'image': {
       // Inject the plan's model ids as custom models (the registry defaults may
       // not be valid on this plan's endpoint), and make the first the active
@@ -268,7 +270,7 @@ function removeModality(
       // and isBuiltIn:false. The store's LLM resolver then switches the active
       // selection away since the restored config has no key. Custom (non-built-
       // in) providers aren't in the registry — just clear the key for those.
-      const builtIn = PROVIDERS[target.providerId as ProviderId];
+      const builtIn = CLIENT_PROVIDERS[target.providerId];
       if (builtIn) {
         actions.setProviderConfig(target.providerId as ProviderId, {
           apiKey: '',

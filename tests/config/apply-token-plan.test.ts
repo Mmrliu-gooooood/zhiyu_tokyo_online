@@ -262,3 +262,33 @@ describe('removeTokenPlan', () => {
     expect(actions.setProviderConfig).toHaveBeenCalledWith('not-a-real-provider', { apiKey: '' });
   });
 });
+
+describe('Coding / Token Plan catalog targets (P5-4)', () => {
+  const mimo: TokenPlanPreset = {
+    id: 'mimo-token-plan',
+    name: 'MiMo Token Plan',
+    category: 'token_plan',
+    modalities: {
+      // A stale base URL in a preset must never reach a fixed-endpoint provider.
+      llm: { providerId: 'xiaomi-token-plan-cn', baseUrl: 'https://example.invalid/v1' },
+    },
+  };
+
+  it('fills the key without a base URL and seeds the catalog models', () => {
+    const actions = makeActions();
+    applyTokenPlan(mimo, 'tp-test', actions);
+    const [providerId, config] = vi.mocked(actions.setProviderConfig).mock.calls[0]!;
+    expect(providerId).toBe('xiaomi-token-plan-cn');
+    expect(config).toMatchObject({ apiKey: 'tp-test', baseUrl: '', type: 'openai' });
+    expect((config.models as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('removal restores the catalog entry', () => {
+    const actions = makeActions();
+    removeTokenPlan(mimo, actions);
+    expect(actions.setProviderConfig).toHaveBeenCalledWith(
+      'xiaomi-token-plan-cn',
+      expect.objectContaining({ apiKey: '', baseUrl: '', isBuiltIn: true }),
+    );
+  });
+});

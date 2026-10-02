@@ -21,11 +21,18 @@ export type TokenPlanModality = 'llm' | 'image' | 'video' | 'tts' | 'webSearch';
 
 /** Where a token plan maps in one modality's provider registry. */
 export interface TokenPlanModalityTarget {
-  /** Provider id in that modality's registry (e.g. 'minimax-image'). */
+  /**
+   * Provider id in that modality's registry (e.g. 'minimax-image'). For LLM,
+   * a model-catalog provider id — including the Coding / Token Plan entries
+   * (e.g. 'xiaomi-token-plan-cn'), whose endpoint the catalog fixes.
+   */
   providerId: string;
-  /** Base URL to fill for this modality. */
-  baseUrl: string;
-  /** LLM only: API protocol → app providerType. */
+  /**
+   * Base URL to fill for this modality. Omitted (and never filled) for an LLM
+   * catalog provider with a fixed endpoint.
+   */
+  baseUrl?: string;
+  /** LLM only: API protocol → app providerType (defaults to the catalog's). */
   apiFormat?: ProviderType;
   /**
    * LLM only: explicit /models URL override (optional). */
@@ -63,6 +70,13 @@ export const MODALITY_ORDER: TokenPlanModality[] = ['llm', 'image', 'video', 'tt
 
 /**
  * Built-in token plans.
+ *
+ * LLM targets: MiniMax's plan key (`sk-cp-…`) authenticates against the
+ * regular `minimax` provider (sent as a Bearer token), and the Ark Agent Plan
+ * uses `doubao` on its dedicated /api/plan endpoint; neither has a separate
+ * Coding / Token Plan catalog entry. Single-modality Coding / Token Plans
+ * (Z.AI, Kimi Coding, Qwen, MiMo) are ordinary catalog providers listed in the
+ * settings' "Coding & Token Plan" group.
  *
  * Scoped to TRUE token plans — a single key that spans multiple modalities.
  * Single-modality LLM providers (aggregators like OpenRouter, vendor-direct like
