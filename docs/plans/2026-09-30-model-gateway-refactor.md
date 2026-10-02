@@ -814,7 +814,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P2 | 已完成（2026-10-01） | e3ddfeb8, c625ad10, 50d4cef8, 8892d3c9, da210b6f, 0568e98c, 857c9c92 + 本次进度提交 | 见下方 P2 记录 | 黄金数据 1653 例全部重放，差异由 16 条规则逐例白名单；修正一处 P1 遗漏（Claude 5 中途 effort）与一处 Azure 环境变量泄露；若干产品可见的行为修正见记录 |
 | P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
-| P5 | 未开始 | | | |
+| P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测（假模型服务器）运维托管 groq 与用户自定义中转各生成一节课；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
 | R1 验收（P7） | 未开始 | | | |
 | P6 | 未开始 | | | |
 | R2 验收（P7） | 未开始 | | | |
@@ -1050,6 +1050,65 @@ P4 之后、P5 之前的清理（2026-10-02）：
   - 2dbf9d39：errors-retry 测试在 beforeAll 预热 pi 运行时，消除满载下首个用例冷启动超时
   - 全量 vitest 在满载（同时运行 dev server）下仍有 P0 记录的 chat/pi、runtime 类 5s/15s 超时，单独复跑全部通过
 下一阶段可开始：是（P5 不依赖真实凭据或产品取舍；P5-5 浏览器实测可用假服务器，若要用真实 key 再向用户索取）
+```
+
+```text
+阶段：P5
+提交：a3ef2325（P5-1）、e21202f8（P5-2）、8f66cad0（P5-3）、e7841635（P5-4）、3e0757ff（P5-5）、本进度提交
+新增/修改模块：
+  - P5-1：设置 store 的默认值与每次 rehydrate 改为遍历完整 client-catalog（46 个 provider，原 19 个之外新增 27 个），不升 persist 版本（仍为 7）；
+    ProviderSettings 新增可选 authMode / credentialId / credentialStatus / endpointProfile / endpointParams，api 放宽为 WireApi；
+    settings-validation：OAuth 连接仅在凭据 active 时可用，reauth_required 保持选中不自动切换，目录声明的端点参数（Cloudflare）必填；
+    浏览器端唯一的模型请求编码 modelRequestHeaders / modelRequestBodyFields（7 处请求头拼装、/api/chat、coach、teach-back 改用），
+    服务端 modelParamsFromBody 统一读取请求体，x-model-api、端点 profile/参数、credentialId 由此到达网关；ModelConfigInput / 快照 / PRO 连接的 ModelSelection 携带这些字段
+  - P5-2：provider-list 按目录分组（官方 / 国内厂商 / 聚合平台 / Coding & Token Plan / 订阅登录 / 企业 / 本地 / 自定义）+ 搜索；
+    运维专用（bedrock、google-vertex）仅在运维配置后显示，仅 OAuth（github-copilot、openai-codex）仅在部署开启登录后显示（R1 不显示）；
+    provider-config-panel：API Key / 账号登录页签（仅服务端开启时出现，R1 为占位）、固定端点 provider 显示官方端点代替 Base URL 输入并提示/清除旧的自定义 Base URL、
+    端点参数输入、按协议的请求地址预览、模型发现带 providerId、连接测试带协议与端点参数；
+    add-provider-dialog 协议选项改为 OpenAI Chat Completions / OpenAI Responses / Claude Messages（存 api + 旧 type），去掉 Gemini 协议；model-edit-dialog 连接测试同步；
+    12 个语言文件新增设置文案，删除不再使用的 apiModeOpenAI/Anthropic/Google
+  - P5-3：/api/server-providers 新增 oauthProviders（R1 恒为 []，来自新建的 auth/policy.ts 接缝，P6 接入 MODEL_OAUTH_PROVIDERS）与 modelCatalogVersion；
+    store 记录二者（旧服务端缺省视为无登录），页面目录版本与服务端不一致时告警
+  - P5-4：Token Plan 应用支持任意目录 provider（含 Coding/Token Plan descriptor）：固定端点不写 Base URL、协议取目录、无精选模型时用目录模型，移除时恢复目录条目
+  - P5-5：scripts/dev-fake-model-server.ts（仅开发用，按生成阶段返回合法 JSON 的假模型服务器，fake-openai-server 增加固定端口参数）；
+    scripts/check-client-bundle.mjs（pnpm check:client-bundle，扫描 .next/static，标记字符串先在已安装包内自检）
+相对计划文本的实现微调（语义不变）：
+  - 设置里的端点参数字段（endpointParams）是 P2 已有 UserConnection.endpointParams 的设置侧落点；地区 profile 仍主要由 alternateBaseUrls 的主机名推导（P2 行为），endpointProfile 字段保留
+  - 固定端点 provider 的 defaultBaseUrl 取 pi 目录端点，只用于显示与"有端点"判断，从不发送
+  - i18n 文案随 P5-2 的界面一并提交（P5-4 只含 Token Plan）
+  - Token Plan 预设：现有两个预设的 LLM 目标不变——MiniMax 的计划 key（sk-cp-）在普通 minimax provider 上以 Bearer 发送，火山方舟 Agent Plan 走 doubao 的 /api/plan 端点，二者都没有对应的 Coding/Token Plan descriptor；
+    单模态的 Z.AI / Kimi Coding / Qwen / MiMo 计划作为普通目录 provider 出现在"Coding & Token Plan"分组
+执行中发现并修正：
+  - （P5 之前即存在）Home 选择运维托管 provider 时 store 记为 source:'user'，服务端因此忽略运维 key、用空的客户端 key 并在发送前拒绝（MODEL_CONFIGURATION）。
+    现由 getCurrentModelConfig 对 isServerConfigured 的 provider 发送 legacy-managed（计划 3.3.1 / 不变量 3）；tests/utils/model-config-platform.test.ts 覆盖
+通过的命令与结果：
+  - 全量 pnpm exec vitest run：848 文件，832 通过 / 16 跳过；8694 通过 / 80 跳过 / 0 失败
+  - pnpm exec tsc --noEmit -p tsconfig.build.json、tsc -p tsconfig.json（含测试）：均通过
+  - pnpm lint：受版本控制的文件 0 错误；退出码 1 来自被扫到的 gitignore 本地产物 .temp/migrate-supabase-storage.cjs（107）与 dist-worker/generation.mjs（51），与 P3/P4 记录相同
+  - pnpm check:i18n-keys：通过（12 个语言文件）
+  - pnpm build:worker、pnpm build：通过；node scripts/smoke-pi-runtime.mjs：standalone 与 worker 均通过（本地，非严格模式）；node scripts/generate-model-catalog.mjs --check：通过
+  - P5 门槛 客户端包检查：node scripts/check-client-bundle.mjs 对本次构建（505 个 chunk）通过——无 pi-ai openai-completions / anthropic-messages 协议模块、无 openai SDK（7.19）、无 @anthropic-ai/sdk（0.124）；
+    阳性对照：对 pi-ai dist/api 与两个 SDK 目录运行均能检出
+  - 新增测试：tests/store/settings-provider-catalog.test.ts（v7 实际形状 blob fixture tests/fixtures/settings/settings-v7-blob.json 合并：模型选择、key、baseUrl、自定义 provider、手工模型、思考设置全部保留并补齐新 provider，写回仍为 version 7；reauth 不切换、revoked 切换）、
+    settings-validation 目录规则、tests/utils/model-request-fields.test.ts（请求头/请求体与服务端读取往返一致）、tests/components/settings/provider-catalog-ui.test.ts（分组、搜索、可见性、固定端点、端点参数、自定义协议）、server-providers-v2 / settings-server-sync 新字段、apply-token-plan 目录目标
+P5-5 浏览器实测（内置浏览器 + next dev --webpack，2026-10-02）：
+  - 隔离方式：临时 .env.development.local（next dev 先于 .env.local 加载）清空 .env.local 中的真实 DeepSeek key、生产 Supabase 地址、DATABASE_URL、持久化与后台生成开关，
+    DEFAULT_MODEL 指向假服务器上的 groq，ALLOW_LOCAL_NETWORKS=true；临时 server-providers.yml 把 groq 作为运维托管 provider 指向假服务器。测试结束后两个临时文件已删除。全程没有任何真实模型请求
+  - 设置：语言模型列表按 6 个分组显示 42 个 provider（bedrock、google-vertex、github-copilot、openai-codex 正确隐藏），Groq 标"服务端"；Cloudflare AI Gateway 面板显示固定端点、两个端点参数输入与带占位符的请求地址
+  - 用户自定义 provider：添加"Fake Relay"（OpenAI Responses 协议，Base URL 指向假服务器）→ 填 key → 新建模型 → 测试连接成功（假服务器收到 POST /v1/responses，带认证头）
+  - 运维托管新增 provider：Home 自动选中 Groq；verify-model 成功；从 Home 生成一节课成功（假服务器依次收到 outlines、agent-profiles、2×slide-content、2×slide-actions 的 /v1/chat/completions，均带认证头），进入课堂页正常播放
+    （首次尝试暴露上面"执行中发现并修正"的问题，修正后通过）
+  - 用户 key 路径：在 Home 模型选择器切换到 Fake Relay 再生成一节课成功（同样 6 次请求，全部走 /v1/responses）
+  - 刷新后保持：自定义 provider 的协议/key/模型、当前选择、persist version 7 均保留
+  - 未验证（需要数据库，本地 .env.local 的数据库在 Docker 外不可达）：账号登录与服务端设置同步（account KV）、服务端课堂持久化（stage-meta / generation-cancel 返回 404，预期内）、后台生成（generation worker + 快照 v3 出站）、PRO 工作台
+黄金数据差异白名单：无新增
+真实供应商验证：未验证（P5 只用假模型服务器；真实 key 冒烟在 P7）
+遗留问题：
+  - 运维通过环境变量只能配置原 19 个 provider（LLM_ENV_MAP）；新增目录 provider 目前只能经 server-providers.yml 由运维托管。如需 GROQ_API_KEY 等环境变量形式，可在 P7 前补充映射（不影响用户 API Key 用法）
+  - ProviderId 类型仍只列原 19 个 ID（新 ID 以字符串运行），类型收紧可后续处理
+  - 设置 blob 因新增 provider 的模型列表增大（模型数据约 35 KB → 137 KB，存于浏览器 localStorage）
+  - 仍未重新构建 Docker 镜像做严格模式冒烟（P7 发布前必做）；R1 发布前需准备 v3 快照 / v2 PRO revision 读兼容热修分支（见 P4 记录）
+下一阶段可开始：是——R1 验收（P7）的技术前提已具备；P7 第 2 步真实模型冒烟需要用户提供平台默认模型（DeepSeek）、至少一个原有 provider 与至少两个新增 provider 的真实 API Key，以及可用的数据库/部署环境
 ```
 
 ---
