@@ -814,7 +814,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P2 | 已完成（2026-10-01） | e3ddfeb8, c625ad10, 50d4cef8, 8892d3c9, da210b6f, 0568e98c, 857c9c92 + 本次进度提交 | 见下方 P2 记录 | 黄金数据 1653 例全部重放，差异由 16 条规则逐例白名单；修正一处 P1 遗漏（Claude 5 中途 effort）与一处 Azure 环境变量泄露；若干产品可见的行为修正见记录 |
 | P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
-| P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测（假模型服务器）运维托管 groq 与用户自定义中转各生成一节课；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
+| P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
 | R1 验收（P7） | 未开始 | | | |
 | P6 | 未开始 | | | |
 | R2 验收（P7） | 未开始 | | | |
@@ -1108,6 +1108,20 @@ P5-5 浏览器实测（内置浏览器 + next dev --webpack，2026-10-02）：
   - ProviderId 类型仍只列原 19 个 ID（新 ID 以字符串运行），类型收紧可后续处理
   - 设置 blob 因新增 provider 的模型列表增大（模型数据约 35 KB → 137 KB，存于浏览器 localStorage）
   - 仍未重新构建 Docker 镜像做严格模式冒烟（P7 发布前必做）；R1 发布前需准备 v3 快照 / v2 PRO revision 读兼容热修分支（见 P4 记录）
+P5 补充：真实模型浏览器实测（2026-10-02，用户提供 Groq key；DeepSeek / MiniMax 用本地 .env.local 已有 key；不记录任何 key）：
+  - 隔离方式：临时 .env.development.local 保留 DeepSeek 平台 key，把已有的 MiniMax 通用 key（与 TTS/图像/视频同一个）作为运维 MiniMax 文本 key，
+    关闭数据库、服务端持久化、后台生成、生产 Supabase，并清空 MiniMax 图像/视频/语音 key（避免产生未要求的付费媒体生成）；测试后已删除
+  - Groq（新增 provider，用户 API Key）：设置页填 key 后连接测试——列表第一个模型 llama-3.1-8b-instant 返回 404；
+    该账号实际可用的聊天模型只有 openai/gpt-oss-120b、openai/gpt-oss-20b、qwen/qwen3.8-27b（pi 0.99.1 目录里的 llama-3.1-8b-instant、llama-3.3-70b-versatile、qwen3.6-27b 已不可用）；
+    用 openai/gpt-oss-120b 连接测试成功；Home 选择后生成：大纲、课堂角色成功（真实内容），页面内容失败——Groq 免费档每分钟 token 上限 8000（qwen 为 7000），
+    而一次页面内容请求约 1.2–1.8 万 token，Groq 返回 413 rate_limit_exceeded（网关记为 MODEL_CONTEXT_OVERFLOW，界面显示"上游拒绝"）。属账号额度限制，非代码缺陷；
+    完整课程需 Groq Dev Tier 或其他新增 provider
+  - 刷新后保持：Groq key、所选模型 openai/gpt-oss-120b、persist version 7 均保留
+  - DeepSeek（ZHIYU 默认模型，平台资金来源）：生成一节 6 页课程全部成功（大纲、角色、6×页面、6×教学动作）
+  - MiniMax（原有 provider，运维托管，anthropic-messages 协议，MiniMax-M3）：生成一节 6 页课程全部成功；选择存为 user、按修正后的规则以 legacy-managed 发送
+  - 观察：三个 provider 都偶发"10 s 内未建立连接"（requestSent=false，MODEL_TIMEOUT），网关按 3.8 安全重试后成功；
+    同机 24 次新建连接均 1–2 s，时间点与 next dev 首次编译路由/课堂页重合，判断为开发模式编译阻塞事件循环，P7 在生产镜像中复核
+  - 发现的改进点（未修改，记入遗留）：目录中过期的模型 ID 会被设置面板"测试连接"选为第一个模型；Groq 413 额度错误的分类与提示可更准确
 下一阶段可开始：是——R1 验收（P7）的技术前提已具备；P7 第 2 步真实模型冒烟需要用户提供平台默认模型（DeepSeek）、至少一个原有 provider 与至少两个新增 provider 的真实 API Key，以及可用的数据库/部署环境
 ```
 
