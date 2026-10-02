@@ -1,5 +1,5 @@
 import { testBinding } from '@/tests/helpers/legacy-stream-gateway';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
 import type { RuntimeRecord } from '@openmaic/dsl';
 import { BrowserRuntimeStore } from '@openmaic/storage';
@@ -164,6 +164,14 @@ async function readSseEvents(response: Response) {
 }
 
 describe('PR2 Native Child route production wiring', () => {
+  // Transform the route's module graph once up front. Each test re-imports the
+  // route after vi.resetModules(), and the first one otherwise pays this cold
+  // cost inside its 15 s budget, which a loaded full run can exceed.
+  beforeAll(async () => {
+    await import('@/app/api/chat/pi/route');
+    vi.resetModules();
+  }, 120_000);
+
   beforeEach(() => {
     vi.stubGlobal('IDBKeyRange', IDBKeyRange);
     for (const name of envNames) originalEnv.set(name, process.env[name]);

@@ -40,6 +40,7 @@ import {
   type FakeModelServer,
 } from '@/lib/model-gateway/testing/fake-openai-server';
 import type { GatewayMessage, GatewayTool, ModelBinding } from '@/lib/model-gateway/types';
+import { GatewayError } from '@/lib/model-gateway/runtime/errors';
 import { rerouteBinding, testGateway } from '../helpers';
 import type { Conversation, GoldenEntry, LegacyCaseInput } from './golden-types';
 import { sortKeys } from './matrix';
@@ -295,6 +296,7 @@ async function replay(
     const rerouted = rerouteBinding(binding, server.origin);
     const before = server.requests.length;
     const { gateway } = testGateway();
+    let failure: unknown;
     await gateway
       .complete(
         rerouted.binding,
@@ -306,9 +308,20 @@ async function replay(
         },
         { source: 'golden-replay', retry: 'none' },
       )
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        failure = error;
+      });
     const request = server.requests[before];
-    if (!request) return { error: 'no request was sent' };
+    if (!request) {
+      // Name the cause so a sporadic failure (e.g. under load) is diagnosable.
+      const cause =
+        failure instanceof GatewayError
+          ? `${failure.code}${failure.status ? ` ${failure.status}` : ''}`
+          : failure instanceof Error
+            ? failure.message
+            : 'no error';
+      return { error: `no request was sent (${cause})` };
+    }
     return semantic({
       host: rerouted.host,
       path: request.path,
