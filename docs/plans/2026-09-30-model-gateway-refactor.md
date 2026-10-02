@@ -1043,6 +1043,12 @@ P4 门槛证据：
   - tests/server/generation-worker-pipeline.pg.test.ts 的 "strong-killed worker resumes a committed provider response…" 失败：假服务器返回非流式 chat.completion JSON，而网关（pi）始终流式请求，计划步骤从未成功；在 P4 之前的提交 800826e4 上同样失败（P3 遗留，此前各阶段未运行 .pg 测试）。已修复：ab6a9989 把夹具改为 SSE 流式响应，断言不变；重建 worker 后在隔离库上通过
   - 回滚：旧版本代码读不了 v3 快照与 v2 PRO revision；按 P7 第 4 条，R1 发布前需准备"v3/v2 读兼容"热修补分支，或回滚前排空由新版本创建的任务。accounts v20 为 additive，旧代码忽略新列
   - 仍未重新构建 Docker 镜像做严格模式冒烟（P7 发布前必做）
+P4 之后、P5 之前的清理（2026-10-02）：
+  - 7b43f50a：清除 P3 记录的 7 个既有 lint 错误；pnpm lint 对受版本控制的文件 0 错误
+  - a80b91c5：P0 遗留的 3 个测试文件类型错误已修复；tsc -p tsconfig.json（含测试）0 错误
+  - 7c6a6064、520f4aee、6561bb90：next dev --webpack 的两个开发期崩溃（服务端启动图引入浏览器 media store / react-i18next；客户端图引入 @openmaic/generation 的 Node 专用 prompt loader）已修复；生产构建原本不受影响。浏览器实测：登录、修改密码、首页在 dev 下正常渲染
+  - 2dbf9d39：errors-retry 测试在 beforeAll 预热 pi 运行时，消除满载下首个用例冷启动超时
+  - 全量 vitest 在满载（同时运行 dev server）下仍有 P0 记录的 chat/pi、runtime 类 5s/15s 超时，单独复跑全部通过
 下一阶段可开始：是（P5 不依赖真实凭据或产品取舍；P5-5 浏览器实测可用假服务器，若要用真实 key 再向用户索取）
 ```
 
