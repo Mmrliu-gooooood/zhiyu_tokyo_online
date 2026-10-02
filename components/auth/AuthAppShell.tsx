@@ -27,16 +27,12 @@ export function AuthAppShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const [ready, setReady] = useState(authPage || (!sessionUi && !hosted));
   const [signedIn, setSignedIn] = useState(false);
+  // Auth pages and deployments without a session UI are ready at once; latch
+  // it while rendering (it stays true after navigating on), not in an effect.
+  if ((authPage || !sessionUi) && !ready) setReady(true);
 
   useEffect(() => {
-    if (authPage) {
-      setReady(true);
-      return;
-    }
-    if (!sessionUi) {
-      setReady(true);
-      return;
-    }
+    if (authPage || !sessionUi) return;
     let cancelled = false;
     requireAccountEnvironment()
       .then((account) => {

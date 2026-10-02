@@ -110,17 +110,17 @@ async function waitForSettingsHydration(signal: AbortSignal): Promise<void> {
   if (!persistence?.hasHydrated || persistence.hasHydrated()) return;
   await new Promise<void>((resolve, reject) => {
     let settled = false;
-    let unsubscribe: (() => void) | undefined;
     const finish = (error?: unknown) => {
       if (settled) return;
       settled = true;
-      unsubscribe?.();
+      unsubscribe();
       signal.removeEventListener('abort', onAbort);
       if (error) reject(error);
       else resolve();
     };
     const onAbort = () => finish(new DOMException('Aborted', 'AbortError'));
-    unsubscribe = persistence.onFinishHydration(() => finish());
+    // Registration never calls back synchronously, so finish() sees it set.
+    const unsubscribe = persistence.onFinishHydration(() => finish());
     signal.addEventListener('abort', onAbort, { once: true });
     // Close the check/subscribe race if hydration finished between them.
     if (persistence.hasHydrated()) finish();
@@ -1143,10 +1143,7 @@ function GenerationPreviewContent() {
           ];
 
           const getAvailableVoicesForGeneration = () => {
-            const providers = getEnabledProvidersWithVoices(
-              ttsProvidersConfig,
-              voiceProfiles,
-            );
+            const providers = getEnabledProvidersWithVoices(ttsProvidersConfig, voiceProfiles);
             return providers.flatMap((p) =>
               p.voices.map((v) => {
                 const cloneModelGroup =
@@ -1372,10 +1369,7 @@ function GenerationPreviewContent() {
       if (
         settings.ttsEnabled &&
         settings.ttsProviderId !== 'browser-native-tts' &&
-        isTTSProviderEnabled(
-          settings.ttsProviderId,
-          ttsProvidersConfig?.[settings.ttsProviderId],
-        )
+        isTTSProviderEnabled(settings.ttsProviderId, ttsProvidersConfig?.[settings.ttsProviderId])
       ) {
         const ttsResult = await generateTTSForScene(
           firstScene,
@@ -1452,7 +1446,10 @@ function GenerationPreviewContent() {
       if (abandonedStageId) {
         foregroundStageRef.current = null;
         void cancelForegroundGenerationRoot(abandonedStageId).catch((releaseError) => {
-          log.warn('[GenerationPreview] Failed to release foreground generation root:', releaseError);
+          log.warn(
+            '[GenerationPreview] Failed to release foreground generation root:',
+            releaseError,
+          );
         });
       }
       const errorMessage = err instanceof Error ? err.message : String(err);

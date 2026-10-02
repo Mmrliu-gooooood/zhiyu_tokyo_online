@@ -19,12 +19,11 @@ export function TeachBackHistory({
   const { t } = useI18n();
   const [activities, setActivities] = useState<TeachBackProjectedActivity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Disabling drops the loaded list, so re-enabling never shows a stale one.
+  if (!enabled && activities.length > 0) setActivities([]);
 
   useEffect(() => {
-    if (!enabled) {
-      setActivities([]);
-      return;
-    }
+    if (!enabled) return;
     let cancelled = false;
     void listTeachBackActivities(stageId)
       .then((items) => {
@@ -57,11 +56,19 @@ export function TeachBackHistory({
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {activity.source?.title} · {t('chat.teachBack.waiting', { n: activity.explanations.length, max: 3 })}
+                {activity.source?.title} ·{' '}
+                {t('chat.teachBack.waiting', { n: activity.explanations.length, max: 3 })}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(open ? null : activity.activityId)}>
-                  {open ? t('learningFeedback.teachBack.hide') : t('learningFeedback.teachBack.expand')}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setOpenId(open ? null : activity.activityId)}
+                >
+                  {open
+                    ? t('learningFeedback.teachBack.hide')
+                    : t('learningFeedback.teachBack.expand')}
                 </Button>
                 {onRestore && activity.logicalPhase !== 'finished' ? (
                   <Button type="button" size="sm" onClick={() => onRestore(activity)}>
@@ -73,7 +80,8 @@ export function TeachBackHistory({
                 <div className="mt-3 space-y-2 text-sm">
                   {activity.explanations.map((explanation) => (
                     <p key={explanation.turnId}>
-                      {t('chat.teachBack.yourExplanation')} {explanation.turnIndex}: {explanation.text}
+                      {t('chat.teachBack.yourExplanation')} {explanation.turnIndex}:{' '}
+                      {explanation.text}
                     </p>
                   ))}
                   {activity.summary?.criteria.map((item) => (

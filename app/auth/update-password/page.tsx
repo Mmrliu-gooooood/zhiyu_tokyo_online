@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
 
 import { AuthField } from '@/components/auth/AuthField';
@@ -23,7 +24,7 @@ export default function UpdatePasswordPage() {
     return (
       <AuthShell title={t('auth.updatePasswordTitle')} description={t('auth.hostedDisabled')}>
         <Button className="w-full" asChild>
-          <a href="/">{t('auth.backHome')}</a>
+          <Link href="/">{t('auth.backHome')}</Link>
         </Button>
       </AuthShell>
     );
@@ -59,7 +60,10 @@ export default function UpdatePasswordPage() {
 
   if (done) {
     return (
-      <AuthShell title={t('auth.passwordUpdatedTitle')} description={t('auth.passwordUpdatedDescription')}>
+      <AuthShell
+        title={t('auth.passwordUpdatedTitle')}
+        description={t('auth.passwordUpdatedDescription')}
+      >
         <Button className="w-full" asChild>
           <a href="/auth/login">{t('auth.backToLogin')}</a>
         </Button>
@@ -68,7 +72,10 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <AuthShell title={t('auth.updatePasswordTitle')} description={t('auth.updatePasswordDescription')}>
+    <AuthShell
+      title={t('auth.updatePasswordTitle')}
+      description={t('auth.updatePasswordDescription')}
+    >
       <form className="space-y-4" onSubmit={onSubmit}>
         <AuthField
           id="password"
@@ -90,11 +97,7 @@ export default function UpdatePasswordPage() {
           minLength={HOSTED_NEW_PASSWORD_MIN_LENGTH}
         />
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={loading || !password}
-        >
+        <Button type="submit" className="w-full" disabled={loading || !password}>
           {loading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
           {t('auth.updatePasswordSubmit')}
         </Button>

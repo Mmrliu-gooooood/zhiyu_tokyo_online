@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 import { AuthShell } from '@/components/auth/AuthShell';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ export default function AdminPage() {
     return (
       <AuthShell title={t('auth.adminTitle')} description={t('auth.hostedDisabled')}>
         <Button className="w-full" asChild>
-          <a href="/">{t('auth.backHome')}</a>
+          <Link href="/">{t('auth.backHome')}</Link>
         </Button>
       </AuthShell>
     );
@@ -76,7 +77,7 @@ export default function AdminPage() {
         </dl>
       ) : null}
       <Button className="mt-6 w-full" asChild>
-        <a href="/">{t('auth.backHome')}</a>
+        <Link href="/">{t('auth.backHome')}</Link>
       </Button>
     </AuthShell>
   );

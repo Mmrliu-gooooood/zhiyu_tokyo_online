@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
 
 import { AuthShell } from '@/components/auth/AuthShell';
@@ -38,7 +39,7 @@ export default function AccountPage() {
     return (
       <AuthShell title={t('auth.accountTitle')} description={t('auth.hostedDisabled')}>
         <Button className="w-full" asChild>
-          <a href="/">{t('auth.backHome')}</a>
+          <Link href="/">{t('auth.backHome')}</Link>
         </Button>
       </AuthShell>
     );
@@ -90,7 +91,12 @@ export default function AccountPage() {
           {saving ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
           {t('auth.saveProfile')}
         </Button>
-        <Button type="button" variant="outline" className="w-full" onClick={() => void signOutAndReload()}>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => void signOutAndReload()}
+        >
           {t('auth.signOut')}
         </Button>
       </form>
