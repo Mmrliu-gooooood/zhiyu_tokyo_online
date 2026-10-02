@@ -282,42 +282,28 @@ describe.skipIf(!process.env.TEST_GENERATION_DATABASE_URL)(
           [job.jobId],
         );
         blocking = true;
-        response.setHeader('Content-Type', 'application/json');
+        // The model gateway always streams: answer with OpenAI chat-completions SSE.
+        const chunk = (delta: object, extra: object = {}) =>
+          `data: ${JSON.stringify({
+            id: 'chat_test',
+            object: 'chat.completion.chunk',
+            created: 1,
+            model: 'gpt-4o-mini',
+            choices: [{ index: 0, delta, finish_reason: null }],
+            ...extra,
+          })}\n\n`;
+        response.setHeader('Content-Type', 'text/event-stream');
         response.end(
-          JSON.stringify(
-            request.url?.includes('/responses')
-              ? {
-                  id: 'resp_test',
-                  object: 'response',
-                  created_at: 1,
-                  model: 'gpt-4o-mini',
-                  status: 'completed',
-                  output: [
-                    {
-                      id: 'msg_test',
-                      type: 'message',
-                      role: 'assistant',
-                      status: 'completed',
-                      content: [{ type: 'output_text', text, annotations: [] }],
-                    },
-                  ],
-                  usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-                }
-              : {
-                  id: 'chat_test',
-                  object: 'chat.completion',
-                  created: 1,
-                  model: 'gpt-4o-mini',
-                  choices: [
-                    {
-                      index: 0,
-                      message: { role: 'assistant', content: text },
-                      finish_reason: 'stop',
-                    },
-                  ],
-                  usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-                },
-          ),
+          chunk({ role: 'assistant', content: '' }) +
+            chunk({ content: text }) +
+            chunk(
+              {},
+              {
+                choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+              },
+            ) +
+            'data: [DONE]\n\n',
         );
       });
       server.listen(0, '127.0.0.1');
