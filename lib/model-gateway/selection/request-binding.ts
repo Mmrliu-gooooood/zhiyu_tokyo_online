@@ -60,6 +60,40 @@ export function selectionFromParams(params: LegacyModelParams): RequestModelSele
   }
 }
 
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+/** Object-shaped values pass through; the selection schema validates their entries. */
+function objectValue(value: unknown): Record<string, string> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, string>)
+    : undefined;
+}
+
+/**
+ * The model-selection fields of a JSON request body (/api/chat, coach,
+ * teach-back): the body counterpart of the request headers.
+ */
+export function modelParamsFromBody(body: object): LegacyModelParams {
+  const raw = body as Record<string, unknown>;
+  const thinking = raw.thinkingConfig ?? raw.thinking;
+  return {
+    modelString: optionalString(raw.model),
+    apiKey: optionalString(raw.apiKey),
+    baseUrl: optionalString(raw.baseUrl),
+    providerType: optionalString(raw.providerType),
+    source: optionalString(raw.modelSource),
+    platformDefaultId: optionalString(raw.platformDefaultId),
+    api: optionalString(raw.api),
+    endpointProfile: optionalString(raw.endpointProfile) || undefined,
+    endpointParams: objectValue(raw.endpointParams),
+    credentialId: optionalString(raw.credentialId) || undefined,
+    thinkingConfig:
+      thinking && typeof thinking === 'object' ? (thinking as ThinkingConfig) : undefined,
+  };
+}
+
 /** resolveModel({ ...params, stage }) equivalent. */
 export function resolveParamsBinding(
   params: LegacyModelParams = {},

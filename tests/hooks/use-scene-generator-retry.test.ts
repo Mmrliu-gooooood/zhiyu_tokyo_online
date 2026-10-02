@@ -23,7 +23,8 @@ const mocks = vi.hoisted(() => ({
   toastWarning: vi.fn(),
 }));
 
-vi.mock('@/lib/utils/model-config', () => ({
+vi.mock('@/lib/utils/model-config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/utils/model-config')>()),
   getCurrentModelConfig: mocks.getCurrentModelConfig,
 }));
 
@@ -478,10 +479,9 @@ describe('browser scene generation retry wrappers', () => {
     await expect(generateAndStoreTTS('request-hosted', 'Hello class')).resolves.toBe(
       'ast_audio_allocated',
     );
-    expect(mocks.poolPut).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'audio/wav' }),
-      { contentType: 'audio/wav' },
-    );
+    expect(mocks.poolPut).toHaveBeenCalledWith(expect.objectContaining({ type: 'audio/wav' }), {
+      contentType: 'audio/wav',
+    });
     expect(mocks.audioPut).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'ast_audio_allocated' }),
     );
@@ -494,7 +494,14 @@ describe('browser scene generation retry wrappers', () => {
     );
 
     await expect(
-      generateAndStoreTTS('request-hosted', 'Updated class', undefined, undefined, undefined, 'ast_existing'),
+      generateAndStoreTTS(
+        'request-hosted',
+        'Updated class',
+        undefined,
+        undefined,
+        undefined,
+        'ast_existing',
+      ),
     ).resolves.toBe('ast_existing');
     expect(mocks.poolReplace).toHaveBeenCalledWith(
       'ast_existing',

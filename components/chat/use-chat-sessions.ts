@@ -30,7 +30,7 @@ import { useSettingsStore, type SettingsState } from '@/lib/store/settings';
 import { useUserProfileStore } from '@/lib/store/user-profile';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestBodyFields } from '@/lib/utils/model-config';
 import { USER_AVATAR } from '@/lib/types/roundtable';
 import { StreamBuffer } from '@/lib/buffer/stream-buffer';
 import type { AgentStartItem, ActionItem } from '@/lib/buffer/stream-buffer';
@@ -199,6 +199,10 @@ export type ChatRequestTemplate = {
   providerType?: string;
   modelSource?: 'platform' | 'user' | 'legacy-managed';
   platformDefaultId?: string;
+  api?: string;
+  endpointProfile?: string;
+  endpointParams?: Record<string, string>;
+  credentialId?: string;
   thinkingConfig?: ThinkingConfig;
   directorState?: DirectorState;
   piSessionBoundary?: PiSessionBoundaryContext;
@@ -1476,15 +1480,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
     });
   teachBackHostRef.current.getModelConfig = () => {
     const model = getCurrentModelConfig();
-    return {
-      apiKey: model.apiKey,
-      baseUrl: model.baseUrl,
-      model: model.source === 'platform' ? undefined : model.modelString,
-      providerType: model.providerType,
-      modelSource: model.source,
-      platformDefaultId: model.source === 'platform' ? model.defaultId : undefined,
-      thinkingConfig: model.thinkingConfig,
-    };
+    return { ...modelRequestBodyFields(model), thinkingConfig: model.thinkingConfig };
   };
   teachBackHostRef.current.getLocale = () => locale;
   teachBackHostRef.current.now = () => new Date().toISOString();
@@ -1714,6 +1710,10 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
           providerType: requestTemplate.providerType,
           modelSource: requestTemplate.modelSource,
           platformDefaultId: requestTemplate.platformDefaultId,
+          api: requestTemplate.api,
+          endpointProfile: requestTemplate.endpointProfile,
+          endpointParams: requestTemplate.endpointParams,
+          credentialId: requestTemplate.credentialId,
           thinkingConfig: requestTemplate.thinkingConfig,
         },
         {
@@ -2127,12 +2127,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
               nickname: userProfileState.nickname || undefined,
               bio: userProfileState.bio || undefined,
             },
-            apiKey: mc.apiKey,
-            baseUrl: mc.baseUrl,
-            model: mc.source === 'platform' ? undefined : mc.modelString,
-            providerType: mc.providerType,
-            modelSource: mc.source,
-            platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
+            ...modelRequestBodyFields(mc),
             thinkingConfig: mc.thinkingConfig,
             directorState: session.directorState,
             ...(session.config.learningContext
@@ -2468,12 +2463,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
               nickname: userProfileState.nickname || undefined,
               bio: userProfileState.bio || undefined,
             },
-            apiKey: mc.apiKey,
-            baseUrl: mc.baseUrl,
-            model: mc.source === 'platform' ? undefined : mc.modelString,
-            providerType: mc.providerType,
-            modelSource: mc.source,
-            platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
+            ...modelRequestBodyFields(mc),
             thinkingConfig: mc.thinkingConfig,
             directorState: existingSession?.directorState,
             ...(learningContext ? { learningContext } : {}),
@@ -2607,12 +2597,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
               nickname: userProfileState.nickname || undefined,
               bio: userProfileState.bio || undefined,
             },
-            apiKey: mc.apiKey,
-            baseUrl: mc.baseUrl,
-            model: mc.source === 'platform' ? undefined : mc.modelString,
-            providerType: mc.providerType,
-            modelSource: mc.source,
-            platformDefaultId: mc.source === 'platform' ? mc.defaultId : undefined,
+            ...modelRequestBodyFields(mc),
             thinkingConfig: mc.thinkingConfig,
           },
           controller,

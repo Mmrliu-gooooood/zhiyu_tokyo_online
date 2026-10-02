@@ -52,6 +52,10 @@ export interface TeachBackModelConfig {
   providerType?: string;
   modelSource?: 'platform' | 'user' | 'legacy-managed';
   platformDefaultId?: string;
+  api?: string;
+  endpointProfile?: string;
+  endpointParams?: Record<string, string>;
+  credentialId?: string;
   thinkingConfig?: unknown;
 }
 
@@ -707,6 +711,10 @@ export class TeachBackSession {
         providerType: model.providerType,
         modelSource: model.modelSource,
         platformDefaultId: model.platformDefaultId,
+        api: model.api,
+        endpointProfile: model.endpointProfile,
+        endpointParams: model.endpointParams,
+        credentialId: model.credentialId,
         thinkingConfig: model.thinkingConfig,
       },
       combined,

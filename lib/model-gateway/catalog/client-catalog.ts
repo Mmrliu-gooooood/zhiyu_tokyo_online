@@ -44,6 +44,7 @@ interface CatalogModel {
 
 interface CatalogProvider {
   api: string;
+  baseUrl?: string;
   models: CatalogModel[];
 }
 
@@ -102,11 +103,18 @@ function toClientConfig(descriptor: ProviderDescriptor): ClientProviderConfig {
           label: profile.label,
         }))
       : undefined;
+  // A user-configurable provider with a fixed endpoint shows pi's endpoint
+  // (display and the "has an endpoint" usability check only; it is never sent).
+  const defaultBaseUrl =
+    descriptor.defaultBaseUrl ??
+    (descriptor.userConfigurable && !descriptor.allowCustomBaseUrl && piProviderId
+      ? PI_PROVIDERS[piProviderId]?.baseUrl
+      : undefined);
   return {
     id: descriptor.id,
     name: descriptor.name,
     type: legacyTypeFor(descriptor, api),
-    ...(descriptor.defaultBaseUrl ? { defaultBaseUrl: descriptor.defaultBaseUrl } : {}),
+    ...(defaultBaseUrl ? { defaultBaseUrl } : {}),
     ...(descriptor.baseUrlPlaceholder ? { baseUrlPlaceholder: descriptor.baseUrlPlaceholder } : {}),
     supportsModelDiscovery: descriptor.modelDiscovery !== 'manual',
     ...(descriptor.alternateBaseUrls
@@ -137,10 +145,10 @@ export const CLIENT_PROVIDERS: Readonly<Record<string, ClientProviderConfig>> = 
 );
 
 /**
- * The 19 pre-gateway providers in the legacy ProviderConfig shape. Replaces
- * `PROVIDERS` from the deleted lib/ai/providers.ts for the settings UI until
- * P5 moves it to the full grouped catalog; parity is pinned by
- * tests/model-gateway/catalog/legacy-parity.test.ts.
+ * The 19 pre-gateway providers in the legacy ProviderConfig shape (the deleted
+ * lib/ai/providers.ts `PROVIDERS`). The settings UI uses the full grouped
+ * CLIENT_PROVIDERS since P5; this view remains for characterization fixtures
+ * and is pinned by tests/model-gateway/catalog/legacy-parity.test.ts.
  */
 export const PROVIDERS = Object.fromEntries(
   LEGACY_PROVIDER_IDS.map((id) => [id, CLIENT_PROVIDERS[id]!]),
@@ -156,3 +164,47 @@ export function getProvider(providerId: string): ClientProviderConfig | undefine
 
 /** Reviewed thinking capability of a catalog model (aliases resolved). */
 export { reviewedThinkingCapability as getCatalogThinkingCapability } from './thinking-capability';
+
+/** Settings-list order of the provider groups (plan 3.13). */
+export const PROVIDER_GROUP_ORDER: readonly ProviderGroup[] = [
+  'official',
+  'china',
+  'aggregator',
+  'coding-plan',
+  'subscription',
+  'enterprise',
+  'local',
+];
+
+/** Whether the deployment offers subscription sign-in for this provider. */
+export function oauthSignInAvailable(
+  providerId: string,
+  oauthProviders: readonly string[] | undefined,
+): boolean {
+  return Boolean(
+    CLIENT_PROVIDERS[providerId]?.authMethods.includes('oauth') &&
+    oauthProviders?.includes(providerId),
+  );
+}
+
+/**
+ * Whether a provider appears in the settings list. Operator-only providers
+ * (Bedrock, Vertex) appear only when the operator configured them (P2-6), and
+ * sign-in-only providers only when the deployment enables their sign-in (D14).
+ * User-defined `custom-*` providers always appear.
+ */
+export function isProviderListed(
+  providerId: string,
+  options: { serverConfigured?: boolean; oauthProviders?: readonly string[] },
+): boolean {
+  const provider = CLIENT_PROVIDERS[providerId];
+  if (!provider) return true;
+  if (!provider.userConfigurable) return options.serverConfigured === true;
+  const signInOnly = provider.authMethods.every((method) => method === 'oauth');
+  if (signInOnly) {
+    return (
+      options.serverConfigured === true || oauthSignInAvailable(providerId, options.oauthProviders)
+    );
+  }
+  return true;
+}

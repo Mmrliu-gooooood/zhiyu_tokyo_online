@@ -18,6 +18,7 @@ export type { RequestModelSelection } from './selection/read-request';
 export { getBindingResolutionError, resolveBinding } from './selection/resolve-binding';
 export type { ResolveBindingInput } from './selection/resolve-binding';
 export {
+  modelParamsFromBody,
   resolveHeaderBinding,
   resolveParamsBinding,
   resolveRequestBinding,

@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 import { createLearningContentSnapshot } from '@/lib/learning/content-snapshot';
 import type {
   LearningCheckPayloadV1,
@@ -49,19 +49,10 @@ interface LearningCheckApiBody {
 }
 
 function learningHeaders(): Record<string, string> {
-  const model = getCurrentModelConfig();
-  const headers: Record<string, string> = {
+  return {
     'content-type': 'application/json',
-    'x-model': model.source === 'platform' ? '' : model.modelString,
-    'x-api-key': model.source === 'platform' ? '' : model.apiKey,
-    'x-model-source': model.source,
+    ...modelRequestHeaders(getCurrentModelConfig()),
   };
-  if (model.source === 'platform' && model.defaultId) {
-    headers['x-platform-default-id'] = model.defaultId;
-  }
-  if (model.baseUrl) headers['x-base-url'] = model.baseUrl;
-  if (model.providerType) headers['x-provider-type'] = model.providerType;
-  return headers;
 }
 
 async function postLearningCheck(input: {

@@ -64,6 +64,10 @@ export interface AgentLoopRequest {
   providerType?: string;
   modelSource?: 'platform' | 'user' | 'legacy-managed';
   platformDefaultId?: string;
+  api?: string;
+  endpointProfile?: string;
+  endpointParams?: Record<string, string>;
+  credentialId?: string;
   thinkingConfig?: ThinkingConfig;
 }
 
@@ -197,6 +201,10 @@ export async function runAgentLoop(
       providerType: request.providerType,
       modelSource: request.modelSource,
       platformDefaultId: request.platformDefaultId,
+      api: request.api,
+      endpointProfile: request.endpointProfile,
+      endpointParams: request.endpointParams,
+      credentialId: request.credentialId,
       thinkingConfig: request.thinkingConfig,
     };
 

@@ -6,6 +6,7 @@ import {
   gateway,
   getBindingResolutionError,
   isGatewayError,
+  modelParamsFromBody,
   resolveParamsBinding,
   userText,
   withThinking,
@@ -69,7 +70,7 @@ async function handlePOST(req: NextRequest) {
   let model: string | undefined;
   try {
     const body = await req.json();
-    const { apiKey, baseUrl, providerType, api } = body;
+    const { apiKey, baseUrl } = body;
     model = body.model;
     const sourceHeader = req.headers.get('x-model-source')?.trim();
     const platformDefaultId = req.headers.get('x-platform-default-id')?.trim() || undefined;
@@ -109,12 +110,12 @@ async function handlePOST(req: NextRequest) {
         source === 'platform'
           ? { source, platformDefaultId }
           : {
+              ...modelParamsFromBody(body),
               modelString: model,
               apiKey: apiKey || '',
               baseUrl: baseUrl || undefined,
-              providerType,
-              ...(typeof api === 'string' ? { api } : {}),
-              ...(source ? { source } : {}),
+              source,
+              thinkingConfig: undefined,
             },
       );
     } catch (error) {

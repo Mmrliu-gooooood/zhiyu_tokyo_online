@@ -8,10 +8,15 @@ import {
 } from '@/lib/generation/foreground-root-client';
 import { useStageStore } from '@/lib/store/stage';
 import { isSceneEditLocked } from '@/lib/edit/regen-lock';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 import { useSettingsStore } from '@/lib/store/settings';
 import { db } from '@/lib/utils/database';
-import { isAssetPoolServerBacked, putAsset, removeAsset, replaceAsset } from '@/lib/media/asset-pool';
+import {
+  isAssetPoolServerBacked,
+  putAsset,
+  removeAsset,
+  replaceAsset,
+} from '@/lib/media/asset-pool';
 import type {
   SceneOutline,
   PdfImage,
@@ -90,12 +95,7 @@ function getApiHeaders(): HeadersInit {
 
   return {
     'Content-Type': 'application/json',
-    'x-model': config.modelString || '',
-    'x-api-key': config.apiKey || '',
-    'x-base-url': config.baseUrl || '',
-    'x-provider-type': config.providerType || '',
-    'x-model-source': config.source,
-    'x-platform-default-id': config.source === 'platform' ? config.defaultId || '' : '',
+    ...modelRequestHeaders(config),
     // Image generation provider
     'x-image-model-source': imageSelection?.source || 'user',
     'x-image-platform-default-id': imageIsPlatform ? imageSelection.defaultId : '',
@@ -553,16 +553,18 @@ export async function generateAndStoreTTS(
       audioId = await putAsset(blob, { contentType: blob.type });
     }
   }
-  const mirror = Promise.resolve(db.audioFiles.put({
-    id: audioId,
-    stageId,
-    blob,
-    duration,
-    format: data.format,
-    text,
-    voice: ttsVoice,
-    createdAt: Date.now(),
-  }));
+  const mirror = Promise.resolve(
+    db.audioFiles.put({
+      id: audioId,
+      stageId,
+      blob,
+      duration,
+      format: data.format,
+      text,
+      voice: ttsVoice,
+      createdAt: Date.now(),
+    }),
+  );
   if (serverBacked) {
     // The pool is authoritative in hosted mode; a full local cache must not
     // discard an otherwise durable narration clip.

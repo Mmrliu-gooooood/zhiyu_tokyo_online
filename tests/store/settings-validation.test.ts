@@ -8,6 +8,7 @@ import {
   hasUsableLLMProvider,
   hasUsableLLMSelection,
   isLLMProviderConfigured,
+  isLLMSelectionRetained,
   type ProviderCfgLike,
 } from '@/lib/store/settings-validation';
 
@@ -410,5 +411,71 @@ describe('isLLMProviderConfigured', () => {
         models: [{ id: 'm1' }],
       } as never),
     ).toBe(true);
+  });
+});
+
+describe('catalog connection rules (plan 3.13)', () => {
+  const models = [{ id: 'm' }];
+
+  it('subscription sign-in is usable only while the credential is active', () => {
+    const base = { models, authMode: 'oauth' as const, credentialId: 'cred-1' };
+    expect(isLLMProviderConfigured({ ...base, credentialStatus: 'active' })).toBe(true);
+    expect(isLLMProviderConfigured({ ...base, credentialStatus: 'reauth_required' })).toBe(false);
+    expect(isLLMProviderConfigured({ ...base, credentialStatus: 'revoked' })).toBe(false);
+    expect(isLLMProviderConfigured({ models, authMode: 'oauth', credentialStatus: 'active' })).toBe(
+      false,
+    );
+    // An API key alone never makes an OAuth-mode connection usable.
+    expect(isLLMProviderConfigured({ models, authMode: 'oauth', apiKey: 'sk-x' })).toBe(false);
+    expect(isProviderUsable({ ...base, credentialStatus: 'active' })).toBe(true);
+    expect(isProviderUsable({ ...base, credentialStatus: 'reauth_required' })).toBe(false);
+  });
+
+  it('a subscription needing re-sign-in stays selected instead of being replaced', () => {
+    const reauth = {
+      models,
+      authMode: 'oauth' as const,
+      credentialId: 'cred-1',
+      credentialStatus: 'reauth_required' as const,
+    };
+    expect(isLLMSelectionRetained(reauth)).toBe(true);
+    expect(isLLMSelectionRetained({ ...reauth, credentialStatus: 'revoked' })).toBe(false);
+    expect(isLLMSelectionRetained({ models, apiKey: '' })).toBe(false);
+  });
+
+  it('a fixed-endpoint catalog provider is usable with a key alone', () => {
+    expect(
+      isLLMProviderConfigured(
+        { models, apiKey: 'gsk-x', defaultBaseUrl: 'https://api.groq.com/openai/v1' },
+        'groq',
+      ),
+    ).toBe(true);
+  });
+
+  it('declared endpoint values (Cloudflare account / gateway) are required', () => {
+    const config = {
+      models,
+      apiKey: 'cf-x',
+      defaultBaseUrl: 'https://gateway.ai.cloudflare.com/v1/{CLOUDFLARE_ACCOUNT_ID}',
+    };
+    expect(isLLMProviderConfigured(config, 'cloudflare-ai-gateway')).toBe(false);
+    expect(
+      isLLMProviderConfigured(
+        { ...config, endpointParams: { CLOUDFLARE_ACCOUNT_ID: 'acct' } },
+        'cloudflare-ai-gateway',
+      ),
+    ).toBe(false);
+    expect(
+      isLLMProviderConfigured(
+        {
+          ...config,
+          endpointParams: { CLOUDFLARE_ACCOUNT_ID: 'acct', CLOUDFLARE_GATEWAY_ID: ' gw ' },
+        },
+        'cloudflare-ai-gateway',
+      ),
+    ).toBe(true);
+    expect(
+      hasUsableLLMProvider({ 'cloudflare-ai-gateway': config, 'custom-1': { models, apiKey: '' } }),
+    ).toBe(false);
   });
 });

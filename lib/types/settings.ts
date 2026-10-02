@@ -1,4 +1,5 @@
 import type { ProviderId, ModelInfo, ProviderType } from '@/lib/types/provider';
+import type { WireApi } from '@/lib/model-gateway/types';
 
 export type SettingsSection =
   | 'general'
@@ -18,9 +19,29 @@ export type SettingsSection =
  * Stores all provider-specific settings and metadata in one object
  * Both built-in and custom providers use the same structure
  */
+/** How a provider connection authenticates (plan 3.13). */
+export type ProviderAuthMode = 'api-key' | 'oauth' | 'none';
+
+/** Server-reported state of a subscription credential (R2 credential vault). */
+export type ProviderCredentialStatus = 'active' | 'reauth_required' | 'revoked';
+
 export interface ProviderSettings {
-  /** Explicit protocol for custom PRO connections, retained by settings import/export. */
-  api?: 'openai-completions' | 'openai-responses';
+  /**
+   * Explicit wire protocol: a custom provider's chosen protocol, or a built-in
+   * provider's alternative from its catalog `allowedApis`. Retained by settings
+   * import/export and sent as `x-model-api`.
+   */
+  api?: WireApi;
+  /** Authentication method; absent = derived from `requiresApiKey` (legacy blobs). */
+  authMode?: ProviderAuthMode;
+  /** Subscription credential reference (R2); never a token. */
+  credentialId?: string;
+  /** Last server-reported status of `credentialId` (R2). */
+  credentialStatus?: ProviderCredentialStatus;
+  /** Catalog endpoint profile (regional / plan variant), e.g. `cn` / `global`. */
+  endpointProfile?: string;
+  /** Non-secret values a catalog endpoint needs (e.g. Cloudflare account id). */
+  endpointParams?: Record<string, string>;
   // Configuration
   apiKey: string;
   baseUrl: string;

@@ -19,7 +19,12 @@ import { statelessGenerate } from '@/lib/orchestration/stateless-generate';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { getBindingResolutionError, resolveParamsBinding, withThinking } from '@/lib/model-gateway';
+import {
+  getBindingResolutionError,
+  modelParamsFromBody,
+  resolveParamsBinding,
+  withThinking,
+} from '@/lib/model-gateway';
 const log = createLogger('Chat API');
 
 // Allow streaming responses up to 60 seconds
@@ -73,20 +78,9 @@ async function handlePOST(req: NextRequest) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: config.agentIds');
     }
 
-    const resolvedBinding = await resolveParamsBinding(
-      {
-        modelString: body.model,
-        apiKey: body.apiKey,
-        baseUrl: body.baseUrl,
-        providerType: body.providerType,
-        source: body.modelSource,
-        platformDefaultId: body.platformDefaultId,
-        // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
-        // thinking wins, an unrouted one honors this client thinking.
-        thinkingConfig: body.thinkingConfig ?? body.thinking,
-      },
-      'chat-adapter',
-    );
+    // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
+    // thinking wins, an unrouted one honors this client thinking.
+    const resolvedBinding = await resolveParamsBinding(modelParamsFromBody(body), 'chat-adapter');
 
     if (!resolvedBinding.credentialReady) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');

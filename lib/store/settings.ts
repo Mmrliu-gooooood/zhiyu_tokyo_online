@@ -13,7 +13,7 @@ import { revokeMediaConfigSnapshotsForProvider } from '@/lib/workbench/media-con
 import { persist } from 'zustand/middleware';
 import type { ProviderId } from '@/lib/types/provider';
 import type { ProvidersConfig } from '@/lib/types/settings';
-import { PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
+import { CLIENT_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { findModelById, getCanonicalModelId } from '@/lib/ai/model-aliases';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import { getThinkingConfigKey, supportsConfigurableThinking } from '@/lib/ai/thinking-config';
@@ -58,6 +58,7 @@ import {
   validateProvider,
   resolveSelectedModel,
   isLLMProviderConfigured,
+  isLLMSelectionRetained,
   isProviderUsable,
 } from '@/lib/store/settings-validation';
 import { createKVPersistStorage, purgeLegacyPersistKey } from '@/lib/store/kv-persist';
@@ -431,10 +432,11 @@ export interface SettingsState {
 }
 
 // Initialize default providers config
+// Every catalog provider (plan P5-1); the settings list decides visibility.
 const getDefaultProvidersConfig = (): ProvidersConfig => {
   const config: ProvidersConfig = {} as ProvidersConfig;
-  Object.keys(PROVIDERS).forEach((pid) => {
-    const provider = PROVIDERS[pid as ProviderId];
+  Object.keys(CLIENT_PROVIDERS).forEach((pid) => {
+    const provider = CLIENT_PROVIDERS[pid]!;
     config[pid as ProviderId] = {
       apiKey: '',
       baseUrl: '',
@@ -469,10 +471,12 @@ function resolveLLMSelection(
   currentProviderId: ProviderId,
   currentModelId: string,
 ): { providerId: ProviderId; modelId: string } {
-  const isUsable = (id: ProviderId) => !!config[id] && isLLMProviderConfigured(config[id]);
-  const providerId = isUsable(currentProviderId)
-    ? currentProviderId
-    : ((Object.keys(config) as ProviderId[]).find(isUsable) ?? ('' as ProviderId));
+  const isUsable = (id: ProviderId) => !!config[id] && isLLMProviderConfigured(config[id], id);
+  const providerId =
+    config[currentProviderId] &&
+    isLLMSelectionRetained(config[currentProviderId], currentProviderId)
+      ? currentProviderId
+      : ((Object.keys(config) as ProviderId[]).find(isUsable) ?? ('' as ProviderId));
   const modelId = providerId
     ? resolveSelectedLLMModel(providerId, currentModelId, config[providerId]?.models ?? [])
     : '';
@@ -836,7 +840,7 @@ function ensureCustomAudioProtocols(state: Partial<SettingsState>): void {
 function ensureBuiltInProviders(state: Partial<SettingsState>): void {
   if (!state.providersConfig) return;
   const defaultConfig = getDefaultProvidersConfig();
-  Object.keys(PROVIDERS).forEach((pid) => {
+  Object.keys(CLIENT_PROVIDERS).forEach((pid) => {
     const providerId = pid as ProviderId;
     if (!state.providersConfig![providerId]) {
       // New provider: add with defaults
@@ -844,7 +848,7 @@ function ensureBuiltInProviders(state: Partial<SettingsState>): void {
     } else {
       // Existing provider: refresh built-in models from the registry and
       // keep user-added models after the built-in list.
-      const provider = PROVIDERS[providerId];
+      const provider = CLIENT_PROVIDERS[providerId]!;
       const existing = state.providersConfig![providerId];
 
       const builtInModelIds = new Set(provider.models.map((m) => m.id));
@@ -1842,7 +1846,7 @@ export const useSettingsStore = create<SettingsState>()(
                   const filteredModels = info.models?.length
                     ? info.models.map((id) => {
                         const currentModel = findModelById(key, currentModels, id);
-                        const builtInModel = findModelById(key, PROVIDERS[key]?.models, id);
+                        const builtInModel = findModelById(key, CLIENT_PROVIDERS[key]?.models, id);
                         const model =
                           currentModel && builtInModel
                             ? {
@@ -2042,11 +2046,13 @@ export const useSettingsStore = create<SettingsState>()(
               const videoFallback = buildFallback<VideoProviderId>(newVideoConfig);
               const webSearchFallback = buildWebSearchFallbackOrder(newWebSearchConfig);
 
-              let validLLMProvider = validateProvider(
-                state.providerId,
-                newProvidersConfig,
-                llmFallback,
-              );
+              // A subscription awaiting re-sign-in stays selected (plan 3.13).
+              const currentLLMConfig = newProvidersConfig[state.providerId];
+              let validLLMProvider =
+                currentLLMConfig?.authMode === 'oauth' &&
+                isLLMSelectionRetained(currentLLMConfig, state.providerId)
+                  ? state.providerId
+                  : validateProvider(state.providerId, newProvidersConfig, llmFallback);
               const validTTSProvider = validateProvider(
                 state.ttsProviderId,
                 newTTSConfig,
@@ -2266,7 +2272,10 @@ export const useSettingsStore = create<SettingsState>()(
                 // on the home page even though catalog v2 is ready.
                 if (capability === 'text' && current.source === 'user') {
                   const currentConfig = newProvidersConfig[current.providerId as ProviderId];
-                  if (!currentConfig || !isLLMProviderConfigured(currentConfig)) {
+                  if (
+                    !currentConfig ||
+                    !isLLMSelectionRetained(currentConfig, current.providerId)
+                  ) {
                     if (validLLMProvider && validLLMModel) {
                       return {
                         source: 'user',

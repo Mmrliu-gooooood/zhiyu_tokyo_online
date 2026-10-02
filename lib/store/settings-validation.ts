@@ -6,6 +6,7 @@
  */
 
 import type { ModelSelection } from '@/lib/types/platform-default-models';
+import { getDescriptor } from '@/lib/model-gateway/catalog/descriptors';
 
 export type ProviderCfgLike = {
   isServerConfigured?: boolean;
@@ -14,6 +15,10 @@ export type ProviderCfgLike = {
   baseUrl?: string;
   /** Operator force-disabled (server precedence, TTS — #665). Never usable. */
   serverDisabled?: boolean;
+  /** LLM subscription sign-in (R2): usable only with an active credential. */
+  authMode?: 'api-key' | 'oauth' | 'none';
+  credentialId?: string;
+  credentialStatus?: 'active' | 'reauth_required' | 'revoked';
 };
 
 /**
@@ -30,6 +35,7 @@ export function isProviderUsable(cfg: ProviderCfgLike | undefined): boolean {
   // selection is re-pointed away from a server-disabled provider (#665).
   if (cfg.serverDisabled) return false;
   if (cfg.isServerConfigured) return true;
+  if (cfg.authMode === 'oauth') return !!cfg.credentialId && cfg.credentialStatus === 'active';
   // Keyless providers (e.g. Ollama) need an explicit user-provided baseUrl
   if (cfg.requiresApiKey === false) return !!cfg.baseUrl;
   return !!cfg.apiKey;
@@ -102,6 +108,10 @@ export interface LLMProviderCfgLike {
   models: Array<{ id: string }>;
   baseUrl?: string;
   defaultBaseUrl?: string;
+  authMode?: 'api-key' | 'oauth' | 'none';
+  credentialId?: string;
+  credentialStatus?: 'active' | 'reauth_required' | 'revoked';
+  endpointParams?: Record<string, string>;
 }
 
 /**
@@ -112,18 +122,41 @@ export interface LLMProviderCfgLike {
  * reconcile would not actually select it:
  *
  * - server-configured ⇒ usable;
+ * - subscription sign-in (`authMode: 'oauth'`) ⇒ usable ONLY while the
+ *   server reports its credential `active` (plan 3.13);
  * - keyless provider (ollama/lemonade) ⇒ usable ONLY once the user sets an
  *   explicit baseUrl — the registry `defaultBaseUrl` alone is not user intent;
- * - key-requiring provider ⇒ needs a client key AND a resolvable endpoint.
+ * - key-requiring provider ⇒ needs a client key AND a resolvable endpoint,
+ *   including every endpoint value its catalog entry declares (Cloudflare
+ *   account / gateway id) when `providerId` is given.
  *
  * Always also requires ≥1 model.
  */
-export function isLLMProviderConfigured(config: LLMProviderCfgLike): boolean {
+export function isLLMProviderConfigured(config: LLMProviderCfgLike, providerId?: string): boolean {
   if (!config.models || config.models.length < 1) return false;
   if (config.isServerConfigured) return true;
+  if (config.authMode === 'oauth') {
+    return !!config.credentialId && config.credentialStatus === 'active';
+  }
   if (config.requiresApiKey === false) return !!config.baseUrl;
   if (!config.apiKey) return false;
-  return !!(config.baseUrl || config.defaultBaseUrl);
+  if (!(config.baseUrl || config.defaultBaseUrl)) return false;
+  const declared = providerId ? (getDescriptor(providerId)?.endpointParams ?? []) : [];
+  return declared.every((name) => !!config.endpointParams?.[name]?.trim());
+}
+
+/**
+ * Whether the current selection must stay selected even though it is not
+ * usable: a subscription that needs signing in again is reported to the user,
+ * never silently replaced by another provider (plan 3.13).
+ */
+export function isLLMSelectionRetained(config: LLMProviderCfgLike, providerId?: string): boolean {
+  return (
+    isLLMProviderConfigured(config, providerId) ||
+    (config.authMode === 'oauth' &&
+      !!config.credentialId &&
+      config.credentialStatus === 'reauth_required')
+  );
 }
 
 /**
@@ -136,7 +169,9 @@ export function hasUsableLLMProvider(
   providersConfig: Record<string, LLMProviderCfgLike> | undefined | null,
 ): boolean {
   if (!providersConfig) return false;
-  return Object.values(providersConfig).some(isLLMProviderConfigured);
+  return Object.entries(providersConfig).some(([providerId, config]) =>
+    isLLMProviderConfigured(config, providerId),
+  );
 }
 
 type PlatformDefaultCatalogLike = {
@@ -170,5 +205,5 @@ export function hasUsableLLMSelection(
     );
   }
   const selectedConfig = providersConfig?.[selection.providerId];
-  return selectedConfig ? isLLMProviderConfigured(selectedConfig) : false;
+  return selectedConfig ? isLLMProviderConfigured(selectedConfig, selection.providerId) : false;
 }

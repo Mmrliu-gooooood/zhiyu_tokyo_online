@@ -21,7 +21,12 @@ import {
 } from '@/lib/chat/pi/config';
 import { runPiDirectorLoop } from '@/lib/chat/pi/director-loop';
 import type { SendEvent } from '@/lib/chat/pi/types';
-import { getBindingResolutionError, resolveParamsBinding, withThinking } from '@/lib/model-gateway';
+import {
+  getBindingResolutionError,
+  modelParamsFromBody,
+  resolveParamsBinding,
+  withThinking,
+} from '@/lib/model-gateway';
 import { apiError } from '@/lib/server/api-response';
 import type { StatelessChatRequest } from '@/lib/types/chat';
 import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
@@ -98,20 +103,9 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    const resolvedBinding = await resolveParamsBinding(
-      {
-        modelString: body.model,
-        apiKey: body.apiKey,
-        baseUrl: body.baseUrl,
-        providerType: body.providerType,
-        source: body.modelSource,
-        platformDefaultId: body.platformDefaultId,
-        // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
-        // thinking wins, an unrouted one honors this client thinking.
-        thinkingConfig: body.thinkingConfig ?? body.thinking,
-      },
-      'chat-adapter',
-    );
+    // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
+    // thinking wins, an unrouted one honors this client thinking.
+    const resolvedBinding = await resolveParamsBinding(modelParamsFromBody(body), 'chat-adapter');
 
     if (!resolvedBinding.credentialReady) {
       return apiError('MISSING_API_KEY', 401, 'API Key is required');

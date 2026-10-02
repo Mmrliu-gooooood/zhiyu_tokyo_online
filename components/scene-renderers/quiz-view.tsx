@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('QuizView');
@@ -167,15 +167,8 @@ async function gradeShortAnswerQuestion(
   const modelConfig = getCurrentModelConfig();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString,
-    'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey,
-    'x-model-source': modelConfig.source,
+    ...modelRequestHeaders(modelConfig),
   };
-  if (modelConfig.source === 'platform' && modelConfig.defaultId) {
-    headers['x-platform-default-id'] = modelConfig.defaultId;
-  }
-  if (modelConfig.baseUrl) headers['x-base-url'] = modelConfig.baseUrl;
-  if (modelConfig.providerType) headers['x-provider-type'] = modelConfig.providerType;
 
   const res = await fetch('/api/quiz-grade', {
     method: 'POST',

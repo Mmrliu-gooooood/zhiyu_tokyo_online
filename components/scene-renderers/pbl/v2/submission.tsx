@@ -62,7 +62,7 @@ import type {
 import { trimmedPBLText } from '@/lib/pbl/v2/readers';
 import type { PBLSSEEvent } from '@/lib/pbl/v2/api/sse';
 import { applyInstructorEvent } from './apply-instructor-event';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 import { useSettingsStore } from '@/lib/store/settings';
 import { normalizeProjectRuntime } from '@/lib/pbl/v2/operations/kernel/progress';
 import {
@@ -452,15 +452,8 @@ export function PBLV2SubmissionPanel({
         });
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
-          'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString || '',
-          'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey || '',
-          'x-model-source': modelConfig.source,
+          ...modelRequestHeaders(modelConfig),
         };
-        if (modelConfig.source === 'platform' && modelConfig.defaultId) {
-          headers['x-platform-default-id'] = modelConfig.defaultId;
-        }
-        if (modelConfig.baseUrl) headers['x-base-url'] = modelConfig.baseUrl;
-        if (modelConfig.providerType) headers['x-provider-type'] = modelConfig.providerType;
         try {
           const stored = localStorage.getItem('locale');
           if (stored) headers['x-user-locale'] = stored;

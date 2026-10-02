@@ -12,7 +12,7 @@ import type {
   LearningQuestionGrade,
 } from '@/lib/learning/contracts';
 import { listLearningCheckAttempts, recordLearningCheckPhase } from '@/lib/learning/runtime';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 
 export function gradeLearningSelection(
   question: LearningQuestion,
@@ -33,19 +33,10 @@ export function gradeLearningSelection(
 }
 
 function modelHeaders(): Record<string, string> {
-  const model = getCurrentModelConfig();
-  const headers: Record<string, string> = {
+  return {
     'content-type': 'application/json',
-    'x-model': model.source === 'platform' ? '' : model.modelString,
-    'x-api-key': model.source === 'platform' ? '' : model.apiKey,
-    'x-model-source': model.source,
+    ...modelRequestHeaders(getCurrentModelConfig()),
   };
-  if (model.source === 'platform' && model.defaultId) {
-    headers['x-platform-default-id'] = model.defaultId;
-  }
-  if (model.baseUrl) headers['x-base-url'] = model.baseUrl;
-  if (model.providerType) headers['x-provider-type'] = model.providerType;
-  return headers;
 }
 
 async function gradeShortAnswer(

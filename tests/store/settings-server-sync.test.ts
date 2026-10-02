@@ -14,10 +14,9 @@ import { isProviderUsable } from '@/lib/store/settings-validation';
 // Mocks — must be defined before importing the store
 // ---------------------------------------------------------------------------
 
-// Minimal built-in provider registry used by the store
-vi.mock('@/lib/model-gateway/catalog/client-catalog', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/model-gateway/catalog/client-catalog')>()),
-  PROVIDERS: {
+// Minimal built-in provider registry used by the store (the full catalog since P5)
+vi.mock('@/lib/model-gateway/catalog/client-catalog', async (importOriginal) => {
+  const providers = {
     openai: {
       id: 'openai',
       name: 'OpenAI',
@@ -55,8 +54,13 @@ vi.mock('@/lib/model-gateway/catalog/client-catalog', async (importOriginal) => 
         { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
       ],
     },
-  },
-}));
+  };
+  return {
+    ...(await importOriginal<typeof import('@/lib/model-gateway/catalog/client-catalog')>()),
+    PROVIDERS: providers,
+    CLIENT_PROVIDERS: providers,
+  };
+});
 
 vi.mock('@/lib/audio/constants', () => ({
   TTS_PROVIDERS: {

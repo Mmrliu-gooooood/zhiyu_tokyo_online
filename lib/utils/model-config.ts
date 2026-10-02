@@ -9,6 +9,7 @@ import { getCatalogThinkingCapability } from '@/lib/model-gateway/catalog/client
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
 import type { ModelConfigInput } from '@/types/pro-model';
+import { nonEmptyParams } from '@/lib/utils/model-selection';
 
 function hasExplicitThinkingIntent(config: ThinkingConfig | undefined): boolean {
   return Boolean(
@@ -68,6 +69,9 @@ export function getCurrentModelConfig() {
       isServerConfigured: true,
       thinkingConfig,
       api: undefined,
+      endpointProfile: undefined,
+      endpointParams: undefined,
+      credentialId: undefined,
       source: selection.source,
       defaultId: selection.defaultId,
       revision: selectedPlatformRevision(selection, platformDefaults),
@@ -79,20 +83,86 @@ export function getCurrentModelConfig() {
     ? normalizeThinkingConfig(thinking, savedThinking)
     : undefined;
 
+  // A subscription sign-in sends its credential reference, never an API key.
+  const signedIn = providerConfig?.authMode === 'oauth' && !!providerConfig.credentialId;
   return {
     providerId,
     modelId,
     modelString,
-    apiKey: providerConfig?.apiKey || '',
+    apiKey: signedIn ? '' : providerConfig?.apiKey || '',
     baseUrl: providerConfig?.baseUrl || '',
     providerType: providerConfig?.type,
     requiresApiKey: providerConfig?.requiresApiKey,
     isServerConfigured: providerConfig?.isServerConfigured,
     thinkingConfig,
     api: providerConfig?.api,
+    endpointProfile: providerConfig?.endpointProfile || undefined,
+    endpointParams: nonEmptyParams(providerConfig?.endpointParams),
+    credentialId: signedIn ? providerConfig.credentialId : undefined,
     source: selection.source,
     defaultId: undefined,
     revision: undefined,
+  };
+}
+
+/**
+ * The model-selection request headers for a Home model configuration — the
+ * single place the browser encodes them (read by the server's
+ * readModelSelection). A platform selection carries only its stable ID.
+ */
+export function modelRequestHeaders(config: ModelConfigInput): Record<string, string> {
+  const source = config.source ?? 'legacy-managed';
+  if (source === 'platform') {
+    return {
+      'x-model-source': source,
+      ...(config.defaultId ? { 'x-platform-default-id': config.defaultId } : {}),
+    };
+  }
+  const params = nonEmptyParams(config.endpointParams);
+  const headers: Record<string, string> = { 'x-model-source': source };
+  if (config.modelString) headers['x-model'] = config.modelString;
+  if (config.apiKey) headers['x-api-key'] = config.apiKey;
+  if (config.baseUrl) headers['x-base-url'] = config.baseUrl;
+  if (config.providerType) headers['x-provider-type'] = config.providerType;
+  if (config.api) headers['x-model-api'] = config.api;
+  if (config.credentialId) headers['x-model-credential-id'] = config.credentialId;
+  if (config.endpointProfile) headers['x-model-endpoint-profile'] = config.endpointProfile;
+  if (params) headers['x-model-endpoint-params'] = JSON.stringify(params);
+  return headers;
+}
+
+/** Model-selection fields for JSON request bodies (/api/chat, coach, teach-back). */
+export interface ModelRequestBodyFields {
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+  providerType?: string;
+  modelSource?: 'platform' | 'user' | 'legacy-managed';
+  platformDefaultId?: string;
+  api?: string;
+  endpointProfile?: string;
+  endpointParams?: Record<string, string>;
+  credentialId?: string;
+}
+
+/** The body counterpart of {@link modelRequestHeaders}. */
+export function modelRequestBodyFields(config: ModelConfigInput): ModelRequestBodyFields {
+  if (config.source === 'platform') {
+    return { apiKey: '', modelSource: 'platform', platformDefaultId: config.defaultId };
+  }
+  return {
+    apiKey: config.apiKey ?? '',
+    baseUrl: config.baseUrl,
+    model: config.modelString,
+    providerType: config.providerType,
+    modelSource: config.source,
+    platformDefaultId: undefined,
+    ...(config.api ? { api: config.api } : {}),
+    ...(config.endpointProfile ? { endpointProfile: config.endpointProfile } : {}),
+    ...(nonEmptyParams(config.endpointParams)
+      ? { endpointParams: nonEmptyParams(config.endpointParams) }
+      : {}),
+    ...(config.credentialId ? { credentialId: config.credentialId } : {}),
   };
 }
 

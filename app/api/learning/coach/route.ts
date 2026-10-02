@@ -18,6 +18,7 @@ import {
 import {
   gateway,
   getBindingResolutionError,
+  modelParamsFromBody,
   resolveParamsBinding,
   userText,
 } from '@/lib/model-gateway';
@@ -197,24 +198,7 @@ async function handlePOST(req: NextRequest) {
       throw new Error('Guided request context does not match the current session');
     }
 
-    const binding = await resolveParamsBinding(
-      {
-        modelString: typeof raw.model === 'string' ? raw.model : undefined,
-        apiKey: typeof raw.apiKey === 'string' ? raw.apiKey : undefined,
-        baseUrl: typeof raw.baseUrl === 'string' ? raw.baseUrl : undefined,
-        providerType: typeof raw.providerType === 'string' ? raw.providerType : undefined,
-        source:
-          raw.modelSource === 'platform' ||
-          raw.modelSource === 'user' ||
-          raw.modelSource === 'legacy-managed'
-            ? raw.modelSource
-            : undefined,
-        platformDefaultId:
-          typeof raw.platformDefaultId === 'string' ? raw.platformDefaultId : undefined,
-        thinkingConfig: isRecord(raw.thinkingConfig) ? raw.thinkingConfig : undefined,
-      },
-      'chat-adapter',
-    );
+    const binding = await resolveParamsBinding(modelParamsFromBody(raw), 'chat-adapter');
 
     const guidedCall: GuidedModelCall = async ({
       system,

@@ -48,7 +48,7 @@ import {
   storeImages,
 } from '@/lib/utils/image-storage';
 import { deleteStageData } from '@/lib/utils/stage-storage';
-import { getCurrentModelConfig } from '@/lib/utils/model-config';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 import { resolveSessionDocumentSources } from '@/lib/document/session-sources';
 import { MAX_VISION_IMAGES } from '@/lib/constants/generation';
 import {
@@ -500,12 +500,7 @@ function GenerationPreviewContent() {
     const videoIsPlatform = videoSelection.source === 'platform';
     return {
       'Content-Type': 'application/json',
-      'x-model': modelConfig.source === 'platform' ? '' : modelConfig.modelString,
-      'x-model-source': modelConfig.source,
-      'x-platform-default-id': modelConfig.defaultId || '',
-      'x-api-key': modelConfig.source === 'platform' ? '' : modelConfig.apiKey,
-      'x-base-url': modelConfig.source === 'platform' ? '' : modelConfig.baseUrl,
-      'x-provider-type': modelConfig.source === 'platform' ? '' : modelConfig.providerType || '',
+      ...modelRequestHeaders(modelConfig),
       // Image generation provider
       'x-image-provider': imageIsPlatform ? '' : settings.imageProviderId || '',
       'x-image-model': imageIsPlatform ? '' : settings.imageModelId || '',

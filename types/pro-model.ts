@@ -26,6 +26,12 @@ export interface ModelConfigInput {
   providerType?: string;
   /** Wire protocol (any gateway WireApi the provider allows). */
   api?: WireApi;
+  /** Catalog endpoint profile (regional / plan variant). */
+  endpointProfile?: string;
+  /** Non-secret catalog endpoint values (Cloudflare account / gateway id). */
+  endpointParams?: Record<string, string>;
+  /** Subscription credential reference (R2); mutually exclusive with apiKey. */
+  credentialId?: string;
   thinkingConfig?: ThinkingConfig;
 }
 
