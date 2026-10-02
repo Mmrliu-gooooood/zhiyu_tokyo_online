@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./pbl/kernel/*": {
+      "types": "./dist/pbl/operations/kernel/*.d.ts",
+      "import": "./dist/pbl/operations/kernel/*.js"
     }
   },
   "files": [
