@@ -813,7 +813,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P1 | 已完成（2026-10-01） | e685d617, fb61d7bc, 1b087555, 31a97a3f, 26494258, ebf14626 + 本次 P1-7 提交 | 见下方 P1 记录 | 思考映射有 4 类白名单差异（9 例；GLM clear_thinking 已在 P1 收尾修正）；P2 overlay 需补的数据已记录 |
 | P2 | 已完成（2026-10-01） | e3ddfeb8, c625ad10, 50d4cef8, 8892d3c9, da210b6f, 0568e98c, 857c9c92 + 本次进度提交 | 见下方 P2 记录 | 黄金数据 1653 例全部重放，差异由 16 条规则逐例白名单；修正一处 P1 遗漏（Claude 5 中途 effort）与一处 Azure 环境变量泄露；若干产品可见的行为修正见记录 |
 | P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
-| P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 有 1 个 P3 遗留失败（假服务器非流式），见记录 |
+| P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
 | P5 | 未开始 | | | |
 | R1 验收（P7） | 未开始 | | | |
 | P6 | 未开始 | | | |
@@ -1032,7 +1032,7 @@ P2 门槛证据：
   - pnpm build:worker、pnpm build：通过；node scripts/smoke-pi-runtime.mjs：standalone 与 worker 均通过（本地，非严格模式）；node scripts/generate-model-catalog.mjs --check：通过
   - 真实 PostgreSQL（docker-compose.accounts-rls-proof.yml 隔离库 127.0.0.1:55432）：
     · tests/server/usage-funding-migration.test.ts（v20 连续执行两次、旧行保留、取值检查）：PGlite + PostgreSQL 2/2 通过
-    · TEST_GENERATION_DATABASE_URL 下 generation-jobs.pg、generation-transaction-queue.pg 全部通过；generation-worker-pipeline.pg 2 通过 / 1 失败（见遗留问题，P4 之前即失败）
+    · TEST_GENERATION_DATABASE_URL 下 generation-jobs.pg、generation-transaction-queue.pg 全部通过；generation-worker-pipeline.pg 起初 2 通过 / 1 失败（P4 之前即失败），ab6a9989 修复后三个 .pg 文件 12/12 通过
 P4 门槛证据：
   - 快照：generation-model-snapshots.test.ts 覆盖 v1、v2-user、v2-legacy-managed、v2-platform 升级 fixture、只写 v3、平台 revision 必填；preflight 两个测试文件覆盖 v3 与种入的 v1/v2 行
   - PRO 连接：model-connections.test.ts 覆盖 { v: 2, selection } 落库内容、selection 与旧平铺请求体同义去重、读 v1 并在下一次变更写 v2、非法 selection 拒绝
@@ -1040,7 +1040,7 @@ P4 门槛证据：
 黄金数据差异白名单：无新增
 真实供应商验证：未验证（P4 只涉及持久化与用量字段，全部用假服务器 / faux / 隔离数据库）
 遗留问题：
-  - tests/server/generation-worker-pipeline.pg.test.ts 的 "strong-killed worker resumes a committed provider response…" 失败：假服务器返回非流式 chat.completion JSON，而网关（pi）始终流式请求，计划步骤从未成功；在 P4 之前的提交 800826e4 上同样失败（P3 遗留，此前各阶段未运行 .pg 测试）。需要把该夹具改为 SSE 流式响应
+  - tests/server/generation-worker-pipeline.pg.test.ts 的 "strong-killed worker resumes a committed provider response…" 失败：假服务器返回非流式 chat.completion JSON，而网关（pi）始终流式请求，计划步骤从未成功；在 P4 之前的提交 800826e4 上同样失败（P3 遗留，此前各阶段未运行 .pg 测试）。已修复：ab6a9989 把夹具改为 SSE 流式响应，断言不变；重建 worker 后在隔离库上通过
   - 回滚：旧版本代码读不了 v3 快照与 v2 PRO revision；按 P7 第 4 条，R1 发布前需准备"v3/v2 读兼容"热修补分支，或回滚前排空由新版本创建的任务。accounts v20 为 additive，旧代码忽略新列
   - 仍未重新构建 Docker 镜像做严格模式冒烟（P7 发布前必做）
 下一阶段可开始：是（P5 不依赖真实凭据或产品取舍；P5-5 浏览器实测可用假服务器，若要用真实 key 再向用户索取）
