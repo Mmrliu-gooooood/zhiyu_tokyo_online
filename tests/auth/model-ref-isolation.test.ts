@@ -162,9 +162,12 @@ describe('user:{uuid} modelRef / snapshot isolation', () => {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          source: 'user',
-          modelString: 'openai:gpt-test',
-          apiKey: 'private-key',
+          selection: {
+            source: 'user',
+            providerId: 'openai',
+            modelId: 'gpt-test',
+            connection: { auth: 'api-key', apiKey: 'private-key' },
+          },
         }),
       }),
     );

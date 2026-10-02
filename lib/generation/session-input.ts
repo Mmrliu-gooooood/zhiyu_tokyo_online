@@ -1,6 +1,6 @@
 import type { GenerationSessionState } from '@/app/generation-preview/types';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
-import type { ProModelContext } from '@/types/pro-model';
+import type { ModelConfigInput } from '@/types/pro-model';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
 import { useSettingsStore } from '@/lib/store/settings';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
@@ -50,7 +50,7 @@ export async function buildGenerationJobInput(
   signal: AbortSignal,
   onAsset: (key: string, asset: GenerationUploadedAsset) => void,
 ): Promise<GenerationInput> {
-  let model: ProModelContext = getCurrentModelConfig();
+  let model: ModelConfigInput = getCurrentModelConfig();
   if (resolveSessionDocumentSources(session).length)
     rejectClientProvider(session.pdfProviderConfig);
   if (session.sceneOutlines?.length || session.researchContext) {

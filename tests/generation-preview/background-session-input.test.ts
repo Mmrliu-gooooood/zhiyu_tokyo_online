@@ -366,8 +366,15 @@ describe('background session input', () => {
       vi.fn(),
     );
 
-    expect(input.model).toEqual(acceptedModel);
-    expect(input.model?.revision).toBe('new');
+    // The job names the same platform model the accepted snapshot selection pinned.
+    expect(acceptedModel).toEqual({
+      selection: { source: 'platform', defaultId: 'zhiyu-default-text', revision: 'new' },
+    });
+    expect(input.model).toEqual({
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
+      revision: 'new',
+    });
     expect(input.modelConfigRef).toEqual(ref);
     expect(input.media?.image).toEqual(acceptedImage);
     expect(input.media?.image).toMatchObject({ revision: 'new-image' });
@@ -546,8 +553,11 @@ describe('background session input', () => {
       if (url === '/api/generate-classroom/model-snapshots') {
         const body = JSON.parse(String(init?.body));
         expect(body).toMatchObject({
-          modelString: 'openai:gpt-4.1',
-          apiKey: 'test-client-credential',
+          selection: {
+            providerId: 'openai',
+            modelId: 'gpt-4.1',
+            connection: { auth: 'api-key', apiKey: 'test-client-credential' },
+          },
         });
         return Response.json({ ref });
       }

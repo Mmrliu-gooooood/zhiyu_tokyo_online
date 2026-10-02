@@ -1,9 +1,10 @@
 import type { GenerationModelRef } from '@/lib/server/generation-jobs/contracts';
-import type { ProModelContext } from '@/types/pro-model';
+import { modelConfigSelection } from '@/lib/utils/model-selection';
+import type { ModelConfigInput } from '@/types/pro-model';
 import { GenerationJobRequestError } from './job-client';
 
 export async function syncGenerationModelSnapshot(
-  context: ProModelContext,
+  context: ModelConfigInput,
   signal?: AbortSignal,
 ): Promise<GenerationModelRef> {
   return (await prepareGenerationModelSnapshot(context, signal)).ref;
@@ -11,25 +12,18 @@ export async function syncGenerationModelSnapshot(
 
 /** Keep the accepted model and its encrypted reference together when freezing a new job. */
 export async function prepareGenerationModelSnapshot(
-  context: ProModelContext,
+  context: ModelConfigInput,
   signal?: AbortSignal,
-): Promise<{ ref: GenerationModelRef; context: ProModelContext }> {
+): Promise<{ ref: GenerationModelRef; context: ModelConfigInput }> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const payload =
-      context.source === 'platform'
-        ? {
-            source: context.source,
-            defaultId: context.defaultId,
-            ...(context.revision ? { revision: context.revision } : {}),
-            ...(context.thinkingConfig ? { thinkingConfig: context.thinkingConfig } : {}),
-          }
-        : context;
+    const selection = modelConfigSelection(context);
+    if (!selection) throw new GenerationJobRequestError(400, 'PRO_MODEL_INVALID_CONFIG');
     const response = await fetch('/api/generate-classroom/model-snapshots', {
       method: 'POST',
       credentials: 'same-origin',
       signal,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ selection }),
     });
     const body = await response.json();
     const code = body?.errorCode ?? body?.error ?? 'GENERATION_MODEL_SNAPSHOT_UNAVAILABLE';

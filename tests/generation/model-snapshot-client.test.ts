@@ -29,7 +29,7 @@ describe('generation model snapshot client', () => {
       await expect(syncGenerationModelSnapshot(context, signal)).resolves.toEqual(ref);
 
       expect(refresh).toHaveBeenCalledExactlyOnceWith(context, signal);
-      expect(JSON.parse(request.mock.calls[1][1].body).revision).toBe('new');
+      expect(JSON.parse(request.mock.calls[1][1].body).selection.revision).toBe('new');
       expect(request.mock.calls[1][1].signal).toBe(signal);
     },
   );
@@ -91,10 +91,12 @@ describe('generation model snapshot client', () => {
     ).resolves.toEqual(ref);
 
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
-      source: 'platform',
-      defaultId: 'zhiyu-default-text',
-      revision: 'text-r1',
-      thinkingConfig: { mode: 'disabled', effort: 'none' },
+      selection: {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        thinking: { mode: 'disabled', effort: 'none' },
+      },
     });
   });
 });

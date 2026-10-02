@@ -1,6 +1,11 @@
 import type { AgentLlmModel } from '@/lib/model-gateway/adapters/agent-pi-types';
 
-import { resolveParamsBinding, withThinking, type ModelBinding } from '@/lib/model-gateway';
+import {
+  resolveBinding,
+  selectionModelString,
+  withThinking,
+  type ModelBinding,
+} from '@/lib/model-gateway';
 import { getStageRoute } from '@/lib/server/model-routes';
 import type { ProModelContext } from '@/types/pro-model';
 
@@ -63,11 +68,7 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   // The provider prefix must be explicit. A bare model id would silently
   // default to the openai provider, so the driver fails here instead.
   const modelString =
-    route?.model ??
-    modelContext?.modelString ??
-    (modelContext?.source === 'platform' && modelContext.defaultId
-      ? `platform:${modelContext.defaultId}`
-      : undefined);
+    route?.model ?? (modelContext ? selectionModelString(modelContext.selection) : undefined);
   if (!modelString) {
     throw new Error('PRO_MODEL_CONFIGURATION_REQUIRED: No model selection is available.');
   }
@@ -81,7 +82,10 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   }
   // A configured route ignores the Home connection entirely (resolveBinding),
   // so personal credentials never reach an administrator-selected model.
-  let binding = await resolveParamsBinding(modelContext ?? {}, AGENT_DRIVER_STAGE);
+  let binding = await resolveBinding({
+    selection: modelContext?.selection,
+    stage: AGENT_DRIVER_STAGE,
+  });
   if (binding.capabilities.tools === false) {
     throw new Error('PRO_MODEL_TOOLS: 当前模型已确认不支持工具调用，请在模型设置中更换模型。');
   }

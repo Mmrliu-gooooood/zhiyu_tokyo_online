@@ -52,13 +52,14 @@ const MODEL_RUNTIME_ALLOWED = [
 ];
 
 // Browser-reachable code may use the gateway's isomorphic surface only: types
-// (type-only) and the catalog. Everything else under lib/model-gateway pulls
-// in the server runtime (pi-ai, credentials, transport).
+// (type-only), the catalog, and the ModelSelection contract the browser
+// builds (selection/schema + its errors). Everything else under
+// lib/model-gateway pulls in the server runtime (pi-ai, credentials, transport).
 const CLIENT_MODEL_GATEWAY_PATTERN = {
-  // Anything under @/lib/model-gateway except `types` and `catalog/*`.
-  regex: '^@/lib/model-gateway(?:/(?!types$|catalog(?:/|$)).*)?$',
+  // Anything under @/lib/model-gateway except `types`, `catalog/*` and the selection contract.
+  regex: '^@/lib/model-gateway(?:/(?!types$|catalog(?:/|$)|selection/(?:schema|errors)$).*)?$',
   message:
-    'Client code may import only @/lib/model-gateway/types (types) and @/lib/model-gateway/catalog/*; the rest of the gateway is server-only (pi-ai runtime, credentials).',
+    'Client code may import only @/lib/model-gateway/types (types), @/lib/model-gateway/catalog/* and @/lib/model-gateway/selection/schema; the rest of the gateway is server-only (pi-ai runtime, credentials).',
 };
 
 const POLLED_TASK_SERVER_CARRIER_PATTERN = {

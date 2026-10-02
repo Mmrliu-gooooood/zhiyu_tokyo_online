@@ -29,7 +29,14 @@ describe('Home connection synchronization', () => {
   it('stores only the public ref and sends the current configuration directly to its owner API', async () => {
     request.mockResolvedValue(Response.json({ ref }));
     expect(await syncProModelConnection(config)).toEqual(ref);
-    expect(JSON.parse(request.mock.calls[0][1].body)).toEqual(config);
+    expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+      selection: {
+        source: 'legacy-managed',
+        providerId: 'openai',
+        modelId: 'gpt-4o',
+        connection: { auth: 'api-key', apiKey: 'private-key' },
+      },
+    });
     expect([...saved.values()].join()).not.toContain('private-key');
   });
   it('sends a platform connection as a stable reference without local provider details', async () => {
@@ -44,10 +51,12 @@ describe('Home connection synchronization', () => {
       thinkingConfig: { mode: 'disabled', effort: 'none' },
     });
     expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
-      source: 'platform',
-      defaultId: 'zhiyu-default-text',
-      revision: 'text-r1',
-      thinkingConfig: { mode: 'disabled', effort: 'none' },
+      selection: {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        thinking: { mode: 'disabled', effort: 'none' },
+      },
     });
   });
   it('recovers a stale ref once by syncing the current Home config as a new connection', async () => {
@@ -77,7 +86,10 @@ describe('Home connection synchronization', () => {
     await expect(syncProModelConnection(platform)).resolves.toEqual(ref);
 
     expect(refresh).toHaveBeenCalledExactlyOnceWith(platform);
-    expect(JSON.parse(request.mock.calls[1][1].body)).toMatchObject({ revision: 'new', ref });
+    expect(JSON.parse(request.mock.calls[1][1].body)).toMatchObject({
+      selection: { revision: 'new' },
+      ref,
+    });
   });
   it('does not retry a platform connection conflict when the catalog has not changed', async () => {
     const platform = {

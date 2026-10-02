@@ -10,6 +10,15 @@ import {
   sealGenerationModelSnapshot,
   type StoredGenerationModelSnapshotContent,
 } from '@/lib/server/generation-model-snapshots';
+import { modelConfigSelection } from '@/lib/utils/model-selection';
+import type { ModelConfigInput, ProModelContext } from '@/types/pro-model';
+
+/** A Home model configuration (flat settings fields) as a connection selection. */
+export function selectionOf(config: ModelConfigInput): Pick<ProModelContext, 'selection'> {
+  const selection = modelConfigSelection(config);
+  if (!selection) throw new Error('invalid test model configuration');
+  return { selection };
+}
 
 export async function plantModelSnapshot(
   db: Queryable,

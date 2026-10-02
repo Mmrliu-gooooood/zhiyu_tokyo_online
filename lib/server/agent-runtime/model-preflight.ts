@@ -1,5 +1,5 @@
 import type { ProModelContext } from '@/types/pro-model';
-import { GatewayError, resolveParamsBinding, type ModelBinding } from '@/lib/model-gateway';
+import { GatewayError, resolveBinding, type ModelBinding } from '@/lib/model-gateway';
 import type { LlmStage } from '@/lib/server/model-routes';
 import { resolveAgentDriverModel } from './agent-driver-model';
 import { safeModelError } from './model-errors';
@@ -40,7 +40,7 @@ export async function preflightProModel(modelContext?: ProModelContext): Promise
       'scene-actions',
     ] as LlmStage[]) {
       // A configured stage route ignores the connection context (resolveBinding).
-      assertCredentialReady(await resolveParamsBinding(modelContext ?? {}, stage));
+      assertCredentialReady(await resolveBinding({ selection: modelContext?.selection, stage }));
     }
     return { chatReady: true, generationReady: true, driverModel };
   } catch (error) {

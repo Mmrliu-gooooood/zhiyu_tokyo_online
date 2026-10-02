@@ -25,7 +25,7 @@ import {
   GenerationModelSnapshotStore,
   generationModelSnapshotContent,
 } from '@/lib/server/generation-model-snapshots';
-import { plantModelSnapshot } from '@/tests/helpers/legacy-model-snapshot';
+import { plantModelSnapshot, selectionOf } from '@/tests/helpers/legacy-model-snapshot';
 import { GENERATION_MIGRATION_3 } from '@/lib/server/generation-jobs/migrations';
 import { parseGenerationInput } from '@/lib/server/generation-jobs/contracts';
 import type { validateBackgroundProviders } from '@/lib/server/generation-jobs/preflight';
@@ -58,12 +58,14 @@ describe('background model snapshot preflight with real model resolution', () =>
   async function input(modelString = 'openai:gpt-4.1', apiKey = 'owner-key') {
     const modelConfigRef = await store.create(
       'owner-a',
-      generationModelSnapshotContent({
-        modelString,
-        apiKey,
-        providerType: 'openai',
-        baseUrl: 'https://models.example.test/v1',
-      }),
+      generationModelSnapshotContent(
+        selectionOf({
+          modelString,
+          apiKey,
+          providerType: 'openai',
+          baseUrl: 'https://models.example.test/v1',
+        }),
+      ),
     );
     return parseGenerationInput({
       version: 1,

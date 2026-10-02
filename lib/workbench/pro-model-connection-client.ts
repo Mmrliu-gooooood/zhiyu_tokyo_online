@@ -1,5 +1,6 @@
 import { defaultWorkbenchTranslator, type WorkbenchCopyKey } from '@/lib/i18n/workbench';
-import type { ProModelContext, ProModelRef } from '@/types/pro-model';
+import { modelConfigSelection } from '@/lib/utils/model-selection';
+import type { ModelConfigInput, ProModelRef } from '@/types/pro-model';
 
 const REF_KEY = 'openmaic:pro-model-ref';
 const REVOKE_KEY = 'openmaic:pro-model-revoke-pending';
@@ -42,7 +43,7 @@ export async function flushProModelRevocation(): Promise<void> {
 }
 
 /** Only the opaque reference is cached; credentials travel directly to the owner API. */
-export async function syncProModelConnection(config: ProModelContext): Promise<ProModelRef> {
+export async function syncProModelConnection(config: ModelConfigInput): Promise<ProModelRef> {
   const local = storage();
   await flushProModelRevocation();
   let ref: ProModelRef | undefined;
@@ -52,20 +53,14 @@ export async function syncProModelConnection(config: ProModelContext): Promise<P
     /* stale cache */
   }
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const payload =
-      config.source === 'platform'
-        ? {
-            source: config.source,
-            defaultId: config.defaultId,
-            ...(config.revision ? { revision: config.revision } : {}),
-            ...(config.thinkingConfig ? { thinkingConfig: config.thinkingConfig } : {}),
-          }
-        : config;
+    // Credentials travel only inside the selection, directly to the owner API.
+    const selection = modelConfigSelection(config);
+    if (!selection) throw new Error(proModelConfigurationMessage('PRO_MODEL_INVALID_CONFIG'));
     const response = await fetch('/api/agent/model-connections', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...payload, ...(ref ? { ref } : {}) }),
+      body: JSON.stringify({ selection, ...(ref ? { ref } : {}) }),
     });
     const body = await response.json().catch(() => ({}));
     if (

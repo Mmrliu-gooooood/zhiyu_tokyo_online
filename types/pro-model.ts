@@ -1,6 +1,7 @@
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { PlatformDefaultId } from '@/lib/types/platform-default-models';
 import type { WireApi } from '@/lib/model-gateway/types';
+import type { ModelSelection } from '@/lib/model-gateway/selection/schema';
 
 /** Public, owner-scoped reference. It never authorizes access by itself. */
 export interface ProModelRef {
@@ -8,8 +9,11 @@ export interface ProModelRef {
   revision: number;
 }
 
-/** Connection input / server-only resolved context. Never persist in a session. */
-export interface ProModelContext {
+/**
+ * The Home model configuration in the browser (flat settings fields). It is
+ * converted to a ModelSelection before it leaves the browser.
+ */
+export interface ModelConfigInput {
   /** Explicit source for new connections; omitted only by legacy snapshots. */
   source?: 'platform' | 'user' | 'legacy-managed';
   /** Stable server-resolved reference. Platform contexts never carry provider credentials. */
@@ -23,6 +27,11 @@ export interface ProModelContext {
   /** Wire protocol (any gateway WireApi the provider allows). */
   api?: WireApi;
   thinkingConfig?: ThinkingConfig;
+}
+
+/** Server-only resolved connection. Never persist in a session. */
+export interface ProModelContext {
+  selection: ModelSelection;
   /** Server-only revocation fence, checked before each outgoing call. */
   assertActive?: () => Promise<void>;
 }

@@ -38,17 +38,7 @@ describe('generation model snapshots', () => {
   };
 
   it('writes v3 content: the gateway selection plus catalog and gateway versions', () => {
-    expect(
-      generationModelSnapshotContent({
-        source: 'user',
-        modelString: 'openai:gpt-test',
-        apiKey: 'private-key',
-        baseUrl: 'https://api.example.com/v1',
-        providerType: 'openai',
-        api: 'openai-completions',
-        thinkingConfig: { mode: 'disabled', effort: 'none' },
-      }),
-    ).toEqual(content);
+    expect(generationModelSnapshotContent({ selection: content.selection })).toEqual(content);
   });
 
   describe('upgradeSnapshotContent', () => {
@@ -141,20 +131,21 @@ describe('generation model snapshots', () => {
 
   it('rejects a v3 platform selection without a pinned revision', () => {
     expect(() =>
-      generationModelSnapshotContent({ source: 'platform', defaultId: 'zhiyu-default-text' }),
+      generationModelSnapshotContent({
+        selection: { source: 'platform', defaultId: 'zhiyu-default-text' },
+      }),
     ).toThrow('GENERATION_MODEL_INVALID');
   });
 
-  it('serializes platform intent without provider credentials or concrete model ids', () => {
+  it('serializes platform intent as a stable reference plus its thinking preference', () => {
     expect(
       generationModelSnapshotContent({
-        source: 'platform',
-        defaultId: 'zhiyu-default-text',
-        revision: 'text-r1',
-        modelString: 'deepseek:must-not-leak',
-        apiKey: 'must-not-leak',
-        baseUrl: 'https://must-not-leak.example.com',
-        thinkingConfig: { mode: 'disabled', effort: 'none' },
+        selection: {
+          source: 'platform',
+          defaultId: 'zhiyu-default-text',
+          revision: 'text-r1',
+          thinking: { mode: 'disabled', effort: 'none' },
+        },
       }),
     ).toEqual({
       version: 3,
@@ -172,9 +163,7 @@ describe('generation model snapshots', () => {
   it('rejects non-text platform defaults at the text model snapshot boundary', () => {
     expect(() =>
       generationModelSnapshotContent({
-        source: 'platform',
-        defaultId: 'zhiyu-default-image',
-        revision: 'image-r1',
+        selection: { source: 'platform', defaultId: 'zhiyu-default-image', revision: 'image-r1' },
       }),
     ).toThrow('GENERATION_MODEL_INVALID');
   });

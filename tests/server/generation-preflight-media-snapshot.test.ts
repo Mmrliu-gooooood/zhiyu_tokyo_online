@@ -37,6 +37,7 @@ import {
   GenerationModelSnapshotStore,
   generationModelSnapshotContent,
 } from '@/lib/server/generation-model-snapshots';
+import { selectionOf } from '@/tests/helpers/legacy-model-snapshot';
 import {
   GENERATION_MIGRATION_2,
   GENERATION_MIGRATION_3,
@@ -126,12 +127,14 @@ describe('background media snapshot preflight', () => {
     vi.stubEnv('GENERATION_MODEL_ENCRYPTION_KEY', 'cd'.repeat(32));
     const ref = await new GenerationModelSnapshotStore(queryable).create(
       'owner-a',
-      generationModelSnapshotContent({
-        modelString: 'openai:gpt-test',
-        apiKey: 'owner-model-key',
-        providerType: 'openai',
-        api: 'openai-completions',
-      }),
+      generationModelSnapshotContent(
+        selectionOf({
+          modelString: 'openai:gpt-test',
+          apiKey: 'owner-model-key',
+          providerType: 'openai',
+          api: 'openai-completions',
+        }),
+      ),
     );
     const value = parseGenerationInput({
       version: 1,

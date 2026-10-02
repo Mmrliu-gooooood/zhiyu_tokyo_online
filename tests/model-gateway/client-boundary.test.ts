@@ -13,6 +13,9 @@ import { describe, expect, it } from 'vitest';
 const ROOT = process.cwd();
 const CLIENT_ROOTS = [
   'lib/model-gateway/types.ts',
+  // The ModelSelection contract the browser builds (plan P4-2).
+  'lib/model-gateway/selection/schema.ts',
+  'lib/model-gateway/selection/errors.ts',
   ...readdirSync(path.join(ROOT, 'lib/model-gateway/catalog'))
     .filter((name) => name.endsWith('.ts'))
     .map((name) => `lib/model-gateway/catalog/${name}`),
@@ -24,7 +27,7 @@ const FORBIDDEN_PACKAGES = [
   /^@earendil-works\/pi-agent-core/,
 ];
 const FORBIDDEN_MODULES =
-  /^lib\/model-gateway\/(?:runtime|credentials|selection|adapters|testing|auth)\/|^lib\/model-gateway\/index\.ts$|^lib\/server\//;
+  /^lib\/model-gateway\/(?:(?:runtime|credentials|adapters|testing|auth)\/|selection\/(?!(?:schema|errors)\.ts$))|^lib\/model-gateway\/index\.ts$|^lib\/server\//;
 
 function resolveModule(from: string, specifier: string): string | undefined {
   const base = specifier.startsWith('@/')

@@ -1,4 +1,4 @@
-import { createCipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
@@ -31,6 +31,15 @@ import {
   proModelConnectionCiphertextsEqual,
   reassignProModelConnectionCiphertext,
 } from '@/lib/server/agent-runtime/model-connections';
+import type { ProModelContext } from '@/types/pro-model';
+
+/** The stored connection's API key (or undefined without a keyed connection). */
+function apiKeyOf(context: ProModelContext): string | undefined {
+  const { selection } = context;
+  return selection.source !== 'platform' && selection.connection?.auth === 'api-key'
+    ? selection.connection.apiKey
+    : undefined;
+}
 
 describe('durable encrypted PRO model connections', () => {
   let db: PGlite;
@@ -87,8 +96,8 @@ describe('durable encrypted PRO model connections', () => {
     const saved = await db.query('SELECT * FROM pro_model_connection_revisions');
     expect(JSON.stringify(saved.rows)).not.toContain(context.apiKey);
     expect(JSON.stringify(saved.rows)).not.toContain(context.baseUrl);
-    expect((await store.load('owner-a', first)).apiKey).toBe(context.apiKey);
-    expect((await store.load('owner-a', second)).apiKey).toBe('new-key');
+    expect(apiKeyOf(await store.load('owner-a', first))).toBe(context.apiKey);
+    expect(apiKeyOf(await store.load('owner-a', second))).toBe('new-key');
   });
 
   it('re-encrypts owner AAD and compares randomized retry ciphertext without exposing plaintext', async () => {
@@ -124,7 +133,7 @@ describe('durable encrypted PRO model connections', () => {
       code: 'PRO_MODEL_CONNECTION_STALE',
       status: 409,
     });
-    await expect(store.load('owner-a', second)).resolves.toMatchObject({ apiKey: 'winner-key' });
+    expect(apiKeyOf(await store.load('owner-a', second))).toBe('winner-key');
   });
 
   it('rejects cross-owner reads and replacement, and invalidates existing contexts after revoke', async () => {
@@ -165,8 +174,11 @@ describe('durable encrypted PRO model connections', () => {
     mocks.managed = true;
     const ref = await store.sync('owner-a', context);
     const loaded = await store.load('owner-a', ref);
-    expect(loaded.apiKey).toBeUndefined();
-    expect(loaded.baseUrl).toBeUndefined();
+    expect(loaded.selection).toEqual({
+      source: 'legacy-managed',
+      providerId: 'openai',
+      modelId: 'gpt-4o',
+    });
   });
 
   it('stores only a stable platform reference plus its normalized thinking preference', async () => {
@@ -180,16 +192,11 @@ describe('durable encrypted PRO model connections', () => {
       thinkingConfig: { mode: 'enabled', effort: 'high' },
     });
 
-    expect(await store.load('owner-a', ref)).toMatchObject({
+    expect((await store.load('owner-a', ref)).selection).toEqual({
       source: 'platform',
       defaultId: 'zhiyu-default-text',
       revision: 'text-r1',
-      thinkingConfig: { mode: 'enabled', effort: 'high' },
-    });
-    expect(await store.load('owner-a', ref)).not.toMatchObject({
-      modelString: expect.anything(),
-      apiKey: expect.anything(),
-      baseUrl: expect.anything(),
+      thinking: { mode: 'enabled', effort: 'high' },
     });
   });
 
@@ -220,11 +227,11 @@ describe('durable encrypted PRO model connections', () => {
       [ref.id, ref.revision, ciphertext],
     );
 
-    await expect(store.load('owner-a', ref)).resolves.toMatchObject({
+    expect((await store.load('owner-a', ref)).selection).toEqual({
       source: 'platform',
       defaultId: 'zhiyu-default-text',
       revision: 'text-r1',
-      thinkingConfig: { mode: 'disabled', effort: 'none' },
+      thinking: { mode: 'disabled', effort: 'none' },
     });
   });
 
@@ -234,7 +241,7 @@ describe('durable encrypted PRO model connections', () => {
       defaultId: 'zhiyu-default-text',
       revision: 'text-r1',
     });
-    expect((await store.load('owner-a', ref)).thinkingConfig).toEqual({
+    expect((await store.load('owner-a', ref)).selection.thinking).toEqual({
       mode: 'disabled',
       effort: 'none',
     });
@@ -255,7 +262,7 @@ describe('durable encrypted PRO model connections', () => {
         revision: 'text-r1',
         thinkingConfig,
       });
-      expect((await store.load('owner-a', defaulted)).thinkingConfig).toEqual({
+      expect((await store.load('owner-a', defaulted)).selection.thinking).toEqual({
         mode: 'disabled',
         effort: 'none',
       });
@@ -279,7 +286,7 @@ describe('durable encrypted PRO model connections', () => {
     });
     const next = await store.sync('owner-a', context, previous);
     expect(next.revision).toBe(previous.revision + 1);
-    expect((await store.load('owner-a', next)).apiKey).toBe(context.apiKey);
+    expect(apiKeyOf(await store.load('owner-a', next))).toBe(context.apiKey);
   });
 
   it('rejects missing keys, unsafe endpoints and ambiguous custom protocols without persisting', async () => {
@@ -302,6 +309,75 @@ describe('durable encrypted PRO model connections', () => {
       modelString: 'custom-test:model',
       providerType: 'openai',
     });
-    expect((await store.load('owner-a', ref)).api).toBe('openai-completions');
+    expect((await store.load('owner-a', ref)).selection).toMatchObject({
+      providerId: 'custom-test',
+      connection: { auth: 'api-key', api: 'openai-completions' },
+    });
+  });
+
+  it('writes v2 { v: 2, selection } revisions and accepts the selection wire body', async () => {
+    const selection = {
+      source: 'user' as const,
+      providerId: 'anthropic',
+      modelId: 'claude-sonnet-4',
+      connection: { auth: 'api-key' as const, apiKey: 'selection-key' },
+    };
+    const ref = await store.sync('owner-a', { selection });
+    expect((await store.load('owner-a', ref)).selection).toEqual(selection);
+    // The same intent through the legacy flat body is the same revision.
+    expect(
+      await store.sync(
+        'owner-a',
+        { source: 'user', modelString: 'anthropic:claude-sonnet-4', apiKey: 'selection-key' },
+        ref,
+      ),
+    ).toEqual(ref);
+    const saved = await db.query<{ ciphertext: string }>(
+      'SELECT ciphertext FROM pro_model_connection_revisions WHERE connection_id=$1',
+      [ref.id],
+    );
+    const [, iv, tag, body] = saved.rows[0]!.ciphertext.split('.');
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      Buffer.from('ab'.repeat(32), 'hex'),
+      Buffer.from(iv!, 'base64'),
+    );
+    decipher.setAAD(Buffer.from(JSON.stringify(['pro-model:v1', 'owner-a', ref.id, ref.revision])));
+    decipher.setAuthTag(Buffer.from(tag!, 'base64'));
+    const plain = JSON.parse(
+      Buffer.concat([decipher.update(Buffer.from(body!, 'base64')), decipher.final()]).toString(),
+    );
+    expect(plain).toEqual({ v: 2, selection });
+  });
+
+  it('reads v1 flat revisions and replaces them with a v2 revision on the next change', async () => {
+    const ref = { id: '2f4c1a8e-9a7b-4c1d-8e2f-3a4b5c6d7e8f', revision: 1 };
+    await db.query('INSERT INTO pro_model_connections(id,owner_id,revision) VALUES ($1,$2,$3)', [
+      ref.id,
+      'owner-a',
+      ref.revision,
+    ]);
+    await db.query(
+      'INSERT INTO pro_model_connection_revisions(connection_id,revision,ciphertext) VALUES ($1,$2,$3)',
+      [
+        ref.id,
+        ref.revision,
+        sealLegacyPlatformContext({ ...context, source: 'user' }, 'owner-a', ref),
+      ],
+    );
+    expect((await store.load('owner-a', ref)).selection).toEqual({
+      source: 'user',
+      providerId: 'openai',
+      modelId: 'gpt-4o',
+      connection: { auth: 'api-key', apiKey: context.apiKey, baseUrl: context.baseUrl },
+    });
+    const next = await store.sync('owner-a', { ...context, source: 'user' }, ref);
+    expect(next).toEqual({ id: ref.id, revision: 2 });
+  });
+
+  it('rejects a selection body that is not a valid ModelSelection', async () => {
+    await expect(
+      store.sync('owner-a', { selection: { source: 'user', providerId: 'openai' } }),
+    ).rejects.toMatchObject({ code: 'PRO_MODEL_INVALID_CONFIG' });
   });
 });

@@ -8,7 +8,7 @@ import { findModelById } from '@/lib/ai/model-aliases';
 import { getCatalogThinkingCapability } from '@/lib/model-gateway/catalog/client-catalog';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
-import type { ProModelContext } from '@/types/pro-model';
+import type { ModelConfigInput } from '@/types/pro-model';
 
 function hasExplicitThinkingIntent(config: ThinkingConfig | undefined): boolean {
   return Boolean(
@@ -98,9 +98,9 @@ export function getCurrentModelConfig() {
 
 /** Refresh only a rejected new platform selection; never replace a run's stored snapshot. */
 export async function refreshPlatformModelConfig(
-  rejected: ProModelContext,
+  rejected: ModelConfigInput,
   signal?: AbortSignal,
-): Promise<ProModelContext | undefined> {
+): Promise<ModelConfigInput | undefined> {
   if (rejected.source !== 'platform') return undefined;
   signal?.throwIfAborted();
   await useSettingsStore.getState().fetchServerProviders();

@@ -3,10 +3,12 @@ import { z } from 'zod';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
 import {
   ModelSelectionError,
+  modelSelectionSchema,
   parseModelString,
   upgradeLegacyModelParams,
+  type ModelSelection,
 } from '@/lib/model-gateway';
-import { apiForLegacyProviderType, getDescriptor } from '@/lib/model-gateway/catalog/descriptors';
+import { getDescriptor } from '@/lib/model-gateway/catalog/descriptors';
 import { WIRE_APIS } from '@/lib/model-gateway/selection/schema';
 import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { getPersistenceDatabaseUrl, tryAgentRuntimeDatabaseUrl } from '@/lib/db/database-urls';
@@ -40,7 +42,8 @@ export class ProModelConnectionError extends Error {
 }
 
 const refSchema = z.object({ id: z.uuid(), revision: z.number().int().positive() });
-const contextSchema = z.object({
+/** v1 revision content and the legacy flat request body (Home settings fields). */
+const legacyContextSchema = z.object({
   source: z.enum(['platform', 'user', 'legacy-managed']).optional(),
   defaultId: z
     .enum(['zhiyu-default-text', 'zhiyu-default-image', 'zhiyu-default-video', 'zhiyu-default-tts'])
@@ -68,6 +71,12 @@ const contextSchema = z.object({
     })
     .optional(),
 });
+type LegacyContext = z.infer<typeof legacyContextSchema>;
+/** v2 revision content (plan 3.14). */
+const selectionContentSchema = z
+  .object({ v: z.literal(2), selection: modelSelectionSchema })
+  .strict();
+type StoredContent = z.infer<typeof selectionContentSchema>;
 
 export function parseProModelRef(value: unknown): ProModelRef | undefined {
   const result = refSchema.safeParse(value);
@@ -82,11 +91,25 @@ function encryptionKey(): Buffer {
   return Buffer.from(configured, 'hex');
 }
 
-function seal(context: ProModelContext, ownerId: string, ref: ProModelRef): string {
+function canonical(value: unknown): string {
+  const visit = (item: unknown): unknown =>
+    Array.isArray(item)
+      ? item.map(visit)
+      : item && typeof item === 'object'
+        ? Object.fromEntries(
+            Object.entries(item)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, v]) => [k, visit(v)]),
+          )
+        : item;
+  return JSON.stringify(visit(value));
+}
+
+function seal(content: unknown, ownerId: string, ref: ProModelRef): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', encryptionKey(), iv);
   cipher.setAAD(Buffer.from(JSON.stringify(['pro-model:v1', ownerId, ref.id, ref.revision])));
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(context), 'utf8'), cipher.final()]);
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(content), 'utf8'), cipher.final()]);
   return [
     'v1',
     iv.toString('base64'),
@@ -95,7 +118,12 @@ function seal(context: ProModelContext, ownerId: string, ref: ProModelRef): stri
   ].join('.');
 }
 
-function unseal(ciphertext: string, ownerId: string, ref: ProModelRef): ProModelContext {
+/** Stored revision content: v2 `{ v: 2, selection }` or a v1 flat context. */
+function unseal(
+  ciphertext: string,
+  ownerId: string,
+  ref: ProModelRef,
+): StoredContent | LegacyContext {
   const key = encryptionKey();
   try {
     const [version, iv, tag, encrypted, extra] = ciphertext.split('.');
@@ -103,14 +131,14 @@ function unseal(ciphertext: string, ownerId: string, ref: ProModelRef): ProModel
     const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
     decipher.setAAD(Buffer.from(JSON.stringify(['pro-model:v1', ownerId, ref.id, ref.revision])));
     decipher.setAuthTag(Buffer.from(tag, 'base64'));
-    return contextSchema.parse(
-      JSON.parse(
-        Buffer.concat([
-          decipher.update(Buffer.from(encrypted, 'base64')),
-          decipher.final(),
-        ]).toString('utf8'),
+    const value: unknown = JSON.parse(
+      Buffer.concat([decipher.update(Buffer.from(encrypted, 'base64')), decipher.final()]).toString(
+        'utf8',
       ),
     );
+    return value && typeof value === 'object' && 'v' in value
+      ? selectionContentSchema.parse(value)
+      : legacyContextSchema.parse(value);
   } catch {
     throw new ProModelConnectionError('PRO_MODEL_DECRYPTION_FAILED', 503);
   }
@@ -134,43 +162,83 @@ export function proModelConnectionCiphertextsEqual(
   ref: ProModelRef,
 ): boolean {
   return (
-    JSON.stringify(unseal(leftCiphertext, ownerId, ref)) ===
-    JSON.stringify(unseal(rightCiphertext, ownerId, ref))
+    canonical(unseal(leftCiphertext, ownerId, ref)) ===
+    canonical(unseal(rightCiphertext, ownerId, ref))
   );
 }
 
-async function normalizeModelConnectionContextWithPolicy(
-  value: unknown,
-  allowLegacyPlatformWithoutRevision: boolean,
-): Promise<ProModelContext> {
-  const result = contextSchema.safeParse(value);
-  if (!result.success) throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
-  const context = result.data;
+/** Operator / test helper: the envelope for revision content of any version. */
+export function sealProModelConnectionContent(
+  content: StoredContent | LegacyContext,
+  ownerId: string,
+  ref: ProModelRef,
+): string {
+  return seal(content, ownerId, ref);
+}
+
+function invalidConfig(): ProModelConnectionError {
+  return new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+}
+
+/** Legacy flat fields → selection, with the checks that need the flat form. */
+function upgradeLegacyContext(context: LegacyContext): ModelSelection {
   if (context.source === 'platform') {
-    if (!context.defaultId) throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+    if (!context.defaultId) throw invalidConfig();
+    return {
+      source: 'platform',
+      defaultId: context.defaultId,
+      ...(context.revision ? { revision: context.revision } : {}),
+      ...(context.thinkingConfig ? { thinking: context.thinkingConfig } : {}),
+    };
+  }
+  if (context.defaultId || !context.modelString) throw invalidConfig();
+  const descriptor = getDescriptor(parseModelString(context.modelString).providerId);
+  if (
+    descriptor?.legacyProviderType &&
+    context.providerType &&
+    descriptor.legacyProviderType !== context.providerType
+  ) {
+    throw new ProModelConnectionError('PRO_MODEL_PROVIDER_TYPE_MISMATCH');
+  }
+  try {
+    const selection = upgradeLegacyModelParams(context);
+    if (!selection) throw invalidConfig();
+    return selection;
+  } catch (error) {
+    if (error instanceof ModelSelectionError) throw invalidConfig();
+    throw error;
+  }
+}
+
+async function normalizeSelection(
+  selection: ModelSelection,
+  allowLegacyPlatformWithoutRevision: boolean,
+): Promise<ModelSelection> {
+  if (selection.source === 'platform') {
     try {
-      const binding = resolvePlatformDefault(context.defaultId, 'text');
-      if (!context.revision && !allowLegacyPlatformWithoutRevision) {
+      const binding = resolvePlatformDefault(selection.defaultId, 'text');
+      if (!selection.revision && !allowLegacyPlatformWithoutRevision) {
         throw new ProModelConnectionError('PRO_MODEL_CONNECTION_STALE', 409);
       }
-      if (context.revision && context.revision !== binding.revision) {
+      if (selection.revision && selection.revision !== binding.revision) {
         throw new ProModelConnectionError('PRO_MODEL_CONNECTION_STALE', 409);
       }
       if (
-        context.thinkingConfig &&
-        !isPlatformThinkingConfigSupported(binding.parameters, context.thinkingConfig)
+        selection.thinking &&
+        !isPlatformThinkingConfigSupported(binding.parameters, selection.thinking)
       ) {
-        throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
+        throw invalidConfig();
       }
+      const thinking = normalizePlatformThinkingConfig(
+        binding.parameters,
+        selection.thinking,
+        binding.defaultThinkingConfig,
+      );
       return {
         source: 'platform',
         defaultId: binding.defaultId,
         revision: binding.revision,
-        thinkingConfig: normalizePlatformThinkingConfig(
-          binding.parameters,
-          context.thinkingConfig,
-          binding.defaultThinkingConfig,
-        ),
+        ...(thinking ? { thinking } : {}),
       };
     } catch (error) {
       if (error instanceof ProModelConnectionError) throw error;
@@ -180,60 +248,71 @@ async function normalizeModelConnectionContextWithPolicy(
       throw error;
     }
   }
-  if (context.defaultId || !context.modelString) {
-    throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
-  }
-  const { providerId } = parseModelString(context.modelString);
-  const descriptor = getDescriptor(providerId);
-  const managed = context.source !== 'user' && isServerConfiguredProvider('providers', providerId);
-  // A custom provider needs its wire protocol; Home's legacy provider type
-  // names it (OpenAI mode = chat completions).
-  if (!descriptor && !context.api) {
-    context.api = apiForLegacyProviderType(context.providerType);
-  }
-  if (!descriptor && !context.api) {
+  const connection = selection.connection;
+  const descriptor = getDescriptor(selection.providerId);
+  // A custom provider needs its wire protocol.
+  if (!descriptor && !(connection && 'api' in connection && connection.api)) {
     throw new ProModelConnectionError('PRO_MODEL_PROTOCOL_REQUIRED');
   }
   if (
-    descriptor?.legacyProviderType &&
-    context.providerType &&
-    descriptor.legacyProviderType !== context.providerType
+    selection.source === 'legacy-managed' &&
+    isServerConfiguredProvider('providers', selection.providerId)
   ) {
-    throw new ProModelConnectionError('PRO_MODEL_PROVIDER_TYPE_MISMATCH');
-  }
-  if (managed) {
     // Browser copies never override administrator-owned credentials/endpoints.
-    delete context.apiKey;
-    delete context.baseUrl;
-    delete context.providerType;
-  } else {
-    if (!descriptor?.auth.includes('none') && !context.apiKey?.trim()) {
-      throw new ProModelConnectionError('PRO_MODEL_KEY_REQUIRED');
-    }
-    if (context.baseUrl) {
-      const unsafe = await validateUrlForSSRF(context.baseUrl);
-      if (unsafe) throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
-      const url = new URL(context.baseUrl);
-      if (url.username || url.password || url.search || url.hash) {
-        throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
-      }
+    const { connection: _ignored, ...managed } = selection;
+    return managed;
+  }
+  const keyed =
+    connection?.auth === 'credential' ||
+    (connection?.auth === 'api-key' && connection.apiKey.trim().length > 0);
+  if (!descriptor?.auth.includes('none') && !keyed) {
+    throw new ProModelConnectionError('PRO_MODEL_KEY_REQUIRED');
+  }
+  const baseUrl = connection && 'baseUrl' in connection ? connection.baseUrl : undefined;
+  if (baseUrl) {
+    const unsafe = await validateUrlForSSRF(baseUrl);
+    if (unsafe) throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
+    const url = new URL(baseUrl);
+    if (url.username || url.password || url.search || url.hash) {
+      throw new ProModelConnectionError('PRO_MODEL_UNSAFE_ENDPOINT');
     }
   }
-  // The stored context must upgrade to a gateway ModelSelection (plan 3.14).
-  try {
-    upgradeLegacyModelParams(context);
-  } catch (error) {
-    if (error instanceof ModelSelectionError) {
-      throw new ProModelConnectionError('PRO_MODEL_INVALID_CONFIG');
-    }
-    throw error;
-  }
-  return context;
+  return selection;
 }
 
-/** Normalize a new browser request; platform selections must pin the catalog revision. */
+async function normalizeModelConnectionContextWithPolicy(
+  value: unknown,
+  allowLegacyPlatformWithoutRevision: boolean,
+): Promise<ProModelContext> {
+  let selection: ModelSelection;
+  if (value && typeof value === 'object' && 'selection' in value) {
+    const parsed = modelSelectionSchema.safeParse(value.selection);
+    if (!parsed.success) throw invalidConfig();
+    selection = parsed.data;
+  } else {
+    const parsed = legacyContextSchema.safeParse(value);
+    if (!parsed.success) throw invalidConfig();
+    selection = upgradeLegacyContext(parsed.data);
+  }
+  return {
+    selection: await normalizeSelection(selection, allowLegacyPlatformWithoutRevision),
+  };
+}
+
+/**
+ * Normalize a new browser request (`{ selection }`, or the legacy flat Home
+ * fields); platform selections must pin the catalog revision.
+ */
 export function normalizeModelConnectionContext(value: unknown): Promise<ProModelContext> {
   return normalizeModelConnectionContextWithPolicy(value, false);
+}
+
+/** Stored revision content (either version) → a re-validated connection. */
+function normalizeStored(content: StoredContent | LegacyContext): Promise<ProModelContext> {
+  return normalizeModelConnectionContextWithPolicy(
+    'v' in content ? { selection: content.selection } : content,
+    true,
+  );
 }
 
 /** Repository uses injected transactions so encryption/isolation can be tested with real SQL. */
@@ -245,7 +324,8 @@ export class ProModelConnectionStore {
 
   async sync(ownerId: string, value: unknown, previous?: ProModelRef): Promise<ProModelRef> {
     encryptionKey();
-    const context = await normalizeModelConnectionContext(value);
+    const { selection } = await normalizeModelConnectionContext(value);
+    const content: StoredContent = { v: 2, selection };
     return this.transaction(async (db) => {
       await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`pro-model:${ownerId}`]);
       const existing = await db.query<{ id: string; revision: number; revoked: boolean }>(
@@ -269,8 +349,7 @@ export class ProModelConnectionStore {
         let unchanged = false;
         try {
           unchanged =
-            JSON.stringify(unseal(latest.rows[0].ciphertext, ownerId, current)) ===
-            JSON.stringify(context);
+            canonical(unseal(latest.rows[0].ciphertext, ownerId, current)) === canonical(content);
         } catch (error) {
           // A deliberate deployment-key rotation invalidates old snapshots but
           // must not prevent this authenticated owner from replacing its input.
@@ -285,7 +364,7 @@ export class ProModelConnectionStore {
         }
       }
       const ref = { id: current?.id ?? randomUUID(), revision: (current?.revision ?? 0) + 1 };
-      const ciphertext = seal(context, ownerId, ref);
+      const ciphertext = seal(content, ownerId, ref);
       if (current) {
         await db.query('UPDATE pro_model_connections SET revision=$2 WHERE id=$1', [
           ref.id,
@@ -321,11 +400,8 @@ export class ProModelConnectionStore {
       [ref.id, ownerId, ref.revision],
     );
     if (!result.rows[0]) throw new ProModelConnectionError('PRO_MODEL_CONNECTION_UNAVAILABLE', 409);
-    const context = await normalizeModelConnectionContextWithPolicy(
-      unseal(result.rows[0].ciphertext, ownerId, ref),
-      true,
-    );
-    return { ...context, assertActive: () => this.assertActive(ownerId, ref) };
+    const { selection } = await normalizeStored(unseal(result.rows[0].ciphertext, ownerId, ref));
+    return { selection, assertActive: () => this.assertActive(ownerId, ref) };
   }
 
   async revoke(ownerId: string, id?: string): Promise<void> {

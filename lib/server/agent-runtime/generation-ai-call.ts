@@ -1,6 +1,6 @@
 import type { AICallFn } from '@openmaic/generation';
 
-import { gateway, resolveParamsBinding, userText, type ModelBinding } from '@/lib/model-gateway';
+import { gateway, resolveBinding, userText, type ModelBinding } from '@/lib/model-gateway';
 import type { LlmStage } from '@/lib/server/model-routes';
 import type { ProModelContext } from '@/types/pro-model';
 import { safeModelError } from './model-errors';
@@ -26,7 +26,7 @@ export function createGenerationAiCallFactory(options?: {
         options?.abortSignal?.throwIfAborted();
         await options?.modelContext?.assertActive?.();
         // A configured stage route ignores the connection context (resolveBinding).
-        binding ??= await resolveParamsBinding(options?.modelContext, stage);
+        binding ??= await resolveBinding({ selection: options?.modelContext?.selection, stage });
         const result = await gateway.complete(
           binding,
           { system: systemPrompt, messages: [userText(userPrompt)] },

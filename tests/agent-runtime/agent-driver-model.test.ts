@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as GatewayModule from '@/lib/model-gateway';
+import { selectionOf } from '@/tests/helpers/legacy-model-snapshot';
 
 /**
  * The PRO driver resolves through the gateway (resolveBinding with the
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     | undefined
     | ((
         actual: typeof GatewayModule,
-      ) => (...args: Parameters<typeof GatewayModule.resolveParamsBinding>) => unknown),
+      ) => (...args: Parameters<typeof GatewayModule.resolveBinding>) => unknown),
 }));
 
 /** Fresh modules per test: model-routes caches MODEL_ROUTES at first read. */
@@ -20,14 +21,14 @@ async function load() {
     const actual = await importOriginal<typeof GatewayModule>();
     return {
       ...actual,
-      resolveParamsBinding: vi.fn((...args: Parameters<typeof actual.resolveParamsBinding>) =>
-        mocks.override ? mocks.override(actual)(...args) : actual.resolveParamsBinding(...args),
+      resolveBinding: vi.fn((...args: Parameters<typeof actual.resolveBinding>) =>
+        mocks.override ? mocks.override(actual)(...args) : actual.resolveBinding(...args),
       ),
     };
   });
   const gateway = await import('@/lib/model-gateway');
   const driver = await import('@/lib/server/agent-runtime/agent-driver-model');
-  return { ...driver, resolveParamsBinding: vi.mocked(gateway.resolveParamsBinding), gateway };
+  return { ...driver, resolveBinding: vi.mocked(gateway.resolveBinding), gateway };
 }
 
 const route = (entry: Record<string, unknown>) => {
@@ -43,22 +44,25 @@ describe('agent driver model', () => {
   });
 
   it('fails loud when neither a dedicated route nor a Home connection exists', async () => {
-    const { resolveAgentDriverModel, resolveParamsBinding } = await load();
+    const { resolveAgentDriverModel, resolveBinding } = await load();
     await expect(resolveAgentDriverModel()).rejects.toThrow('must explicitly configure');
-    expect(resolveParamsBinding).not.toHaveBeenCalled();
+    expect(resolveBinding).not.toHaveBeenCalled();
   });
 
   it('uses the Home connection and keeps its thinking effort', async () => {
-    const { resolveAgentDriverModel, resolveParamsBinding } = await load();
-    const home = {
-      source: 'user' as const,
+    const { resolveAgentDriverModel, resolveBinding } = await load();
+    const home = selectionOf({
+      source: 'user',
       modelString: 'deepseek:deepseek-flash',
       apiKey: 'home-secret',
-      thinkingConfig: { mode: 'enabled' as const, effort: 'high' as const },
-    };
+      thinkingConfig: { mode: 'enabled', effort: 'high' },
+    });
     const driver = await resolveAgentDriverModel(home);
 
-    expect(resolveParamsBinding).toHaveBeenCalledWith(home, 'maic-agent-driver');
+    expect(resolveBinding).toHaveBeenCalledWith({
+      selection: home.selection,
+      stage: 'maic-agent-driver',
+    });
     expect(driver.binding.thinking).toEqual({ mode: 'enabled', effort: 'high' });
     expect(driver.binding.credentialReady).toBe(true);
     // pi ids match the messages the gateway produces for this model.
@@ -72,23 +76,27 @@ describe('agent driver model', () => {
 
   it('accepts non-OpenAI protocols for the tool-using driver', async () => {
     const { resolveAgentDriverModel } = await load();
-    const driver = await resolveAgentDriverModel({
-      source: 'user',
-      modelString: 'anthropic:claude-sonnet-4-5',
-      apiKey: 'home-secret',
-    });
+    const driver = await resolveAgentDriverModel(
+      selectionOf({
+        source: 'user',
+        modelString: 'anthropic:claude-sonnet-4-5',
+        apiKey: 'home-secret',
+      }),
+    );
     expect(driver.piModel.api).toBe('anthropic-messages');
   });
 
   it('does not send Home secrets into an explicitly routed driver', async () => {
     route({ model: 'deepseek:deepseek-flash' });
     const { resolveAgentDriverModel } = await load();
-    const driver = await resolveAgentDriverModel({
-      source: 'user',
-      modelString: 'custom-home:home',
-      apiKey: 'home-secret',
-      baseUrl: 'https://home.example/v1',
-    });
+    const driver = await resolveAgentDriverModel(
+      selectionOf({
+        source: 'user',
+        modelString: 'custom-home:home',
+        apiKey: 'home-secret',
+        baseUrl: 'https://home.example/v1',
+      }),
+    );
     expect(driver.binding).toMatchObject({
       providerId: 'deepseek',
       modelId: 'deepseek-flash',
@@ -99,23 +107,25 @@ describe('agent driver model', () => {
   });
 
   it('rejects a model reviewed as not supporting tools', async () => {
-    mocks.override = (actual) => async (params, stage) => {
-      const binding = await actual.resolveParamsBinding(params, stage);
+    mocks.override = (actual) => async (input) => {
+      const binding = await actual.resolveBinding(input);
       return { ...binding, capabilities: { ...binding.capabilities, tools: false } };
     };
     const { resolveAgentDriverModel } = await load();
     await expect(
-      resolveAgentDriverModel({
-        source: 'user',
-        modelString: 'deepseek:deepseek-flash',
-        apiKey: 'k',
-      }),
+      resolveAgentDriverModel(
+        selectionOf({
+          source: 'user',
+          modelString: 'deepseek:deepseek-flash',
+          apiKey: 'k',
+        }),
+      ),
     ).rejects.toThrow('PRO_MODEL_TOOLS');
   });
 
   it('drops the effort (keeps on/off) only for models that reject effort with tools', async () => {
-    mocks.override = (actual) => async (params, stage) => {
-      const binding = await actual.resolveParamsBinding(params, stage);
+    mocks.override = (actual) => async (input) => {
+      const binding = await actual.resolveBinding(input);
       // A reviewed flag on an otherwise real binding (same private credential handle).
       const { createBinding, getCredentialHandle } =
         await import('@/lib/model-gateway/credentials/handles');
@@ -127,12 +137,14 @@ describe('agent driver model', () => {
     };
     const home = await load();
     await expect(
-      home.resolveAgentDriverModel({
-        source: 'user',
-        modelString: 'deepseek:deepseek-flash',
-        apiKey: 'k',
-        thinkingConfig: { mode: 'disabled', effort: 'none' },
-      }),
+      home.resolveAgentDriverModel(
+        selectionOf({
+          source: 'user',
+          modelString: 'deepseek:deepseek-flash',
+          apiKey: 'k',
+          thinkingConfig: { mode: 'disabled', effort: 'none' },
+        }),
+      ),
     ).resolves.toMatchObject({ binding: { thinking: { mode: 'disabled' } } });
 
     vi.resetModules();
@@ -143,9 +155,9 @@ describe('agent driver model', () => {
 
   it('requires an explicit provider prefix', async () => {
     route({ model: 'gpt-5.6-luna' });
-    const { resolveAgentDriverModel, resolveParamsBinding } = await load();
+    const { resolveAgentDriverModel, resolveBinding } = await load();
     await expect(resolveAgentDriverModel()).rejects.toThrow('explicit provider prefix');
-    expect(resolveParamsBinding).not.toHaveBeenCalled();
+    expect(resolveBinding).not.toHaveBeenCalled();
   });
 
   it('uses the catalog windows for a known model', async () => {
@@ -163,13 +175,15 @@ describe('agent driver model', () => {
 
   it('falls back to a conservative window and omits the wire cap for an unknown model', async () => {
     const { resolveAgentDriverModel } = await load();
-    const resolved = await resolveAgentDriverModel({
-      source: 'user',
-      modelString: 'custom-home:some-model',
-      apiKey: 'k',
-      baseUrl: 'https://gateway.example/v1',
-      api: 'openai-completions',
-    });
+    const resolved = await resolveAgentDriverModel(
+      selectionOf({
+        source: 'user',
+        modelString: 'custom-home:some-model',
+        apiKey: 'k',
+        baseUrl: 'https://gateway.example/v1',
+        api: 'openai-completions',
+      }),
+    );
 
     // A 1M fallback made pi's compaction threshold unreachable.
     expect(resolved.binding.capabilities.knownModel).toBe(false);

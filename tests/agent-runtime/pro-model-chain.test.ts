@@ -17,7 +17,7 @@ import type { ProModelContext } from '@/types/pro-model';
 
 const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
-  resolveParamsBinding: vi.fn(),
+  resolveBinding: vi.fn(),
   modelStream: vi.fn(),
   getStageRoute: vi.fn(),
 }));
@@ -28,17 +28,28 @@ vi.mock('@/lib/model-gateway', async (importOriginal) => {
   return mockGatewayModule(await importOriginal(), {
     delegate: () => driverGateway,
     complete: mocks.complete,
-    resolveParamsBinding: mocks.resolveParamsBinding,
+    resolveBinding: mocks.resolveBinding,
   });
 });
 vi.mock('@/lib/server/model-routes', () => ({ getStageRoute: mocks.getStageRoute }));
 
 const prior = '学过微积分、想练一阶微分方程方法判断';
+const HOME_KEY = 'personal-secret';
 const home: ProModelContext = {
-  modelString: 'openai:gpt-5.6',
-  apiKey: 'personal-secret',
-  api: 'openai-responses',
+  selection: {
+    source: 'legacy-managed',
+    providerId: 'openai',
+    modelId: 'gpt-5.6',
+    connection: { auth: 'api-key', apiKey: HOME_KEY, api: 'openai-responses' },
+  },
 };
+/** The API key a resolver call received through its selection. */
+function keyOf(input: { selection?: ProModelContext['selection'] }): string | undefined {
+  const selection = input.selection;
+  return selection?.source !== 'platform' && selection?.connection?.auth === 'api-key'
+    ? selection.connection.apiKey
+    : undefined;
+}
 const usage = {
   inputTokens: 10,
   outputTokens: 10,
@@ -51,7 +62,7 @@ beforeEach(() => {
   mocks.getStageRoute.mockReturnValue(undefined);
   delete process.env.MODEL_ROUTES;
   delete process.env.DEFAULT_MODEL;
-  mocks.resolveParamsBinding.mockImplementation(async () =>
+  mocks.resolveBinding.mockImplementation(async () =>
     testBinding({ modelId: 'gpt-5.6', modelString: 'openai:gpt-5.6' }),
   );
 });
@@ -95,7 +106,7 @@ describe('PRO Home model complete generation chain', () => {
       const first = turns++ === 0;
       const transcript = JSON.stringify(params.messages);
       expect(transcript).toContain(prior);
-      expect(transcript).not.toContain(home.apiKey);
+      expect(transcript).not.toContain(HOME_KEY);
       return {
         fullStream: (async function* () {
           if (first)
@@ -143,15 +154,14 @@ describe('PRO Home model complete generation chain', () => {
     expect(doc.scenes[0]?.type).toBe('quiz');
     expect(JSON.stringify(doc.scenes[0]?.content)).toContain('可分离变量');
     expect(doc.scenes[0]?.actions?.length).toBeGreaterThan(0);
-    expect(mocks.resolveParamsBinding.mock.calls.map(([, stage]) => stage)).toEqual([
+    expect(mocks.resolveBinding.mock.calls.map(([input]) => input.stage)).toEqual([
       'maic-agent-driver',
       'scene-content:quiz',
       'scene-actions',
     ]);
-    for (const [params] of mocks.resolveParamsBinding.mock.calls)
-      expect(params.apiKey).toBe(home.apiKey);
+    for (const [input] of mocks.resolveBinding.mock.calls) expect(keyOf(input)).toBe(HOME_KEY);
     expect(assertActive.mock.calls.length).toBeGreaterThanOrEqual(5);
-    expect(JSON.stringify(doc)).not.toContain(home.apiKey);
+    expect(JSON.stringify(doc)).not.toContain(HOME_KEY);
   });
 
   it('retains each explicit stage route and checks revocation even after cached resolution', async () => {
@@ -173,23 +183,21 @@ describe('PRO Home model complete generation chain', () => {
     await factory('scene-actions')('system', 'actions');
     // resolveBinding lets a configured stage route override the connection
     // context (tests/model-gateway/selection/resolve-binding.test.ts).
-    expect(mocks.resolveParamsBinding.mock.calls[0]).toEqual([
-      expect.objectContaining({ apiKey: home.apiKey }),
-      'scene-content:slide',
-    ]);
-    expect(mocks.resolveParamsBinding.mock.calls[1]?.[1]).toBe('scene-actions');
+    expect(keyOf(mocks.resolveBinding.mock.calls[0]![0])).toBe(HOME_KEY);
+    expect(mocks.resolveBinding.mock.calls[0]![0].stage).toBe('scene-content:slide');
+    expect(mocks.resolveBinding.mock.calls[1]?.[0].stage).toBe('scene-actions');
     revoked = true;
     await expect(factory('scene-content:slide')('system', 'page')).rejects.toThrow(
       'PRO_MODEL_REVOKED',
     );
     expect(mocks.complete).toHaveBeenCalledTimes(2);
-    expect(mocks.resolveParamsBinding).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveBinding).toHaveBeenCalledTimes(2);
   });
 
   it('preflight separates chatting from generating and strips remote secrets from errors', async () => {
-    mocks.resolveParamsBinding.mockImplementation(async (_params, stage) => {
+    mocks.resolveBinding.mockImplementation(async ({ stage }) => {
       if (stage === 'maic-agent-driver')
-        return testBinding({ modelId: 'gpt-5.6', modelString: home.modelString });
+        return testBinding({ modelId: 'gpt-5.6', modelString: 'openai:gpt-5.6' });
       throw new Error('401 invalid api key personal-secret https://secret.example?token=123');
     });
     expect(await preflightProModel(home)).toMatchObject({

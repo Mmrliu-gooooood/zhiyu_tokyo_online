@@ -237,28 +237,11 @@ export function sealGenerationModelSnapshot(
 
 /** v3 content for a run's model: the selection plus the catalog / gateway versions in force. */
 export function generationModelSnapshotContent(
-  value: ProModelContext,
+  value: Pick<ProModelContext, 'selection'>,
 ): GenerationModelSnapshotContent {
-  const { assertActive: _assertActive, ...flat } = value;
-  let selection: ModelSelection | undefined;
-  try {
-    // Platform intent never carries provider credentials or a concrete model.
-    selection = upgradeLegacyModelParams(
-      flat.source === 'platform'
-        ? {
-            source: flat.source,
-            defaultId: flat.defaultId,
-            revision: flat.revision,
-            thinkingConfig: flat.thinkingConfig,
-          }
-        : flat,
-    );
-  } catch (error) {
-    if (!(error instanceof ModelSelectionError)) throw error;
-  }
   const parsed = selectionContentSchema.safeParse({
     version: GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION,
-    selection,
+    selection: value.selection,
     catalogVersion: CATALOG_VERSION,
     gatewayVersion: GATEWAY_VERSION,
   });

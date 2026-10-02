@@ -23,14 +23,9 @@ export async function POST(req: Request) {
     async ({ ownerId, headers }) => {
       try {
         const normalized = await normalizeModelConnectionContext(await readGenerationJson(req));
-        const { baseUrl, ...modelContext } = normalized;
-        const endpoint = baseUrl?.trim();
         const ref = await syncGenerationModelSnapshot(
           ownerId,
-          generationModelSnapshotContent({
-            ...modelContext,
-            ...(endpoint ? { baseUrl: endpoint } : {}),
-          }),
+          generationModelSnapshotContent(normalized),
         );
         return generationResponse({ success: true, ref }, headers, 201);
       } catch (error) {
