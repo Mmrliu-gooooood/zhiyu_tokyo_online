@@ -73,12 +73,7 @@ interface MediaGenerationState {
 
 // ==================== Helper ====================
 
-const CONCRETE_URL = /^(https?:|data:|blob:|\/|\.\.?\/)/i;
-
-/** Check whether a media reference still needs resolution before rendering. */
-export function isMediaPlaceholder(src: string): boolean {
-  return !!src && !CONCRETE_URL.test(src);
-}
+export { isMediaPlaceholder } from '@/lib/media/placeholder';
 
 // ==================== Store ====================
 

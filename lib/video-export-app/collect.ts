@@ -24,7 +24,7 @@ import { slideToPng } from '@openmaic/renderer/snapshot';
 import type { PPTElement, PPTVideoElement, Slide } from '@openmaic/dsl';
 import type { VideoTimeline } from '@/lib/video-export';
 import type { Scene, SlideContent } from '@/lib/types/stage';
-import { isMediaPlaceholder } from '@/lib/store/media-generation';
+import { isMediaPlaceholder } from '@/lib/media/placeholder';
 import type { MediaFileRecord } from '@/lib/utils/database';
 import type { VideoTimelineRecords } from './timeline-deps';
 import { useMediaGenerationStore } from '@/lib/store/media-generation';

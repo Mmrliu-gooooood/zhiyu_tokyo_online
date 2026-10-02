@@ -27,7 +27,7 @@ import { createGenerationAiCallFactory, sceneContentStage } from './generation-a
 import { synthesizeSceneNarration } from './scene-tts';
 import { toGenerationContent } from './generation-content';
 import { checkScenesAgainstSkill } from './skills';
-import { isMediaPlaceholder } from '@/lib/store/media-generation';
+import { isMediaPlaceholder } from '@/lib/media/placeholder';
 import { generationInputHash } from './generation-checkpoint';
 
 const MAX_GENERATE_SCENE_MEDIA = 8;
@@ -292,7 +292,13 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
           : undefined;
       const skill = deps.getActiveSkill?.() ?? null;
       const modelContext = deps.modelContext as
-        | { modelString?: string; baseUrl?: string; providerType?: string; api?: string; thinkingConfig?: unknown }
+        | {
+            modelString?: string;
+            baseUrl?: string;
+            providerType?: string;
+            api?: string;
+            thinkingConfig?: unknown;
+          }
         | undefined;
       const inputHash = generationInputHash({
         stageId: params.stageId,

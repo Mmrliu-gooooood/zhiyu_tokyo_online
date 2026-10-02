@@ -35,7 +35,7 @@ import type {
 } from '@/lib/video-export';
 import type { Scene, SlideContent, Stage } from '@/lib/types/stage';
 import { enumerateAssetManifest } from '@openmaic/dsl';
-import { isMediaPlaceholder } from '@/lib/store/media-generation';
+import { isMediaPlaceholder } from '@/lib/media/placeholder';
 import { measureSlideElementGeometry, type MeasuredGeometry } from '@openmaic/renderer/snapshot';
 import { db, mediaFileKey, type AudioFileRecord, type MediaFileRecord } from '@/lib/utils/database';
 import {
