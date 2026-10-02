@@ -8,22 +8,142 @@ import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
 import {
   GenerationModelSnapshotStore,
   generationModelSnapshotContent,
+  upgradeSnapshotContent,
   type GenerationModelSnapshotContent,
 } from '@/lib/server/generation-model-snapshots';
+import { CATALOG_VERSION } from '@/lib/model-gateway/catalog/client-catalog';
+import { GATEWAY_VERSION } from '@/lib/model-gateway';
+import { plantModelSnapshot } from '@/tests/helpers/legacy-model-snapshot';
 
 describe('generation model snapshots', () => {
   let db: PGlite;
   let pool: TestPool;
   const owner = 'owner-a';
   const content: GenerationModelSnapshotContent = {
-    version: 1,
-    modelString: 'openai:gpt-test',
-    apiKey: 'private-key',
-    baseUrl: 'https://api.example.com/v1',
-    providerType: 'openai',
-    api: 'openai-completions',
-    thinkingConfig: { mode: 'disabled', effort: 'none' },
+    version: 3,
+    selection: {
+      source: 'user',
+      providerId: 'openai',
+      modelId: 'gpt-test',
+      connection: {
+        auth: 'api-key',
+        apiKey: 'private-key',
+        baseUrl: 'https://api.example.com/v1',
+        api: 'openai-completions',
+      },
+      thinking: { mode: 'disabled', effort: 'none' },
+    },
+    catalogVersion: CATALOG_VERSION,
+    gatewayVersion: GATEWAY_VERSION,
   };
+
+  it('writes v3 content: the gateway selection plus catalog and gateway versions', () => {
+    expect(
+      generationModelSnapshotContent({
+        source: 'user',
+        modelString: 'openai:gpt-test',
+        apiKey: 'private-key',
+        baseUrl: 'https://api.example.com/v1',
+        providerType: 'openai',
+        api: 'openai-completions',
+        thinkingConfig: { mode: 'disabled', effort: 'none' },
+      }),
+    ).toEqual(content);
+  });
+
+  describe('upgradeSnapshotContent', () => {
+    const legacy = { catalogVersion: 'legacy', gatewayVersion: 'legacy' };
+    it('upgrades v1 (no source) to an operator-managed selection with its connection', () => {
+      expect(
+        upgradeSnapshotContent({
+          version: 1,
+          modelString: 'openai:gpt-test',
+          apiKey: 'k1',
+          providerType: 'openai',
+          api: 'openai-completions',
+          thinkingConfig: { effort: 'low' },
+        }),
+      ).toEqual({
+        version: 3,
+        selection: {
+          source: 'legacy-managed',
+          providerId: 'openai',
+          modelId: 'gpt-test',
+          connection: { auth: 'api-key', apiKey: 'k1', api: 'openai-completions' },
+          thinking: { effort: 'low' },
+        },
+        ...legacy,
+      });
+    });
+    it('upgrades v2 user content, mapping a custom provider type to its wire API', () => {
+      expect(
+        upgradeSnapshotContent({
+          version: 2,
+          source: 'user',
+          modelString: 'custom-personal:my-model',
+          apiKey: 'k2',
+          baseUrl: 'https://models.example.test/v1',
+          providerType: 'anthropic',
+        }),
+      ).toEqual({
+        version: 3,
+        selection: {
+          source: 'user',
+          providerId: 'custom-personal',
+          modelId: 'my-model',
+          connection: {
+            auth: 'api-key',
+            apiKey: 'k2',
+            baseUrl: 'https://models.example.test/v1',
+            api: 'anthropic-messages',
+          },
+        },
+        ...legacy,
+      });
+    });
+    it('upgrades v2 legacy-managed content without a connection when it carried none', () => {
+      expect(
+        upgradeSnapshotContent({
+          version: 2,
+          source: 'legacy-managed',
+          modelString: 'deepseek:deepseek-chat',
+        }),
+      ).toEqual({
+        version: 3,
+        selection: { source: 'legacy-managed', providerId: 'deepseek', modelId: 'deepseek-chat' },
+        ...legacy,
+      });
+    });
+    it('upgrades v2 platform content keeping the pinned revision and thinking', () => {
+      expect(
+        upgradeSnapshotContent({
+          version: 2,
+          source: 'platform',
+          defaultId: 'zhiyu-default-text',
+          revision: 'text-r1',
+          thinkingConfig: { effort: 'none' },
+        }),
+      ).toEqual({
+        version: 3,
+        selection: {
+          source: 'platform',
+          defaultId: 'zhiyu-default-text',
+          revision: 'text-r1',
+          thinking: { effort: 'none' },
+        },
+        ...legacy,
+      });
+    });
+    it('returns v3 content unchanged', () => {
+      expect(upgradeSnapshotContent(content)).toBe(content);
+    });
+  });
+
+  it('rejects a v3 platform selection without a pinned revision', () => {
+    expect(() =>
+      generationModelSnapshotContent({ source: 'platform', defaultId: 'zhiyu-default-text' }),
+    ).toThrow('GENERATION_MODEL_INVALID');
+  });
 
   it('serializes platform intent without provider credentials or concrete model ids', () => {
     expect(
@@ -37,11 +157,15 @@ describe('generation model snapshots', () => {
         thinkingConfig: { mode: 'disabled', effort: 'none' },
       }),
     ).toEqual({
-      version: 2,
-      source: 'platform',
-      defaultId: 'zhiyu-default-text',
-      revision: 'text-r1',
-      thinkingConfig: { mode: 'disabled', effort: 'none' },
+      version: 3,
+      selection: {
+        source: 'platform',
+        defaultId: 'zhiyu-default-text',
+        revision: 'text-r1',
+        thinking: { mode: 'disabled', effort: 'none' },
+      },
+      catalogVersion: CATALOG_VERSION,
+      gatewayVersion: GATEWAY_VERSION,
     });
   });
 
@@ -89,15 +213,44 @@ describe('generation model snapshots', () => {
 
   it('continues to load platform v2 snapshots created before thinking policy was added', async () => {
     const store = new GenerationModelSnapshotStore(pool);
-    const legacyPlatform = {
-      version: 2 as const,
-      source: 'platform' as const,
-      defaultId: 'zhiyu-default-text' as const,
+    const ref = await plantModelSnapshot(pool, owner, {
+      version: 2,
+      source: 'platform',
+      defaultId: 'zhiyu-default-text',
       revision: 'text-r1',
-    };
-    const ref = await store.create(owner, legacyPlatform);
+    });
 
-    await expect(store.load(owner, ref)).resolves.toEqual(legacyPlatform);
+    await expect(store.load(owner, ref)).resolves.toEqual({
+      version: 3,
+      selection: { source: 'platform', defaultId: 'zhiyu-default-text', revision: 'text-r1' },
+      catalogVersion: 'legacy',
+      gatewayVersion: 'legacy',
+    });
+  });
+
+  it('loads v1 rows through the upgrader and writes only v3', async () => {
+    const store = new GenerationModelSnapshotStore(pool);
+    const ref = await plantModelSnapshot(pool, owner, {
+      version: 1,
+      modelString: 'openai:gpt-test',
+      apiKey: 'private-key',
+    });
+    await expect(store.load(owner, ref)).resolves.toMatchObject({
+      version: 3,
+      selection: {
+        source: 'legacy-managed',
+        connection: { auth: 'api-key', apiKey: 'private-key' },
+      },
+    });
+    await expect(
+      store.create(owner, { version: 1, modelString: 'openai:gpt-test', apiKey: 'k' }),
+    ).rejects.toMatchObject({ code: 'GENERATION_MODEL_INVALID' });
+    const created = await store.create(owner, content);
+    const row = await pool.query<{ schema_version: number }>(
+      'SELECT schema_version FROM generation_model_snapshots WHERE id=$1',
+      [created.id],
+    );
+    expect(row.rows[0]?.schema_version).toBe(3);
   });
 
   it('does not let a foreign owner revoke a snapshot', async () => {

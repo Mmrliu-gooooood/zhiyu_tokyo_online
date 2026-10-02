@@ -113,9 +113,6 @@ async function main() {
               const storedModel = input.modelConfigRef
                 ? await loadGenerationModelSnapshot(lease.ownerId, input.modelConfigRef)
                 : undefined;
-              const modelContext = storedModel
-                ? (({ version: _version, ...context }) => context)(storedModel)
-                : undefined;
               const searchConfig = input.searchConfigRef
                 ? await loadGenerationSearchSnapshot(lease.ownerId, input.searchConfigRef)
                 : undefined;
@@ -123,7 +120,7 @@ async function main() {
                 execution,
                 input,
                 assets,
-                modelContext,
+                storedModel?.selection,
                 searchConfig,
               );
               const media = new GenerationMediaServices(execution, input, assets, mediaConfig);

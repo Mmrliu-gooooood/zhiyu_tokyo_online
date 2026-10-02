@@ -171,7 +171,14 @@ describe('user:{uuid} modelRef / snapshot isolation', () => {
     expect(response.status).toBe(201);
     expect(mocks.snapshot).toHaveBeenCalledWith(
       OWNER_B,
-      expect.objectContaining({ source: 'user', modelString: 'openai:gpt-test' }),
+      expect.objectContaining({
+        version: 3,
+        selection: expect.objectContaining({
+          source: 'user',
+          providerId: 'openai',
+          modelId: 'gpt-test',
+        }),
+      }),
     );
     const body = await response.json();
     expect(JSON.stringify(body)).not.toContain('private-key');

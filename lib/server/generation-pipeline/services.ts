@@ -14,10 +14,12 @@ import {
 } from '@openmaic/generation';
 import {
   gateway,
-  resolveParamsBinding,
+  resolveBinding,
+  storedSelectionRequest,
   userParts,
   userText,
   type ModelBinding,
+  type ModelSelection,
 } from '@/lib/model-gateway';
 import type { LlmStage } from '@/lib/server/model-routes';
 import { resolveVocationalActive } from '@/lib/config/feature-flags';
@@ -29,7 +31,6 @@ import { searchWeb, formatSearchResultsAsContext } from '@/lib/web-search';
 import { describeWebSearchFailure } from '@/lib/web-search/failure';
 import { validatePlan } from '@/lib/server/generation-jobs/contracts';
 import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
-import type { ProModelContext } from '@/types/pro-model';
 import type { SceneOutline, PdfImage } from '@/lib/types/generation';
 import type { Action } from '@/lib/types/action';
 import type { Scene } from '@/lib/types/stage';
@@ -87,7 +88,8 @@ export class GenerationServices {
     readonly execution: PipelineExecution,
     readonly input: GenerationInput,
     readonly assets: PipelineAssets,
-    readonly modelContext?: ProModelContext,
+    /** The run's snapshot selection; absent for operator-managed runs. */
+    readonly modelSelection?: ModelSelection,
     readonly searchConfig?: GenerationSearchSnapshotContent,
   ) {}
 
@@ -95,16 +97,10 @@ export class GenerationServices {
     stage: LlmStage,
     key: string,
   ): Promise<{ aiCall: AICallFn; binding: ModelBinding }> {
-    await this.modelContext?.assertActive?.();
-    const thinkingConfig = this.modelContext?.thinkingConfig ?? this.input.model?.thinkingConfig;
-    const binding = await resolveParamsBinding(
-      {
-        ...this.input.model,
-        ...this.modelContext,
-        ...(thinkingConfig ? { thinkingConfig } : {}),
-      },
+    const binding = await resolveBinding({
+      request: storedSelectionRequest(this.modelSelection, this.input.model),
       stage,
-    );
+    });
     if (!binding.credentialReady) throw new Error('PROVIDER_NOT_CONFIGURED');
     let callIndex = 0;
     let failure: unknown;

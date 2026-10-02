@@ -21,7 +21,11 @@ vi.mock('@/lib/server/provider-config', () => ({
 }));
 vi.mock('@/lib/server/ssrf-guard', () => ({ validateUrlForSSRF: async () => null }));
 
-import { GenerationModelSnapshotStore } from '@/lib/server/generation-model-snapshots';
+import {
+  GenerationModelSnapshotStore,
+  generationModelSnapshotContent,
+} from '@/lib/server/generation-model-snapshots';
+import { plantModelSnapshot } from '@/tests/helpers/legacy-model-snapshot';
 import { GENERATION_MIGRATION_3 } from '@/lib/server/generation-jobs/migrations';
 import { parseGenerationInput } from '@/lib/server/generation-jobs/contracts';
 import type { validateBackgroundProviders } from '@/lib/server/generation-jobs/preflight';
@@ -52,13 +56,15 @@ describe('background model snapshot preflight with real model resolution', () =>
   });
 
   async function input(modelString = 'openai:gpt-4.1', apiKey = 'owner-key') {
-    const modelConfigRef = await store.create('owner-a', {
-      version: 1,
-      modelString,
-      apiKey,
-      providerType: 'openai',
-      baseUrl: 'https://models.example.test/v1',
-    });
+    const modelConfigRef = await store.create(
+      'owner-a',
+      generationModelSnapshotContent({
+        modelString,
+        apiKey,
+        providerType: 'openai',
+        baseUrl: 'https://models.example.test/v1',
+      }),
+    );
     return parseGenerationInput({
       version: 1,
       requirements: { requirement: 'Course' },
@@ -81,6 +87,23 @@ describe('background model snapshot preflight with real model resolution', () =>
     },
   );
 
+  it('accepts a v1 snapshot written before model sources existed', async () => {
+    const modelConfigRef = await plantModelSnapshot(queryable, 'owner-a', {
+      version: 1,
+      modelString: 'openai:gpt-4.1',
+      apiKey: 'owner-key',
+      providerType: 'openai',
+      baseUrl: 'https://models.example.test/v1',
+    });
+    const value = parseGenerationInput({
+      version: 1,
+      requirements: { requirement: 'Course' },
+      model: { modelString: 'openai:gpt-4.1' },
+      modelConfigRef,
+    });
+    await expect(validate(value)).resolves.toBeUndefined();
+  });
+
   it('rejects an unmanaged model without its encrypted snapshot', async () => {
     const value = await input();
     delete value.modelConfigRef;
@@ -95,7 +118,7 @@ describe('background model snapshot preflight with real model resolution', () =>
   });
 
   it('rejects a user input paired with a legacy-managed snapshot for the same model', async () => {
-    const modelConfigRef = await store.create('owner-a', {
+    const modelConfigRef = await plantModelSnapshot(queryable, 'owner-a', {
       version: 2,
       source: 'legacy-managed',
       modelString: 'openai:gpt-4.1',

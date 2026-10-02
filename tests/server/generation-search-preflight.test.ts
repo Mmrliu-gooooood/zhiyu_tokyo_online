@@ -8,7 +8,7 @@ import { validateBackgroundProviders } from '@/lib/server/generation-jobs/prefli
 
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    resolveParamsBinding: vi.fn(async () => ({
+    resolveBinding: vi.fn(async () => ({
       source: 'legacy-managed',
       providerId: 'openai',
       modelId: 'gpt-test',

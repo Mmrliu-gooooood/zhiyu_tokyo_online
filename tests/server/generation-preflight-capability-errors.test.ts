@@ -4,7 +4,7 @@ import { parseGenerationInput } from '@/lib/server/generation-jobs/contracts';
 const mocks = vi.hoisted(() => ({ failModel: false }));
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    resolveParamsBinding: vi.fn(async () => ({
+    resolveBinding: vi.fn(async () => ({
       source: 'legacy-managed',
       providerId: 'openai',
       modelId: 'test',

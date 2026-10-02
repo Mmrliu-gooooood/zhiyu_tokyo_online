@@ -11,6 +11,15 @@ import {
   type GenerationModelRef,
 } from '@/lib/server/generation-jobs/contracts';
 import { assertGenerationSchema } from '@/lib/server/generation-jobs/migrations';
+import {
+  GATEWAY_VERSION,
+  LEGACY_SELECTION_VERSION,
+  ModelSelectionError,
+  persistedSelectionSchema,
+  upgradeLegacyModelParams,
+  type ModelSelection,
+} from '@/lib/model-gateway';
+import { CATALOG_VERSION } from '@/lib/model-gateway/catalog/client-catalog';
 import type { ProModelContext } from '@/types/pro-model';
 
 export class GenerationModelSnapshotError extends Error {
@@ -23,7 +32,9 @@ export class GenerationModelSnapshotError extends Error {
   }
 }
 
-export const GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION = 2;
+export const GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION = 3;
+/** Content versions this build reads; only the current one is written. */
+const READABLE_SCHEMA_VERSIONS = [1, 2, 3];
 const thinkingConfigSchema = z
   .object({
     mode: z.enum(['default', 'disabled', 'enabled', 'auto']).optional(),
@@ -74,14 +85,55 @@ const platformModelSchema = z
     thinkingConfig: thinkingConfigSchema.optional(),
   })
   .strict();
+/** v3 (plan 3.14): the gateway ModelSelection plus the versions it was captured under. */
+const selectionContentSchema = z
+  .object({
+    version: z.literal(3),
+    selection: persistedSelectionSchema,
+    catalogVersion: z.string().trim().min(1).max(200),
+    gatewayVersion: z.string().trim().min(1).max(200),
+  })
+  .strict();
 export const GenerationModelSnapshotContentSchema = z.union([
   legacyContentSchema,
   sourcedModelSchema.extend({ version: z.literal(2) }),
   platformModelSchema.extend({ version: z.literal(2) }),
+  selectionContentSchema,
 ]);
 const contentSchema = GenerationModelSnapshotContentSchema;
 
-export type GenerationModelSnapshotContent = z.infer<typeof contentSchema>;
+/** Any stored content version (v1, v2 user / managed / platform, v3). */
+export type StoredGenerationModelSnapshotContent = z.infer<typeof contentSchema>;
+/** The current content shape; loads always return it. */
+export type GenerationModelSnapshotContent = z.infer<typeof selectionContentSchema>;
+
+/**
+ * Pure upgrade of any stored content to v3. v1 predates model sources and is
+ * the operator-managed path; v2 platform content keeps its pinned revision.
+ * Upgraded content records the `legacy` catalog / gateway versions.
+ */
+export function upgradeSnapshotContent(
+  content: StoredGenerationModelSnapshotContent,
+): GenerationModelSnapshotContent {
+  if (content.version === 3) return content;
+  const { version: _version, ...flat } = content;
+  let selection: ModelSelection | undefined;
+  try {
+    selection = upgradeLegacyModelParams(flat);
+  } catch (error) {
+    if (!(error instanceof ModelSelectionError)) throw error;
+  }
+  const parsed = persistedSelectionSchema.safeParse(selection);
+  if (!parsed.success) {
+    throw new GenerationModelSnapshotError('GENERATION_MODEL_SNAPSHOT_UNAVAILABLE', 409);
+  }
+  return {
+    version: 3,
+    selection: parsed.data,
+    catalogVersion: LEGACY_SELECTION_VERSION,
+    gatewayVersion: LEGACY_SELECTION_VERSION,
+  };
+}
 
 function key(): Buffer {
   const value = process.env.GENERATION_MODEL_ENCRYPTION_KEY?.trim();
@@ -109,7 +161,11 @@ function aad(ownerId: string, ref: GenerationModelRef): Buffer {
   return Buffer.from(JSON.stringify(['generation-model:v1', ownerId, ref.id, ref.revision]));
 }
 
-function seal(content: GenerationModelSnapshotContent, ownerId: string, ref: GenerationModelRef) {
+function seal(
+  content: StoredGenerationModelSnapshotContent,
+  ownerId: string,
+  ref: GenerationModelRef,
+) {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key(), iv);
   cipher.setAAD(aad(ownerId, ref));
@@ -126,7 +182,7 @@ function unseal(
   ciphertext: string,
   ownerId: string,
   ref: GenerationModelRef,
-): GenerationModelSnapshotContent {
+): StoredGenerationModelSnapshotContent {
   try {
     const [version, iv, tag, body, extra] = ciphertext.split('.');
     if (version !== 'v1' || extra || !iv || !tag || !body) throw new Error();
@@ -156,29 +212,56 @@ export function reassignGenerationModelSnapshot(
   const content = unseal(ciphertext, fromOwnerId, ref);
   return {
     ciphertext: seal(content, toOwnerId, ref),
-    intentDigest: createHmac('sha256', key())
-      .update(`generation-model:v1\0${toOwnerId}\0${canonical(content)}`)
-      .digest('hex'),
+    intentDigest: intentDigest(toOwnerId, content),
   };
 }
 
+function intentDigest(ownerId: string, content: StoredGenerationModelSnapshotContent): string {
+  return createHmac('sha256', key())
+    .update(`generation-model:v1\0${ownerId}\0${canonical(content)}`)
+    .digest('hex');
+}
+
+/**
+ * Operator / test helper: the AES-GCM envelope and intent digest for stored
+ * content of any version. Stores themselves write only v3.
+ */
+export function sealGenerationModelSnapshot(
+  content: StoredGenerationModelSnapshotContent,
+  ownerId: string,
+  ref: GenerationModelRef,
+): { ciphertext: string; intentDigest: string } {
+  const parsed = contentSchema.parse(content);
+  return { ciphertext: seal(parsed, ownerId, ref), intentDigest: intentDigest(ownerId, parsed) };
+}
+
+/** v3 content for a run's model: the selection plus the catalog / gateway versions in force. */
 export function generationModelSnapshotContent(
   value: ProModelContext,
 ): GenerationModelSnapshotContent {
-  const { assertActive: _assertActive, ...content } = value;
-  const parsed = contentSchema.safeParse(
-    content.source
-      ? content.source === 'platform'
+  const { assertActive: _assertActive, ...flat } = value;
+  let selection: ModelSelection | undefined;
+  try {
+    // Platform intent never carries provider credentials or a concrete model.
+    selection = upgradeLegacyModelParams(
+      flat.source === 'platform'
         ? {
-            version: 2,
-            source: content.source,
-            defaultId: content.defaultId,
-            revision: content.revision,
-            thinkingConfig: content.thinkingConfig,
+            source: flat.source,
+            defaultId: flat.defaultId,
+            revision: flat.revision,
+            thinkingConfig: flat.thinkingConfig,
           }
-        : { version: 2, ...content }
-      : { version: 1, ...content },
-  );
+        : flat,
+    );
+  } catch (error) {
+    if (!(error instanceof ModelSelectionError)) throw error;
+  }
+  const parsed = selectionContentSchema.safeParse({
+    version: GENERATION_MODEL_SNAPSHOT_SCHEMA_VERSION,
+    selection,
+    catalogVersion: CATALOG_VERSION,
+    gatewayVersion: GATEWAY_VERSION,
+  });
   if (!parsed.success) throw new GenerationModelSnapshotError('GENERATION_MODEL_INVALID');
   return parsed.data;
 }
@@ -190,10 +273,10 @@ export class GenerationModelSnapshotStore {
   ) {}
 
   async create(ownerId: string, value: unknown): Promise<GenerationModelRef> {
-    const content = contentSchema.parse(value);
-    const digest = createHmac('sha256', key())
-      .update(`generation-model:v1\0${ownerId}\0${canonical(content)}`)
-      .digest('hex');
+    const parsed = selectionContentSchema.safeParse(value);
+    if (!parsed.success) throw new GenerationModelSnapshotError('GENERATION_MODEL_INVALID');
+    const content = parsed.data;
+    const digest = intentDigest(ownerId, content);
     return this.transaction(async (db) => {
       const existing = await db.query<GenerationModelRef>(
         'SELECT id,revision FROM generation_model_snapshots WHERE owner_id=$1 AND intent_digest=$2 AND revoked_at IS NULL LIMIT 1',
@@ -236,13 +319,13 @@ export class GenerationModelSnapshotStore {
       [parsed.data.id, parsed.data.revision, ownerId],
     );
     const row = result.rows[0];
-    if (!row || ![1, 2].includes(Number(row.schema_version)))
+    if (!row || !READABLE_SCHEMA_VERSIONS.includes(Number(row.schema_version)))
       throw new GenerationModelSnapshotError('GENERATION_MODEL_SNAPSHOT_UNAVAILABLE', 409);
     const content = unseal(row.ciphertext, ownerId, parsed.data);
     if (content.version !== Number(row.schema_version)) {
       throw new GenerationModelSnapshotError('GENERATION_MODEL_DECRYPTION_FAILED', 503);
     }
-    return content;
+    return upgradeSnapshotContent(content);
   }
 
   async revoke(ownerId: string, value: GenerationModelRef): Promise<boolean> {

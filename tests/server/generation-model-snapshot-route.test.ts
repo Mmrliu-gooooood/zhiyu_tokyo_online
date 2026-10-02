@@ -46,6 +46,19 @@ function model(baseUrl?: string) {
   };
 }
 
+/** v3 content for the Home legacy-managed selection of openai:gpt-4.1. */
+function stored(connection?: Record<string, string>) {
+  return expect.objectContaining({
+    version: 3,
+    selection: {
+      source: 'legacy-managed',
+      providerId: 'openai',
+      modelId: 'gpt-4.1',
+      ...(connection ? { connection } : {}),
+    },
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.managed.mockReturnValue(false);
@@ -58,11 +71,10 @@ describe('normal generation model snapshot route', () => {
     const response = await POST(request(model()));
 
     expect(response.status).toBe(201);
-    expect(mocks.sync).toHaveBeenCalledWith('signed-owner', {
-      version: 1,
-      modelString: 'openai:gpt-4.1',
-      apiKey: 'diagnostic-placeholder',
-    });
+    expect(mocks.sync).toHaveBeenCalledWith(
+      'signed-owner',
+      stored({ auth: 'api-key', apiKey: 'diagnostic-placeholder' }),
+    );
   });
 
   it.each(['', '   '])('treats an empty optional base URL as omitted (%j)', async (baseUrl) => {
@@ -70,23 +82,24 @@ describe('normal generation model snapshot route', () => {
 
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ success: true, ref });
-    expect(mocks.sync).toHaveBeenCalledWith('signed-owner', {
-      version: 1,
-      modelString: 'openai:gpt-4.1',
-      apiKey: 'diagnostic-placeholder',
-    });
+    expect(mocks.sync).toHaveBeenCalledWith(
+      'signed-owner',
+      stored({ auth: 'api-key', apiKey: 'diagnostic-placeholder' }),
+    );
   });
 
   it('preserves a valid custom base URL', async () => {
     const response = await POST(request(model('  https://gateway.example.com/v1  ')));
 
     expect(response.status).toBe(201);
-    expect(mocks.sync).toHaveBeenCalledWith('signed-owner', {
-      version: 1,
-      modelString: 'openai:gpt-4.1',
-      apiKey: 'diagnostic-placeholder',
-      baseUrl: 'https://gateway.example.com/v1',
-    });
+    expect(mocks.sync).toHaveBeenCalledWith(
+      'signed-owner',
+      stored({
+        auth: 'api-key',
+        apiKey: 'diagnostic-placeholder',
+        baseUrl: 'https://gateway.example.com/v1',
+      }),
+    );
   });
 
   it('keeps operator-managed provider credentials and endpoints server-owned', async () => {
@@ -94,10 +107,7 @@ describe('normal generation model snapshot route', () => {
 
     await POST(request(model('http://127.0.0.1/stale-client-endpoint')));
 
-    expect(mocks.sync).toHaveBeenCalledWith('signed-owner', {
-      version: 1,
-      modelString: 'openai:gpt-4.1',
-    });
+    expect(mocks.sync).toHaveBeenCalledWith('signed-owner', stored());
   });
 
   it('continues to reject unsafe non-empty base URLs before storage', async () => {

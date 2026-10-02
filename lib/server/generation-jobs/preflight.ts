@@ -11,7 +11,9 @@ import {
   getBindingResolutionError,
   isGatewayError,
   parseModelString,
-  resolveParamsBinding,
+  resolveBinding,
+  selectionModelString,
+  storedSelectionRequest,
 } from '@/lib/model-gateway';
 import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
@@ -325,30 +327,30 @@ export async function validateBackgroundProviders(
           })()
       : undefined;
     capability = 'MODEL';
-    const modelSnapshot = input.modelConfigRef
+    const stored = input.modelConfigRef
       ? context
-        ? await new GenerationModelSnapshotStore(context.queryable).load(
-            context.ownerId,
-            input.modelConfigRef,
-          )
+        ? (
+            await new GenerationModelSnapshotStore(context.queryable).load(
+              context.ownerId,
+              input.modelConfigRef,
+            )
+          ).selection
         : (() => {
             throw new Error('Model snapshot context unavailable');
           })()
       : undefined;
-    if (modelSnapshot && input.model) {
+    if (stored && input.model) {
       const inputSource = input.model.source ?? 'legacy-managed';
-      const snapshotSource = modelSnapshot.version === 2 ? modelSnapshot.source : 'legacy-managed';
       const samePlatform =
         inputSource === 'platform' &&
-        modelSnapshot.version === 2 &&
-        modelSnapshot.source === 'platform' &&
-        input.model.defaultId === modelSnapshot.defaultId &&
-        input.model.revision === modelSnapshot.revision;
+        stored.source === 'platform' &&
+        input.model.defaultId === stored.defaultId &&
+        input.model.revision === stored.revision;
       const sameConcrete =
         inputSource !== 'platform' &&
-        snapshotSource === inputSource &&
-        'modelString' in modelSnapshot &&
-        (!input.model.modelString || input.model.modelString === modelSnapshot.modelString);
+        stored.source === inputSource &&
+        (!input.model.modelString ||
+          sameModelString(selectionModelString(stored), input.model.modelString));
       if (!samePlatform && !sameConcrete) {
         throw new Error('Model snapshot does not match the selected model');
       }
@@ -364,24 +366,24 @@ export async function validateBackgroundProviders(
       'scene-content:pbl',
       'scene-actions',
     ] as const) {
-      const { version: _version, ...modelContext } = modelSnapshot ?? { version: 1 as const };
-      const resolved = await resolveParamsBinding({ ...input.model, ...modelContext }, stage);
+      const resolved = await resolveBinding({
+        request: storedSelectionRequest(stored, input.model),
+        stage,
+      });
       const managed = providers[resolved.providerId];
       // Only the authenticated owner snapshot authorizes an unmanaged model.
       // Explicit operator routes still require server configuration, even when
       // a route happens to select the same model as the client snapshot.
       const ownerConfigured =
-        modelSnapshot &&
+        stored &&
         !getStageRoute(stage) &&
         (resolved.source === 'platform'
-          ? modelSnapshot.version === 2 &&
-            modelSnapshot.source === 'platform' &&
-            resolved.defaultId === modelSnapshot.defaultId &&
-            resolved.revision === modelSnapshot.revision
-          : 'modelString' in modelSnapshot &&
-            resolved.source ===
-              (modelSnapshot.version === 2 ? modelSnapshot.source : 'legacy-managed') &&
-            sameModelString(resolved.modelString, modelSnapshot.modelString));
+          ? stored.source === 'platform' &&
+            resolved.defaultId === stored.defaultId &&
+            resolved.revision === stored.revision
+          : stored.source !== 'platform' &&
+            resolved.source === stored.source &&
+            sameModelString(resolved.modelString, selectionModelString(stored)));
       if (
         (!managed && !ownerConfigured && resolved.source !== 'platform') ||
         (resolved.source !== 'platform' &&

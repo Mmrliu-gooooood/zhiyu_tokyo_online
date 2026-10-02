@@ -25,6 +25,13 @@ export {
 } from './selection/request-binding';
 export { ModelSelectionError } from './selection/errors';
 export {
+  GATEWAY_VERSION,
+  LEGACY_SELECTION_VERSION,
+  persistedSelectionSchema,
+  selectionModelString,
+  storedSelectionRequest,
+} from './selection/persisted';
+export {
   modelSelectionSchema,
   parseModelString,
   upgradeLegacyModelParams,

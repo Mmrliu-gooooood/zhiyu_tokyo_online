@@ -19,7 +19,7 @@ vi.mock('@/lib/server/provider-config', () => ({
 }));
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    resolveParamsBinding: vi.fn(async (input: unknown) => {
+    resolveBinding: vi.fn(async (input: unknown) => {
       mocks.modelInputs.push(input);
       return {
         source: 'legacy-managed',
@@ -33,7 +33,10 @@ vi.mock('@/lib/model-gateway', async (importOriginal) =>
 );
 
 import { MediaConfigSnapshotStore } from '@/lib/server/media-config-snapshots';
-import { GenerationModelSnapshotStore } from '@/lib/server/generation-model-snapshots';
+import {
+  GenerationModelSnapshotStore,
+  generationModelSnapshotContent,
+} from '@/lib/server/generation-model-snapshots';
 import {
   GENERATION_MIGRATION_2,
   GENERATION_MIGRATION_3,
@@ -121,13 +124,15 @@ describe('background media snapshot preflight', () => {
 
   it('resolves every unrouted stage with the owner model snapshot without exposing it in the job', async () => {
     vi.stubEnv('GENERATION_MODEL_ENCRYPTION_KEY', 'cd'.repeat(32));
-    const ref = await new GenerationModelSnapshotStore(queryable).create('owner-a', {
-      version: 1,
-      modelString: 'openai:gpt-test',
-      apiKey: 'owner-model-key',
-      providerType: 'openai',
-      api: 'openai-completions',
-    });
+    const ref = await new GenerationModelSnapshotStore(queryable).create(
+      'owner-a',
+      generationModelSnapshotContent({
+        modelString: 'openai:gpt-test',
+        apiKey: 'owner-model-key',
+        providerType: 'openai',
+        api: 'openai-completions',
+      }),
+    );
     const value = parseGenerationInput({
       version: 1,
       requirements: { requirement: 'test' },
@@ -136,7 +141,9 @@ describe('background media snapshot preflight', () => {
     expect(JSON.stringify(value)).not.toContain('owner-model-key');
     await validateBackgroundProviders(value, { ownerId: 'owner-a', queryable });
     expect(mocks.modelInputs).toHaveLength(8);
-    expect(mocks.modelInputs[0]).toMatchObject({ apiKey: 'owner-model-key' });
+    expect(mocks.modelInputs[0]).toMatchObject({
+      request: { selection: { connection: { apiKey: 'owner-model-key' } } },
+    });
   });
 
   it('rejects owner mismatch, missing context, provider mismatch and revoked snapshots', async () => {
