@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "напр., Мой OpenAI Proxy",
     "providerNameRequired": "Введите название провайдера",
     "providerApiMode": "Режим API",
-    "apiModeOpenAI": "Протокол OpenAI",
-    "apiModeAnthropic": "Протокол Claude",
-    "apiModeGoogle": "Протокол Gemini",
     "defaultBaseUrl": "Base URL по умолчанию",
     "providerIcon": "URL иконки провайдера",
     "requiresApiKey": "Требуется API-ключ",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "Добавьте платформу, затем введите ключ API и ID модели.",
     "mediaProviderEnabled": "Включить платформу",
     "mediaConfigurationChecked": "Настройка заполнена. Запрос на генерацию не отправлен; ключ API и доступность модели ещё не проверены.",
-    "checkMediaConfiguration": "Проверить настройки"
+    "checkMediaConfiguration": "Проверить настройки",
+    "providerSearchPlaceholder": "Поиск поставщиков",
+    "providerSearchNoMatch": "Подходящих поставщиков нет",
+    "providerGroups": {
+      "official": "Официальные",
+      "china": "Поставщики из Китая",
+      "aggregator": "Агрегаторы",
+      "coding-plan": "Тарифы Coding и Token",
+      "subscription": "Вход по подписке",
+      "enterprise": "Корпоративные",
+      "local": "Локальные",
+      "custom": "Пользовательские"
+    },
+    "authTabApiKey": "API-ключ",
+    "authTabOAuth": "Вход в аккаунт",
+    "oauthSignInPending": "Вход в аккаунт в этом развертывании пока недоступен.",
+    "fixedEndpointHint": "Этот поставщик использует фиксированную официальную точку доступа. Для ретранслятора добавьте пользовательского OpenAI-совместимого поставщика.",
+    "customBaseUrlNotAllowed": "Сохранён пользовательский Base URL ({url}), но этот поставщик принимает только официальную точку доступа, поэтому запросы будут отклонены.",
+    "clearCustomBaseUrl": "Очистить",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "ID аккаунта Cloudflare",
+      "CLOUDFLARE_GATEWAY_ID": "ID Cloudflare AI Gateway"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

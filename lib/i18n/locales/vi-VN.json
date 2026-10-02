@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "ví dụ: Proxy OpenAI của tôi",
     "providerNameRequired": "Vui lòng nhập tên nhà cung cấp",
     "providerApiMode": "Giao thức API",
-    "apiModeOpenAI": "Giao thức OpenAI",
-    "apiModeAnthropic": "Giao thức Claude",
-    "apiModeGoogle": "Giao thức Gemini",
     "defaultBaseUrl": "Địa chỉ gốc mặc định",
     "providerIcon": "URL biểu tượng nhà cung cấp",
     "requiresApiKey": "Cần khóa API",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "Thêm nền tảng, sau đó nhập khóa API và ID mô hình.",
     "mediaProviderEnabled": "Bật nền tảng",
     "mediaConfigurationChecked": "Cấu hình đã đầy đủ. Chưa gửi yêu cầu tạo; khóa API và mô hình chưa được xác minh.",
-    "checkMediaConfiguration": "Kiểm tra cấu hình"
+    "checkMediaConfiguration": "Kiểm tra cấu hình",
+    "providerSearchPlaceholder": "Tìm nhà cung cấp",
+    "providerSearchNoMatch": "Không có nhà cung cấp phù hợp",
+    "providerGroups": {
+      "official": "Chính thức",
+      "china": "Nhà cung cấp Trung Quốc",
+      "aggregator": "Nền tảng tổng hợp",
+      "coding-plan": "Gói Coding & Token",
+      "subscription": "Đăng nhập bằng gói đăng ký",
+      "enterprise": "Doanh nghiệp",
+      "local": "Cục bộ",
+      "custom": "Tùy chỉnh"
+    },
+    "authTabApiKey": "API Key",
+    "authTabOAuth": "Đăng nhập tài khoản",
+    "oauthSignInPending": "Bản triển khai này chưa hỗ trợ đăng nhập tài khoản.",
+    "fixedEndpointHint": "Nhà cung cấp này dùng endpoint chính thức cố định. Nếu cần trung chuyển, hãy thêm nhà cung cấp tùy chỉnh tương thích OpenAI.",
+    "customBaseUrlNotAllowed": "Đã lưu Base URL tùy chỉnh ({url}) nhưng nhà cung cấp này chỉ chấp nhận endpoint chính thức, nên yêu cầu sẽ bị từ chối.",
+    "clearCustomBaseUrl": "Xóa",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "ID tài khoản Cloudflare",
+      "CLOUDFLARE_GATEWAY_ID": "ID Cloudflare AI Gateway"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

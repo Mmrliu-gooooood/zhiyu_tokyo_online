@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "z. B. Mein OpenAI-Proxy",
     "providerNameRequired": "Gib bitte einen Anbieternamen ein",
     "providerApiMode": "API-Modus",
-    "apiModeOpenAI": "OpenAI-Protokoll",
-    "apiModeAnthropic": "Claude-Protokoll",
-    "apiModeGoogle": "Gemini-Protokoll",
     "defaultBaseUrl": "Standard-Basis-URL",
     "providerIcon": "URL des Anbieter-Icons",
     "requiresApiKey": "API-Schlüssel erforderlich",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "Fügen Sie die Plattform hinzu und geben Sie dann API-Schlüssel und Modell-ID ein.",
     "mediaProviderEnabled": "Plattform aktivieren",
     "mediaConfigurationChecked": "Die Konfiguration ist vollständig. Keine Generierung angefordert; API-Schlüssel und Modell wurden noch nicht geprüft.",
-    "checkMediaConfiguration": "Konfiguration prüfen"
+    "checkMediaConfiguration": "Konfiguration prüfen",
+    "providerSearchPlaceholder": "Anbieter suchen",
+    "providerSearchNoMatch": "Keine passenden Anbieter",
+    "providerGroups": {
+      "official": "Offiziell",
+      "china": "Anbieter aus China",
+      "aggregator": "Aggregatoren",
+      "coding-plan": "Coding- & Token-Pläne",
+      "subscription": "Anmeldung per Abo",
+      "enterprise": "Unternehmen",
+      "local": "Lokal",
+      "custom": "Benutzerdefiniert"
+    },
+    "authTabApiKey": "API-Schlüssel",
+    "authTabOAuth": "Kontoanmeldung",
+    "oauthSignInPending": "Die Kontoanmeldung ist in dieser Bereitstellung noch nicht verfügbar.",
+    "fixedEndpointHint": "Dieser Anbieter verwendet einen festen offiziellen Endpunkt. Für ein Relay fügen Sie stattdessen einen benutzerdefinierten OpenAI-kompatiblen Anbieter hinzu.",
+    "customBaseUrlNotAllowed": "Eine benutzerdefinierte Base URL ({url}) ist gespeichert, aber dieser Anbieter akzeptiert nur seinen offiziellen Endpunkt; Anfragen werden abgelehnt.",
+    "clearCustomBaseUrl": "Entfernen",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "Cloudflare-Konto-ID",
+      "CLOUDFLARE_GATEWAY_ID": "Cloudflare-AI-Gateway-ID"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

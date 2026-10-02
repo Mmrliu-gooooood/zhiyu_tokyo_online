@@ -10,6 +10,7 @@ import { Sparkles, Wrench, Zap, Loader2, CheckCircle, XCircle } from 'lucide-rea
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type { EditingModel } from '@/lib/types/settings';
 import type { ProviderId } from '@/lib/types/provider';
+import type { WireApi } from '@/lib/model-gateway/types';
 import { cn } from '@/lib/utils';
 import { createVerifyModelRequest } from './utils';
 
@@ -24,6 +25,8 @@ interface ModelEditDialogProps {
   apiKey: string;
   baseUrl?: string;
   providerType?: string;
+  api?: WireApi;
+  endpointParams?: Record<string, string>;
   requiresApiKey?: boolean;
   isServerConfigured?: boolean;
 }
@@ -39,6 +42,8 @@ export function ModelEditDialog({
   apiKey,
   baseUrl,
   providerType,
+  api,
+  endpointParams,
   requiresApiKey,
   isServerConfigured,
 }: ModelEditDialogProps) {
@@ -81,6 +86,8 @@ export function ModelEditDialog({
             baseUrl,
             providerType,
             requiresApiKey,
+            api,
+            endpointParams,
           }),
         ),
       });
@@ -98,7 +105,17 @@ export function ModelEditDialog({
       setTestStatus('error');
       setTestMessage(t('settings.connectionFailed'));
     }
-  }, [editingModel, apiKey, baseUrl, providerId, providerType, requiresApiKey, t]);
+  }, [
+    editingModel,
+    apiKey,
+    baseUrl,
+    providerId,
+    providerType,
+    api,
+    endpointParams,
+    requiresApiKey,
+    t,
+  ]);
 
   if (!editingModel) return null;
 

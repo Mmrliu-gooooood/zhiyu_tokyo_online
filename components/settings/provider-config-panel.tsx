@@ -35,16 +35,41 @@ import {
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type { ProviderConfig } from '@/lib/types/provider';
 import type { ProvidersConfig } from '@/lib/types/settings';
-import { createVerifyModelRequest, formatContextWindow } from './utils';
+import type { WireApi } from '@/lib/model-gateway/types';
+import type { ClientProviderConfig } from '@/lib/model-gateway/catalog/client-catalog';
+import { createVerifyModelRequest, formatContextWindow, requestPathForApi } from './utils';
 import { cn } from '@/lib/utils';
+
+/** Catalog facts the panel needs about a built-in provider (absent for `custom-*`). */
+export type ProviderCatalogInfo = Pick<
+  ClientProviderConfig,
+  'authMethods' | 'allowCustomBaseUrl' | 'endpointParams'
+>;
+
+type AuthTab = 'api-key' | 'oauth';
+
+/** Base URL preview with declared endpoint values substituted when known. */
+export function previewEndpoint(baseUrl: string, params: Record<string, string>): string {
+  return baseUrl.replace(/\{([A-Z][A-Z0-9_]*)\}/g, (match, name: string) =>
+    params[name]?.trim() ? params[name]!.trim() : match,
+  );
+}
 
 interface ProviderConfigPanelProps {
   provider: ProviderConfig;
+  /** Catalog entry of a built-in provider. */
+  catalog?: ProviderCatalogInfo;
+  /** Explicit wire protocol (custom providers). */
+  api?: WireApi;
+  /** Whether this deployment offers subscription sign-in for the provider. */
+  oauthAvailable?: boolean;
   initialApiKey: string;
   initialBaseUrl: string;
   initialRequiresApiKey: boolean;
+  initialEndpointParams?: Record<string, string>;
   providersConfig: ProvidersConfig;
   onConfigChange: (apiKey: string, baseUrl: string, requiresApiKey: boolean) => void;
+  onEndpointParamsChange?: (params: Record<string, string>) => void;
   onSave: () => void; // Auto-save on blur
   onEditModel: (index: number) => void;
   onDeleteModel: (index: number) => void;
@@ -59,11 +84,16 @@ interface ProviderConfigPanelProps {
 
 export function ProviderConfigPanel({
   provider,
+  catalog,
+  api,
+  oauthAvailable = false,
   initialApiKey,
   initialBaseUrl,
   initialRequiresApiKey,
+  initialEndpointParams,
   providersConfig,
   onConfigChange,
+  onEndpointParamsChange,
   onSave,
   onEditModel,
   onDeleteModel,
@@ -85,6 +115,13 @@ export function ProviderConfigPanel({
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<'idle' | 'fetching' | 'success' | 'error'>('idle');
   const [fetchMessage, setFetchMessage] = useState('');
+  const [endpointParams, setEndpointParams] = useState<Record<string, string>>(
+    initialEndpointParams ?? {},
+  );
+  const [authTab, setAuthTab] = useState<AuthTab>('api-key');
+  const fixedEndpoint = catalog?.allowCustomBaseUrl === false;
+  const declaredParams = catalog?.endpointParams ?? [];
+  const initialParamsKey = JSON.stringify(initialEndpointParams ?? {});
 
   // Update local state when provider changes or initial values change
   useEffect(() => {
@@ -100,7 +137,9 @@ export function ProviderConfigPanel({
     setTestMessage('');
     setFetchStatus('idle');
     setFetchMessage('');
-  }, [provider.id, initialApiKey, initialBaseUrl, initialRequiresApiKey]);
+    setEndpointParams(JSON.parse(initialParamsKey) as Record<string, string>);
+    setAuthTab('api-key');
+  }, [provider.id, initialApiKey, initialBaseUrl, initialRequiresApiKey, initialParamsKey]);
 
   // Notify parent of changes
   const handleApiKeyChange = (key: string) => {
@@ -116,6 +155,12 @@ export function ProviderConfigPanel({
   const handleRequiresApiKeyChange = (requires: boolean) => {
     setRequiresApiKey(requires);
     onConfigChange(apiKey, baseUrl, requires);
+  };
+
+  const handleEndpointParamChange = (name: string, value: string) => {
+    const next = { ...endpointParams, [name]: value };
+    setEndpointParams(next);
+    onEndpointParamsChange?.(next);
   };
 
   const handleTestApi = useCallback(async () => {
@@ -144,6 +189,8 @@ export function ProviderConfigPanel({
             baseUrl,
             providerType: provider.type,
             requiresApiKey,
+            api,
+            endpointParams,
           }),
         ),
       });
@@ -161,7 +208,17 @@ export function ProviderConfigPanel({
       setTestStatus('error');
       setTestMessage(t('settings.connectionFailed'));
     }
-  }, [apiKey, baseUrl, provider.id, provider.type, requiresApiKey, providersConfig, t]);
+  }, [
+    apiKey,
+    baseUrl,
+    provider.id,
+    provider.type,
+    requiresApiKey,
+    providersConfig,
+    api,
+    endpointParams,
+    t,
+  ]);
 
   const effectiveBaseUrl = baseUrl || provider.defaultBaseUrl || '';
 
@@ -173,7 +230,14 @@ export function ProviderConfigPanel({
       const response = await fetch('/api/provider/probe-models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-model-source': 'user' },
-        body: JSON.stringify({ baseUrl: effectiveBaseUrl, apiKey, modelsUrl }),
+        // The provider id lets the server answer from the catalog when its
+        // endpoint is the catalog's own (fixed-endpoint providers send none).
+        body: JSON.stringify({
+          providerId: provider.id,
+          baseUrl: fixedEndpoint ? undefined : effectiveBaseUrl,
+          apiKey,
+          modelsUrl,
+        }),
       });
       const data = await response.json();
       if (response.ok && data.success) {
@@ -199,7 +263,7 @@ export function ProviderConfigPanel({
       setFetchStatus('error');
       setFetchMessage(t('settings.fetchModelsFailed'));
     }
-  }, [apiKey, effectiveBaseUrl, modelsUrl, onModelsFetched, t]);
+  }, [apiKey, effectiveBaseUrl, fixedEndpoint, modelsUrl, onModelsFetched, provider.id, t]);
 
   const models = providersConfig[provider.id]?.models || [];
   const isServerConfigured = providersConfig[provider.id]?.isServerConfigured;
@@ -219,7 +283,36 @@ export function ProviderConfigPanel({
 
       {/* Managed providers are admin-owned: the operator's key and base URL are
           authoritative and not overridable here, so the editing inputs are hidden. */}
-      {!isServerConfigured && (
+      {/* Authentication method tabs: subscription sign-in appears only where
+          this deployment enables it (R1: nowhere). */}
+      {!isServerConfigured && oauthAvailable && (
+        <div role="tablist" className="inline-flex rounded-lg border p-0.5 gap-0.5">
+          {(['api-key', 'oauth'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={authTab === tab}
+              onClick={() => setAuthTab(tab)}
+              className={cn(
+                'px-3 py-1 text-sm rounded-md transition-colors',
+                authTab === tab
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
+            >
+              {t(tab === 'api-key' ? 'settings.authTabApiKey' : 'settings.authTabOAuth')}
+            </button>
+          ))}
+        </div>
+      )}
+      {!isServerConfigured && oauthAvailable && authTab === 'oauth' && (
+        <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+          {t('settings.oauthSignInPending')}
+        </div>
+      )}
+
+      {!isServerConfigured && authTab === 'api-key' && (
         <>
           {/* API Key */}
           <div className="space-y-2">
@@ -300,82 +393,109 @@ export function ProviderConfigPanel({
           </div>
 
           {/* API Host */}
-          <div className="space-y-2">
-            <Label>{t('settings.apiHost')}</Label>
-            <Input
-              name={`llm-base-url-${provider.id}`}
-              type="url"
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder={
-                provider.baseUrlPlaceholder ||
-                provider.defaultBaseUrl ||
-                'https://api.example.com/v1'
-              }
-              value={baseUrl}
-              onChange={(e) => handleBaseUrlChange(e.target.value)}
-              onBlur={onSave}
-              className="h-8"
-            />
-            {provider.alternateBaseUrls && provider.alternateBaseUrls.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {provider.alternateBaseUrls.map((alt) => {
-                  const active = (baseUrl || provider.defaultBaseUrl) === alt.url;
-                  return (
-                    <button
-                      key={alt.url}
-                      type="button"
-                      onClick={() => {
-                        handleBaseUrlChange(alt.url);
-                        onSave();
-                      }}
-                      className={cn(
-                        'px-2 py-0.5 text-xs rounded-md border transition-colors',
-                        active
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background text-muted-foreground border-border hover:bg-muted',
-                      )}
-                    >
-                      {t(alt.label)}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {(() => {
-              const effectiveBaseUrl = baseUrl || provider.defaultBaseUrl || '';
-              if (!effectiveBaseUrl) return null;
-
-              // Generate endpoint path based on provider type
-              let endpointPath = '';
-              switch (provider.type) {
-                case 'openai':
-                  endpointPath = '/chat/completions';
-                  break;
-                case 'azure':
-                  endpointPath = '/v1/responses?api-version=v1';
-                  break;
-                case 'anthropic':
-                  endpointPath = '/messages';
-                  break;
-                case 'google':
-                  endpointPath = '/models/[model]';
-                  break;
-                default:
-                  endpointPath = '';
-              }
-
-              const fullUrl = effectiveBaseUrl + endpointPath;
-
-              return (
+          {fixedEndpoint ? (
+            <div className="space-y-2">
+              <Label>{t('settings.apiHost')}</Label>
+              {provider.defaultBaseUrl && (
                 <p className="text-xs text-muted-foreground break-all">
-                  {t('settings.requestUrl')}: {fullUrl}
+                  {t('settings.requestUrl')}:{' '}
+                  {previewEndpoint(provider.defaultBaseUrl, endpointParams) +
+                    requestPathForApi(api, provider.type)}
                 </p>
-              );
-            })()}
-          </div>
+              )}
+              <p className="text-xs text-muted-foreground">{t('settings.fixedEndpointHint')}</p>
+              {baseUrl && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  <span className="break-all">
+                    {t('settings.customBaseUrlNotAllowed').replace('{url}', baseUrl)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0"
+                    onClick={() => {
+                      handleBaseUrlChange('');
+                      onSave();
+                    }}
+                  >
+                    {t('settings.clearCustomBaseUrl')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>{t('settings.apiHost')}</Label>
+              <Input
+                name={`llm-base-url-${provider.id}`}
+                type="url"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder={
+                  provider.baseUrlPlaceholder ||
+                  provider.defaultBaseUrl ||
+                  'https://api.example.com/v1'
+                }
+                value={baseUrl}
+                onChange={(e) => handleBaseUrlChange(e.target.value)}
+                onBlur={onSave}
+                className="h-8"
+              />
+              {provider.alternateBaseUrls && provider.alternateBaseUrls.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {provider.alternateBaseUrls.map((alt) => {
+                    const active = (baseUrl || provider.defaultBaseUrl) === alt.url;
+                    return (
+                      <button
+                        key={alt.url}
+                        type="button"
+                        onClick={() => {
+                          handleBaseUrlChange(alt.url);
+                          onSave();
+                        }}
+                        className={cn(
+                          'px-2 py-0.5 text-xs rounded-md border transition-colors',
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                        )}
+                      >
+                        {t(alt.label)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {effectiveBaseUrl && (
+                <p className="text-xs text-muted-foreground break-all">
+                  {t('settings.requestUrl')}:{' '}
+                  {effectiveBaseUrl + requestPathForApi(api, provider.type)}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Non-secret endpoint values the catalog endpoint needs */}
+          {declaredParams.map((name) => (
+            <div key={name} className="space-y-2">
+              <Label htmlFor={`llm-endpoint-${provider.id}-${name}`}>
+                {t(`settings.endpointParamLabels.${name}`)}
+              </Label>
+              <Input
+                id={`llm-endpoint-${provider.id}-${name}`}
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={endpointParams[name] ?? ''}
+                onChange={(e) => handleEndpointParamChange(name, e.target.value)}
+                onBlur={onSave}
+                className="h-8"
+              />
+            </div>
+          ))}
         </>
       )}
 

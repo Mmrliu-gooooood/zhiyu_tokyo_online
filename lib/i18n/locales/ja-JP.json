@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "例：My OpenAI Proxy",
     "providerNameRequired": "プロバイダー名を入力してください",
     "providerApiMode": "APIモード",
-    "apiModeOpenAI": "OpenAIプロトコル",
-    "apiModeAnthropic": "Claudeプロトコル",
-    "apiModeGoogle": "Geminiプロトコル",
     "defaultBaseUrl": "デフォルトのベースURL",
     "providerIcon": "プロバイダーのアイコンURL",
     "requiresApiKey": "APIキーが必要",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "追加後に API キーとモデル ID を入力してください。",
     "mediaProviderEnabled": "プラットフォームを有効化",
     "mediaConfigurationChecked": "設定は完了しています。生成リクエストは送信していません。API キーとモデルの利用可否は未確認です。",
-    "checkMediaConfiguration": "設定を確認"
+    "checkMediaConfiguration": "設定を確認",
+    "providerSearchPlaceholder": "プロバイダーを検索",
+    "providerSearchNoMatch": "一致するプロバイダーはありません",
+    "providerGroups": {
+      "official": "公式",
+      "china": "中国ベンダー",
+      "aggregator": "アグリゲーター",
+      "coding-plan": "Coding & Token Plan",
+      "subscription": "サブスクリプションでサインイン",
+      "enterprise": "エンタープライズ",
+      "local": "ローカル",
+      "custom": "カスタム"
+    },
+    "authTabApiKey": "API キー",
+    "authTabOAuth": "アカウントでサインイン",
+    "oauthSignInPending": "このデプロイではアカウントでのサインインはまだ利用できません。",
+    "fixedEndpointHint": "このプロバイダーは固定の公式エンドポイントを使用します。中継を使う場合はカスタムの OpenAI 互換プロバイダーを追加してください。",
+    "customBaseUrlNotAllowed": "カスタム Base URL（{url}）が保存されていますが、このプロバイダーは公式エンドポイントのみ受け付けるため、リクエストは拒否されます。",
+    "clearCustomBaseUrl": "クリア",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "Cloudflare アカウント ID",
+      "CLOUDFLARE_GATEWAY_ID": "Cloudflare AI Gateway ID"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

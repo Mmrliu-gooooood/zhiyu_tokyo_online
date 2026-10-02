@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "مثلاً: بروكسي OpenAI الخاص بي",
     "providerNameRequired": "يرجى إدخال اسم المزوّد",
     "providerApiMode": "وضع API",
-    "apiModeOpenAI": "بروتوكول OpenAI",
-    "apiModeAnthropic": "بروتوكول Claude",
-    "apiModeGoogle": "بروتوكول Gemini",
     "defaultBaseUrl": "العنوان الأساسي الافتراضي",
     "providerIcon": "رابط أيقونة المزوّد",
     "requiresApiKey": "يتطلب مفتاح API",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "أضف المنصة، ثم أدخل مفتاح API ومعرّف النموذج.",
     "mediaProviderEnabled": "تفعيل المنصة",
     "mediaConfigurationChecked": "اكتملت الإعدادات. لم يُرسل طلب توليد؛ لم يتم التحقق من المفتاح وتوفر النموذج بعد.",
-    "checkMediaConfiguration": "فحص الإعدادات"
+    "checkMediaConfiguration": "فحص الإعدادات",
+    "providerSearchPlaceholder": "ابحث عن المزوّدين",
+    "providerSearchNoMatch": "لا يوجد مزوّدون مطابقون",
+    "providerGroups": {
+      "official": "رسمي",
+      "china": "مزوّدون من الصين",
+      "aggregator": "منصات تجميع",
+      "coding-plan": "خطط Coding و Token",
+      "subscription": "تسجيل الدخول بالاشتراك",
+      "enterprise": "المؤسسات",
+      "local": "محلي",
+      "custom": "مخصص"
+    },
+    "authTabApiKey": "مفتاح API",
+    "authTabOAuth": "تسجيل الدخول بالحساب",
+    "oauthSignInPending": "تسجيل الدخول بالحساب غير متاح بعد في هذا النشر.",
+    "fixedEndpointHint": "يستخدم هذا المزوّد نقطة نهاية رسمية ثابتة. لاستخدام وسيط، أضف مزوّدًا مخصصًا متوافقًا مع OpenAI.",
+    "customBaseUrlNotAllowed": "تم حفظ Base URL مخصص ({url}) لكن هذا المزوّد يقبل نقطة نهايته الرسمية فقط، لذا سيتم رفض الطلبات.",
+    "clearCustomBaseUrl": "مسح",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "معرّف حساب Cloudflare",
+      "CLOUDFLARE_GATEWAY_ID": "معرّف Cloudflare AI Gateway"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "e.g., My OpenAI Proxy",
     "providerNameRequired": "Please enter provider name",
     "providerApiMode": "API Mode",
-    "apiModeOpenAI": "OpenAI Protocol",
-    "apiModeAnthropic": "Claude Protocol",
-    "apiModeGoogle": "Gemini Protocol",
     "defaultBaseUrl": "Default Base URL",
     "providerIcon": "Provider Icon URL",
     "requiresApiKey": "Requires API Key",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "Add your platform, then enter its API key and model ID.",
     "mediaProviderEnabled": "Enable platform",
     "mediaConfigurationChecked": "Configuration is complete. No generation request was sent; API key and model availability have not been verified.",
-    "checkMediaConfiguration": "Check configuration"
+    "checkMediaConfiguration": "Check configuration",
+    "providerSearchPlaceholder": "Search providers",
+    "providerSearchNoMatch": "No matching providers",
+    "providerGroups": {
+      "official": "Official",
+      "china": "China vendors",
+      "aggregator": "Aggregators",
+      "coding-plan": "Coding & Token Plans",
+      "subscription": "Subscription sign-in",
+      "enterprise": "Enterprise",
+      "local": "Local",
+      "custom": "Custom"
+    },
+    "authTabApiKey": "API Key",
+    "authTabOAuth": "Account sign-in",
+    "oauthSignInPending": "Account sign-in is not available on this deployment yet.",
+    "fixedEndpointHint": "This provider uses a fixed official endpoint. To use a relay, add a custom OpenAI-compatible provider instead.",
+    "customBaseUrlNotAllowed": "A custom Base URL ({url}) is saved but this provider only accepts its official endpoint, so requests will be rejected.",
+    "clearCustomBaseUrl": "Clear",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "Cloudflare account ID",
+      "CLOUDFLARE_GATEWAY_ID": "Cloudflare AI Gateway ID"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "Untitled course",

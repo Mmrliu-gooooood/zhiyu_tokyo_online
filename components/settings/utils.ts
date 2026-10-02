@@ -1,5 +1,6 @@
 import type { ProviderId, ProviderType, ModelInfo } from '@/lib/types/provider';
 import type { ProviderSettings } from '@/lib/types/settings';
+import type { WireApi } from '@/lib/model-gateway/types';
 import { getCatalogThinkingCapability } from '@/lib/model-gateway/catalog/client-catalog';
 
 /** Heuristic: model ids matching this are treated as vision-capable. */
@@ -32,6 +33,8 @@ export function modelInfoFromId(id: string, providerId?: string): ModelInfo {
 interface NewCustomProviderConfig {
   name: string;
   type: ProviderType;
+  /** Wire protocol of a user-defined provider (sent as x-model-api). */
+  api?: WireApi;
   baseUrl: string;
   icon: string;
   requiresApiKey: boolean;
@@ -72,6 +75,7 @@ export function createCustomProviderSettings(
   providerData: NewCustomProviderConfig,
 ): ProviderSettings {
   return {
+    ...(providerData.api ? { api: providerData.api } : {}),
     apiKey: '',
     baseUrl: providerData.baseUrl || '',
     models: [],
@@ -92,14 +96,57 @@ interface VerifyModelRequestConfig {
   baseUrl?: string;
   providerType?: ProviderType | string;
   requiresApiKey?: boolean;
+  api?: WireApi;
+  endpointProfile?: string;
+  endpointParams?: Record<string, string>;
 }
 
 export function createVerifyModelRequest(config: VerifyModelRequestConfig) {
+  const endpointParams = Object.fromEntries(
+    Object.entries(config.endpointParams ?? {})
+      .map(([name, value]) => [name, value.trim()] as const)
+      .filter(([, value]) => value),
+  );
   return {
     apiKey: config.apiKey || '',
     baseUrl: config.baseUrl || '',
     model: `${config.providerId}:${config.modelId}`,
     providerType: config.providerType,
     requiresApiKey: config.requiresApiKey,
+    ...(config.api ? { api: config.api } : {}),
+    ...(config.endpointProfile ? { endpointProfile: config.endpointProfile } : {}),
+    ...(Object.keys(endpointParams).length > 0 ? { endpointParams } : {}),
   };
+}
+
+/** Request path the settings preview appends to a base URL, by wire protocol. */
+export function requestPathForApi(api: WireApi | undefined, type: ProviderType): string {
+  switch (api) {
+    case 'openai-completions':
+      return '/chat/completions';
+    case 'openai-responses':
+      return '/responses';
+    case 'anthropic-messages':
+      return '/messages';
+    case 'azure-openai-responses':
+      return '/v1/responses?api-version=v1';
+    case 'google-generative-ai':
+      return '/models/[model]';
+    case undefined:
+      break;
+    default:
+      return '';
+  }
+  switch (type) {
+    case 'openai':
+      return '/chat/completions';
+    case 'azure':
+      return '/v1/responses?api-version=v1';
+    case 'anthropic':
+      return '/messages';
+    case 'google':
+      return '/models/[model]';
+    default:
+      return '';
+  }
 }

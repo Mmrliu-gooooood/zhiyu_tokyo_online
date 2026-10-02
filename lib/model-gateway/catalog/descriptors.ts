@@ -82,11 +82,15 @@ export interface ProviderDescriptor {
   docsUrl?: string;
 }
 
-const OPENAI_COMPATIBLE_APIS: readonly WireApi[] = [
+/** Wire protocols a user-defined endpoint may speak (gateway transport only, P2-6). */
+export const CUSTOM_PROVIDER_API_LIST = [
   'openai-completions',
   'openai-responses',
   'anthropic-messages',
-];
+] as const satisfies readonly WireApi[];
+export type CustomProviderApi = (typeof CUSTOM_PROVIDER_API_LIST)[number];
+
+const OPENAI_COMPATIBLE_APIS: readonly WireApi[] = CUSTOM_PROVIDER_API_LIST;
 
 const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   // ---------------------------------------------------------------- existing 19

@@ -9,10 +9,26 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { cn } from '@/lib/utils';
+import {
+  CUSTOM_PROVIDER_API_LIST,
+  type CustomProviderApi,
+} from '@/lib/model-gateway/catalog/descriptors';
+
+/** Legacy settings `type` kept alongside the protocol for older readers. */
+export function legacyTypeForApi(api: CustomProviderApi): 'openai' | 'anthropic' {
+  return api === 'anthropic-messages' ? 'anthropic' : 'openai';
+}
+
+const API_LABEL_KEYS: Record<CustomProviderApi, string> = {
+  'openai-completions': 'settings.wireApis.openai-completions',
+  'openai-responses': 'settings.wireApis.openai-responses',
+  'anthropic-messages': 'settings.wireApis.anthropic-messages',
+};
 
 export interface NewProviderData {
   name: string;
-  type: 'openai' | 'anthropic' | 'google';
+  api: CustomProviderApi;
+  type: 'openai' | 'anthropic';
   baseUrl: string;
   icon: string;
   requiresApiKey: boolean;
@@ -30,7 +46,7 @@ export function AddProviderDialog({ open, onOpenChange, onAdd }: AddProviderDial
   const { t } = useI18n();
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<'openai' | 'anthropic' | 'google'>('openai');
+  const [api, setApi] = useState<CustomProviderApi>(CUSTOM_PROVIDER_API_LIST[0]);
   const [baseUrl, setBaseUrl] = useState('');
   const [icon, setIcon] = useState('');
   const [requiresApiKey, setRequiresApiKey] = useState(true);
@@ -41,7 +57,7 @@ export function AddProviderDialog({ open, onOpenChange, onAdd }: AddProviderDial
     setPrevOpen(open);
     if (!open) {
       setName('');
-      setType('openai');
+      setApi(CUSTOM_PROVIDER_API_LIST[0]);
       setBaseUrl('');
       setIcon('');
       setRequiresApiKey(true);
@@ -49,7 +65,8 @@ export function AddProviderDialog({ open, onOpenChange, onAdd }: AddProviderDial
   }
 
   const handleClose = () => onOpenChange(false);
-  const handleAdd = () => onAdd({ name, type, baseUrl, icon, requiresApiKey });
+  const handleAdd = () =>
+    onAdd({ name, api, type: legacyTypeForApi(api), baseUrl, icon, requiresApiKey });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,24 +94,20 @@ export function AddProviderDialog({ open, onOpenChange, onAdd }: AddProviderDial
           <div className="space-y-2">
             <Label>{t('settings.providerApiMode')}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {(['openai', 'anthropic', 'google'] as const).map((mode) => (
+              {CUSTOM_PROVIDER_API_LIST.map((mode) => (
                 <button
+                  type="button"
                   key={mode}
-                  onClick={() => setType(mode)}
+                  onClick={() => setApi(mode)}
+                  aria-pressed={api === mode}
                   className={cn(
                     'p-2 rounded-lg border text-left text-sm transition-colors',
-                    type === mode
+                    api === mode
                       ? 'bg-primary/5 border-primary/50'
                       : 'hover:bg-muted/50 border-transparent',
                   )}
                 >
-                  {t(
-                    mode === 'openai'
-                      ? 'settings.apiModeOpenAI'
-                      : mode === 'anthropic'
-                        ? 'settings.apiModeAnthropic'
-                        : 'settings.apiModeGoogle',
-                  )}
+                  {t(API_LABEL_KEYS[mode])}
                 </button>
               ))}
             </div>

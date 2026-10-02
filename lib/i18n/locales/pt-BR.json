@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "ex.: Meu Proxy OpenAI",
     "providerNameRequired": "Digite o nome do provedor",
     "providerApiMode": "Modo da API",
-    "apiModeOpenAI": "Protocolo OpenAI",
-    "apiModeAnthropic": "Protocolo Claude",
-    "apiModeGoogle": "Protocolo Gemini",
     "defaultBaseUrl": "URL Base Padrão",
     "providerIcon": "URL do Ícone do Provedor",
     "requiresApiKey": "Requer Chave de API",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "Adicione a plataforma e informe a chave de API e o ID do modelo.",
     "mediaProviderEnabled": "Ativar plataforma",
     "mediaConfigurationChecked": "A configuração está completa. Nenhuma geração foi solicitada; a chave de API e o modelo ainda não foram verificados.",
-    "checkMediaConfiguration": "Verificar configuração"
+    "checkMediaConfiguration": "Verificar configuração",
+    "providerSearchPlaceholder": "Pesquisar provedores",
+    "providerSearchNoMatch": "Nenhum provedor correspondente",
+    "providerGroups": {
+      "official": "Oficiais",
+      "china": "Fornecedores da China",
+      "aggregator": "Agregadores",
+      "coding-plan": "Planos Coding e Token",
+      "subscription": "Login por assinatura",
+      "enterprise": "Empresarial",
+      "local": "Local",
+      "custom": "Personalizados"
+    },
+    "authTabApiKey": "Chave de API",
+    "authTabOAuth": "Login com conta",
+    "oauthSignInPending": "O login com conta ainda não está disponível nesta implantação.",
+    "fixedEndpointHint": "Este provedor usa um endpoint oficial fixo. Para usar um relay, adicione um provedor personalizado compatível com OpenAI.",
+    "customBaseUrlNotAllowed": "Uma Base URL personalizada ({url}) está salva, mas este provedor só aceita o endpoint oficial; as solicitações serão rejeitadas.",
+    "clearCustomBaseUrl": "Limpar",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "ID da conta Cloudflare",
+      "CLOUDFLARE_GATEWAY_ID": "ID do Cloudflare AI Gateway"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

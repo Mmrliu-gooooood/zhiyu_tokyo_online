@@ -35,7 +35,12 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { useSettingsStore } from '@/lib/store/settings';
 import { toast } from 'sonner';
 import type { ProviderId } from '@/lib/types/provider';
-import { PROVIDERS, MONO_LOGO_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
+import {
+  CLIENT_PROVIDERS,
+  MONO_LOGO_PROVIDERS,
+  isProviderListed,
+  oauthSignInAvailable,
+} from '@/lib/model-gateway/catalog/client-catalog';
 import { cn } from '@/lib/utils';
 import { createCustomProviderSettings, getProviderTypeLabel, modelInfoFromId } from './utils';
 import { browseProviderDetails, ProviderList } from './provider-list';
@@ -233,6 +238,7 @@ export function SettingsDialog({
   const providerId = useSettingsStore((state) => state.providerId);
   const _modelId = useSettingsStore((state) => state.modelId);
   const providersConfig = useSettingsStore((state) => state.providersConfig);
+  const oauthProviders = useSettingsStore((state) => state.oauthProviders);
   const pdfProviderId = useSettingsStore((state) => state.pdfProviderId);
   const pdfProvidersConfig = useSettingsStore((state) => state.pdfProvidersConfig);
   const webSearchProviderId = useSettingsStore((state) => state.webSearchProviderId);
@@ -468,9 +474,9 @@ export function SettingsDialog({
         name: providersConfig[selectedProviderId].name,
         type: providersConfig[selectedProviderId].type,
         defaultBaseUrl: providersConfig[selectedProviderId].defaultBaseUrl,
-        baseUrlPlaceholder: PROVIDERS[selectedProviderId]?.baseUrlPlaceholder,
-        supportsModelDiscovery: PROVIDERS[selectedProviderId]?.supportsModelDiscovery,
-        alternateBaseUrls: PROVIDERS[selectedProviderId]?.alternateBaseUrls,
+        baseUrlPlaceholder: CLIENT_PROVIDERS[selectedProviderId]?.baseUrlPlaceholder,
+        supportsModelDiscovery: CLIENT_PROVIDERS[selectedProviderId]?.supportsModelDiscovery,
+        alternateBaseUrls: CLIENT_PROVIDERS[selectedProviderId]?.alternateBaseUrls,
         icon: providersConfig[selectedProviderId].icon,
         requiresApiKey: providersConfig[selectedProviderId].requiresApiKey,
         models: providersConfig[selectedProviderId].models,
@@ -591,6 +597,7 @@ export function SettingsDialog({
       [newProviderId]: createCustomProviderSettings({
         name: providerData.name,
         type: providerData.type,
+        api: providerData.api,
         baseUrl: providerData.baseUrl,
         icon: providerData.icon,
         requiresApiKey: providerData.requiresApiKey,
@@ -630,23 +637,29 @@ export function SettingsDialog({
   };
 
   const handleResetProvider = (pid: ProviderId) => {
-    const provider = PROVIDERS[pid];
+    const provider = CLIENT_PROVIDERS[pid];
     if (!provider) return;
     setProviderConfig(pid, { models: [...provider.models] });
     toast.success(t('settings.resetSuccess'));
   };
 
-  // Get all providers from providersConfig
-  const allProviders = Object.entries(providersConfig).map(([id, config]) => ({
-    id: id as ProviderId,
-    name: config.name,
-    type: config.type,
-    defaultBaseUrl: config.defaultBaseUrl,
-    icon: config.icon,
-    requiresApiKey: config.requiresApiKey,
-    models: config.models,
-    isServerConfigured: config.isServerConfigured,
-  }));
+  // Providers shown in the settings list: operator-only and sign-in-only
+  // catalog entries appear only when this deployment makes them usable.
+  const allProviders = Object.entries(providersConfig)
+    .filter(([id, config]) =>
+      isProviderListed(id, { serverConfigured: config.isServerConfigured, oauthProviders }),
+    )
+    .map(([id, config]) => ({
+      id: id as ProviderId,
+      name: config.name,
+      type: config.type,
+      defaultBaseUrl: config.defaultBaseUrl,
+      icon: config.icon,
+      requiresApiKey: config.requiresApiKey,
+      models: config.models,
+      isServerConfigured: config.isServerConfigured,
+      group: CLIENT_PROVIDERS[id]?.group ?? ('custom' as const),
+    }));
 
   // Sections that show a provider list column
   const _hasProviderList = [
@@ -715,7 +728,10 @@ export function SettingsDialog({
                     : selectedProvider.name}
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {getProviderTypeLabel(selectedProvider.type, t)}
+                  {providersConfig[selectedProvider.id]?.api &&
+                  !CLIENT_PROVIDERS[selectedProvider.id]
+                    ? t(`settings.wireApis.${providersConfig[selectedProvider.id]!.api}`)
+                    : getProviderTypeLabel(selectedProvider.type, t)}
                 </p>
               </div>
             </>
@@ -1328,6 +1344,13 @@ export function SettingsDialog({
                   selectedProvider && (
                     <ProviderConfigPanel
                       provider={selectedProvider}
+                      catalog={CLIENT_PROVIDERS[selectedProviderId]}
+                      api={providersConfig[selectedProviderId]?.api}
+                      oauthAvailable={oauthSignInAvailable(selectedProviderId, oauthProviders)}
+                      initialEndpointParams={providersConfig[selectedProviderId]?.endpointParams}
+                      onEndpointParamsChange={(endpointParams) =>
+                        setProviderConfig(selectedProviderId, { endpointParams })
+                      }
                       initialApiKey={providersConfig[selectedProviderId]?.apiKey || ''}
                       initialBaseUrl={providersConfig[selectedProviderId]?.baseUrl || ''}
                       initialRequiresApiKey={
@@ -1451,6 +1474,8 @@ export function SettingsDialog({
         apiKey={providersConfig[selectedProviderId]?.apiKey || ''}
         baseUrl={providersConfig[selectedProviderId]?.baseUrl}
         providerType={providersConfig[selectedProviderId]?.type}
+        api={providersConfig[selectedProviderId]?.api}
+        endpointParams={providersConfig[selectedProviderId]?.endpointParams}
         requiresApiKey={providersConfig[selectedProviderId]?.requiresApiKey}
         isServerConfigured={providersConfig[selectedProviderId]?.isServerConfigured}
       />

@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "par exemple, Mon proxy OpenAI",
     "providerNameRequired": "Veuillez saisir le nom du fournisseur",
     "providerApiMode": "Mode d’API",
-    "apiModeOpenAI": "Protocole OpenAI",
-    "apiModeAnthropic": "Protocole Claude",
-    "apiModeGoogle": "Protocole Gemini",
     "defaultBaseUrl": "URL de base par défaut",
     "providerIcon": "URL de l’icône du fournisseur",
     "requiresApiKey": "Nécessite une clé d’API",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "Ajoutez la plateforme, puis saisissez sa clé API et son identifiant de modèle.",
     "mediaProviderEnabled": "Activer la plateforme",
     "mediaConfigurationChecked": "La configuration est complète. Aucune génération demandée ; la clé API et le modèle ne sont pas encore vérifiés.",
-    "checkMediaConfiguration": "Vérifier la configuration"
+    "checkMediaConfiguration": "Vérifier la configuration",
+    "providerSearchPlaceholder": "Rechercher un fournisseur",
+    "providerSearchNoMatch": "Aucun fournisseur correspondant",
+    "providerGroups": {
+      "official": "Officiels",
+      "china": "Fournisseurs chinois",
+      "aggregator": "Agrégateurs",
+      "coding-plan": "Forfaits Coding & Token",
+      "subscription": "Connexion par abonnement",
+      "enterprise": "Entreprise",
+      "local": "Local",
+      "custom": "Personnalisés"
+    },
+    "authTabApiKey": "Clé API",
+    "authTabOAuth": "Connexion au compte",
+    "oauthSignInPending": "La connexion au compte n’est pas encore disponible sur ce déploiement.",
+    "fixedEndpointHint": "Ce fournisseur utilise un point de terminaison officiel fixe. Pour passer par un relais, ajoutez plutôt un fournisseur personnalisé compatible OpenAI.",
+    "customBaseUrlNotAllowed": "Une Base URL personnalisée ({url}) est enregistrée, mais ce fournisseur n’accepte que son point de terminaison officiel : les requêtes seront refusées.",
+    "clearCustomBaseUrl": "Effacer",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "ID de compte Cloudflare",
+      "CLOUDFLARE_GATEWAY_ID": "ID de Cloudflare AI Gateway"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

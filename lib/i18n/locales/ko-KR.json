@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "예: 나의 OpenAI 프록시",
     "providerNameRequired": "제공업체 이름을 입력하세요",
     "providerApiMode": "API 모드",
-    "apiModeOpenAI": "OpenAI 프로토콜",
-    "apiModeAnthropic": "Claude 프로토콜",
-    "apiModeGoogle": "Gemini 프로토콜",
     "defaultBaseUrl": "기본 Base URL",
     "providerIcon": "제공업체 아이콘 URL",
     "requiresApiKey": "API 키 필요",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "플랫폼을 추가한 후 API 키와 모델 ID를 입력하세요.",
     "mediaProviderEnabled": "플랫폼 활성화",
     "mediaConfigurationChecked": "설정이 완료되었습니다. 생성 요청은 보내지 않았으며 API 키와 모델의 사용 가능 여부는 확인되지 않았습니다.",
-    "checkMediaConfiguration": "설정 확인"
+    "checkMediaConfiguration": "설정 확인",
+    "providerSearchPlaceholder": "제공자 검색",
+    "providerSearchNoMatch": "일치하는 제공자가 없습니다",
+    "providerGroups": {
+      "official": "공식",
+      "china": "중국 업체",
+      "aggregator": "애그리게이터",
+      "coding-plan": "Coding & Token Plan",
+      "subscription": "구독 로그인",
+      "enterprise": "엔터프라이즈",
+      "local": "로컬",
+      "custom": "사용자 지정"
+    },
+    "authTabApiKey": "API 키",
+    "authTabOAuth": "계정 로그인",
+    "oauthSignInPending": "이 배포에서는 아직 계정 로그인을 사용할 수 없습니다.",
+    "fixedEndpointHint": "이 제공자는 고정된 공식 엔드포인트를 사용합니다. 중계를 사용하려면 사용자 지정 OpenAI 호환 제공자를 추가하세요.",
+    "customBaseUrlNotAllowed": "사용자 지정 Base URL({url})이 저장되어 있지만 이 제공자는 공식 엔드포인트만 허용하므로 요청이 거부됩니다.",
+    "clearCustomBaseUrl": "지우기",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "Cloudflare 계정 ID",
+      "CLOUDFLARE_GATEWAY_ID": "Cloudflare AI Gateway ID"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",

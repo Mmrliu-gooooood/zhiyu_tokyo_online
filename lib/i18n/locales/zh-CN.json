@@ -1562,9 +1562,6 @@
     "providerNamePlaceholder": "例如：我的OpenAI代理",
     "providerNameRequired": "请输入提供方名称",
     "providerApiMode": "API 模式",
-    "apiModeOpenAI": "OpenAI 协议",
-    "apiModeAnthropic": "Claude 协议",
-    "apiModeGoogle": "Gemini 协议",
     "defaultBaseUrl": "默认 Base URL",
     "providerIcon": "Provider 图标 URL",
     "requiresApiKey": "需要 API 密钥",
@@ -2155,7 +2152,34 @@
     "customMediaProviderHint": "添加平台后，请填写该平台的 API Key 和模型 ID。",
     "mediaProviderEnabled": "启用平台",
     "mediaConfigurationChecked": "配置已完整，未发送生成请求；尚未验证 API Key 和模型是否可用。",
-    "checkMediaConfiguration": "检查配置"
+    "checkMediaConfiguration": "检查配置",
+    "providerSearchPlaceholder": "搜索提供方",
+    "providerSearchNoMatch": "没有匹配的提供方",
+    "providerGroups": {
+      "official": "官方",
+      "china": "国内厂商",
+      "aggregator": "聚合平台",
+      "coding-plan": "Coding & Token Plan",
+      "subscription": "订阅登录",
+      "enterprise": "企业",
+      "local": "本地",
+      "custom": "自定义"
+    },
+    "authTabApiKey": "API Key",
+    "authTabOAuth": "账号登录",
+    "oauthSignInPending": "当前部署暂未开放账号登录。",
+    "fixedEndpointHint": "该提供方只使用官方固定端点。如需中转，请添加自定义 OpenAI 兼容提供方。",
+    "customBaseUrlNotAllowed": "已保存自定义 Base URL（{url}），但该提供方只接受官方端点，请求会被拒绝。",
+    "clearCustomBaseUrl": "清除",
+    "endpointParamLabels": {
+      "CLOUDFLARE_ACCOUNT_ID": "Cloudflare 账号 ID",
+      "CLOUDFLARE_GATEWAY_ID": "Cloudflare AI Gateway ID"
+    },
+    "wireApis": {
+      "openai-completions": "OpenAI Chat Completions",
+      "openai-responses": "OpenAI Responses",
+      "anthropic-messages": "Claude Messages"
+    }
   },
   "workspace": {
     "untitledCourse": "未命名课堂",
