@@ -209,6 +209,8 @@ async function readPersistedState(): Promise<Record<string, unknown>> {
 
 /** Full server response shape */
 interface MockServerResponse {
+  oauthProviders?: unknown[];
+  modelCatalogVersion?: string;
   providers?: Record<string, { models?: string[]; baseUrl?: string }>;
   tts?: Record<string, { baseUrl?: string; disabled?: boolean }>;
   asr?: Record<string, { baseUrl?: string; disabled?: boolean }>;
@@ -403,6 +405,25 @@ describe('fetchServerProviders — provider availability sync', () => {
     await useSettingsStore.persist.rehydrate();
     return useSettingsStore;
   }
+
+  // ---- Model catalog / subscription sign-in (P5-3) ----
+
+  it('records the sign-in providers and catalog version the server reports', async () => {
+    const store = await getStore();
+    mockServerResponse({
+      oauthProviders: ['openrouter', 42],
+      modelCatalogVersion: '0.99.1+abc',
+    });
+    await store.getState().fetchServerProviders();
+    expect(store.getState().oauthProviders).toEqual(['openrouter']);
+    expect(store.getState().serverModelCatalogVersion).toBe('0.99.1+abc');
+
+    // An older server omits both: no sign-in is offered.
+    mockServerResponse({});
+    await store.getState().fetchServerProviders();
+    expect(store.getState().oauthProviders).toEqual([]);
+    expect(store.getState().serverModelCatalogVersion).toBeUndefined();
+  });
 
   // ---- Server model list filtering ----
 

@@ -13,7 +13,7 @@ import { revokeMediaConfigSnapshotsForProvider } from '@/lib/workbench/media-con
 import { persist } from 'zustand/middleware';
 import type { ProviderId } from '@/lib/types/provider';
 import type { ProvidersConfig } from '@/lib/types/settings';
-import { CLIENT_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
+import { CATALOG_VERSION, CLIENT_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { findModelById, getCanonicalModelId } from '@/lib/ai/model-aliases';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import { getThinkingConfigKey, supportsConfigurableThinking } from '@/lib/ai/thinking-config';
@@ -120,6 +120,10 @@ export interface SettingsState {
   ttsSelection: ModelSelection;
   platformDefaults: PlatformDefaultCatalog | null;
   platformDefaultsStatus: 'idle' | 'ready' | 'error';
+  /** Providers whose subscription sign-in this deployment enables (server-reported). */
+  oauthProviders: string[];
+  /** Model catalog version the server resolves against (server-reported). */
+  serverModelCatalogVersion?: string;
 
   // TTS settings (legacy, kept for backward compatibility)
   ttsModel: string;
@@ -1032,6 +1036,7 @@ export const useSettingsStore = create<SettingsState>()(
         },
         platformDefaults: null,
         platformDefaultsStatus: 'idle',
+        oauthProviders: [],
         thinkingConfigs: {},
         providersConfig: getDefaultProvidersConfig(),
         ttsModel: 'openai-tts',
@@ -1814,8 +1819,17 @@ export const useSettingsStore = create<SettingsState>()(
               webSearch: Record<string, { disabled?: boolean }>;
               platformDefaults?: PlatformDefaultCatalog;
               generation?: { parallelSceneConcurrency?: number };
+              modelCatalogVersion?: string;
+              oauthProviders?: string[];
             };
             if (requestSequence !== serverProviderRequestSequence) return;
+            if (data.modelCatalogVersion && data.modelCatalogVersion !== CATALOG_VERSION) {
+              // A page loaded before a deploy: the server resolves models against
+              // a newer catalog than the settings UI lists until reload.
+              log.warn(
+                `Model catalog differs from the server (${CATALOG_VERSION} vs ${data.modelCatalogVersion})`,
+              );
+            }
 
             set((state) => {
               const platformCatalog = data.platformDefaults;
@@ -2389,6 +2403,14 @@ export const useSettingsStore = create<SettingsState>()(
                       platformDefaultsStatus: 'ready' as const,
                     }
                   : {}),
+                // Older servers omit both: no sign-in, unknown catalog.
+                oauthProviders: Array.isArray(data.oauthProviders)
+                  ? data.oauthProviders.filter((id) => typeof id === 'string')
+                  : [],
+                serverModelCatalogVersion:
+                  typeof data.modelCatalogVersion === 'string'
+                    ? data.modelCatalogVersion
+                    : undefined,
                 llmSelection,
                 imageSelection,
                 videoSelection,

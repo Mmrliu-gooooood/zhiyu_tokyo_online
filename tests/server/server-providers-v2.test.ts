@@ -56,6 +56,18 @@ describe('GET /api/server-providers catalogVersion=2', () => {
     expect(body.tts).toEqual({ 'openai-tts': {} });
   });
 
+  it('reports the model catalog version and no subscription sign-in in R1', async () => {
+    const { GET } = await import('@/app/api/server-providers/route');
+    const { CATALOG_VERSION } = await import('@/lib/model-gateway/catalog/client-catalog');
+    const response = await GET(
+      new NextRequest('http://localhost/api/server-providers?catalogVersion=2'),
+    );
+    const body = await response.json();
+
+    expect(body.modelCatalogVersion).toBe(CATALOG_VERSION);
+    expect(body.oauthProviders).toEqual([]);
+  });
+
   it('keeps the legacy managed-provider view for old clients', async () => {
     const { GET } = await import('@/app/api/server-providers/route');
     const response = await GET(new NextRequest('http://localhost/api/server-providers'));

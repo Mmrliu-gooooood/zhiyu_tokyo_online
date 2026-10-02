@@ -14,6 +14,8 @@ import { hostedAuthGate } from '@/lib/auth/api';
 import type { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
+import { CATALOG_VERSION } from '@/lib/model-gateway/catalog/client-catalog';
+import { enabledOAuthProviders } from '@/lib/model-gateway/auth/policy';
 import {
   backgroundGenerationEnabled,
   generationRequestReadiness,
@@ -53,6 +55,10 @@ export async function GET(request: NextRequest) {
       video: version2 ? userProviderProjection('video', video) : video,
       webSearch: getServerWebSearchProviders(),
       ...(version2 ? { platformDefaults: getPlatformDefaultCatalog() } : {}),
+      // Model catalog this server resolves against, and the providers whose
+      // subscription sign-in is enabled here (R1: none).
+      modelCatalogVersion: CATALOG_VERSION,
+      oauthProviders: enabledOAuthProviders(),
       generation: {
         parallelSceneConcurrency: getParallelSceneConcurrency(),
         background: backgroundGenerationEnabled()
