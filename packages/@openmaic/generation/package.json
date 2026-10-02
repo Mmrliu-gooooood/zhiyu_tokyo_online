@@ -11,6 +11,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./generation-retry": {
+      "types": "./dist/generation-retry.d.ts",
+      "import": "./dist/generation-retry.js"
+    },
+    "./json-repair": {
+      "types": "./dist/json-repair.d.ts",
+      "import": "./dist/json-repair.js"
+    },
+    "./outline-type": {
+      "types": "./dist/outline-type.d.ts",
+      "import": "./dist/outline-type.js"
+    },
     "./pbl/kernel/*": {
       "types": "./dist/pbl/operations/kernel/*.d.ts",
       "import": "./dist/pbl/operations/kernel/*.js"

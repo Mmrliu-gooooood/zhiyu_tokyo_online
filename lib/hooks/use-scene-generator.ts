@@ -48,7 +48,7 @@ import {
   isAbortError,
   withGenerationRetry,
   type GenerationRetryOptions,
-} from '@openmaic/generation';
+} from '@openmaic/generation/generation-retry';
 import {
   platformTTSRequestFields,
   withPlatformTTSAvailability,
