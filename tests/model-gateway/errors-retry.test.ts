@@ -15,7 +15,16 @@ import { bindingFor, testGateway } from './helpers';
 let server: FakeModelServer;
 beforeAll(async () => {
   server = await startFakeModelServer();
-});
+  // One throwaway call loads the pi provider / API modules up front. Under a
+  // loaded full run that cold load could exceed the first test's 5 s budget,
+  // and its late request would then be counted by the next test.
+  server.setHandler(() => ({ kind: 'auto', text: 'ok' }));
+  await testGateway().gateway.complete(
+    await bindingFor('deepseek', 'deepseek-flash', server.origin),
+    request,
+    { source: 'warm-up' },
+  );
+}, 60_000);
 afterAll(async () => {
   await server.close();
 });
