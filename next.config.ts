@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       'lib/server/agent-runtime/import-pptx-worker.mjs',
       // Prompt loaders read Markdown at request time, so webpack cannot infer these assets.
       'lib/prompts/**',
+      'lib/pbl/v2/prompts/**',
       'packages/@openmaic/generation/templates/**',
       'packages/@openmaic/generation/snippets/**',
       'packages/@openmaic/generation/prompts-pbl/**',
