@@ -2,24 +2,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── AI SDK mocks ──────────────────────────────────────────────────────────────
 
-const { mockGenerateText, mockProvider, mockTool, mockCreateAnthropic } = vi.hoisted(() => {
-  const mockTool = {};
-  const mockModel = {};
-  const mockProvider = Object.assign(
-    vi.fn(() => mockModel),
-    {
-      tools: {
-        webSearch_20260209: vi.fn(() => mockTool),
-        webSearch_20250305: vi.fn(() => mockTool),
+const { mockGenerateText, mockProvider, mockTool, mockCreateAnthropic, mockRecordUsage } =
+  vi.hoisted(() => {
+    const mockTool = {};
+    const mockModel = {};
+    const mockProvider = Object.assign(
+      vi.fn(() => mockModel),
+      {
+        tools: {
+          webSearch_20260209: vi.fn(() => mockTool),
+          webSearch_20250305: vi.fn(() => mockTool),
+        },
       },
-    },
-  );
-  const mockCreateAnthropic = vi.fn(() => mockProvider);
-  const mockGenerateText = vi.fn();
-  return { mockGenerateText, mockProvider, mockTool, mockCreateAnthropic };
-});
+    );
+    const mockCreateAnthropic = vi.fn(() => mockProvider);
+    const mockGenerateText = vi.fn();
+    const mockRecordUsage = vi.fn(async () => undefined);
+    return { mockGenerateText, mockProvider, mockTool, mockCreateAnthropic, mockRecordUsage };
+  });
 
-vi.mock('@/lib/ai/llm', () => ({ callLLM: mockGenerateText }));
+vi.mock('ai', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('ai')>()),
+  generateText: mockGenerateText,
+}));
+vi.mock('@/lib/server/usage-storage', () => ({ recordUsage: mockRecordUsage }));
 vi.mock('@ai-sdk/anthropic', () => ({ createAnthropic: mockCreateAnthropic }));
 vi.mock('@/lib/server/proxy-fetch', () => ({ proxyFetch: vi.fn() }));
 vi.mock('@/lib/logger', () => ({
@@ -63,10 +69,7 @@ describe('searchWithClaude', () => {
 
     await searchWithClaude({ query: 'test', apiKey: 'sk-test', signal });
 
-    expect(mockGenerateText).toHaveBeenCalledWith(
-      expect.objectContaining({ abortSignal: signal }),
-      'web-search-claude',
-    );
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({ abortSignal: signal }));
   });
 
   // ── fetch interceptor: allowed_callers injection ──────────────────────────
@@ -218,15 +221,20 @@ describe('searchWithClaude', () => {
     expect(mockProvider.tools.webSearch_20260209).toHaveBeenCalledWith({});
   });
 
-  it('passes the web search tool through callLLM with a usage source label', async () => {
+  it('passes the web search tool to the AI SDK and records usage under its source', async () => {
     mockAIResponse();
     await searchWithClaude({ query: 'test', apiKey: 'sk-test' });
-    const [args, source] = mockGenerateText.mock.calls[0]! as [
-      { tools: Record<string, unknown> },
-      string,
-    ];
+    const [args] = mockGenerateText.mock.calls[0]! as [{ tools: Record<string, unknown> }];
     expect(args.tools).toEqual({ web_search: mockTool });
-    expect(source).toBe('web-search-claude');
+    await vi.waitFor(() =>
+      expect(mockRecordUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'llm',
+          source: 'web-search-claude',
+          providerId: 'anthropic',
+        }),
+      ),
+    );
   });
 
   // ── provider configuration ────────────────────────────────────────────────

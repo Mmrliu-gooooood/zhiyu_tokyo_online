@@ -34,8 +34,8 @@ import {
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { useSettingsStore } from '@/lib/store/settings';
 import { toast } from 'sonner';
-import { type ProviderId } from '@/lib/ai/providers';
-import { PROVIDERS, MONO_LOGO_PROVIDERS } from '@/lib/ai/providers';
+import type { ProviderId } from '@/lib/types/provider';
+import { PROVIDERS, MONO_LOGO_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { cn } from '@/lib/utils';
 import { createCustomProviderSettings, getProviderTypeLabel, modelInfoFromId } from './utils';
 import { browseProviderDetails, ProviderList } from './provider-list';

@@ -1,11 +1,11 @@
 /**
- * Test-only ModelGateway that replays AI SDK `streamLLM`-style scripts.
+ * Test-only ModelGateway that replays AI SDK `streamText`-style scripts.
  *
  * Many agent / chat consumer tests script one model turn as AI SDK
  * `fullStream` parts (`text-delta`, `reasoning-delta`, `tool-call`,
  * `finish`, `error`). This shim lets those scripts drive the gateway-based
  * stream fn unchanged: `stream(binding, req, opts)` calls the test's
- * `streamLLM(params, source)` mock with AI-SDK-shaped params (system,
+ * `modelStream(params, source)` mock with AI-SDK-shaped params (system,
  * messages, tools keyed by name, maxOutputTokens, abortSignal) and turns the
  * returned parts into gateway events. Transport behavior itself is covered by
  * tests/model-gateway; these tests exercise the consumers.
@@ -36,7 +36,7 @@ function text(content: unknown): string {
     .join('\n');
 }
 
-/** pi messages → AI SDK ModelMessage-like records (what streamLLM used to receive). */
+/** pi messages → AI SDK ModelMessage-like records (what the legacy stream helper used to receive). */
 export function toLegacyMessages(messages: GatewayMessage[]): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];
   for (const message of messages) {
@@ -130,7 +130,7 @@ function errorOf(error: unknown) {
 }
 
 async function* replay(
-  streamLLM: StreamLLMLike,
+  modelStream: StreamLLMLike,
   binding: ModelBinding,
   req: GatewayRequest,
   opts: { source: string; signal?: AbortSignal; beforeCall?: () => Promise<void> },
@@ -148,9 +148,9 @@ async function* replay(
       yield fail('aborted', opts.signal.reason);
       return;
     }
-    const result = streamLLM(legacyParams(binding, req, opts.signal), opts.source);
+    const result = modelStream(legacyParams(binding, req, opts.signal), opts.source);
     if (!result) {
-      yield fail('error', 'streamLLM mock returned nothing');
+      yield fail('error', 'modelStream mock returned nothing');
       return;
     }
     yield { type: 'start', partial };
@@ -222,11 +222,11 @@ async function* replay(
   }
 }
 
-/** A ModelGateway whose turns are scripted by an AI SDK-style `streamLLM` mock. */
-export function legacyStreamGateway(streamLLM: StreamLLMLike): ModelGateway {
+/** A ModelGateway whose turns are scripted by an AI SDK-style `modelStream` mock. */
+export function legacyStreamGateway(modelStream: StreamLLMLike): ModelGateway {
   return {
     stream(binding, req, opts) {
-      const events = () => replay(streamLLM, binding, req, opts);
+      const events = () => replay(modelStream, binding, req, opts);
       const stream: GatewayStream = {
         [Symbol.asyncIterator]: events,
         async *textStream() {

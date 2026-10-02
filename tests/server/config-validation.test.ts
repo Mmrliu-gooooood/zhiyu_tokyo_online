@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BARE_MODEL_ID_DEPRECATION_MSG } from '@/lib/ai/providers';
+import { BARE_MODEL_ID_DEPRECATION_MSG } from '@/lib/server/config-validation';
 
 // config-validation reads env directly and imports provider-config, whose
 // module-level getConfig() cache must be reset between cases (mirrors the
@@ -302,7 +302,7 @@ describe('parseModelString — request-derived strings never warn', () => {
     vi.resetModules();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const { parseModelString } = await import('@/lib/ai/providers');
+      const { parseModelString } = await import('@/lib/model-gateway/selection/schema');
 
       expect(parseModelString('gpt-5.5')).toEqual({ providerId: 'openai', modelId: 'gpt-5.5' });
       expect(parseModelString('anthropic:claude-sonnet-4')).toEqual({
@@ -319,7 +319,7 @@ describe('parseModelString — request-derived strings never warn', () => {
     vi.resetModules();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const { warnBareModelIdDeprecation } = await import('@/lib/ai/providers');
+      const { warnBareModelIdDeprecation } = await import('@/lib/server/config-validation');
 
       expect(warnBareModelIdDeprecation('gpt-5.5', 'DEFAULT_MODEL')).toBe(true);
       expect(warnSpy).toHaveBeenCalledTimes(1);

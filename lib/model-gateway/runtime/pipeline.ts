@@ -14,6 +14,7 @@
  *  10 per-attempt usage, settlement, structured log; quota release at the end
  */
 import { createLogger } from '@/lib/logger';
+import { getCanonicalModelId } from '@/lib/ai/model-aliases';
 import { getCredentialHandle } from '../credentials/handles';
 import { ambientAuthContext, sealedAuthContext } from '../credentials/auth-context';
 import { explicitProviderEnv } from '../credentials/env-exposure';
@@ -508,11 +509,13 @@ export function runStream(
   }
 
   function recordAttempt(usage: NormalizedUsage, attempt: number): void {
+    // Usage is attributed to the canonical model id (aliases resolved).
+    const modelId = getCanonicalModelId(binding.providerId, binding.modelId);
     deps.recordUsage({
       source: opts.source,
       providerId: binding.providerId,
-      modelId: binding.modelId,
-      modelString: binding.modelString,
+      modelId,
+      modelString: binding.defaultId ? binding.modelString : `${binding.providerId}:${modelId}`,
       usage,
       jobId: opts.usage?.jobId,
       sessionId: opts.usage?.sessionId,

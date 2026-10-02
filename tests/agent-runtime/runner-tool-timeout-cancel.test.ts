@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   getServerPersistenceProvider: vi.fn(),
   openEntryStorage: vi.fn(),
   resolveAgentDriverModel: vi.fn(),
-  streamLLM: vi.fn(),
+  modelStream: vi.fn(),
   assembleRunnerTools: vi.fn(),
   buildRunnerCoursePrompt: vi.fn(() => 'system prompt'),
   getOwnerScopedDocumentStore: vi.fn(async () => ({})),
@@ -76,7 +76,7 @@ vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) =>
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 
@@ -145,7 +145,7 @@ const resultFrom = (parts: Array<Record<string, unknown>>) => ({
 });
 
 function useResponses(responses: Array<Array<Record<string, unknown>>>) {
-  mocks.streamLLM.mockImplementation(() => {
+  mocks.modelStream.mockImplementation(() => {
     const parts = responses.shift();
     return resultFrom(
       parts ?? [{ type: 'text-delta', text: 'unexpected transport' }, finish('stop')],
@@ -295,7 +295,7 @@ describe('runner: global tool-call execution bound', () => {
     );
     expect(store.clearCancel).not.toHaveBeenCalled();
     // ...the agent made its next model turn after the timeout error...
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     // ...and the abort signal reached the tool's in-flight work.
     expect(captured).toHaveLength(1);
     expect(captured[0]?.aborted).toBe(true);

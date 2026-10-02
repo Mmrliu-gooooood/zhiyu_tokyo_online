@@ -3,13 +3,13 @@ import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { ImageMapping, PdfImage } from '@/lib/types/generation';
 
-const streamLLMMock = vi.hoisted(() => vi.fn());
+const streamMock = vi.hoisted(() => vi.fn());
 const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const resolveVisionImagesMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    stream: streamLLMMock,
+    stream: streamMock,
     resolveRequestBinding: resolveRequestBindingMock,
   }),
 );
@@ -36,7 +36,7 @@ describe('scene-outlines-stream route — standard branch prompt parity on a dro
   }, 60_000);
 
   beforeEach(() => {
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
     resolveVisionImagesMock.mockReset();
     resolveRequestBindingMock.mockResolvedValue({
@@ -56,7 +56,7 @@ describe('scene-outlines-stream route — standard branch prompt parity on a dro
         .filter((image) => image.src !== 'ast_gone')
         .map((image) => ({ ...image, src: dataUrlFor(`outline-bytes-${image.id}`) })),
     );
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield JSON.stringify({
@@ -90,7 +90,7 @@ describe('scene-outlines-stream route — standard branch prompt parity on a dro
 
     // The standard branch ran with a vision-enabled model, so the LLM call is
     // multimodal and its text half is the standard prompt's user text.
-    const streamParams = streamLLMMock.mock.calls[0][1] as {
+    const streamParams = streamMock.mock.calls[0][1] as {
       system: string;
       messages: Array<{
         role: string;

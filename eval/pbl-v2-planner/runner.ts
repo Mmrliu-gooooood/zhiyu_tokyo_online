@@ -37,10 +37,7 @@ import { readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, type LanguageModel } from 'ai';
+import { generateText } from '../shared/llm';
 
 import { gateway, resolveParamsBinding, userText, type ModelBinding } from '@/lib/model-gateway';
 import { gatewayPlannerCall, generatePBLV2Project } from '@/lib/pbl/v2/agents/planner';
@@ -142,45 +139,20 @@ function parseModelString(raw: string): { provider: string; modelId: string } {
   return { provider: raw.slice(0, colon), modelId: raw.slice(colon + 1) };
 }
 
-function makeProvider(
-  provider: string,
-  apiKey: string,
-  baseURL?: string,
-): (id: string) => LanguageModel {
-  switch (provider) {
-    case 'google': {
-      const google = createGoogleGenerativeAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
-      return (id) => google(id);
-    }
-    case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
-      return (id) => anthropic(id);
-    }
-    case 'openai': {
-      // Use chat-completions (not the Responses API): OpenAI-compatible
-      // gateways (DeepSeek, Qwen, etc.) only speak /v1/chat/completions.
-      const openai = createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
-      return (id) => openai.chat(id);
-    }
-    default:
-      console.error(
-        `Error: unsupported provider "${provider}". Supported: google, anthropic, openai.`,
-      );
-      process.exit(1);
-  }
-}
-
-/** Build a model from a triple of env vars (model / api key / base url).
+/** A gateway binding from a triple of env vars (model / api key / base url).
  *  Returns null when the model var is unset (used for the optional judge
- *  override). `required` exits the process on a missing model/key. */
-function modelFromEnv(
+ *  override). `required` exits the process on a missing model/key.
+ *  `provider:model` with a base URL on `openai` is an OpenAI-compatible
+ *  gateway (chat completions), as the AI SDK harness used it. */
+async function bindingFromEnv(
   modelVar: string,
   keyVar: string,
   baseVar: string,
   fallbackKeyVar: string,
   fallbackBaseVar: string,
   required: boolean,
-): LanguageModel | null {
+  thinkingConfig?: ThinkingConfig,
+): Promise<ModelBinding | null> {
   const raw = process.env[modelVar];
   if (!raw) {
     if (required) {
@@ -196,35 +168,52 @@ function modelFromEnv(
     console.error(`Error: ${keyVar} (or ${fallbackKeyVar}) must be set.`);
     process.exit(1);
   }
-  const baseURL = process.env[baseVar] || process.env[fallbackBaseVar] || undefined;
-  const { provider, modelId } = parseModelString(raw);
-  return makeProvider(provider, apiKey, baseURL)(modelId);
+  const baseUrl = process.env[baseVar] || process.env[fallbackBaseVar] || undefined;
+  parseModelString(raw);
+  return resolveParamsBinding({
+    source: 'user',
+    modelString: raw,
+    apiKey,
+    baseUrl,
+    ...(raw.startsWith('openai:') && baseUrl ? { api: 'openai-completions' } : {}),
+    thinkingConfig,
+  });
 }
 
-function createModel(): LanguageModel {
-  return modelFromEnv(
+/** The generation model (with the eval's thinking configuration). */
+async function createGenerationBinding(thinkingConfig?: ThinkingConfig): Promise<ModelBinding> {
+  return (await bindingFromEnv(
     'EVAL_PBL_MODEL',
     'EVAL_PBL_API_KEY',
     'EVAL_PBL_BASE_URL',
     'EVAL_PBL_API_KEY',
     'EVAL_PBL_BASE_URL',
     true,
-  )!;
+    thinkingConfig,
+  ))!;
 }
 
 /** Judge model. Defaults to the generation model unless EVAL_PBL_JUDGE_MODEL
  *  is set (recommended: a strong, independent model so a weak generator does
- *  not grade its own homework). */
-function createJudgeModel(genModel: LanguageModel): LanguageModel {
+ *  not grade its own homework). Judges run without thinking. */
+async function createJudgeBinding(): Promise<ModelBinding> {
   return (
-    modelFromEnv(
+    (await bindingFromEnv(
       'EVAL_PBL_JUDGE_MODEL',
       'EVAL_PBL_JUDGE_API_KEY',
       'EVAL_PBL_JUDGE_BASE_URL',
       'EVAL_PBL_API_KEY',
       'EVAL_PBL_BASE_URL',
       false,
-    ) ?? genModel
+    )) ??
+    (await bindingFromEnv(
+      'EVAL_PBL_MODEL',
+      'EVAL_PBL_API_KEY',
+      'EVAL_PBL_BASE_URL',
+      'EVAL_PBL_API_KEY',
+      'EVAL_PBL_BASE_URL',
+      true,
+    ))!
   );
 }
 
@@ -390,7 +379,7 @@ function completabilityJudgeTemplate(): string {
 async function judgeProject(
   project: PBLProjectV2,
   tc: TestCase,
-  model: LanguageModel,
+  model: ModelBinding,
 ): Promise<JudgeScores | undefined> {
   try {
     const prompt = judgeTemplate(!!project.scenario)
@@ -416,7 +405,7 @@ async function judgeProject(
 async function judgeCompletability(
   project: PBLProjectV2,
   tc: TestCase,
-  model: LanguageModel,
+  model: ModelBinding,
 ): Promise<CompletabilityJudge | undefined> {
   try {
     const prompt = completabilityJudgeTemplate()
@@ -467,32 +456,12 @@ function runVariant(
     : generatePBLV2Project(input, binding, gatewayPlannerCall());
 }
 
-/** The generation model as a gateway binding (same env vars as the AI SDK judge). */
-function createGenerationBinding(thinkingConfig?: ThinkingConfig): Promise<ModelBinding> {
-  const apiKey = process.env.EVAL_PBL_API_KEY;
-  if (!apiKey) {
-    console.error('Error: EVAL_PBL_API_KEY must be set.');
-    process.exit(1);
-  }
-  return resolveParamsBinding({
-    source: 'user',
-    modelString: process.env.EVAL_PBL_MODEL!,
-    apiKey,
-    baseUrl: process.env.EVAL_PBL_BASE_URL || undefined,
-    // The AI SDK judge speaks chat completions for `openai`; match it.
-    ...(process.env.EVAL_PBL_MODEL?.startsWith('openai:') && process.env.EVAL_PBL_BASE_URL
-      ? { api: 'openai-completions' }
-      : {}),
-    thinkingConfig,
-  });
-}
-
 async function runOne(
   tc: TestCase,
   variant: Variant,
   outlineOrder: number,
   binding: ModelBinding,
-  judgeModel: LanguageModel,
+  judgeModel: ModelBinding,
 ): Promise<RunResult> {
   const outline = buildOutline(tc, outlineOrder);
   const input = buildInput(tc, outline);
@@ -821,10 +790,9 @@ function writeMarkdownReport(
 async function main(): Promise<void> {
   const modelStr = process.env.EVAL_PBL_MODEL!;
   const judgeStr = process.env.EVAL_PBL_JUDGE_MODEL || `${modelStr} (self)`;
-  const model = createModel();
-  const judgeModel = createJudgeModel(model);
   const thinkingConfig = createThinkingConfig();
   const binding = await createGenerationBinding(thinkingConfig);
+  const judgeModel = await createJudgeBinding();
   const variants = selectedVariants();
 
   const allCases = loadTestCases();

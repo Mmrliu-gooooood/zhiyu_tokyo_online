@@ -15,7 +15,7 @@ import type {
 } from '@/lib/model-gateway/types';
 import { userText } from '@/lib/model-gateway/messages';
 import { testGateway } from '../helpers';
-import type { GoldenEntry } from './legacy-payloads.test';
+import type { GoldenEntry } from './golden-types';
 import { sortKeys } from './matrix';
 
 export const GOLDEN_DIR = path.join(

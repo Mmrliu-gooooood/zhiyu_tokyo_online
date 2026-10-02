@@ -7,7 +7,7 @@ import {
   taskEvaluationCanAdvance,
 } from '@/components/scene-renderers/pbl/v2/submission';
 import { findModelById } from '@/lib/ai/model-aliases';
-import { PROVIDERS } from '@/lib/ai/providers';
+import { PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { isToleratedReactionStreamError } from '@/components/scene-renderers/pbl/v2/use-instructor-stream';
 import type { PBLEvaluation } from '@/lib/pbl/v2/types';
 import type { PBLSSEEvent } from '@/lib/pbl/v2/api/sse';

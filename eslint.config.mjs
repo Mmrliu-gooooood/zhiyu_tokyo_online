@@ -49,14 +49,6 @@ const MODEL_RUNTIME_ALLOWED = [
   'lib/audio/asr-providers.ts',
   // Packaging smoke test: imports the runtime to prove it resolves in the bundle.
   'scripts/smoke-pi-runtime.mjs',
-  // Legacy text stack, deleted in P3-6 (plan 3.15).
-  'lib/ai/llm.ts',
-  'lib/ai/providers.ts',
-  'lib/ai/reasoning-sse.ts',
-  'lib/ai/azure.ts',
-  'lib/agent/runtime/stream-fn.ts',
-  'lib/orchestration/ai-sdk-adapter.ts',
-  'lib/server/generation-jobs/model-quota.ts',
 ];
 
 // Browser-reachable code may use the gateway's isomorphic surface only: types

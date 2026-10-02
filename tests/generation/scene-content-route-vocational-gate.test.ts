@@ -2,14 +2,14 @@ import { beforeAll, afterEach, beforeEach, describe, expect, test, vi } from 'vi
 
 import type { SceneOutline } from '@/lib/types/generation';
 
-const callLLMMock = vi.hoisted(() => vi.fn());
+const completeMock = vi.hoisted(() => vi.fn());
 const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const VOCATIONAL_FLAG = 'OPENMAIC_ENABLE_VOCATIONAL';
 let originalVocationalFlag: string | undefined;
 
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    complete: callLLMMock,
+    complete: completeMock,
     resolveRequestBinding: resolveRequestBindingMock,
   }),
 );
@@ -24,7 +24,7 @@ describe('scene-content vocational gate', () => {
   beforeEach(() => {
     originalVocationalFlag = process.env[VOCATIONAL_FLAG];
     delete process.env[VOCATIONAL_FLAG];
-    callLLMMock.mockReset();
+    completeMock.mockReset();
     resolveRequestBindingMock.mockReset();
     resolveRequestBindingMock.mockResolvedValue({
       modelString: 'test:test-model',
@@ -43,7 +43,7 @@ describe('scene-content vocational gate', () => {
   test('flag off direct/replayed procedural-skill outline is downgraded before content generation', async () => {
     vi.resetModules();
     process.env[VOCATIONAL_FLAG] = 'false';
-    callLLMMock.mockResolvedValueOnce({
+    completeMock.mockResolvedValueOnce({
       text: htmlForWidget('diagram'),
     });
 
@@ -58,13 +58,13 @@ describe('scene-content vocational gate', () => {
     expect(body.effectiveOutline.widgetOutline.task).toBeUndefined();
     expect(body.content.widgetType).toBe('diagram');
     expect(body.content.widgetConfig.type).toBe('diagram');
-    expect(callLLMMock).toHaveBeenCalledTimes(1);
-    expect(callLLMMock.mock.calls[0][1].system).not.toContain('Procedural Skill');
+    expect(completeMock).toHaveBeenCalledTimes(1);
+    expect(completeMock.mock.calls[0][1].system).not.toContain('Procedural Skill');
   });
 
   test('flag off without requirements defaults to safe false for persisted procedural-skill outlines', async () => {
     vi.resetModules();
-    callLLMMock.mockResolvedValueOnce({
+    completeMock.mockResolvedValueOnce({
       text: htmlForWidget('diagram'),
     });
 
@@ -80,7 +80,7 @@ describe('scene-content vocational gate', () => {
   test('flag on with effective taskEngineMode allows procedural-skill content generation', async () => {
     vi.resetModules();
     process.env[VOCATIONAL_FLAG] = '1';
-    callLLMMock.mockResolvedValueOnce({
+    completeMock.mockResolvedValueOnce({
       text: htmlForWidget('procedural-skill'),
     });
 
@@ -94,7 +94,7 @@ describe('scene-content vocational gate', () => {
     expect(body.effectiveOutline.widgetType).toBe('procedural-skill');
     expect(body.content.widgetType).toBe('procedural-skill');
     expect(body.content.widgetConfig.type).toBe('procedural-skill');
-    expect(callLLMMock.mock.calls[0][1].system).toContain('Procedural Skill');
+    expect(completeMock.mock.calls[0][1].system).toContain('Procedural Skill');
   });
 });
 

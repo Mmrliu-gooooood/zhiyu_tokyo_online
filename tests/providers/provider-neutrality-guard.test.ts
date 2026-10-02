@@ -33,7 +33,7 @@ interface AllowedVendorDebt {
 
 /** Catalogs and adapter registries are composition roots, so their keys are authoritative vocabulary. */
 const REGISTRY_SOURCES: readonly RegistrySource[] = [
-  { file: 'lib/ai/providers.ts', declarations: ['PROVIDERS'] },
+  { file: 'lib/model-gateway/catalog/descriptors.ts', declarations: ['DESCRIPTOR_LIST'] },
   { file: 'lib/audio/constants.ts', declarations: ['TTS_PROVIDERS', 'ASR_PROVIDERS'] },
   { file: 'lib/media/image-providers.ts', declarations: ['IMAGE_PROVIDERS'] },
   { file: 'lib/media/video-providers.ts', declarations: ['VIDEO_PROVIDERS'] },
@@ -58,13 +58,12 @@ const PACKAGE_EXPORT_SOURCES = [
 const PROVIDER_NEUTRAL_FILES = [
   // LLM stage routing and agent driver
   'lib/server/model-routes.ts',
-  'lib/server/resolve-model.ts',
   'lib/server/provider-config.ts',
   'lib/server/agent-runtime/agent-driver-model.ts',
   'lib/server/agent-runtime/model-preflight.ts',
-  'lib/orchestration/ai-sdk-adapter.ts',
   // Model gateway: the call surface and its adapters are vendor-neutral; vendor
-  // knowledge lives in catalog/ descriptors and runtime/thinking.ts (data).
+  // knowledge lives in catalog/ descriptors and runtime/thinking.ts (data), and
+  // credential policy (operator-only providers, ADC) in selection/resolve-binding.ts.
   'lib/model-gateway/runtime/gateway.ts',
   'lib/model-gateway/adapters/langchain.ts',
   'lib/model-gateway/adapters/agent-stream-fn.ts',
@@ -100,20 +99,6 @@ const PROVIDER_NEUTRAL_FILES = [
  * another use of an already-allowed vendor therefore still fails the guard.
  */
 const TEMPORARY_ALLOWLIST: readonly AllowedLeak[] = [
-  {
-    file: 'lib/server/resolve-model.ts',
-    vendor: 'bedrock',
-    token: "'bedrock'",
-    count: 2,
-    reason: 'Temporary: server-managed credential policy is still encoded in model resolution.',
-  },
-  {
-    file: 'lib/server/resolve-model.ts',
-    vendor: 'bedrock',
-    token: "'Amazon Bedrock must be enabled by the server operator before it can be used.'",
-    count: 1,
-    reason: 'Temporary: the matching provider-specific policy error has not moved to an adapter.',
-  },
   {
     file: 'app/api/generate/voice/route.ts',
     vendor: 'qwen',
@@ -329,6 +314,7 @@ const GENERIC_ID_PARTS = new Set([
   'cloud',
   'custom',
   'document',
+  'gateway',
   'image',
   'media',
   'native',
@@ -338,6 +324,7 @@ const GENERIC_ID_PARTS = new Set([
   'text',
   'tts',
   'video',
+  'workers',
 ]);
 
 function propertyNameText(name: ts.PropertyName): string | undefined {
@@ -368,6 +355,27 @@ function registryIds(source: string, declarations: readonly string[]): string[] 
           if (id) ids.push(id.toLowerCase());
         }
       }
+    } else if (
+      // Descriptor lists: an array of object literals identified by their `id` field.
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      wanted.has(node.name.text) &&
+      node.initializer &&
+      ts.isArrayLiteralExpression(node.initializer)
+    ) {
+      found.add(node.name.text);
+      for (const element of node.initializer.elements) {
+        if (!ts.isObjectLiteralExpression(element)) continue;
+        for (const property of element.properties) {
+          if (
+            ts.isPropertyAssignment(property) &&
+            propertyNameText(property.name) === 'id' &&
+            ts.isStringLiteral(property.initializer)
+          ) {
+            ids.push(property.initializer.text.toLowerCase());
+          }
+        }
+      }
     }
     ts.forEachChild(node, visit);
   };
@@ -376,7 +384,7 @@ function registryIds(source: string, declarations: readonly string[]): string[] 
   for (const declaration of declarations) {
     if (!found.has(declaration)) {
       throw new Error(
-        `Provider vocabulary source is missing object-literal declaration ${declaration}`,
+        `Provider vocabulary source is missing object/array-literal declaration ${declaration}`,
       );
     }
   }

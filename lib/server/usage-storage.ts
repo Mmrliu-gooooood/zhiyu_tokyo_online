@@ -104,7 +104,7 @@ export async function recordUsage(
   opts: RecordOptions = {},
 ): Promise<void> {
   // A test run must never append to the app's real usage log. Any test that
-  // exercises callLLM / streamLLM reaches this through `recordUsageSafe` without
+  // exercises the model gateway reaches this through `recordUsageSafe` without
   // asking for it, and used to write rows into the live `data/usage/` file —
   // `minimax-auth-test`, `serialization-test` and friends were sitting in there
   // next to production traffic, corrupting any real usage analysis. Tests that

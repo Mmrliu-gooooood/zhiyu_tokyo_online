@@ -4,14 +4,14 @@ import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 
 const mocks = vi.hoisted(() => ({
-  streamLLM: vi.fn(),
+  modelStream: vi.fn(),
   injectOwnErrorWithOkStatus: false,
 }));
 
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 
@@ -103,7 +103,7 @@ function makeBody(): StatelessChatRequest {
 }
 
 function toolOutput(callIndex: number): { type?: string; value?: string } | undefined {
-  const params = mocks.streamLLM.mock.calls[callIndex]?.[0] as
+  const params = mocks.modelStream.mock.calls[callIndex]?.[0] as
     | { messages?: Array<Record<string, unknown>> }
     | undefined;
   const toolMessage = params?.messages?.find((message) => message.role === 'tool') as
@@ -114,12 +114,12 @@ function toolOutput(callIndex: number): { type?: string; value?: string } | unde
 
 describe('Director shared Pi transport consumer', () => {
   beforeEach(() => {
-    mocks.streamLLM.mockReset();
+    mocks.modelStream.mockReset();
     mocks.injectOwnErrorWithOkStatus = false;
   });
 
   it('uses the resolved chat model and traces a normalized evidence failure unchanged', async () => {
-    mocks.streamLLM
+    mocks.modelStream
       .mockReturnValueOnce(
         resultFrom([
           {
@@ -155,11 +155,11 @@ describe('Director shared Pi transport consumer', () => {
       enableWhiteboardTools: false,
     });
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
-    expect(mocks.streamLLM.mock.calls[0]?.[0]).toEqual(
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ model: resolvedModel, maxOutputTokens: 640 }),
     );
-    expect(mocks.streamLLM.mock.calls[0]?.[1]).toBe('pi-chat-director');
+    expect(mocks.modelStream.mock.calls[0]?.[1]).toBe('pi-chat-director');
     expect(toolOutput(1)).toEqual({
       type: 'error-text',
       value: expect.stringContaining('was not found in the request-start course snapshot'),
@@ -187,7 +187,7 @@ describe('Director shared Pi transport consumer', () => {
 
   it('sees own-marker normalization before the Director evidence fallback', async () => {
     mocks.injectOwnErrorWithOkStatus = true;
-    mocks.streamLLM
+    mocks.modelStream
       .mockReturnValueOnce(
         resultFrom([
           {
@@ -220,7 +220,7 @@ describe('Director shared Pi transport consumer', () => {
       enableWhiteboardTools: false,
     });
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(toolOutput(1)).toEqual({
       type: 'error-text',
       value: 'Synthetic own-marker failure.',

@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { QWEN_TTS_VOICE_CLONE_MODEL } from '@/lib/audio/constants';
 
-const { callLLM, resolveRequestBinding } = vi.hoisted(() => ({
-  callLLM: vi.fn(),
+const { modelComplete, resolveRequestBinding } = vi.hoisted(() => ({
+  modelComplete: vi.fn(),
   resolveRequestBinding: vi.fn(async () => ({ modelString: 'test-model' })),
 }));
 
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    complete: callLLM,
+    complete: modelComplete,
     resolveRequestBinding,
   }),
 );
@@ -54,10 +54,10 @@ function llmAgents(extra: Record<string, unknown>) {
 }
 
 describe('agent-profiles route — voiceDesign', () => {
-  beforeEach(() => callLLM.mockReset());
+  beforeEach(() => modelComplete.mockReset());
 
   it('attaches a normalized voiceDesign when the LLM emits one', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({
         voiceDesign: { identity: 'older male teacher', texture: 'warm low', delivery: 'calm' },
       }),
@@ -75,7 +75,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('omits voiceDesign when the LLM does not emit one', async () => {
-    callLLM.mockResolvedValue({ text: llmAgents({}) });
+    modelComplete.mockResolvedValue({ text: llmAgents({}) });
 
     const res = await POST(makeRequest());
     const body = await res.json();
@@ -85,7 +85,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('preserves the advertised model in the generated voice binding', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::qwen3-tts-vc-test::clone-1' }),
     });
     const res = await POST(
@@ -110,7 +110,7 @@ describe('agent-profiles route — voiceDesign', () => {
 
   it('drops a non-string voice value without failing the request', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    callLLM.mockResolvedValue({ text: llmAgents({ voice: 123 }) });
+    modelComplete.mockResolvedValue({ text: llmAgents({ voice: 123 }) });
 
     const res = await POST(
       makeRequest({
@@ -129,7 +129,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('prefers an exact advertised token when provider and voice IDs are duplicated', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::qwen3-tts-vc-second::clone-1' }),
     });
     const res = await POST(
@@ -160,7 +160,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('accepts a two-part clone token and derives its advertised model', async () => {
-    callLLM.mockResolvedValue({ text: llmAgents({ voice: 'qwen-tts::clone-1' }) });
+    modelComplete.mockResolvedValue({ text: llmAgents({ voice: 'qwen-tts::clone-1' }) });
     const res = await POST(
       makeRequest({
         availableVoices: [
@@ -182,7 +182,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('accepts a two-part catalog voice token without persisting a model', async () => {
-    callLLM.mockResolvedValue({ text: llmAgents({ voice: 'qwen-tts::Cherry' }) });
+    modelComplete.mockResolvedValue({ text: llmAgents({ voice: 'qwen-tts::Cherry' }) });
     const res = await POST(
       makeRequest({
         availableVoices: [{ providerId: 'qwen-tts', voiceId: 'Cherry', voiceName: 'Cherry' }],
@@ -196,7 +196,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('accepts a three-part catalog token without trusting its model segment', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::qwen3-tts-vc-stale::Cherry' }),
     });
     const res = await POST(
@@ -214,7 +214,7 @@ describe('agent-profiles route — voiceDesign', () => {
   it('pins the teacher voice to the passed narrator voice verbatim', async () => {
     // The LLM would have picked Cherry for the teacher, but the user's narrator
     // voice (the advertised clone) must win.
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::Cherry' }),
     });
     const res = await POST(
@@ -244,7 +244,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('honors a narrator clone voice that is not in the advertised list', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::Cherry' }),
     });
     const res = await POST(
@@ -267,7 +267,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('still assigns LLM-picked voices to non-teacher agents when the narrator voice is pinned', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: JSON.stringify({
         agents: [
           {
@@ -318,7 +318,7 @@ describe('agent-profiles route — voiceDesign', () => {
   });
 
   it('falls back to the LLM-assigned teacher voice when narratorVoice is absent', async () => {
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::qwen3-tts-vc-test::clone-1' }),
     });
     const res = await POST(
@@ -343,7 +343,7 @@ describe('agent-profiles route — voiceDesign', () => {
 
   it('ignores a narrator voice that is neither advertised nor a valid clone', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    callLLM.mockResolvedValue({
+    modelComplete.mockResolvedValue({
       text: llmAgents({ voice: 'qwen-tts::Cherry' }),
     });
     const res = await POST(
@@ -363,7 +363,7 @@ describe('agent-profiles route — voiceDesign', () => {
     // The pinned narrator clone is NOT advertised (deleted/ghost): the schema
     // example must still come from the advertised list so an LLM echoing it
     // into a student's voice field produces a resolvable token.
-    callLLM.mockResolvedValue({ text: llmAgents({}) });
+    modelComplete.mockResolvedValue({ text: llmAgents({}) });
     const res = await POST(
       makeRequest({
         availableVoices: [{ providerId: 'qwen-tts', voiceId: 'Cherry', voiceName: 'Cherry' }],
@@ -383,13 +383,13 @@ describe('agent-profiles route — voiceDesign', () => {
       voiceId: 'clone-ghost',
     });
     // …but the schema example token is always an advertised voice.
-    const prompt = callLLM.mock.calls[0][1].messages[0].content as string;
+    const prompt = modelComplete.mock.calls[0][1].messages[0].content as string;
     expect(prompt).toContain("e.g. 'qwen-tts::Cherry'");
     expect(prompt).not.toContain(`e.g. 'qwen-tts::${QWEN_TTS_VOICE_CLONE_MODEL}::clone-ghost'`);
   });
 
   it('prompts for a voice on every non-teacher agent and never reuses the teacher voice', async () => {
-    callLLM.mockResolvedValue({ text: llmAgents({}) });
+    modelComplete.mockResolvedValue({ text: llmAgents({}) });
     const res = await POST(
       makeRequest({
         availableVoices: [
@@ -410,7 +410,7 @@ describe('agent-profiles route — voiceDesign', () => {
     );
     const body = await res.json();
     expect(body.success).toBe(true);
-    const prompt = callLLM.mock.calls[0][1].messages[0].content as string;
+    const prompt = modelComplete.mock.calls[0][1].messages[0].content as string;
     // The softened phrasing still requires a voice field on every non-teacher
     // agent (the old "ONLY to the other agents" over-generalized into omissions).
     expect(prompt).toContain('Every OTHER agent must still be assigned a voice from this list');

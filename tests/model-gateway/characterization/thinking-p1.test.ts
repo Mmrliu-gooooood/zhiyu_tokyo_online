@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PROVIDERS } from '@/lib/ai/providers';
+import { PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { loadPiProvider } from '@/lib/model-gateway/runtime/pi-registry';
 import {
   startFakeModelServer,

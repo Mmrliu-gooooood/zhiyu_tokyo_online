@@ -14,6 +14,7 @@ import {
   toGatewayRequest,
 } from '@/lib/model-gateway/adapters/agent-stream-fn';
 import type { AgentAssistantMessage } from '@/lib/model-gateway/adapters/agent-pi-types';
+import { createBinding } from '@/lib/model-gateway/credentials/handles';
 import {
   createFauxGateway,
   fauxAssistantMessage,
@@ -73,9 +74,11 @@ function agentFor(
     beforeCall?: () => Promise<void>;
     omitMaxOutputTokens?: boolean;
     maxOutputTokens?: number;
+    abortSignal?: AbortSignal;
+    binding?: ReturnType<ReturnType<typeof createFauxGateway>['binding']>;
   } = {},
 ) {
-  const binding = faux.binding();
+  const binding = options.binding ?? faux.binding();
   return buildAgent({
     streamFn: createGatewayStreamFn({
       binding,
@@ -85,6 +88,7 @@ function agentFor(
       beforeCall: options.beforeCall,
       omitMaxOutputTokens: options.omitMaxOutputTokens,
       maxOutputTokens: options.maxOutputTokens,
+      abortSignal: options.abortSignal,
     }),
     systemPrompt: 'system',
     tools: options.tools ?? [demoTool()],
@@ -260,5 +264,95 @@ describe('agent StreamFn over the gateway', () => {
     const unknown = scripted([fauxAssistantMessage(fauxText('b'))]);
     await agentFor(unknown.faux, { omitMaxOutputTokens: true }).prompt('go');
     expect(unknown.seen).toHaveLength(1);
+  });
+
+  it('AG-01: thinking and text stay separate blocks in arrival order, with events', async () => {
+    const { faux } = scripted([
+      fauxAssistantMessage([
+        fauxThinking('first thought'),
+        fauxText('first part'),
+        fauxThinking('second thought'),
+        fauxText('second part'),
+      ]),
+    ]);
+    const agent = agentFor(faux);
+    const kinds: string[] = [];
+    agent.subscribe((event) => {
+      if (event.type === 'message_update') kinds.push(event.assistantMessageEvent.type);
+    });
+    await agent.prompt('go');
+
+    const last = assistants(agent.state.messages).at(-1)!;
+    expect(last.content.map((block) => block.type)).toEqual([
+      'thinking',
+      'text',
+      'thinking',
+      'text',
+    ]);
+    expect(kinds.filter((kind) => kind === 'thinking_start')).toHaveLength(2);
+    expect(kinds.filter((kind) => kind === 'thinking_end')).toHaveLength(2);
+    expect(kinds).toContain('thinking_delta');
+  });
+
+  it('US-06: the completed assistant message carries the turn usage', async () => {
+    const { faux } = scripted([fauxAssistantMessage(fauxText('ok'))]);
+    const agent = agentFor(faux);
+    await agent.prompt('go');
+
+    // The faux provider meters the turn itself; what matters is that the
+    // gateway's recorded usage and the kernel's message agree.
+    const usage = assistants(agent.state.messages).at(-1)!.usage;
+    expect(usage.totalTokens).toBeGreaterThan(0);
+    expect(faux.usage).toHaveLength(1);
+    expect(faux.usage[0]!.usage).toMatchObject({
+      inputTokens: usage.input + usage.cacheRead + usage.cacheWrite,
+      outputTokens: usage.output,
+    });
+  });
+
+  it('AG-03/06: an outer abort ends the turn once, on the error channel', async () => {
+    const controller = new AbortController();
+    const { faux } = scripted([
+      async () => {
+        controller.abort(new Error('stopped by user'));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return fauxAssistantMessage(fauxText('too late'));
+      },
+    ]);
+    const agent = agentFor(faux, { abortSignal: controller.signal });
+    const terminals: string[] = [];
+    agent.subscribe((event) => {
+      if (event.type === 'message_update') {
+        const type = event.assistantMessageEvent.type;
+        if (type === 'done' || type === 'error') terminals.push(type);
+      }
+    });
+    await agent.prompt('go');
+
+    const last = assistants(agent.state.messages).at(-1)!;
+    expect(last.stopReason).toBe('aborted');
+    expect(last.content.some((block) => block.type === 'toolCall')).toBe(false);
+    expect(terminals.length).toBeLessThanOrEqual(1);
+  });
+
+  it('AG-03: a setup failure (no credential) still yields a protocol error, not a throw', async () => {
+    const { faux, seen } = scripted([fauxAssistantMessage(fauxText('never'))]);
+    const { fingerprint: _f, credentialReady: _r, ...fields } = faux.binding();
+    const keyless = createBinding(fields, { kind: 'inline-key', apiKey: '' });
+    const agent = agentFor(faux, { binding: keyless });
+    await agent.prompt('go');
+    expect(seen).toHaveLength(0);
+    expect(assistants(agent.state.messages).at(-1)?.stopReason).toBe('error');
+  });
+
+  it('AG-05: a completed turn is not rewritten by a late abort', async () => {
+    const controller = new AbortController();
+    const { faux } = scripted([fauxAssistantMessage(fauxText('finished'))]);
+    const agent = agentFor(faux, { abortSignal: controller.signal });
+    await agent.prompt('go');
+    controller.abort();
+    const last = assistants(agent.state.messages).at(-1)!;
+    expect(last.stopReason).toBe('stop');
+    expect(last.content).toEqual([expect.objectContaining({ type: 'text', text: 'finished' })]);
   });
 });

@@ -5,7 +5,7 @@ import {
   supportsConfigurableThinking,
 } from '@/lib/ai/thinking-config';
 import { findModelById } from '@/lib/ai/model-aliases';
-import { getCatalogThinkingCapability } from '@/lib/ai/model-metadata';
+import { getCatalogThinkingCapability } from '@/lib/model-gateway/catalog/client-catalog';
 import type { ThinkingConfig } from '@/lib/types/provider';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
 import type { ProModelContext } from '@/types/pro-model';

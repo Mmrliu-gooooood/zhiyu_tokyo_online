@@ -4,12 +4,12 @@ import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { AgentTurnSummary } from '@/lib/orchestration/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 
-const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
+const mocks = vi.hoisted(() => ({ modelStream: vi.fn() }));
 
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 
@@ -135,19 +135,19 @@ function actionOutput(text = 'I opened the board.') {
 }
 
 describe('Legacy Pi Child shared transport consumer', () => {
-  beforeEach(() => mocks.streamLLM.mockReset());
+  beforeEach(() => mocks.modelStream.mockReset());
 
   it('makes length plus a parsed Pi tool call terminal without action or continuation', async () => {
-    mocks.streamLLM.mockReturnValue(resultFrom([parsedToolCall(), finish('length')]));
+    mocks.modelStream.mockReturnValue(resultFrom([parsedToolCall(), finish('length')]));
     const harness = makeHarness();
 
     await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
-    expect(mocks.streamLLM.mock.calls[0]?.[0]).toEqual(
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ model: resolvedModel, maxOutputTokens: 384 }),
     );
-    expect(mocks.streamLLM.mock.calls[0]?.[1]).toBe('pi-chat-child');
+    expect(mocks.modelStream.mock.calls[0]?.[1]).toBe('pi-chat-child');
     expect(harness.onActionDone).not.toHaveBeenCalled();
     expect(harness.events.filter((event) => event.type === 'action')).toEqual([]);
     expect(harness.summaries).toEqual([
@@ -156,14 +156,14 @@ describe('Legacy Pi Child shared transport consumer', () => {
   });
 
   it('preserves ordinary streamed-text action accounting through the real shared loop', async () => {
-    mocks.streamLLM.mockReturnValue(
+    mocks.modelStream.mockReturnValue(
       resultFrom([{ type: 'text-delta', text: actionOutput() }, finish('stop')]),
     );
     const harness = makeHarness();
 
     const result = await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     expect(harness.events.filter((event) => event.type === 'action')).toEqual([
       expect.objectContaining({ data: expect.objectContaining({ actionName: 'wb_open' }) }),
     ]);
@@ -181,7 +181,7 @@ describe('Legacy Pi Child shared transport consumer', () => {
   });
 
   it('does not roll back a streamed Legacy action seen before length plus parsed toolCall', async () => {
-    mocks.streamLLM.mockReturnValue(
+    mocks.modelStream.mockReturnValue(
       resultFrom([
         { type: 'text-delta', text: actionOutput('Action arrived before truncation.') },
         parsedToolCall(),
@@ -192,7 +192,7 @@ describe('Legacy Pi Child shared transport consumer', () => {
 
     await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     expect(harness.onActionDone).toHaveBeenCalledTimes(1);
     expect(harness.events.filter((event) => event.type === 'action')).toHaveLength(1);
     expect(harness.summaries).toEqual([

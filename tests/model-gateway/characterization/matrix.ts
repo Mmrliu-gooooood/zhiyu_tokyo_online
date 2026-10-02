@@ -4,7 +4,7 @@
  * combinations are exercised, and how a captured request is projected into a
  * stable, key-free golden record.
  */
-import { PROVIDERS } from '@/lib/ai/providers';
+import { PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import type { ModelInfo, ThinkingCapability, ThinkingConfig } from '@/lib/types/provider';
 
 export interface CharacterizationModel {

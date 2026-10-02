@@ -1,14 +1,14 @@
 import { fromTextStream } from '@/tests/helpers/model-gateway-mock';
 import { beforeAll, afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const streamLLMMock = vi.hoisted(() => vi.fn());
+const streamMock = vi.hoisted(() => vi.fn());
 const resolveRequestBindingMock = vi.hoisted(() => vi.fn());
 const VOCATIONAL_FLAG = 'OPENMAIC_ENABLE_VOCATIONAL';
 let originalVocationalFlag: string | undefined;
 
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
-    stream: streamLLMMock,
+    stream: streamMock,
     resolveRequestBinding: resolveRequestBindingMock,
   }),
 );
@@ -72,7 +72,7 @@ describe('task-engine outline route', () => {
 
   test('uses the task-engine prompt and preserves allowed mixed task-engine scene types', async () => {
     vi.resetModules();
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
     process.env[VOCATIONAL_FLAG] = 'true';
 
@@ -178,7 +178,7 @@ describe('task-engine outline route', () => {
       ],
     });
 
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield outlineResponse;
@@ -195,7 +195,7 @@ describe('task-engine outline route', () => {
       }) as unknown as Parameters<typeof POST>[0],
     );
 
-    const promptParams = streamLLMMock.mock.calls[0][1] as { system: string; prompt: string };
+    const promptParams = streamMock.mock.calls[0][1] as { system: string; prompt: string };
     expect(promptParams.system).toContain('Task Engine');
     expect(promptParams.system).toContain('procedural-skill');
 
@@ -270,7 +270,7 @@ describe('task-engine outline route', () => {
 
   test('silently falls back to the existing interactive prompt when the server flag is off', async () => {
     vi.resetModules();
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
 
     resolveRequestBindingMock.mockResolvedValue({
@@ -278,7 +278,7 @@ describe('task-engine outline route', () => {
       capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield JSON.stringify({
@@ -309,7 +309,7 @@ describe('task-engine outline route', () => {
       }) as unknown as Parameters<typeof POST>[0],
     );
 
-    const promptParams = streamLLMMock.mock.calls[0][1] as { system: string; prompt: string };
+    const promptParams = streamMock.mock.calls[0][1] as { system: string; prompt: string };
     expect(promptParams.system).toContain('Interactive Mode Outline Generator');
     expect(promptParams.system).not.toContain('Task Engine Outline Generator');
 
@@ -321,7 +321,7 @@ describe('task-engine outline route', () => {
 
   test('sanitizes procedural-skill outlines when taskEngineMode is disabled', async () => {
     vi.resetModules();
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
 
     resolveRequestBindingMock.mockResolvedValue({
@@ -329,7 +329,7 @@ describe('task-engine outline route', () => {
       capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield JSON.stringify({
@@ -384,7 +384,7 @@ describe('task-engine outline route', () => {
 
   test('preserves model-authored scenario PBL subtype through streamed outlines', async () => {
     vi.resetModules();
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
 
     resolveRequestBindingMock.mockResolvedValue({
@@ -392,7 +392,7 @@ describe('task-engine outline route', () => {
       capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield JSON.stringify({
@@ -440,7 +440,7 @@ describe('task-engine outline route', () => {
 
   test('ensures streamed outline ids are unique', async () => {
     vi.resetModules();
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
 
     resolveRequestBindingMock.mockResolvedValue({
@@ -448,7 +448,7 @@ describe('task-engine outline route', () => {
       capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield JSON.stringify({
@@ -494,7 +494,7 @@ describe('task-engine outline route', () => {
 
   test('falls back to a slide for invalid task-engine outlines without regex promotion', async () => {
     vi.resetModules();
-    streamLLMMock.mockReset();
+    streamMock.mockReset();
     resolveRequestBindingMock.mockReset();
     process.env[VOCATIONAL_FLAG] = 'true';
 
@@ -503,7 +503,7 @@ describe('task-engine outline route', () => {
       capabilities: { vision: false },
     });
 
-    streamLLMMock.mockReturnValue(
+    streamMock.mockReturnValue(
       fromTextStream({
         textStream: (async function* () {
           yield JSON.stringify({

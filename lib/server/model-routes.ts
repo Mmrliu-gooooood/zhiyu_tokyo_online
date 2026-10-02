@@ -9,7 +9,7 @@
  * the canonical `provider:model` format (see parseModelString), OR an object
  * `{model, thinking}` where `thinking` is the full ThinkingConfig abstraction
  * (mode/effort/level/enabled/budgetTokens/excludeReasoningOutput) — normalized
- * per the model's capability by callLLM. e.g.
+ * per the model's capability by the model gateway. e.g.
  *
  *   DEFAULT_MODEL=openai:gpt-5.4-mini
  *   MODEL_ROUTES='{"scene-content":"openai:gpt-5.4","pbl-chat":{"model":"anthropic:claude-sonnet-4","thinking":{"enabled":false}},"pbl-v2-runtime":"deepseek:deepseek-v4-pro"}'
@@ -63,7 +63,7 @@ export interface StageRoute {
   /**
    * Full thinking config for this stage (the unified ThinkingConfig abstraction:
    * mode / effort / level / enabled / budgetTokens / excludeReasoningOutput).
-   * Passed through to callLLM, which normalizes it against the model's capability.
+   * Passed through to the model gateway, which normalizes it against the model's capability.
    */
   thinking?: ThinkingConfig;
 }
@@ -114,7 +114,7 @@ function parseThinking(key: string, raw: unknown): ThinkingConfig | undefined {
 
 /**
  * Stages that can be independently routed to a model. Each value is a valid
- * `MODEL_ROUTES` key; the base entries also mirror a `callLLM` source label.
+ * `MODEL_ROUTES` key; the base entries also mirror a gateway `source` label.
  *
  * `scene-content:<type>` are finer-grained composite keys: when a scene-content
  * request carries an `outline.type`, it routes via the composite key and falls

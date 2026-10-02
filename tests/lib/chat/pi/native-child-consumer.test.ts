@@ -5,11 +5,11 @@ import type { AgentTurnSummary } from '@/lib/orchestration/types';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import type { NativeWebSearchConfig } from '@/lib/chat/pi/tools/web-search';
 
-const mocks = vi.hoisted(() => ({ streamLLM: vi.fn(), searchWeb: vi.fn() }));
+const mocks = vi.hoisted(() => ({ modelStream: vi.fn(), searchWeb: vi.fn() }));
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 vi.mock('@/lib/web-search', async (importOriginal) => {
@@ -85,7 +85,7 @@ function resultFrom(parts: Array<Record<string, unknown>>) {
 }
 
 function useResponses(responses: Array<Array<Record<string, unknown>>>) {
-  mocks.streamLLM.mockImplementation(() =>
+  mocks.modelStream.mockImplementation(() =>
     resultFrom(responses.shift() ?? [{ type: 'text-delta', text: 'unexpected' }, finish('stop')]),
   );
 }
@@ -230,12 +230,12 @@ async function execute(harness: ReturnType<typeof makeHarness>) {
 }
 
 function transportMessages(index: number) {
-  return (mocks.streamLLM.mock.calls[index]?.[0] as { messages?: unknown[] })?.messages ?? [];
+  return (mocks.modelStream.mock.calls[index]?.[0] as { messages?: unknown[] })?.messages ?? [];
 }
 
 describe('Native Child production consumer', () => {
   beforeEach(() => {
-    mocks.streamLLM.mockReset();
+    mocks.modelStream.mockReset();
     mocks.searchWeb.mockReset();
   });
 
@@ -252,7 +252,7 @@ describe('Native Child production consumer', () => {
     });
 
     expect(takeSceneEvidence).not.toHaveBeenCalled();
-    expect(mocks.streamLLM).not.toHaveBeenCalled();
+    expect(mocks.modelStream).not.toHaveBeenCalled();
     expect(result.details).toMatchObject({ skipped: true, reason: 'invalid_agent_id' });
   });
 
@@ -386,16 +386,16 @@ describe('Native Child production consumer', () => {
     expect(second.details).not.toHaveProperty('sceneEvidence');
     expect(second.details).toMatchObject({ availableToolNames: ['spotlight', 'web_search'] });
     expect(takeSceneEvidence).toHaveBeenCalledTimes(2);
-    expect(JSON.stringify(mocks.streamLLM.mock.calls[0]?.[0])).toContain(
+    expect(JSON.stringify(mocks.modelStream.mock.calls[0]?.[0])).toContain(
       'Scene evidence (sceneId=scene-current)',
     );
-    expect(JSON.stringify(mocks.streamLLM.mock.calls[1]?.[0])).not.toContain(
+    expect(JSON.stringify(mocks.modelStream.mock.calls[1]?.[0])).not.toContain(
       'Scene evidence (sceneId=scene-current)',
     );
-    expect(JSON.stringify(mocks.streamLLM.mock.calls[0]?.[0])).toContain(
+    expect(JSON.stringify(mocks.modelStream.mock.calls[0]?.[0])).toContain(
       'Selected element evidence: scene-current/current-element',
     );
-    expect(JSON.stringify(mocks.streamLLM.mock.calls[1]?.[0])).toContain(
+    expect(JSON.stringify(mocks.modelStream.mock.calls[1]?.[0])).toContain(
       'Selected element evidence: scene-current/current-element',
     );
   });
@@ -409,11 +409,11 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
-    expect(mocks.streamLLM.mock.calls[0]?.[0]).toEqual(
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ model: resolvedModel, maxOutputTokens: 384 }),
     );
-    expect(mocks.streamLLM.mock.calls[0]?.[1]).toBe('pi-chat-native-child');
+    expect(mocks.modelStream.mock.calls[0]?.[1]).toBe('pi-chat-native-child');
     expect(transportMessages(1)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ role: 'assistant' }),
@@ -467,7 +467,7 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(3);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(3);
     expect(harness.events.filter((event) => event.type === 'action')).toHaveLength(2);
     expect(harness.onActionDone).toHaveBeenCalledTimes(2);
     expect(result).not.toHaveProperty('isError');
@@ -506,10 +506,10 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
       'spotlight',
     );
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
       'web_search',
     );
     expect(result).toMatchObject({
@@ -527,10 +527,10 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
       'spotlight',
     );
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
       'web_search',
     );
     expect(result).toMatchObject({
@@ -575,10 +575,10 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
       'spotlight',
     );
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
       'web_search',
     );
     expect(result.details).toMatchObject({
@@ -599,10 +599,10 @@ describe('Native Child production consumer', () => {
     });
 
     const result = await execute(harness);
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).not.toHaveProperty(
       'spotlight',
     );
-    expect((mocks.streamLLM.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
+    expect((mocks.modelStream.mock.calls[0]?.[0] as { tools?: object }).tools).toHaveProperty(
       'web_search',
     );
     expect(result.details).toMatchObject({ availableToolNames: ['web_search'] });
@@ -648,7 +648,7 @@ describe('Native Child production consumer', () => {
     });
 
     const result = await execute(harness);
-    const firstPayload = mocks.streamLLM.mock.calls[0]?.[0] as { tools: Record<string, unknown> };
+    const firstPayload = mocks.modelStream.mock.calls[0]?.[0] as { tools: Record<string, unknown> };
     const continuation = transportMessages(1);
     const toolMessage = continuation.find(
       (message) => (message as { role?: string }).role === 'tool',
@@ -721,7 +721,7 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(5);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(5);
     expect(mocks.searchWeb).toHaveBeenCalledTimes(4);
     expect(harness.onActionDone).not.toHaveBeenCalled();
     expect(result).toMatchObject({
@@ -766,7 +766,7 @@ describe('Native Child production consumer', () => {
     const result = await execute(harness);
 
     expect(mocks.searchWeb).toHaveBeenCalledTimes(5);
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({
       details: {
         text: 'Five-source synthesis.',
@@ -846,7 +846,7 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     expect(mocks.searchWeb).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       isError: true,
@@ -899,7 +899,7 @@ describe('Native Child production consumer', () => {
     const harness = makeHarness({ nativeWebSearchConfig: registeredSearchConfig, abortController });
 
     await expect(execute(harness)).rejects.toMatchObject({ name: 'AbortError' });
-    expect(mocks.streamLLM).not.toHaveBeenCalled();
+    expect(mocks.modelStream).not.toHaveBeenCalled();
     expect(mocks.searchWeb).not.toHaveBeenCalled();
     expect(harness.events).toEqual([]);
     expect(harness.onActionDone).not.toHaveBeenCalled();
@@ -916,7 +916,7 @@ describe('Native Child production consumer', () => {
     abortController.abort(new DOMException('request cancelled', 'AbortError'));
 
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
   });
 
   it('does not count a rejected Spotlight dispatch and returns error-text to the same Child', async () => {
@@ -954,7 +954,7 @@ describe('Native Child production consumer', () => {
 
     const result = await execute(harness);
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     expect(harness.events.some((event) => event.type === 'action')).toBe(false);
     expect(harness.onActionDone).not.toHaveBeenCalled();
     expect(result).toMatchObject({

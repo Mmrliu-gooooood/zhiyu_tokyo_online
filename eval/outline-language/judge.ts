@@ -1,4 +1,5 @@
-import { generateText, type LanguageModel } from 'ai';
+import type { ModelBinding } from '@/lib/model-gateway';
+import { generateText } from '../shared/llm';
 import type { JudgeResult } from './types';
 
 const JUDGE_SYSTEM_PROMPT = `You are evaluating whether a language directive for an AI course generation system is reasonable given the expected behavior.
@@ -27,7 +28,7 @@ Respond with ONLY a JSON object:
  * for `requirement` given `groundTruth`. Lenient rubric — see system prompt.
  */
 export async function judgeDirective(
-  judgeModel: LanguageModel,
+  judgeModel: ModelBinding,
   requirement: string,
   directive: string,
   groundTruth: string,

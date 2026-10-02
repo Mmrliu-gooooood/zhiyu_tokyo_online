@@ -2,12 +2,12 @@ import type { AgentMessage, AgentTool } from '@earendil-works/pi-agent-core';
 import { Type } from 'typebox';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
+const mocks = vi.hoisted(() => ({ modelStream: vi.fn() }));
 
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 
@@ -31,7 +31,7 @@ describe('Pro ask_user argument preparation', () => {
     async (encoding) => {
       const onUserQuestion = vi.fn();
       const question = { question: '学习目标是什么？', options: [{ id: 'exam', label: '考试' }] };
-      mocks.streamLLM.mockReset();
+      mocks.modelStream.mockReset();
       useResponses([
         [
           {
@@ -52,7 +52,7 @@ describe('Pro ask_user argument preparation', () => {
       });
       await agent.prompt('Help me learn');
       expect(onUserQuestion).toHaveBeenCalledExactlyOnceWith(question);
-      expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+      expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -60,7 +60,7 @@ describe('Pro ask_user argument preparation', () => {
     'still rejects invalid question %s',
     async (input) => {
       const onUserQuestion = vi.fn();
-      mocks.streamLLM.mockReset();
+      mocks.modelStream.mockReset();
       useResponses([
         [
           { type: 'tool-call', toolCallId: 'bad', toolName: 'ask_user', input },
@@ -105,7 +105,7 @@ function resultFrom(parts: Array<Record<string, unknown>>) {
 }
 
 function useResponses(responses: Array<Array<Record<string, unknown>>>) {
-  mocks.streamLLM.mockImplementation(() => {
+  mocks.modelStream.mockImplementation(() => {
     const parts = responses.shift();
     return resultFrom(
       parts ?? [{ type: 'text-delta', text: 'unexpected transport' }, finish('stop')],
@@ -151,7 +151,7 @@ function makeAgent(options: {
 }
 
 function transportMessages(index: number) {
-  const params = mocks.streamLLM.mock.calls[index]?.[0] as { messages?: unknown[] } | undefined;
+  const params = mocks.modelStream.mock.calls[index]?.[0] as { messages?: unknown[] } | undefined;
   return params?.messages ?? [];
 }
 
@@ -163,7 +163,7 @@ function toolOutputType(index: number): unknown {
 }
 
 describe('buildAgent shared transport lifecycle', () => {
-  beforeEach(() => mocks.streamLLM.mockReset());
+  beforeEach(() => mocks.modelStream.mockReset());
 
   it('executes an ordinary toolUse once and continues through the same Agent loop', async () => {
     const execute = vi.fn(async () => ({
@@ -179,7 +179,7 @@ describe('buildAgent shared transport lifecycle', () => {
     await agent.prompt('start');
 
     expect(execute).toHaveBeenCalledTimes(1);
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(toolOutputType(1)).toBe('text');
   });
 
@@ -223,7 +223,7 @@ describe('buildAgent shared transport lifecycle', () => {
     await agent.prompt('start');
 
     const final = agent.state.messages.at(-1);
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     expect(allowlistHas).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
     expect(afterToolCall).not.toHaveBeenCalled();
@@ -241,7 +241,7 @@ describe('buildAgent shared transport lifecycle', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    mocks.streamLLM.mockReturnValue({
+    mocks.modelStream.mockReturnValue({
       fullStream: (async function* () {
         await gate;
         yield toolCall();
@@ -258,13 +258,13 @@ describe('buildAgent shared transport lifecycle', () => {
     });
 
     const prompt = agent.prompt('start');
-    await vi.waitFor(() => expect(mocks.streamLLM).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mocks.modelStream).toHaveBeenCalledTimes(1));
     agent.steer(userMessage('streaming steering'));
     agent.followUp(userMessage('streaming follow-up'));
     release();
     await prompt;
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
     expect(agent.hasQueuedMessages()).toBe(false);
   });
 
@@ -281,7 +281,7 @@ describe('buildAgent shared transport lifecycle', () => {
       .join(' ');
     expect(userText).toContain('start');
     expect(userText).toContain('pre-run steering');
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(1);
   });
 
   it('preserves existing queue semantics for plain length', async () => {
@@ -294,7 +294,7 @@ describe('buildAgent shared transport lifecycle', () => {
 
     await agent.prompt('start');
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     const firstAssistant = agent.state.messages.find(
       (message) => message.role === 'assistant' && message.stopReason === 'length',
     );
@@ -315,7 +315,7 @@ describe('buildAgent shared transport lifecycle', () => {
     expect(agent.hasQueuedMessages()).toBe(true);
     await agent.continue();
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(agent.hasQueuedMessages()).toBe(false);
   });
 
@@ -349,7 +349,7 @@ describe('buildAgent shared transport lifecycle', () => {
       content: [{ type: 'text', text: 'existing failure' }],
       details,
     });
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(toolOutputType(1)).toBe('error-text');
   });
 
@@ -417,7 +417,7 @@ describe('buildAgent shared transport lifecycle', () => {
     await agent.prompt('start');
 
     expect(observed).toEqual([false]);
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(toolOutputType(1)).toBe('text');
   });
 
@@ -430,7 +430,7 @@ describe('buildAgent shared transport lifecycle', () => {
 
     await agent.prompt('start');
 
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(toolOutputType(1)).toBe('error-text');
   });
 
@@ -466,7 +466,7 @@ describe('buildAgent shared transport lifecycle', () => {
       await agent.prompt('start');
 
       if (caseName === 'schema rejection') expect(execute).not.toHaveBeenCalled();
-      expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+      expect(mocks.modelStream).toHaveBeenCalledTimes(2);
       expect(toolOutputType(1)).toBe('error-text');
     },
   );

@@ -2,7 +2,7 @@
  * Agent-loop pins for the global tool-call execution bound.
  *
  * These tests drive the REAL pi Agent through the REAL `buildAgent` and the
- * REAL stream-fn adapter (only the underlying `streamLLM` transport is
+ * REAL stream-fn adapter (only the underlying `modelStream` transport is
  * mocked), so the timeout wiring is exercised end to end: a tool that never
  * settles must end its call with a structured error tool-result in the
  * transcript at the configured bound, and the agent must keep running (the
@@ -13,12 +13,12 @@ import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { Type } from 'typebox';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ streamLLM: vi.fn() }));
+const mocks = vi.hoisted(() => ({ modelStream: vi.fn() }));
 
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 
@@ -54,7 +54,7 @@ const resultFrom = (parts: Array<Record<string, unknown>>) => ({
 });
 
 function useResponses(responses: Array<Array<Record<string, unknown>>>) {
-  mocks.streamLLM.mockImplementation(() => {
+  mocks.modelStream.mockImplementation(() => {
     const parts = responses.shift();
     return resultFrom(
       parts ?? [{ type: 'text-delta', text: 'unexpected transport' }, finish('stop')],
@@ -86,7 +86,7 @@ const setToolTimeout = (value: string | undefined): void => {
 
 describe('agent loop tool-execution bound', () => {
   beforeEach(() => {
-    mocks.streamLLM.mockReset();
+    mocks.modelStream.mockReset();
   });
 
   afterEach(() => {
@@ -130,7 +130,7 @@ describe('agent loop tool-execution bound', () => {
     expect(JSON.stringify(toolResult)).toContain('execution budget');
     expect(JSON.stringify(toolResult)).toContain('5000ms');
     // The agent survived the timeout and continued with the next model turn.
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     // The abort was delivered to the tool's in-flight work.
     expect(captured).toHaveLength(1);
     expect(captured[0]?.aborted).toBe(true);

@@ -3,13 +3,13 @@ import type { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
   resolveModel: vi.fn(),
-  callLLM: vi.fn(),
+  modelComplete: vi.fn(),
 }));
 
 vi.mock('@/lib/model-gateway', async (importOriginal) =>
   (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
     resolveParamsBinding: mocks.resolveModel,
-    complete: mocks.callLLM,
+    complete: mocks.modelComplete,
   }),
 );
 
@@ -38,11 +38,11 @@ async function postVerifyModel(
 describe('POST /api/verify-model', () => {
   beforeEach(() => {
     mocks.resolveModel.mockReset();
-    mocks.callLLM.mockReset();
+    mocks.modelComplete.mockReset();
     mocks.resolveModel.mockImplementation(async () =>
       (await import('@/tests/helpers/legacy-stream-gateway')).testBinding(),
     );
-    mocks.callLLM.mockResolvedValue({ text: 'OK' });
+    mocks.modelComplete.mockResolvedValue({ text: 'OK' });
   });
 
   it('rejects requests without a model name', async () => {
@@ -55,7 +55,7 @@ describe('POST /api/verify-model', () => {
       errorCode: 'MISSING_REQUIRED_FIELD',
     });
     expect(mocks.resolveModel).not.toHaveBeenCalled();
-    expect(mocks.callLLM).not.toHaveBeenCalled();
+    expect(mocks.modelComplete).not.toHaveBeenCalled();
   });
 
   it('calls the gateway once with thinking disabled for connection checks', async () => {
@@ -79,7 +79,7 @@ describe('POST /api/verify-model', () => {
       baseUrl: 'https://token-plan-cn.xiaomimimo.com/v1',
       providerType: 'openai',
     });
-    expect(mocks.callLLM).toHaveBeenCalledWith(
+    expect(mocks.modelComplete).toHaveBeenCalledWith(
       expect.objectContaining({ thinking: { mode: 'disabled', enabled: false } }),
       {
         messages: [
@@ -139,7 +139,7 @@ describe('POST /api/verify-model', () => {
     ['MODEL_NETWORK', 502, 'Cannot connect to API server, please check the Base URL'],
   ] as const)('maps %s to a fixed message without upstream text', async (code, status, message) => {
     const { GatewayError } = await import('@/lib/model-gateway');
-    mocks.callLLM.mockRejectedValue(
+    mocks.modelComplete.mockRejectedValue(
       new GatewayError(code, {
         providerId: 'openai',
         modelId: 'test-model',

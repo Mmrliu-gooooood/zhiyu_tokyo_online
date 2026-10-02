@@ -15,7 +15,8 @@
  * mirroring eval/outline-language/judge.ts.
  */
 
-import { generateText, type LanguageModel } from 'ai';
+import type { ModelBinding } from '@/lib/model-gateway';
+import { generateText } from '../shared/llm';
 
 /** Accept only a real boolean or the exact strings "true"/"false" (case-insensitive).
  * Anything else (e.g. a stray string, number, undefined) returns null so the caller
@@ -66,7 +67,7 @@ Respond with ONLY a JSON object, no code fences:
 {"leads_with_answer": true/false, "answered_anywhere": true/false, "reason": "1-2 sentences"}`;
 
 export async function judgeAnswer(
-  judgeModel: LanguageModel,
+  judgeModel: ModelBinding,
   studentMessage: string,
   answerKey: string,
   leadReply: string,

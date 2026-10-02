@@ -31,7 +31,7 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { callLLM } from '@/lib/ai/llm';
+import { completeEval } from '../shared/llm';
 import { resolveEvalModel } from '../shared/resolve-model';
 import { createRunDir } from '../shared/run-dir';
 import { classifyDecision, endRate } from './judge';
@@ -67,7 +67,7 @@ async function callDirector(
   model: Awaited<ReturnType<typeof resolveEvalModel>>['model'],
   systemPrompt: string,
 ): Promise<string> {
-  const result = await callLLM(
+  const result = await completeEval(
     {
       model,
       messages: [

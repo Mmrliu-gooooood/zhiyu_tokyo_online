@@ -19,7 +19,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { generateSceneOutlinesFromRequirements } from '@openmaic/generation';
-import { callLLM } from '@/lib/ai/llm';
+import { completeEval } from '../shared/llm';
 import type { AICallFn } from '@openmaic/generation';
 import { resolveEvalModel } from '../shared/resolve-model';
 import { createRunDir } from '../shared/run-dir';
@@ -135,7 +135,7 @@ async function main() {
   const { model: judgeModel } = await resolveEvalModel('EVAL_JUDGE_MODEL');
 
   const aiCall: AICallFn = async (systemPrompt, userPrompt, _images) => {
-    const result = await callLLM(
+    const result = await completeEval(
       {
         model: inferenceModel,
         messages: [

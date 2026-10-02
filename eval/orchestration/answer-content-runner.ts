@@ -42,7 +42,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { callLLM } from '@/lib/ai/llm';
+import { completeEval } from '../shared/llm';
 import { buildStructuredPrompt } from '@/lib/orchestration/prompt-builder';
 import { convertMessagesToOpenAI } from '@/lib/orchestration/summarizers/message-converter';
 import {
@@ -272,7 +272,7 @@ async function sampleVariant(
 ): Promise<SampleResult[]> {
   const tasks = Array.from({ length: samples }, async (): Promise<SampleResult> => {
     try {
-      const gen = await callLLM(
+      const gen = await completeEval(
         {
           model: agentModel,
           messages: [{ role: 'system', content: systemPrompt }, ...openaiMessages],

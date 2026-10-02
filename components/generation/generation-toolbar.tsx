@@ -24,7 +24,7 @@ import {
   isWebSearchProviderConfigured,
 } from '@/lib/web-search/constants';
 import type { WebSearchProviderId } from '@/lib/web-search/types';
-import type { ProviderId } from '@/lib/ai/providers';
+import type { ProviderId } from '@/lib/types/provider';
 import type {
   ModelInfo,
   ThinkingConfig,

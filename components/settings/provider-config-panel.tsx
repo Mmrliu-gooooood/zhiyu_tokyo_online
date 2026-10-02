@@ -33,7 +33,7 @@ import {
   Download,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import type { ProviderConfig } from '@/lib/ai/providers';
+import type { ProviderConfig } from '@/lib/types/provider';
 import type { ProvidersConfig } from '@/lib/types/settings';
 import { createVerifyModelRequest, formatContextWindow } from './utils';
 import { cn } from '@/lib/utils';

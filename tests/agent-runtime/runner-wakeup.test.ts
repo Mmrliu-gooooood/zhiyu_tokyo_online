@@ -153,7 +153,7 @@ vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) =>
   return {
     ...actual,
     resolveAgentDriverModel: vi.fn(async () => ({
-      connection: { model: { id: 'wakeup-test' }, modelId: 'wakeup-test', providerId: 'test' },
+      binding: { modelId: 'wakeup-test', providerId: 'test' } as never,
       piModel: {
         id: 'wakeup-test',
         name: 'wakeup-test',
@@ -171,8 +171,9 @@ vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) =>
     })),
   };
 });
-vi.mock('@/lib/agent/runtime/stream-fn', () => ({
-  createCallLlmStreamFn: vi.fn(() => async () => undefined),
+vi.mock('@/lib/model-gateway/adapters/agent-stream-fn', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/model-gateway/adapters/agent-stream-fn')>()),
+  createGatewayStreamFn: vi.fn(() => async () => undefined),
 }));
 
 /**

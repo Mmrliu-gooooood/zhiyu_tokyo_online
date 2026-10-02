@@ -3,14 +3,6 @@ import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Queryable, WithTransaction } from '@openmaic/storage/agent-session/pg';
 
-vi.mock('@/lib/ai/providers', () => ({
-  getProvider: (id: string) =>
-    id === 'openai' ? { type: 'openai', requiresApiKey: true } : undefined,
-  parseModelString: (value: string) => ({
-    providerId: value.split(':')[0],
-    modelId: value.split(':')[1],
-  }),
-}));
 const mocks = vi.hoisted(() => ({ managed: false, unsafe: undefined as string | undefined }));
 vi.mock('@/lib/server/provider-config', () => ({
   isServerConfiguredProvider: () => mocks.managed,

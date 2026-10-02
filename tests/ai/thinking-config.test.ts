@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getProvider } from '@/lib/ai/providers';
+import { getProvider } from '@/lib/model-gateway/catalog/client-catalog';
 import {
   getThinkingConfigKey,
   getDefaultThinkingConfig,

@@ -1,4 +1,4 @@
-import { resolveModel } from '@/lib/server/resolve-model';
+import { resolveParamsBinding } from '@/lib/model-gateway';
 
 /**
  * Resolve a model for an eval runner. Reads `process.env[envVar]`, falls back
@@ -14,5 +14,13 @@ export async function resolveEvalModel(envVar: string, fallback?: string) {
       `Eval model not configured: set ${envVar} in the environment (or pass an explicit fallback).`,
     );
   }
-  return resolveModel({ modelString });
+  const model = await resolveParamsBinding({ modelString });
+  return {
+    model,
+    modelString: model.modelString,
+    modelInfo: {
+      outputWindow: model.capabilities.knownModel ? model.capabilities.maxOutputTokens : undefined,
+      contextWindow: model.capabilities.contextWindow,
+    },
+  };
 }

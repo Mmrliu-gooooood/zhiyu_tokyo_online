@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Box, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import type { ProviderId, ProviderConfig } from '@/lib/ai/providers';
-import { MONO_LOGO_PROVIDERS } from '@/lib/ai/providers';
+import type { ProviderId, ProviderConfig } from '@/lib/types/provider';
+import { MONO_LOGO_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { PlatformDefaultListEntry } from './platform-default-panel';
 
 interface ProviderWithServerInfo extends ProviderConfig {

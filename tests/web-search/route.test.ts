@@ -16,13 +16,12 @@ vi.mock('@/lib/web-search', async (importOriginal) => {
   };
 });
 
-vi.mock('@/lib/server/resolve-model', () => ({
-  resolveModelFromRequest: mocks.resolveModelFromRequest,
-}));
-
-vi.mock('@/lib/ai/llm', () => ({
-  callLLM: vi.fn(),
-}));
+vi.mock('@/lib/model-gateway', async (importOriginal) =>
+  (await import('@/tests/helpers/model-gateway-mock')).mockGatewayModule(await importOriginal(), {
+    resolveRequestBinding: mocks.resolveModelFromRequest,
+    complete: vi.fn(),
+  }),
+);
 
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({

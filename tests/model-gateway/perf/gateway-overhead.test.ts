@@ -1,16 +1,19 @@
 /**
- * P1 performance gate (plan 6.5), opt-in:
+ * Performance gate (plan 6.5), opt-in:
  *
  *   $env:MODEL_GATEWAY_PERF = '1'; pnpm exec vitest run tests/model-gateway/perf
  *
  * - Gateway overhead vs a direct pi call (paired, interleaved): p50 ≤ 5 ms, p95 ≤ 15 ms.
  * - Per-call `Models` view construction: p50 < 0.2 ms.
- * Also reports gateway complete/stream timings next to the P0-4 legacy baseline.
+ * - `complete` total and `stream` TTFT p50 ≤ 1.10 × the P0-4 legacy baseline.
+ * - PRO single turn (Agent StreamFn → gateway) p50 ≤ the legacy StreamFn baseline.
+ * The report is written to tests/fixtures/model-gateway/perf-gateway.json.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { userText } from '@/lib/model-gateway';
+import { createGatewayStreamFn } from '@/lib/model-gateway/adapters/agent-stream-fn';
 import { sealedAuthContext } from '@/lib/model-gateway/credentials/auth-context';
 import {
   createCallModels,
@@ -95,6 +98,24 @@ describe.skipIf(!ENABLED)('gateway performance gate', () => {
       return { ttftMs, totalMs: performance.now() - started };
     });
 
+    // PRO single turn: the Agent StreamFn adapter over the same gateway.
+    const streamFn = createGatewayStreamFn({ binding, source: 'perf', gateway });
+    const proTurn = await measure(PERF_ITERATIONS, async () => {
+      const started = performance.now();
+      let ttftMs: number | undefined;
+      const events = await streamFn(
+        {} as Parameters<typeof streamFn>[0],
+        { systemPrompt: '', messages: [{ role: 'user', content: 'Hello', timestamp: 0 }] },
+        {},
+      );
+      for await (const event of events) {
+        if (ttftMs === undefined && event.type === 'text_delta') {
+          ttftMs = performance.now() - started;
+        }
+      }
+      return { ttftMs, totalMs: performance.now() - started };
+    });
+
     // Same pairing with an instant fake server: isolates the gateway's own cost
     // from OS timer jitter on the 50 ms first-token delay.
     server.setHandler(() => ({ ...PERF_REPLY, firstTokenDelayMs: 0 }));
@@ -116,13 +137,15 @@ describe.skipIf(!ENABLED)('gateway performance gate', () => {
       gatewayOverheadMs: stats(overhead),
       gatewayOverheadInstantServerMs: stats(instantOverhead),
       gatewayStream: streamRun,
+      gatewayProStreamFnTurn: proTurn,
       legacyBaseline: {
-        callLLM: baseline.callLLM.total,
-        streamLLM: baseline.streamLLM,
+        legacyComplete: baseline.legacyComplete.total,
+        legacyStream: baseline.legacyStream,
+        proStreamFnTurn: baseline.proStreamFnTurn,
       },
     };
     writeFileSync(
-      path.join(FIXTURES, 'perf-gateway-p1.json'),
+      path.join(FIXTURES, 'perf-gateway.json'),
       `${JSON.stringify(report, null, 2)}\n`,
     );
     console.log(JSON.stringify(report, null, 2));
@@ -130,5 +153,10 @@ describe.skipIf(!ENABLED)('gateway performance gate', () => {
     expect(constructStats.p50).toBeLessThan(0.2);
     expect(report.gatewayOverheadMs.p50).toBeLessThanOrEqual(5);
     expect(report.gatewayOverheadMs.p95).toBeLessThanOrEqual(15);
+    expect(report.gatewayCompleteMs.p50).toBeLessThanOrEqual(
+      baseline.legacyComplete.total.p50 * 1.1,
+    );
+    expect(streamRun.ttft!.p50).toBeLessThanOrEqual(baseline.legacyStream.ttft.p50 * 1.1);
+    expect(proTurn.total.p50).toBeLessThanOrEqual(baseline.proStreamFnTurn.total.p50);
   });
 });

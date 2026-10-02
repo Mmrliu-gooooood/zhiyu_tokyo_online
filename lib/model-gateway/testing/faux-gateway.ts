@@ -1,6 +1,6 @@
 /**
  * Test gateway backed by pi's faux provider. Business tests use it instead of
- * `vi.mock('@/lib/ai/llm')`: responses are scripted pi assistant messages
+ * module mocks of the model call layer: responses are scripted pi assistant messages
  * (text, thinking, tool calls, errors) and the real gateway pipeline runs,
  * with usage, logs and quota captured in memory.
  */
@@ -88,7 +88,7 @@ export function createFauxGateway(options: FauxGatewayOptions = {}): FauxGateway
     ...options.deps,
   });
 
-  const model = faux.getModel();
+  const model = faux.models[0];
   return {
     gateway,
     faux,

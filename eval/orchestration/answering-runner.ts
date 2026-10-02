@@ -42,7 +42,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { callLLM } from '@/lib/ai/llm';
+import { completeEval } from '../shared/llm';
 import { parseDirectorDecision } from '@/lib/orchestration/director-prompt';
 import {
   summarizeConversation,
@@ -223,7 +223,7 @@ async function sampleVariant(
 ): Promise<SampleResult[]> {
   const tasks = Array.from({ length: samples }, async (): Promise<SampleResult> => {
     try {
-      const result = await callLLM(
+      const result = await completeEval(
         {
           model,
           messages: [

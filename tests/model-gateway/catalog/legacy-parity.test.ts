@@ -1,14 +1,15 @@
 /**
- * P2-2: the new client catalog must not regress the 19 pre-gateway providers.
- * Until the legacy catalog is deleted (P3-6) this compares against it
- * directly: provider fields, model id sets, every model entry, and every
- * reviewed thinking capability (including manual-id-only entries).
+ * P2-2 / P3-6: the client catalog must not regress the 19 pre-gateway
+ * providers. The legacy catalog (lib/ai/providers.ts + model-metadata.ts) was
+ * deleted in P3-6 after being frozen into
+ * tests/fixtures/model-gateway/legacy-catalog.json; this compares against that
+ * snapshot: provider fields, model id sets, every model entry (covers the
+ * behavior-checklist catalog items CT-01…CT-06), and every reviewed thinking
+ * capability (including manual-id-only entries, aliases and fallbacks).
  */
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PROVIDERS } from '@/lib/ai/providers';
-import { getCatalogThinkingCapability } from '@/lib/ai/model-metadata';
-import { CLIENT_PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
+import legacyCatalog from '@/tests/fixtures/model-gateway/legacy-catalog.json';
+import { CLIENT_PROVIDERS, PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import { LEGACY_PROVIDER_IDS, PROVIDER_DESCRIPTORS } from '@/lib/model-gateway/catalog/descriptors';
 import {
   deriveThinkingCapability,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/model-gateway/catalog/thinking-capability';
 import { PI_PROVIDER_IDS } from '@/lib/model-gateway/runtime/pi-registry';
 
+const LEGACY = legacyCatalog.providers as Record<string, Record<string, unknown>>;
 const LEGACY_FIELDS = [
   'id',
   'name',
@@ -38,13 +40,14 @@ function pickFields(source: object): Record<string, unknown> {
   );
 }
 
-describe('client catalog parity with the legacy catalog (P2-2)', () => {
-  it('lists exactly the 19 legacy providers as legacy ids', () => {
-    expect([...LEGACY_PROVIDER_IDS].sort()).toEqual(Object.keys(PROVIDERS).sort());
+describe('client catalog parity with the frozen legacy catalog', () => {
+  it('lists exactly the 19 legacy providers as legacy ids (and as PROVIDERS)', () => {
+    expect([...LEGACY_PROVIDER_IDS].sort()).toEqual(Object.keys(LEGACY).sort());
+    expect(Object.keys(PROVIDERS).sort()).toEqual(Object.keys(LEGACY).sort());
   });
 
   it.each([...LEGACY_PROVIDER_IDS])('%s keeps every provider field and model entry', (id) => {
-    const legacy = PROVIDERS[id];
+    const legacy = LEGACY[id]!;
     const next = CLIENT_PROVIDERS[id]!;
     expect(pickFields(next)).toEqual(pickFields(legacy));
     // Undefined meant "discovery available" in the legacy UI (`!== false`).
@@ -52,22 +55,10 @@ describe('client catalog parity with the legacy catalog (P2-2)', () => {
   });
 
   it('keeps every reviewed thinking capability, including manual-id-only entries', () => {
-    const source = readFileSync('lib/ai/model-metadata.ts', 'utf8');
-    const keys = [...source.matchAll(/getModelMetadataKey\('([^']+)', '([^']+)'\)/g)];
-    expect(keys.length).toBeGreaterThan(50);
-    for (const [, providerId, modelId] of keys) {
-      expect(reviewedThinkingCapability(providerId!, modelId!), `${providerId}:${modelId}`).toEqual(
-        getCatalogThinkingCapability(providerId!, modelId!),
-      );
-    }
-    // Aliases and the Lemonade provider-wide fallback.
-    for (const [providerId, modelId] of [
-      ['openai', 'gpt-5.6-sol'],
-      ['lemonade', 'some-local-model-GGUF'],
-      ['deepseek', 'not-a-catalog-model'],
-    ] as const) {
-      expect(reviewedThinkingCapability(providerId, modelId)).toEqual(
-        getCatalogThinkingCapability(providerId, modelId),
+    expect(legacyCatalog.thinking.length).toBeGreaterThan(50);
+    for (const { providerId, modelId, capability } of legacyCatalog.thinking) {
+      expect(reviewedThinkingCapability(providerId, modelId), `${providerId}:${modelId}`).toEqual(
+        capability ?? undefined,
       );
     }
   });

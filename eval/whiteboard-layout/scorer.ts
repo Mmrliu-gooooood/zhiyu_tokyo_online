@@ -1,7 +1,7 @@
 /**
  * VLM Scorer for whiteboard layout quality.
  *
- * Uses the project's LLM infrastructure (resolveModel + generateText from AI SDK)
+ * Uses the project's LLM infrastructure (the model gateway, via eval/shared/llm)
  * so model configuration follows the same `provider:model` convention as the rest
  * of the codebase. Supports all providers (OpenAI, Google, Anthropic, etc.).
  *
@@ -10,8 +10,8 @@
  */
 
 import { readFileSync } from 'fs';
-import { generateText } from 'ai';
-import { resolveModel } from '@/lib/server/resolve-model';
+import { generateText } from '../shared/llm';
+import { resolveParamsBinding } from '@/lib/model-gateway';
 import type { VlmScore } from './types';
 
 const RUBRIC_PROMPT = `You are evaluating a classroom whiteboard screenshot from an AI teaching assistant. Score like a teacher reviewing their own board work for a student's benefit.
@@ -70,7 +70,7 @@ export async function scoreScreenshot(
 ): Promise<VlmScore> {
   const imageBuffer = readFileSync(screenshotPath);
 
-  const { model } = await resolveModel({ modelString });
+  const model = await resolveParamsBinding({ modelString });
 
   const result = await generateText({
     model,

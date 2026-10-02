@@ -41,7 +41,7 @@ import {
 } from '@/lib/model-gateway/testing/fake-openai-server';
 import type { GatewayMessage, GatewayTool, ModelBinding } from '@/lib/model-gateway/types';
 import { rerouteBinding, testGateway } from '../helpers';
-import type { Conversation, GoldenEntry, LegacyCaseInput } from './legacy-payloads.test';
+import type { Conversation, GoldenEntry, LegacyCaseInput } from './golden-types';
 import { sortKeys } from './matrix';
 import { GOLDEN_DIR, thinkingFields } from './thinking-equivalence';
 

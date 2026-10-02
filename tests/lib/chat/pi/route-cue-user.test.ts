@@ -43,14 +43,6 @@ vi.mock('@/lib/model-gateway', async (importOriginal) => {
   });
 });
 
-vi.mock('@/lib/ai/providers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/ai/providers')>();
-  return {
-    ...actual,
-    isProviderKeyRequired: vi.fn(() => false),
-  };
-});
-
 vi.mock('@/lib/live-mode', () => ({
   isLiveMode: false,
 }));

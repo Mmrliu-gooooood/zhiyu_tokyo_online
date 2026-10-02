@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProviderConfig } from '@/lib/ai/providers';
+import type { ProviderConfig } from '@/lib/types/provider';
 import type { PlatformDefaultCatalogEntry } from '@/lib/types/platform-default-models';
 import { useSettingsStore } from '@/lib/store/settings';
 

@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Sparkles, Wrench, Zap, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type { EditingModel } from '@/lib/types/settings';
-import type { ProviderId } from '@/lib/ai/providers';
+import type { ProviderId } from '@/lib/types/provider';
 import { cn } from '@/lib/utils';
 import { createVerifyModelRequest } from './utils';
 

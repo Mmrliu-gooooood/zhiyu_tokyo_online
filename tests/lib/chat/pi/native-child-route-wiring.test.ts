@@ -10,7 +10,7 @@ import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators
 const mocks = vi.hoisted(() => ({
   resolveModel: vi.fn(),
   getModelResolutionError: vi.fn(() => undefined),
-  streamLLM: vi.fn(),
+  modelStream: vi.fn(),
   searchWeb: vi.fn(),
   persistenceQuery: vi.fn(),
   getServerPersistenceProvider: vi.fn(),
@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   const { bindingFromLegacyResolved } = await import('@/tests/helpers/legacy-stream-gateway');
   return mockGatewayModule(await importOriginal(), {
     delegate: () => gateway,
@@ -30,10 +30,6 @@ vi.mock('@/lib/model-gateway', async (importOriginal) => {
 vi.mock('@/lib/web-search', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/web-search')>();
   return { ...actual, searchWeb: mocks.searchWeb };
-});
-vi.mock('@/lib/ai/providers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/ai/providers')>();
-  return { ...actual, isProviderKeyRequired: vi.fn(() => false) };
 });
 vi.mock('@/lib/live-mode', () => ({ isLiveMode: false }));
 vi.mock('@/lib/persistence/server-provider', () => ({
@@ -177,7 +173,7 @@ describe('PR2 Native Child route production wiring', () => {
     delete process.env.TAVILY_API_KEY;
     delete process.env.TAVILY_BASE_URL;
     mocks.resolveModel.mockReset();
-    mocks.streamLLM.mockReset();
+    mocks.modelStream.mockReset();
     mocks.searchWeb.mockReset();
     mocks.persistenceQuery.mockReset();
     mocks.getServerPersistenceProvider.mockReset();
@@ -228,7 +224,7 @@ describe('PR2 Native Child route production wiring', () => {
       [{ type: 'text-delta', text: 'This exact element is the key.' }, finish('stop')],
     ];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       const parts =
         source === 'pi-chat-native-child' ? childResponses.shift() : directorResponses.shift();
@@ -318,7 +314,7 @@ describe('PR2 Native Child route production wiring', () => {
       [finish('stop')],
     ];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       const parts =
         source === 'pi-chat-native-child' ? childResponses.shift() : directorResponses.shift();
@@ -444,7 +440,7 @@ describe('PR2 Native Child route production wiring', () => {
     ];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
     let childTransport = 0;
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       if (source !== 'pi-chat-native-child') {
         return resultFrom(directorResponses.shift() ?? [finish('stop')]);
@@ -626,7 +622,7 @@ describe('PR2 Native Child route production wiring', () => {
       [{ type: 'text-delta', text: 'No whiteboard capability.' }, finish('stop')],
     ];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       const parts =
         source === 'pi-chat-native-child' ? childResponses.shift() : directorResponses.shift();
@@ -664,7 +660,7 @@ describe('PR2 Native Child route production wiring', () => {
       [{ type: 'text-delta', text: 'Whiteboard is unavailable.' }, finish('stop')],
     ];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       const parts =
         source === 'pi-chat-native-child' ? childResponses.shift() : directorResponses.shift();
@@ -725,7 +721,7 @@ describe('PR2 Native Child route production wiring', () => {
       ],
     ];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       const parts =
         source === 'pi-chat-child' ? legacyChildResponses.shift() : directorResponses.shift();
@@ -776,7 +772,7 @@ describe('PR2 Native Child route production wiring', () => {
     ];
     const childResponses = [[{ type: 'text-delta', text: 'Brief answer.' }, finish('stop')]];
     const payloads: Array<{ source: string; options: Record<string, unknown> }> = [];
-    mocks.streamLLM.mockImplementation((options, source) => {
+    mocks.modelStream.mockImplementation((options, source) => {
       payloads.push({ source, options });
       const parts =
         source === 'pi-chat-native-child' ? childResponses.shift() : directorResponses.shift();
@@ -803,7 +799,7 @@ describe('PR2 Native Child route production wiring', () => {
 
     expect(response.status).toBe(400);
     expect(body).toMatchObject({ error: expect.stringContaining('Unsupported Tavily base URL') });
-    expect(mocks.streamLLM).not.toHaveBeenCalled();
+    expect(mocks.modelStream).not.toHaveBeenCalled();
     expect(mocks.searchWeb).not.toHaveBeenCalled();
   });
 
@@ -861,7 +857,7 @@ describe('PR2 Native Child route production wiring', () => {
           },
         ],
       });
-      mocks.streamLLM.mockImplementation((options, source) => {
+      mocks.modelStream.mockImplementation((options, source) => {
         payloads.push({ source, options });
         const parts =
           source === 'pi-chat-native-child' ? childResponses.shift() : directorResponses.shift();

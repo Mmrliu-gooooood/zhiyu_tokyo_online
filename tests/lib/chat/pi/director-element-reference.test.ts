@@ -5,7 +5,7 @@ import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import type { ResolvedSlideElementReference } from '@/lib/chat/pi/element-reference';
 
 const mocks = vi.hoisted(() => ({
-  streamLLM: vi.fn(),
+  modelStream: vi.fn(),
   sharedElementEvidence: [] as unknown[],
   callAgentExecutions: 0,
 }));
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), { delegate: () => gateway });
 });
 vi.mock('@/lib/chat/pi/tools/call-agent', () => ({
@@ -108,13 +108,13 @@ const elementReference: ResolvedSlideElementReference = {
 
 describe('Pi Director request-scoped selected-element evidence', () => {
   beforeEach(() => {
-    mocks.streamLLM.mockReset();
+    mocks.modelStream.mockReset();
     mocks.sharedElementEvidence.length = 0;
     mocks.callAgentExecutions = 0;
   });
 
   it('shares evidence with a retry after an ordinary grounded Child failure', async () => {
-    mocks.streamLLM
+    mocks.modelStream
       .mockReturnValueOnce(
         resultFrom([
           {
@@ -161,7 +161,7 @@ describe('Pi Director request-scoped selected-element evidence', () => {
       enableWhiteboardTools: false,
     });
 
-    expect(JSON.stringify(mocks.streamLLM.mock.calls[0]?.[0])).toContain(
+    expect(JSON.stringify(mocks.modelStream.mock.calls[0]?.[0])).toContain(
       'Selected slide reference: Grounded fact.',
     );
     expect(mocks.sharedElementEvidence).toHaveLength(2);
@@ -171,6 +171,6 @@ describe('Pi Director request-scoped selected-element evidence', () => {
     );
     expect(events.some((event) => event.type === 'done')).toBe(true);
     expect(mocks.callAgentExecutions).toBe(2);
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(3);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(3);
   });
 });

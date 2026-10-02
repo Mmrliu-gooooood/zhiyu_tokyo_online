@@ -1,6 +1,6 @@
 import type { ProviderId, ProviderType, ModelInfo } from '@/lib/types/provider';
 import type { ProviderSettings } from '@/lib/types/settings';
-import { getCatalogThinkingCapability } from '@/lib/ai/model-metadata';
+import { getCatalogThinkingCapability } from '@/lib/model-gateway/catalog/client-catalog';
 
 /** Heuristic: model ids matching this are treated as vision-capable. */
 const VISION_MODEL_PATTERN = /vision|vl|omni|4o|gpt-5|gemini|claude/i;

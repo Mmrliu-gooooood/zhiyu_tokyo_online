@@ -1,0 +1,3969 @@
+{
+  "frozenAt": "P3-6 (lib/ai/providers.ts + model-metadata.ts)",
+  "providers": {
+    "openai": {
+      "id": "openai",
+      "name": "OpenAI",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.openai.com/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/openai.svg",
+      "models": [
+        {
+          "id": "gpt-5.6",
+          "name": "GPT-5.6 Sol",
+          "contextWindow": 1050000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gpt-5.6-terra",
+          "name": "GPT-5.6 Terra",
+          "contextWindow": 1050000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gpt-5.6-luna",
+          "name": "GPT-5.6 Luna",
+          "contextWindow": 1050000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gpt-5.5",
+          "name": "GPT-5.5",
+          "contextWindow": 1050000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["low", "medium", "high", "xhigh"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gpt-5.4-pro",
+          "name": "GPT-5.4 Pro",
+          "contextWindow": 1050000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["medium", "high", "xhigh"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gpt-5.4",
+          "name": "GPT-5.4",
+          "contextWindow": 1050000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high", "xhigh"],
+              "defaultEffort": "none",
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "gpt-5.4-mini",
+          "name": "GPT-5.4 Mini",
+          "contextWindow": 400000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high", "xhigh"],
+              "defaultEffort": "none",
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "gpt-5.4-nano",
+          "name": "GPT-5.4 Nano",
+          "contextWindow": 400000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high", "xhigh"],
+              "defaultEffort": "none",
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        }
+      ]
+    },
+    "azure": {
+      "id": "azure",
+      "name": "Azure OpenAI",
+      "type": "azure",
+      "baseUrlPlaceholder": "https://YOUR-RESOURCE.openai.azure.com/openai",
+      "requiresApiKey": true,
+      "icon": "/logos/azure.svg",
+      "models": [],
+      "supportsModelDiscovery": false
+    },
+    "atlascloud": {
+      "id": "atlascloud",
+      "name": "Atlas Cloud",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.atlascloud.ai/v1",
+      "requiresApiKey": true,
+      "models": [
+        {
+          "id": "qwen/qwen3.5-flash",
+          "name": "Qwen3.5 Flash",
+          "contextWindow": 1000000,
+          "outputWindow": 67072,
+          "capabilities": {
+            "streaming": true,
+            "tools": false,
+            "vision": false
+          }
+        },
+        {
+          "id": "deepseek-ai/deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "contextWindow": 1048576,
+          "outputWindow": 393216,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "deepseek",
+              "effortValues": ["none", "high", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ],
+      "supportsModelDiscovery": true
+    },
+    "anthropic": {
+      "id": "anthropic",
+      "name": "Claude",
+      "type": "anthropic",
+      "defaultBaseUrl": "https://api.anthropic.com/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/claude.svg",
+      "models": [
+        {
+          "id": "claude-opus-5",
+          "name": "Claude Opus 5",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-sonnet-5",
+          "name": "Claude Sonnet 5",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-fable-5",
+          "name": "Claude Fable 5",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-opus-4-8",
+          "name": "Claude Opus 4.8",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-opus-4-7",
+          "name": "Claude Opus 4.7",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-opus-4-6",
+          "name": "Claude Opus 4.6",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-sonnet-4-6",
+          "name": "Claude Sonnet 4.6",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "adaptive"
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-sonnet-4-5",
+          "name": "Claude Sonnet 4.5",
+          "contextWindow": 200000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "anthropic",
+              "effortValues": ["none", "low", "medium", "high", "max"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true,
+              "anthropicThinking": {
+                "type": "enabled",
+                "budgetByEffort": {
+                  "low": 4096,
+                  "medium": 10240,
+                  "high": 32768,
+                  "max": 64000
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "claude-haiku-4-5",
+          "name": "Claude Haiku 4.5",
+          "contextWindow": 200000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "anthropic",
+              "budgetRange": {
+                "min": 1024,
+                "max": 64000,
+                "step": 1024
+              },
+              "defaultBudgetTokens": 1024,
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        }
+      ]
+    },
+    "bedrock": {
+      "id": "bedrock",
+      "name": "Amazon Bedrock",
+      "type": "bedrock",
+      "requiresApiKey": false,
+      "icon": "/logos/bedrock.svg",
+      "models": [
+        {
+          "id": "us.anthropic.claude-sonnet-5",
+          "name": "Claude Sonnet 5 (Bedrock)",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "us.anthropic.claude-opus-4-8",
+          "name": "Claude Opus 4.8 (Bedrock)",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "us.anthropic.claude-opus-4-7",
+          "name": "Claude Opus 4.7 (Bedrock)",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "us.anthropic.claude-sonnet-4-6",
+          "name": "Claude Sonnet 4.6 (Bedrock)",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "us.amazon.nova-pro-v1:0",
+          "name": "Amazon Nova Pro",
+          "contextWindow": 300000,
+          "outputWindow": 10000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "us.amazon.nova-lite-v1:0",
+          "name": "Amazon Nova Lite",
+          "contextWindow": 300000,
+          "outputWindow": 10000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "us.amazon.nova-micro-v1:0",
+          "name": "Amazon Nova Micro",
+          "contextWindow": 128000,
+          "outputWindow": 10000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false
+          }
+        },
+        {
+          "id": "us.meta.llama3-3-70b-instruct-v1:0",
+          "name": "Llama 3.3 70B Instruct (Bedrock)",
+          "contextWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false
+          }
+        }
+      ]
+    },
+    "google": {
+      "id": "google",
+      "name": "Gemini",
+      "type": "google",
+      "defaultBaseUrl": "https://generativelanguage.googleapis.com/v1beta",
+      "requiresApiKey": true,
+      "icon": "/logos/gemini.svg",
+      "models": [
+        {
+          "id": "gemini-3.6-flash",
+          "name": "Gemini 3.6 Flash",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "level",
+              "requestAdapter": "google",
+              "levelValues": ["minimal", "low", "medium", "high"],
+              "defaultLevel": "medium",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "name": "Gemini 3.5 Flash-Lite",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "level",
+              "requestAdapter": "google",
+              "levelValues": ["minimal", "low", "medium", "high"],
+              "defaultLevel": "minimal",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "name": "Gemini 3.5 Flash",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "level",
+              "requestAdapter": "google",
+              "levelValues": ["minimal", "low", "medium", "high"],
+              "defaultLevel": "medium",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "name": "Gemini 3.1 Pro Preview",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "level",
+              "requestAdapter": "google",
+              "levelValues": ["minimal", "low", "medium", "high"],
+              "defaultLevel": "high",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gemini-3-flash-preview",
+          "name": "Gemini 3 Flash Preview",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "level",
+              "requestAdapter": "google",
+              "levelValues": ["minimal", "low", "medium", "high"],
+              "defaultLevel": "high",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "name": "Gemini 2.5 Flash",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "google",
+              "budgetRange": {
+                "min": 0,
+                "max": 24576,
+                "step": 1024,
+                "allowDynamic": true,
+                "disableValue": 0
+              },
+              "defaultBudgetTokens": -1,
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "name": "Gemini 2.5 Flash Lite",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "google",
+              "budgetRange": {
+                "min": 0,
+                "max": 24576,
+                "step": 1024,
+                "allowDynamic": true,
+                "disableValue": 0
+              },
+              "defaultBudgetTokens": 0,
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "gemini-2.5-pro",
+          "name": "Gemini 2.5 Pro",
+          "contextWindow": 1048576,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "budget-only",
+              "requestAdapter": "google",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024,
+                "allowDynamic": true
+              },
+              "defaultBudgetTokens": -1,
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "glm": {
+      "id": "glm",
+      "name": "GLM",
+      "type": "openai",
+      "defaultBaseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "alternateBaseUrls": [
+        {
+          "label": "settings.baseUrlRegion.china",
+          "url": "https://open.bigmodel.cn/api/paas/v4"
+        },
+        {
+          "label": "settings.baseUrlRegion.international",
+          "url": "https://api.z.ai/api/paas/v4"
+        }
+      ],
+      "requiresApiKey": true,
+      "icon": "/logos/glm.svg",
+      "models": [
+        {
+          "id": "glm-5.2",
+          "name": "GLM-5.2",
+          "contextWindow": 1000000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "glm",
+              "effortValues": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+              "defaultEffort": "max",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-5.1",
+          "name": "GLM-5.1",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-5v-turbo",
+          "name": "GLM-5V-Turbo",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-5",
+          "name": "GLM-5",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-4.7",
+          "name": "GLM-4.7",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-4.7-flashx",
+          "name": "GLM-4.7-FlashX",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "contextWindow": 200000,
+          "outputWindow": 128000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-4.6v",
+          "name": "GLM-4.6V",
+          "contextWindow": 128000,
+          "outputWindow": 32000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "glm-4.6v-flash",
+          "name": "GLM-4.6V-Flash",
+          "contextWindow": 128000,
+          "outputWindow": 32000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "glm",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "qwen": {
+      "id": "qwen",
+      "name": "Qwen",
+      "type": "openai",
+      "defaultBaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/qwen.svg",
+      "models": [
+        {
+          "id": "qwen3.7-plus",
+          "name": "Qwen3.7 Plus",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.7-max",
+          "name": "Qwen3.7 Max",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.6-max-preview",
+          "name": "Qwen3.6 Max Preview",
+          "contextWindow": 256000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "qwen3.6-plus",
+          "name": "Qwen3.6 Plus",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.6-plus-2026-04-02",
+          "name": "Qwen3.6 Plus (2026-04-02)",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.6-flash",
+          "name": "Qwen3.6 Flash",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.6-flash-2026-04-16",
+          "name": "Qwen3.6 Flash (2026-04-16)",
+          "contextWindow": 1000000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.6-35b-a3b",
+          "name": "Qwen3.6 35B A3B",
+          "contextWindow": 262144,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.5-flash",
+          "name": "Qwen3.5 Flash",
+          "contextWindow": 1000000,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3.5-plus",
+          "name": "Qwen3.5 Plus",
+          "contextWindow": 1000000,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "qwen3-max",
+          "name": "Qwen3 Max",
+          "contextWindow": 262144,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "qwen3-vl-plus",
+          "name": "Qwen3 VL Plus",
+          "contextWindow": 262144,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "qwen",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        }
+      ]
+    },
+    "deepseek": {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.deepseek.com/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/deepseek.svg",
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "name": "DeepSeek V4.1 Flash",
+          "contextWindow": 1048576,
+          "outputWindow": 393216,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "deepseek",
+              "effortValues": ["none", "high", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "contextWindow": 1048576,
+          "outputWindow": 393216,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "deepseek",
+              "effortValues": ["none", "high", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "deepseek-v4-flash",
+          "name": "DeepSeek V4 Flash",
+          "contextWindow": 1048576,
+          "outputWindow": 393216,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "deepseek",
+              "effortValues": ["none", "high", "max"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "kimi": {
+      "id": "kimi",
+      "name": "Kimi",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.moonshot.cn/v1",
+      "alternateBaseUrls": [
+        {
+          "label": "settings.baseUrlRegion.china",
+          "url": "https://api.moonshot.cn/v1"
+        },
+        {
+          "label": "settings.baseUrlRegion.international",
+          "url": "https://api.moonshot.ai/v1"
+        }
+      ],
+      "requiresApiKey": true,
+      "icon": "/logos/kimi.png",
+      "models": [
+        {
+          "id": "kimi-k3",
+          "name": "Kimi K3",
+          "contextWindow": 1048576,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["low", "high", "max"],
+              "defaultEffort": "max",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "kimi-k2.7-code",
+          "name": "Kimi K2.7 Code",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "kimi-k2.7-code-highspeed",
+          "name": "Kimi K2.7 Code HighSpeed",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "kimi-k2.6",
+          "name": "Kimi K2.6",
+          "contextWindow": 256000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "kimi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "kimi-k2.5",
+          "name": "Kimi K2.5",
+          "contextWindow": 256000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "kimi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "kimi-k2-thinking",
+          "name": "Kimi K2 Thinking",
+          "contextWindow": 256000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "kimi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "minimax": {
+      "id": "minimax",
+      "name": "MiniMax",
+      "type": "anthropic",
+      "defaultBaseUrl": "https://api.minimaxi.com/anthropic/v1",
+      "alternateBaseUrls": [
+        {
+          "label": "settings.baseUrlRegion.china",
+          "url": "https://api.minimaxi.com/anthropic/v1"
+        },
+        {
+          "label": "settings.baseUrlRegion.international",
+          "url": "https://api.minimax.io/anthropic/v1"
+        }
+      ],
+      "requiresApiKey": true,
+      "icon": "/logos/minimax.svg",
+      "models": [
+        {
+          "id": "MiniMax-M3",
+          "name": "MiniMax M3",
+          "contextWindow": 1000000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "anthropic",
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "MiniMax-M2.7",
+          "name": "MiniMax M2.7",
+          "contextWindow": 204800,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "siliconflow": {
+      "id": "siliconflow",
+      "name": "硅基流动",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.siliconflow.cn/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/siliconflow.svg",
+      "models": [
+        {
+          "id": "deepseek-ai/DeepSeek-V3.2",
+          "name": "DeepSeek-V3.2",
+          "contextWindow": 128000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "siliconflow",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultBudgetTokens": 4096,
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-R1",
+          "name": "DeepSeek-R1",
+          "contextWindow": 128000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "budget-only",
+              "requestAdapter": "siliconflow",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024
+              },
+              "defaultBudgetTokens": 4096,
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+          "name": "DeepSeek-R1-Distill-Qwen-7B",
+          "contextWindow": 128000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "budget-only",
+              "requestAdapter": "siliconflow",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024
+              },
+              "defaultBudgetTokens": 4096,
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "Qwen/Qwen3-VL-32B-Instruct",
+          "name": "Qwen3-VL-32B-Instruct",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "siliconflow",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultBudgetTokens": 4096,
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "Pro/moonshotai/Kimi-K2.5",
+          "name": "Kimi-K2.5",
+          "contextWindow": 256000,
+          "outputWindow": 96000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false
+          }
+        },
+        {
+          "id": "THUDM/GLM-4.1V-9B-Thinking",
+          "name": "GLM-4.1V-9B-Thinking",
+          "contextWindow": 64000,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "budget-only",
+              "requestAdapter": "siliconflow",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024
+              },
+              "defaultBudgetTokens": 4096,
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "THUDM/GLM-Z1-Rumination-32B-0414",
+          "name": "GLM-Z1-Rumination-32B",
+          "contextWindow": 32000,
+          "outputWindow": 16384,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "budget-only",
+              "requestAdapter": "siliconflow",
+              "budgetRange": {
+                "min": 128,
+                "max": 32768,
+                "step": 1024
+              },
+              "defaultBudgetTokens": 4096,
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "doubao": {
+      "id": "doubao",
+      "name": "豆包",
+      "type": "openai",
+      "defaultBaseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+      "requiresApiKey": true,
+      "icon": "/logos/doubao.svg",
+      "models": [
+        {
+          "id": "doubao-seed-2-1-pro-260628",
+          "name": "Doubao Seed 2.1 Pro",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "doubao",
+              "effortValues": ["minimal", "low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-2-1-turbo-260628",
+          "name": "Doubao Seed 2.1 Turbo",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "doubao",
+              "effortValues": ["minimal", "low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-evolving",
+          "name": "Doubao Seed Evolving",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "doubao",
+              "effortValues": ["minimal", "low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-character-260628",
+          "name": "Doubao Seed Character",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "doubao",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-2-0-pro-260215",
+          "name": "Doubao Seed 2.0 Pro",
+          "contextWindow": 128000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "doubao",
+              "effortValues": ["minimal", "low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-2-0-lite-260215",
+          "name": "Doubao Seed 2.0 Lite",
+          "contextWindow": 128000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "doubao",
+              "effortValues": ["minimal", "low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-2-0-mini-260215",
+          "name": "Doubao Seed 2.0 Mini",
+          "contextWindow": 128000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "doubao",
+              "effortValues": ["minimal", "low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "doubao-seed-1-8-251228",
+          "name": "Doubao Seed 1.8",
+          "contextWindow": 128000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "mode",
+              "requestAdapter": "doubao",
+              "defaultMode": "auto",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "openrouter": {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "type": "openai",
+      "defaultBaseUrl": "https://openrouter.ai/api/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/openrouter.svg",
+      "models": [
+        {
+          "id": "deepseek/deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "contextWindow": 1048576,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openrouter",
+              "effortValues": ["low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash",
+          "name": "DeepSeek V4 Flash",
+          "contextWindow": 1048576,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openrouter",
+              "effortValues": ["low", "medium", "high"],
+              "defaultEffort": "medium",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "grok": {
+      "id": "grok",
+      "name": "Grok",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.x.ai/v1",
+      "requiresApiKey": true,
+      "icon": "/logos/grok.svg",
+      "models": [
+        {
+          "id": "grok-4.6",
+          "name": "Grok 4.6",
+          "contextWindow": 500000,
+          "outputWindow": 500000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["low", "medium", "high", "xhigh"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "grok-4.5",
+          "name": "Grok 4.5",
+          "contextWindow": 500000,
+          "outputWindow": 500000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["low", "medium", "high"],
+              "defaultEffort": "high",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": true,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "grok-4.3",
+          "name": "Grok 4.3",
+          "contextWindow": 1000000,
+          "outputWindow": 30000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "openai",
+              "effortValues": ["none", "low", "medium", "high"],
+              "defaultEffort": "none",
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        },
+        {
+          "id": "grok-build-0.1",
+          "name": "Grok Build 0.1",
+          "contextWindow": 256000,
+          "outputWindow": 256000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "grok-4.20-reasoning",
+          "name": "Grok 4.20 Reasoning",
+          "contextWindow": 2000000,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "grok-4.20",
+          "name": "Grok 4.20",
+          "contextWindow": 2000000,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "grok-4.20-multi-agent",
+          "name": "Grok 4.20 Multi-Agent",
+          "contextWindow": 2000000,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "grok-4-1-fast-reasoning",
+          "name": "Grok 4.1 Fast Reasoning",
+          "contextWindow": 2000000,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "none",
+              "requestAdapter": "none",
+              "defaultMode": "enabled",
+              "toggleable": false,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "grok-4-1-fast-non-reasoning",
+          "name": "Grok 4.1 Fast",
+          "contextWindow": 2000000,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "grok-code-fast-1",
+          "name": "Grok Code Fast",
+          "contextWindow": 256000,
+          "outputWindow": 32768,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false
+          }
+        }
+      ]
+    },
+    "tencent-hunyuan": {
+      "id": "tencent-hunyuan",
+      "name": "Tencent Hunyuan",
+      "type": "openai",
+      "defaultBaseUrl": "https://tokenhub.tencentmaas.com/v1",
+      "alternateBaseUrls": [
+        {
+          "label": "settings.baseUrlRegion.china",
+          "url": "https://tokenhub.tencentmaas.com/v1"
+        },
+        {
+          "label": "settings.baseUrlRegion.international",
+          "url": "https://tokenhub-intl.tencentmaas.com/v1"
+        }
+      ],
+      "requiresApiKey": true,
+      "icon": "/logos/hunyuan.svg",
+      "models": [
+        {
+          "id": "hy3-preview",
+          "name": "Tencent Hy3 Preview",
+          "contextWindow": 256000,
+          "outputWindow": 64000,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "effort",
+              "requestAdapter": "hunyuan",
+              "effortValues": ["none", "low", "high"],
+              "defaultEffort": "none",
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        }
+      ]
+    },
+    "xiaomi": {
+      "id": "xiaomi",
+      "name": "Xiaomi MiMo",
+      "type": "openai",
+      "defaultBaseUrl": "https://api.xiaomimimo.com/v1",
+      "alternateBaseUrls": [
+        {
+          "label": "settings.baseUrlRegion.xiaomiPayg",
+          "url": "https://api.xiaomimimo.com/v1"
+        },
+        {
+          "label": "settings.baseUrlRegion.xiaomiTokenPlanCN",
+          "url": "https://token-plan-cn.xiaomimimo.com/v1"
+        },
+        {
+          "label": "settings.baseUrlRegion.xiaomiTokenPlanSGP",
+          "url": "https://token-plan-sgp.xiaomimimo.com/v1"
+        },
+        {
+          "label": "settings.baseUrlRegion.xiaomiTokenPlanEU",
+          "url": "https://token-plan-ams.xiaomimimo.com/v1"
+        }
+      ],
+      "requiresApiKey": true,
+      "icon": "/logos/xiaomi.svg",
+      "models": [
+        {
+          "id": "mimo-v2.5-pro",
+          "name": "MiMo V2.5 Pro",
+          "contextWindow": 1048576,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "xiaomi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "mimo-v2-pro",
+          "name": "MiMo V2 Pro",
+          "contextWindow": 1048576,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "xiaomi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "mimo-v2.5",
+          "name": "MiMo V2.5",
+          "contextWindow": 1048576,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "xiaomi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "mimo-v2-omni",
+          "name": "MiMo V2 Omni",
+          "contextWindow": 262144,
+          "outputWindow": 131072,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "xiaomi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        },
+        {
+          "id": "mimo-v2-flash",
+          "name": "MiMo V2 Flash",
+          "contextWindow": 262144,
+          "outputWindow": 65536,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle",
+              "requestAdapter": "xiaomi",
+              "defaultMode": "enabled",
+              "toggleable": true,
+              "budgetAdjustable": false,
+              "defaultEnabled": true
+            }
+          }
+        }
+      ]
+    },
+    "ollama": {
+      "id": "ollama",
+      "name": "Ollama",
+      "type": "openai",
+      "defaultBaseUrl": "http://localhost:11434/v1",
+      "requiresApiKey": false,
+      "icon": "/logos/ollama.svg",
+      "models": [
+        {
+          "id": "llama3.3",
+          "name": "Llama 3.3 70B",
+          "contextWindow": 131072,
+          "outputWindow": 4096,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false
+          }
+        },
+        {
+          "id": "gemma3",
+          "name": "Gemma 3 12B",
+          "contextWindow": 131072,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": true
+          }
+        },
+        {
+          "id": "deepseek-r1",
+          "name": "DeepSeek R1",
+          "contextWindow": 131072,
+          "outputWindow": 8192,
+          "capabilities": {
+            "streaming": true,
+            "tools": false,
+            "vision": false
+          }
+        }
+      ]
+    },
+    "lemonade": {
+      "id": "lemonade",
+      "name": "Lemonade",
+      "type": "openai",
+      "defaultBaseUrl": "http://localhost:13305/v1",
+      "requiresApiKey": false,
+      "icon": "/logos/lemonade.svg",
+      "models": [
+        {
+          "id": "Gemma-4-26B-A4B-it-GGUF",
+          "name": "Gemma 4 26B A4B IT GGUF",
+          "capabilities": {
+            "streaming": true,
+            "tools": true,
+            "vision": false,
+            "thinking": {
+              "control": "toggle-budget",
+              "requestAdapter": "lemonade",
+              "budgetRange": {
+                "min": 0,
+                "max": 81920,
+                "step": 1024,
+                "disableValue": 0
+              },
+              "defaultMode": "disabled",
+              "toggleable": true,
+              "budgetAdjustable": true,
+              "defaultEnabled": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "thinking": [
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.6",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.6-terra",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.6-luna",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.5",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["low", "medium", "high", "xhigh"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.4-pro",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["medium", "high", "xhigh"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.4",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh"],
+        "defaultEffort": "none",
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.4-mini",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh"],
+        "defaultEffort": "none",
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.4-nano",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh"],
+        "defaultEffort": "none",
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-fable-5",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-opus-5",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-sonnet-5",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-opus-4-8",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-opus-4-7",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-opus-4-6",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-sonnet-4-6",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "adaptive"
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-sonnet-4-5",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "anthropic",
+        "effortValues": ["none", "low", "medium", "high", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true,
+        "anthropicThinking": {
+          "type": "enabled",
+          "budgetByEffort": {
+            "low": 4096,
+            "medium": 10240,
+            "high": 32768,
+            "max": 64000
+          }
+        }
+      }
+    },
+    {
+      "providerId": "anthropic",
+      "modelId": "claude-haiku-4-5",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "anthropic",
+        "budgetRange": {
+          "min": 1024,
+          "max": 64000,
+          "step": 1024
+        },
+        "defaultBudgetTokens": 1024,
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-3.6-flash",
+      "capability": {
+        "control": "level",
+        "requestAdapter": "google",
+        "levelValues": ["minimal", "low", "medium", "high"],
+        "defaultLevel": "medium",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-3.5-flash-lite",
+      "capability": {
+        "control": "level",
+        "requestAdapter": "google",
+        "levelValues": ["minimal", "low", "medium", "high"],
+        "defaultLevel": "minimal",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-3.5-flash",
+      "capability": {
+        "control": "level",
+        "requestAdapter": "google",
+        "levelValues": ["minimal", "low", "medium", "high"],
+        "defaultLevel": "medium",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-3.1-pro-preview",
+      "capability": {
+        "control": "level",
+        "requestAdapter": "google",
+        "levelValues": ["minimal", "low", "medium", "high"],
+        "defaultLevel": "high",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-3-flash-preview",
+      "capability": {
+        "control": "level",
+        "requestAdapter": "google",
+        "levelValues": ["minimal", "low", "medium", "high"],
+        "defaultLevel": "high",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-2.5-flash",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "google",
+        "budgetRange": {
+          "min": 0,
+          "max": 24576,
+          "step": 1024,
+          "allowDynamic": true,
+          "disableValue": 0
+        },
+        "defaultBudgetTokens": -1,
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-2.5-flash-lite",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "google",
+        "budgetRange": {
+          "min": 0,
+          "max": 24576,
+          "step": 1024,
+          "allowDynamic": true,
+          "disableValue": 0
+        },
+        "defaultBudgetTokens": 0,
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "google",
+      "modelId": "gemini-2.5-pro",
+      "capability": {
+        "control": "budget-only",
+        "requestAdapter": "google",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024,
+          "allowDynamic": true
+        },
+        "defaultBudgetTokens": -1,
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-5.2",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "glm",
+        "effortValues": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "max",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-5.1",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-5v-turbo",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-5",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-4.7",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-4.7-flashx",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-4.7-flash",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-4.6",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-4.6v",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "glm",
+      "modelId": "glm-4.6v-flash",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "glm",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.7-plus",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.7-max",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.6-max-preview",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.6-plus",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.6-plus-2026-04-02",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.6-flash",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.6-flash-2026-04-16",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.6-35b-a3b",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.5-flash",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3.5-plus",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3-max",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "qwen",
+      "modelId": "qwen3-vl-plus",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "qwen",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "deepseek",
+      "modelId": "deepseek-flash",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "deepseek",
+        "effortValues": ["none", "high", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "deepseek",
+      "modelId": "deepseek-v4-pro",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "deepseek",
+        "effortValues": ["none", "high", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "deepseek",
+      "modelId": "deepseek-v4-flash",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "deepseek",
+        "effortValues": ["none", "high", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "atlascloud",
+      "modelId": "deepseek-ai/deepseek-v4-pro",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "deepseek",
+        "effortValues": ["none", "high", "max"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "kimi",
+      "modelId": "kimi-k3",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["low", "high", "max"],
+        "defaultEffort": "max",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "kimi",
+      "modelId": "kimi-k2.7-code",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "kimi",
+      "modelId": "kimi-k2.7-code-highspeed",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "kimi",
+      "modelId": "kimi-k2.6",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "kimi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "kimi",
+      "modelId": "kimi-k2.5",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "kimi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "kimi",
+      "modelId": "kimi-k2-thinking",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "kimi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "siliconflow",
+      "modelId": "deepseek-ai/DeepSeek-V3.2",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "siliconflow",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultBudgetTokens": 4096,
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "siliconflow",
+      "modelId": "deepseek-ai/DeepSeek-R1",
+      "capability": {
+        "control": "budget-only",
+        "requestAdapter": "siliconflow",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024
+        },
+        "defaultBudgetTokens": 4096,
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "siliconflow",
+      "modelId": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+      "capability": {
+        "control": "budget-only",
+        "requestAdapter": "siliconflow",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024
+        },
+        "defaultBudgetTokens": 4096,
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "siliconflow",
+      "modelId": "Qwen/Qwen3-VL-32B-Instruct",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "siliconflow",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultBudgetTokens": 4096,
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "siliconflow",
+      "modelId": "THUDM/GLM-4.1V-9B-Thinking",
+      "capability": {
+        "control": "budget-only",
+        "requestAdapter": "siliconflow",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024
+        },
+        "defaultBudgetTokens": 4096,
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "siliconflow",
+      "modelId": "THUDM/GLM-Z1-Rumination-32B-0414",
+      "capability": {
+        "control": "budget-only",
+        "requestAdapter": "siliconflow",
+        "budgetRange": {
+          "min": 128,
+          "max": 32768,
+          "step": 1024
+        },
+        "defaultBudgetTokens": 4096,
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2-1-pro-260628",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2-1-turbo-260628",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-evolving",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-character-260628",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "doubao",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2-0-pro-260215",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2-0-lite-260215",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2-0-mini-260215",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-1-8-251228",
+      "capability": {
+        "control": "mode",
+        "requestAdapter": "doubao",
+        "defaultMode": "auto",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2.0-pro",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2.0-code",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2.0-lite",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "doubao-seed-2.0-mini",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "deepseek-v4-pro",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "deepseek-v4-flash",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "glm-5.2",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "kimi-k2.7-code",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "kimi-k2.6",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "minimax-m3",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "minimax-m2.7",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "doubao",
+      "modelId": "ark-code-latest",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "doubao",
+        "effortValues": ["minimal", "low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openrouter",
+      "modelId": "deepseek/deepseek-v4-pro",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openrouter",
+        "effortValues": ["low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "openrouter",
+      "modelId": "deepseek/deepseek-v4-flash",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openrouter",
+        "effortValues": ["low", "medium", "high"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-4.6",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["low", "medium", "high", "xhigh"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-4.5",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["low", "medium", "high"],
+        "defaultEffort": "high",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-4.3",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high"],
+        "defaultEffort": "none",
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-build-0.1",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-4.20-reasoning",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-4.20-multi-agent",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "grok",
+      "modelId": "grok-4-1-fast-reasoning",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "minimax",
+      "modelId": "MiniMax-M3",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "anthropic",
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "minimax",
+      "modelId": "MiniMax-M2.7",
+      "capability": {
+        "control": "none",
+        "requestAdapter": "none",
+        "defaultMode": "enabled",
+        "toggleable": false,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "tencent-hunyuan",
+      "modelId": "hy3-preview",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "hunyuan",
+        "effortValues": ["none", "low", "high"],
+        "defaultEffort": "none",
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "xiaomi",
+      "modelId": "mimo-v2.5-pro",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "xiaomi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "xiaomi",
+      "modelId": "mimo-v2-pro",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "xiaomi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "xiaomi",
+      "modelId": "mimo-v2.5",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "xiaomi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "xiaomi",
+      "modelId": "mimo-v2-omni",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "xiaomi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "xiaomi",
+      "modelId": "mimo-v2-flash",
+      "capability": {
+        "control": "toggle",
+        "requestAdapter": "xiaomi",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": false,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "lemonade",
+      "modelId": "Qwen3-4B-GGUF",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "lemonade",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "lemonade",
+      "modelId": "Qwen3.5-4B-GGUF",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "lemonade",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "lemonade",
+      "modelId": "Gemma-4-26B-A4B-it-GGUF",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "lemonade",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "lemonade",
+      "modelId": "gpt-oss-20b",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "lemonade",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "lemonade",
+      "modelId": "GPT-OSS-20B-GGUF",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "lemonade",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "openai",
+      "modelId": "gpt-5.6-sol",
+      "capability": {
+        "control": "effort",
+        "requestAdapter": "openai",
+        "effortValues": ["none", "low", "medium", "high", "xhigh", "max"],
+        "defaultEffort": "medium",
+        "defaultMode": "enabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": true
+      }
+    },
+    {
+      "providerId": "lemonade",
+      "modelId": "some-local-model-GGUF",
+      "capability": {
+        "control": "toggle-budget",
+        "requestAdapter": "lemonade",
+        "budgetRange": {
+          "min": 0,
+          "max": 81920,
+          "step": 1024,
+          "disableValue": 0
+        },
+        "defaultMode": "disabled",
+        "toggleable": true,
+        "budgetAdjustable": true,
+        "defaultEnabled": false
+      }
+    },
+    {
+      "providerId": "deepseek",
+      "modelId": "not-a-catalog-model",
+      "capability": null
+    }
+  ]
+}

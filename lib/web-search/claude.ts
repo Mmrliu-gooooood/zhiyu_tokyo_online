@@ -9,7 +9,7 @@
  */
 
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { callLLM } from '@/lib/ai/llm';
+import { generateText, type LanguageModelUsage } from 'ai';
 import { proxyFetch } from '@/lib/server/proxy-fetch';
 import { createLogger } from '@/lib/logger';
 import { CLAUDE_WEB_SEARCH_DEFAULT_MODEL, WEB_SEARCH_PROVIDERS } from './constants';
@@ -23,6 +23,26 @@ const BASIC_WEB_SEARCH_TOOL_TYPE = 'web_search_20250305';
 const CLAUDE_DEFAULT_BASE_URL = WEB_SEARCH_PROVIDERS.claude.defaultBaseUrl ?? '';
 
 const log = createLogger('ClaudeSearch');
+
+/** Fire-and-forget usage record (the gateway's accounting does not see this call). */
+function recordSearchUsage(rawUsage: LanguageModelUsage | undefined, modelId: string): void {
+  void (async () => {
+    try {
+      const { normalizeUsage } = await import('@/lib/usage/normalize');
+      const { recordUsage } = await import('@/lib/server/usage-storage');
+      await recordUsage({
+        kind: 'llm',
+        source: 'web-search-claude',
+        providerId: 'anthropic',
+        modelId,
+        modelString: `anthropic:${modelId}`,
+        usage: normalizeUsage(rawUsage),
+      });
+    } catch (error) {
+      log.warn('Usage capture failed (ignored):', error);
+    }
+  })();
+}
 
 /**
  * Anthropic's dynamic-filtering web_search_20260209 tool is limited to the 4.6+
@@ -128,21 +148,22 @@ export async function searchWithClaude(params: {
 
   const startTime = Date.now();
   try {
-    const result = await callLLM(
-      {
-        model: provider(modelId),
-        messages: [
-          {
-            role: 'user',
-            content: `Search for the following and provide a comprehensive summary with source links: ${query}.`,
-          },
-        ],
-        maxOutputTokens: CLAUDE_MAX_OUTPUT_TOKENS,
-        tools: { web_search: webSearch },
-        ...(params.signal ? { abortSignal: params.signal } : {}),
-      },
-      'web-search-claude',
-    );
+    // Plan D13: Claude's built-in web-search tool stays on the AI SDK (the
+    // gateway does not cover provider-hosted tools), so usage is recorded here.
+    const result = await generateText({
+      model: provider(modelId),
+      messages: [
+        {
+          role: 'user',
+          content: `Search for the following and provide a comprehensive summary with source links: ${query}.`,
+        },
+      ],
+      maxOutputTokens: CLAUDE_MAX_OUTPUT_TOKENS,
+      tools: { web_search: webSearch },
+      ...(process.env.GENERATION_BACKGROUND_ENABLED === '1' ? { maxRetries: 0 } : {}),
+      ...(params.signal ? { abortSignal: params.signal } : {}),
+    });
+    recordSearchUsage(result.totalUsage ?? result.usage, modelId);
 
     // The AI SDK surfaces the tool's citations as sources (url + title only).
     // Claude's answer already synthesizes the page contents, so sources are

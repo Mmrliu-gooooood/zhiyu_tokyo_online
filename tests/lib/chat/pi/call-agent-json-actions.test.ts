@@ -11,8 +11,9 @@ vi.mock('@/lib/agent/runtime/build-agent', () => ({
   buildAgent: mocks.buildAgent,
 }));
 
-vi.mock('@/lib/agent/runtime/stream-fn', () => ({
-  createCallLlmStreamFn: vi.fn(() => vi.fn()),
+vi.mock('@/lib/model-gateway/adapters/agent-stream-fn', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/model-gateway/adapters/agent-stream-fn')>()),
+  createGatewayStreamFn: vi.fn(() => vi.fn()),
 }));
 
 const teacher: AgentConfig = {

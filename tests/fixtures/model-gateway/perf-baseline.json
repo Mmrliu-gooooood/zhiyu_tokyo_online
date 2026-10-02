@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-10-01T04:12:18.460Z",
-  "stack": "legacy (getModel + AI SDK callLLM/streamLLM, deepseek compat transport)",
+  "stack": "legacy (lib/ai provider registry + AI SDK complete/stream helpers, deepseek compat transport)",
   "environment": {
     "node": "v24.19.0",
     "platform": "win32-x64",
@@ -14,7 +14,7 @@
       "chunkDelayMs": 0
     }
   },
-  "callLLM": {
+  "legacyComplete": {
     "total": {
       "n": 200,
       "mean": 59.72,
@@ -24,7 +24,7 @@
       "max": 76.65
     }
   },
-  "streamLLM": {
+  "legacyStream": {
     "ttft": {
       "n": 200,
       "mean": 59.4,

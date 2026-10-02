@@ -22,7 +22,32 @@
  * still get a running app, and the warnings name exactly what is broken.
  */
 
-import { getProvider, warnBareModelIdDeprecation } from '@/lib/ai/providers';
+import { getProvider } from '@/lib/model-gateway/catalog/client-catalog';
+
+/**
+ * Bare model ids default to openai for backward compatibility. Warned only by
+ * the boot-time config validation for config-derived sites — never for
+ * request-derived strings, which would let clients drive log volume.
+ */
+export const BARE_MODEL_ID_DEPRECATION_MSG =
+  'bare model ids default to openai for backward compatibility; this fallback is deprecated — write provider:model';
+
+/** Bare model ids already surfaced, so the deprecation fires once per unique id. */
+const warnedBareModelIds = new Set<string>();
+
+/**
+ * Warn once per unique bare model id. `where` names the config site (e.g.
+ * `DEFAULT_MODEL` or a MODEL_ROUTES stage). Callers must pass only
+ * config-derived ids (the config surface is finite, so the dedupe set is
+ * bounded); request-derived strings must never reach this function.
+ */
+export function warnBareModelIdDeprecation(bareModelId: string, where?: string): boolean {
+  if (warnedBareModelIds.has(bareModelId)) return false;
+  warnedBareModelIds.add(bareModelId);
+  const context = where ? `${where}: ` : '';
+  console.warn(`[config] ${context}${BARE_MODEL_ID_DEPRECATION_MSG} (bare id "${bareModelId}")`);
+  return true;
+}
 import { isAgentRuntimeEnabled } from '@/lib/config/feature-flags';
 import { LLM_STAGES } from '@/lib/server/model-routes';
 import {
@@ -31,7 +56,6 @@ import {
   getPlatformDefaultCatalog,
   resolveApiKey,
 } from '@/lib/server/provider-config';
-import type { ProviderId } from '@/lib/types/provider';
 
 /** Consistent prefix for boot-time config warnings. */
 const WARN_PREFIX = '[config]';
@@ -83,7 +107,7 @@ function checkModelString(model: string, where: string, routed: boolean): void {
     return;
   }
   const providerId = model.slice(0, colonIndex);
-  const provider = getProvider(providerId as ProviderId);
+  const provider = getProvider(providerId);
   if (!provider) {
     warn(`Unknown provider "${providerId}" in ${where} — not a registered provider (typo?).`);
     return;
@@ -146,7 +170,7 @@ function validateDefaultModel(): void {
 function validateModelsEnvPins(): void {
   for (const [prefix, providerId] of Object.entries(LLM_ENV_MAP)) {
     if (!process.env[`${prefix}_MODELS`]) continue;
-    const provider = getProvider(providerId as ProviderId);
+    const provider = getProvider(providerId);
     if (!provider) {
       warn(
         `${prefix}_MODELS is set for provider "${providerId}" — not a registered provider (typo?).`,

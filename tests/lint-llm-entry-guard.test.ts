@@ -64,12 +64,11 @@ const GUARDED_PATHS = [
 ] as const;
 
 /** Deliberate exemptions: the gateway's runtime module, adapters and test doubles,
- *  the legacy stack until P3-6 removes it, offline harnesses, and tests. */
+ *  offline harnesses, and tests. */
 const EXEMPT_PATHS = [
   'lib/model-gateway/runtime/pi-registry',
   'lib/model-gateway/adapters/probe',
   'lib/model-gateway/testing/probe',
-  'lib/ai/llm',
   'eval/probe',
   'tests/probe',
 ] as const;

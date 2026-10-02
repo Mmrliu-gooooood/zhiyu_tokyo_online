@@ -4,9 +4,10 @@
  * rest. Produces the existing ProviderConfig / ModelInfo shape plus the new
  * descriptor fields. Isomorphic and secret-free.
  */
-import type { ModelInfo, ProviderConfig, ProviderType } from '@/lib/types/provider';
+import type { ModelInfo, ProviderConfig, ProviderId, ProviderType } from '@/lib/types/provider';
 import type { WireApi } from '../types';
 import {
+  LEGACY_PROVIDER_IDS,
   PROVIDER_DESCRIPTORS,
   type AuthMethod,
   type ModelDiscovery,
@@ -134,3 +135,24 @@ export const CLIENT_PROVIDERS: Readonly<Record<string, ClientProviderConfig>> = 
     ]),
   ),
 );
+
+/**
+ * The 19 pre-gateway providers in the legacy ProviderConfig shape. Replaces
+ * `PROVIDERS` from the deleted lib/ai/providers.ts for the settings UI until
+ * P5 moves it to the full grouped catalog; parity is pinned by
+ * tests/model-gateway/catalog/legacy-parity.test.ts.
+ */
+export const PROVIDERS = Object.fromEntries(
+  LEGACY_PROVIDER_IDS.map((id) => [id, CLIENT_PROVIDERS[id]!]),
+) as unknown as Record<ProviderId, ProviderConfig>;
+
+/** Providers whose logos are monochrome (rendered with `dark:invert`). */
+export const MONO_LOGO_PROVIDERS: ReadonlySet<string> = new Set(['openai', 'openrouter', 'ollama']);
+
+/** A catalog provider by application id (any descriptor, not only the legacy 19). */
+export function getProvider(providerId: string): ClientProviderConfig | undefined {
+  return CLIENT_PROVIDERS[providerId];
+}
+
+/** Reviewed thinking capability of a catalog model (aliases resolved). */
+export { reviewedThinkingCapability as getCatalogThinkingCapability } from './thinking-capability';

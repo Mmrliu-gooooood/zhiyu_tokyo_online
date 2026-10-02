@@ -73,8 +73,9 @@ vi.mock('@/lib/server/agent-runtime/agent-driver-model', async (importActual) =>
   return { ...actual, resolveAgentDriverModel: mocks.resolveAgentDriverModel };
 });
 
-vi.mock('@/lib/agent/runtime/stream-fn', () => ({
-  createCallLlmStreamFn: mocks.createCallLlmStreamFn,
+vi.mock('@/lib/model-gateway/adapters/agent-stream-fn', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/model-gateway/adapters/agent-stream-fn')>()),
+  createGatewayStreamFn: mocks.createCallLlmStreamFn,
 }));
 
 vi.mock('@/lib/agent/runtime/build-agent', () => ({
@@ -249,7 +250,7 @@ function expectInterruptedReceipt(messages: readonly AgentMessage[]): void {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.resolveAgentDriverModel.mockResolvedValue({
-    connection: { model: undefined, thinkingConfig: undefined },
+    binding: {} as never,
     piModel: { api: 'openai-completions', provider: 'openai', id: 'driver-model' },
     wireMaxOutputTokens: undefined,
     reservedOutputTokens: 8192,

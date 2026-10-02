@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { PROVIDERS } from '@/lib/ai/providers';
+import { PROVIDERS } from '@/lib/model-gateway/catalog/client-catalog';
 import {
   startFakeModelServer,
   type FakeModelServer,

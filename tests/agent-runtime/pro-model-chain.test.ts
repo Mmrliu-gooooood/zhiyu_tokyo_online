@@ -18,13 +18,13 @@ import type { ProModelContext } from '@/types/pro-model';
 const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   resolveParamsBinding: vi.fn(),
-  streamLLM: vi.fn(),
+  modelStream: vi.fn(),
   getStageRoute: vi.fn(),
 }));
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const driverGateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const driverGateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   return mockGatewayModule(await importOriginal(), {
     delegate: () => driverGateway,
     complete: mocks.complete,
@@ -91,7 +91,7 @@ describe('PRO Home model complete generation chain', () => {
       };
     });
     let turns = 0;
-    mocks.streamLLM.mockImplementation((params) => {
+    mocks.modelStream.mockImplementation((params) => {
       const first = turns++ === 0;
       const transcript = JSON.stringify(params.messages);
       expect(transcript).toContain(prior);
@@ -138,7 +138,7 @@ describe('PRO Home model complete generation chain', () => {
     });
     await agent.prompt('生成课程');
     expect(agent.state.errorMessage).toBeUndefined();
-    expect(mocks.streamLLM).toHaveBeenCalledTimes(2);
+    expect(mocks.modelStream).toHaveBeenCalledTimes(2);
     expect(doc.scenes).toHaveLength(1);
     expect(doc.scenes[0]?.type).toBe('quiz');
     expect(JSON.stringify(doc.scenes[0]?.content)).toContain('可分离变量');

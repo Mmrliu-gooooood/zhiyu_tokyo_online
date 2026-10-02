@@ -15,7 +15,8 @@ import { isProviderUsable } from '@/lib/store/settings-validation';
 // ---------------------------------------------------------------------------
 
 // Minimal built-in provider registry used by the store
-vi.mock('@/lib/ai/providers', () => ({
+vi.mock('@/lib/model-gateway/catalog/client-catalog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/model-gateway/catalog/client-catalog')>()),
   PROVIDERS: {
     openai: {
       id: 'openai',

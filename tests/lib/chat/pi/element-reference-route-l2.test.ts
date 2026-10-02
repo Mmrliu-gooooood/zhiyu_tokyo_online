@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
   buildAgent: vi.fn(),
-  streamLLM: vi.fn(),
+  modelStream: vi.fn(),
   resolveModel: vi.fn(),
   legacyChildPrompts: [] as string[],
   nativeChildPrompts: [] as string[],
@@ -15,17 +15,13 @@ vi.mock('@/lib/agent/runtime/build-agent', () => ({ buildAgent: mocks.buildAgent
 vi.mock('@/lib/model-gateway', async (importOriginal) => {
   const { mockGatewayModule } = await import('@/tests/helpers/model-gateway-mock');
   const { legacyStreamGateway } = await import('@/tests/helpers/legacy-stream-gateway');
-  const gateway = legacyStreamGateway((...args) => mocks.streamLLM(...args));
+  const gateway = legacyStreamGateway((...args) => mocks.modelStream(...args));
   const { bindingFromLegacyResolved } = await import('@/tests/helpers/legacy-stream-gateway');
   return mockGatewayModule(await importOriginal(), {
     delegate: () => gateway,
     resolveParamsBinding: async (...args: unknown[]) =>
       bindingFromLegacyResolved(await mocks.resolveModel(...args)),
   });
-});
-vi.mock('@/lib/ai/providers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/ai/providers')>();
-  return { ...actual, isProviderKeyRequired: () => false };
 });
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
@@ -241,7 +237,7 @@ describe('PPT element reference Route → Director → real call_agent L2', () =
     delete process.env[nativeFlag];
     vi.resetModules();
     mocks.buildAgent.mockReset();
-    mocks.streamLLM.mockReset();
+    mocks.modelStream.mockReset();
     mocks.resolveModel.mockReset();
     mocks.legacyChildPrompts.length = 0;
     mocks.nativeChildPrompts.length = 0;

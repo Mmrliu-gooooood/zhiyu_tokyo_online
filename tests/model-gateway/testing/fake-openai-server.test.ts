@@ -20,7 +20,7 @@ models.setProvider(openaiProvider());
 models.setProvider(anthropicProvider());
 
 function at(provider: string, id: string, path = ''): Model<Api> {
-  const model = models.getModel(provider, id);
+  const model = models.getModels(provider).find((entry) => entry.id === id);
   if (!model) throw new Error(`pi catalog has no ${provider}/${id}`);
   return { ...model, baseUrl: `${server.origin}${path}` };
 }

@@ -8,8 +8,10 @@ import type {
   TokenPlanPreset,
 } from './token-plan-presets';
 import { MODALITY_ORDER } from './token-plan-presets';
-import { getCatalogThinkingCapability } from '@/lib/ai/model-metadata';
-import { PROVIDERS } from '@/lib/ai/providers';
+import {
+  getCatalogThinkingCapability,
+  PROVIDERS,
+} from '@/lib/model-gateway/catalog/client-catalog';
 import { findModelById } from '@/lib/ai/model-aliases';
 import type { ModelInfo } from '@/lib/types/provider';
 
