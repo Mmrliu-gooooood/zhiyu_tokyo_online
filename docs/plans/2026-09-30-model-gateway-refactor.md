@@ -812,7 +812,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P0 | 已完成（2026-10-01） | 6ceed08d, 7492f751, 8739e846, f10b4610, 2d1a32cd + 本次进度提交 | 见下方 P0 记录 | 无阻断；全量 vitest 有 6 个负载下超时（单独复跑全绿），见记录 |
 | P1 | 已完成（2026-10-01） | e685d617, fb61d7bc, 1b087555, 31a97a3f, 26494258, ebf14626 + 本次 P1-7 提交 | 见下方 P1 记录 | 思考映射有 4 类白名单差异（9 例；GLM clear_thinking 已在 P1 收尾修正）；P2 overlay 需补的数据已记录 |
 | P2 | 已完成（2026-10-01） | e3ddfeb8, c625ad10, 50d4cef8, 8892d3c9, da210b6f, 0568e98c, 857c9c92 + 本次进度提交 | 见下方 P2 记录 | 黄金数据 1653 例全部重放，差异由 16 条规则逐例白名单；修正一处 P1 遗漏（Claude 5 中途 effort）与一处 Azure 环境变量泄露；若干产品可见的行为修正见记录 |
-| P3 | 未开始 | | | |
+| P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
 | P4 | 未开始 | | | |
 | P5 | 未开始 | | | |
 | R1 验收（P7） | 未开始 | | | |
@@ -964,6 +964,51 @@ P2 门槛证据：
 特征测试清单：RQ-01/02/03/07/08/09/10/12/13/14/15/16/17/19 已由 golden-replay 覆盖并勾选；RQ-06（Azure 多种端点形式）、RQ-11（Sol 别名）、RQ-18（Bedrock 凭据链）留给 P3
 真实供应商验证：未验证（P2 只用假服务器、faux 与录制形状）
 下一阶段可开始：是（P3 不依赖真实凭据或产品取舍；上面"产品可见的行为变化"可在 P3 期间确认，如需保留旧行为可逐条恢复）
+```
+
+```text
+阶段：P3
+提交：25a00b8b（P3-1）、5ae19d2f（P3-2）、9cb6234b（P3-3）、4a0520b6（P3-4）、9cb170ee（P3-5）、219f0af4（P3-6）、本进度提交
+新增/修改模块：
+  - P3-1：selection/request-binding.ts（resolveRequestBinding / resolveHeaderBinding / resolveParamsBinding）；generate/{agent-profiles,scene-actions,scene-content}、learning/{coach,teach-back,check}、quiz-grade、web-search 路由与 classroom-generation、generation-pipeline/services、generation-ai-call、generation-jobs/preflight 改用 gateway.complete；model-errors / api-response 映射 GatewayError 码
+  - P3-2：scene-outlines-stream 用 gateway.stream；PBL planner / instructor 用 runToolLoop，evaluator / simulator 用 gateway.stream；PBL v2 路由用 resolveRequestBinding；PBL 测试改用 faux gateway
+  - P3-3：adapters/langchain.ts（GatewayLangGraphAdapter）；director-graph / stateless-generate 传 ModelBinding；/api/chat 用 withThinking 应用默认关闭
+  - P3-4：adapters/agent-stream-fn.ts（createGatewayStreamFn）；agent-driver-model 去除 OpenAI 限制（推理 + 工具不兼容的模型由 rejectsReasoningWithTools 判定）；model-preflight 检查 credentialReady；runner、chat/pi 路由、director-loop、call-agent 改传 binding；model-connections 使用 WIRE_APIS 与 descriptor
+  - P3-5：verify-model 重写（VERIFY_FAILURES 映射）；probe-models 按 descriptor 的 manual/catalog 发现；llm-error-response 用 GATEWAY_STATUS；limiter 识别 GatewayError 并按 MODEL_RATE_LIMITED 冷却；eslint.config.mjs 边界规则（pi-ai 只允许类型导入、客户端不可达网关运行时）；新增 client-boundary / limiter-gateway-error 守卫测试
+  - P3-6：删除 lib/ai/{providers,llm,reasoning-sse,thinking-context,azure,model-metadata}.ts、lib/agent/runtime/{stream-fn,provider-metadata}.ts、lib/orchestration/ai-sdk-adapter.ts、lib/server/{resolve-model,generation-jobs/model-quota}.ts 及只测旧实现的 20 个测试文件；移除 @ai-sdk/{azure,amazon-bedrock,google} 与失效变量 OPENAI_COMPAT_USE_STREAMING_CHAT；设置界面的 provider 列表改由 catalog/client-catalog 提供（PROVIDERS、getProvider、MONO_LOGO_PROVIDERS）；lib/web-search/claude.ts 直接调用 generateText 并自行记录用量；eval 改走网关（eval/shared/llm.ts）
+相对计划文本的实现微调（语义不变）：
+  - 旧目录的 19 个 provider 与 108 条审核思考能力冻结为 tests/fixtures/model-gateway/legacy-catalog.json，legacy-parity.test.ts 逐字段比对（替代删除前与 lib/ai/providers.ts 的直接比对）
+  - provider-neutrality 守卫的词表来源改为 catalog/descriptors.ts 的 DESCRIPTOR_LIST（新增 gateway / workers 为通用词）；selection/resolve-binding.ts 承载凭据策略（仅运维 provider、ADC），不列入中立文件，与原 resolve-model 的白名单债务一并移除
+  - 性能报告由 perf-gateway-p1.json 更名为 perf-gateway.json，增加 PRO 单轮与 1.10 倍门槛断言；perf-baseline.json 的键名 callLLM/streamLLM 改为 legacyComplete/legacyStream（数值不变）
+通过的命令与结果：
+  - pnpm exec vitest run tests/model-gateway：23 文件 / 240 用例通过（perf 1 个默认跳过）
+  - 6.3 第二组（tests/ai tests/providers tests/agent-runtime tests/lib/agent/runtime tests/lib/chat/pi tests/pbl/v2 tests/orchestration）：168 文件 / 2060 通过 / 11 跳过
+  - 全量 pnpm exec vitest run：843 文件，827 通过 / 16 跳过；8648 通过 / 80 跳过 / 0 失败
+  - pnpm exec tsc --noEmit -p tsconfig.build.json：通过
+  - pnpm lint：本次改动文件 0 错误；受版本控制的文件中 7 个既有错误，均在本重构未改动的 6 个文件（app/account、app/admin×2、app/auth/update-password、GenerationSessionController、AuthAppShell、TeachBackHistory）；另有 gitignore 的本地产物 dist-worker/generation.mjs 与 .temp 脚本被 eslint 扫到（flat config 不读 .gitignore）
+  - pnpm check:i18n-keys：通过（12 个语言文件）
+  - pnpm build:worker、pnpm build：通过；node scripts/smoke-pi-runtime.mjs：standalone 与 worker 均通过（本地，非严格模式）
+  - node scripts/generate-model-catalog.mjs --check：通过
+  - P3-6 清理门槛：rg "__thinkingContext|withGenerationModelQuota|getModel\(|callLLM|streamLLM" 在 docs 外无结果；from 'ai' 只剩 UIMessage / LanguageModelUsage 类型导入、ASR、Claude 联网搜索与 lint 守卫；@ai-sdk/ 只剩 openai（ASR）、anthropic（Claude 联网搜索）
+特征测试清单（tests/model-gateway/characterization/README.md）：全部勾选
+  - 新增 legacy-checklist.test.ts 覆盖 RQ-06（Azure 四种门户端点 + Foundry 规范化）、RQ-11（Sol 别名 → 规范条目、保持 max）、RQ-18（用户 Bedrock 发送前拒绝；运维区域与类型冲突由 env-poisoning / resolve-binding 测试覆盖）、RS-01~05、US-01、US-02
+  - agent-stream-fn.test.ts 覆盖 AG-01/02/03/05/06 与 US-06；AG-04 由 errors-retry.test.ts 覆盖；CT-01~06 由冻结目录比对覆盖
+  - 豁免（注明原因）：RQ-04、RQ-05（变量已退役，pi 始终流式）、RQ-20（无 providerOptions 层）、US-05（pi 每条助手消息都带用量，无聚合 / 单步之分）
+黄金数据差异白名单：无新增（P2 的 golden-allowlist.json 不变，仍全部重放通过）
+性能数据（tests/fixtures/model-gateway/perf-gateway.json，同机同假服务器，各 200 次）：
+  - Models 视图构造 p50 < 0.01 ms（门槛 0.2）
+  - 网关开销：首 token 50 ms 场景 p50 0.22 / p95 10.94 ms；零延迟场景 p50 0.07 / p95 0.66 ms（门槛 p50 ≤ 5、p95 ≤ 15）
+  - complete 总耗时 p50 59.17 ms（基线 59.37，门槛 ×1.10）；stream TTFT p50 56.96 ms（基线 58.62）
+  - PRO 单轮（Agent → 网关）TTFT p50 58.88 ms、总耗时 p50 60.25 / p95 69.09 ms（基线总耗时 p50 60.47）；差距在计时噪声范围内，门槛（≤ 基线）勉强通过
+产品可见的行为变化：P2 记录的 9 项经用户确认保留（2026-10-01）；P3 新增
+  1. PRO 不再限于 OpenAI 协议模型（Anthropic 协议等经网关均可用；推理 + 工具不兼容的模型仍拒绝）
+  2. 用量按规范模型 id 记录（别名 gpt-5.6-sol 记为 gpt-5.6），旧实现记录别名
+  3. PRO 中被撤销的模型连接报告为"连接已撤销"，旧实现会显示为通用错误
+真实供应商验证：未验证（P3 只用假服务器与 faux；真实账号验证在 P7）
+遗留问题：
+  - tests/lib/agent/runtime/run-native-child.test.ts、tests/lib/chat/pi/director-compaction-refetch.test.ts、director-compaction.test.ts 有 P0 遗留的类型错误（tsconfig.json 含测试时报告，运行时通过；不在 tsconfig.build.json 范围内）
+  - 本阶段未重新构建 Docker 镜像做严格模式冒烟（P7 发布前必做）
+下一阶段可开始：是（P4 不依赖真实凭据或产品取舍）
 ```
 
 ---
