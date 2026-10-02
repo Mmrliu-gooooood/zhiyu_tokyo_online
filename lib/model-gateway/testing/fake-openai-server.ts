@@ -609,7 +609,10 @@ async function respond(res: ServerResponse, request: FakeRequest, reply: FakeRep
   res.end(JSON.stringify(json));
 }
 
-export async function startFakeModelServer(handler?: FakeHandler): Promise<FakeModelServer> {
+export async function startFakeModelServer(
+  handler?: FakeHandler,
+  options: { port?: number } = {},
+): Promise<FakeModelServer> {
   let current = handler ?? defaultHandler;
   const requests: FakeRequest[] = [];
   const server = createServer((req, res) => {
@@ -642,7 +645,7 @@ export async function startFakeModelServer(handler?: FakeHandler): Promise<FakeM
     });
   });
   server.keepAliveTimeout = 1_000;
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
   return {
     origin: `http://127.0.0.1:${port}`,

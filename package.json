@@ -17,6 +17,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:i18n-keys": "node scripts/check-i18n-keys.mjs",
+    "check:client-bundle": "node scripts/check-client-bundle.mjs",
     "check:package-versions": "node scripts/check-package-version-bumps.mjs",
     "check": "prettier . --check",
     "format": "prettier . --write",

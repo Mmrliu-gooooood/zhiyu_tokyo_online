@@ -134,3 +134,41 @@ describe('refreshing a rejected platform submission', () => {
     expect(fetchServerProviders).not.toHaveBeenCalled();
   });
 });
+
+describe('operator-managed provider selection', () => {
+  const groq = {
+    apiKey: '',
+    baseUrl: '',
+    models: [{ id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' }],
+    name: 'Groq',
+    type: 'openai',
+    requiresApiKey: true,
+    isBuiltIn: true,
+  };
+
+  it('travels as legacy-managed so the server uses the operator credentials', () => {
+    mocks.getState.mockReturnValue({
+      ...state,
+      providerId: 'groq',
+      modelId: 'llama-3.3-70b-versatile',
+      llmSelection: { source: 'user', providerId: 'groq', modelId: 'llama-3.3-70b-versatile' },
+      providersConfig: { groq: { ...groq, isServerConfigured: true } },
+    });
+    expect(getCurrentModelConfig()).toMatchObject({
+      source: 'legacy-managed',
+      modelString: 'groq:llama-3.3-70b-versatile',
+      apiKey: '',
+    });
+  });
+
+  it('a user-keyed provider stays a user selection', () => {
+    mocks.getState.mockReturnValue({
+      ...state,
+      providerId: 'groq',
+      modelId: 'llama-3.3-70b-versatile',
+      llmSelection: { source: 'user', providerId: 'groq', modelId: 'llama-3.3-70b-versatile' },
+      providersConfig: { groq: { ...groq, apiKey: 'gsk-test' } },
+    });
+    expect(getCurrentModelConfig()).toMatchObject({ source: 'user', apiKey: 'gsk-test' });
+  });
+});

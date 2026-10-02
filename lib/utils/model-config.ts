@@ -85,6 +85,13 @@ export function getCurrentModelConfig() {
 
   // A subscription sign-in sends its credential reference, never an API key.
   const signedIn = providerConfig?.authMode === 'oauth' && !!providerConfig.credentialId;
+  // An operator-managed provider is used with the server's key and endpoint
+  // (the settings UI hides its key inputs): it travels as `legacy-managed`,
+  // the source the server resolves with operator credentials.
+  const source =
+    selection.source === 'user' && providerConfig?.isServerConfigured
+      ? 'legacy-managed'
+      : selection.source;
   return {
     providerId,
     modelId,
@@ -99,7 +106,7 @@ export function getCurrentModelConfig() {
     endpointProfile: providerConfig?.endpointProfile || undefined,
     endpointParams: nonEmptyParams(providerConfig?.endpointParams),
     credentialId: signedIn ? providerConfig.credentialId : undefined,
-    source: selection.source,
+    source,
     defaultId: undefined,
     revision: undefined,
   };
