@@ -815,7 +815,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
-| R1 验收（P7） | 验收完成，发布待确认（2026-10-03） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支） | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意 |
+| R1 验收（P7） | 验收完成，发布待确认（2026-10-03） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
 | P6 | 未开始 | | | |
 | R2 验收（P7） | 未开始 | | | |
 
@@ -1204,6 +1204,28 @@ P5 补充：真实模型浏览器实测（2026-10-02，用户提供 Groq key；D
   - 回滚热修镜像未构建（分支已备好）
 发布（P7 第 3 步）：未执行——需用户明确同意后，按本地构建、docker save | ssh docker load、确认 0 个活跃 generation_jobs 后切换、readiness 的流程执行
 下一阶段可开始：发布确认后可开始 P6
+R1 遗留项处理（2026-10-03，refactor/model-gateway；未推送、未发布）：
+  - 4b21a833 session-events-live.pg：SSE 测试改用签名的 owner cookie（tests/helpers/signed-owner-request），独立分支上的修复已并入
+  - 098c96bb 网关启动检查（runGatewayStartupChecks，web instrumentation 与 worker 都执行）把 Node 每地址建连尝试时限提高到至少 1000 ms
+    （runtime/transport.ts raiseConnectAttemptFloor；运维用 NODE_OPTIONS 设置更大的值时保留）；覆盖全局 fetch（运维 / 平台端点）与网关自己的 agent。
+    新增 3 例（250→1000、5000 保持、启动时应用）
+  - 5f37a086 移植"模型输出无法使用时重新请求"：plan / agents / content 以新 call key（<step>:call:N）最多重新请求 1 次，已记录的回执仍免费重放；
+    错误码 INVALID_OUTLINE_RESULT / INVALID_AGENT_RESULT / INVALID_CONTENT_RESULT。tests/server/generation-unusable-output-rerequest.test.ts 改用网关假模型服务器（原 9 例断言不变）
+  - 66849396 明确拒绝不再记为未知：llm 调用未观察到输出且状态为 400/401/402/403/404/413/422 → ProviderRejectedRequest，
+    步骤以网关错误码（如 MODEL_CONTEXT_OVERFLOW）failed（用户可重试），不再是 EXTERNAL_RESULT_UNKNOWN / needs_attention；
+    5xx、408、无状态码、已观察到输出、媒体调用仍按未知处理。新增 generation-worker-pipeline 用例与端到端 413 用例（假模型服务器，只发 1 次请求）
+  - 每项先确认改动前测试失败、改动后通过；错误摘要为固定文案，不含上游响应体
+  回归（HEAD 66849396）：
+  - tsc / i18n / build / build:worker / 客户端包检查 / 目录检查：通过；全量 vitest 8725 通过；.pg 61/61
+    （PG_CONTRACT_URL 必须使用独立库：hosted-capacity-rls.pg 会删除所在库的 public schema）
+  - errors-retry 的 DNS 用例与 6.5 性能门槛首次运行时因本机 DNS 慢（NXDOMAIN 11.5 s）/ 机器负载失败（改动前代码同样失败）；
+    环境恢复后复跑均通过（errors-retry 16/16；perf-gateway.json 为复跑记录）
+  - 镜像 zhiyu-supabase-web/worker:local @ 66849396：严格模式冒烟 ok（pi-ai 0.99.1; agent-core pi-ai 0.78.0）
+  - 本地托管栈（不设 NODE_OPTIONS）：预加载探针读取 web 与 worker 进程的 attempt timeout——启动时 250，启动检查后 1000；
+    当日网络下默认 250 ms 也能从容器连通 Groq（401），原来的快速 ETIMEDOUT 无法复现，以单元测试为准
+  - 浏览器端到端（假 key 的 Groq 生成任务应以 failed 结束）：未执行（在页面填写 API key 需用户操作）；由端到端 413 测试覆盖
+  回滚热修镜像：zhiyu-supabase-web:rollback-r1、zhiyu-supabase-worker:rollback-r1，构建自 hotfix/r1-rollback-read-compat @ d4104d37，两个镜像均含 v3 快照读取代码
+  仍待用户决定：R1 生产发布；合并到 main 的范围
 ```
 
 ---
