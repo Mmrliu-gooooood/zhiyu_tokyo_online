@@ -34,10 +34,11 @@ import {
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type { ProviderConfig } from '@/lib/types/provider';
-import type { ProvidersConfig } from '@/lib/types/settings';
+import type { ProviderCredentialStatus, ProvidersConfig } from '@/lib/types/settings';
 import type { WireApi } from '@/lib/model-gateway/types';
 import type { ClientProviderConfig } from '@/lib/model-gateway/catalog/client-catalog';
 import { createVerifyModelRequest, formatContextWindow, requestPathForApi } from './utils';
+import { SubscriptionSignIn, type CredentialUpdate } from './subscription-sign-in';
 import { cn } from '@/lib/utils';
 
 /** Catalog facts the panel needs about a built-in provider (absent for `custom-*`). */
@@ -63,6 +64,11 @@ interface ProviderConfigPanelProps {
   api?: WireApi;
   /** Whether this deployment offers subscription sign-in for the provider. */
   oauthAvailable?: boolean;
+  /** Saved authentication method and signed-in account reference (R2). */
+  authMode?: 'api-key' | 'oauth' | 'none';
+  credentialId?: string;
+  credentialStatus?: ProviderCredentialStatus;
+  onCredentialChange?: (update: CredentialUpdate) => void;
   initialApiKey: string;
   initialBaseUrl: string;
   initialRequiresApiKey: boolean;
@@ -87,6 +93,10 @@ export function ProviderConfigPanel({
   catalog,
   api,
   oauthAvailable = false,
+  authMode,
+  credentialId,
+  credentialStatus,
+  onCredentialChange,
   initialApiKey,
   initialBaseUrl,
   initialRequiresApiKey,
@@ -118,7 +128,20 @@ export function ProviderConfigPanel({
   const [endpointParams, setEndpointParams] = useState<Record<string, string>>(
     initialEndpointParams ?? {},
   );
-  const [authTab, setAuthTab] = useState<AuthTab>('api-key');
+  // Sign-in-only providers (subscriptions) have no API-key method at all.
+  const keyMethod = !catalog || catalog.authMethods.some((method) => method !== 'oauth');
+  const initialTab = (): AuthTab =>
+    oauthAvailable && (authMode === 'oauth' || !keyMethod) ? 'oauth' : 'api-key';
+  // Pick the tab once per provider (and when sign-in becomes available), not on
+  // every saved change: disconnecting must not flip the tab under the user.
+  const tabKey = `${provider.id}:${oauthAvailable}`;
+  const [tabChoice, setTabChoice] = useState<{ key: string; tab: AuthTab }>(() => ({
+    key: tabKey,
+    tab: initialTab(),
+  }));
+  if (tabChoice.key !== tabKey) setTabChoice({ key: tabKey, tab: initialTab() });
+  const authTab = tabChoice.key === tabKey ? tabChoice.tab : initialTab();
+  const setAuthTab = (tab: AuthTab) => setTabChoice({ key: tabKey, tab });
   const fixedEndpoint = catalog?.allowCustomBaseUrl === false;
   const declaredParams = catalog?.endpointParams ?? [];
   const initialParamsKey = JSON.stringify(initialEndpointParams ?? {});
@@ -138,7 +161,6 @@ export function ProviderConfigPanel({
     setFetchStatus('idle');
     setFetchMessage('');
     setEndpointParams(JSON.parse(initialParamsKey) as Record<string, string>);
-    setAuthTab('api-key');
   }, [provider.id, initialApiKey, initialBaseUrl, initialRequiresApiKey, initialParamsKey]);
 
   // Notify parent of changes
@@ -284,8 +306,8 @@ export function ProviderConfigPanel({
       {/* Managed providers are admin-owned: the operator's key and base URL are
           authoritative and not overridable here, so the editing inputs are hidden. */}
       {/* Authentication method tabs: subscription sign-in appears only where
-          this deployment enables it (R1: nowhere). */}
-      {!isServerConfigured && oauthAvailable && (
+          this deployment enables it (MODEL_OAUTH_PROVIDERS). */}
+      {!isServerConfigured && oauthAvailable && keyMethod && (
         <div role="tablist" className="inline-flex rounded-lg border p-0.5 gap-0.5">
           {(['api-key', 'oauth'] as const).map((tab) => (
             <button
@@ -307,9 +329,12 @@ export function ProviderConfigPanel({
         </div>
       )}
       {!isServerConfigured && oauthAvailable && authTab === 'oauth' && (
-        <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-          {t('settings.oauthSignInPending')}
-        </div>
+        <SubscriptionSignIn
+          providerId={provider.id}
+          credentialId={credentialId}
+          credentialStatus={credentialStatus}
+          onCredentialChange={(update) => onCredentialChange?.(update)}
+        />
       )}
 
       {!isServerConfigured && authTab === 'api-key' && (

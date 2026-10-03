@@ -1347,6 +1347,10 @@ export function SettingsDialog({
                       catalog={CLIENT_PROVIDERS[selectedProviderId]}
                       api={providersConfig[selectedProviderId]?.api}
                       oauthAvailable={oauthSignInAvailable(selectedProviderId, oauthProviders)}
+                      authMode={providersConfig[selectedProviderId]?.authMode}
+                      credentialId={providersConfig[selectedProviderId]?.credentialId}
+                      credentialStatus={providersConfig[selectedProviderId]?.credentialStatus}
+                      onCredentialChange={(update) => setProviderConfig(selectedProviderId, update)}
                       initialEndpointParams={providersConfig[selectedProviderId]?.endpointParams}
                       onEndpointParamsChange={(endpointParams) =>
                         setProviderConfig(selectedProviderId, { endpointParams })
