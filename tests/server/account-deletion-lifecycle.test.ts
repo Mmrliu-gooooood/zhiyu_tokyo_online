@@ -131,6 +131,9 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE agent_user_skill(owner_id text);
       CREATE TABLE pro_model_connections(id uuid primary key,owner_id text);
       CREATE TABLE pro_model_connection_revisions(connection_id uuid);
+      CREATE TABLE model_credentials(id uuid primary key,owner_id text);
+      CREATE TABLE model_auth_sessions(id uuid primary key,owner_id text,
+        credential_id uuid references model_credentials(id));
       CREATE TABLE media_config_snapshots(owner_id text);
       CREATE TABLE generation_model_snapshots(owner_id text);
       CREATE TABLE generation_search_snapshots(owner_id text);
@@ -147,6 +150,12 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO agent_session_materials VALUES
         ('sm-1','session-1','materials/text-object','materials/same-object');
       INSERT INTO classroom_snapshots VALUES('${OWNER}','s3://private-classrooms/snapshots/course.json');
+      INSERT INTO model_credentials VALUES
+        ('00000000-0000-4000-8000-0000000000c1','${OWNER}'),
+        ('00000000-0000-4000-8000-0000000000c2','${OTHER}');
+      INSERT INTO model_auth_sessions VALUES
+        ('00000000-0000-4000-8000-0000000000a1','${OWNER}','00000000-0000-4000-8000-0000000000c1'),
+        ('00000000-0000-4000-8000-0000000000a2','${OTHER}','00000000-0000-4000-8000-0000000000c2');
     `);
   });
 
@@ -308,6 +317,13 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
     expect(
       (await db.query("SELECT 1 FROM asset_blobs WHERE content_hash='hash-became-shared'")).rows,
     ).toHaveLength(1);
+    // Credentials and sign-in sessions go with the account; other owners keep theirs.
+    expect((await db.query('SELECT owner_id FROM model_credentials')).rows).toEqual([
+      { owner_id: OTHER },
+    ]);
+    expect((await db.query('SELECT owner_id FROM model_auth_sessions')).rows).toEqual([
+      { owner_id: OTHER },
+    ]);
   });
 
   it('persists an object failure and resumes without touching retained shared objects', async () => {

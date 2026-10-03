@@ -471,6 +471,9 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
         [ownerId],
       );
       await client.query('DELETE FROM pro_model_connections WHERE owner_id=$1', [ownerId]);
+      // Sign-in sessions reference credentials, so they go first.
+      await client.query('DELETE FROM model_auth_sessions WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM model_credentials WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM media_config_snapshots WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM generation_model_snapshots WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM generation_search_snapshots WHERE owner_id=$1', [ownerId]);
