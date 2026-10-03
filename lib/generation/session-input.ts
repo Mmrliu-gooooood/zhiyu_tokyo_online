@@ -58,8 +58,12 @@ export async function buildGenerationJobInput(
   }
   // Establish the signed owner before uploading any source bytes.
   await generationJobRequest('', { signal });
+  // A signed-in account travels as its credential id; the snapshot carries it to the worker.
   const preparedModel =
-    model.source === 'platform' || model.apiKey?.trim() || model.baseUrl?.trim()
+    model.source === 'platform' ||
+    model.apiKey?.trim() ||
+    model.baseUrl?.trim() ||
+    model.credentialId
       ? await prepareGenerationModelSnapshot(model, signal)
       : undefined;
   if (preparedModel) model = preparedModel.context;

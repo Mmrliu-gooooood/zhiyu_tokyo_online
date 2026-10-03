@@ -581,6 +581,46 @@ describe('background session input', () => {
     expect(input.modelConfigRef).toEqual(ref);
     expect(JSON.stringify(input)).not.toContain('test-client-credential');
   });
+  it('freezes a signed-in account through a worker snapshot reference', async () => {
+    const ref = { id: '123e4567-e89b-42d3-a456-426614174098', revision: 1 };
+    const credentialId = '33333333-3333-4333-8333-333333333333';
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === '/api/generate-classroom') return Response.json({ jobs: [] });
+      if (url === '/api/generate-classroom/model-snapshots') {
+        const body = JSON.parse(String(init?.body));
+        expect(body).toMatchObject({
+          selection: {
+            providerId: 'openrouter',
+            modelId: 'qwen/qwen3.8-27b:free',
+            connection: { auth: 'credential', credentialId },
+          },
+        });
+        return Response.json({ ref });
+      }
+      if (url === '/api/agent/media-config-snapshots') {
+        return Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } });
+      }
+      throw new Error(`unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.model.mockReturnValue({
+      source: 'user',
+      modelString: 'openrouter:qwen/qwen3.8-27b:free',
+      apiKey: '',
+      baseUrl: '',
+      credentialId,
+    });
+    const input = await buildGenerationJobInput(
+      session,
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+    expect(input.modelConfigRef).toEqual(ref);
+    expect(fetchMock.mock.calls.map((call) => call[0])).toContain(
+      '/api/generate-classroom/model-snapshots',
+    );
+  });
   it('reuses already-uploaded owner assets after a lost create response', async () => {
     const fetchMock = vi
       .fn()
