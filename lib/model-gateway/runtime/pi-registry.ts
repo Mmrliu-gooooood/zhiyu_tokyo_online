@@ -150,6 +150,24 @@ export function createCallModels(provider: Provider, authContext: AuthContext): 
   return models;
 }
 
+let oauthFlows: Promise<void> | undefined;
+
+/**
+ * pi loads its OAuth flows (sign-in, token refresh) through a variable
+ * specifier that Next's file tracer cannot follow, so the standalone output
+ * would lack them. This literal entry statically imports every flow and
+ * registers them with pi; it is traced into both web and worker outputs.
+ */
+function ensureOAuthFlows(): Promise<void> {
+  oauthFlows ??= import('@earendil-works/pi-ai/bun-oauth').then((module) =>
+    module.registerBunOAuthFlows(),
+  );
+  oauthFlows.catch(() => {
+    oauthFlows = undefined;
+  });
+  return oauthFlows;
+}
+
 /**
  * Per-call `Models` view for a signed-in account: pi reads, and refreshes
  * under the store's lock, the one credential the scoped store exposes.
@@ -165,7 +183,12 @@ export function createCredentialModels(
 }
 
 /** Resolve request auth up front so credential failures keep their cause. */
-export function authenticateModel(models: MutableModels, model: PiModel, signal: AbortSignal) {
+export async function authenticateModel(
+  models: MutableModels,
+  model: PiModel,
+  signal: AbortSignal,
+) {
+  await ensureOAuthFlows();
   return models.getAuth(model, { signal });
 }
 
@@ -194,6 +217,7 @@ export async function runProviderLogin(
       captured = undefined;
     },
   };
+  await ensureOAuthFlows();
   const models = createModels({ authContext, credentials: capture });
   models.setProvider(provider);
   return models.login(provider.id, 'oauth', interaction, { getDeviceId: () => deviceId });

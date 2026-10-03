@@ -7,6 +7,9 @@
  * directory verifies:
  *   - `@earendil-works/pi-ai` (root, 0.99.x), its `providers/deepseek` and
  *     `api/openai-completions` subpaths import successfully;
+ *   - the subscription sign-in flows load: pi imports them through a variable
+ *     specifier a file tracer cannot follow, so the gateway registers them via
+ *     the literal `bun-oauth` entry, which statically imports every flow;
  *   - the real lib/model-gateway/adapters/agent-legacy-pi.ts loader (bundled
  *     with esbuild; it only imports Node builtins) resolves pi-agent-core's own
  *     pi-ai 0.78.x, loads its interop API, and that instance is the very file
@@ -128,6 +131,8 @@ const deepseek = await import(inside(import.meta.resolve(PI_AI + '/providers/dee
 out.deepseekExports = Object.keys(deepseek);
 const completions = await import(inside(import.meta.resolve(PI_AI + '/api/openai-completions', base)));
 out.openaiCompletionsExports = Object.keys(completions);
+const oauthFlows = await import(inside(import.meta.resolve(PI_AI + '/bun-oauth', base)));
+out.oauthFlows = typeof oauthFlows.registerBunOAuthFlows === 'function';
 
 // The real loader, exactly as the application uses it.
 const loader = await import(process.env.SMOKE_LOADER_URL);
@@ -216,6 +221,7 @@ for (const target of targets) {
   if (result.deepseekExports.length === 0) problems.push('providers/deepseek has no exports');
   if (result.openaiCompletionsExports.length === 0)
     problems.push('api/openai-completions has no exports');
+  if (!result.oauthFlows) problems.push('bun-oauth (subscription sign-in flows) did not load');
   const serverDir = path.join(target.dir, '.next', 'server');
   if (existsSync(serverDir)) problems.push(...checkNextBundle(serverDir));
   if (problems.length > 0) {
