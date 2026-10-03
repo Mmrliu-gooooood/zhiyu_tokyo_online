@@ -816,7 +816,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
 | R1 验收（P7） | 已发布（2026-10-03，release-20261003） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
-| P6 | 未开始 | | | |
+| P6 | 进行中：P6-1–P6-5 完成（2026-10-03），P6-6 待真实账号授权 | 72014733, 2afed085, 3dd0045d, 79e2f1f6, 893bf463, 4458fde3 + 本次进度提交 | 见下方 P6 记录 | 全量 vitest 8783 通过、真实 PostgreSQL 80/80；accounts v21 尚未应用到生产；P6-6 需用户选定 provider、确认条款并亲自完成授权 |
 | R2 验收（P7） | 未开始 | | | |
 
 每阶段完成时追加一段：
@@ -1244,6 +1244,35 @@ R1 发布（P7 第 3 步，2026-10-03，经用户同意）：
     首页两张旧课程封面图 404（历史资产缺失，与 R1 无关）
   - 回滚：.env.hosted.local 标签改为 rollback-r1 后再执行同一 apply（镜像已在服务器上）；回滚前先暂停接单并确认没有由新版本创建的未完成任务
 下一阶段：P6（R2）
+P6 记录（2026-10-03，refactor/model-gateway；未推送、未发布）：
+  - P6-1 72014733 accounts v21（lib/server/accounts/sql-model-credentials.ts）：model_credentials（每 owner+provider 最多一条非撤销凭据；撤销即删密文）、
+    model_auth_sessions（每 owner+provider 最多一个进行中会话；一次性输入仅在会话打开时存在）、model_auth_settings（部署级设备 ID 单行）；三表 FORCE RLS；
+    凭据对 app_web 与 app_worker 都按 app.owner_id 绑定（worker 刷新 token 但看不到他人行）；会话与设备 ID 仅 web；deletion.ts 清理两表。ACCOUNTS_SCHEMA_VERSION=21
+    （readiness 默认仍要求 19）。测试 tests/server/model-credentials-migration.test.ts（PGlite + PostgreSQL：重复执行、约束、两角色 owner 隔离）
+  - P6-2 2afed085 vault（lib/model-gateway/credentials/vault.ts）：AES-256-GCM，AAD=[model-credential:v1, owner, credentialId, secretVersion]，密文自带 key 版本；
+    MODEL_CREDENTIAL_ENCRYPTION_KEY / _KEY_VERSION / _RETIRED_KEYS 支持轮换；modify = 行锁（lock_timeout 10 s）→ 校验 active → fn（20 s 上限）→ secret_version+1；
+    provider 拒绝刷新（invalid_grant 等）→ reauth_required，临时失败不改状态；撤销拿同一行锁，进行中的刷新无法复活。credential-store.ts 只向 pi 暴露该凭据自身的 provider；
+    撤销 / 需重新登录时拒绝而非返回空，pi 不会回退到环境变量。测试：两个独立连接并发刷新只刷新一次、撤销与刷新竞态、锁超时、A/B 隔离
+  - P6-3 3dd0045d 登录执行器（lib/model-gateway/auth/login-sessions.ts）+ 6 个 API（owner 绑定、no-store、固定错误码、部署不具备能力时 404）：
+    notify → 非秘密 challenge（只放行 https 链接）；prompt → 密封一次性输入（任一副本接收，执行器消费一次）；租约过期读作 interrupted、TTL 10 分钟读作 expired；
+    完成时同一事务内复核会话仍打开且归本执行器、账号 active，迟到结果不会建凭据；每进程最多 20 个；设备 ID：MODEL_OAUTH_DEVICE_ID 或数据库单行。
+    pi-registry.runProviderLogin 以仅捕获的 store 运行 models.login；policy 读 MODEL_OAUTH_PROVIDERS 且要求 hosted 登录 + 数据库 + 凭据密钥。
+    compose 向 web/worker 传递可选 MODEL_OAUTH_* / MODEL_CREDENTIAL_*，两份 env 示例已说明。测试用 pi 自定义 provider 覆盖 device-code / manual-code、
+    取消、过期、重复输入、执行器停止、迟到结果、替换、上限、账号失效、owner 隔离、失败（变异检查：去掉迟到结果守卫后对应用例失败）
+  - P6-4 79e2f1f6：credential 选择 → vault 句柄（owner 来自调用方 / 已准入任务 / 请求，与用量记录同序）；每次上游尝试前打开 owner 绑定 vault
+    （web=app_web、worker=app_worker），校验 active、归属与 provider 一致，再经 pi getAuth 在行锁内刷新；任何失败都在发送前（requestSent=false）且不回退其他 key：
+    拒绝刷新 → MODEL_REAUTH_REQUIRED，撤销/他人/不匹配 → MODEL_AUTH_FAILED，忙/临时刷新失败 → 可重试的 MODEL_NETWORK，无密钥 → MODEL_CONFIGURATION；
+    生成 worker 把发送前的 MODEL_REAUTH_REQUIRED / MODEL_AUTH_FAILED 记为确定失败（failed，可重新登录后重试）。快照与 PRO 连接只存 credentialId（P4 已支持）
+  - P6-5 893bf463 设置页登录：连接状态（已登录 / 需重新登录 / 未登录 / 部署未开放）、发起与轮询、授权链接、设备码（复制 + 倒计时）、粘贴跳转地址 / 选择项、取消、断开；
+    设置只保存 credentialId 与服务端状态；纯订阅 provider 不显示 API Key 页签；切换 provider / 卸载 / 账号切换（设置重新水合）时丢弃所有进行中的请求与轮询；12 种语言文案
+  - 4458fde3 修正：OpenRouter 登录铸造永久 key（expires=Number.MAX_SAFE_INTEGER），写 expires_at 时 RangeError 导致保存失败；超出 Date 范围按无过期存储
+  - 托管部署的 OAuth 回调：pi 的回调服务器监听在服务端容器的 127.0.0.1，浏览器无法到达；pi 同时发出手动输入提示，用户把跳转后的地址粘贴回设置页即可（UI 已支持）。
+    openai-codex 固定回调端口 1455，同一进程并发两个 codex 登录时第二个只能走手动粘贴
+  - 备份说明：数据库备份只含密文；没有 MODEL_CREDENTIAL_ENCRYPTION_KEY（含已轮换的旧 key）无法恢复可用凭据——丢失密钥时用户重新登录即可，无其他数据受影响
+  回归（HEAD 4458fde3）：全量 vitest 840 文件 / 8783 通过 / 0 失败；真实 PostgreSQL（.pg 集 + v21 迁移 + vault 并发）14 文件 80/80；
+  tsc（build 与含测试）、i18n（12 个语言）、build、build:worker、smoke-pi-runtime（standalone 与 worker）、客户端包检查（510 chunk）、目录检查：通过；
+  lint：受版本控制的文件 0 错误（158 个错误全部来自 gitignore 产物 .temp/migrate-supabase-storage.cjs 与 dist-worker/generation.mjs，同前）
+  未完成：P6-6 真实账号验证（需用户选择 provider、确认条款允许用于本产品并亲自完成授权）；R2 发布前需在生产应用 accounts v21 并配置 MODEL_CREDENTIAL_ENCRYPTION_KEY
 ```
 
 ---
