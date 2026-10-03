@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
+import { GatewayError, type GatewayErrorCode } from '@/lib/model-gateway';
 import {
   generateTTS,
   TTSConfigurationError,
@@ -16,6 +17,7 @@ import type { GenerationLease, StepStart } from '@/lib/server/generation-jobs/co
 import {
   PipelineExecution,
   ExternalCallInterrupted,
+  ProviderRejectedRequest,
   UnknownExternalOutcome,
   EXTERNAL_CALL_DEADLINES_MS,
   mapBounded,
@@ -1162,6 +1164,85 @@ describe('durable worker pipeline', () => {
         retryable: true,
         retryAfterMs: 12000,
       },
+    ]);
+  });
+  const gatewayError = (
+    code: GatewayErrorCode,
+    init: { status?: number; outputObserved?: boolean } = {},
+  ) =>
+    new GatewayError(code, {
+      providerId: 'groq',
+      modelId: 'openai/gpt-oss-120b',
+      requestSent: true,
+      ...init,
+    });
+
+  it.each([
+    [400, 'MODEL_BAD_REQUEST'],
+    [401, 'MODEL_AUTH_FAILED'],
+    [402, 'MODEL_ENTITLEMENT_DENIED'],
+    [403, 'MODEL_AUTH_FAILED'],
+    [404, 'MODEL_NOT_FOUND'],
+    [413, 'MODEL_CONTEXT_OVERFLOW'],
+    [422, 'MODEL_BAD_REQUEST'],
+  ] as const)(
+    'records a definite HTTP %i model rejection as a certain failure without replay',
+    async (status, code) => {
+      const { execution, repo } = setup();
+      let calls = 0;
+      const error = await execution
+        .external('content:s1:call:0', {}, 'llm', 'provider', async () => {
+          calls++;
+          throw gatewayError(code, { status });
+        })
+        .catch((caught) => caught);
+      expect(error).toBeInstanceOf(ProviderRejectedRequest);
+      expect(error).toMatchObject({ stepKey: 'content:s1:call:0', code });
+      expect(calls).toBe(1);
+      expect(repo.failures).toEqual([
+        {
+          stepKey: 'content:s1:call:0',
+          code,
+          uncertain: false,
+          errorSummary: gatewayError(code).message,
+        },
+      ]);
+    },
+  );
+
+  it.each([
+    ['a 5xx response', 'llm', gatewayError('MODEL_UPSTREAM_UNAVAILABLE', { status: 500 })],
+    ['a 408 response', 'llm', gatewayError('MODEL_TIMEOUT', { status: 408 })],
+    ['a timeout without a response', 'llm', gatewayError('MODEL_TIMEOUT')],
+    [
+      'a rejection after output was observed',
+      'llm',
+      gatewayError('MODEL_BAD_REQUEST', { status: 400, outputObserved: true }),
+    ],
+    ['a non-LLM call', 'media', gatewayError('MODEL_CONTEXT_OVERFLOW', { status: 413 })],
+  ] as const)('keeps %s unknown', async (_name, kind, thrown) => {
+    const { execution, repo } = setup();
+    await expect(
+      execution.external('paid-call', {}, kind, 'provider', async () => {
+        throw thrown;
+      }),
+    ).rejects.toBeInstanceOf(UnknownExternalOutcome);
+    expect(repo.failures).toEqual([
+      expect.objectContaining({ code: 'EXTERNAL_RESULT_UNKNOWN', uncertain: true }),
+    ]);
+  });
+
+  it('keeps the nested rejection code instead of failing the parent step generically', async () => {
+    const { execution, repo } = setup();
+    await expect(
+      execution.checkpoint('content:s1', {}, () =>
+        execution.external('content:s1:call:0', {}, 'llm', 'provider', async () => {
+          throw gatewayError('MODEL_CONTEXT_OVERFLOW', { status: 413 });
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ProviderRejectedRequest);
+    expect(repo.failures).toEqual([
+      expect.objectContaining({ stepKey: 'content:s1:call:0', code: 'MODEL_CONTEXT_OVERFLOW' }),
     ]);
   });
 });

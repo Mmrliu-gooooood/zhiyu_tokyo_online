@@ -12,6 +12,7 @@ import type { SceneOutline } from '@/lib/types/generation';
 import {
   InvalidModelOutput,
   PipelineExecution,
+  ProviderRejectedRequest,
   UnknownExternalOutcome,
   type CheckpointRepository,
 } from '@/lib/server/generation-pipeline/execution';
@@ -284,5 +285,26 @@ describe('bounded re-request for unusable model output', () => {
     fake.replies = [{ text: JSON.stringify({ ...roster, agents: roster.agents.slice(1) }) }];
     await expect(invalid.services.agents(plan)).rejects.toThrow('INVALID_AGENT_RESULT');
     expect(fake.requests).toBe(1);
+  });
+});
+
+describe('definite provider rejection through the gateway', () => {
+  it('fails a 413 rejection as certain, keeps its gateway code and sends no re-request', async () => {
+    const { repository, services, execution } = setup();
+    fake.replies = [{ status: 413 }, { text: VALID_SLIDE }];
+
+    const failure = await contentStep(slide, services, execution).catch((error) => error);
+
+    expect(failure).toBeInstanceOf(ProviderRejectedRequest);
+    expect(failure).toMatchObject({ code: 'MODEL_CONTEXT_OVERFLOW' });
+    expect(fake.requests).toBe(1);
+    expect(repository.failures).toEqual([
+      {
+        stepKey: 'content:clock:call:0',
+        code: 'MODEL_CONTEXT_OVERFLOW',
+        uncertain: false,
+        errorSummary: 'The request exceeds the model context window.',
+      },
+    ]);
   });
 });

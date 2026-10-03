@@ -8,6 +8,7 @@ import type {
 import { runWithGenerationQuota } from '@/lib/server/generation-jobs/provider-call-context';
 import { assertGenerationConfigSnapshot } from '@/lib/server/generation-jobs/config-snapshot';
 import { ConfirmedMediaFailure } from '@/lib/media/generation-errors';
+import { isGatewayError } from '@/lib/model-gateway/runtime/errors';
 import { withPolledTaskPersistence } from '@/lib/server/generation-jobs/polled-task-persistence';
 import {
   providerFailureDiagnostic,
@@ -71,6 +72,35 @@ export class UnknownExternalOutcome extends Error {
     this.name = 'UnknownExternalOutcome';
   }
 }
+/**
+ * HTTP statuses with which a model provider refuses a request outright: it was
+ * not accepted, so it cannot have been processed or billed. 408, 409, 429 and
+ * 5xx are not on this list; they keep their retry or unknown-result handling.
+ */
+const DEFINITE_REJECTION_STATUSES = new Set([400, 401, 402, 403, 404, 413, 422]);
+
+/** A model provider definitely rejected the request; replaying it cannot help. */
+export class ProviderRejectedRequest extends Error {
+  constructor(
+    readonly stepKey: string,
+    readonly code: string,
+    readonly safeSummary: string,
+    options?: { cause?: unknown },
+  ) {
+    super(code, options);
+    this.name = 'ProviderRejectedRequest';
+  }
+}
+
+function definiteModelRejection(error: unknown) {
+  return isGatewayError(error) &&
+    !error.outputObserved &&
+    error.status !== undefined &&
+    DEFINITE_REJECTION_STATUSES.has(error.status)
+    ? error
+    : undefined;
+}
+
 /** The provider answered, but its output stayed unusable after bounded re-requests. */
 export class InvalidModelOutput extends Error {
   constructor(
@@ -241,6 +271,7 @@ export class PipelineExecution {
       if (
         !(error instanceof UnknownExternalOutcome) &&
         !(error instanceof ProviderRetryScheduled) &&
+        !(error instanceof ProviderRejectedRequest) &&
         !this.signal.aborted
       ) {
         await this.repository.failStep(this.lease, {
@@ -530,6 +561,23 @@ export class PipelineExecution {
           );
           this.stopped.abort(retry);
           throw retry;
+        }
+        const rejection =
+          kind === 'llm' && !callSignal.aborted && !responseReceived
+            ? definiteModelRejection(error)
+            : undefined;
+        if (rejection) {
+          const rejected = new ProviderRejectedRequest(key, rejection.code, rejection.message, {
+            cause: error,
+          });
+          await this.repository.failStep(this.lease, {
+            stepKey: key,
+            code: rejected.code,
+            uncertain: false,
+            errorSummary: rejected.safeSummary,
+          });
+          this.stopped.abort(rejected);
+          throw rejected;
         }
         // Even aborts and failed commits can occur after the provider succeeded.
         // If DB is offline this fails too; the expired-attempt reaper makes the
