@@ -185,6 +185,20 @@ describe('credential vault (PGlite)', () => {
     expect(JSON.stringify(await vault().list())).not.toMatch(/access-|refresh-/);
   });
 
+  it('stores a credential that never expires (OpenRouter keys)', async () => {
+    const saved = await vault().save({
+      providerId: 'openrouter',
+      piProviderId: 'openrouter',
+      authKind: 'oauth',
+      credential: { ...oauth('key'), refresh: '', expires: Number.MAX_SAFE_INTEGER },
+    });
+    expect(saved.expiresAt).toBeNull();
+    expect((await vault().read(saved.id)).credential).toMatchObject({
+      access: 'access-key',
+      expires: Number.MAX_SAFE_INTEGER,
+    });
+  });
+
   it('isolates owners', async () => {
     const saved = await vault().save({
       providerId: 'xai',

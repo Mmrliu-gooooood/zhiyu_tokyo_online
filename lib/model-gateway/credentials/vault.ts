@@ -310,8 +310,14 @@ export function sanitizeAccountLabel(label: string | undefined | null): string |
   return clean ? clean.slice(0, 200) : null;
 }
 
+/** Largest timestamp a Date can hold; beyond it a credential simply does not expire. */
+const MAX_DATE_MS = 8.64e15;
+
 function expiryOf(credential: Credential): string | null {
-  return credential.type === 'oauth' && Number.isFinite(credential.expires)
+  // OpenRouter-style keys never expire and carry Number.MAX_SAFE_INTEGER.
+  return credential.type === 'oauth' &&
+    Number.isFinite(credential.expires) &&
+    Math.abs(credential.expires) <= MAX_DATE_MS
     ? new Date(credential.expires).toISOString()
     : null;
 }
