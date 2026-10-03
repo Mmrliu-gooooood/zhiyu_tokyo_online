@@ -815,7 +815,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
-| R1 验收（P7） | 未开始 | | | |
+| R1 验收（P7） | 验收完成，发布待确认（2026-10-03） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支） | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意 |
 | P6 | 未开始 | | | |
 | R2 验收（P7） | 未开始 | | | |
 
@@ -1123,6 +1123,87 @@ P5 补充：真实模型浏览器实测（2026-10-02，用户提供 Groq key；D
     同机 24 次新建连接均 1–2 s，时间点与 next dev 首次编译路由/课堂页重合，判断为开发模式编译阻塞事件循环，P7 在生产镜像中复核
   - 发现的改进点（未修改，记入遗留）：目录中过期的模型 ID 会被设置面板"测试连接"选为第一个模型；Groq 413 额度错误的分类与提示可更准确
 下一阶段可开始：是——R1 验收（P7）的技术前提已具备；P7 第 2 步真实模型冒烟需要用户提供平台默认模型（DeepSeek）、至少一个原有 provider 与至少两个新增 provider 的真实 API Key，以及可用的数据库/部署环境
+```
+
+```text
+阶段：R1 验收（P7）
+提交：521c6969（PBL v2 运行时 prompt 打入 standalone）、7e7633c7（PBL v2 运行时路由绑定配额 owner）、本进度提交（含 perf-gateway.json 新测量）；
+      回滚热修分支 hotfix/r1-rollback-read-compat @ d4104d37（基于 main，独立 worktree，未合并、未发布）
+新增/修改模块：
+  - next.config.ts：outputFileTracingIncludes 增加 lib/pbl/v2/prompts/**；tests/config/standalone-prompt-assets.test.ts 断言（修复前失败、修复后通过）。
+    生产镜像 release-20260926e 同样缺这些文件（PBL 导师 ENOENT），属 P7 前即存在的问题
+  - app/api/pbl/v2/{open-task,instructor,evaluate,simulator}/route.ts：改为 withHostedProviderQuota(req, () => handlePOST(req))；
+    托管 + 后台模式下每次网关调用都要占部署配额槽，没有 owner 时退回 app_web 无权限的直接 INSERT（generation_provider_slots），
+    PBL 导师每轮都报"凭据被拒绝"（permission denied 被文本模式归为 MODEL_AUTH_FAILED）。main 上同一缺口由 streamLLM 的 withGenerationModelQuota 掩盖。
+    新增 tests/pbl/v2/runtime-quota-owner.test.ts：4 条路由在 owner 作用域内解析模型并开流（修复前 5 例失败）；
+    静态守卫：app/api/**/route.ts 中凡调用 resolve(Request|Header)?Binding( 的都必须包 with(HostedProviderQuota|ApiPrincipal|ProviderQuotaOwner)(
+  - 回滚热修分支（d4104d37）：lib/server/model-selection-read-compat.ts 把 v3 快照 / v2 PRO revision 转回旧扁平字段
+    （平台默认仅 zhiyu-default-text；凭据连接、端点参数、无法映射的 api → 409 *_UNAVAILABLE，不猜）；generation-model-snapshots.ts 读 v3、写仍为 v1/v2；
+    agent-runtime/model-connections.ts 读 v2，sync 容忍 PRO_MODEL_CONNECTION_UNAVAILABLE 以便 owner 覆盖旧 revision；
+    夹具 tests/fixtures/rollback/model-gateway-r1-content.json 由本分支 schema 生成；新增 20 例 + 相关旧测试 126 通过 / 3 跳过；tsc、eslint、prettier 干净
+通过的命令与结果（6.3 全量，Node v24.19.0）：
+  - tsc -p tsconfig.build.json、tsc -p tsconfig.json：0 错误；check:i18n-keys：通过
+  - 全量 vitest：848 文件（832 通过 / 16 跳过），8694 通过 / 80 跳过 / 0 失败（246 s）；修复后新增的 runtime-quota-owner / standalone-prompt-assets 通过
+  - .pg 测试：首轮 58/61；generation-worker-pipeline.pg 单独复跑 3/3（满载超时）；session-events-live.pg 为 P7 前即存在的失败，已在独立分支修复（未合入本分支）
+  - perf 门槛：通过（tests/fixtures/model-gateway/perf-gateway.json 更新）
+  - build:worker、build、smoke-pi-runtime、generate-model-catalog --check、check-client-bundle：全部通过
+  - lint：受版本控制的文件 0 错误（退出码 1 来自 gitignore 产物 .temp / dist-worker，同前）
+  - 镜像严格模式冒烟（Linux，runtime-directory containment 生效）：zhiyu-supabase-web:local 与 zhiyu-supabase-worker:local @ 7e7633c7 均
+    "ok (pi-ai 0.99.1; agent-core pi-ai 0.78.0)"；两个容器启动日志 pi_env_audit direct: []
+第 4 节不变量（证据位置）：
+  - [x] 1 阶段路由优先级：tests/model-gateway/selection/resolve-binding.test.ts、tests/pbl/v2/runtime-model-pin.test.ts、tests/agent-runtime/agent-driver-model.test.ts
+  - [x] 2 平台默认模型 409/503/403、不回退：tests/server/llm-error-response-platform.test.ts、resolve-binding.test.ts；实测 DeepSeek 平台调用 funding=platform
+  - [x] 3 运维托管 key/baseUrl 服务端决定：resolve-binding.test.ts、tests/server/provider-config.test.ts、tests/api/verify-model.test.ts、tests/utils/model-config-platform.test.ts；
+        实测 GLM/NVIDIA/Groq/MiniMax 均 funding=operator，/api/server-providers 只返回模型列表
+  - [x] 4 pi 读不到 process.env：tests/model-gateway/env-poisoning.test.ts；两个镜像 pi_env_audit direct: []
+  - [x] 4a 无请求级 fetch 的 API 只访问官方/运维端点：tests/model-gateway/fetchless.test.ts
+  - [x] 5 用户端点 SSRF / 禁止重定向：tests/agent-runtime/model-connections*.test.ts、tests/api/probe-models.test.ts
+  - [x] 6 密钥不外泄：model-connections / tests/agent-runtime/pro-model-chain.test.ts 无泄漏用例；
+        实测：/api/server-providers 响应、P7 库全量数据导出（1.9 MB）、web/worker 容器日志中 5 个真实 key 的特征串均 0 命中
+  - [x] 7 尝试计数 / 配额释放 / 429 冷却：tests/model-gateway/errors-retry.test.ts、quota.test.ts、gateway-faux.test.ts、tests/server/generation-jobs.pg.test.ts、hosted-capacity-rls.pg.test.ts；
+        实测 NVIDIA/Groq 任务失败后 generation_provider_slots 无持有者（未知结果的槽按设计隔离 5 分钟）
+  - [x] 8 观察到输出后不重试：errors-retry.test.ts；实测 NVIDIA 页面内容 300 s 截止后 needs_attention（EXTERNAL_RESULT_UNKNOWN），未自动重试
+  - [x] 9 用量逐次记录：tests/model-gateway/usage-auth-transport.test.ts、gateway-faux.test.ts、pro-model-chain.test.ts
+  - [x] 10 PBL 工具只执行一次、顺序不变：tests/model-gateway/splitter-toolloop-images.test.ts
+  - [x] 11 PRO 截断不执行 / 撤销围栏 / 旧会话：tests/model-gateway/adapters/agent-stream-fn.test.ts、gateway-faux.test.ts、tests/agent-runtime/attempt-cap.test.ts
+  - [x] 12 快照 / PRO 连接读旧写新：tests/server/generation-model-snapshots.test.ts、model-connections 测试；
+        实测库中快照 schema_version=3，容器重建后课程仍可读；PRO 换模型生成 revision 2
+  - [x] 13 设置升级保留、账号不串：tests/store/settings-provider-catalog.test.ts、settings-server-sync.test.ts；实测刷新/换页后所选模型保留
+  - [x] 14 客户端包无 pi-ai 运行时 / SDK：scripts/check-client-bundle.mjs + tests/model-gateway/client-boundary.test.ts
+  - [x] 15 性能：6.5 门槛通过（perf-gateway.json）
+真实供应商验证（2026-10-02/03，本地 Docker 托管栈，不记录任何 key）：
+  - 环境：本分支构建的 zhiyu-supabase-web/worker 镜像（托管模式，AUTH_MODE=supabase、GENERATION_BACKGROUND_ENABLED=1），
+    全新本地 PostgreSQL（独立卷，app_web / app_worker 角色 + RLS），本地文件存储；Supabase 只用于登录（publishable key），
+    不连接生产库 / 存储 / 密钥。运维 key 只放在临时 env / server-providers.yml（不入库、测试后删除）。用户在内置浏览器用管理员账号登录
+  - DeepSeek deepseek-flash（平台默认，platform）：后台生成一节 4 页课（slide / interactive / quiz）成功；课堂 Director（chat-adapter + 流）成功；
+    PRO 工作台 agent-runtime → "规划课堂"工具 → 生成任务 3 页成功；PBL 课生成成功；
+    PBL 导师（重建镜像后）：开场 5.5 s、对话 7.1 s 均 ok，无 permission denied / ENOENT
+  - MiniMax MiniMax-M3（原有 provider，operator，anthropic-messages）：第 1 节课页面内容返回无法修复的 JSON（"fixedRatio":false"}]}）任务失败
+    （P7 前即存在，修复见遗留）；第 2 节 6 页课成功
+  - GLM glm-5.3-flash（原有 provider，operator，Z.ai 通用端点 https://api.z.ai/api/paas/v4）：课堂 Director 两轮——第 1 轮回答 50.8 s 成功、
+    后续导演决策 633 ms MODEL_TIMEOUT（见下方网络说明，答案已显示，回合正常结束）；第 2 轮回答 26.4 s + 导演决策 12.8 s 均成功
+  - NVIDIA z-ai/glm-5.3-flash（新增 provider，operator，免费端点）：后台生成——大纲 58 s、角色 86 s 成功，页面内容流式 300 s 后到达后台截止被中止 →
+    needs_attention；PRO 工作台：3 次 agent-runtime 调用（15 / 69 / 61 s）成功，加载 skill、读文件、向用户确认（ask_user）工具均正常
+  - Groq openai/gpt-oss-120b（新增 provider，operator，免费档）：后台生成——大纲 14.4 s、角色 16.7 s 成功，页面内容 413（每分钟 8000 token 上限）→
+    MODEL_CONTEXT_OVERFLOW；PBL 导师与课堂 Director 的提示词同样超过 8000 token → 413（分类正确）。完整课程需付费档
+  - 本地网络说明：Docker 到 Cloudflare 的建连约 350 ms，超过 Node 22 happy-eyeballs 每地址 250 ms 尝试时限，且容器解析到不可达的 IPv6，
+    导致 Groq 每次约 1 s 内 ETIMEDOUT（网关如实记为 MODEL_TIMEOUT，requestSent 未知故不重试），GLM 偶发一次同类失败；
+    本地栈加 NODE_OPTIONS=--network-family-autoselection-attempt-timeout=1000 后恢复。东京生产到各 provider 延迟为个位数毫秒，不受影响；main 同样使用 Node 默认值
+偏差：
+  - 本地托管库无法由 migrateAccountsSchema 从空库一次建成（v8 重复建策略）：按"accounts v1–v20 → worker migrate → 重放 v9–v20 → 删除 auth stub"重放，最终 v20、104 条策略
+  - 账号"服务端设置同步（account KV）"：/api/kv 在 main 与本分支都没有客户端接线（HttpKVStore 未被使用），设置按账号命名空间存于浏览器 localStorage；
+    服务端同步的只有 /api/server-providers（已实测）。P5 记录的"未验证"项据此关闭，不属回归
+  - Docker 本地 DNS 覆盖（223.5.5.5 / 119.29.29.29）沿用 docker-compose.dns.local.yml 做法
+黄金数据差异白名单：无新增
+遗留问题：
+  - 模型返回无法修复的 JSON 时整步失败：修复在独立分支 claude/unusable-output-rerequest（基于 main，未合入本分支；services.ts 与网关版有冲突，需手工移植）
+  - 发出请求后的非 429 失败（含 413 这类明确拒绝）一律记为 EXTERNAL_RESULT_UNKNOWN 并转 needs_attention：P7 前即存在的保守设计，可细分
+  - 免费档 NVIDIA 生成页面内容超过 300 s 后台截止；Groq 免费档 8000 TPM 只够大纲 / 角色
+  - 网关 transport 未设置 autoSelectFamilyAttemptTimeout：高延迟部署（> 250 ms RTT）会出现上面的快速 ETIMEDOUT，可在 LLM agent 的 connect 选项中放宽
+  - session-events-live.pg 的修复在独立分支未合入
+  - 回滚热修镜像未构建（分支已备好）
+发布（P7 第 3 步）：未执行——需用户明确同意后，按本地构建、docker save | ssh docker load、确认 0 个活跃 generation_jobs 后切换、readiness 的流程执行
+下一阶段可开始：发布确认后可开始 P6
 ```
 
 ---
