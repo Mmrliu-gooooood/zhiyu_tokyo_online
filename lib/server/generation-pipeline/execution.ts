@@ -92,13 +92,13 @@ export class ProviderRejectedRequest extends Error {
   }
 }
 
+/** A signed-in account the gateway refused to use: nothing was sent (plan 3.10). */
+const CREDENTIAL_REJECTION_CODES = new Set(['MODEL_REAUTH_REQUIRED', 'MODEL_AUTH_FAILED']);
+
 function definiteModelRejection(error: unknown) {
-  return isGatewayError(error) &&
-    !error.outputObserved &&
-    error.status !== undefined &&
-    DEFINITE_REJECTION_STATUSES.has(error.status)
-    ? error
-    : undefined;
+  if (!isGatewayError(error) || error.outputObserved) return undefined;
+  if (error.status !== undefined && DEFINITE_REJECTION_STATUSES.has(error.status)) return error;
+  return !error.requestSent && CREDENTIAL_REJECTION_CODES.has(error.code) ? error : undefined;
 }
 
 /** The provider answered, but its output stayed unusable after bounded re-requests. */

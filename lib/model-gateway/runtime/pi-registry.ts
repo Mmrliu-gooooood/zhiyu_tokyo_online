@@ -151,6 +151,25 @@ export function createCallModels(provider: Provider, authContext: AuthContext): 
 }
 
 /**
+ * Per-call `Models` view for a signed-in account: pi reads, and refreshes
+ * under the store's lock, the one credential the scoped store exposes.
+ */
+export function createCredentialModels(
+  provider: Provider,
+  authContext: AuthContext,
+  credentials: CredentialStore,
+): MutableModels {
+  const models = createModels({ authContext, credentials });
+  models.setProvider(provider);
+  return models;
+}
+
+/** Resolve request auth up front so credential failures keep their cause. */
+export function authenticateModel(models: MutableModels, model: PiModel, signal: AbortSignal) {
+  return models.getAuth(model, { signal });
+}
+
+/**
  * Run a provider's OAuth sign-in (plan 3.10). pi persists the result through
  * its credential store; here that store only captures it, so the caller
  * decides whether the credential is kept (the sign-in session may have been

@@ -13,6 +13,8 @@
  * - The credential lives in a private handle; the binding is frozen.
  */
 import { getStageRoute, type StageRoute } from '@/lib/server/model-routes';
+import { getProviderQuotaOwner } from '@/lib/server/generation-jobs/provider-call-context';
+import { getHeavyTaskRootContext } from '@/lib/server/heavy-task-admission';
 import {
   isServerConfiguredProvider,
   resolveApiKey,
@@ -58,6 +60,12 @@ export interface ResolveBindingInput {
   selection?: ModelSelection;
   /** Generation stage for MODEL_ROUTES (a gateway `source` label). */
   stage?: string;
+  /**
+   * The verified owner of the call. Required for signed-in credentials;
+   * defaults to the admitted task's owner (worker jobs, PRO runner) or the
+   * current request's owner, the same order usage recording uses.
+   */
+  ownerId?: string;
 }
 
 const AMBIENT_APIS = new Set<string>(['bedrock-converse-stream', 'google-vertex']);
@@ -242,8 +250,7 @@ export async function resolveBinding(input: ResolveBindingInput): Promise<ModelB
   if (!managed && connectionApi && AMBIENT_APIS.has(connectionApi)) {
     throw configurationError(providerId, modelId);
   }
-  if (connection?.auth === 'credential') {
-    // Subscription credentials arrive with the R2 credential vault (P6).
+  if (connection?.auth === 'credential' && !descriptor?.auth.includes('oauth')) {
     throw configurationError(providerId, modelId);
   }
 
@@ -272,6 +279,14 @@ export async function resolveBinding(input: ResolveBindingInput): Promise<ModelB
     proxy = resolveProxy(providerId);
     endpoint = 'operator';
     funding = { kind: 'operator' };
+  } else if (connection?.auth === 'credential') {
+    // A signed-in account (plan 3.10): only its id travels; the vault supplies
+    // the current token before every call and checks owner and provider then.
+    const ownerId = input.ownerId ?? getHeavyTaskRootContext()?.ownerId ?? getProviderQuotaOwner();
+    if (!ownerId) throw configurationError(providerId, modelId);
+    handle = { kind: 'vault', ownerId, credentialId: connection.credentialId };
+    endpoint = 'official';
+    funding = { kind: 'subscription', credentialId: connection.credentialId };
   } else if (connection?.auth === 'api-key') {
     handle = { kind: 'inline-key', apiKey: connection.apiKey };
     baseUrl = connection.baseUrl;

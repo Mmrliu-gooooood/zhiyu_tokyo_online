@@ -369,6 +369,7 @@ export async function validateBackgroundProviders(
       const resolved = await resolveBinding({
         request: storedSelectionRequest(stored, input.model),
         stage,
+        ownerId: context?.ownerId,
       });
       const managed = providers[resolved.providerId];
       // Only the authenticated owner snapshot authorizes an unmanaged model.

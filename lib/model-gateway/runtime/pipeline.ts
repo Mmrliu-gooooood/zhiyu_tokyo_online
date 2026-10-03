@@ -18,6 +18,13 @@ import { getCanonicalModelId } from '@/lib/ai/model-aliases';
 import { getCredentialHandle } from '../credentials/handles';
 import { ambientAuthContext, sealedAuthContext } from '../credentials/auth-context';
 import { explicitProviderEnv } from '../credentials/env-exposure';
+import {
+  credentialError,
+  credentialFailure,
+  defaultCredentialDatabase,
+  openVaultStore,
+  type CredentialDatabaseFactory,
+} from '../credentials/vault-auth';
 import { messageText } from '../messages';
 import type {
   AssistantMessage,
@@ -45,7 +52,9 @@ import { FETCHLESS_APIS, fetchlessRefusal } from './fetchless';
 import { resolveImages, ImageInputError } from './images';
 import {
   KEYLESS_API_KEY,
+  authenticateModel,
   createCallModels,
+  createCredentialModels,
   estimateCostUsd,
   getCustomProvider,
   loadPiProvider,
@@ -95,6 +104,8 @@ export interface GatewayDeps {
   logCall: (line: LlmCallLog) => void;
   /** Test seam: fetch used for official endpoints. */
   baseFetch?: typeof globalThis.fetch;
+  /** Owner-bound vault access for signed-in accounts (plan 3.10). */
+  credentialDatabase: CredentialDatabaseFactory;
 }
 
 async function defaultResolveProvider(binding: ModelBinding): Promise<ResolvedProvider> {
@@ -132,6 +143,7 @@ export const defaultDeps: GatewayDeps = {
   resolveProvider: defaultResolveProvider,
   sleep: sleepWithAbort,
   logCall: (line) => log.info(JSON.stringify(line)),
+  credentialDatabase: defaultCredentialDatabase,
 };
 
 // ---------------------------------------------------------------------------
@@ -288,10 +300,8 @@ function apiKeyFor(binding: ModelBinding): string | undefined {
     case 'none':
       return KEYLESS_API_KEY;
     case 'vault':
-      throw new GatewayError('MODEL_CONFIGURATION', {
-        providerId: binding.providerId,
-        modelId: binding.modelId,
-      });
+      // pi resolves the signed-in account's token through the scoped store.
+      return undefined;
   }
 }
 
@@ -580,7 +590,19 @@ export function runStream(
       // 5 credentials, 7 pi call
       const apiKey = apiKeyFor(binding);
       const { provider, authContext } = await deps.resolveProvider(binding);
-      const models = createCallModels(provider, authContext);
+      const handle = getCredentialHandle(binding);
+      let models = createCallModels(provider, authContext);
+      if (handle.kind === 'vault') {
+        try {
+          const store = await openVaultStore(binding, handle, deps.credentialDatabase);
+          models = createCredentialModels(provider, authContext, store);
+          const auth = await authenticateModel(models, binding.model, attemptSignal);
+          if (!auth) throw credentialError('MODEL_AUTH_FAILED', binding);
+        } catch (error) {
+          if (attemptSignal.aborted) throw error;
+          return fail(credentialFailure(error, binding));
+        }
+      }
       const providerEnv = explicitProviderEnv(binding);
       const bearer =
         apiKey && binding.transforms.bearerKeyPrefixes?.some((prefix) => apiKey.startsWith(prefix));

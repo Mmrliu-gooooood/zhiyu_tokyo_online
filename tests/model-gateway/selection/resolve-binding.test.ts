@@ -610,3 +610,68 @@ describe('resolveBinding — gateway-era rules', () => {
     expect(ready.requestEnv).not.toHaveProperty('UNRELATED');
   });
 });
+
+describe('resolveBinding — signed-in accounts (P6-4)', () => {
+  const credentialId = '11111111-1111-4111-8111-111111111111';
+  const selection = (providerId: string, modelId: string) =>
+    ({
+      source: 'user',
+      providerId,
+      modelId,
+      connection: { auth: 'credential', credentialId },
+    }) as const;
+
+  beforeEach(() => {
+    vi.resetModules();
+    mocks.serverManaged = false;
+    delete process.env.MODEL_ROUTES;
+    delete process.env.DEFAULT_MODEL;
+  });
+
+  it('binds only the credential id and the owner; the vault supplies the token later', async () => {
+    const { resolveBinding } = await load();
+    const binding = await resolveBinding({
+      selection: selection('openai-codex', 'gpt-5.5'),
+      ownerId: 'user:owner-a',
+    });
+    expect(binding).toMatchObject({
+      providerId: 'openai-codex',
+      endpoint: 'official',
+      funding: { kind: 'subscription', credentialId },
+      credentialReady: true,
+    });
+    expect(await credential(binding)).toEqual({
+      kind: 'vault',
+      ownerId: 'user:owner-a',
+      credentialId,
+    });
+  });
+
+  it('takes the owner from the admitted task or the request when not given', async () => {
+    const { resolveBinding } = await load();
+    const { withHeavyTaskRootContext } = await import('@/lib/server/heavy-task-admission');
+    const { withProviderQuotaOwner } =
+      await import('@/lib/server/generation-jobs/provider-call-context');
+    const fromTask = await withHeavyTaskRootContext(
+      { ownerId: 'user:worker-owner', rootTaskId: 'generation:job-1', kind: 'generation' },
+      () => resolveBinding({ selection: selection('openai-codex', 'gpt-5.5') }),
+    );
+    expect(await credential(fromTask)).toMatchObject({ ownerId: 'user:worker-owner' });
+    const fromRequest = await withProviderQuotaOwner('user:request-owner', () =>
+      resolveBinding({ selection: selection('openai-codex', 'gpt-5.5') }),
+    );
+    expect(await credential(fromRequest)).toMatchObject({ ownerId: 'user:request-owner' });
+  });
+
+  it('refuses a credential without an owner or for a provider without sign-in', async () => {
+    const { resolveBinding } = await load();
+    await expect(
+      resolveBinding({ selection: selection('openai-codex', 'gpt-5.5') }),
+    ).rejects.toMatchObject({ code: 'MODEL_CONFIGURATION' });
+    const error = await resolveBinding({
+      selection: selection('deepseek', 'deepseek-flash'),
+      ownerId: 'user:owner-a',
+    }).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ name: 'GatewayError', code: 'MODEL_CONFIGURATION' });
+  });
+});

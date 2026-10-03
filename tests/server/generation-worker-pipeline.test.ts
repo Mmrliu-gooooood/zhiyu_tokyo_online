@@ -1168,7 +1168,7 @@ describe('durable worker pipeline', () => {
   });
   const gatewayError = (
     code: GatewayErrorCode,
-    init: { status?: number; outputObserved?: boolean } = {},
+    init: { status?: number; outputObserved?: boolean; requestSent?: boolean } = {},
   ) =>
     new GatewayError(code, {
       providerId: 'groq',
@@ -1210,6 +1210,28 @@ describe('durable worker pipeline', () => {
     },
   );
 
+  it.each(['MODEL_REAUTH_REQUIRED', 'MODEL_AUTH_FAILED'] as const)(
+    'records a signed-in account failure before sending (%s) as a certain failure',
+    async (code) => {
+      const { execution, repo } = setup();
+      const error = await execution
+        .external('content:s1:call:0', {}, 'llm', 'provider', async () => {
+          throw gatewayError(code, { requestSent: false });
+        })
+        .catch((caught) => caught);
+      expect(error).toBeInstanceOf(ProviderRejectedRequest);
+      expect(error).toMatchObject({ code });
+      expect(repo.failures).toEqual([
+        {
+          stepKey: 'content:s1:call:0',
+          code,
+          uncertain: false,
+          errorSummary: gatewayError(code).message,
+        },
+      ]);
+    },
+  );
+
   it.each([
     ['a 5xx response', 'llm', gatewayError('MODEL_UPSTREAM_UNAVAILABLE', { status: 500 })],
     ['a 408 response', 'llm', gatewayError('MODEL_TIMEOUT', { status: 408 })],
@@ -1220,6 +1242,7 @@ describe('durable worker pipeline', () => {
       gatewayError('MODEL_BAD_REQUEST', { status: 400, outputObserved: true }),
     ],
     ['a non-LLM call', 'media', gatewayError('MODEL_CONTEXT_OVERFLOW', { status: 413 })],
+    ['a credential failure after sending', 'llm', gatewayError('MODEL_REAUTH_REQUIRED')],
   ] as const)('keeps %s unknown', async (_name, kind, thrown) => {
     const { execution, repo } = setup();
     await expect(
