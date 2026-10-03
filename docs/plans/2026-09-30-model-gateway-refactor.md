@@ -815,7 +815,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P3 | 已完成（2026-10-02） | 25a00b8b, 5ae19d2f, 9cb6234b, 4a0520b6, 9cb170ee, 219f0af4 + 本次进度提交 | 见下方 P3 记录 | 旧文本栈已删除；全量 vitest 827 文件 / 8648 用例全绿；P2 记录的 9 项产品可见变化已确认保留；修正用量别名记录与 PRO 撤销连接错误两处问题；3 个测试文件的 P0 遗留类型错误与 6 个未改动文件的既有 lint 错误见记录 |
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
-| R1 验收（P7） | 验收完成，发布待确认（2026-10-03） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
+| R1 验收（P7） | 已发布（2026-10-03，release-20261003） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
 | P6 | 未开始 | | | |
 | R2 验收（P7） | 未开始 | | | |
 
@@ -1225,7 +1225,20 @@ R1 遗留项处理（2026-10-03，refactor/model-gateway；未推送、未发布
     当日网络下默认 250 ms 也能从容器连通 Groq（401），原来的快速 ETIMEDOUT 无法复现，以单元测试为准
   - 浏览器端到端（假 key 的 Groq 生成任务应以 failed 结束）：未执行（在页面填写 API key 需用户操作）；由端到端 413 测试覆盖
   回滚热修镜像：zhiyu-supabase-web:rollback-r1、zhiyu-supabase-worker:rollback-r1，构建自 hotfix/r1-rollback-read-compat @ d4104d37，两个镜像均含 v3 快照读取代码
-  仍待用户决定：R1 生产发布；合并到 main 的范围
+  合并：本地 main 快进到 1d7d2e8c（未推送远程）
+R1 发布（P7 第 3 步，2026-10-03，经用户同意）：
+  - 迁移：生产 Supabase（lvbtgwlsebzbtcvjwktq）原为 accounts v19（v5–v7 按既有记录不在托管库）。未用 pnpm accounts:migrate
+    （它会补跑 v5–v7），而是按 v9–v19 的做法以 Supabase 迁移 accounts_v20_usage_funding 只执行 v20 并写入 app_schema_migrations
+    （校验值 c81b3218c34b…，与仓库计算一致；先核对 v19 生产校验值与仓库一致）。7 列已存在，原 690 行用量记录不变，app_web / app_worker 表级权限覆盖新列
+  - 镜像：zhiyu-supabase-web/worker:release-20261003（构建自 66849396，与 main 1d7d2e8c 运行代码相同）与 rollback-r1 一并 docker save | gzip | ssh docker load（941 s），
+    服务器镜像 ID 与本地一致
+  - 切换：确认 0 个活跃 generation_jobs（共 77，最近一次 2026-09-29）后，/opt/zhiyu/.env.hosted.local 标签 release-20260926e → release-20261003
+    （原文件备份为 .env.hosted.local.bak-20261003-pre-r1），supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes（10:39 UTC，容器重建约 3 s）
+  - 验证：3 个容器 healthy；readiness ready=true、accounts v20、generation v4、worker 2/2、私有 bucket 3/3；
+    https://zhiyulearn.online/ 307 → 登录页 200，/api/server-providers 未登录 401；web 与两个 worker 启动日志 pi_env_audit
+    direct: [AZURE_OPENAI_BASE_URL]（生产配置了运维 Azure 端点；网关在请求 env 中显式传入，仅记录名称）、credentials: [DEEPSEEK_API_KEY]，无错误
+  - 回滚：.env.hosted.local 标签改为 rollback-r1 后再执行同一 apply（镜像已在服务器上）；回滚前先暂停接单并确认没有由新版本创建的未完成任务
+下一阶段：P6（R2）
 ```
 
 ---
