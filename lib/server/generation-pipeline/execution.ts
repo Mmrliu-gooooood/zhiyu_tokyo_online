@@ -71,6 +71,16 @@ export class UnknownExternalOutcome extends Error {
     this.name = 'UnknownExternalOutcome';
   }
 }
+/** The provider answered, but its output stayed unusable after bounded re-requests. */
+export class InvalidModelOutput extends Error {
+  constructor(
+    readonly code: string,
+    readonly safeSummary: string,
+  ) {
+    super(code);
+    this.name = 'InvalidModelOutput';
+  }
+}
 export class ProviderRetryScheduled extends Error {
   readonly safeToRetry = true;
   constructor(
@@ -235,8 +245,10 @@ export class PipelineExecution {
       ) {
         await this.repository.failStep(this.lease, {
           stepKey: key,
-          code: 'GENERATION_STEP_FAILED',
           uncertain: false,
+          ...(error instanceof InvalidModelOutput
+            ? { code: error.code, errorSummary: error.safeSummary }
+            : { code: 'GENERATION_STEP_FAILED' }),
         });
       }
       throw error;

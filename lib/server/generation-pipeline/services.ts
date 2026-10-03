@@ -38,10 +38,32 @@ import { buildPrompt, PROMPT_IDS } from '@/lib/prompts';
 import { MAX_PDF_CONTENT_CHARS } from '@/lib/constants/generation';
 import { normalizeTaskEngineOutline, sanitizeNonTaskEngineOutline } from './outline-modes';
 import { buildSearchQuery } from '@/lib/server/search-query-builder';
-import { PipelineExecution } from './execution';
+import { InvalidModelOutput, PipelineExecution } from './execution';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('GenerationSearch');
+const outputLog = createLogger('GenerationOutput');
+
+/**
+ * Fresh provider requests one step execution may add after the model answered
+ * with unusable output. The step's own max_attempts bounds how often a resume
+ * or manual retry grants this budget again.
+ */
+export const UNUSABLE_OUTPUT_REREQUESTS = 1;
+
+/** Per-step record of a model caller's sequential call keys. */
+export interface ModelCallLedger {
+  /** Call keys handed out (`<step>:call:<n>`), recorded or not. */
+  issued: number;
+  /** Requests actually sent; a recorded call key replays without one. */
+  dispatched: number;
+  /** Sticky provider failure; no later call may be attempted. */
+  failure?: unknown;
+}
+
+export function newModelCallLedger(): ModelCallLedger {
+  return { issued: 0, dispatched: 0 };
+}
 
 /** Diagnostic hostname of the bound endpoint (never a URL or credential). */
 function endpointHostname(binding: ModelBinding): string | undefined {
@@ -96,19 +118,18 @@ export class GenerationServices {
   async modelCall(
     stage: LlmStage,
     key: string,
+    calls: ModelCallLedger = newModelCallLedger(),
   ): Promise<{ aiCall: AICallFn; binding: ModelBinding }> {
     const binding = await resolveBinding({
       request: storedSelectionRequest(this.modelSelection, this.input.model),
       stage,
     });
     if (!binding.credentialReady) throw new Error('PROVIDER_NOT_CONFIGURED');
-    let callIndex = 0;
-    let failure: unknown;
     const aiCall: AICallFn = async (system, prompt, images) => {
       // Some package generators catch provider errors. Keep the execution failure
       // sticky so a repair call can never replay an unknown paid request.
-      if (failure) throw failure;
-      const id = `${key}:call:${callIndex++}`;
+      if (calls.failure) throw calls.failure;
+      const id = `${key}:call:${calls.issued++}`;
       try {
         return await this.execution.external(
           id,
@@ -122,6 +143,8 @@ export class GenerationServices {
           'llm',
           binding.providerId,
           async (signal) => {
+            // Only runs when the call key has no recorded result.
+            calls.dispatched++;
             const vision = images?.length && binding.capabilities.vision;
             const resolvedImages = vision
               ? await Promise.all(
@@ -155,11 +178,47 @@ export class GenerationServices {
           { hostname: endpointHostname(binding) },
         );
       } catch (error) {
-        failure = error;
+        calls.failure = error;
         throw error;
       }
     };
     return { aiCall, binding };
+  }
+
+  /**
+   * Run `attempt` until it yields usable model output. When the provider
+   * answered but `attempt` could not use the text (e.g. unrepairable JSON), the
+   * next round sends a fresh request under the next call key; a recorded
+   * output is never re-parsed as if it were new. Rounds whose call key was
+   * already recorded replay for free, so a resumed step pays only for calls it
+   * never made. Provider failures are never retried here.
+   */
+  async untilUsableOutput<T>(
+    calls: ModelCallLedger,
+    code: string,
+    attempt: () => Promise<T | null>,
+  ): Promise<T> {
+    let rerequests = 0;
+    for (let round = 0; ; round++) {
+      const issued = calls.issued;
+      const dispatched = calls.dispatched;
+      const value = await attempt();
+      if (round > 0 && calls.dispatched > dispatched) rerequests++;
+      if (value !== null) return value;
+      // A package generator may swallow a provider failure; never mask it.
+      if (calls.failure) throw calls.failure;
+      if (calls.issued === issued || rerequests >= UNUSABLE_OUTPUT_REREQUESTS)
+        throw new InvalidModelOutput(
+          code,
+          calls.issued === issued
+            ? 'Generation produced no usable result without calling the model.'
+            : `Model output was unusable after ${calls.issued} call(s), including ${rerequests} fresh re-request(s).`,
+        );
+      outputLog.warn('Model output was unusable; re-requesting under a fresh call key', {
+        code,
+        nextCall: calls.issued,
+      });
+    }
   }
 
   async research(): Promise<string> {
@@ -212,7 +271,8 @@ export class GenerationServices {
   }
 
   async plan(researchContext: string): Promise<GenerationPlan> {
-    const { aiCall, binding } = await this.modelCall('scene-outlines-stream', 'plan');
+    const calls = newModelCallLedger();
+    const { aiCall, binding } = await this.modelCall('scene-outlines-stream', 'plan', calls);
     const images = (this.input.materials?.images ?? []).map((image) => ({
       ...image,
       src: '',
@@ -250,7 +310,7 @@ export class GenerationServices {
     const outlineCall: AICallFn = specialized
       ? (_system, _user, visionImages) => aiCall(specialized.system, specialized.user, visionImages)
       : aiCall;
-    const result = await generateSceneOutlinesFromRequirements(
+    const outlineRequest: Parameters<typeof generateSceneOutlinesFromRequirements> = [
       this.input.requirements,
       this.input.materials?.text,
       images,
@@ -263,27 +323,31 @@ export class GenerationServices {
         researchContext,
         teacherContext,
       },
-    );
-    if (!result.success || !result.data) throw new Error('INVALID_OUTLINE_RESULT');
-    result.data.outlines = result.data.outlines.map((outline) =>
+    ];
+    const data = await this.untilUsableOutput(calls, 'INVALID_OUTLINE_RESULT', async () => {
+      const result = await generateSceneOutlinesFromRequirements(...outlineRequest);
+      return result.success && result.data ? result.data : null;
+    });
+    data.outlines = data.outlines.map((outline) =>
       taskEngineMode
         ? normalizeTaskEngineOutline(outline, this.input.requirements.requirement)
         : sanitizeNonTaskEngineOutline(outline),
     );
-    validatePlan(result.data.outlines);
+    validatePlan(data.outlines);
     return {
-      ...result.data,
-      languageDirective: this.input.languageDirective ?? result.data.languageDirective,
-      courseTitle: this.input.courseTitle ?? result.data.courseTitle,
+      ...data,
+      languageDirective: this.input.languageDirective ?? data.languageDirective,
+      courseTitle: this.input.courseTitle ?? data.courseTitle,
     };
   }
 
   async agents(plan: GenerationPlan): Promise<AgentCheckpoint> {
     if (this.input.agents?.mode === 'custom') return this.input.agents.items!;
     if (this.input.agents?.mode !== 'generate') return getDefaultAgents();
-    const { aiCall } = await this.modelCall('agent-profiles', 'agents');
+    const calls = newModelCallLedger();
+    const { aiCall } = await this.modelCall('agent-profiles', 'agents', calls);
     const count = this.input.agents.count;
-    const text = await aiCall(
+    const rosterRequest: [system: string, prompt: string] = [
       `Evaluate the course difficulty and generate its classroom roster in one decision. Return JSON {"difficulty":{"level":"introductory|applied|complex","rationale":"..."},"agents":[{"id":"unique-role-id","name":"...","role":"teacher|assistant|student","persona":"course-specific teaching or learning responsibility"}]}. Exactly one teacher and ${count ? `exactly ${count} total agents for this legacy fixed-count task` : '2–5 total agents chosen from the course complexity and necessary responsibilities'}. Use distinct non-empty responsibilities and unique role IDs. Do not choose from title, subject, or page count alone.`,
       JSON.stringify(
         {
@@ -308,19 +372,20 @@ export class GenerationServices {
         null,
         2,
       ),
-    );
-    let value: {
+    ];
+    // Unparseable JSON earns a fresh request; a parsed but invalid roster does not.
+    const value = await this.untilUsableOutput<{
       selectedCount?: number;
       difficulty?: AutomaticAgentDecisionCheckpoint['difficulty'];
       agents?: AgentInfo[];
-    };
-    try {
-      value = JSON.parse(
-        text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''),
-      ) as typeof value;
-    } catch {
-      throw new Error('INVALID_AGENT_RESULT');
-    }
+    }>(calls, 'INVALID_AGENT_RESULT', async () => {
+      const text = await aiCall(...rosterRequest);
+      try {
+        return JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
+      } catch {
+        return null;
+      }
+    });
     const agents = value.agents;
     const difficulty = value.difficulty;
     const ids = new Set<string>();
@@ -377,13 +442,14 @@ export class GenerationServices {
   ): Promise<ContentCheckpoint> {
     const key = `content:${outline.id}`;
     const stage = `scene-content:${outline.type}` as LlmStage;
-    const { aiCall, binding } = await this.modelCall(stage, key);
+    const calls = newModelCallLedger();
+    const { aiCall, binding } = await this.modelCall(stage, key, calls);
     const allowProceduralSkill = resolveVocationalActive(this.input.requirements);
     const effective = applyOutlineFallbacks(outline, true, { allowProceduralSkill });
     const assignedImages = (this.input.materials?.images ?? [])
       .filter((image) => effective.suggestedImageIds?.includes(image.id))
       .map((image) => ({ ...image, src: '' })) as PdfImage[];
-    const content = await generateSceneContent(effective, aiCall, {
+    const options: Parameters<typeof generateSceneContent>[2] = {
       agents,
       languageDirective: plan.languageDirective,
       targetLanguage: this.input.locale,
@@ -410,8 +476,11 @@ export class GenerationServices {
               ),
           }
         : {}),
-    });
-    if (!content) throw new Error('INVALID_CONTENT_RESULT');
+    };
+    // Slide/quiz/interactive generators return null for unusable output.
+    const content = await this.untilUsableOutput(calls, 'INVALID_CONTENT_RESULT', () =>
+      generateSceneContent(effective, aiCall, options),
+    );
     return { outline: effective, content };
   }
 
