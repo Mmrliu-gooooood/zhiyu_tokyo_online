@@ -15,7 +15,10 @@ import {
   lazyApi,
   Type,
   type AuthContext,
+  type AuthInteraction,
   type Context,
+  type Credential,
+  type CredentialStore,
   type MutableModels,
   type Provider,
   type ProviderStreams,
@@ -145,6 +148,36 @@ export function createCallModels(provider: Provider, authContext: AuthContext): 
   const models = createModels({ authContext });
   models.setProvider(provider);
   return models;
+}
+
+/**
+ * Run a provider's OAuth sign-in (plan 3.10). pi persists the result through
+ * its credential store; here that store only captures it, so the caller
+ * decides whether the credential is kept (the sign-in session may have been
+ * cancelled meanwhile). The sealed context keeps ambient env out of the flow.
+ */
+export async function runProviderLogin(
+  provider: Provider,
+  authContext: AuthContext,
+  interaction: AuthInteraction,
+  deviceId: string,
+): Promise<Credential> {
+  let captured: Credential | undefined;
+  const capture: CredentialStore = {
+    read: async () => captured,
+    list: async () => [],
+    modify: async (_providerId, fn) => {
+      const next = await fn(captured);
+      if (next !== undefined) captured = next;
+      return captured;
+    },
+    delete: async () => {
+      captured = undefined;
+    },
+  };
+  const models = createModels({ authContext, credentials: capture });
+  models.setProvider(provider);
+  return models.login(provider.id, 'oauth', interaction, { getDeviceId: () => deviceId });
 }
 
 export function streamModel(

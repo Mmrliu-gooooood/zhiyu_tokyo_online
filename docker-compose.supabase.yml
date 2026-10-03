@@ -101,6 +101,14 @@ x-runtime-environment: &runtime-environment
   MATERIAL_S3_BUCKET: ${MATERIAL_S3_BUCKET:?Set the private material bucket}
   CLASSROOM_S3_BUCKET: ${CLASSROOM_S3_BUCKET:?Set the private classroom snapshot bucket}
   DEFAULT_MODEL: ${DEFAULT_MODEL:-}
+  # Subscription sign-in (model gateway R2). Optional: without the key no
+  # provider offers sign-in. The generation worker reads signed-in credentials
+  # before each model call, so web and worker need the same credential key.
+  MODEL_OAUTH_PROVIDERS: ${MODEL_OAUTH_PROVIDERS:-}
+  MODEL_OAUTH_DEVICE_ID: ${MODEL_OAUTH_DEVICE_ID:-}
+  MODEL_CREDENTIAL_ENCRYPTION_KEY: ${MODEL_CREDENTIAL_ENCRYPTION_KEY:-}
+  MODEL_CREDENTIAL_KEY_VERSION: ${MODEL_CREDENTIAL_KEY_VERSION:-}
+  MODEL_CREDENTIAL_RETIRED_KEYS: ${MODEL_CREDENTIAL_RETIRED_KEYS:-}
   MODEL_ROUTES: ${MODEL_ROUTES:-}
   ZHIYU_DEFAULT_TEXT_MODEL: ${ZHIYU_DEFAULT_TEXT_MODEL:-}
   ZHIYU_DEFAULT_TEXT_DISPLAY_NAME: ${ZHIYU_DEFAULT_TEXT_DISPLAY_NAME:-}

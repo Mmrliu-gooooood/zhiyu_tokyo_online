@@ -66,11 +66,16 @@ describe('sealing', () => {
         CredentialVaultError,
       );
     }
-    const [format, iv, tag, body] = sealed.ciphertext.split('.');
+    const [format, version, iv, tag, body] = sealed.ciphertext.split('.');
     const flipped = Buffer.from(body!, 'base64');
     flipped[0] = flipped[0]! ^ 1;
     expect(() =>
-      unsealCredential([format, iv, tag, flipped.toString('base64')].join('.'), 1, context, env),
+      unsealCredential(
+        [format, version, iv, tag, flipped.toString('base64')].join('.'),
+        1,
+        context,
+        env,
+      ),
     ).toThrow(CredentialVaultError);
   });
 

@@ -127,27 +127,27 @@ interface SealContext {
   secretVersion: number;
 }
 
-function aad(context: SealContext): Buffer {
-  return Buffer.from(
-    JSON.stringify([AAD_TAG, context.ownerId, context.credentialId, context.secretVersion]),
-  );
-}
+type Env = Readonly<Record<string, string | undefined>>;
 
-export function sealCredential(
-  credential: Credential,
-  context: SealContext,
-  env: Readonly<Record<string, string | undefined>> = process.env,
+/**
+ * Seal UTF-8 text with the current key. `aadParts` binds the ciphertext to
+ * its row; a different binding does not decrypt.
+ */
+export function sealText(
+  text: string,
+  aadParts: readonly unknown[],
+  env: Env = process.env,
 ): { ciphertext: string; keyVersion: number } {
   const keyring = readKeyring(env);
   if (!keyring) throw new CredentialVaultError('MODEL_CREDENTIAL_VAULT_UNAVAILABLE');
-  const parsed = credentialSchema.parse(credential);
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', keyring.current.key, iv);
-  cipher.setAAD(aad(context));
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(parsed), 'utf8'), cipher.final()]);
+  cipher.setAAD(Buffer.from(JSON.stringify(aadParts)));
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
   return {
     ciphertext: [
       'v1',
+      String(keyring.current.version),
       iv.toString('base64'),
       cipher.getAuthTag().toString('base64'),
       encrypted.toString('base64'),
@@ -156,26 +156,60 @@ export function sealCredential(
   };
 }
 
+/** Inverse of sealText; any mismatch reads as MODEL_CREDENTIAL_DECRYPTION_FAILED. */
+export function unsealText(
+  ciphertext: string,
+  aadParts: readonly unknown[],
+  env: Env = process.env,
+): string {
+  const keyring = readKeyring(env);
+  if (!keyring) throw new CredentialVaultError('MODEL_CREDENTIAL_VAULT_UNAVAILABLE');
+  try {
+    const [format, version, iv, tag, encrypted, extra] = ciphertext.split('.');
+    if (format !== 'v1' || extra !== undefined || !version || !iv || !tag || !encrypted) {
+      throw new Error();
+    }
+    const key = keyring.byVersion.get(Number(version));
+    if (!key) throw new Error();
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
+    decipher.setAAD(Buffer.from(JSON.stringify(aadParts)));
+    decipher.setAuthTag(Buffer.from(tag, 'base64'));
+    return Buffer.concat([
+      decipher.update(Buffer.from(encrypted, 'base64')),
+      decipher.final(),
+    ]).toString('utf8');
+  } catch {
+    throw new CredentialVaultError('MODEL_CREDENTIAL_DECRYPTION_FAILED');
+  }
+}
+
+function credentialAad(context: SealContext): readonly unknown[] {
+  return [AAD_TAG, context.ownerId, context.credentialId, context.secretVersion];
+}
+
+export function sealCredential(
+  credential: Credential,
+  context: SealContext,
+  env: Env = process.env,
+): { ciphertext: string; keyVersion: number } {
+  return sealText(JSON.stringify(credentialSchema.parse(credential)), credentialAad(context), env);
+}
+
+/**
+ * `keyVersion` is the row's key_version column; it must agree with the
+ * version recorded in the ciphertext.
+ */
 export function unsealCredential(
   ciphertext: string,
   keyVersion: number,
   context: SealContext,
-  env: Readonly<Record<string, string | undefined>> = process.env,
+  env: Env = process.env,
 ): Credential {
-  const keyring = readKeyring(env);
-  if (!keyring) throw new CredentialVaultError('MODEL_CREDENTIAL_VAULT_UNAVAILABLE');
-  const key = keyring.byVersion.get(keyVersion);
-  if (!key) throw new CredentialVaultError('MODEL_CREDENTIAL_DECRYPTION_FAILED');
+  if (ciphertext.split('.')[1] !== String(keyVersion)) {
+    throw new CredentialVaultError('MODEL_CREDENTIAL_DECRYPTION_FAILED');
+  }
+  const plain = unsealText(ciphertext, credentialAad(context), env);
   try {
-    const [format, iv, tag, encrypted, extra] = ciphertext.split('.');
-    if (format !== 'v1' || extra !== undefined || !iv || !tag || !encrypted) throw new Error();
-    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
-    decipher.setAAD(aad(context));
-    decipher.setAuthTag(Buffer.from(tag, 'base64'));
-    const plain = Buffer.concat([
-      decipher.update(Buffer.from(encrypted, 'base64')),
-      decipher.final(),
-    ]).toString('utf8');
     return credentialSchema.parse(JSON.parse(plain)) as Credential;
   } catch {
     throw new CredentialVaultError('MODEL_CREDENTIAL_DECRYPTION_FAILED');
@@ -206,7 +240,7 @@ export function isReauthFailure(error: unknown): boolean {
 // ---------------------------------------------------------------------------
 // Repository
 
-interface Queryable {
+export interface Queryable {
   query<TRow extends Record<string, unknown>>(
     text: string,
     params?: unknown[],
@@ -448,66 +482,72 @@ export class CredentialVault {
    * the new secret; otherwise a new row is created.
    */
   async save(input: SaveCredentialInput): Promise<CredentialSummary> {
+    return this.db.withTransaction((db) => this.saveWithin(db, input));
+  }
+
+  /**
+   * `save` inside a caller's owner-bound transaction (sign-in completion
+   * checks its session in the same transaction, plan 3.10).
+   */
+  async saveWithin(db: Queryable, input: SaveCredentialInput): Promise<CredentialSummary> {
     const label = sanitizeAccountLabel(input.accountLabel);
-    return this.db.withTransaction(async (db) => {
-      await db.query(`SELECT set_config('lock_timeout', $1, true)`, [`${this.#lockTimeoutMs}ms`]);
-      // Serialize concurrent sign-ins for one owner and provider.
-      await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
-        `model-credential:${this.ownerId}:${input.providerId}`,
-      ]);
-      const existing = await db.query<CredentialRow>(
-        `SELECT ${SECRET_COLUMNS} FROM model_credentials
-          WHERE owner_id=$1 AND provider_id=$2 AND status <> 'revoked' FOR UPDATE`,
-        [this.ownerId, input.providerId],
-      );
-      const row = existing.rows[0];
-      const credentialId = row?.id ?? randomUUID();
-      const secretVersion = (row?.secret_version ?? 0) + 1;
-      const sealed = sealCredential(
-        input.credential,
-        { ownerId: this.ownerId, credentialId, secretVersion },
-        this.#env,
-      );
-      const result = row
-        ? await db.query<CredentialRow>(
-            `UPDATE model_credentials
-                SET pi_provider_id=$3, auth_kind=$4, status='active', account_label=$5,
-                    ciphertext=$6, key_version=$7, secret_version=$8, expires_at=$9,
-                    updated_at=clock_timestamp()
-              WHERE id=$1 AND owner_id=$2
-              RETURNING ${SUMMARY_COLUMNS}`,
-            [
-              credentialId,
-              this.ownerId,
-              input.piProviderId,
-              input.authKind,
-              label,
-              sealed.ciphertext,
-              sealed.keyVersion,
-              secretVersion,
-              expiryOf(input.credential),
-            ],
-          )
-        : await db.query<CredentialRow>(
-            `INSERT INTO model_credentials(id, owner_id, provider_id, pi_provider_id, auth_kind,
-                status, account_label, ciphertext, key_version, secret_version, expires_at)
-             VALUES ($1,$2,$3,$4,$5,'active',$6,$7,$8,$9,$10)
-             RETURNING ${SUMMARY_COLUMNS}`,
-            [
-              credentialId,
-              this.ownerId,
-              input.providerId,
-              input.piProviderId,
-              input.authKind,
-              label,
-              sealed.ciphertext,
-              sealed.keyVersion,
-              secretVersion,
-              expiryOf(input.credential),
-            ],
-          );
-      return summaryOf(result.rows[0]!);
-    });
+    await db.query(`SELECT set_config('lock_timeout', $1, true)`, [`${this.#lockTimeoutMs}ms`]);
+    // Serialize concurrent sign-ins for one owner and provider.
+    await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+      `model-credential:${this.ownerId}:${input.providerId}`,
+    ]);
+    const existing = await db.query<CredentialRow>(
+      `SELECT ${SECRET_COLUMNS} FROM model_credentials
+        WHERE owner_id=$1 AND provider_id=$2 AND status <> 'revoked' FOR UPDATE`,
+      [this.ownerId, input.providerId],
+    );
+    const row = existing.rows[0];
+    const credentialId = row?.id ?? randomUUID();
+    const secretVersion = (row?.secret_version ?? 0) + 1;
+    const sealed = sealCredential(
+      input.credential,
+      { ownerId: this.ownerId, credentialId, secretVersion },
+      this.#env,
+    );
+    const result = row
+      ? await db.query<CredentialRow>(
+          `UPDATE model_credentials
+              SET pi_provider_id=$3, auth_kind=$4, status='active', account_label=$5,
+                  ciphertext=$6, key_version=$7, secret_version=$8, expires_at=$9,
+                  updated_at=clock_timestamp()
+            WHERE id=$1 AND owner_id=$2
+            RETURNING ${SUMMARY_COLUMNS}`,
+          [
+            credentialId,
+            this.ownerId,
+            input.piProviderId,
+            input.authKind,
+            label,
+            sealed.ciphertext,
+            sealed.keyVersion,
+            secretVersion,
+            expiryOf(input.credential),
+          ],
+        )
+      : await db.query<CredentialRow>(
+          `INSERT INTO model_credentials(id, owner_id, provider_id, pi_provider_id, auth_kind,
+              status, account_label, ciphertext, key_version, secret_version, expires_at)
+           VALUES ($1,$2,$3,$4,$5,'active',$6,$7,$8,$9,$10)
+           RETURNING ${SUMMARY_COLUMNS}`,
+          [
+            credentialId,
+            this.ownerId,
+            input.providerId,
+            input.piProviderId,
+            input.authKind,
+            label,
+            sealed.ciphertext,
+            sealed.keyVersion,
+            secretVersion,
+            expiryOf(input.credential),
+          ],
+        );
+    return summaryOf(result.rows[0]!);
   }
 
   /**
