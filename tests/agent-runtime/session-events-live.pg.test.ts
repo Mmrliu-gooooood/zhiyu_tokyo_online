@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { signedOwnerCookie } from '@/tests/helpers/signed-owner-request';
 
 const contractUrl = process.env.PG_CONTRACT_URL;
 
@@ -113,7 +114,9 @@ describe.skipIf(!contractUrl)('live session SSE tail', () => {
   it('forwards a message_update delta on the NOTIFY wakeup, not the 5s poll', async () => {
     const response = await sessionGet(
       new NextRequest(`http://localhost/api/agent/sessions/${sessionId}/events`, {
-        headers: { 'last-event-id': '0', cookie: `anonymous_id=${ownerId.slice(5)}` },
+        // The route only accepts the HMAC-signed generation owner cookie; an
+        // unsigned `anonymous_id` would mint a fresh owner and 404.
+        headers: { 'last-event-id': '0', cookie: signedOwnerCookie(ownerId.slice(5)) },
       }),
       { params: Promise.resolve({ id: sessionId }) },
     );
