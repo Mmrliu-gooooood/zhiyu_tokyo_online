@@ -1237,6 +1237,11 @@ R1 发布（P7 第 3 步，2026-10-03，经用户同意）：
   - 验证：3 个容器 healthy；readiness ready=true、accounts v20、generation v4、worker 2/2、私有 bucket 3/3；
     https://zhiyulearn.online/ 307 → 登录页 200，/api/server-providers 未登录 401；web 与两个 worker 启动日志 pi_env_audit
     direct: [AZURE_OPENAI_BASE_URL]（生产配置了运维 Azure 端点；网关在请求 env 中显式传入，仅记录名称）、credentials: [DEEPSEEK_API_KEY]，无错误
+  - 生产冒烟（管理员账号，内置浏览器，10:46 UTC）：平台默认模型后台生成"勾股定理入门"（3 页 + 测验）87 s succeeded，全部步骤成功（含 30 段 MiniMax 语音）；
+    17 次 llm_call 全部 ok、两个 worker 都参与；usage_events 新行 funding_kind=platform / credential_kind=platform / api=openai-completions / status=ok / 有估算成本，
+    TTS 行新列为空（按设计）；模型快照 schema_version=3；课堂页面公式渲染、讲解播放、测验页正常；三个容器无 ERROR / WARN。
+    已知非阻断：登录后首次加载时设置存储在水合完成前收到一次服务端派生状态写入并被丢弃（kv-persist 守卫，存储值保留，刷新不复现，非 R1 引入）；
+    首页两张旧课程封面图 404（历史资产缺失，与 R1 无关）
   - 回滚：.env.hosted.local 标签改为 rollback-r1 后再执行同一 apply（镜像已在服务器上）；回滚前先暂停接单并确认没有由新版本创建的未完成任务
 下一阶段：P6（R2）
 ```
