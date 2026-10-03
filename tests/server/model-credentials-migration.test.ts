@@ -7,92 +7,18 @@
  * The test drops and recreates the v21 tables in that database.
  */
 import { randomUUID } from 'node:crypto';
-import { PGlite } from '@electric-sql/pglite';
-import { Pool } from 'pg';
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ACCOUNTS_MIGRATION_21 } from '@/lib/server/accounts/sql-model-credentials';
+import {
+  V21_BASELINE,
+  applySql as apply,
+  openPglite,
+  openPostgres,
+  postgresUrl,
+  type TestDb as Db,
+} from '@/tests/helpers/model-credentials-db';
 
-interface Db {
-  query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
-  close(): Promise<void>;
-}
-
-/** What v1–v20 leave behind that v21 relies on: roles and the owner GUC. */
-const BASELINE = `
-DO $roles$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_web') THEN CREATE ROLE app_web NOLOGIN; END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='app_worker') THEN CREATE ROLE app_worker NOLOGIN; END IF;
-END
-$roles$;
-CREATE SCHEMA IF NOT EXISTS app_internal;
-GRANT USAGE ON SCHEMA public, app_internal TO app_web, app_worker;
-CREATE OR REPLACE FUNCTION app_internal.current_owner_id()
-RETURNS text LANGUAGE sql STABLE
-AS $$ SELECT nullif(current_setting('app.owner_id', true), '') $$;
-GRANT EXECUTE ON FUNCTION app_internal.current_owner_id() TO app_web, app_worker;
-DROP TABLE IF EXISTS public.model_auth_sessions, public.model_credentials, public.model_auth_settings CASCADE;
-`;
-
-/** Split on statement ends, keeping $tag$ … $tag$ bodies whole. */
-function statements(sql: string): string[] {
-  const out: string[] = [];
-  let current = '';
-  let tag: string | null = null;
-  for (const line of sql.split('\n')) {
-    current += `${line}\n`;
-    for (const match of line.matchAll(/\$[a-z_]*\$/g)) tag = tag === match[0] ? null : match[0];
-    if (!tag && line.trimEnd().endsWith(';')) {
-      out.push(current.trim());
-      current = '';
-    }
-  }
-  if (current.trim()) out.push(current.trim());
-  return out;
-}
-
-async function apply(db: Db, sql: string): Promise<void> {
-  for (const statement of statements(sql)) await db.query(statement);
-}
-
-function pglite(): Db {
-  const db = new PGlite();
-  return {
-    query: (sql, values) => db.query(sql, values ?? []),
-    close: () => db.close(),
-  };
-}
-
-const url = process.env.TEST_MODEL_CREDENTIALS_DATABASE_URL?.trim();
-let pool: Pool | undefined;
-
-async function postgres(): Promise<Db> {
-  const parsed = new URL(url!);
-  if (
-    parsed.hostname !== '127.0.0.1' ||
-    parsed.port !== '55432' ||
-    !parsed.pathname.replace(/^\//, '').endsWith('_rls_proof')
-  ) {
-    throw new Error(
-      'TEST_MODEL_CREDENTIALS_DATABASE_URL must be a disposable *_rls_proof database',
-    );
-  }
-  pool ??= new Pool({ connectionString: url, max: 1 });
-  return {
-    query: (sql, values) => pool!.query(sql, values),
-    close: async () => {
-      await pool!.query(
-        'DROP TABLE IF EXISTS public.model_auth_sessions, public.model_credentials, public.model_auth_settings CASCADE',
-      );
-    },
-  };
-}
-
-afterAll(async () => {
-  await pool?.end();
-});
+const BASELINE = V21_BASELINE;
 
 const OWNER_A = 'user:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OWNER_B = 'user:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -131,8 +57,8 @@ async function asRole<T>(
   }
 }
 
-const engines: Array<[string, () => Promise<Db>]> = [['PGlite', async () => pglite()]];
-if (url) engines.push(['PostgreSQL', postgres]);
+const engines: Array<[string, () => Promise<Db>]> = [['PGlite', async () => openPglite()]];
+if (postgresUrl) engines.push(['PostgreSQL', async () => openPostgres()]);
 
 describe.each(engines)('accounts v21 credential vault (%s)', (_name, open) => {
   it('applies twice and enforces its checks', async () => {
