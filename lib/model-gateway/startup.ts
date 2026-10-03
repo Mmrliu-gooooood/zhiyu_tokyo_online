@@ -5,10 +5,13 @@
  *   transports that cannot use the gateway's operator proxy; a configured
  *   proxy would be silently bypassed, so startup fails instead (plan P2-6).
  * - Logs which pi-readable environment variables are set, names only (P2-7).
+ * - Raises Node's per-address connect attempt so slow handshakes to a provider
+ *   do not fail as instant timeouts (see raiseConnectAttemptFloor).
  */
 import { resolveProxy } from '@/lib/server/provider-config';
 import { logPiEnvironmentAudit } from './credentials/env-exposure';
 import { FETCHLESS_PROVIDER_IDS } from './runtime/fetchless';
+import { raiseConnectAttemptFloor } from './runtime/transport';
 
 export class GatewayStartupError extends Error {
   constructor(message: string) {
@@ -34,4 +37,5 @@ export function assertFetchlessProxyConfig(
 export function runGatewayStartupChecks(): void {
   assertFetchlessProxyConfig();
   logPiEnvironmentAudit();
+  raiseConnectAttemptFloor();
 }

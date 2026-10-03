@@ -1,5 +1,9 @@
 import { createServer as createHttpServer, request as httpRequest, type Server } from 'node:http';
-import { connect } from 'node:net';
+import {
+  connect,
+  getDefaultAutoSelectFamilyAttemptTimeout,
+  setDefaultAutoSelectFamilyAttemptTimeout,
+} from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -7,7 +11,12 @@ import {
   type FakeModelServer,
 } from '@/lib/model-gateway/testing/fake-openai-server';
 import { GatewayError, userText } from '@/lib/model-gateway';
-import { resetTransportAgents } from '@/lib/model-gateway/runtime/transport';
+import { runGatewayStartupChecks } from '@/lib/model-gateway/startup';
+import {
+  MIN_CONNECT_ATTEMPT_TIMEOUT_MS,
+  raiseConnectAttemptFloor,
+  resetTransportAgents,
+} from '@/lib/model-gateway/runtime/transport';
 import { toNormalizedUsage } from '@/lib/model-gateway/runtime/usage';
 import { bindingFor, testGateway } from './helpers';
 
@@ -236,5 +245,33 @@ describe('transport safety for user endpoints', () => {
       proxy.closeAllConnections();
       await new Promise((resolve) => proxy.close(resolve));
     }
+  });
+});
+
+describe('connect attempt floor', () => {
+  let original: number;
+  beforeEach(() => {
+    original = getDefaultAutoSelectFamilyAttemptTimeout();
+  });
+  afterEach(() => {
+    setDefaultAutoSelectFamilyAttemptTimeout(original);
+  });
+
+  it("raises Node's 250 ms per-address attempt so slow handshakes are not cut off", () => {
+    setDefaultAutoSelectFamilyAttemptTimeout(250);
+    raiseConnectAttemptFloor();
+    expect(getDefaultAutoSelectFamilyAttemptTimeout()).toBe(MIN_CONNECT_ATTEMPT_TIMEOUT_MS);
+  });
+
+  it('keeps a larger operator value', () => {
+    setDefaultAutoSelectFamilyAttemptTimeout(5_000);
+    raiseConnectAttemptFloor();
+    expect(getDefaultAutoSelectFamilyAttemptTimeout()).toBe(5_000);
+  });
+
+  it('is applied by the web and worker startup checks', () => {
+    setDefaultAutoSelectFamilyAttemptTimeout(250);
+    runGatewayStartupChecks();
+    expect(getDefaultAutoSelectFamilyAttemptTimeout()).toBe(MIN_CONNECT_ATTEMPT_TIMEOUT_MS);
   });
 });

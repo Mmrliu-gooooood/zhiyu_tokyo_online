@@ -10,6 +10,10 @@ import { Agent, ProxyAgent, fetch as undiciFetch, type Dispatcher } from 'undici
 import { assertSafeLookupAddresses } from '@/lib/server/pinned-fetch-agent';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
+import {
+  getDefaultAutoSelectFamilyAttemptTimeout,
+  setDefaultAutoSelectFamilyAttemptTimeout,
+} from 'node:net';
 import type { EndpointKind } from '../types';
 
 const RECORDED_HEADERS = ['retry-after', 'retry-after-ms', 'x-request-id', 'request-id'] as const;
@@ -83,6 +87,26 @@ function lookupPinned(
       else callback(null, addresses[0]!.address, addresses[0]!.family);
     },
   );
+}
+
+/**
+ * Node's dual-stack connect ("happy eyeballs") gives each resolved address
+ * 250 ms by default. Where the TCP handshake to a provider takes longer (a
+ * distant region, a slow egress) every attempt is cut off and the request
+ * fails in about a second with ETIMEDOUT although the endpoint is reachable.
+ */
+export const MIN_CONNECT_ATTEMPT_TIMEOUT_MS = 1_000;
+
+/**
+ * Raise the process-wide per-address connect attempt to the floor above. It
+ * covers the global fetch (operator and platform endpoints) as well as the
+ * gateway's own agents; a larger operator value (NODE_OPTIONS
+ * --network-family-autoselection-attempt-timeout) is kept.
+ */
+export function raiseConnectAttemptFloor(): void {
+  if (getDefaultAutoSelectFamilyAttemptTimeout() < MIN_CONNECT_ATTEMPT_TIMEOUT_MS) {
+    setDefaultAutoSelectFamilyAttemptTimeout(MIN_CONNECT_ATTEMPT_TIMEOUT_MS);
+  }
 }
 
 /** LLM-appropriate timeouts: long generations stream for minutes. */
