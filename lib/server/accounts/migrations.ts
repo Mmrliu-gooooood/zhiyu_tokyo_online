@@ -342,7 +342,11 @@ async function generationTablesLackForceRls(client: PoolClient): Promise<boolean
   return result.rows.length > 0;
 }
 
-async function applyStatements(client: PoolClient, sql: string): Promise<void> {
+/** Runs migration SQL one statement at a time (dollar-quoted bodies stay whole). */
+export async function applyStatements(
+  client: { query(sql: string): Promise<unknown> },
+  sql: string,
+): Promise<void> {
   for (const statement of splitSql(sql)) {
     await client.query(statement);
   }

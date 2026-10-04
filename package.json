@@ -37,6 +37,7 @@
     "generation:worker": "node dist-worker/generation.mjs",
     "generation:migrate": "node dist-worker/migrate.mjs",
     "accounts:migrate": "node scripts/run-accounts-migration.mjs",
+    "accounts:bootstrap-fresh": "node scripts/run-bundled-operator-script.mjs scripts/bootstrap-fresh-accounts-db.ts",
     "accounts:apply-hosted-v12-v13": "tsx scripts/apply-hosted-accounts-v12-v13.ts",
     "accounts:migrate-classroom-registry": "tsx scripts/migrate-classroom-session-registry.ts",
     "accounts:create-hosted-logins": "tsx scripts/create-hosted-db-logins.ts",
