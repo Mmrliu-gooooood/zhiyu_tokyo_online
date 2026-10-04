@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
+import { useState, useEffect, useEffectEvent, useMemo, useRef, useDeferredValue } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -359,6 +359,9 @@ function HomePage() {
     handleFileChange: handlePptxFileChange,
   } = useImportPptx();
 
+  // Mount and account changes reload the library with the latest loaders.
+  const refreshLibrary = useEffectEvent(() => Promise.all([loadClassrooms(), loadFolders()]));
+
   useEffect(() => {
     // Clear stale media store to prevent cross-course thumbnail contamination.
     // The store may hold tasks from a previously visited classroom whose elementIds
@@ -369,9 +372,9 @@ function HomePage() {
     // Read sessionStorage on the client only (avoids SSR hydration mismatch).
     // Both reads resolve before flipping `hydrated`, so the hero layout does
     // not thrash as each lands independently.
-    void Promise.all([loadClassrooms(), loadFolders()]).finally(() => setHydrated(true));
+    void refreshLibrary().finally(() => setHydrated(true));
     const onAuthChange = () => {
-      void Promise.all([loadClassrooms(), loadFolders()]);
+      void refreshLibrary();
     };
     window.addEventListener('auth-change', onAuthChange);
 

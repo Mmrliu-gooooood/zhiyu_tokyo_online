@@ -2123,7 +2123,8 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                     showTeachBack={showTeachBack}
                     onRestoreTeachBack={(activity) => {
                       void (async () => {
-                        if (activity.source?.sceneId) await gatedSceneSwitch(activity.source.sceneId);
+                        if (activity.source?.sceneId)
+                          await gatedSceneSwitch(activity.source.sceneId);
                         setInteractionTab('discussion');
                         chatAreaRef.current?.attachTeachBackActivity(activity);
                       })();

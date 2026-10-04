@@ -18,6 +18,7 @@ import {
 import { isAuthPagePath } from '@/lib/auth/public-paths';
 import { canUseHostedAuthUi, isHostedAuthEnabled } from '@/lib/auth/mode';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { rehydrateAccountStores } from '@/lib/store/account-stores';
 
 export function AuthAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '/';
@@ -35,9 +36,13 @@ export function AuthAppShell({ children }: { children: ReactNode }) {
     if (authPage || !sessionUi) return;
     let cancelled = false;
     requireAccountEnvironment()
-      .then((account) => {
+      .then(async (account) => {
         if (cancelled) return;
         setAccountUserId(account.userId);
+        // Account settings live under the account's namespace; load them
+        // before account UI mounts and starts writing to them.
+        await rehydrateAccountStores(account.userId);
+        if (cancelled) return;
         setSignedIn(true);
         setReady(true);
         window.dispatchEvent(new Event('auth-change'));
