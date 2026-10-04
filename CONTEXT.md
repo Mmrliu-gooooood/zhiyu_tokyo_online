@@ -68,6 +68,14 @@ _Avoid_: visual snapshot test
 The complete learner-facing unit stored as one OpenMAIC `Stage` and opened at `/classroom/[id]`; completing its ordered scenes completes the Course. The first assessment release does not introduce a Subject aggregate above Course.
 _Avoid_: Subject, curriculum
 
+**Study space / 学科空间**:
+A learner's long-lived subject (for example 高等数学) that groups existing Courses and holds an optional goal, exam date and exam scope (learning plan B01). It sits above Course without changing it: a Course stays one Stage, may belong to several of the same learner's study spaces, and is never copied, deleted or edited by removing it from a space or deleting the space. Study spaces belong to signed-in accounts only.
+_Avoid_: Course, folder, Workspace
+
+**Course progress / 学习进度**:
+The account-scoped, server-side record of where a learner last was in a Course (scene and action, with the scene revision at the time), the furthest scene viewed, and whether the last scene was viewed to the end. It lets another device continue from the newest position. It records viewing only: "viewed to the end" is not Course completion and never implies mastery. The device playback cursor remains the instant local position.
+_Avoid_: Scene completion, Course completion, mastery, playback cursor
+
 **Scene**:
 One ordered learning-content unit inside a Course, such as a slide, quiz, interactive experience, or PBL experience.
 _Avoid_: Course, subject
