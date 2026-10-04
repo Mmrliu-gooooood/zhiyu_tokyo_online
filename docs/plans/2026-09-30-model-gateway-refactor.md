@@ -816,7 +816,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P4 | 已完成（2026-10-02） | 77dfc101, d2679000, 3c3d5261, a160eedc + 本次进度提交 | 见下方 P4 记录 | 快照 v3 / PRO 连接 v2 读旧写新；accounts v20 用量资金来源列在真实 PostgreSQL 上可重复执行；全量 vitest 845 文件 / 8667 用例全绿；generation-worker-pipeline.pg 的 P3 遗留失败已由 ab6a9989 修复 |
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
 | R1 验收（P7） | 已发布（2026-10-03，release-20261003） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
-| P6 | 完成（2026-10-03）：P6-1–P6-6，P6-6 用 OpenRouter 真实账号在本地隔离栈验证通过 | 72014733, 2afed085, 3dd0045d, 79e2f1f6, 893bf463, 4458fde3, c9aa8dc4, 035c9da7 | 见下方 P6 记录 | 全量 vitest 8783 通过、真实 PostgreSQL 80/80；accounts v21 尚未应用到生产；白名单仅 openrouter；R2 未发布 |
+| P6 | 完成（2026-10-03）：P6-1–P6-6，P6-6 用 OpenRouter 真实账号在本地隔离栈验证通过；体验修正 2026-10-04 | 72014733, 2afed085, 3dd0045d, 79e2f1f6, 893bf463, 4458fde3, c9aa8dc4, 035c9da7, 5aa95767 | 见下方 P6 记录 | 全量 vitest 8788 通过、真实 PostgreSQL 80/80；accounts v21 尚未应用到生产；白名单仅 openrouter；R2 未发布 |
 | R2 验收（P7） | 未开始 | | | |
 
 每阶段完成时追加一段：
@@ -1284,9 +1284,14 @@ P6 记录（2026-10-03，refactor/model-gateway；未推送、未发布）：
     - 验证中发现并修复 035c9da7：前台发起的后台任务只为平台 / API Key / baseUrl 模型创建模型快照，登录账号只有 credentialId → 预检 BACKGROUND_MODEL_PROVIDER_UNAVAILABLE
     - 本地栈专用（非代码问题）：容器需经宿主代理才能访问 openrouter.ai（否则换 key 超时，显示“登录失败”）；本地库没有 Supabase auth 触发器，
       需手动补 app_accounts 行，否则完成登录时报 MODEL_AUTH_ACCOUNT_INACTIVE
-    - 待改进（不阻塞 R2）：① pi 的 OpenRouter 回调 5 分钟超时，但会话与倒计时是 10 分钟，超时后只显示“登录失败”，应显示“已过期”；
-      ② 进行中的登录在页面刷新后丢失，应能恢复；③ 断开只删除本地密文，OpenRouter 上铸造的 key 仍在，需提示用户到 OpenRouter 删除；
-      ④ 已登录时模型编辑框的“测试连接”不可用；⑤ 设置页登录状态有时 ~15 s 才显示（等设置水合）
+    - 验证中记下的 5 个体验问题，已在 5aa95767 修复（2026-10-04，本地栈 + 用户真实 OpenRouter 账号逐项复验）：
+      ① 会话随流程自身更短的超时结束（OpenRouter 5 分钟，倒计时从 4:59 起），流程停止等待记为 expired（显示“登录已过期”）而非 failed；
+      ② 新增 GET /api/model-auth/{providerId}/session，刷新页面后恢复进行中的登录（倒计时与粘贴框续上）；
+      ③ 断开 OpenRouter 后提示其上铸造的 key 仍有效并链接到 OpenRouter 的 API Keys 页面（12 种语言）；
+      ④ 已登录时模型编辑框“测试连接”可用，以 credentialId 调用（实测“连接成功”，funding=subscription）；
+      ⑤ ~12 s 延迟的根因只在本地栈：容器全部出站经宿主代理，代理偶发首连接 ~10 s 超时，拖慢 Supabase 会话校验；本地栈改为只有
+        openrouter 走代理后降到 0.4 s，生产无代理不受影响。同时修正同账号设置重新水合时面板被重置为加载中
+      回归：全量 vitest 840 文件 / 8788 通过 / 0 失败；tsc、lint、i18n 通过
   白名单门槛：生产 MODEL_OAUTH_PROVIDERS 只放已按上述流程验证过的 provider（目前仅 openrouter）；其他 provider 需产品负责人确认条款允许后单独验证
   未完成：R2 发布前需在生产应用 accounts v21 并配置 MODEL_CREDENTIAL_ENCRYPTION_KEY、MODEL_OAUTH_PROVIDERS=openrouter
 ```
