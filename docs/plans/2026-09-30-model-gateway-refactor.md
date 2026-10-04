@@ -817,7 +817,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
 | R1 验收（P7） | 已发布（2026-10-03，release-20261003） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
 | P6 | 完成（2026-10-03）：P6-1–P6-6，P6-6 用 OpenRouter 真实账号在本地隔离栈验证通过；体验修正 2026-10-04 | 72014733, 2afed085, 3dd0045d, 79e2f1f6, 893bf463, 4458fde3, c9aa8dc4, 035c9da7, 5aa95767 | 见下方 P6 记录 | 全量 vitest 8788 通过、真实 PostgreSQL 80/80；accounts v21 尚未应用到生产；白名单仅 openrouter；R2 未发布 |
-| R2 验收（P7） | 已发布（2026-10-04，release-20261004）；生产登录验收待用户操作 | 832b9b97（镜像） | 见下方 R2 发布记录 | 全量 vitest 8788 通过；P6-6 真实账号验证通过；accounts v21 已应用到生产；readiness 通过；白名单仅 openrouter |
+| R2 验收（P7） | 已发布并通过生产验收（2026-10-04，release-20261004） | 832b9b97（镜像） | 见下方 R2 发布记录 | 全量 vitest 8788 通过；P6-6 真实账号验证通过；accounts v21 已应用到生产；readiness 通过；白名单仅 openrouter |
 
 每阶段完成时追加一段：
 
@@ -1306,7 +1306,15 @@ R2 发布记录（2026-10-04，release-20261004，镜像来自 832b9b97；未推
     readiness：ready、accountsVersion 21、generationVersion 4、liveWorkers 2/2、私有桶 3 个可达；/api/health 200，日志无错误
   - 回滚：恢复上述两份备份（镜像标签回到 release-20261003）后 apply；v21 表保留（R1 忽略）。回滚前须暂停接单并排空
     使用订阅账号的未完成任务（R1 不认识 credential 连接）
-  - 生产验收（用户在生产完成 OpenRouter 登录 → 生成 → 断开）：待用户操作
+  - 生产验收（2026-10-04，用户自己的 OpenRouter 账号，qwen/qwen3.8-27b:free）：通过
+    - 登录：用户在 Chrome 完成授权并粘贴跳转地址，一次成功；凭据 active / oauth / 无过期 / 密文 v1.1，会话 complete（5 分钟窗口）且不留输入
+    - 选模：模型编辑框“测试连接”经订阅账号返回“连接成功”
+    - 后台生成：任务带模型快照进入 worker；7 次调用全部 funding=subscription、credential=vault、ok（大纲、角色、2 页内容、动作），
+      旁白走平台默认 MiniMax 语音；第 3 页在免费模型上两次超过 300 s 单步截止（MODEL_ABORTED → needs_attention，属免费档速度，
+      与 R1 记录的 NVIDIA 免费档同类），确认重试后由 worker 续跑并完成第 2 页；测试任务随后取消，生产恢复 0 个活跃任务
+    - 断开：凭据 revoked 且密文清空；面板提示 OpenRouter 上的 key 仍有效并链接其 API Keys 页面；用旧 credentialId 调用 → 401
+      （MODEL_AUTH_FAILED，requestSent=false），未回退任何其他 key
+  - 生产服务器清理（用户同意）：删除 release-20260926…d 镜像，磁盘 92% → 55%；保留 release-20260926e、rollback-r1、release-20261003
 
 ---
 
