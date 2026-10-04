@@ -817,7 +817,7 @@ pi-agent-core 升级到 0.99（Session v4/harness）；图片/视频/TTS/ASR/联
 | P5 | 已完成（2026-10-02） | a3ef2325, e21202f8, 8f66cad0, e7841635, 3e0757ff + 本次进度提交 | 见下方 P5 记录 | 设置覆盖全部 46 个目录 provider；浏览器实测：假模型服务器两条路径各生成一节课，真实 DeepSeek（平台默认）与 MiniMax 各生成一节完整课程，Groq 受免费档每分钟 token 上限只完成大纲与角色；修正一处 P5 前即存在的运维托管 provider 选择错误；需要数据库的步骤未验证 |
 | R1 验收（P7） | 已发布（2026-10-03，release-20261003） | 521c6969, 7e7633c7 + 本次进度提交；回滚热修 d4104d37（独立分支）；遗留项 4b21a833, 098c96bb, 5f37a086, 66849396 | 见下方 R1 验收记录 | 6.3 全量通过、15 条不变量逐条有证据；真实模型：DeepSeek / MiniMax / GLM（Z.ai）/ NVIDIA / Groq 均在生产镜像托管栈实测，免费档限制与本地网络问题见记录；生产发布需用户同意；遗留项已处理、回滚镜像已构建（见 R1 遗留项处理） |
 | P6 | 完成（2026-10-03）：P6-1–P6-6，P6-6 用 OpenRouter 真实账号在本地隔离栈验证通过；体验修正 2026-10-04 | 72014733, 2afed085, 3dd0045d, 79e2f1f6, 893bf463, 4458fde3, c9aa8dc4, 035c9da7, 5aa95767 | 见下方 P6 记录 | 全量 vitest 8788 通过、真实 PostgreSQL 80/80；accounts v21 尚未应用到生产；白名单仅 openrouter；R2 未发布 |
-| R2 验收（P7） | 未开始 | | | |
+| R2 验收（P7） | 已发布（2026-10-04，release-20261004）；生产登录验收待用户操作 | 832b9b97（镜像） | 见下方 R2 发布记录 | 全量 vitest 8788 通过；P6-6 真实账号验证通过；accounts v21 已应用到生产；readiness 通过；白名单仅 openrouter |
 
 每阶段完成时追加一段：
 
@@ -1293,8 +1293,20 @@ P6 记录（2026-10-03，refactor/model-gateway；未推送、未发布）：
         openrouter 走代理后降到 0.4 s，生产无代理不受影响。同时修正同账号设置重新水合时面板被重置为加载中
       回归：全量 vitest 840 文件 / 8788 通过 / 0 失败；tsc、lint、i18n 通过
   白名单门槛：生产 MODEL_OAUTH_PROVIDERS 只放已按上述流程验证过的 provider（目前仅 openrouter）；其他 provider 需产品负责人确认条款允许后单独验证
-  未完成：R2 发布前需在生产应用 accounts v21 并配置 MODEL_CREDENTIAL_ENCRYPTION_KEY、MODEL_OAUTH_PROVIDERS=openrouter
-```
+  - 832b9b97 设置页：所有语言模型提供方与 SearXNG 补齐图标（@lobehub/icons-static-svg 1.95.1，MIT）
+R2 发布记录（2026-10-04，release-20261004，镜像来自 832b9b97；未推送任何远端）：
+  - 发布前：两镜像 smoke-pi-runtime 通过（含 bun-oauth）；回滚兼容确认（R1 readiness 按 accountsVersion >= 19，v21 只新增表）；
+    生产 v20 checksum 与仓库一致；东京容器直连 openrouter.ai 200（141 ms），无需代理
+  - accounts v21：Supabase apply_migration（accounts_v21_model_credentials）+ app_schema_migrations(21, a13fa31d…)；
+    核对三张表 RLS 开启且强制、anon/authenticated 无授权、仅 app_web / app_worker 按设计授权
+  - 服务器：/opt/zhiyu 备份 .env.hosted.local.bak-20261004-pre-r2 与 docker-compose.supabase.yml.bak-20261004-pre-r2；
+    compose 更新为仓库版本（原为网关前版本：新增 MODEL_OAUTH_* / MODEL_CREDENTIAL_* 透传，去掉已删除的 OPENAI_COMPAT_USE_STREAMING_CHAT）；
+    env 新增服务器上生成的 MODEL_CREDENTIAL_ENCRYPTION_KEY（未离开服务器）与 MODEL_OAUTH_PROVIDERS=openrouter
+  - 切换：确认 0 个活跃 generation_jobs 后改镜像标签并 apply（tier 4 / background / 2 workers）；三个容器 healthy；
+    readiness：ready、accountsVersion 21、generationVersion 4、liveWorkers 2/2、私有桶 3 个可达；/api/health 200，日志无错误
+  - 回滚：恢复上述两份备份（镜像标签回到 release-20261003）后 apply；v21 表保留（R1 忽略）。回滚前须暂停接单并排空
+    使用订阅账号的未完成任务（R1 不认识 credential 连接）
+  - 生产验收（用户在生产完成 OpenRouter 登录 → 生成 → 断开）：待用户操作
 
 ---
 
