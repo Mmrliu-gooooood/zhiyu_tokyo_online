@@ -31,6 +31,7 @@ import { ensureUserSkillSchema } from '@openmaic/storage/skill/pg';
 
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
+import { ensureStudySchema } from '@/lib/server/study/schema';
 import { migrateGenerationSchema } from '../generation-jobs/migrations';
 import { ACCOUNT_MIGRATIONS, applyStatements } from './migrations';
 import { ACCOUNTS_SCHEMA_VERSION } from './sql-accounts';
@@ -167,6 +168,7 @@ async function ensureBaseSchemas(client: Queryable): Promise<void> {
   await ensureStageMetaSchema(client);
   await ensureOwnerMaterialSchema(client);
   await ensureAssetSchema(client);
+  await ensureStudySchema(client);
   await ensureAgentSessionSchema(client);
   await ensureAgentSessionMaterialSchema(client);
   await ensureUserSkillSchema(client);

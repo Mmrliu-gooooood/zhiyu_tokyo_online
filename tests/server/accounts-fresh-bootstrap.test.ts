@@ -21,6 +21,7 @@ import { ensureUserSkillSchema } from '@openmaic/storage/skill/pg';
 
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
+import { ensureStudySchema } from '@/lib/server/study/schema';
 import {
   bootstrapFreshAccountsDatabase,
   FORCE_RLS_BASE_TABLES,
@@ -102,6 +103,7 @@ async function createBaseSchemas(db: Db): Promise<void> {
   await ensureStageMetaSchema(db);
   await ensureOwnerMaterialSchema(db);
   await ensureAssetSchema(db);
+  await ensureStudySchema(db);
   await ensureAgentSessionSchema(db);
   await ensureAgentSessionMaterialSchema(db);
   await ensureUserSkillSchema(db);
