@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "Für dieses Konto kann keine Anmeldung mehr hinzugefügt werden.",
     "oauthBusy": "Zu viele laufende Anmeldungen. Bitte später erneut versuchen.",
     "oauthRequestFailed": "Die Anfrage ist fehlgeschlagen. Bitte erneut versuchen.",
+    "oauthUpstreamKeyNotice": "Getrennt. Der für diese Website bei {{provider}} erstellte API-Schlüssel ist weiterhin gültig; lösche ihn bei {{provider}}, um ihn vollständig zu widerrufen.",
+    "oauthUpstreamKeyLink": "API-Schlüssel bei {{provider}} öffnen",
     "fixedEndpointHint": "Dieser Anbieter verwendet einen festen offiziellen Endpunkt. Für ein Relay fügen Sie stattdessen einen benutzerdefinierten OpenAI-kompatiblen Anbieter hinzu.",
     "customBaseUrlNotAllowed": "Eine benutzerdefinierte Base URL ({url}) ist gespeichert, aber dieser Anbieter akzeptiert nur seinen offiziellen Endpunkt; Anfragen werden abgelehnt.",
     "clearCustomBaseUrl": "Entfernen",

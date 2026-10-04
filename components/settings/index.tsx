@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { useSettingsStore } from '@/lib/store/settings';
+import { activeCredentialId } from '@/lib/store/settings-validation';
 import { toast } from 'sonner';
 import type { ProviderId } from '@/lib/types/provider';
 import {
@@ -1482,6 +1483,7 @@ export function SettingsDialog({
         endpointParams={providersConfig[selectedProviderId]?.endpointParams}
         requiresApiKey={providersConfig[selectedProviderId]?.requiresApiKey}
         isServerConfigured={providersConfig[selectedProviderId]?.isServerConfigured}
+        credentialId={activeCredentialId(providersConfig[selectedProviderId])}
       />
 
       {/* Add Provider Dialog */}

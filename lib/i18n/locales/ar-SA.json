@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "لم يعد بإمكان هذا الحساب إضافة تسجيل دخول.",
     "oauthBusy": "هناك عدد كبير جدًا من عمليات تسجيل الدخول الجارية. حاول بعد قليل.",
     "oauthRequestFailed": "فشل الطلب. حاول مرة أخرى.",
+    "oauthUpstreamKeyNotice": "تم قطع الاتصال. لا يزال مفتاح API الذي أُنشئ لهذا الموقع على {{provider}} صالحًا؛ لإلغائه نهائيًا، احذفه من {{provider}}.",
+    "oauthUpstreamKeyLink": "فتح مفاتيح API في {{provider}}",
     "fixedEndpointHint": "يستخدم هذا المزوّد نقطة نهاية رسمية ثابتة. لاستخدام وسيط، أضف مزوّدًا مخصصًا متوافقًا مع OpenAI.",
     "customBaseUrlNotAllowed": "تم حفظ Base URL مخصص ({url}) لكن هذا المزوّد يقبل نقطة نهايته الرسمية فقط، لذا سيتم رفض الطلبات.",
     "clearCustomBaseUrl": "مسح",

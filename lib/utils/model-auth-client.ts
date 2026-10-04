@@ -104,6 +104,14 @@ export const modelAuthClient = {
     );
     return body.session;
   },
+  /** The provider's sign-in still in progress, if any (resumed after a reload). */
+  async current(providerId: string, signal?: AbortSignal): Promise<SignInSession | null> {
+    const body = await call<{ session: SignInSession | null }>(
+      `/api/model-auth/${segment(providerId)}/session`,
+      { signal },
+    );
+    return body.session;
+  },
   async get(sessionId: string, signal?: AbortSignal): Promise<SignInSession> {
     const body = await call<{ session: SignInSession }>(
       `/api/model-auth/sessions/${segment(sessionId)}`,

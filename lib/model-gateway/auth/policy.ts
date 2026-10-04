@@ -33,6 +33,17 @@ export function oauthPiProviderId(providerId: string): string | undefined {
   return descriptor.upstream.piProviderId;
 }
 
+/**
+ * pi sign-in flows that stop waiting sooner than a session's own lifetime
+ * (pi 0.99: openrouter.js LOGIN_TIMEOUT_MS). The session ends with the flow,
+ * so its countdown never promises time the flow no longer has.
+ */
+const PI_LOGIN_TIMEOUT_MS: Readonly<Record<string, number>> = { openrouter: 5 * 60_000 };
+
+export function oauthLoginTimeoutMs(piProviderId: string): number | undefined {
+  return PI_LOGIN_TIMEOUT_MS[piProviderId];
+}
+
 /** Operator allow-list, reduced to providers that can sign in. */
 export function configuredOAuthProviders(env: Env = process.env): string[] {
   const listed = (env.MODEL_OAUTH_PROVIDERS ?? '')

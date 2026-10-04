@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "This account can no longer add a sign-in.",
     "oauthBusy": "Too many sign-ins are in progress. Try again shortly.",
     "oauthRequestFailed": "The request failed. Try again.",
+    "oauthUpstreamKeyNotice": "Disconnected. The API key created for this site on {{provider}} still works; to revoke it completely, delete it on {{provider}}.",
+    "oauthUpstreamKeyLink": "Open {{provider}} API keys",
     "fixedEndpointHint": "This provider uses a fixed official endpoint. To use a relay, add a custom OpenAI-compatible provider instead.",
     "customBaseUrlNotAllowed": "A custom Base URL ({url}) is saved but this provider only accepts its official endpoint, so requests will be rejected.",
     "clearCustomBaseUrl": "Clear",

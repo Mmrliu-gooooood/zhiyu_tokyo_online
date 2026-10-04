@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "このアカウントではサインインを追加できなくなりました。",
     "oauthBusy": "進行中のサインインが多すぎます。しばらくしてからお試しください。",
     "oauthRequestFailed": "リクエストに失敗しました。もう一度お試しください。",
+    "oauthUpstreamKeyNotice": "接続を解除しました。{{provider}} でこのサイト用に作成された API キーはまだ有効です。完全に無効にするには {{provider}} で削除してください。",
+    "oauthUpstreamKeyLink": "{{provider}} の API キーページを開く",
     "fixedEndpointHint": "このプロバイダーは固定の公式エンドポイントを使用します。中継を使う場合はカスタムの OpenAI 互換プロバイダーを追加してください。",
     "customBaseUrlNotAllowed": "カスタム Base URL（{url}）が保存されていますが、このプロバイダーは公式エンドポイントのみ受け付けるため、リクエストは拒否されます。",
     "clearCustomBaseUrl": "クリア",

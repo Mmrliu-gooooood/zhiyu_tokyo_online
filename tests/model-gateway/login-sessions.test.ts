@@ -23,6 +23,7 @@ import {
   configuredOAuthProviders,
   enabledOAuthProviders,
   oauthDeploymentCapable,
+  oauthLoginTimeoutMs,
 } from '@/lib/model-gateway/auth/policy';
 import { sealedAuthContext } from '@/lib/model-gateway/credentials/auth-context';
 import { CredentialVault } from '@/lib/model-gateway/credentials/vault';
@@ -326,6 +327,65 @@ describe('subscription sign-in sessions', () => {
     expect(await vault().list()).toEqual([]);
   });
 
+  it('reads a flow that stopped waiting for the user as expired, not failed', async () => {
+    const timedOut = service(async () => {
+      throw new Error('OpenRouter sign-in timed out');
+    });
+    const first = await timedOut.start(OWNER, PROVIDER);
+    await timedOut.idle();
+    expect(await timedOut.get(OWNER, first.id)).toMatchObject({
+      status: 'expired',
+      errorCode: null,
+    });
+    // A network timeout after the user acted is a failure, not an expiry.
+    const exchange = service(async () => {
+      throw new Error('OpenRouter OAuth token exchange timed out');
+    });
+    const second = await exchange.start(OWNER, PROVIDER);
+    await exchange.idle();
+    expect(await exchange.get(OWNER, second.id)).toMatchObject({
+      status: 'failed',
+      errorCode: 'MODEL_AUTH_FAILED',
+    });
+  });
+
+  it("ends a session with the flow's own shorter timeout", async () => {
+    const tenMinutes = { ttlMs: 600_000, leaseMs: 5_000, heartbeatMs: 1_000, inputPollMs: 20 };
+    const logins = service(async (interaction) => untilAborted(interaction.signal!), {
+      timings: tenMinutes,
+    });
+    const remaining = (session: LoginSessionView) =>
+      new Date(session.expiresAt).getTime() - Date.now();
+    // pi's OpenRouter flow stops waiting after 5 minutes.
+    const openrouter = await logins.start(OWNER, 'openrouter');
+    expect(remaining(openrouter)).toBeGreaterThan(290_000);
+    expect(remaining(openrouter)).toBeLessThanOrEqual(300_000);
+    const codex = await logins.start(OWNER, PROVIDER);
+    expect(remaining(codex)).toBeGreaterThan(590_000);
+  });
+
+  it('finds the open sign-in for a provider so a reloaded page can resume it', async () => {
+    const logins = service(async (interaction) => {
+      interaction.notify({ type: 'auth_url', url: 'https://auth.example.test/a' });
+      return untilAborted(interaction.signal!);
+    });
+    expect(await logins.current(OWNER, PROVIDER)).toBeNull();
+    const started = await logins.start(OWNER, PROVIDER);
+    await waitFor(
+      () => logins.get(OWNER, started.id),
+      (session) => session.status === 'awaiting_user',
+    );
+    expect(await logins.current(OWNER, PROVIDER)).toMatchObject({
+      id: started.id,
+      status: 'awaiting_user',
+      challenge: { authUrl: 'https://auth.example.test/a' },
+    });
+    expect(await logins.current(OTHER, PROVIDER)).toBeNull();
+    expect(await logins.current(OWNER, 'openrouter')).toBeNull();
+    await logins.cancel(OWNER, started.id);
+    expect(await logins.current(OWNER, PROVIDER)).toBeNull();
+  });
+
   it('marks a session interrupted when its executor stops', async () => {
     const hanging = gate();
     const first = service(async () => hanging.opened.then(() => credential('late')), {
@@ -473,6 +533,11 @@ describe('sign-in policy', () => {
       'github-copilot',
     ]);
     expect(enabledOAuthProviders({ env, hostedAuth: () => false })).toEqual([]);
+  });
+
+  it('knows which flows stop waiting sooner than a session lasts', () => {
+    expect(oauthLoginTimeoutMs('openrouter')).toBe(300_000);
+    expect(oauthLoginTimeoutMs('openai-codex')).toBeUndefined();
   });
 
   it('masks the account label', () => {

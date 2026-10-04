@@ -99,6 +99,8 @@ interface VerifyModelRequestConfig {
   api?: WireApi;
   endpointProfile?: string;
   endpointParams?: Record<string, string>;
+  /** A signed-in account: tested through its credential, never with a key. */
+  credentialId?: string;
 }
 
 export function createVerifyModelRequest(config: VerifyModelRequestConfig) {
@@ -108,7 +110,8 @@ export function createVerifyModelRequest(config: VerifyModelRequestConfig) {
       .filter(([, value]) => value),
   );
   return {
-    apiKey: config.apiKey || '',
+    apiKey: config.credentialId ? '' : config.apiKey || '',
+    ...(config.credentialId ? { credentialId: config.credentialId } : {}),
     baseUrl: config.baseUrl || '',
     model: `${config.providerId}:${config.modelId}`,
     providerType: config.providerType,

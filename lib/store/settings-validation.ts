@@ -41,6 +41,13 @@ export function isProviderUsable(cfg: ProviderCfgLike | undefined): boolean {
   return !!cfg.apiKey;
 }
 
+/** The credential of an active subscription sign-in, else undefined. */
+export function activeCredentialId(cfg: ProviderCfgLike | undefined): string | undefined {
+  return cfg?.authMode === 'oauth' && cfg.credentialStatus === 'active'
+    ? cfg.credentialId
+    : undefined;
+}
+
 export type MediaProviderCfgLike = ProviderCfgLike & { enabled?: boolean };
 
 /** Media providers have an explicit user enablement switch in addition to the

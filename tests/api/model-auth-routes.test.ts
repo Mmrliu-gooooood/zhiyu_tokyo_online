@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const capable = vi.hoisted(() => ({ value: true }));
 const service = vi.hoisted(() => ({
   start: vi.fn(),
+  current: vi.fn(),
   get: vi.fn(),
   submitInput: vi.fn(),
   cancel: vi.fn(),
@@ -30,6 +31,7 @@ import { CredentialVaultError } from '@/lib/model-gateway/credentials/vault';
 import { GET as listCredentials } from '@/app/api/model-credentials/route';
 import { DELETE as revokeCredential } from '@/app/api/model-credentials/[id]/route';
 import { POST as startSignIn } from '@/app/api/model-auth/[providerId]/start/route';
+import { GET as currentSignIn } from '@/app/api/model-auth/[providerId]/session/route';
 import { POST as submitInput } from '@/app/api/model-auth/sessions/[id]/input/route';
 import { GET as getSession } from '@/app/api/model-auth/sessions/[id]/route';
 
@@ -96,6 +98,19 @@ describe('model auth routes', () => {
     const response = await startSignIn(request('{}'), params({ providerId: 'openai-codex' }));
     expect(response.status).toBe(201);
     expect(service.start).toHaveBeenCalledWith('user:owner-a', 'openai-codex');
+  });
+
+  it("returns the provider's open sign-in, or null, for the request owner", async () => {
+    service.current.mockResolvedValueOnce({ id: 's1', status: 'awaiting_user' });
+    const open = await currentSignIn(request(), params({ providerId: 'openrouter' }));
+    expect(open.status).toBe(200);
+    expect(open.headers.get('cache-control')).toBe('no-store');
+    expect(await open.json()).toEqual({ session: { id: 's1', status: 'awaiting_user' } });
+    expect(service.current).toHaveBeenCalledWith('user:owner-a', 'openrouter');
+
+    service.current.mockResolvedValueOnce(null);
+    const none = await currentSignIn(request(), params({ providerId: 'openrouter' }));
+    expect(await none.json()).toEqual({ session: null });
   });
 
   it('accepts only a small JSON object as input', async () => {

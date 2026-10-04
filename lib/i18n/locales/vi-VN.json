@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "Tài khoản này không thể thêm đăng nhập nữa.",
     "oauthBusy": "Có quá nhiều phiên đăng nhập đang chạy. Hãy thử lại sau.",
     "oauthRequestFailed": "Yêu cầu thất bại. Hãy thử lại.",
+    "oauthUpstreamKeyNotice": "Đã ngắt kết nối. Khóa API được tạo cho trang này trên {{provider}} vẫn còn hiệu lực; để thu hồi hoàn toàn, hãy xóa nó trên {{provider}}.",
+    "oauthUpstreamKeyLink": "Mở trang khóa API của {{provider}}",
     "fixedEndpointHint": "Nhà cung cấp này dùng endpoint chính thức cố định. Nếu cần trung chuyển, hãy thêm nhà cung cấp tùy chỉnh tương thích OpenAI.",
     "customBaseUrlNotAllowed": "Đã lưu Base URL tùy chỉnh ({url}) nhưng nhà cung cấp này chỉ chấp nhận endpoint chính thức, nên yêu cầu sẽ bị từ chối.",
     "clearCustomBaseUrl": "Xóa",

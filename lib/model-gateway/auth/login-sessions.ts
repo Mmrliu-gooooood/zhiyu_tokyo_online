@@ -10,9 +10,10 @@
  * - `prompt` publishes what the user must enter and waits for a sealed,
  *   one-time input that any replica may store; the executor consumes it;
  * - the executor renews a short lease. A session whose lease lapsed (the
- *   process stopped) reads as `interrupted`; one past its 10-minute TTL as
- *   `expired`. Cancelling from any replica stops the executor at its next
- *   lease renewal or input poll.
+ *   process stopped) reads as `interrupted`; one past its TTL (10 minutes, or
+ *   the flow's own shorter timeout) as `expired`, as does a flow that stopped
+ *   waiting for the user. Cancelling from any replica stops the executor at
+ *   its next lease renewal or input poll.
  * - On success the credential is stored in one short transaction that first
  *   re-checks the session is still open and owned by this executor and that
  *   the account is active, so a late result can never create a credential.
@@ -32,7 +33,7 @@ import {
   type Queryable,
   type VaultDatabase,
 } from '../credentials/vault';
-import { isOAuthProviderEnabled, oauthPiProviderId } from './policy';
+import { isOAuthProviderEnabled, oauthLoginTimeoutMs, oauthPiProviderId } from './policy';
 
 const log = createLogger('ModelAuth');
 
@@ -193,6 +194,11 @@ class SessionEnd extends Error {
   }
 }
 
+/** pi's own "stopped waiting for the user" errors (callback server, device flow). */
+function isFlowTimeout(error: unknown): boolean {
+  return error instanceof Error && /\b(sign-in|device flow) timed out\b/i.test(error.message);
+}
+
 function abortableDelay(ms: number, signals: (AbortSignal | undefined)[]): Promise<void> {
   const signal = AbortSignal.any(signals.filter((item): item is AbortSignal => Boolean(item)));
   return new Promise((resolve, reject) => {
@@ -256,6 +262,7 @@ export class LoginService {
     }
     if (this.#running.size >= this.#maxSessions) throw new LoginSessionError('MODEL_AUTH_BUSY');
     const deviceId = await this.#resolveDeviceId(ownerId);
+    const ttlMs = Math.min(this.#ttlMs, oauthLoginTimeoutMs(piProviderId) ?? Infinity);
 
     const id = randomUUID();
     const { row, replaced } = await this.#db(ownerId).withTransaction(async (db) => {
@@ -275,7 +282,7 @@ export class LoginService {
             clock_timestamp() + make_interval(secs => $5::double precision / 1000),
             clock_timestamp() + make_interval(secs => $6::double precision / 1000))
          RETURNING ${COLUMNS}`,
-        [id, ownerId, providerId, this.executorId, this.#leaseMs, this.#ttlMs],
+        [id, ownerId, providerId, this.executorId, this.#leaseMs, ttlMs],
       );
       return { row: inserted.rows[0]!, replaced: closed.rows.map((item) => item.id) };
     });
@@ -283,9 +290,15 @@ export class LoginService {
       this.#running.get(previous)?.controller.abort(new SessionEnd('closed'));
 
     const controller = new AbortController();
-    const done = this.#run(ownerId, id, providerId, piProviderId, deviceId, controller).finally(
-      () => this.#running.delete(id),
-    );
+    const done = this.#run(
+      ownerId,
+      id,
+      providerId,
+      piProviderId,
+      deviceId,
+      ttlMs,
+      controller,
+    ).finally(() => this.#running.delete(id));
     this.#running.set(id, { controller, done });
     return view(row);
   }
@@ -301,6 +314,20 @@ export class LoginService {
       );
       if (!result.rows[0]) throw new LoginSessionError('MODEL_AUTH_SESSION_NOT_FOUND');
       return view(result.rows[0]);
+    });
+  }
+
+  /** The provider's open sign-in, if any: a reloaded page picks it up again. */
+  async current(ownerId: string, providerId: string): Promise<LoginSessionView | null> {
+    return this.#db(ownerId).withTransaction(async (db) => {
+      await this.#sweep(db, ownerId);
+      const result = await db.query<SessionRow>(
+        `SELECT ${COLUMNS} FROM model_auth_sessions
+          WHERE owner_id=$1 AND provider_id=$2 AND status IN ('pending','awaiting_user')
+          LIMIT 1`,
+        [ownerId, providerId],
+      );
+      return result.rows[0] ? view(result.rows[0]) : null;
     });
   }
 
@@ -420,6 +447,7 @@ export class LoginService {
     providerId: string,
     piProviderId: string,
     deviceId: string,
+    ttlMs: number,
     controller: AbortController,
   ): Promise<void> {
     const signal = controller.signal;
@@ -441,7 +469,7 @@ export class LoginService {
       return writes;
     };
 
-    const ttl = setTimeout(() => controller.abort(new SessionEnd('expired')), this.#ttlMs);
+    const ttl = setTimeout(() => controller.abort(new SessionEnd('expired')), ttlMs);
     const heartbeat = setInterval(() => {
       void this.#db(ownerId)
         .withTransaction((db) =>
@@ -525,7 +553,8 @@ export class LoginService {
       await writes;
       const reason = signal.aborted ? signal.reason : error;
       if (reason instanceof SessionEnd && reason.outcome === 'closed') return;
-      const expired = reason instanceof SessionEnd && reason.outcome === 'expired';
+      const expired =
+        (reason instanceof SessionEnd && reason.outcome === 'expired') || isFlowTimeout(reason);
       await this.#finish(
         ownerId,
         sessionId,

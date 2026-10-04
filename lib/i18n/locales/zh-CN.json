@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "该账号已无法添加登录。",
     "oauthBusy": "进行中的登录过多，请稍后再试。",
     "oauthRequestFailed": "请求失败，请重试。",
+    "oauthUpstreamKeyNotice": "已断开。{{provider}} 上为本站创建的 API Key 仍然有效；如需彻底撤销，请到 {{provider}} 删除它。",
+    "oauthUpstreamKeyLink": "打开 {{provider}} 的 API Key 页面",
     "fixedEndpointHint": "该提供方只使用官方固定端点。如需中转，请添加自定义 OpenAI 兼容提供方。",
     "customBaseUrlNotAllowed": "已保存自定义 Base URL（{url}），但该提供方只接受官方端点，请求会被拒绝。",
     "clearCustomBaseUrl": "清除",

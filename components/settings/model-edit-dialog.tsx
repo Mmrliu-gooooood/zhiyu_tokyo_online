@@ -29,6 +29,8 @@ interface ModelEditDialogProps {
   endpointParams?: Record<string, string>;
   requiresApiKey?: boolean;
   isServerConfigured?: boolean;
+  /** The provider's active signed-in account, used instead of an API key. */
+  credentialId?: string;
 }
 
 export function ModelEditDialog({
@@ -46,6 +48,7 @@ export function ModelEditDialog({
   endpointParams,
   requiresApiKey,
   isServerConfigured,
+  credentialId,
 }: ModelEditDialogProps) {
   const { t } = useI18n();
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
@@ -88,6 +91,7 @@ export function ModelEditDialog({
             requiresApiKey,
             api,
             endpointParams,
+            credentialId,
           }),
         ),
       });
@@ -114,6 +118,7 @@ export function ModelEditDialog({
     api,
     endpointParams,
     requiresApiKey,
+    credentialId,
     t,
   ]);
 
@@ -329,7 +334,7 @@ export function ModelEditDialog({
                 disabled={
                   !editingModel.model.id ||
                   testStatus === 'testing' ||
-                  (requiresApiKey && !apiKey && !isServerConfigured)
+                  (requiresApiKey && !apiKey && !isServerConfigured && !credentialId)
                 }
                 className={cn(
                   testStatus === 'success' && 'border-green-600 text-green-600 hover:bg-green-50',

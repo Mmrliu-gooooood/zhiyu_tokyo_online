@@ -40,4 +40,18 @@ describe('custom provider baseUrl persistence', () => {
     expect(request.model).toBe('custom-123:test-model');
     expect(request.providerType).toBe('openai');
   });
+
+  it('tests a signed-in account through its credential, never with a key', () => {
+    const request = createVerifyModelRequest({
+      providerId: 'openrouter',
+      modelId: 'qwen/qwen3.8-27b:free',
+      apiKey: 'stale-key',
+      credentialId: '33333333-3333-4333-8333-333333333333',
+    });
+    expect(request).toMatchObject({
+      apiKey: '',
+      credentialId: '33333333-3333-4333-8333-333333333333',
+      model: 'openrouter:qwen/qwen3.8-27b:free',
+    });
+  });
 });

@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "Esta cuenta ya no puede añadir un inicio de sesión.",
     "oauthBusy": "Hay demasiados inicios de sesión en curso. Inténtalo en un momento.",
     "oauthRequestFailed": "La solicitud falló. Inténtalo de nuevo.",
+    "oauthUpstreamKeyNotice": "Desconectado. La clave de API creada para este sitio en {{provider}} sigue siendo válida; para revocarla por completo, elimínala en {{provider}}.",
+    "oauthUpstreamKeyLink": "Abrir las claves de API de {{provider}}",
     "fixedEndpointHint": "Este proveedor usa un endpoint oficial fijo. Para usar un relay, agrega un proveedor personalizado compatible con OpenAI.",
     "customBaseUrlNotAllowed": "Hay una Base URL personalizada ({url}) guardada, pero este proveedor solo acepta su endpoint oficial, así que las solicitudes serán rechazadas.",
     "clearCustomBaseUrl": "Borrar",

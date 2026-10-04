@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "Esta conta não pode mais adicionar um login.",
     "oauthBusy": "Há logins demais em andamento. Tente novamente em instantes.",
     "oauthRequestFailed": "A solicitação falhou. Tente novamente.",
+    "oauthUpstreamKeyNotice": "Desconectado. A chave de API criada para este site no {{provider}} continua válida; para revogá-la por completo, exclua-a no {{provider}}.",
+    "oauthUpstreamKeyLink": "Abrir as chaves de API do {{provider}}",
     "fixedEndpointHint": "Este provedor usa um endpoint oficial fixo. Para usar um relay, adicione um provedor personalizado compatível com OpenAI.",
     "customBaseUrlNotAllowed": "Uma Base URL personalizada ({url}) está salva, mas este provedor só aceita o endpoint oficial; as solicitações serão rejeitadas.",
     "clearCustomBaseUrl": "Limpar",

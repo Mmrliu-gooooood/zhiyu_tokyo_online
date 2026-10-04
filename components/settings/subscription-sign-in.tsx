@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Copy, ExternalLink, Loader2, LogIn, Unplug, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { peekAccountUserId } from '@/lib/auth/account-environment';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { useSettingsStore } from '@/lib/store/settings';
 import type { ProviderCredentialStatus } from '@/lib/types/settings';
@@ -34,6 +35,14 @@ interface SubscriptionSignInProps {
 }
 
 const POLL_MS = 1500;
+
+/**
+ * Sign-ins that mint a key on the provider's side. Disconnecting deletes only
+ * our copy, so the user is pointed at the provider's page to delete theirs.
+ */
+const UPSTREAM_KEY_PAGES: Readonly<Record<string, { name: string; url: string }>> = {
+  openrouter: { name: 'OpenRouter', url: 'https://openrouter.ai/settings/keys' },
+};
 
 function errorKey(code: string | null | undefined): string {
   switch (code) {
@@ -85,6 +94,7 @@ export function SubscriptionSignIn({
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [disconnected, setDisconnected] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // Every provider change, account switch or unmount starts a new generation;
@@ -100,10 +110,15 @@ export function SubscriptionSignIn({
   const loadAccount = useCallback(
     async (current: number) => {
       try {
-        const accounts = await modelAuthClient.listAccounts();
+        const [accounts, pending] = await Promise.all([
+          modelAuthClient.listAccounts(),
+          // A sign-in still running (the page was reloaded mid-way) is resumed.
+          modelAuthClient.current(providerId).catch(() => null),
+        ]);
         if (current !== generation.current) return;
         const found = accounts.find((item) => item.providerId === providerId);
         setAccount(found);
+        if (pending) setSession(pending);
         setPhase('ready');
         const known = props.current;
         // Keep the saved reference in step with the server's view.
@@ -135,6 +150,7 @@ export function SubscriptionSignIn({
     setAccount(undefined);
     setError(null);
     setInput('');
+    setDisconnected(false);
     setPhase('loading');
     return generation.current;
   }, []);
@@ -149,13 +165,23 @@ export function SubscriptionSignIn({
   }, [loadAccount, reset]);
 
   // Account switch: settings rehydrate for the new account; stop polling at once.
+  // Settings also rehydrate for the same account (storage recovery after an
+  // early write); that is no switch, so the panel keeps what it shows.
   useEffect(() => {
     const persist = useSettingsStore.persist;
     if (!persist) return;
+    let accountUserId = peekAccountUserId();
+    let switched = false;
     const stopHydrate = persist.onHydrate(() => {
+      const next = peekAccountUserId();
+      if (next === accountUserId) return;
+      accountUserId = next;
+      switched = true;
       reset();
     });
     const stopFinish = persist.onFinishHydration(() => {
+      if (!switched) return;
+      switched = false;
       void loadAccount(generation.current);
     });
     return () => {
@@ -206,6 +232,7 @@ export function SubscriptionSignIn({
     setBusy(true);
     setError(null);
     setInput('');
+    setDisconnected(false);
     try {
       const started = await modelAuthClient.start(providerId);
       if (current === generation.current) setSession(started);
@@ -258,6 +285,7 @@ export function SubscriptionSignIn({
       if (current !== generation.current) return;
       setAccount(undefined);
       setSession(null);
+      setDisconnected(true);
       props.current.onCredentialChange({
         authMode: 'api-key',
         credentialId: undefined,
@@ -302,6 +330,7 @@ export function SubscriptionSignIn({
   const prompt = open ? challenge?.prompt : undefined;
   const remaining = session ? new Date(session.expiresAt).getTime() - now : 0;
   const outcome = session && !open ? outcomeKey(session) : undefined;
+  const upstreamKeyPage = disconnected && !open ? UPSTREAM_KEY_PAGES[providerId] : undefined;
 
   return (
     <div className="space-y-3 rounded-lg border p-3 text-sm" data-testid="subscription-sign-in">
@@ -457,6 +486,19 @@ export function SubscriptionSignIn({
       )}
 
       {outcome && <p className="text-muted-foreground">{t(outcome)}</p>}
+      {upstreamKeyPage && (
+        <p className="text-muted-foreground" data-testid="upstream-key-notice">
+          {t('settings.oauthUpstreamKeyNotice', { provider: upstreamKeyPage.name })}{' '}
+          <a
+            href={upstreamKeyPage.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline"
+          >
+            {t('settings.oauthUpstreamKeyLink', { provider: upstreamKeyPage.name })}
+          </a>
+        </p>
+      )}
       {error && <p className="text-destructive">{t(error)}</p>}
 
       {!open && account?.status !== 'active' && (

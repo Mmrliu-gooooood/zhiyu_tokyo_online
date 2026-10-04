@@ -33,6 +33,11 @@ vi.mock('@/lib/store/settings', () => ({
   },
 }));
 
+const accountEnv = vi.hoisted(() => ({ userId: 'user-a' as string | undefined }));
+vi.mock('@/lib/auth/account-environment', () => ({
+  peekAccountUserId: () => accountEnv.userId,
+}));
+
 import { SubscriptionSignIn } from '@/components/settings/subscription-sign-in';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -81,6 +86,7 @@ beforeEach(() => {
   );
   hydration.onHydrate.length = 0;
   hydration.onFinish.length = 0;
+  accountEnv.userId = 'user-a';
   onCredentialChange.mockReset();
   container = document.createElement('div');
   document.body.appendChild(container);
@@ -133,7 +139,10 @@ describe('subscription sign-in panel', () => {
     await mount();
     expect(container.textContent).toContain('settings.oauthStatusNotConnected');
 
-    routes[`POST /api/model-auth/${PROVIDER}/start`] = () => ({ status: 201, body: session('pending') });
+    routes[`POST /api/model-auth/${PROVIDER}/start`] = () => ({
+      status: 201,
+      body: session('pending'),
+    });
     routes[`GET /api/model-auth/sessions/${SESSION}`] = () => ({
       body: session('awaiting_user', {
         deviceCode: {
@@ -220,7 +229,13 @@ describe('subscription sign-in panel', () => {
     routes['GET /api/model-credentials'] = () => ({
       body: {
         credentials: [
-          { id: CREDENTIAL, providerId: PROVIDER, status: 'active', accountLabel: null, updatedAt: '' },
+          {
+            id: CREDENTIAL,
+            providerId: PROVIDER,
+            status: 'active',
+            accountLabel: null,
+            updatedAt: '',
+          },
         ],
       },
     });
@@ -268,17 +283,89 @@ describe('subscription sign-in panel', () => {
 
   it('stops polling when the account switches', async () => {
     await mount();
-    routes[`POST /api/model-auth/${PROVIDER}/start`] = () => ({ status: 201, body: session('pending') });
+    routes[`POST /api/model-auth/${PROVIDER}/start`] = () => ({
+      status: 201,
+      body: session('pending'),
+    });
     routes[`GET /api/model-auth/sessions/${SESSION}`] = () => ({ body: session('pending') });
     await click('settings.oauthSignIn');
     await flush(1600);
     const before = requests.filter((item) => item.path.includes('/sessions/')).length;
     expect(before).toBeGreaterThan(0);
+    accountEnv.userId = 'user-b';
     await act(async () => {
       for (const fn of hydration.onHydrate) fn();
     });
     await flush(6000);
     expect(requests.filter((item) => item.path.includes('/sessions/')).length).toBe(before);
     expect(container.textContent).toContain('settings.oauthLoading');
+  });
+  it('resumes a sign-in still running after the page was reloaded', async () => {
+    routes[`GET /api/model-auth/${PROVIDER}/session`] = () => ({
+      body: session('awaiting_user', {
+        authUrl: 'https://auth.example.test/authorize',
+        prompt: { kind: 'manual_code', message: 'Paste the redirect URL' },
+      }),
+    });
+    routes[`GET /api/model-auth/sessions/${SESSION}`] = () => ({
+      body: session('awaiting_user', {
+        authUrl: 'https://auth.example.test/authorize',
+        prompt: { kind: 'manual_code', message: 'Paste the redirect URL' },
+      }),
+    });
+    await mount();
+    expect(container.querySelector('a[href="https://auth.example.test/authorize"]')).not.toBeNull();
+    expect(container.textContent).toContain('Paste the redirect URL');
+    expect(button('settings.oauthSubmit')).toBeTruthy();
+    // It is polled like a sign-in started on this page.
+    await flush(1600);
+    expect(requests.some((item) => item.path === `/api/model-auth/sessions/${SESSION}`)).toBe(true);
+  });
+
+  it('keeps showing the account when settings rehydrate for the same account', async () => {
+    routes['GET /api/model-credentials'] = () => ({
+      body: {
+        credentials: [
+          {
+            id: CREDENTIAL,
+            providerId: PROVIDER,
+            status: 'active',
+            accountLabel: null,
+            updatedAt: '',
+          },
+        ],
+      },
+    });
+    await mount({ credentialId: CREDENTIAL, credentialStatus: 'active', authMode: 'oauth' });
+    expect(container.textContent).toContain('settings.oauthStatusConnected');
+    await act(async () => {
+      for (const fn of hydration.onHydrate) fn();
+    });
+    expect(container.textContent).toContain('settings.oauthStatusConnected');
+    expect(container.textContent).not.toContain('settings.oauthLoading');
+  });
+
+  it('points at the provider page after disconnecting a sign-in that minted a key there', async () => {
+    const credentials = {
+      credentials: [
+        {
+          id: CREDENTIAL,
+          providerId: 'openrouter',
+          status: 'active',
+          accountLabel: null,
+          updatedAt: '',
+        },
+      ],
+    };
+    routes['GET /api/model-credentials'] = () => ({ body: credentials });
+    await mount({ providerId: 'openrouter', credentialId: CREDENTIAL, credentialStatus: 'active' });
+    expect(container.querySelector('[data-testid="upstream-key-notice"]')).toBeNull();
+    routes[`DELETE /api/model-credentials/${CREDENTIAL}`] = () => ({ body: { revoked: true } });
+    await click('settings.oauthDisconnect');
+    const notice = container.querySelector('[data-testid="upstream-key-notice"]');
+    expect(notice?.textContent).toContain('settings.oauthUpstreamKeyNotice(OpenRouter)');
+    const link = notice?.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('https://openrouter.ai/settings/keys');
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
   });
 });

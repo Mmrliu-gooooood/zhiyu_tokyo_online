@@ -2174,6 +2174,8 @@
     "oauthAccountInactive": "此帳號已無法新增登入。",
     "oauthBusy": "進行中的登入過多，請稍後再試。",
     "oauthRequestFailed": "請求失敗，請重試。",
+    "oauthUpstreamKeyNotice": "已中斷連線。{{provider}} 上為本站建立的 API Key 仍然有效；如需徹底撤銷，請到 {{provider}} 刪除它。",
+    "oauthUpstreamKeyLink": "開啟 {{provider}} 的 API Key 頁面",
     "fixedEndpointHint": "此提供方只使用官方固定端點。如需中轉，請新增自訂 OpenAI 相容提供方。",
     "customBaseUrlNotAllowed": "已儲存自訂 Base URL（{url}），但此提供方只接受官方端點，請求會被拒絕。",
     "clearCustomBaseUrl": "清除",

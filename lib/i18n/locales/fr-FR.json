@@ -2193,6 +2193,8 @@
     "oauthAccountInactive": "Ce compte ne peut plus ajouter de connexion.",
     "oauthBusy": "Trop de connexions en cours. Réessayez dans un instant.",
     "oauthRequestFailed": "La requête a échoué. Réessayez.",
+    "oauthUpstreamKeyNotice": "Déconnecté. La clé API créée pour ce site sur {{provider}} reste valide ; pour la révoquer complètement, supprimez-la sur {{provider}}.",
+    "oauthUpstreamKeyLink": "Ouvrir les clés API {{provider}}",
     "fixedEndpointHint": "Ce fournisseur utilise un point de terminaison officiel fixe. Pour passer par un relais, ajoutez plutôt un fournisseur personnalisé compatible OpenAI.",
     "customBaseUrlNotAllowed": "Une Base URL personnalisée ({url}) est enregistrée, mais ce fournisseur n’accepte que son point de terminaison officiel : les requêtes seront refusées.",
     "clearCustomBaseUrl": "Effacer",
