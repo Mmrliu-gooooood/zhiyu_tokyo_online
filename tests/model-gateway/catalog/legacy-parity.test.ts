@@ -30,6 +30,14 @@ const LEGACY_FIELDS = [
   'models',
 ] as const;
 
+/**
+ * Deliberate changes to a legacy provider since the snapshot, each asserted
+ * with its new value. Atlas Cloud had no logo in the legacy catalog.
+ */
+const INTENDED_CHANGES: Readonly<Record<string, Record<string, unknown>>> = {
+  atlascloud: { icon: '/logos/atlascloud.svg' },
+};
+
 function pickFields(source: object): Record<string, unknown> {
   const record = source as Record<string, unknown>;
   return Object.fromEntries(
@@ -49,7 +57,7 @@ describe('client catalog parity with the frozen legacy catalog', () => {
   it.each([...LEGACY_PROVIDER_IDS])('%s keeps every provider field and model entry', (id) => {
     const legacy = LEGACY[id]!;
     const next = CLIENT_PROVIDERS[id]!;
-    expect(pickFields(next)).toEqual(pickFields(legacy));
+    expect(pickFields(next)).toEqual(pickFields({ ...legacy, ...INTENDED_CHANGES[id] }));
     // Undefined meant "discovery available" in the legacy UI (`!== false`).
     expect(next.supportsModelDiscovery !== false).toBe(legacy.supportsModelDiscovery !== false);
   });

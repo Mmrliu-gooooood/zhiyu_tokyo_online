@@ -125,6 +125,7 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   {
     id: 'atlascloud',
     name: 'Atlas Cloud',
+    icon: '/logos/atlascloud.svg',
     group: 'aggregator',
     upstream: { kind: 'custom', api: 'openai-completions' },
     auth: ['api-key'],
@@ -473,24 +474,25 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   // ---------------------------------------------------------------- new: official / aggregators
   ...(
     [
-      ['groq', 'Groq', 'official'],
-      ['cerebras', 'Cerebras', 'official'],
-      ['mistral', 'Mistral', 'official'],
-      ['meta', 'Meta', 'official'],
-      ['ant-ling', 'Ant Ling', 'china'],
-      ['together', 'Together AI', 'aggregator'],
-      ['fireworks', 'Fireworks', 'aggregator'],
-      ['huggingface', 'Hugging Face', 'aggregator'],
-      ['nvidia', 'NVIDIA', 'aggregator'],
-      ['baseten', 'Baseten', 'aggregator'],
-      ['vercel-ai-gateway', 'Vercel AI Gateway', 'aggregator'],
-      ['opencode', 'OpenCode Zen', 'aggregator'],
-      ['opencode-go', 'OpenCode Go', 'aggregator'],
+      ['groq', 'Groq', 'official', 'groq.svg'],
+      ['cerebras', 'Cerebras', 'official', 'cerebras.svg'],
+      ['mistral', 'Mistral', 'official', 'mistral.svg'],
+      ['meta', 'Meta', 'official', 'meta.svg'],
+      ['ant-ling', 'Ant Ling', 'china', 'antgroup.svg'],
+      ['together', 'Together AI', 'aggregator', 'together.svg'],
+      ['fireworks', 'Fireworks', 'aggregator', 'fireworks.svg'],
+      ['huggingface', 'Hugging Face', 'aggregator', 'huggingface.svg'],
+      ['nvidia', 'NVIDIA', 'aggregator', 'nvidia.svg'],
+      ['baseten', 'Baseten', 'aggregator', 'baseten.svg'],
+      ['vercel-ai-gateway', 'Vercel AI Gateway', 'aggregator', 'vercel.svg'],
+      ['opencode', 'OpenCode Zen', 'aggregator', 'opencode.svg'],
+      ['opencode-go', 'OpenCode Go', 'aggregator', 'opencode.svg'],
     ] as const
   ).map(
-    ([id, name, group]): ProviderDescriptor => ({
+    ([id, name, group, logo]): ProviderDescriptor => ({
       id,
       name,
+      icon: `/logos/${logo}`,
       group,
       upstream: { kind: 'pi', piProviderId: id },
       auth: id === 'meta' ? ['api-key', 'oauth'] : ['api-key'],
@@ -502,6 +504,7 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   {
     id: 'cloudflare-workers-ai',
     name: 'Cloudflare Workers AI',
+    icon: '/logos/cloudflare.svg',
     group: 'aggregator',
     upstream: { kind: 'pi', piProviderId: 'cloudflare-workers-ai' },
     auth: ['api-key'],
@@ -513,6 +516,7 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   {
     id: 'cloudflare-ai-gateway',
     name: 'Cloudflare AI Gateway',
+    icon: '/logos/cloudflare.svg',
     group: 'aggregator',
     upstream: { kind: 'pi', piProviderId: 'cloudflare-ai-gateway' },
     auth: ['api-key'],
@@ -536,20 +540,31 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   // ---------------------------------------------------------------- new: Coding / Token Plans
   ...(
     [
-      ['zai-coding', 'zai', 'Z.AI Coding Plan'],
-      ['zai-coding-cn', 'zai-coding-cn', 'GLM Coding Plan (China)'],
-      ['kimi-coding', 'kimi-coding', 'Kimi Coding'],
-      ['qwen-token-plan', 'qwen-token-plan', 'Qwen Token Plan'],
-      ['qwen-token-plan-cn', 'qwen-token-plan-cn', 'Qwen Token Plan (China)'],
-      ['qwen-token-plan-individual', 'qwen-token-plan-individual', 'Qwen Token Plan (Individual)'],
-      ['xiaomi-token-plan-cn', 'xiaomi-token-plan-cn', 'MiMo Token Plan (China)'],
-      ['xiaomi-token-plan-ams', 'xiaomi-token-plan-ams', 'MiMo Token Plan (Europe)'],
-      ['xiaomi-token-plan-sgp', 'xiaomi-token-plan-sgp', 'MiMo Token Plan (Singapore)'],
+      ['zai-coding', 'zai', 'Z.AI Coding Plan', 'zai.svg'],
+      ['zai-coding-cn', 'zai-coding-cn', 'GLM Coding Plan (China)', 'glm.svg'],
+      ['kimi-coding', 'kimi-coding', 'Kimi Coding', 'kimi.png'],
+      ['qwen-token-plan', 'qwen-token-plan', 'Qwen Token Plan', 'qwen.svg'],
+      ['qwen-token-plan-cn', 'qwen-token-plan-cn', 'Qwen Token Plan (China)', 'qwen.svg'],
+      [
+        'qwen-token-plan-individual',
+        'qwen-token-plan-individual',
+        'Qwen Token Plan (Individual)',
+        'qwen.svg',
+      ],
+      ['xiaomi-token-plan-cn', 'xiaomi-token-plan-cn', 'MiMo Token Plan (China)', 'xiaomi.svg'],
+      ['xiaomi-token-plan-ams', 'xiaomi-token-plan-ams', 'MiMo Token Plan (Europe)', 'xiaomi.svg'],
+      [
+        'xiaomi-token-plan-sgp',
+        'xiaomi-token-plan-sgp',
+        'MiMo Token Plan (Singapore)',
+        'xiaomi.svg',
+      ],
     ] as const
   ).map(
-    ([id, piProviderId, name]): ProviderDescriptor => ({
+    ([id, piProviderId, name, logo]): ProviderDescriptor => ({
       id,
       name,
+      icon: `/logos/${logo}`,
       group: 'coding-plan',
       upstream: { kind: 'pi', piProviderId },
       auth: id === 'kimi-coding' ? ['api-key', 'oauth'] : ['api-key'],
@@ -563,6 +578,7 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   {
     id: 'github-copilot',
     name: 'GitHub Copilot',
+    icon: '/logos/githubcopilot.svg',
     group: 'subscription',
     upstream: { kind: 'pi', piProviderId: 'github-copilot' },
     auth: ['oauth'],
@@ -573,6 +589,7 @@ const DESCRIPTOR_LIST: readonly ProviderDescriptor[] = [
   {
     id: 'openai-codex',
     name: 'ChatGPT (Codex)',
+    icon: '/logos/codex.svg',
     group: 'subscription',
     upstream: { kind: 'pi', piProviderId: 'openai-codex' },
     auth: ['oauth'],

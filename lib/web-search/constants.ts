@@ -72,6 +72,7 @@ export const WEB_SEARCH_PROVIDERS: Record<WebSearchProviderId, WebSearchProvider
     requiresApiKey: false,
     requiresBaseUrl: true,
     endpointPath: '/search',
+    icon: '/logos/searxng.svg',
   },
 };
 

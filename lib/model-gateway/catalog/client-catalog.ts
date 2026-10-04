@@ -155,7 +155,19 @@ export const PROVIDERS = Object.fromEntries(
 ) as unknown as Record<ProviderId, ProviderConfig>;
 
 /** Providers whose logos are monochrome (rendered with `dark:invert`). */
-export const MONO_LOGO_PROVIDERS: ReadonlySet<string> = new Set(['openai', 'openrouter', 'ollama']);
+export const MONO_LOGO_PROVIDERS: ReadonlySet<string> = new Set([
+  'openai',
+  'openrouter',
+  'ollama',
+  'atlascloud',
+  'groq',
+  'baseten',
+  'vercel-ai-gateway',
+  'opencode',
+  'opencode-go',
+  'zai-coding',
+  'github-copilot',
+]);
 
 /** A catalog provider by application id (any descriptor, not only the legacy 19). */
 export function getProvider(providerId: string): ClientProviderConfig | undefined {
