@@ -134,6 +134,11 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE model_credentials(id uuid primary key,owner_id text);
       CREATE TABLE model_auth_sessions(id uuid primary key,owner_id text,
         credential_id uuid references model_credentials(id));
+      CREATE TABLE study_spaces(id text primary key,owner_id text,unique(owner_id,id));
+      CREATE TABLE study_space_courses(owner_id text,space_id text,
+        stage_id text references document_stages(id),
+        foreign key(owner_id,space_id) references study_spaces(owner_id,id));
+      CREATE TABLE study_progress(owner_id text,stage_id text references document_stages(id));
       CREATE TABLE media_config_snapshots(owner_id text);
       CREATE TABLE generation_model_snapshots(owner_id text);
       CREATE TABLE generation_search_snapshots(owner_id text);
@@ -156,6 +161,11 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO model_auth_sessions VALUES
         ('00000000-0000-4000-8000-0000000000a1','${OWNER}','00000000-0000-4000-8000-0000000000c1'),
         ('00000000-0000-4000-8000-0000000000a2','${OTHER}','00000000-0000-4000-8000-0000000000c2');
+      INSERT INTO document_stages VALUES('stage-owner','${OWNER}'),('stage-other','${OTHER}');
+      INSERT INTO study_spaces VALUES('space-owner','${OWNER}'),('space-other','${OTHER}');
+      INSERT INTO study_space_courses VALUES
+        ('${OWNER}','space-owner','stage-owner'),('${OTHER}','space-other','stage-other');
+      INSERT INTO study_progress VALUES('${OWNER}','stage-owner'),('${OTHER}','stage-other');
     `);
   });
 
@@ -324,6 +334,10 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
     expect((await db.query('SELECT owner_id FROM model_auth_sessions')).rows).toEqual([
       { owner_id: OTHER },
     ]);
+    // Study spaces, course links and progress go too, before the courses they reference.
+    for (const table of ['study_spaces', 'study_space_courses', 'study_progress']) {
+      expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
+    }
   });
 
   it('persists an object failure and resumes without touching retained shared objects', async () => {

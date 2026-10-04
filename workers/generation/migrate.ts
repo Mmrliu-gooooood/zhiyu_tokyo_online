@@ -7,6 +7,7 @@ import { ensureSchema } from '@openmaic/storage/runtime/pg';
 import { ensureUserSkillSchema } from '@openmaic/storage/skill/pg';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
+import { ensureStudySchema } from '@/lib/server/study/schema';
 import { migrateGenerationSchema } from '@/lib/server/generation-jobs/migrations';
 
 async function main() {
@@ -22,6 +23,9 @@ async function main() {
     await ensureStageMetaSchema(pool);
     await ensureOwnerMaterialSchema(pool);
     await ensureAssetSchema(pool);
+    // Study spaces (learning plan B01). Hosted databases also get row security
+    // from accounts v22; legacy background installs only run this command.
+    await ensureStudySchema(pool);
     // Pro generation and its material scanner share this worker process. A
     // fresh deployment must provision their durable stores before either
     // scanner starts; lazy Web initialization is too late for the worker.

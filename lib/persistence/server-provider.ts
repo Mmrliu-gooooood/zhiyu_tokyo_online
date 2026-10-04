@@ -15,6 +15,7 @@ import { withLegacySharedAssetReads } from '@/lib/persistence/legacy-readable-as
 import { hostedAssetBlobMutations } from '@/lib/persistence/hosted-asset-blob-mutations';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
 import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
+import { ensureStudySchema } from '@/lib/server/study/schema';
 import { APP_RUNTIME_PAYLOAD_VALIDATORS } from '@/lib/runtime/payload-validators';
 
 export { createHostedOwnerBoundStores } from './hosted-owner-store-adapter';
@@ -55,6 +56,7 @@ async function createServerPersistenceProvider(
       await ensureStageMetaSchema(queryable);
       await ensureOwnerMaterialSchema(queryable);
       await ensureAssetSchema(queryable);
+      await ensureStudySchema(queryable);
     }
     const withTransaction = nodePostgresTransaction(queryable);
     const byteStore = lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable);

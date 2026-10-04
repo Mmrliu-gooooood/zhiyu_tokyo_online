@@ -501,6 +501,11 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM usage_events WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM account_kv WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM owner_material WHERE owner_id=$1', [ownerId]);
+      // Study links and progress reference the owner's spaces and courses, so
+      // they go before both.
+      await client.query('DELETE FROM study_progress WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_space_courses WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_spaces WHERE owner_id=$1', [ownerId]);
 
       await client.query(
         `DELETE FROM document_scene_revision r USING document_stages d

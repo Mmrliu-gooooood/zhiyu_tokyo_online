@@ -3,7 +3,7 @@
  * generation schema migrations. Statement splitting respects dollar quotes
  * so function bodies are not broken.
  */
-export const ACCOUNTS_SCHEMA_VERSION = 21;
+export const ACCOUNTS_SCHEMA_VERSION = 22;
 
 export const CLASSROOM_SESSION_REGISTRY_VERSION = 6;
 
