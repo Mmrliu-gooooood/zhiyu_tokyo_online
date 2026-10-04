@@ -2432,5 +2432,123 @@
       "rate_limited": "尝试过于频繁，请稍后再试。",
       "unknown": "认证链接出现问题。"
     }
+  },
+  "study": {
+    "nav": "学科空间",
+    "title": "学科空间",
+    "subtitle": "按学科整理课程，跨设备继续学习。",
+    "backHome": "返回首页",
+    "backToSpaces": "返回学科空间",
+    "createSpace": "新建学科",
+    "continueLearning": "继续学习",
+    "startLearning": "开始学习",
+    "continue": "继续",
+    "start": "开始",
+    "emptyTitle": "还没有学科空间",
+    "empty": "为一门学科（如“高等数学”“数据结构”）建立空间，把相关课程放进来，随时从上次停下的地方继续。",
+    "archived": "已归档",
+    "archivedCount": "已归档 {{count}} 个",
+    "courseCount": "{{count}} 门课程",
+    "lastStudied": "最近学习：{{name}}",
+    "notStartedYet": "还没有开始学习",
+    "edit": "编辑",
+    "moreActions": "更多操作",
+    "archive": "归档",
+    "restore": "恢复",
+    "delete": "删除",
+    "deleteTitle": "删除学科空间？",
+    "deleteText": "将删除“{{name}}”及其课程关联，课程本身和学习进度会保留。",
+    "myCourses": "我的课程",
+    "addExisting": "添加已有课程",
+    "generateCourse": "生成新课程",
+    "noCourses": "还没有课程。可以添加已有课程，或在这个学科下生成新课程。",
+    "noCoursesArchived": "这个学科已归档，恢复后可以继续添加课程。",
+    "removeCourse": "移出",
+    "removeCourseTitle": "从学科中移出课程？",
+    "removeCourseText": "“{{name}}”会从这个学科中移出，课程本身和学习进度会保留。",
+    "generateInto": "新课程将加入学科空间“{{name}}”",
+    "generateIntoCancel": "不加入学科空间",
+    "progress": {
+      "stoppedAt": "学到第 {{page}} / {{total}} 页",
+      "positionGone": "上次所在的页面已不存在",
+      "pageEdited": "该页内容有更新"
+    },
+    "course": {
+      "pages": "共 {{count}} 页",
+      "generating": "生成未完成",
+      "status": {
+        "not-started": "未开始",
+        "in-progress": "学习中",
+        "reached-end": "已看完"
+      }
+    },
+    "exam": {
+      "daysLeft": "距考试 {{count}} 天",
+      "today": "今天考试",
+      "passed": "考试已过 {{count}} 天"
+    },
+    "resume": {
+      "resumed": "已从第 {{page}} 页继续",
+      "sceneChanged": "上次所在的页面内容有更新，已从该页开头继续",
+      "sceneMissing": "上次所在的页面已被删除，已从课程开头继续",
+      "offer": "你在其他设备上学到了第 {{page}} 页",
+      "offerAction": "跳转"
+    },
+    "state": {
+      "unavailableTitle": "学科空间暂未开放",
+      "unavailable": "当前部署还没有开启学科空间。",
+      "signedOutTitle": "请先登录",
+      "signedOut": "学科空间与学习进度保存在你的账号中，登录后即可使用。",
+      "notFoundTitle": "找不到这个学科空间",
+      "notFound": "它可能已被删除，或不属于当前账号。",
+      "errorTitle": "加载失败",
+      "error": "暂时无法读取学科空间，请稍后重试。",
+      "signIn": "去登录"
+    },
+    "errors": {
+      "generic": "操作失败，请稍后重试。",
+      "spaceLimit": "学科空间数量已达上限。",
+      "conflict": "这个学科空间已在其他页面修改，已显示最新内容，请确认后再保存。"
+    },
+    "form": {
+      "createTitle": "新建学科空间",
+      "editTitle": "编辑学科空间",
+      "description": "目标、考试时间和范围都可以以后再填。",
+      "name": "学科名称",
+      "namePlaceholder": "例如：高等数学",
+      "educationLevel": "学段",
+      "subject": "学科",
+      "subjectPlaceholder": "例如：数学",
+      "examDate": "考试日期",
+      "goal": "学习目标",
+      "goalPlaceholder": "例如：期末考试达到 85 分",
+      "examScope": "考试范围",
+      "examScopePlaceholder": "例如：第 1–6 章，重点是极限与导数",
+      "create": "创建",
+      "save": "保存",
+      "invalid": {
+        "name": "请填写学科名称（不超过 60 个字）。",
+        "examDate": "请选择有效的考试日期。",
+        "other": "有内容超出长度限制，请检查后再试。"
+      }
+    },
+    "level": {
+      "none": "不设置",
+      "primary": "小学",
+      "junior": "初中",
+      "senior": "高中",
+      "university": "大学",
+      "other": "其他"
+    },
+    "addCourses": {
+      "title": "添加已有课程",
+      "description": "选择要放进这个学科的课程。同一门课程可以属于多个学科。",
+      "search": "搜索课程",
+      "none": "你还没有可以添加的课程。",
+      "noMatch": "没有匹配的课程。",
+      "alreadyIn": "已在本学科",
+      "confirm": "添加 {{count}} 门课程",
+      "partialFailure": "有 {{count}} 门课程添加失败，请重试。"
+    }
   }
 }

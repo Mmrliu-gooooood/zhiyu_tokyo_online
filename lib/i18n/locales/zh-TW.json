@@ -2432,5 +2432,123 @@
       "rate_limited": "嘗試過於頻繁，請稍後再試。",
       "unknown": "認證連結出現問題。"
     }
+  },
+  "study": {
+    "nav": "學科空間",
+    "title": "學科空間",
+    "subtitle": "按學科整理課程，跨裝置繼續學習。",
+    "backHome": "返回首頁",
+    "backToSpaces": "返回學科空間",
+    "createSpace": "新建學科",
+    "continueLearning": "繼續學習",
+    "startLearning": "開始學習",
+    "continue": "繼續",
+    "start": "開始",
+    "emptyTitle": "還沒有學科空間",
+    "empty": "為一門學科（如「高等數學」「資料結構」）建立空間，把相關課程放進來，隨時從上次停下的地方繼續。",
+    "archived": "已封存",
+    "archivedCount": "已封存 {{count}} 個",
+    "courseCount": "{{count}} 門課程",
+    "lastStudied": "最近學習：{{name}}",
+    "notStartedYet": "還沒有開始學習",
+    "edit": "編輯",
+    "moreActions": "更多操作",
+    "archive": "封存",
+    "restore": "恢復",
+    "delete": "刪除",
+    "deleteTitle": "刪除學科空間？",
+    "deleteText": "將刪除「{{name}}」及其課程關聯，課程本身和學習進度會保留。",
+    "myCourses": "我的課程",
+    "addExisting": "加入已有課程",
+    "generateCourse": "生成新課程",
+    "noCourses": "還沒有課程。可以加入已有課程，或在這個學科下生成新課程。",
+    "noCoursesArchived": "這個學科已封存，恢復後可以繼續加入課程。",
+    "removeCourse": "移出",
+    "removeCourseTitle": "從學科中移出課程？",
+    "removeCourseText": "「{{name}}」會從這個學科中移出，課程本身和學習進度會保留。",
+    "generateInto": "新課程將加入學科空間「{{name}}」",
+    "generateIntoCancel": "不加入學科空間",
+    "progress": {
+      "stoppedAt": "學到第 {{page}} / {{total}} 頁",
+      "positionGone": "上次所在的頁面已不存在",
+      "pageEdited": "該頁內容有更新"
+    },
+    "course": {
+      "pages": "共 {{count}} 頁",
+      "generating": "生成未完成",
+      "status": {
+        "not-started": "未開始",
+        "in-progress": "學習中",
+        "reached-end": "已看完"
+      }
+    },
+    "exam": {
+      "daysLeft": "距考試 {{count}} 天",
+      "today": "今天考試",
+      "passed": "考試已過 {{count}} 天"
+    },
+    "resume": {
+      "resumed": "已從第 {{page}} 頁繼續",
+      "sceneChanged": "上次所在的頁面內容有更新，已從該頁開頭繼續",
+      "sceneMissing": "上次所在的頁面已被刪除，已從課程開頭繼續",
+      "offer": "你在其他裝置上學到了第 {{page}} 頁",
+      "offerAction": "跳轉"
+    },
+    "state": {
+      "unavailableTitle": "學科空間暫未開放",
+      "unavailable": "目前的部署還沒有開啟學科空間。",
+      "signedOutTitle": "請先登入",
+      "signedOut": "學科空間與學習進度保存在你的帳號中，登入後即可使用。",
+      "notFoundTitle": "找不到這個學科空間",
+      "notFound": "它可能已被刪除，或不屬於目前帳號。",
+      "errorTitle": "載入失敗",
+      "error": "暫時無法讀取學科空間，請稍後重試。",
+      "signIn": "前往登入"
+    },
+    "errors": {
+      "generic": "操作失敗，請稍後重試。",
+      "spaceLimit": "學科空間數量已達上限。",
+      "conflict": "這個學科空間已在其他頁面修改，已顯示最新內容，請確認後再儲存。"
+    },
+    "form": {
+      "createTitle": "新建學科空間",
+      "editTitle": "編輯學科空間",
+      "description": "目標、考試時間和範圍都可以之後再填。",
+      "name": "學科名稱",
+      "namePlaceholder": "例如：高等數學",
+      "educationLevel": "學段",
+      "subject": "學科",
+      "subjectPlaceholder": "例如：數學",
+      "examDate": "考試日期",
+      "goal": "學習目標",
+      "goalPlaceholder": "例如：期末考試達到 85 分",
+      "examScope": "考試範圍",
+      "examScopePlaceholder": "例如：第 1–6 章，重點是極限與導數",
+      "create": "建立",
+      "save": "儲存",
+      "invalid": {
+        "name": "請填寫學科名稱（不超過 60 個字）。",
+        "examDate": "請選擇有效的考試日期。",
+        "other": "有內容超出長度限制，請檢查後再試。"
+      }
+    },
+    "level": {
+      "none": "不設定",
+      "primary": "小學",
+      "junior": "國中",
+      "senior": "高中",
+      "university": "大學",
+      "other": "其他"
+    },
+    "addCourses": {
+      "title": "加入已有課程",
+      "description": "選擇要放進這個學科的課程。同一門課程可以屬於多個學科。",
+      "search": "搜尋課程",
+      "none": "你還沒有可以加入的課程。",
+      "noMatch": "沒有符合的課程。",
+      "alreadyIn": "已在本學科",
+      "confirm": "加入 {{count}} 門課程",
+      "partialFailure": "有 {{count}} 門課程加入失敗，請重試。"
+    }
   }
 }

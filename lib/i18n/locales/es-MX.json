@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "Materias",
+    "title": "Espacios de materias",
+    "subtitle": "Organiza tus cursos por materia y continúa donde te quedaste en cualquier dispositivo.",
+    "backHome": "Inicio",
+    "backToSpaces": "Todas las materias",
+    "createSpace": "Nueva materia",
+    "continueLearning": "Seguir aprendiendo",
+    "startLearning": "Empezar a aprender",
+    "continue": "Continuar",
+    "start": "Empezar",
+    "emptyTitle": "Aún no hay espacios de materias",
+    "empty": "Crea un espacio para una materia como Cálculo o Estructuras de datos, agrega sus cursos y continúa donde te quedaste.",
+    "archived": "Archivado",
+    "archivedCount": "Archivados: {{count}}",
+    "courseCount": "Cursos: {{count}}",
+    "lastStudied": "Último estudiado: {{name}}",
+    "notStartedYet": "Aún no empiezas",
+    "edit": "Editar",
+    "moreActions": "Más acciones",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "delete": "Eliminar",
+    "deleteTitle": "¿Eliminar este espacio de materia?",
+    "deleteText": "Se eliminarán «{{name}}» y sus vínculos de cursos. Los cursos y tu progreso se conservan.",
+    "myCourses": "Mis cursos",
+    "addExisting": "Agregar cursos existentes",
+    "generateCourse": "Generar un curso",
+    "noCourses": "Aún no hay cursos. Agrega cursos existentes o genera uno nuevo en esta materia.",
+    "noCoursesArchived": "Esta materia está archivada. Restáurala para agregar cursos.",
+    "removeCourse": "Quitar",
+    "removeCourseTitle": "¿Quitar el curso de esta materia?",
+    "removeCourseText": "«{{name}}» se quitará de esta materia. El curso y tu progreso se conservan.",
+    "generateInto": "El nuevo curso se agregará al espacio de materia «{{name}}»",
+    "generateIntoCancel": "No agregar a un espacio de materia",
+    "progress": {
+      "stoppedAt": "Página {{page}} de {{total}}",
+      "positionGone": "La página donde te quedaste ya no existe",
+      "pageEdited": "Esta página se editó"
+    },
+    "course": {
+      "pages": "Páginas: {{count}}",
+      "generating": "Aún generándose",
+      "status": {
+        "not-started": "Sin empezar",
+        "in-progress": "En curso",
+        "reached-end": "Visto hasta el final"
+      }
+    },
+    "exam": {
+      "daysLeft": "Examen en {{count}} días",
+      "today": "Examen hoy",
+      "passed": "El examen fue hace {{count}} días"
+    },
+    "resume": {
+      "resumed": "Continuando desde la página {{page}}",
+      "sceneChanged": "La página donde te quedaste se editó, así que empieza desde el inicio de esa página",
+      "sceneMissing": "La página donde te quedaste se eliminó, así que el curso empieza desde el principio",
+      "offer": "En otro dispositivo llegaste a la página {{page}}",
+      "offerAction": "Ir ahí"
+    },
+    "state": {
+      "unavailableTitle": "Los espacios de materias no están disponibles",
+      "unavailable": "Esta instalación aún no activa los espacios de materias.",
+      "signedOutTitle": "Inicia sesión primero",
+      "signedOut": "Los espacios de materias y tu progreso se guardan en tu cuenta. Inicia sesión para usarlos.",
+      "notFoundTitle": "No se encontró el espacio de materia",
+      "notFound": "Puede que se haya eliminado o que pertenezca a otra cuenta.",
+      "errorTitle": "No se pudo cargar",
+      "error": "No es posible leer los espacios de materias en este momento. Inténtalo más tarde.",
+      "signIn": "Iniciar sesión"
+    },
+    "errors": {
+      "generic": "Algo salió mal. Inténtalo más tarde.",
+      "spaceLimit": "Llegaste al número máximo de espacios de materias.",
+      "conflict": "Este espacio de materia se cambió en otro lugar. Se muestra la versión más reciente; revísala antes de guardar."
+    },
+    "form": {
+      "createTitle": "Nuevo espacio de materia",
+      "editTitle": "Editar espacio de materia",
+      "description": "La meta, la fecha y el temario del examen se pueden agregar después.",
+      "name": "Nombre de la materia",
+      "namePlaceholder": "p. ej., Cálculo",
+      "educationLevel": "Nivel educativo",
+      "subject": "Materia",
+      "subjectPlaceholder": "p. ej., Matemáticas",
+      "examDate": "Fecha del examen",
+      "goal": "Meta de aprendizaje",
+      "goalPlaceholder": "p. ej., Sacar 85 en el examen final",
+      "examScope": "Temario del examen",
+      "examScopePlaceholder": "p. ej., Capítulos 1–6, sobre todo límites y derivadas",
+      "create": "Crear",
+      "save": "Guardar",
+      "invalid": {
+        "name": "Escribe un nombre (máximo 60 caracteres).",
+        "examDate": "Elige una fecha de examen válida.",
+        "other": "Algún texto es demasiado largo. Revísalo e inténtalo de nuevo."
+      }
+    },
+    "level": {
+      "none": "Sin definir",
+      "primary": "Primaria",
+      "junior": "Secundaria",
+      "senior": "Preparatoria",
+      "university": "Universidad",
+      "other": "Otro"
+    },
+    "addCourses": {
+      "title": "Agregar cursos existentes",
+      "description": "Elige los cursos para esta materia. Un curso puede estar en varias materias.",
+      "search": "Buscar cursos",
+      "none": "Aún no tienes cursos para agregar.",
+      "noMatch": "No hay cursos que coincidan.",
+      "alreadyIn": "Ya agregado",
+      "confirm": "Agregar ({{count}})",
+      "partialFailure": "No se pudieron agregar {{count}} curso(s). Inténtalo de nuevo."
+    }
   }
 }

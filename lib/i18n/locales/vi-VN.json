@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "Môn học",
+    "title": "Không gian môn học",
+    "subtitle": "Sắp xếp khóa học theo môn và học tiếp từ chỗ đã dừng trên mọi thiết bị.",
+    "backHome": "Trang chủ",
+    "backToSpaces": "Tất cả môn học",
+    "createSpace": "Môn học mới",
+    "continueLearning": "Tiếp tục học",
+    "startLearning": "Bắt đầu học",
+    "continue": "Tiếp tục",
+    "start": "Bắt đầu",
+    "emptyTitle": "Chưa có không gian môn học",
+    "empty": "Tạo không gian cho một môn như Giải tích hay Cấu trúc dữ liệu, thêm các khóa học liên quan và học tiếp từ chỗ đã dừng.",
+    "archived": "Đã lưu trữ",
+    "archivedCount": "Đã lưu trữ: {{count}}",
+    "courseCount": "Khóa học: {{count}}",
+    "lastStudied": "Học gần đây: {{name}}",
+    "notStartedYet": "Chưa bắt đầu",
+    "edit": "Chỉnh sửa",
+    "moreActions": "Thao tác khác",
+    "archive": "Lưu trữ",
+    "restore": "Khôi phục",
+    "delete": "Xóa",
+    "deleteTitle": "Xóa không gian môn học này?",
+    "deleteText": "“{{name}}” và liên kết khóa học sẽ bị xóa. Khóa học và tiến độ của bạn vẫn được giữ.",
+    "myCourses": "Khóa học của tôi",
+    "addExisting": "Thêm khóa học có sẵn",
+    "generateCourse": "Tạo khóa học",
+    "noCourses": "Chưa có khóa học. Hãy thêm khóa học có sẵn hoặc tạo khóa học mới trong môn này.",
+    "noCoursesArchived": "Môn học này đã được lưu trữ. Khôi phục để thêm khóa học.",
+    "removeCourse": "Gỡ",
+    "removeCourseTitle": "Gỡ khóa học khỏi môn này?",
+    "removeCourseText": "“{{name}}” sẽ bị gỡ khỏi môn này. Khóa học và tiến độ của bạn vẫn được giữ.",
+    "generateInto": "Khóa học mới sẽ được thêm vào không gian môn học “{{name}}”",
+    "generateIntoCancel": "Không thêm vào không gian môn học",
+    "progress": {
+      "stoppedAt": "Trang {{page}}/{{total}}",
+      "positionGone": "Trang bạn dừng lại không còn tồn tại",
+      "pageEdited": "Trang này đã được chỉnh sửa"
+    },
+    "course": {
+      "pages": "Số trang: {{count}}",
+      "generating": "Đang tạo",
+      "status": {
+        "not-started": "Chưa bắt đầu",
+        "in-progress": "Đang học",
+        "reached-end": "Đã xem đến cuối"
+      }
+    },
+    "exam": {
+      "daysLeft": "Còn {{count}} ngày đến kỳ thi",
+      "today": "Thi hôm nay",
+      "passed": "Kỳ thi đã qua {{count}} ngày"
+    },
+    "resume": {
+      "resumed": "Tiếp tục từ trang {{page}}",
+      "sceneChanged": "Trang bạn dừng lại đã được chỉnh sửa nên sẽ bắt đầu từ đầu trang đó",
+      "sceneMissing": "Trang bạn dừng lại đã bị xóa nên khóa học bắt đầu lại từ đầu",
+      "offer": "Trên thiết bị khác bạn đã học đến trang {{page}}",
+      "offerAction": "Đến đó"
+    },
+    "state": {
+      "unavailableTitle": "Không gian môn học chưa khả dụng",
+      "unavailable": "Bản triển khai này chưa bật không gian môn học.",
+      "signedOutTitle": "Hãy đăng nhập trước",
+      "signedOut": "Không gian môn học và tiến độ được lưu trong tài khoản của bạn. Đăng nhập để sử dụng.",
+      "notFoundTitle": "Không tìm thấy không gian môn học",
+      "notFound": "Có thể nó đã bị xóa hoặc thuộc về tài khoản khác.",
+      "errorTitle": "Tải không thành công",
+      "error": "Hiện không thể đọc không gian môn học. Vui lòng thử lại sau.",
+      "signIn": "Đăng nhập"
+    },
+    "errors": {
+      "generic": "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+      "spaceLimit": "Bạn đã đạt số lượng không gian môn học tối đa.",
+      "conflict": "Không gian môn học này đã được thay đổi ở nơi khác. Đang hiển thị phiên bản mới nhất; hãy kiểm tra trước khi lưu."
+    },
+    "form": {
+      "createTitle": "Không gian môn học mới",
+      "editTitle": "Chỉnh sửa không gian môn học",
+      "description": "Có thể thêm mục tiêu, ngày thi và phạm vi thi sau.",
+      "name": "Tên môn học",
+      "namePlaceholder": "ví dụ: Giải tích",
+      "educationLevel": "Cấp học",
+      "subject": "Môn",
+      "subjectPlaceholder": "ví dụ: Toán",
+      "examDate": "Ngày thi",
+      "goal": "Mục tiêu học tập",
+      "goalPlaceholder": "ví dụ: Đạt 85 điểm bài thi cuối kỳ",
+      "examScope": "Phạm vi thi",
+      "examScopePlaceholder": "ví dụ: Chương 1–6, trọng tâm giới hạn và đạo hàm",
+      "create": "Tạo",
+      "save": "Lưu",
+      "invalid": {
+        "name": "Nhập tên môn học (tối đa 60 ký tự).",
+        "examDate": "Chọn ngày thi hợp lệ.",
+        "other": "Có nội dung quá dài. Vui lòng kiểm tra và thử lại."
+      }
+    },
+    "level": {
+      "none": "Không đặt",
+      "primary": "Tiểu học",
+      "junior": "Trung học cơ sở",
+      "senior": "Trung học phổ thông",
+      "university": "Đại học",
+      "other": "Khác"
+    },
+    "addCourses": {
+      "title": "Thêm khóa học có sẵn",
+      "description": "Chọn khóa học để thêm vào môn này. Một khóa học có thể thuộc nhiều môn.",
+      "search": "Tìm khóa học",
+      "none": "Bạn chưa có khóa học nào để thêm.",
+      "noMatch": "Không có khóa học phù hợp.",
+      "alreadyIn": "Đã thêm",
+      "confirm": "Thêm ({{count}})",
+      "partialFailure": "Không thể thêm {{count}} khóa học. Vui lòng thử lại."
+    }
   }
 }

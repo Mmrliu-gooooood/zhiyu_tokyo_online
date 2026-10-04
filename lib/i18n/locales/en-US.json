@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "Subjects",
+    "title": "Subject spaces",
+    "subtitle": "Organize courses by subject and pick up where you left off on any device.",
+    "backHome": "Home",
+    "backToSpaces": "All subjects",
+    "createSpace": "New subject",
+    "continueLearning": "Continue learning",
+    "startLearning": "Start learning",
+    "continue": "Continue",
+    "start": "Start",
+    "emptyTitle": "No subject spaces yet",
+    "empty": "Create a space for a subject such as Calculus or Data Structures, add its courses, and continue from where you stopped.",
+    "archived": "Archived",
+    "archivedCount": "Archived: {{count}}",
+    "courseCount": "Courses: {{count}}",
+    "lastStudied": "Last studied: {{name}}",
+    "notStartedYet": "Not started yet",
+    "edit": "Edit",
+    "moreActions": "More actions",
+    "archive": "Archive",
+    "restore": "Restore",
+    "delete": "Delete",
+    "deleteTitle": "Delete this subject space?",
+    "deleteText": "“{{name}}” and its course links will be deleted. The courses and your progress are kept.",
+    "myCourses": "My courses",
+    "addExisting": "Add existing courses",
+    "generateCourse": "Generate a course",
+    "noCourses": "No courses yet. Add existing courses, or generate a new one in this subject.",
+    "noCoursesArchived": "This subject is archived. Restore it to add courses.",
+    "removeCourse": "Remove",
+    "removeCourseTitle": "Remove the course from this subject?",
+    "removeCourseText": "“{{name}}” will be removed from this subject. The course and your progress are kept.",
+    "generateInto": "The new course will be added to the subject space “{{name}}”",
+    "generateIntoCancel": "Do not add to a subject space",
+    "progress": {
+      "stoppedAt": "Page {{page}} of {{total}}",
+      "positionGone": "The page you stopped at no longer exists",
+      "pageEdited": "This page has been edited"
+    },
+    "course": {
+      "pages": "Pages: {{count}}",
+      "generating": "Still generating",
+      "status": {
+        "not-started": "Not started",
+        "in-progress": "In progress",
+        "reached-end": "Viewed to the end"
+      }
+    },
+    "exam": {
+      "daysLeft": "Exam in {{count}} days",
+      "today": "Exam today",
+      "passed": "Exam was {{count}} days ago"
+    },
+    "resume": {
+      "resumed": "Continuing from page {{page}}",
+      "sceneChanged": "The page you stopped at was edited, so it starts from the beginning of that page",
+      "sceneMissing": "The page you stopped at was deleted, so the course starts from the beginning",
+      "offer": "On another device you reached page {{page}}",
+      "offerAction": "Go there"
+    },
+    "state": {
+      "unavailableTitle": "Subject spaces are not available",
+      "unavailable": "This deployment has not enabled subject spaces yet.",
+      "signedOutTitle": "Sign in first",
+      "signedOut": "Subject spaces and progress are saved to your account. Sign in to use them.",
+      "notFoundTitle": "Subject space not found",
+      "notFound": "It may have been deleted, or it belongs to another account.",
+      "errorTitle": "Could not load",
+      "error": "Subject spaces cannot be read right now. Please try again later.",
+      "signIn": "Sign in"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again later.",
+      "spaceLimit": "You have reached the maximum number of subject spaces.",
+      "conflict": "This subject space was changed elsewhere. The latest version is shown; please review it before saving."
+    },
+    "form": {
+      "createTitle": "New subject space",
+      "editTitle": "Edit subject space",
+      "description": "Goal, exam date and exam scope can be added later.",
+      "name": "Subject name",
+      "namePlaceholder": "e.g. Calculus",
+      "educationLevel": "Education level",
+      "subject": "Subject",
+      "subjectPlaceholder": "e.g. Mathematics",
+      "examDate": "Exam date",
+      "goal": "Learning goal",
+      "goalPlaceholder": "e.g. Score 85 on the final exam",
+      "examScope": "Exam scope",
+      "examScopePlaceholder": "e.g. Chapters 1–6, focusing on limits and derivatives",
+      "create": "Create",
+      "save": "Save",
+      "invalid": {
+        "name": "Enter a subject name (up to 60 characters).",
+        "examDate": "Choose a valid exam date.",
+        "other": "Some text is too long. Please check and try again."
+      }
+    },
+    "level": {
+      "none": "Not set",
+      "primary": "Primary school",
+      "junior": "Middle school",
+      "senior": "High school",
+      "university": "University",
+      "other": "Other"
+    },
+    "addCourses": {
+      "title": "Add existing courses",
+      "description": "Choose courses to add to this subject. A course can belong to several subjects.",
+      "search": "Search courses",
+      "none": "You have no courses to add yet.",
+      "noMatch": "No matching courses.",
+      "alreadyIn": "Already added",
+      "confirm": "Add ({{count}})",
+      "partialFailure": "{{count}} course(s) could not be added. Please try again."
+    }
   }
 }

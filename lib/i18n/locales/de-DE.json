@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "Fächer",
+    "title": "Fachbereiche",
+    "subtitle": "Kurse nach Fach ordnen und auf jedem Gerät dort weitermachen, wo du aufgehört hast.",
+    "backHome": "Startseite",
+    "backToSpaces": "Alle Fächer",
+    "createSpace": "Neues Fach",
+    "continueLearning": "Weiterlernen",
+    "startLearning": "Lernen beginnen",
+    "continue": "Weiter",
+    "start": "Starten",
+    "emptyTitle": "Noch keine Fachbereiche",
+    "empty": "Lege für ein Fach wie Analysis oder Datenstrukturen einen Bereich an, füge passende Kurse hinzu und mache dort weiter, wo du aufgehört hast.",
+    "archived": "Archiviert",
+    "archivedCount": "Archiviert: {{count}}",
+    "courseCount": "Kurse: {{count}}",
+    "lastStudied": "Zuletzt gelernt: {{name}}",
+    "notStartedYet": "Noch nicht begonnen",
+    "edit": "Bearbeiten",
+    "moreActions": "Weitere Aktionen",
+    "archive": "Archivieren",
+    "restore": "Wiederherstellen",
+    "delete": "Löschen",
+    "deleteTitle": "Diesen Fachbereich löschen?",
+    "deleteText": "„{{name}}“ und die Kurszuordnungen werden gelöscht. Die Kurse und dein Fortschritt bleiben erhalten.",
+    "myCourses": "Meine Kurse",
+    "addExisting": "Vorhandene Kurse hinzufügen",
+    "generateCourse": "Kurs erzeugen",
+    "noCourses": "Noch keine Kurse. Füge vorhandene Kurse hinzu oder erzeuge einen neuen Kurs in diesem Fach.",
+    "noCoursesArchived": "Dieses Fach ist archiviert. Stelle es wieder her, um Kurse hinzuzufügen.",
+    "removeCourse": "Entfernen",
+    "removeCourseTitle": "Kurs aus diesem Fach entfernen?",
+    "removeCourseText": "„{{name}}“ wird aus diesem Fach entfernt. Der Kurs und dein Fortschritt bleiben erhalten.",
+    "generateInto": "Der neue Kurs wird dem Fachbereich „{{name}}“ hinzugefügt",
+    "generateIntoCancel": "Keinem Fachbereich hinzufügen",
+    "progress": {
+      "stoppedAt": "Seite {{page}} von {{total}}",
+      "positionGone": "Die Seite, auf der du warst, existiert nicht mehr",
+      "pageEdited": "Diese Seite wurde bearbeitet"
+    },
+    "course": {
+      "pages": "Seiten: {{count}}",
+      "generating": "Wird noch erzeugt",
+      "status": {
+        "not-started": "Nicht begonnen",
+        "in-progress": "In Bearbeitung",
+        "reached-end": "Bis zum Ende angesehen"
+      }
+    },
+    "exam": {
+      "daysLeft": "Prüfung in {{count}} Tagen",
+      "today": "Prüfung heute",
+      "passed": "Prüfung war vor {{count}} Tagen"
+    },
+    "resume": {
+      "resumed": "Weiter ab Seite {{page}}",
+      "sceneChanged": "Die Seite, auf der du warst, wurde bearbeitet – es geht am Anfang dieser Seite weiter",
+      "sceneMissing": "Die Seite, auf der du warst, wurde gelöscht – der Kurs beginnt von vorn",
+      "offer": "Auf einem anderen Gerät warst du auf Seite {{page}}",
+      "offerAction": "Dorthin"
+    },
+    "state": {
+      "unavailableTitle": "Fachbereiche sind nicht verfügbar",
+      "unavailable": "Diese Installation hat Fachbereiche noch nicht aktiviert.",
+      "signedOutTitle": "Bitte zuerst anmelden",
+      "signedOut": "Fachbereiche und Fortschritt werden in deinem Konto gespeichert. Melde dich an, um sie zu nutzen.",
+      "notFoundTitle": "Fachbereich nicht gefunden",
+      "notFound": "Er wurde möglicherweise gelöscht oder gehört zu einem anderen Konto.",
+      "errorTitle": "Laden fehlgeschlagen",
+      "error": "Fachbereiche können gerade nicht gelesen werden. Bitte versuche es später erneut.",
+      "signIn": "Anmelden"
+    },
+    "errors": {
+      "generic": "Etwas ist schiefgelaufen. Bitte versuche es später erneut.",
+      "spaceLimit": "Du hast die maximale Anzahl an Fachbereichen erreicht.",
+      "conflict": "Dieser Fachbereich wurde an anderer Stelle geändert. Die neueste Version wird angezeigt; bitte prüfe sie vor dem Speichern."
+    },
+    "form": {
+      "createTitle": "Neuer Fachbereich",
+      "editTitle": "Fachbereich bearbeiten",
+      "description": "Ziel, Prüfungsdatum und Prüfungsstoff kannst du später ergänzen.",
+      "name": "Name des Fachs",
+      "namePlaceholder": "z. B. Analysis",
+      "educationLevel": "Bildungsstufe",
+      "subject": "Fach",
+      "subjectPlaceholder": "z. B. Mathematik",
+      "examDate": "Prüfungsdatum",
+      "goal": "Lernziel",
+      "goalPlaceholder": "z. B. 85 Punkte in der Abschlussprüfung",
+      "examScope": "Prüfungsstoff",
+      "examScopePlaceholder": "z. B. Kapitel 1–6, Schwerpunkt Grenzwerte und Ableitungen",
+      "create": "Erstellen",
+      "save": "Speichern",
+      "invalid": {
+        "name": "Gib einen Namen ein (höchstens 60 Zeichen).",
+        "examDate": "Wähle ein gültiges Prüfungsdatum.",
+        "other": "Ein Text ist zu lang. Bitte prüfe ihn und versuche es erneut."
+      }
+    },
+    "level": {
+      "none": "Nicht festgelegt",
+      "primary": "Grundschule",
+      "junior": "Mittelstufe",
+      "senior": "Oberstufe",
+      "university": "Hochschule",
+      "other": "Sonstiges"
+    },
+    "addCourses": {
+      "title": "Vorhandene Kurse hinzufügen",
+      "description": "Wähle Kurse für dieses Fach. Ein Kurs kann zu mehreren Fächern gehören.",
+      "search": "Kurse suchen",
+      "none": "Du hast noch keine Kurse, die hinzugefügt werden können.",
+      "noMatch": "Keine passenden Kurse.",
+      "alreadyIn": "Bereits hinzugefügt",
+      "confirm": "Hinzufügen ({{count}})",
+      "partialFailure": "{{count}} Kurs(e) konnten nicht hinzugefügt werden. Bitte versuche es erneut."
+    }
   }
 }

@@ -101,6 +101,7 @@ import {
   type GenerationJobSnapshot,
 } from '@/lib/generation/job-client';
 import { getDocumentStore } from '@/lib/document-store';
+import { linkGeneratedCourseToStudySpace } from '@/lib/study/spaces/pending-links';
 
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
@@ -300,6 +301,7 @@ function GenerationPreviewContent() {
           // The first scene is already published transactionally. The classroom becomes an observer.
           if (job.readyScenes > 0) {
             backgroundReadyStageRef.current = job.stageId;
+            linkGeneratedCourseToStudySpace(current.studySpaceId, job.stageId);
             if (backgroundAgentRevealRef.current !== 'revealing')
               router.push(`/classroom/${encodeURIComponent(job.stageId)}`);
           }
@@ -1427,6 +1429,7 @@ function GenerationPreviewContent() {
       });
       if (!published) return;
       if (!runtime.transition(epoch, 'completed')) return;
+      linkGeneratedCourseToStudySpace(currentSession.studySpaceId, stage.id);
       router.push(`/classroom/${stage.id}`);
     } catch (err) {
       if (!runtime.isCurrent(epoch)) return;

@@ -43,6 +43,7 @@ import {
   saveActionResumePosition,
 } from '@/lib/playback/action-resume';
 import { loadCursor, saveCursor, type PlaybackCursor } from '@/lib/playback/cursor';
+import { flushAllStudyProgress, reportStudyProgress } from '@/lib/study/progress/sync';
 import { ActionEngine } from '@/lib/action/engine';
 import { createAudioPlayer } from '@/lib/utils/audio-player';
 import { useDiscussionTTS } from '@/lib/hooks/use-discussion-tts';
@@ -393,6 +394,11 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
     const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cursorSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingCursorRef = useRef<{ stageId: string; cursor: PlaybackCursor } | null>(null);
+    // Server progress records learner actions only. Restoring the saved
+    // position on open also emits progress, but it is not one: reporting it
+    // would stamp an old position as new and override another device. Set
+    // once the learner plays or changes scene.
+    const studyEngagedRef = useRef(false);
     const stageRef = useRef<HTMLDivElement>(null);
     // Guard to prevent double flash when manual stop triggers onDiscussionEnd
     const manualStopRef = useRef(false);
@@ -440,6 +446,9 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
 
     const scheduleCursorSave = useCallback(
       (stageId: string, cursor: PlaybackCursor) => {
+        if (studyEngagedRef.current) {
+          reportStudyProgress(stageId, cursor.sceneId, cursor.actionIndex);
+        }
         pendingCursorRef.current = { stageId, cursor };
         if (cursorSaveTimerRef.current) clearTimeout(cursorSaveTimerRef.current);
         cursorSaveTimerRef.current = setTimeout(() => {
@@ -797,6 +806,12 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         const previousSceneId = activeSceneIdRef.current;
         if (previousSceneId && previousSceneId !== currentScene?.id) {
           saveSceneResumePosition(previousSceneId, currentPlaybackActionIndexRef.current);
+          const studyStageId = stage?.id ?? currentScene?.stageId;
+          if (currentScene && studyStageId) {
+            // A scene change after open is the learner navigating (or auto-advancing).
+            studyEngagedRef.current = true;
+            reportStudyProgress(studyStageId, currentScene.id, null);
+          }
         }
 
         // Invalidate both scene- and session-scoped live callbacks before async teardown.
@@ -902,6 +917,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         // Create new PlaybackEngine
         const engine = new PlaybackEngine([currentScene], actionEngine, audioPlayerRef.current, {
           onModeChange: (mode) => {
+            if (mode === 'playing') studyEngagedRef.current = true;
             setEngineMode(mode);
           },
           onProgress: (snapshot) => {
@@ -1018,6 +1034,14 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             updateCurrentPlaybackActionIndex(currentScene.actions?.length ?? 0);
             clearSceneResumePosition(currentScene.id);
             setPlaybackCompleted(true);
+            if (playbackStageId) {
+              // The scene played to its end (finishing the last one completes the course view).
+              reportStudyProgress(
+                playbackStageId,
+                currentScene.id,
+                currentScene.actions?.length ?? 0,
+              );
+            }
 
             // End lecture session on playback complete
             if (lectureSessionIdRef.current) {
@@ -1160,6 +1184,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
         const pendingCursor = pendingCursorRef.current;
         pendingCursorRef.current = null;
         if (pendingCursor) persistCursorSafely(pendingCursor);
+        void flushAllStudyProgress();
         saveSceneResumePosition(activeSceneIdRef.current, currentPlaybackActionIndexRef.current);
         if (engineRef.current) {
           engineRef.current.stop();

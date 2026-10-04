@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "과목",
+    "title": "과목 공간",
+    "subtitle": "과목별로 코스를 정리하고 어느 기기에서든 이어서 학습하세요.",
+    "backHome": "홈",
+    "backToSpaces": "과목 목록",
+    "createSpace": "새 과목",
+    "continueLearning": "이어서 학습",
+    "startLearning": "학습 시작",
+    "continue": "이어서",
+    "start": "시작",
+    "emptyTitle": "아직 과목 공간이 없습니다",
+    "empty": "\"미적분\", \"자료구조\" 같은 과목별 공간을 만들고 관련 코스를 넣어 마지막으로 멈춘 곳에서 이어서 학습하세요.",
+    "archived": "보관됨",
+    "archivedCount": "보관됨: {{count}}",
+    "courseCount": "코스: {{count}}",
+    "lastStudied": "최근 학습: {{name}}",
+    "notStartedYet": "아직 시작하지 않음",
+    "edit": "편집",
+    "moreActions": "추가 작업",
+    "archive": "보관",
+    "restore": "복원",
+    "delete": "삭제",
+    "deleteTitle": "이 과목 공간을 삭제할까요?",
+    "deleteText": "\"{{name}}\"과(와) 코스 연결이 삭제됩니다. 코스와 학습 진도는 유지됩니다.",
+    "myCourses": "내 코스",
+    "addExisting": "기존 코스 추가",
+    "generateCourse": "코스 생성",
+    "noCourses": "아직 코스가 없습니다. 기존 코스를 추가하거나 이 과목에서 새 코스를 생성하세요.",
+    "noCoursesArchived": "보관된 과목입니다. 복원하면 코스를 추가할 수 있습니다.",
+    "removeCourse": "제외",
+    "removeCourseTitle": "이 과목에서 코스를 제외할까요?",
+    "removeCourseText": "\"{{name}}\"이(가) 이 과목에서 제외됩니다. 코스와 학습 진도는 유지됩니다.",
+    "generateInto": "새 코스가 과목 공간 \"{{name}}\"에 추가됩니다",
+    "generateIntoCancel": "과목 공간에 추가하지 않음",
+    "progress": {
+      "stoppedAt": "{{total}}쪽 중 {{page}}쪽",
+      "positionGone": "마지막 페이지가 더 이상 없습니다",
+      "pageEdited": "이 페이지가 수정되었습니다"
+    },
+    "course": {
+      "pages": "{{count}}쪽",
+      "generating": "생성 중",
+      "status": {
+        "not-started": "시작 전",
+        "in-progress": "학습 중",
+        "reached-end": "끝까지 봄"
+      }
+    },
+    "exam": {
+      "daysLeft": "시험까지 {{count}}일",
+      "today": "오늘 시험",
+      "passed": "시험이 {{count}}일 지남"
+    },
+    "resume": {
+      "resumed": "{{page}}쪽부터 이어서 학습합니다",
+      "sceneChanged": "마지막 페이지가 수정되어 해당 페이지 처음부터 시작합니다",
+      "sceneMissing": "마지막 페이지가 삭제되어 코스 처음부터 시작합니다",
+      "offer": "다른 기기에서 {{page}}쪽까지 학습했습니다",
+      "offerAction": "이동"
+    },
+    "state": {
+      "unavailableTitle": "과목 공간을 사용할 수 없습니다",
+      "unavailable": "이 배포에서는 아직 과목 공간이 활성화되지 않았습니다.",
+      "signedOutTitle": "먼저 로그인하세요",
+      "signedOut": "과목 공간과 학습 진도는 계정에 저장됩니다. 로그인하면 사용할 수 있습니다.",
+      "notFoundTitle": "과목 공간을 찾을 수 없습니다",
+      "notFound": "삭제되었거나 다른 계정의 공간입니다.",
+      "errorTitle": "불러오지 못했습니다",
+      "error": "지금은 과목 공간을 불러올 수 없습니다. 잠시 후 다시 시도하세요.",
+      "signIn": "로그인"
+    },
+    "errors": {
+      "generic": "작업에 실패했습니다. 잠시 후 다시 시도하세요.",
+      "spaceLimit": "과목 공간 수가 한도에 도달했습니다.",
+      "conflict": "이 과목 공간이 다른 화면에서 변경되었습니다. 최신 내용을 표시했으니 확인 후 저장하세요."
+    },
+    "form": {
+      "createTitle": "새 과목 공간",
+      "editTitle": "과목 공간 편집",
+      "description": "목표, 시험 날짜와 범위는 나중에 입력해도 됩니다.",
+      "name": "과목 이름",
+      "namePlaceholder": "예: 미적분",
+      "educationLevel": "학교 급",
+      "subject": "과목",
+      "subjectPlaceholder": "예: 수학",
+      "examDate": "시험 날짜",
+      "goal": "학습 목표",
+      "goalPlaceholder": "예: 기말고사 85점",
+      "examScope": "시험 범위",
+      "examScopePlaceholder": "예: 1–6장, 극한과 도함수 중심",
+      "create": "만들기",
+      "save": "저장",
+      "invalid": {
+        "name": "과목 이름을 입력하세요(60자 이내).",
+        "examDate": "유효한 시험 날짜를 선택하세요.",
+        "other": "길이 제한을 넘은 항목이 있습니다. 확인 후 다시 시도하세요."
+      }
+    },
+    "level": {
+      "none": "설정 안 함",
+      "primary": "초등학교",
+      "junior": "중학교",
+      "senior": "고등학교",
+      "university": "대학교",
+      "other": "기타"
+    },
+    "addCourses": {
+      "title": "기존 코스 추가",
+      "description": "이 과목에 넣을 코스를 선택하세요. 한 코스를 여러 과목에 넣을 수 있습니다.",
+      "search": "코스 검색",
+      "none": "추가할 수 있는 코스가 아직 없습니다.",
+      "noMatch": "일치하는 코스가 없습니다.",
+      "alreadyIn": "이미 추가됨",
+      "confirm": "추가 ({{count}})",
+      "partialFailure": "코스 {{count}}개를 추가하지 못했습니다. 다시 시도하세요."
+    }
   }
 }

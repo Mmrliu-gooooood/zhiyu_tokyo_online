@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "Matières",
+    "title": "Espaces matières",
+    "subtitle": "Organisez vos cours par matière et reprenez là où vous vous êtes arrêté, sur n’importe quel appareil.",
+    "backHome": "Accueil",
+    "backToSpaces": "Toutes les matières",
+    "createSpace": "Nouvelle matière",
+    "continueLearning": "Continuer à apprendre",
+    "startLearning": "Commencer",
+    "continue": "Continuer",
+    "start": "Commencer",
+    "emptyTitle": "Aucun espace matière",
+    "empty": "Créez un espace pour une matière comme l’analyse ou les structures de données, ajoutez-y ses cours et reprenez là où vous vous êtes arrêté.",
+    "archived": "Archivé",
+    "archivedCount": "Archivés : {{count}}",
+    "courseCount": "Cours : {{count}}",
+    "lastStudied": "Dernier étudié : {{name}}",
+    "notStartedYet": "Pas encore commencé",
+    "edit": "Modifier",
+    "moreActions": "Autres actions",
+    "archive": "Archiver",
+    "restore": "Restaurer",
+    "delete": "Supprimer",
+    "deleteTitle": "Supprimer cet espace matière ?",
+    "deleteText": "« {{name}} » et ses liens de cours seront supprimés. Les cours et votre progression sont conservés.",
+    "myCourses": "Mes cours",
+    "addExisting": "Ajouter des cours existants",
+    "generateCourse": "Générer un cours",
+    "noCourses": "Aucun cours pour l’instant. Ajoutez des cours existants ou générez-en un nouveau dans cette matière.",
+    "noCoursesArchived": "Cette matière est archivée. Restaurez-la pour ajouter des cours.",
+    "removeCourse": "Retirer",
+    "removeCourseTitle": "Retirer le cours de cette matière ?",
+    "removeCourseText": "« {{name}} » sera retiré de cette matière. Le cours et votre progression sont conservés.",
+    "generateInto": "Le nouveau cours sera ajouté à l’espace matière « {{name}} »",
+    "generateIntoCancel": "Ne pas l’ajouter à un espace matière",
+    "progress": {
+      "stoppedAt": "Page {{page}} sur {{total}}",
+      "positionGone": "La page où vous vous êtes arrêté n’existe plus",
+      "pageEdited": "Cette page a été modifiée"
+    },
+    "course": {
+      "pages": "Pages : {{count}}",
+      "generating": "Génération en cours",
+      "status": {
+        "not-started": "Pas commencé",
+        "in-progress": "En cours",
+        "reached-end": "Vu jusqu’à la fin"
+      }
+    },
+    "exam": {
+      "daysLeft": "Examen dans {{count}} jours",
+      "today": "Examen aujourd’hui",
+      "passed": "Examen passé depuis {{count}} jours"
+    },
+    "resume": {
+      "resumed": "Reprise à la page {{page}}",
+      "sceneChanged": "La page où vous vous êtes arrêté a été modifiée : reprise au début de cette page",
+      "sceneMissing": "La page où vous vous êtes arrêté a été supprimée : le cours reprend depuis le début",
+      "offer": "Sur un autre appareil, vous êtes arrivé à la page {{page}}",
+      "offerAction": "Y aller"
+    },
+    "state": {
+      "unavailableTitle": "Espaces matières indisponibles",
+      "unavailable": "Ce déploiement n’a pas encore activé les espaces matières.",
+      "signedOutTitle": "Connectez-vous d’abord",
+      "signedOut": "Les espaces matières et la progression sont enregistrés dans votre compte. Connectez-vous pour les utiliser.",
+      "notFoundTitle": "Espace matière introuvable",
+      "notFound": "Il a peut-être été supprimé ou appartient à un autre compte.",
+      "errorTitle": "Échec du chargement",
+      "error": "Impossible de lire les espaces matières pour le moment. Réessayez plus tard.",
+      "signIn": "Se connecter"
+    },
+    "errors": {
+      "generic": "Une erreur est survenue. Réessayez plus tard.",
+      "spaceLimit": "Vous avez atteint le nombre maximal d’espaces matières.",
+      "conflict": "Cet espace matière a été modifié ailleurs. La dernière version est affichée ; vérifiez-la avant d’enregistrer."
+    },
+    "form": {
+      "createTitle": "Nouvel espace matière",
+      "editTitle": "Modifier l’espace matière",
+      "description": "L’objectif, la date et le programme de l’examen peuvent être ajoutés plus tard.",
+      "name": "Nom de la matière",
+      "namePlaceholder": "ex. Analyse",
+      "educationLevel": "Niveau",
+      "subject": "Matière",
+      "subjectPlaceholder": "ex. Mathématiques",
+      "examDate": "Date de l’examen",
+      "goal": "Objectif",
+      "goalPlaceholder": "ex. Obtenir 85 à l’examen final",
+      "examScope": "Programme de l’examen",
+      "examScopePlaceholder": "ex. Chapitres 1–6, surtout limites et dérivées",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "invalid": {
+        "name": "Saisissez un nom (60 caractères maximum).",
+        "examDate": "Choisissez une date d’examen valide.",
+        "other": "Un texte est trop long. Vérifiez puis réessayez."
+      }
+    },
+    "level": {
+      "none": "Non défini",
+      "primary": "École primaire",
+      "junior": "Collège",
+      "senior": "Lycée",
+      "university": "Université",
+      "other": "Autre"
+    },
+    "addCourses": {
+      "title": "Ajouter des cours existants",
+      "description": "Choisissez les cours à ajouter à cette matière. Un cours peut appartenir à plusieurs matières.",
+      "search": "Rechercher des cours",
+      "none": "Vous n’avez encore aucun cours à ajouter.",
+      "noMatch": "Aucun cours correspondant.",
+      "alreadyIn": "Déjà ajouté",
+      "confirm": "Ajouter ({{count}})",
+      "partialFailure": "{{count}} cours n’ont pas pu être ajoutés. Réessayez."
+    }
   }
 }

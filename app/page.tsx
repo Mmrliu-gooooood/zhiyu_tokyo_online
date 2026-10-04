@@ -31,6 +31,11 @@ import {
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { AccountMenu } from '@/components/auth/AccountMenu';
+import {
+  StudyGenerationTargetBanner,
+  StudySpacesNavButton,
+  useStudyGenerationTarget,
+} from '@/components/study/spaces/home-entry';
 import { createLogger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupInput, InputGroupButton } from '@/components/ui/input-group';
@@ -168,6 +173,7 @@ function HomePage() {
     if (workbenchEntryEnabled) router.prefetch('/workspace');
   }, [router, workbenchEntryEnabled]);
   const [form, setForm] = useState<FormState>(initialFormState);
+  const studyTarget = useStudyGenerationTarget();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<
     import('@/lib/types/settings').SettingsSection | undefined
@@ -693,6 +699,7 @@ function HomePage() {
         pdfProviderConfig,
         sceneOutlines: null,
         currentStep: 'generating' as const,
+        ...(studyTarget.target ? { studySpaceId: studyTarget.target.id } : {}),
       };
       sessionStorage.setItem('generationSession', JSON.stringify(sessionState));
 
@@ -760,6 +767,7 @@ function HomePage() {
           ) : null}
         </div>
         <div className="flex items-center gap-0.5">
+          <StudySpacesNavButton className="mr-1" />
           <LanguageSwitcher onOpen={() => setThemeOpen(false)} />
 
           <div className="relative">
@@ -870,6 +878,13 @@ function HomePage() {
                 <AgentBar />
               </div>
             </div>
+
+            {studyTarget.target ? (
+              <StudyGenerationTargetBanner
+                target={studyTarget.target}
+                onClear={studyTarget.clear}
+              />
+            ) : null}
 
             {/* Textarea */}
             <textarea

@@ -47,6 +47,8 @@ export interface GenerationSessionState {
   courseTitle?: string;
   // Server-effective vocational mode from the outline generation done event.
   taskEngineMode?: boolean;
+  // Study space the learner started this generation from; the finished course is linked to it.
+  studySpaceId?: string;
 }
 
 export type GenerationStep = {

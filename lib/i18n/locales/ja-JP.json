@@ -2432,5 +2432,123 @@
       "rate_limited": "Too many attempts. Please wait and try again.",
       "unknown": "Something went wrong with this authentication link."
     }
+  },
+  "study": {
+    "nav": "科目",
+    "title": "科目スペース",
+    "subtitle": "科目ごとにコースを整理し、どの端末でも続きから学習できます。",
+    "backHome": "ホーム",
+    "backToSpaces": "科目一覧",
+    "createSpace": "新しい科目",
+    "continueLearning": "学習を続ける",
+    "startLearning": "学習を始める",
+    "continue": "続ける",
+    "start": "始める",
+    "emptyTitle": "科目スペースはまだありません",
+    "empty": "「微分積分」「データ構造」などの科目ごとにスペースを作成し、関連コースを追加して、前回の続きから学習しましょう。",
+    "archived": "アーカイブ済み",
+    "archivedCount": "アーカイブ済み：{{count}}",
+    "courseCount": "コース：{{count}}",
+    "lastStudied": "最近の学習：{{name}}",
+    "notStartedYet": "まだ学習していません",
+    "edit": "編集",
+    "moreActions": "その他の操作",
+    "archive": "アーカイブ",
+    "restore": "復元",
+    "delete": "削除",
+    "deleteTitle": "この科目スペースを削除しますか？",
+    "deleteText": "「{{name}}」とコースの関連付けを削除します。コース自体と学習進度は残ります。",
+    "myCourses": "マイコース",
+    "addExisting": "既存のコースを追加",
+    "generateCourse": "コースを生成",
+    "noCourses": "コースはまだありません。既存のコースを追加するか、この科目で新しいコースを生成してください。",
+    "noCoursesArchived": "この科目はアーカイブ済みです。復元するとコースを追加できます。",
+    "removeCourse": "外す",
+    "removeCourseTitle": "この科目からコースを外しますか？",
+    "removeCourseText": "「{{name}}」をこの科目から外します。コース自体と学習進度は残ります。",
+    "generateInto": "新しいコースは科目スペース「{{name}}」に追加されます",
+    "generateIntoCancel": "科目スペースに追加しない",
+    "progress": {
+      "stoppedAt": "{{total}} ページ中 {{page}} ページ目",
+      "positionGone": "前回のページはもう存在しません",
+      "pageEdited": "このページは更新されています"
+    },
+    "course": {
+      "pages": "{{count}} ページ",
+      "generating": "生成中",
+      "status": {
+        "not-started": "未学習",
+        "in-progress": "学習中",
+        "reached-end": "最後まで閲覧"
+      }
+    },
+    "exam": {
+      "daysLeft": "試験まであと {{count}} 日",
+      "today": "今日は試験日",
+      "passed": "試験から {{count}} 日経過"
+    },
+    "resume": {
+      "resumed": "{{page}} ページ目から再開しました",
+      "sceneChanged": "前回のページが更新されたため、そのページの最初から再開します",
+      "sceneMissing": "前回のページが削除されたため、コースの最初から始めます",
+      "offer": "別の端末で {{page}} ページ目まで学習しています",
+      "offerAction": "移動"
+    },
+    "state": {
+      "unavailableTitle": "科目スペースは利用できません",
+      "unavailable": "この環境では科目スペースがまだ有効になっていません。",
+      "signedOutTitle": "ログインしてください",
+      "signedOut": "科目スペースと学習進度はアカウントに保存されます。ログインすると利用できます。",
+      "notFoundTitle": "科目スペースが見つかりません",
+      "notFound": "削除されたか、別のアカウントのものです。",
+      "errorTitle": "読み込みに失敗しました",
+      "error": "現在、科目スペースを読み込めません。しばらくしてから再試行してください。",
+      "signIn": "ログイン"
+    },
+    "errors": {
+      "generic": "操作に失敗しました。しばらくしてから再試行してください。",
+      "spaceLimit": "科目スペースの数が上限に達しました。",
+      "conflict": "この科目スペースは別の画面で変更されました。最新の内容を表示しています。確認してから保存してください。"
+    },
+    "form": {
+      "createTitle": "新しい科目スペース",
+      "editTitle": "科目スペースを編集",
+      "description": "目標、試験日、試験範囲は後から入力できます。",
+      "name": "科目名",
+      "namePlaceholder": "例：微分積分",
+      "educationLevel": "学校段階",
+      "subject": "科目",
+      "subjectPlaceholder": "例：数学",
+      "examDate": "試験日",
+      "goal": "学習目標",
+      "goalPlaceholder": "例：期末試験で 85 点",
+      "examScope": "試験範囲",
+      "examScopePlaceholder": "例：第 1–6 章（極限と導関数が中心）",
+      "create": "作成",
+      "save": "保存",
+      "invalid": {
+        "name": "科目名を入力してください（60 文字以内）。",
+        "examDate": "有効な試験日を選んでください。",
+        "other": "文字数の上限を超えている項目があります。確認して再試行してください。"
+      }
+    },
+    "level": {
+      "none": "指定なし",
+      "primary": "小学校",
+      "junior": "中学校",
+      "senior": "高校",
+      "university": "大学",
+      "other": "その他"
+    },
+    "addCourses": {
+      "title": "既存のコースを追加",
+      "description": "この科目に追加するコースを選んでください。1 つのコースを複数の科目に入れられます。",
+      "search": "コースを検索",
+      "none": "追加できるコースがまだありません。",
+      "noMatch": "一致するコースはありません。",
+      "alreadyIn": "追加済み",
+      "confirm": "追加（{{count}}）",
+      "partialFailure": "{{count}} 件のコースを追加できませんでした。再試行してください。"
+    }
   }
 }

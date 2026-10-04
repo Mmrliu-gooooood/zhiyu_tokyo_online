@@ -32,6 +32,12 @@ import {
 } from '@/lib/classroom/load-classroom';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { ZhiyuClassroomState } from '@/components/classroom/ZhiyuClassroomState';
+import { toast } from 'sonner';
+import {
+  prepareStudyResumeFromUrl,
+  settleStudyResume,
+  type StudyResumeUi,
+} from '@/lib/study/progress/classroom-resume';
 
 const log = createLogger('Classroom');
 
@@ -72,6 +78,11 @@ export default function ClassroomDetailPage() {
       const loadToken = claimStageSceneLoadToken();
       const isCurrent = () => isEffectCurrent() && isCurrentStageSceneLoadToken(loadToken);
 
+      // Opened from a study space's "continue": open at the newest position
+      // across devices (server progress), before the device position is read.
+      const studyResume = await prepareStudyResumeFromUrl(classroomId);
+      if (!isCurrent()) return;
+
       await runClassroomLoad({
         classroomId,
         loadToken,
@@ -99,6 +110,10 @@ export default function ClassroomDetailPage() {
         setLoading,
         log,
       });
+
+      if (isEffectCurrent()) {
+        void settleStudyResume(classroomId, studyResume, studyResumeUi(isEffectCurrent));
+      }
 
       // The stage-meta sidecar resolves the viewer-facing ownership facts the
       // document seam does not carry — `isOwner` decides read-only vs editable
@@ -150,8 +165,33 @@ export default function ClassroomDetailPage() {
           .catch(() => noteStageOwnership(classroomId, false, null));
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- studyResumeUi reads stores lazily; t is stable per locale
     [classroomId, loadFromStorage],
   );
+
+  const studyResumeUi = (isEffectCurrent: () => boolean): StudyResumeUi => ({
+    pageOf: (sceneId) => {
+      const index = useStageStore.getState().scenes.findIndex((scene) => scene.id === sceneId);
+      return index >= 0 ? index + 1 : null;
+    },
+    currentSceneId: () => useStageStore.getState().currentSceneId,
+    jumpTo: (sceneId) => useStageStore.getState().setCurrentSceneId(sceneId),
+    isCurrent: isEffectCurrent,
+    notify: (message) => {
+      if (message.kind === 'resumed') {
+        toast.success(t('study.resume.resumed', { page: message.page }));
+      } else if (message.kind === 'scene-changed') {
+        toast.info(t('study.resume.sceneChanged'));
+      } else if (message.kind === 'scene-missing') {
+        toast.info(t('study.resume.sceneMissing'));
+      } else {
+        toast(t('study.resume.offer', { page: message.page }), {
+          duration: 20_000,
+          action: { label: t('study.resume.offerAction'), onClick: message.jump },
+        });
+      }
+    },
+  });
 
   useEffect(() => {
     // Roster hydration uses the shared selection for this classroom's
