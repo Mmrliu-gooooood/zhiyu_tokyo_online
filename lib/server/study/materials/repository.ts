@@ -681,10 +681,16 @@ export async function finishStudyMaterialPurge(
   plan: MaterialPurgePlan,
 ): Promise<void> {
   await db.withTransaction(async (tx) => {
-    await tx.query('DELETE FROM learning_tasks WHERE owner_id=$1 AND subject_id=ANY($2::text[])', [
-      ownerId,
-      plan.versionIds,
-    ]);
+    // A task whose attempt still has staged objects stays until the worker's
+    // sweep has removed them (its keys would otherwise be lost with the row).
+    await tx.query(
+      `DELETE FROM learning_tasks task
+        WHERE task.owner_id=$1 AND task.subject_id=ANY($2::text[])
+          AND NOT EXISTS (SELECT 1 FROM learning_task_attempts attempt
+                           WHERE attempt.task_id=task.id
+                             AND attempt.staged_object_keys <> '[]'::jsonb)`,
+      [ownerId, plan.versionIds],
+    );
     await tx.query(
       `DELETE FROM study_materials WHERE owner_id=$1 AND id=$2 AND status='deleting'`,
       [ownerId, materialId],

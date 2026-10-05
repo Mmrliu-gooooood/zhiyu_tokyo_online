@@ -26,7 +26,7 @@
 4. **连接池预算**：`app_worker` 池保持 `max=3`。学习调度每 2 秒一次短事务扫描，解析本身（读对象、跑解析器）不占连接，只在认领、心跳、提交时短暂借用；并发 1 时峰值新增 1 个连接，与课程生成共用 3 个以内（`lib/db/pool-registry.ts` 注释记录计算）。并发调到 2 以上前须重算并相应加大池。
 5. **数据模型（accounts v23）**：`study_materials`（资料，含当前版本、版本数、revision、`active|deleting`）、`study_material_versions`（不可变；一行对应一次 `owner_material` 上传，记录对象 key、sha256、MIME、大小、原文件名、当前解析结果）、`study_material_artifacts`（按 `(版本, 指纹)` 唯一；指纹 = 解析器 id + 版本 + 转换版本，相同条件不重复解析）、`study_space_materials`（学科关联，含来源 library/generation）、`study_session_material_refs`（工作台会话对版本的引用）。全部 FORCE RLS；`app_web` 对本人数据增删改查（attempt 表只读），写入时 `WITH CHECK` 要求版本引用本人已就绪的上传、会话引用本人未删除的会话；`app_worker` 只有解析所需的最小权限（读资料/版本/任务、写解析结果与 attempt、更新版本当前结果与任务状态）；anon/authenticated 无任何授权。新增 `app_internal.learning_task_readiness()`；`app_internal.heavy_task_capacity` 以 v11 函数体为基础并入 `learning_tasks` 的运行/排队/公平计数（本地模式 SQL 同步覆盖）。
 6. **解析**：只复用 `lib/pdf` 的 unpdf / mineru / mineru-cloud / alidocmind 与文档提取器注册表，不新写解析器。默认用内置解析器（PDF → unpdf，Office/文本 → 内置提取器）；**付费 OCR 只在用户明确选择时使用，绝不自动升级**，且只有服务端已配置时才可选（未配置显示“付费 OCR · 未配置”且不可点）。为阅读器按页定位，给 unpdf 增加可选 `pageTexts`（`extractText` 不合并页面），默认输出与合并文本完全不变。
-7. **解析结果存储**：规范化后的结构（去掉 providerRaw 与 HTML，按页分块，图片拆成独立对象）存为 `study/{owner}/artifacts/{artifactId}/` 下的 artifact JSON、纯文本与图片对象，表里记录全部对象 key；解析中途失败会清理已写入的对象。开发环境可用 `STUDY_PARSE_DEV_DELAY_MS` 拉长解析（生产忽略）以便验收崩溃/取消。
+7. **解析结果存储**：规范化后的结构（去掉 providerRaw 与 HTML，按页分块，图片拆成独立对象）存为 `study/{owner}/artifacts/{artifactId}/` 下的 artifact JSON、纯文本与图片对象，表里记录全部对象 key；解析中途失败会清理已写入的对象。**崩溃不留孤立对象（预写清单）**：写对象前先在租约内把将要写的全部 key 记到本次 attempt 的 `staged_object_keys`，提交 artifact 的同一事务里清空；进程在两者之间死掉时，Worker 例行维护里的清扫会在尝试结束 15 分钟后（超过任务时限与栅栏生效时间，确保旧持有者不再写入）删除这些对象再清空清单，且永不删除已提交 artifact 引用的 key。永久删除资料时保留仍有待清扫对象的任务行；账号删除清单也包含这些 key。对象存储没有按前缀列举接口，所以选预写清单而不是扫描存储桶。开发环境可用 `STUDY_PARSE_DEV_DELAY_MS` 拉长解析（生产忽略）以便验收崩溃/取消。
 8. **阅读器**：原文件用 pdf.js（经已有依赖 `unpdf` 的浏览器构建）渲染单页 canvas，旁边是该页解析文字与图片，可跳页；非 PDF 显示原图或解析文字。文件/图片/文字接口私有、`no-store`、`nosniff`，非 PDF 附 CSP sandbox。**没有引入 react-pdf-highlighter**（方案提到）：B02 不需要划词高亮/引用定位，留给 B03 引用跳转时再定。
 9. **复用到工作台**：“在 AI 工作台中使用”把版本**按引用**绑定到新会话：会话素材行指向共享的原文件与解析文字 key，解析状态直接为完成，并写 `study_session_material_refs`；不复制对象。会话读取共享 key 时由 Worker 侧校验该会话确实引用了这个版本。旧接口 `GET /api/materials?sessionId=` 合约不变并能列出这些素材。删除会话不影响资料与其他会话。
 10. **复用到课程生成**：首页资料选择器读取所选版本的解析文字，作为生成输入的 `pdfText`（与上传 PDF 走同一路径），会话记录所用版本；在学科中生成时课程自动关联到学科（`added_via=generation`，同时补上 B01 后台生成路径不关联的缺口）。解析出的图片本批不进入课程生成（需要改生成管线，不在范围内）。
@@ -53,8 +53,8 @@
 
 ### 数据迁移
 
-- accounts **v23**，checksum `eab239d87f45c5703ffc04b7fb91572a47bad530f8323c9c090a81580c4040d6`；v21 `a13fa31d…`、v22 `01c9914f…` 未变。旧迁移 SQL 未改动。
-- 已执行：PGlite（单测）；一次性 PostgreSQL（`*_rls_proof` 容器）上 v23 迁移/RLS/授权/容量函数测试、全新库 bootstrap 到 v23；本地托管验收库（PostgreSQL 17，按生产顺序 bootstrap 到 v23，6 张新表均 `relrowsecurity = relforcerowsecurity = true`）。均已销毁。**未在生产执行。**
+- accounts **v23**，checksum `3fe42841b0aae393f93cbcfac54967f87ebaa1f298ad1d0552707718d5b746e7`；v21 `a13fa31d…`、v22 `01c9914f…` 未变。旧迁移 SQL 未改动。
+- 已执行：PGlite（单测）；一次性 PostgreSQL（`*_rls_proof` 容器）上 v23 迁移/RLS/授权/容量函数测试、全新库 bootstrap 到 v23；本地托管验收库（PostgreSQL 17，按生产顺序 bootstrap 到 v23，7 张新表均 `relrowsecurity = relforcerowsecurity = true`）。均已销毁。**未在生产执行。**
 
 ### 测试
 
@@ -81,11 +81,10 @@
 12. Worker 离线：上传成功，提示“暂未开始解析：解析服务暂时不可用”；重复上传提示已在资料库；Worker 恢复后点“开始解析”成功（纯文本解析器）。
 13. 永久删除（2 个版本、1 个存活会话引用）→ 行与对象全部删除，会话 2 再读为空，课程与其学科关联保留；存储 key 与数据库引用一一对应（8 = 8）。
 
-验收中发现并已修复：不可重试错误仍显示“重试”；被取消/栅栏后的尝试停留在“运行中”（Worker 补记 + 回收器清扫）；删除确认框把已删除会话计入；手机宽度导航换行。
+验收中发现并已修复：不可重试错误仍显示“重试”；被取消/栅栏后的尝试停留在“运行中”（Worker 补记 + 回收器清扫）；删除确认框把已删除会话计入；手机宽度导航换行。上线前又修复：Worker 在写完对象、提交之前崩溃会留下孤立对象（见决策 7；v23 尚未在任何持久环境执行，因此直接修改 v23，checksum 随之更新）。测试：PGlite 上模拟写完 artifact JSON 后进程冻结 → 过期回收 → 宽限期内不清扫 → 期后只删孤立对象、已提交 artifact 的 key 保留；真实 PostgreSQL 上以 `app_worker` 身份跑清扫（跨账号 RLS 下只删未被引用的 key）；账号删除清单包含待清扫 key。
 
 ### 遗留事项
 
-- Worker 在“对象已写入、事务未提交”之间崩溃会留下孤立的 artifact 对象（数据库无引用，不影响功能）；需要后续的对象清扫任务。
 - 付费 OCR（MinerU Cloud、AliDocMind）路径未做真实调用验证；开放前需配置、计费接入（`usage_events`/预算）并单独验收。
 - Windows 本地字节存储不支持含冒号的 owner key（既有问题，生产用 S3 不受影响）；假模型服务器缺少 agent profile 的 id/difficulty，本地验收用了预设智能体。
 - 未运行：Playwright e2e、生产镜像构建；未在部署环境演练开关与排空。
@@ -100,7 +99,7 @@
 ### 上线步骤（待用户指示，按 B01 流程）
 
 1. 核对生产 `app_schema_migrations` v22 checksum = `01c9914f…`。
-2. Supabase `apply_migration` 只执行仓库 v23 SQL（逐字相同），写入 `app_schema_migrations(23, eab239d8…)`；核对 6 张新表 RLS 开启且强制、授权与本文一致、anon/authenticated 无授权；`app_internal.learning_task_readiness()` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
+2. Supabase `apply_migration` 只执行仓库 v23 SQL（逐字相同），写入 `app_schema_migrations(23, 3fe42841…)`；核对 7 张新表 RLS 开启且强制、授权与本文一致、anon/authenticated 无授权；`app_internal.learning_task_readiness()` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
 3. 构建并发布镜像（开关先关）→ readiness ready、accountsVersion 23 → 确认 0 个未完成任务后切换 → 在 Web 与 Worker env 设置 `ZHIYU_STUDY_MATERIALS_ENABLED=1`（并发保持 1）→ apply → 检查 Worker 心跳出现 `#learning` 行、`capabilities.materials=true`。
 
 ### 下一批（B03）前置条件
@@ -118,6 +117,7 @@
 - `tsc --noEmit`：通过。`check:i18n-keys`：通过（12 个语言文件）。改动文件 ESLint：0 个问题；改动文件 Prettier：通过。
 - `pnpm build:worker`：通过。`pnpm build`：通过，资料库 3 个页面与 13 个新增 `/api/study/*` 路由均已生成；唯一警告是 `unpdf` 经已有的 `material-extraction` → `pdf-providers` 服务端引用产生的 “Critical dependency”，非本批引入。
 - 未运行：Playwright e2e、生产镜像构建。
+- 孤立对象修复后复验：全量 Vitest **851 个文件 / 8861 项通过，0 失败**；真实 PostgreSQL 上 v23 迁移、全新 bootstrap 与账号删除 31 项通过；`tsc`、改动文件 ESLint/Prettier、`build:worker` 通过。
 
 ## B00 + B01 学科学习空间与继续学习
 

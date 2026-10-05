@@ -376,7 +376,13 @@ export async function prepareAccountDeletionManifest(
       `SELECT object_keys FROM study_material_artifacts WHERE owner_id=$1`,
       [ownerId],
     );
-    for (const artifact of studyArtifacts.rows) {
+    // Plus objects a parse attempt staged but never committed (it died first).
+    const stagedObjects = await client.query<{ object_keys: unknown }>(
+      `SELECT staged_object_keys AS object_keys FROM learning_task_attempts
+        WHERE owner_id=$1 AND staged_object_keys <> '[]'::jsonb`,
+      [ownerId],
+    );
+    for (const artifact of [...studyArtifacts.rows, ...stagedObjects.rows]) {
       for (const objectKey of Array.isArray(artifact.object_keys) ? artifact.object_keys : []) {
         if (typeof objectKey !== 'string' || !objectKey) continue;
         mergeDeletionObject(objects, {

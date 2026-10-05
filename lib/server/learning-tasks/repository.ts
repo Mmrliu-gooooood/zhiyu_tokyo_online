@@ -363,10 +363,20 @@ export async function retryLearningTask(
 export interface LearningTaskQueueConfig {
   leaseMs: number;
   queueWaitMs: number;
+  /**
+   * How long after an attempt ended its uncommitted staged objects are kept
+   * before the sweep removes them: well past the active deadline and the
+   * heartbeat that stops a fenced-out holder, so nothing is still writing.
+   */
+  stagedObjectGraceMs: number;
 }
 
 export function learningTaskQueueConfig(): LearningTaskQueueConfig {
-  return { leaseMs: 60_000, queueWaitMs: heavyTaskQueueWaitMs() };
+  return {
+    leaseMs: 60_000,
+    queueWaitMs: heavyTaskQueueWaitMs(),
+    stagedObjectGraceMs: DEFAULT_TASK_ACTIVE_MS + 5 * 60_000,
+  };
 }
 
 export interface LearningTaskOutcome {
@@ -689,6 +699,72 @@ export class LearningTaskQueue {
       );
       return rows.rows.length;
     });
+  }
+
+  /**
+   * Record, under the live lease, the object keys this attempt is about to
+   * write. Call before writing them; the commit that makes them reachable
+   * clears the list (`clearStagedObjects`). Throws STALE_LEARNING_TASK_LEASE
+   * once the lease is gone, so a fenced-out holder never writes new objects.
+   */
+  async stageObjects(lease: LearningTaskLease, keys: readonly string[]): Promise<void> {
+    await this.transaction(async (q) => {
+      await this.assertLease(q, lease);
+      await q.query(
+        `UPDATE learning_task_attempts
+            SET staged_object_keys=(staged_object_keys || $2::jsonb)
+          WHERE id=$1 AND outcome='running'`,
+        [lease.attemptId, JSON.stringify(keys)],
+      );
+    });
+  }
+
+  /** Forget an attempt's staged keys: they were committed or removed again. */
+  async clearStagedObjects(q: Queryable | null, attemptId: string): Promise<void> {
+    const sql = `UPDATE learning_task_attempts SET staged_object_keys='[]'::jsonb WHERE id=$1`;
+    if (q) await q.query(sql, [attemptId]);
+    else await this.transaction((tx) => tx.query(sql, [attemptId]));
+  }
+
+  /**
+   * Remove objects staged by attempts that ended without committing them (the
+   * holder died, was fenced out, or lost a race) once a grace period has
+   * passed, so a slow holder can no longer be writing. Keys a committed
+   * artifact references are never removed.
+   */
+  async sweepStagedObjects(remove: (key: string) => Promise<void>): Promise<number> {
+    const rows = await this.transaction((q) =>
+      q.query<{ id: string; staged_object_keys: string[] }>(
+        `SELECT attempt.id, attempt.staged_object_keys FROM learning_task_attempts attempt
+          WHERE attempt.staged_object_keys <> '[]'::jsonb AND attempt.outcome <> 'running'
+            AND attempt.finished_at<=clock_timestamp()-$1*interval '1 millisecond'
+            AND NOT EXISTS (
+              SELECT 1 FROM study_material_artifacts artifact
+               WHERE artifact.owner_id=attempt.owner_id
+                 AND artifact.object_keys ?| ARRAY(
+                   SELECT jsonb_array_elements_text(attempt.staged_object_keys)))
+          ORDER BY attempt.finished_at
+          LIMIT 20`,
+        [this.config.stagedObjectGraceMs],
+      ),
+    );
+    let swept = 0;
+    for (const row of rows.rows) {
+      const keys = Array.isArray(row.staged_object_keys) ? row.staged_object_keys : [];
+      const results = await Promise.allSettled(
+        keys.filter((key) => typeof key === 'string' && key).map((key) => remove(key)),
+      );
+      if (results.some((result) => result.status === 'rejected')) continue;
+      await this.transaction((q) =>
+        q.query(
+          `UPDATE learning_task_attempts SET staged_object_keys='[]'::jsonb
+            WHERE id=$1 AND staged_object_keys=$2::jsonb`,
+          [row.id, JSON.stringify(keys)],
+        ),
+      );
+      swept += 1;
+    }
+    return swept;
   }
 
   /** End tasks that waited in the queue past the shared queue deadline. */

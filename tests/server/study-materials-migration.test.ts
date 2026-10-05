@@ -20,6 +20,7 @@ import {
   bootstrapFreshAccountsDatabase,
   type FreshBootstrapSource,
 } from '@/lib/server/accounts/fresh-bootstrap';
+import { LearningTaskQueue } from '@/lib/server/learning-tasks/repository';
 
 const OWNER_A = 'user:aaaaaaaa-0000-4000-8000-00000000000a';
 const OWNER_B = 'user:bbbbbbbb-0000-4000-8000-00000000000b';
@@ -247,13 +248,43 @@ describe.each(engines)('accounts v23 study materials (%s)', (_name, open) => {
         );
         await db.query(
           `INSERT INTO study_material_artifacts (id, owner_id, version_id, fingerprint, extractor_id,
-             extractor_version, transform_version, artifact_key, text_key)
-           VALUES ('art-a', $1, 'ver-a', $2, 'unpdf', '1', 'v1', 'k', 't')`,
+             extractor_version, transform_version, artifact_key, text_key, object_keys)
+           VALUES ('art-a', $1, 'ver-a', $2, 'unpdf', '1', 'v1', 'k', 't', '["k","t"]')`,
           [OWNER_A, 'd'.repeat(64)],
         );
         await db.query(
           "UPDATE study_material_versions SET active_artifact_id='art-a' WHERE id='ver-a'",
         );
+        // The staged-object sweep runs under worker RLS across owners: it removes
+        // only keys no committed artifact references, then forgets them.
+        await db.query(
+          `INSERT INTO learning_task_attempts (id, task_id, owner_id, attempt_no, lease_epoch,
+             worker_id, outcome, staged_object_keys, finished_at)
+           SELECT gen_random_uuid(), id, owner_id, n, 1, 'w', 'lease_lost', keys::jsonb,
+                  now()-interval '1 hour'
+             FROM learning_tasks,
+                  (VALUES (1, '["k"]'), (2, '["orphan-a"]')) AS staged(n, keys)
+            WHERE owner_id=$1`,
+          [OWNER_A],
+        );
+        const inTransaction = {
+          connect: async () => ({
+            query: (sql: string, values?: unknown[]) =>
+              /^(BEGIN|COMMIT|ROLLBACK)$/.test(sql) ? { rows: [] } : db.query(sql, values),
+            release() {},
+          }),
+        };
+        const removed: string[] = [];
+        const sweeper = new LearningTaskQueue(inTransaction as never, { stagedObjectGraceMs: 0 });
+        expect(await sweeper.sweepStagedObjects(async (key) => void removed.push(key))).toBe(1);
+        expect(removed).toEqual(['orphan-a']);
+        expect(
+          (
+            await db.query<{ staged_object_keys: string[] }>(
+              'SELECT staged_object_keys FROM learning_task_attempts ORDER BY attempt_no',
+            )
+          ).rows.map((row) => row.staged_object_keys),
+        ).toEqual([['k'], []]);
       });
       for (const statement of [
         `INSERT INTO learning_tasks (id, owner_id, root_task_id, kind, idempotency_key, request_hash,

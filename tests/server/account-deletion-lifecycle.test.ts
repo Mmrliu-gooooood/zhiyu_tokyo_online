@@ -150,7 +150,8 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE study_session_material_refs(owner_id text,session_id text,version_id text,
         foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
       CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
-      CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text);
+      CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text,
+        staged_object_keys jsonb not null default '[]');
       CREATE TABLE media_config_snapshots(owner_id text);
       CREATE TABLE generation_model_snapshots(owner_id text);
       CREATE TABLE generation_search_snapshots(owner_id text);
@@ -192,8 +193,10 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         ('30000000-0000-4000-8000-000000000001','${OWNER}'),
         ('30000000-0000-4000-8000-000000000002','${OTHER}');
       INSERT INTO learning_task_attempts VALUES
-        ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','${OWNER}'),
-        ('40000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000002','${OTHER}');
+        ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','${OWNER}',
+         '["study/owner/artifacts/art-crashed/artifact.json"]'),
+        ('40000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000002','${OTHER}',
+         '["study/other/artifacts/art-crashed/artifact.json"]');
     `);
   });
 
@@ -326,6 +329,12 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
           objectKey: 'study/owner/artifacts/art-owner/text.md',
           status: 'pending',
         }),
+        // Staged by a parse attempt that died before committing it.
+        expect.objectContaining({
+          bucketId: 'materials',
+          objectKey: 'study/owner/artifacts/art-crashed/artifact.json',
+          status: 'pending',
+        }),
         expect.objectContaining({
           bucketId: 'private-classrooms',
           objectKey: 'snapshots/course.json',
@@ -370,6 +379,9 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
     // Study spaces, course links and progress go too, before the courses they reference.
     expect(manifest.map((object) => object.objectKey)).not.toContain(
       'study/other/artifacts/art-other/text.md',
+    );
+    expect(manifest.map((object) => object.objectKey)).not.toContain(
+      'study/other/artifacts/art-crashed/artifact.json',
     );
     for (const table of [
       'study_spaces',

@@ -24,7 +24,7 @@ import {
 } from '@/lib/persistence/owner-materials';
 import { migrateGenerationSchema } from '@/lib/server/generation-jobs/migrations';
 import { ensureStudySchema } from '@/lib/server/study/schema';
-import { setMaterialByteStoreForTests } from '@/lib/server/materials/bytes';
+import { getMaterialByteStore, setMaterialByteStoreForTests } from '@/lib/server/materials/bytes';
 import { createStudySpace, StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import {
   addStudyMaterialVersion,
@@ -484,6 +484,75 @@ describe('study material library', () => {
     });
     expect([...bytes.keys()].filter((key) => key.includes('/artifacts/'))).toEqual([]);
     expect((await db.query('SELECT 1 FROM study_material_artifacts')).rows).toEqual([]);
+  });
+
+  it('sweeps objects a parse wrote before its worker died, never committed ones', async () => {
+    const committed = await createStudyMaterialFromUpload(study, OWNER_A, {
+      upload: await upload(OWNER_A, await textPdf(['Kept'])),
+    });
+    await requestMaterialParse(study, OWNER_A, committed.material.materialId, committed.versionId);
+    await runNextParse();
+    // A committed parse leaves nothing staged.
+    expect(
+      (await db.query("SELECT 1 FROM learning_task_attempts WHERE staged_object_keys <> '[]'"))
+        .rows,
+    ).toEqual([]);
+
+    const crashed = await createStudyMaterialFromUpload(study, OWNER_A, {
+      upload: await upload(OWNER_A, await textPdf(['Crash'])),
+    });
+    await requestMaterialParse(study, OWNER_A, crashed.material.materialId, crashed.versionId);
+    // The worker freezes (then dies) right after writing the artifact JSON.
+    setMaterialByteStoreForTests({
+      put: async (key, body) => {
+        bytes.set(key, Buffer.from(body as Uint8Array));
+        if (key.endsWith('artifact.json')) await new Promise(() => undefined);
+      },
+      get: async (key) => bytes.get(key)!,
+      delete: async (key) => {
+        deleted.push(key);
+        bytes.delete(key);
+      },
+    });
+    const lease = (await queue.claim('worker-1', ['material_parse']))!;
+    void runMaterialParseTask(lease, { queue, signal: new AbortController().signal });
+    const artifactKeys = () => [...bytes.keys()].filter((key) => key.includes('/artifacts/'));
+    // Committed JSON + text, then the dying attempt's JSON.
+    await vi.waitFor(() => expect(artifactKeys()).toHaveLength(3));
+
+    await db.query(
+      "UPDATE learning_tasks SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+      [lease.taskId],
+    );
+    await queue.reapExpired();
+    // Deleting the material meanwhile keeps the task row that still names staged
+    // keys; the purge itself cannot know them as artifact objects.
+    await purgeStudyMaterial(study, OWNER_A, crashed.material.materialId);
+    expect(
+      (await db.query('SELECT 1 FROM learning_tasks WHERE id=$1', [lease.taskId])).rows,
+    ).toHaveLength(1);
+    const remove = (key: string) => getMaterialByteStore().delete(key);
+    // Within the grace period a fenced-out holder might still be writing.
+    expect(await queue.sweepStagedObjects(remove)).toBe(0);
+    const sweeper = new LearningTaskQueue(queue.pool, { ...queue.config, stagedObjectGraceMs: 0 });
+    // Keys a committed artifact references are never removed, even if staged.
+    const kept = await db.query<{ object_keys: string[] }>(
+      'SELECT object_keys FROM study_material_artifacts',
+    );
+    await db.query(
+      `UPDATE learning_task_attempts SET staged_object_keys=$1::jsonb
+        WHERE outcome='succeeded'`,
+      [JSON.stringify(kept.rows[0]!.object_keys)],
+    );
+    expect(await sweeper.sweepStagedObjects(remove)).toBe(1);
+    expect(artifactKeys().sort()).toEqual([...kept.rows[0]!.object_keys].sort());
+    expect(
+      (
+        await db.query<{ outcome: string }>(
+          "SELECT outcome FROM learning_task_attempts WHERE staged_object_keys <> '[]'",
+        )
+      ).rows,
+    ).toEqual([{ outcome: 'succeeded' }]);
   });
 
   it('refuses parses while no learning worker is live', async () => {

@@ -34,6 +34,8 @@ export interface LearningTaskRunnerOptions {
   scanIntervalMs?: number;
   heartbeatMs?: number;
   drainTimeoutMs?: number;
+  /** Deletes one object an abandoned attempt staged; enables the staged-object sweep. */
+  removeStagedObject?: (key: string) => Promise<void>;
   report?: (event: { event: string; taskId?: string; code?: string }) => void;
 }
 
@@ -94,6 +96,7 @@ export function startLearningTaskRunner(
       if (!stopping) {
         await queue.reapExpired();
         await queue.expireQueued();
+        if (options.removeStagedObject) await queue.sweepStagedObjects(options.removeStagedObject);
       }
     } catch {
       report({ event: 'learning_task_database_unavailable' });

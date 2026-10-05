@@ -31,6 +31,7 @@ import {
   startLearningTaskRunner,
 } from '@/lib/server/learning-tasks/runner';
 import { runMaterialParseTask } from '@/lib/server/study/materials/parse';
+import { getMaterialByteStore } from '@/lib/server/materials/bytes';
 import { isStudyMaterialsFlagOn } from '@/lib/server/study/flags';
 import { startAssetCollectorSchedule } from '@/lib/persistence/asset-collector-schedule';
 import {
@@ -74,6 +75,7 @@ async function main() {
         handlers: { material_parse: runMaterialParseTask },
         workerId,
         concurrency: learningTaskWorkerConcurrency(),
+        removeStagedObject: (key) => getMaterialByteStore().delete(key),
         report: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
       })
     : undefined;

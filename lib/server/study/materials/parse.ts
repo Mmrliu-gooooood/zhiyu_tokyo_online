@@ -7,7 +7,8 @@
  * possibly paid, parser. The result is normalized, written to the private
  * material byte store and registered in one lease-fenced commit; if the lease
  * was lost or the material was deleted meanwhile, the staged objects are
- * removed again. A version that already has an artifact with the same
+ * removed again. Their keys are recorded on the attempt before any is written,
+ * so if this process dies first the queue's sweep removes them later. A version that already has an artifact with the same
  * fingerprint is reused without parsing.
  */
 import { createHash } from 'node:crypto';
@@ -248,13 +249,25 @@ export async function runMaterialParseTask(
 
   const artifactId = createStudyArtifactId();
   const prefix = studyArtifactPrefix(lease.ownerId, artifactId);
+  const imageKey = (image: (typeof normalized.images)[number]) =>
+    `${prefix}images/${image.id}.${image.mimeType.split('/')[1] ?? 'bin'}`;
+  const artifactKey = `${prefix}artifact.json`;
+  const textKey = `${prefix}text.md`;
+  // Write-ahead: record every key before writing any, so the queue's sweep can
+  // remove them if this attempt dies before the commit below makes them reachable.
+  await queue.stageObjects(lease, [...normalized.images.map(imageKey), artifactKey, textKey]);
   const written: string[] = [];
   const put = async (key: string, body: Buffer, mime: string) => {
     written.push(key);
     await byteStore.put(key, body, mime);
   };
-  const discard = () =>
-    Promise.allSettled(written.map((key) => byteStore.delete(key))).then(() => undefined);
+  const discard = async () => {
+    const results = await Promise.allSettled(written.map((key) => byteStore.delete(key)));
+    // A failed delete keeps the keys staged for the sweep to retry.
+    if (results.every((result) => result.status === 'fulfilled')) {
+      await queue.clearStagedObjects(null, lease.attemptId).catch(() => undefined);
+    }
+  };
 
   // Staged objects stay only when this attempt's artifact row was committed.
   let keepStaged = false;
@@ -262,8 +275,7 @@ export async function runMaterialParseTask(
     const images = [];
     for (const image of normalized.images) {
       signal.throwIfAborted();
-      const extension = image.mimeType.split('/')[1] ?? 'bin';
-      const key = `${prefix}images/${image.id}.${extension}`;
+      const key = imageKey(image);
       await put(key, image.bytes, image.mimeType);
       images.push({
         id: image.id,
@@ -276,8 +288,6 @@ export async function runMaterialParseTask(
       });
     }
     const document: StoredArtifactDocument = { ...normalized.document, images };
-    const artifactKey = `${prefix}artifact.json`;
-    const textKey = `${prefix}text.md`;
     await put(artifactKey, Buffer.from(JSON.stringify(document), 'utf8'), 'application/json');
     await put(textKey, Buffer.from(normalized.text, 'utf8'), 'text/markdown');
     signal.throwIfAborted();
@@ -327,7 +337,10 @@ export async function runMaterialParseTask(
             lease.taskId,
           ],
         );
-        if (!inserted.rows[0]) {
+        if (inserted.rows[0]) {
+          // Reachable from the artifact row now: no longer this attempt's garbage.
+          await queue.clearStagedObjects(q, lease.attemptId);
+        } else {
           const existing = await q.query<{ id: string }>(
             `SELECT id FROM study_material_artifacts
               WHERE owner_id=$1 AND version_id=$2 AND fingerprint=$3`,

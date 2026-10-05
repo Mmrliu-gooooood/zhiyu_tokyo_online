@@ -22,7 +22,10 @@
  *   per-attempt call details. The lease/heartbeat/claim mechanics are shared
  *   with generation_jobs (lib/server/task-queue); the contract is separate so
  *   course generation is untouched. B02 only defines kind material_parse;
- *   later batches add kinds to the same table.
+ *   later batches add kinds to the same table. An attempt records the object
+ *   keys it is about to write (staged_object_keys) before writing them and
+ *   clears them in the commit that makes them reachable, so objects of an
+ *   attempt that died in between can be found and removed again.
  *
  * Owner isolation: every web query is owner-bound (app.owner_id) with FORCE
  * RLS. Version inserts must name the owner's own ready upload and session refs
@@ -184,12 +187,16 @@ CREATE TABLE IF NOT EXISTS learning_task_attempts (
   usage jsonb,
   usage_completeness text NOT NULL DEFAULT 'unknown' CHECK (usage_completeness IN
     ('none', 'complete', 'partial', 'unknown')),
+  staged_object_keys jsonb NOT NULL DEFAULT '[]'::jsonb
+    CHECK (jsonb_typeof(staged_object_keys) = 'array'),
   started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   finished_at timestamptz,
   CONSTRAINT learning_task_attempts_number UNIQUE (task_id, attempt_no)
 );
 CREATE INDEX IF NOT EXISTS learning_task_attempts_owner
   ON learning_task_attempts (owner_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS learning_task_attempts_staged
+  ON learning_task_attempts (finished_at) WHERE staged_object_keys <> '[]'::jsonb;
 `;
 
 const STUDY_MATERIAL_TABLES = [
