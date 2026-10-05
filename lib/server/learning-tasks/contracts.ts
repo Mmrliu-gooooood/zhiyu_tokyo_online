@@ -71,9 +71,15 @@ export class LearningTaskError extends Error {
   }
 }
 
-/** Codes a user retry cannot fix (the subject is gone or the request is invalid). */
+/**
+ * Codes a plain retry of the same request cannot fix (the subject is gone, the
+ * request is invalid, or the same parser would give the same answer). A new
+ * parse with another parser is still possible.
+ */
 export const NON_RETRYABLE_TASK_CODES = new Set([
   'MATERIAL_DELETED',
   'MATERIAL_TYPE_UNSUPPORTED',
   'PARSER_UNAVAILABLE',
+  'MATERIAL_NO_TEXT',
+  'MATERIAL_DIGEST_MISMATCH',
 ]);

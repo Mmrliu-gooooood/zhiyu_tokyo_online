@@ -120,7 +120,15 @@ async function runNextParse(signal = new AbortController().signal) {
 }
 
 async function spaceFor(owner: string, name: string) {
-  return createStudySpace(study, owner, { name });
+  return createStudySpace(study, owner, {
+    name,
+    educationLevel: null,
+    subject: null,
+    goal: null,
+    examDate: null,
+    examScope: null,
+    timezone: null,
+  });
 }
 
 beforeEach(async () => {
@@ -388,9 +396,10 @@ describe('study material library', () => {
       mime: 'application/pdf',
     });
     expect(bytes.has(rawKey)).toBe(true);
+    // Only live sessions count toward the delete warning.
     expect(
       (await getStudyMaterial(study, OWNER_A, created.material.materialId)).sessionRefCount,
-    ).toBe(2);
+    ).toBe(1);
 
     // A queued parse for the material is cancelled by the delete.
     const pending = await requestMaterialParse(

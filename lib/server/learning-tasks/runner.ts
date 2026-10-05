@@ -134,8 +134,13 @@ export function startLearningTaskRunner(
         const reason = controller.signal.aborted ? controller.signal.reason : error;
         const code = reason instanceof RunnerAbort ? reason.code : errorCode(reason);
         report({ event: 'learning_task_stopped', taskId: lease.taskId, code });
-        // A lost lease belongs to someone else now; anything else is settled here.
-        if (code !== 'LEARNING_TASK_LEASE_LOST') {
+        // A lost lease belongs to someone else now: only close this attempt's
+        // row. Anything else is settled here.
+        if (code === 'LEARNING_TASK_LEASE_LOST') {
+          await queue
+            .recordLostAttempt(lease, { usageCompleteness: 'unknown' })
+            .catch(() => undefined);
+        } else {
           await queue
             .fail(lease, {
               code,

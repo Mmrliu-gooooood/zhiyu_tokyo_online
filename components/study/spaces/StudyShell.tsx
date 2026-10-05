@@ -30,13 +30,13 @@ export function StudyShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-[100dvh] bg-background">
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8">
-        <Link href="/" aria-label={t('study.backHome')} className="rounded-md">
+        <Link href="/" aria-label={t('study.backHome')} className="shrink-0 rounded-md">
           <ZhiyuLockup size="sm" />
         </Link>
         <nav className="flex items-center gap-1">
           <Link
             href="/study"
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             {t('study.nav')}
           </Link>
@@ -44,14 +44,14 @@ export function StudyShell({ children }: { children: ReactNode }) {
             <Link
               href="/study/materials"
               data-testid="study-nav-materials"
-              className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {t('study.materials.nav')}
             </Link>
           ) : null}
           <Link
             href="/"
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="hidden whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground sm:inline-flex"
           >
             {t('study.backHome')}
           </Link>

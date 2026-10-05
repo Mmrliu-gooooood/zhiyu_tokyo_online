@@ -110,6 +110,7 @@ function versionView(
   const artifact = artifactView(row);
   return {
     versionId: row.id,
+    uploadId: row.owner_material_id,
     versionNo: Number(row.version_no),
     originalName: row.original_name,
     mime: row.mime,
@@ -267,12 +268,7 @@ async function readDetail(
   const current = views.find((version) => version.isCurrent) ?? views[0];
   if (!current) throw new StudyError('STUDY_MATERIAL_NOT_FOUND');
   const spaces = await materialSpaces(tx, ownerId, [materialId]);
-  const refs = await tx.query<{ n: number | string }>(
-    `SELECT count(DISTINCT r.session_id) AS n FROM study_session_material_refs r
-       JOIN study_material_versions v ON v.owner_id=r.owner_id AND v.id=r.version_id
-      WHERE r.owner_id=$1 AND v.material_id=$2`,
-    [ownerId, materialId],
-  );
+  const refs = await liveSessionRefCount(tx, ownerId, materialId);
   return {
     materialId: material.id,
     title: material.title,
@@ -283,8 +279,31 @@ async function readDetail(
     createdAt: iso(material.created_at),
     updatedAt: iso(material.updated_at),
     versions: views,
-    sessionRefCount: Number(refs.rows[0]?.n ?? 0),
+    sessionRefCount: refs,
   };
+}
+
+/** Live (not deleted) agent sessions that read any version of the material by reference. */
+async function liveSessionRefCount(
+  tx: Queryable,
+  ownerId: string,
+  materialId: string,
+): Promise<number> {
+  const exists = await tx.query<{ present: boolean }>(
+    "SELECT to_regclass('agent_sessions') IS NOT NULL AS present",
+  );
+  const result = await tx.query<{ n: number | string }>(
+    `SELECT count(DISTINCT r.session_id) AS n FROM study_session_material_refs r
+       JOIN study_material_versions v ON v.owner_id=r.owner_id AND v.id=r.version_id
+       ${
+         exists.rows[0]?.present
+           ? 'JOIN agent_sessions s ON s.id=r.session_id AND s.deleted_at IS NULL'
+           : ''
+       }
+      WHERE r.owner_id=$1 AND v.material_id=$2`,
+    [ownerId, materialId],
+  );
+  return Number(result.rows[0]?.n ?? 0);
 }
 
 function defaultTitle(originalName: string): string {

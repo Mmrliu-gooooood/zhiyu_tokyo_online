@@ -262,6 +262,23 @@ describe('learning task leases', () => {
     expect(attempt.rows[0]?.outcome).toBe('cancelled');
   });
 
+  it('closes the attempt of a cancelled holder that died before reporting', async () => {
+    const { task } = await enqueue(OWNER_A, 'cancel-crash');
+    await claim();
+    await cancelLearningTask(q(), OWNER_A, task.taskId);
+    // The fenced worker crashed: nothing closed its attempt row.
+    await db.query(
+      "UPDATE learning_task_attempts SET started_at=clock_timestamp()-interval '2 minutes' WHERE task_id=$1",
+      [task.taskId],
+    );
+    await queue.reapExpired();
+    const attempt = await db.query<{ outcome: string; finished: boolean }>(
+      'SELECT outcome, finished_at IS NOT NULL AS finished FROM learning_task_attempts WHERE task_id=$1',
+      [task.taskId],
+    );
+    expect(attempt.rows).toEqual([{ outcome: 'cancelled', finished: true }]);
+  });
+
   it('expires tasks that waited past the queue deadline', async () => {
     const { task } = await enqueue(OWNER_A, 'old');
     await db.query("UPDATE learning_tasks SET updated_at=clock_timestamp()-interval '2 hours'");
@@ -297,6 +314,7 @@ describe('learning task runner', () => {
       workerHeartbeat: vi.fn(async () => undefined),
       reapExpired: vi.fn(async () => 0),
       expireQueued: vi.fn(async () => 0),
+      recordLostAttempt: vi.fn(async () => undefined),
     };
   }
   const lease: LearningTaskLease = {
@@ -378,5 +396,6 @@ describe('learning task runner', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     await runner.stop();
     expect(fake.fail).not.toHaveBeenCalled();
+    expect(fake.recordLostAttempt).toHaveBeenCalledWith(lease, { usageCompleteness: 'unknown' });
   });
 });

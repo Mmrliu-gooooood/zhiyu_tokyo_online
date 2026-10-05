@@ -547,7 +547,7 @@ export class LearningTaskQueue {
       return true;
     } catch (error) {
       if (error instanceof LearningTaskError && error.code === 'STALE_LEARNING_TASK_LEASE') {
-        await this.recordStaleAttempt(lease, outcome).catch(() => undefined);
+        await this.recordLostAttempt(lease, outcome).catch(() => undefined);
         return false;
       }
       throw error;
@@ -602,15 +602,18 @@ export class LearningTaskQueue {
       return true;
     } catch (error) {
       if (error instanceof LearningTaskError && error.code === 'STALE_LEARNING_TASK_LEASE') {
-        await this.recordStaleAttempt(lease, failure).catch(() => undefined);
+        await this.recordLostAttempt(lease, failure).catch(() => undefined);
         return false;
       }
       throw error;
     }
   }
 
-  /** A fenced-out holder still records what its attempt consumed. */
-  private async recordStaleAttempt(
+  /**
+   * A fenced-out holder (cancelled, reaped or reclaimed task) still closes its
+   * attempt row with what it consumed, as cancelled or lease_lost.
+   */
+  async recordLostAttempt(
     lease: LearningTaskLease,
     detail: { usage?: Record<string, unknown>; usageCompleteness?: string; providerId?: string },
   ): Promise<void> {
@@ -671,6 +674,19 @@ export class LearningTaskQueue {
           ],
         );
       }
+      // An attempt whose holder was fenced out (cancel, re-claim) and then died
+      // before closing its own row: close it once its lease window has passed.
+      await q.query(
+        `UPDATE learning_task_attempts attempt
+            SET outcome=CASE WHEN task.status='cancelled' THEN 'cancelled' ELSE 'lease_lost' END,
+                usage_completeness='unknown', finished_at=clock_timestamp()
+           FROM learning_tasks task
+          WHERE attempt.task_id=task.id AND attempt.outcome='running'
+            AND (task.status IN ('succeeded','failed','cancelled')
+                 OR task.lease_epoch<>attempt.lease_epoch)
+            AND attempt.started_at<=clock_timestamp()-$1*interval '1 millisecond'`,
+        [this.config.leaseMs],
+      );
       return rows.rows.length;
     });
   }
