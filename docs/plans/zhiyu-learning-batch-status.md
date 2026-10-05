@@ -127,6 +127,8 @@
    - 修复后：资料库开课 → 任务输入含资料文字（26,618 字）与 17 张图片、17 个输入素材，任务成功；直接上传 PDF 开课 → 任务含 1 个源文件，Worker 解析后成功。
    - 假模型不会选择图片，图片是否出现在幻灯片上取决于真实模型，与直接上传时的行为相同。
    - 本地验收环境已全部清理（临时 env、fixture、容器、账号文件删除，服务停止）。
+   - 全量 Vitest：除新增改动触发的 provider 中立性守卫外全部通过；守卫问题已改为复用唯一的 S3 选择点（不新增厂商标识）后通过。真实 PostgreSQL 生成队列/容量回归 28 项通过。`tsc`、ESLint、Prettier、`build:worker`、`pnpm build` 通过。
+5. **发布（2026-10-06，release-20261006）**：`c505e552`（修复）+ `ec431c58`（功能）快进到 main 并推送 tokyo；镜像 web `d18b5eb2`、worker `ccd0d117`，两镜像 smoke 通过，送到东京 ID 一致；无迁移。备份 `*.bak-20261006-pre`（指向 release-20261005c）；确认 0 个进行中的任务后切换 → readiness ready、accountsVersion 23、liveWorkers 2/2、日志无错误、`materials: true`；容器内素材存储为 S3（修复所依赖的配置）。回退：恢复两份 `*.bak-20261006-pre` 后 apply。
 
 ### 下一批（B03）前置条件
 
