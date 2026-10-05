@@ -7,8 +7,119 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | B00 | 完成（基线与台账） | `learn/b01-spaces` | `a1a0a7b6`（main） | 不适用 | 不适用 | — |
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
+| B02 | 本地实现与验收完成，未合并 | `learn/b02-materials`（未推送） | — | 本地托管模式验收通过（见 B02 节） | 未上线（需 v23 迁移 + 开关） | 见 B02“遗留事项” |
 
-## 当前批次：B00 + B01 学科学习空间与继续学习
+## B02 共享资料版本、结构化解析与阅读（2026-10-05，本地完成）
+
+### 范围与起点
+
+- 分支 `learn/b02-materials` 从 main `0e60d2fa`（含 B01 与 release-20261005b 热修）创建；生产为 release-20261005b、accounts v22。
+- 范围：资料库（上传、改名、新版本、永久删除）、学科关联、后台解析任务（排队/运行/取消/重试/失败原因）、结构化解析结果与阅读器、资料在 AI 工作台与课程生成中复用；学习任务队列与 v23 迁移。
+- 不包含：检索/索引/答疑（B03）及之后批次；学科页没有放这些能力的占位入口。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 设计决策（实际实现）
+
+1. **任务队列：独立表，共享机制**。新建 `learning_tasks` 与 `learning_task_attempts`，契约在 `lib/study/tasks/contracts.ts`（客户端安全）与 `lib/server/learning-tasks/contracts.ts`（ownerId、rootTaskId=`learning:{id}`、kind、idempotencyKey + requestHash、status、lease_epoch/lease_expires_at/heartbeat、attempt、budget、usageCompleteness）。kind 目前只有 `material_parse`（表上 CHECK 约束，后续批次加 kind 走新迁移）。从 `lib/server/generation-jobs/repository.ts` 抽出 `lib/server/task-queue/lease-queue.ts`（事务包装、错误摘要脱敏、重试退避、heavy-task 准入锁与公平检查、账号删除栅栏、按 owner 的认领 advisory lock），课程生成改为调用它，SQL 与行为不变；生成队列的单测与真实 PostgreSQL 并发/租约测试全部通过作为回归兜底。
+2. **语义**：认领 `FOR UPDATE SKIP LOCKED` + heavy-task 准入（个人 2 / 站点 16 与课程生成共用同一计数，公平调度）；租约 60 秒、心跳续租、`lease_epoch` 栅栏（取消、过期回收都 +1，持有者的后续写入全部失败）；可重试错误按退避进入 `retry_wait`，最多 3 次；不可重试错误（资料已删、类型不支持、解析器不可用、无可提取文字、摘要不符等）直接失败、界面不显示“重试”；已发起外部付费调用的任务过期时标记 `EXTERNAL_RESULT_UNKNOWN` 失败而不是自动重放；排队超过 10 分钟过期；幂等键重复提交返回同一任务。每次尝试写一行 attempt（worker、租约、解析器、结果、用量、用量完整度）；持有者失联或被取消时由 Worker 或回收器补记 `lease_lost`/`cancelled`，不会留下“运行中”的尝试。
+3. **Worker**：现有 generation worker 进程在开关打开时启动学习任务调度（`lib/server/learning-tasks/runner.ts`），按 kind 分派，默认并发 1（`LEARNING_TASK_WORKER_CONCURRENCY`，1–4）；心跳行用 `{workerId}#learning` 并声明能力 `learning-tasks-v1`，Web 端只在有存活且具备该能力的 Worker 时才接单。停止时与课程生成一起排空（20 秒，超时的任务以可重试的 `WORKER_DRAIN_TIMEOUT` 交还队列）。
+4. **连接池预算**：`app_worker` 池保持 `max=3`。学习调度每 2 秒一次短事务扫描，解析本身（读对象、跑解析器）不占连接，只在认领、心跳、提交时短暂借用；并发 1 时峰值新增 1 个连接，与课程生成共用 3 个以内（`lib/db/pool-registry.ts` 注释记录计算）。并发调到 2 以上前须重算并相应加大池。
+5. **数据模型（accounts v23）**：`study_materials`（资料，含当前版本、版本数、revision、`active|deleting`）、`study_material_versions`（不可变；一行对应一次 `owner_material` 上传，记录对象 key、sha256、MIME、大小、原文件名、当前解析结果）、`study_material_artifacts`（按 `(版本, 指纹)` 唯一；指纹 = 解析器 id + 版本 + 转换版本，相同条件不重复解析）、`study_space_materials`（学科关联，含来源 library/generation）、`study_session_material_refs`（工作台会话对版本的引用）。全部 FORCE RLS；`app_web` 对本人数据增删改查（attempt 表只读），写入时 `WITH CHECK` 要求版本引用本人已就绪的上传、会话引用本人未删除的会话；`app_worker` 只有解析所需的最小权限（读资料/版本/任务、写解析结果与 attempt、更新版本当前结果与任务状态）；anon/authenticated 无任何授权。新增 `app_internal.learning_task_readiness()`；`app_internal.heavy_task_capacity` 以 v11 函数体为基础并入 `learning_tasks` 的运行/排队/公平计数（本地模式 SQL 同步覆盖）。
+6. **解析**：只复用 `lib/pdf` 的 unpdf / mineru / mineru-cloud / alidocmind 与文档提取器注册表，不新写解析器。默认用内置解析器（PDF → unpdf，Office/文本 → 内置提取器）；**付费 OCR 只在用户明确选择时使用，绝不自动升级**，且只有服务端已配置时才可选（未配置显示“付费 OCR · 未配置”且不可点）。为阅读器按页定位，给 unpdf 增加可选 `pageTexts`（`extractText` 不合并页面），默认输出与合并文本完全不变。
+7. **解析结果存储**：规范化后的结构（去掉 providerRaw 与 HTML，按页分块，图片拆成独立对象）存为 `study/{owner}/artifacts/{artifactId}/` 下的 artifact JSON、纯文本与图片对象，表里记录全部对象 key；解析中途失败会清理已写入的对象。开发环境可用 `STUDY_PARSE_DEV_DELAY_MS` 拉长解析（生产忽略）以便验收崩溃/取消。
+8. **阅读器**：原文件用 pdf.js（经已有依赖 `unpdf` 的浏览器构建）渲染单页 canvas，旁边是该页解析文字与图片，可跳页；非 PDF 显示原图或解析文字。文件/图片/文字接口私有、`no-store`、`nosniff`，非 PDF 附 CSP sandbox。**没有引入 react-pdf-highlighter**（方案提到）：B02 不需要划词高亮/引用定位，留给 B03 引用跳转时再定。
+9. **复用到工作台**：“在 AI 工作台中使用”把版本**按引用**绑定到新会话：会话素材行指向共享的原文件与解析文字 key，解析状态直接为完成，并写 `study_session_material_refs`；不复制对象。会话读取共享 key 时由 Worker 侧校验该会话确实引用了这个版本。旧接口 `GET /api/materials?sessionId=` 合约不变并能列出这些素材。删除会话不影响资料与其他会话。
+10. **复用到课程生成**：首页资料选择器读取所选版本的解析文字，作为生成输入的 `pdfText`（与上传 PDF 走同一路径），会话记录所用版本；在学科中生成时课程自动关联到学科（`added_via=generation`，同时补上 B01 后台生成路径不关联的缺口）。解析出的图片本批不进入课程生成（需要改生成管线，不在范围内）。
+11. **上传**：从 `app/api/materials` 抽出 `lib/server/materials/owner-upload.ts`，两条入口共用同一校验、配额、摘要与存储逻辑（旧接口 87 项测试不变）。资料库只接受文档、图片与文本（音视频仍在工作台）。同一账号重复上传同一文件给出“已在资料库中”的提示（`duplicateOf`），不跨账号比对。
+12. **永久删除**：先把资料标为 `deleting` 并取消其任务、撤销会话引用 → 删除全部对象（原文件、解析结果、图片）→ 删除行；对象删除未完成时返回 202，可重入。确认框显示受影响的学科数与仍存活的会话数。账号删除清单纳入新表与 artifact 对象。
+13. **开关**：`ZHIYU_STUDY_MATERIALS_ENABLED`（默认关，且要求学科空间开关打开）控制页面与 `/api/study/materials`、`/api/study/tasks`；`ZHIYU_STUDY_TASKS_ACCEPTING=0` 停止接新解析任务（已排队/运行的照常完成），用于发布前排空。`/api/study/capabilities` 返回 `{ spaces, materials }`。Web 与 Worker 都要设置（compose 已透传）。
+14. **上限**：每账号 200 份资料、每份 20 个版本、每学科 100 份资料、标题 120 字；单次返回解析文字最多 200 万字；每个解析结果最多 200 张图、单图 10 MB；上传大小沿用原有素材上限。
+15. **接口**：新接口全部在 `/api/study/materials`（列表/上传、详情/改名/删除、新版本、`versions/[versionId]/{parse,reader,file,text,images/[imageId]}`）、`/api/study/tasks/[taskId]`（含 cancel、retry）、`/api/study/spaces/[spaceId]/materials`。身份与 B01 相同（`withRequestOwnerId` + `user:` owner，匿名 401，外人/不存在 404）。
+
+### 偏离方案之处
+
+- 未引入 react-pdf-highlighter，pdf.js 走现有 `unpdf` 依赖（见决策 8）。
+- 解析出的图片不用于课程生成（决策 10）；OCR 调用不写 `usage_events`（付费 OCR 不是模型调用，attempt 行记录了用量与完整度，计费接入留待付费 OCR 真正开放时）。
+- 方案中的“删除会话”接口在代码里不存在（会话是软删除），所以只验证了软删除后的引用行为。
+- 课程生成复用走 `pdfText` 而非新的生成输入字段，生成管线不改。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-materials.ts`（v23）、`migrations.ts`、`sql-accounts.ts`（版本 23）、`lib/server/study/schema.ts`、`deletion.ts`。
+- 队列：`lib/server/task-queue/lease-queue.ts`（新，共用）、`lib/server/generation-jobs/repository.ts`（改用共用模块）、`lib/server/learning-tasks/{contracts,repository,runner}.ts`、`lib/server/heavy-task-admission/index.ts`、`workers/generation/main.ts`、`lib/db/pool-registry.ts`。
+- 资料：`lib/server/study/materials/{repository,service,parse,artifact,http}.ts`、`lib/server/study/flags.ts`、`lib/server/materials/owner-upload.ts`、`lib/server/agent-runtime/session-materials.ts`、`lib/pdf/*`、`lib/document/*`（`pageTexts`）。
+- 接口与页面：`app/api/study/{materials,tasks,spaces/[spaceId]/materials}/**`、`app/study/materials/**`、`components/study/materials/*`、学科页资料区、导航“资料库”、首页资料选择器；12 个语言文件 `study.materials.*`。
+- 配置：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`（两个开关与并发透传）。
+
+### 数据迁移
+
+- accounts **v23**，checksum `eab239d87f45c5703ffc04b7fb91572a47bad530f8323c9c090a81580c4040d6`；v21 `a13fa31d…`、v22 `01c9914f…` 未变。旧迁移 SQL 未改动。
+- 已执行：PGlite（单测）；一次性 PostgreSQL（`*_rls_proof` 容器）上 v23 迁移/RLS/授权/容量函数测试、全新库 bootstrap 到 v23；本地托管验收库（PostgreSQL 17，按生产顺序 bootstrap 到 v23，6 张新表均 `relrowsecurity = relforcerowsecurity = true`）。均已销毁。**未在生产执行。**
+
+### 测试
+
+- 新增：`tests/server/learning-tasks.test.ts`（14：认领/准入/租约栅栏/取消/重试/回收/外部调用不重放/排空/失联尝试补记等）、`tests/server/study-materials.test.ts`（8）、`tests/server/study-materials-migration.test.ts`（PGlite 4 + PostgreSQL 4）、`tests/api/study-materials-routes.test.ts`（5：开关隐藏、匿名 401、错误码映射、输入校验、owner 只取自会话）。
+- 调整：`tests/agent-runtime/session-materials.test.ts`（按引用绑定）、`tests/server/account-deletion-lifecycle.test.ts`、`tests/auth/principal-mode.test.ts`（版本含 23）、`tests/api/study-routes.test.ts`（capabilities）。
+- 真实 PostgreSQL（一次性 `*_rls_proof`，已 `down -v`）：v23 迁移 + B01 v22 + 全新 bootstrap 19 项通过；生成队列回归（`generation-jobs.pg`、`generation-transaction-queue.pg`、`generation-worker-pipeline.pg`）、`hosted-capacity-rls.pg`、账号删除 44 项通过。
+- 全量结果见本节末“最终校验”。
+
+### 浏览器验收（2026-10-05，本地托管模式）
+
+环境：一次性 PostgreSQL 17（bootstrap 到 v23，`app_web`/`app_worker` 登录角色，RLS 生效）、`scripts/dev-fake-supabase-auth.ts`、本地假模型服务器、本地假 S3（Windows 本地字节存储的 key 含冒号无法写入，生产用 S3，见遗留）、`next dev`（`AUTH_MODE=supabase`）、带学习调度的 generation worker。临时环境文件无真实密钥与生产地址，结束后已删除；容器、fixture、账号文件均已清理。设备 A `localhost:3100`，设备 B `127.0.0.1:3100`。未调用付费 OCR 与真实模型。
+
+1. 账号 A 在学科“创新创业”上传 `智域项目计划书.pdf` → Worker 用 unpdf 解析：39 页、26,832 字、18 张图、879 ms；attempt 记录用量，完整度 none。
+2. 阅读器：canvas 原页 + 该页解析文字与图片；跳到第 12 页（文件页码，印刷页码为“第 9 页”）。
+3. 从资料库加入“高等数学”：数据库 1 份资料、1 个版本、1 个解析结果、2 条学科关联、1 次上传；S3 对象 21 个（无复制）。
+4. “在 AI 工作台中使用”两次 → 两个会话素材行都指向共享 key、解析状态完成、引用行已写、无新对象；旧 `GET /api/materials?sessionId=` 能列出；Worker 角色读取两个会话的文字/原文件成功，读别人会话为空；软删除会话 1 后会话 2 照常读取、对象仍在。
+5. 用资料库资料在学科中生成课程（后台生成路径）：任务输入文字 26,890 字、无重复素材；生成成功 2/2；课程自动关联学科。
+6. 扫描件 PDF → 失败 `MATERIAL_NO_TEXT`，界面给出可读说明且不显示“重试”；付费 OCR 显示“未配置”不可选。
+7. 解析中（开发延迟 30 秒）强杀 Worker → 重启后第 1 次尝试记为 `lease_lost`、第 2 次成功。
+8. 界面取消运行中的解析 → 任务 cancelled，Worker 收到租约丢失，尝试记为 cancelled。
+9. 上传新版本（iCAN 计划书，20 页、18,779 字）→ 旧版本第 12 页分块哈希不变（`df5de2da…`），旧版本标“非当前版本”提示条。
+10. 设备 B 登录同一账号看到同一资料库；375px 宽度下资料库、详情、阅读器均无横向滚动（修复导航换行后）。
+11. 账号 B：对 A 的资料/版本/文件/文字/图片/任务/学科关联共 16 个探测全部 404，未登录 401；B 上传同一文件不提示重复；A 数据不变。
+12. Worker 离线：上传成功，提示“暂未开始解析：解析服务暂时不可用”；重复上传提示已在资料库；Worker 恢复后点“开始解析”成功（纯文本解析器）。
+13. 永久删除（2 个版本、1 个存活会话引用）→ 行与对象全部删除，会话 2 再读为空，课程与其学科关联保留；存储 key 与数据库引用一一对应（8 = 8）。
+
+验收中发现并已修复：不可重试错误仍显示“重试”；被取消/栅栏后的尝试停留在“运行中”（Worker 补记 + 回收器清扫）；删除确认框把已删除会话计入；手机宽度导航换行。
+
+### 遗留事项
+
+- Worker 在“对象已写入、事务未提交”之间崩溃会留下孤立的 artifact 对象（数据库无引用，不影响功能）；需要后续的对象清扫任务。
+- 付费 OCR（MinerU Cloud、AliDocMind）路径未做真实调用验证；开放前需配置、计费接入（`usage_events`/预算）并单独验收。
+- Windows 本地字节存储不支持含冒号的 owner key（既有问题，生产用 S3 不受影响）；假模型服务器缺少 agent profile 的 id/difficulty，本地验收用了预设智能体。
+- 未运行：Playwright e2e、生产镜像构建；未在部署环境演练开关与排空。
+- 解析图片不进入课程生成；阅读器无划词/引用定位（B03）。
+
+### 回退
+
+- 运行时：取消 `ZHIYU_STUDY_MATERIALS_ENABLED`（Web 与 Worker）→ 资料库页面、接口、学科资料区与首页资料选择器隐藏，Worker 不再启动学习调度；B01 学科功能不受影响。只想停止接新任务时设 `ZHIYU_STUDY_TASKS_ACCEPTING=0`。
+- 数据：v23 为纯新增，表与对象保留，旧镜像不读取它们；不回滚迁移。镜像回退按 B01 流程恢复 compose/env 备份。
+- 已通过工作台引用的会话在开关关闭后仍能读取共享对象（读取路径不依赖开关）。
+
+### 上线步骤（待用户指示，按 B01 流程）
+
+1. 核对生产 `app_schema_migrations` v22 checksum = `01c9914f…`。
+2. Supabase `apply_migration` 只执行仓库 v23 SQL（逐字相同），写入 `app_schema_migrations(23, eab239d8…)`；核对 6 张新表 RLS 开启且强制、授权与本文一致、anon/authenticated 无授权；`app_internal.learning_task_readiness()` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
+3. 构建并发布镜像（开关先关）→ readiness ready、accountsVersion 23 → 确认 0 个未完成任务后切换 → 在 Web 与 Worker env 设置 `ZHIYU_STUDY_MATERIALS_ENABLED=1`（并发保持 1）→ apply → 检查 Worker 心跳出现 `#learning` 行、`capabilities.materials=true`。
+
+### 下一批（B03）前置条件
+
+- B02 合并并上线（v23 + 开关），生产验收通过。**B03 在用户明确指示前不开始。**
+- B03 的索引/检索任务作为 `learning_tasks` 的新 kind（新迁移修改 kind CHECK 与必要的新表），复用 `lib/server/task-queue/lease-queue.ts` 与学习调度，不新建队列。
+- 索引以 `study_material_artifacts` 的按页分块（`readerBlocksForPage` / artifact JSON）为输入，引用定位回到“版本 + 页 + 块”；阅读器已能按页跳转，B03 再决定是否引入高亮库。
+- 涉及模型调用（嵌入/答疑）时只经模型网关并带 FundingSource、计入 heavy-task 与配额；重新评估 `app_worker` 连接池（若并发 >1）。
+- 付费 OCR 若要开放，先完成计费接入与真实验证。
+
+### B02 最终校验（2026-10-05，Node 24.19.0）
+
+- 全量 Vitest（`--maxWorkers=4`）：**851 个文件 / 8860 项通过，16 个文件、83 项跳过，0 失败**（B01 收尾后 847 / 8826）。
+- 真实 PostgreSQL（一次性 `*_rls_proof`）：迁移与 bootstrap 19 项、生成队列/容量/账号删除回归 44 项，全部通过；容器已 `down -v`。
+- `tsc --noEmit`：通过。`check:i18n-keys`：通过（12 个语言文件）。改动文件 ESLint：0 个问题；改动文件 Prettier：通过。
+- `pnpm build:worker`：通过。`pnpm build`：通过，资料库 3 个页面与 13 个新增 `/api/study/*` 路由均已生成；唯一警告是 `unpdf` 经已有的 `material-extraction` → `pdf-providers` 服务端引用产生的 “Critical dependency”，非本批引入。
+- 未运行：Playwright e2e、生产镜像构建。
+
+## B00 + B01 学科学习空间与继续学习
 
 ### 批次与范围
 
