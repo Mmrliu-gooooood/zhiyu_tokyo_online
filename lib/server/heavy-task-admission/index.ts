@@ -14,7 +14,8 @@ export type HeavyTaskKind =
   | 'agent'
   | 'material-extraction'
   | 'document-extraction'
-  | 'media';
+  | 'media'
+  | 'learning-task';
 
 /**
  * Stable root identity carried by a root task and every heavy child it starts.
@@ -323,11 +324,13 @@ export async function checkHeavyTaskAdmission(
     agent_sessions: string | null;
     agent_session_materials: string | null;
     generation_provider_slots: string | null;
+    learning_tasks: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
             to_regclass('agent_session_materials')::text AS agent_session_materials,
-            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots,
+            to_regclass('learning_tasks')::text AS learning_tasks`,
   );
   const available = relations.rows[0];
   if (available?.generation_provider_slots && options.lock !== false) {
@@ -370,6 +373,12 @@ export async function checkHeavyTaskAdmission(
          AND material.extraction_lease_worker_id IS NOT NULL
          AND material.extraction_lease_heartbeat_at IS NOT NULL
          AND material.extraction_lease_heartbeat_at >= ${materialStaleBefore}`);
+  }
+  if (available?.learning_tasks) {
+    roots.push(`
+      SELECT owner_id, root_task_id
+        FROM learning_tasks
+       WHERE status = 'running' AND lease_expires_at > clock_timestamp()`);
   }
 
   const activeSql = roots.length
@@ -475,11 +484,13 @@ export async function checkHeavyTaskQueueCapacity(
     agent_sessions: string | null;
     agent_session_materials: string | null;
     generation_provider_slots: string | null;
+    learning_tasks: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
             to_regclass('agent_session_materials')::text AS agent_session_materials,
-            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots,
+            to_regclass('learning_tasks')::text AS learning_tasks`,
   );
   const available = relations.rows[0];
   const roots: string[] = [];
@@ -505,6 +516,10 @@ export async function checkHeavyTaskQueueCapacity(
         FROM agent_session_materials AS material
         INNER JOIN agent_sessions AS session ON session.id = material.session_id
        WHERE session.deleted_at IS NULL AND material.extraction_status = 'pending'`);
+  }
+  if (available?.learning_tasks) {
+    roots.push(`
+      SELECT owner_id, root_task_id FROM learning_tasks WHERE status = 'queued'`);
   }
   const queuedSql = roots.length
     ? roots.join('\nUNION\n')
@@ -756,11 +771,13 @@ export async function isHeavyTaskFairTurn(
     agent_sessions: string | null;
     agent_session_materials: string | null;
     generation_provider_slots: string | null;
+    learning_tasks: string | null;
   }>(
     `SELECT to_regclass('generation_jobs')::text AS generation_jobs,
             to_regclass('agent_sessions')::text AS agent_sessions,
             to_regclass('agent_session_materials')::text AS agent_session_materials,
-            to_regclass('generation_provider_slots')::text AS generation_provider_slots`,
+            to_regclass('generation_provider_slots')::text AS generation_provider_slots,
+            to_regclass('learning_tasks')::text AS learning_tasks`,
   );
   const available = relations.rows[0];
   const active: string[] = [];
@@ -831,6 +848,18 @@ export async function isHeavyTaskFairTurn(
         WHERE session.deleted_at IS NULL AND material.extraction_status = 'pending'
           AND COALESCE(material.extraction_lease_heartbeat_at,
               (extract(epoch FROM material.created_at) * 1000)::bigint) > $5`,
+    );
+  }
+  if (available?.learning_tasks) {
+    active.push(
+      `SELECT owner_id, root_task_id FROM learning_tasks
+        WHERE status = 'running' AND lease_expires_at > clock_timestamp()`,
+    );
+    queued.push(
+      `SELECT owner_id, root_task_id, created_at AS queued_at
+         FROM learning_tasks
+        WHERE ((status = 'queued' AND updated_at > to_timestamp($5 / 1000.0))
+           OR (status = 'retry_wait' AND available_at <= clock_timestamp()))`,
     );
   }
   const activeSql = active.length

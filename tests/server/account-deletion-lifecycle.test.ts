@@ -139,6 +139,18 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         stage_id text references document_stages(id),
         foreign key(owner_id,space_id) references study_spaces(owner_id,id));
       CREATE TABLE study_progress(owner_id text,stage_id text references document_stages(id));
+      CREATE TABLE study_materials(id text primary key,owner_id text,unique(owner_id,id));
+      CREATE TABLE study_material_versions(id text primary key,owner_id text,material_id text,
+        unique(owner_id,id),foreign key(owner_id,material_id) references study_materials(owner_id,id));
+      CREATE TABLE study_material_artifacts(id text primary key,owner_id text,version_id text,
+        object_keys jsonb,foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
+      CREATE TABLE study_space_materials(owner_id text,space_id text,material_id text,
+        foreign key(owner_id,space_id) references study_spaces(owner_id,id),
+        foreign key(owner_id,material_id) references study_materials(owner_id,id));
+      CREATE TABLE study_session_material_refs(owner_id text,session_id text,version_id text,
+        foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
+      CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
+      CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text);
       CREATE TABLE media_config_snapshots(owner_id text);
       CREATE TABLE generation_model_snapshots(owner_id text);
       CREATE TABLE generation_search_snapshots(owner_id text);
@@ -166,6 +178,22 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO study_space_courses VALUES
         ('${OWNER}','space-owner','stage-owner'),('${OTHER}','space-other','stage-other');
       INSERT INTO study_progress VALUES('${OWNER}','stage-owner'),('${OTHER}','stage-other');
+      INSERT INTO study_materials VALUES('mat-owner','${OWNER}'),('mat-other','${OTHER}');
+      INSERT INTO study_material_versions VALUES
+        ('ver-owner','${OWNER}','mat-owner'),('ver-other','${OTHER}','mat-other');
+      INSERT INTO study_material_artifacts VALUES
+        ('art-owner','${OWNER}','ver-owner','["study/owner/artifacts/art-owner/text.md"]'),
+        ('art-other','${OTHER}','ver-other','["study/other/artifacts/art-other/text.md"]');
+      INSERT INTO study_space_materials VALUES
+        ('${OWNER}','space-owner','mat-owner'),('${OTHER}','space-other','mat-other');
+      INSERT INTO study_session_material_refs VALUES
+        ('${OWNER}','session-1','ver-owner'),('${OTHER}','session-x','ver-other');
+      INSERT INTO learning_tasks VALUES
+        ('30000000-0000-4000-8000-000000000001','${OWNER}'),
+        ('30000000-0000-4000-8000-000000000002','${OTHER}');
+      INSERT INTO learning_task_attempts VALUES
+        ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','${OWNER}'),
+        ('40000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000002','${OTHER}');
     `);
   });
 
@@ -294,6 +322,11 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         expect.objectContaining({ objectKey: 'materials/text-object', status: 'pending' }),
         expect.objectContaining({ objectKey: 'materials/same-object', status: 'pending' }),
         expect.objectContaining({
+          bucketId: 'materials',
+          objectKey: 'study/owner/artifacts/art-owner/text.md',
+          status: 'pending',
+        }),
+        expect.objectContaining({
           bucketId: 'private-classrooms',
           objectKey: 'snapshots/course.json',
           status: 'pending',
@@ -335,7 +368,21 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       { owner_id: OTHER },
     ]);
     // Study spaces, course links and progress go too, before the courses they reference.
-    for (const table of ['study_spaces', 'study_space_courses', 'study_progress']) {
+    expect(manifest.map((object) => object.objectKey)).not.toContain(
+      'study/other/artifacts/art-other/text.md',
+    );
+    for (const table of [
+      'study_spaces',
+      'study_space_courses',
+      'study_progress',
+      'study_materials',
+      'study_material_versions',
+      'study_material_artifacts',
+      'study_space_materials',
+      'study_session_material_refs',
+      'learning_tasks',
+      'learning_task_attempts',
+    ]) {
       expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
     }
   });

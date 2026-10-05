@@ -23,12 +23,19 @@ import {
   checkHeavyTaskAttentionCapacity,
   checkHeavyTaskQueueCapacity,
   heavyTaskOwnerLimit,
-  isHeavyTaskFairTurn,
   reserveHeavyTaskAttention,
 } from '@/lib/server/heavy-task-admission';
+import {
+  admitHeavyTaskClaim,
+  claimAccountFenceSql,
+  lockHeavyTaskAdmission,
+  runQueueTransaction,
+  sanitizeTaskErrorSummary,
+  taskRetryDelayMs,
+  tryLockClaimOwner,
+} from '@/lib/server/task-queue/lease-queue';
 import { assertGenerationSchema } from './migrations';
 import { providerFailureDiagnostic, type ProviderFailureDiagnostic } from './failure-diagnostics';
-import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import {
   canonicalHash,
   parseGenerationInput,
@@ -96,17 +103,6 @@ interface Command {
   acknowledged?: boolean;
   stepKeys?: string[];
 }
-function sanitizeErrorSummary(value: string | undefined): string | null {
-  if (!value) return null;
-  const compact = value
-    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
-    .replace(/https?:\/\/\S+/gi, '[redacted-url]')
-    .replace(/\bBearer\s+\S+/gi, 'Bearer [redacted]')
-    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[redacted-key]')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return compact ? compact.slice(0, 240) : null;
-}
 const terminal = new Set(['succeeded', 'failed', 'cancelled']);
 function view(r: JobRow): GenerationJobView {
   return {
@@ -139,25 +135,8 @@ export class GenerationJobRepository {
   ) {
     this.config = { ...generationConfig(), ...options };
   }
-  async transaction<T>(body: (q: Queryable) => Promise<T>): Promise<T> {
-    const c = await this.pool.connect();
-    const q: Queryable = {
-      async query<R extends Record<string, unknown>>(sql: string, p?: unknown[]) {
-        const r = await c.query(sql, p);
-        return { rows: r.rows as R[] };
-      },
-    };
-    try {
-      await c.query('BEGIN');
-      const result = await body(q);
-      await c.query('COMMIT');
-      return result;
-    } catch (e) {
-      await c.query('ROLLBACK');
-      throw e;
-    } finally {
-      c.release();
-    }
+  transaction<T>(body: (q: Queryable) => Promise<T>): Promise<T> {
+    return runQueueTransaction(this.pool, body);
   }
 
   private leaseTransaction<T>(
@@ -732,19 +711,9 @@ export class GenerationJobRepository {
       // empty SKIP LOCKED result, leaving capacity idle until the next polling cycle.
       // checkHeavyTaskAdmission uses the same transaction-scoped lock; PostgreSQL
       // advisory locks are re-entrant for the owning transaction.
-      await q.query("SELECT pg_advisory_xact_lock(hashtext('heavy-task:admission:v1'))");
+      await lockHeavyTaskAdmission(q);
       const ownerLimit = heavyTaskOwnerLimit();
-      const accountFence = isHostedAuthEnabled()
-        ? `AND candidate.cancel_requested_at IS NULL
-           AND EXISTS (
-             SELECT 1 FROM app_accounts account
-              WHERE account.owner_id=candidate.owner_id AND account.status='active'
-           )
-           AND NOT EXISTS (
-             SELECT 1 FROM deleted_account_tombstones tombstone
-              WHERE tombstone.owner_id=candidate.owner_id
-           )`
-        : 'AND candidate.cancel_requested_at IS NULL';
+      const accountFence = claimAccountFenceSql('candidate');
       let offset = 0;
       for (;;) {
         const rows = await q.query<JobRow>(
@@ -775,21 +744,9 @@ export class GenerationJobRepository {
           [pipelineVersions, this.config.queueWaitMs, offset, ownerLimit],
         );
         for (const r of rows.rows) {
-          const lock = await q.query<{ locked: boolean }>(
-            "SELECT pg_try_advisory_xact_lock(hashtext('generation:owner:' || $1)) AS locked",
-            [r.owner_id],
-          );
-          if (!lock.rows[0]?.locked) continue;
-          const admission = await checkHeavyTaskAdmission(q, {
-            ownerId: r.owner_id,
-            rootTaskId: this.rootTaskId(r),
-            kind: 'generation',
-            agentLeaseTtlMs: agentRuntimeConfig.leaseTtlMs,
-          });
-          if (!admission.allowed) continue;
+          if (!(await tryLockClaimOwner(q, 'generation', r.owner_id))) continue;
           if (
-            !admission.inherited &&
-            !(await isHeavyTaskFairTurn(q, {
+            !(await admitHeavyTaskClaim(q, {
               ownerId: r.owner_id,
               rootTaskId: this.rootTaskId(r),
               kind: 'generation',
@@ -1490,12 +1447,8 @@ export class GenerationJobRepository {
         !input.uncertain && input.retryable && step.attempt_count < step.max_attempts;
       const status = input.uncertain ? 'needs_attention' : safeRetry ? 'retry_wait' : 'failed';
       const code = /^[A-Z0-9_]{1,100}$/.test(input.code) ? input.code : 'GENERATION_STEP_FAILED';
-      const errorSummary = sanitizeErrorSummary(input.errorSummary);
-      const delay = Math.max(
-        input.retryAfterMs ?? 0,
-        Math.min(60_000, 2000 * 2 ** Math.max(0, step.attempt_count - 1)) +
-          Math.floor(Math.random() * 1000),
-      );
+      const errorSummary = sanitizeTaskErrorSummary(input.errorSummary);
+      const delay = taskRetryDelayMs(step.attempt_count, input.retryAfterMs ?? 0);
       await q.query(
         "UPDATE generation_steps SET status=$2,error_code=$3,available_at=clock_timestamp()+$4*interval '1 millisecond' WHERE id=$1",
         [step.id, input.uncertain ? 'uncertain' : safeRetry ? 'retry_wait' : 'failed', code, delay],

@@ -45,6 +45,7 @@ import { ACCOUNTS_RLS_SQL_V19 } from './sql-provider-quota';
 import { ACCOUNTS_MIGRATION_20 } from './sql-usage-funding';
 import { ACCOUNTS_MIGRATION_21 } from './sql-model-credentials';
 import { ACCOUNTS_MIGRATION_22 } from './sql-study-spaces';
+import { ACCOUNTS_MIGRATION_23 } from './sql-study-materials';
 
 function executeWhenColumnMissing(table: string, column: string, sql: string): string {
   const statements = sql
@@ -162,6 +163,7 @@ export const ACCOUNT_MIGRATIONS = [
   { version: 20, sql: ACCOUNTS_MIGRATION_20 },
   { version: 21, sql: ACCOUNTS_MIGRATION_21 },
   { version: 22, sql: ACCOUNTS_MIGRATION_22 },
+  { version: 23, sql: ACCOUNTS_MIGRATION_23 },
 ] as const;
 
 export function accountsMigrationChecksum(version: number): string {

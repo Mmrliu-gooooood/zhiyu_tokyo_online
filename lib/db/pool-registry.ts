@@ -21,15 +21,21 @@ function poolLimit(connectionString: string): number {
   // happens to initialize first decide the process-wide connection limit.
   try {
     if (connectionString === getSystemDatabaseUrl()) {
-      // Each worker runs three independent short-query schedulers (generation,
-      // Pro sessions and material extraction). A pool of two deterministically
-      // starves one scheduler whenever their one-second scans align. Two
-      // worker processes at max=3 plus one dedicated LISTEN session each use
-      // eight app_worker sessions, leaving two of the session pooler's ten
-      // backend slots for readiness/operator probes. Container health reads a
-      // local marker written only after the durable heartbeat succeeds, so it
-      // opens no additional database session. Generation-root concurrency is
-      // enforced separately and never reserves one connection per root.
+      // Each worker runs independent short-query schedulers (generation, Pro
+      // sessions, session material extraction and, since learning plan B02,
+      // learning tasks). A pool of two deterministically starves one
+      // scheduler whenever their one-second scans align. Two worker processes
+      // at max=3 plus one dedicated LISTEN session each use eight app_worker
+      // sessions, leaving two of the session pooler's ten backend slots for
+      // readiness/operator probes. The learning-task scheduler does not raise
+      // this: it scans every two seconds, runs one task per worker by default
+      // (LEARNING_TASK_WORKER_CONCURRENCY), and every transaction it opens
+      // (claim, heartbeat, settle) is a short statement batch that never
+      // spans parser or object-store I/O, so it queues briefly instead of
+      // holding a fourth connection. Container health reads a local marker
+      // written only after the durable heartbeat succeeds, so it opens no
+      // additional database session. Generation-root concurrency is enforced
+      // separately and never reserves one connection per root.
       return isHostedAuthEnabled() ? 3 : 8;
     }
   } catch {

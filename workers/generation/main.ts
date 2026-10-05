@@ -25,6 +25,13 @@ import { isAgentRuntimeWorkerConfigured } from '@/lib/config/feature-flags';
 import { startAgentEventNotifyBus } from '@/lib/server/agent-runtime/event-notify-bus';
 import { startAgentRunner } from '@/lib/server/agent-runtime/runner';
 import { startMaterialExtractionRunner } from '@/lib/server/material-extraction/runner';
+import { LearningTaskQueue } from '@/lib/server/learning-tasks/repository';
+import {
+  learningTaskWorkerConcurrency,
+  startLearningTaskRunner,
+} from '@/lib/server/learning-tasks/runner';
+import { runMaterialParseTask } from '@/lib/server/study/materials/parse';
+import { isStudyMaterialsFlagOn } from '@/lib/server/study/flags';
 import { startAssetCollectorSchedule } from '@/lib/persistence/asset-collector-schedule';
 import {
   assertFreshWorkerHealthMarker,
@@ -58,6 +65,21 @@ async function main() {
   const extractionRunner = isAgentRuntimeWorkerConfigured()
     ? startMaterialExtractionRunner()
     : undefined;
+  // Learning tasks (study material parsing) share this process, its app_worker
+  // pool and the heavy-task admission; on shutdown they drain in parallel with
+  // generation so both fit the container's stop grace period.
+  const learningRunner = isStudyMaterialsFlagOn()
+    ? startLearningTaskRunner({
+        queue: new LearningTaskQueue(pool),
+        handlers: { material_parse: runMaterialParseTask },
+        workerId,
+        concurrency: learningTaskWorkerConcurrency(),
+        report: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
+      })
+    : undefined;
+  let learningStopped: Promise<void> | undefined;
+  const stopLearning = () => (learningStopped ??= learningRunner?.stop() ?? Promise.resolve());
+  controller.signal.addEventListener('abort', () => void stopLearning(), { once: true });
   const repository = new GenerationJobRepository(pool, config);
   const limiter = new PostgresGenerationLimiter(pool, {
     llm: config.llmConcurrency,
@@ -158,6 +180,7 @@ async function main() {
       },
     });
   } finally {
+    await stopLearning();
     await extractionRunner?.stop();
     await agentRunner?.stop();
     await agentEventBus?.stop();

@@ -370,6 +370,23 @@ export async function prepareAccountDeletionManifest(
       }
     }
 
+    // Study parse artifacts (JSON, text, images) live in the material byte
+    // store under study/{owner}/; their uploads are already owner_material rows.
+    const studyArtifacts = await client.query<{ object_keys: unknown }>(
+      `SELECT object_keys FROM study_material_artifacts WHERE owner_id=$1`,
+      [ownerId],
+    );
+    for (const artifact of studyArtifacts.rows) {
+      for (const objectKey of Array.isArray(artifact.object_keys) ? artifact.object_keys : []) {
+        if (typeof objectKey !== 'string' || !objectKey) continue;
+        mergeDeletionObject(objects, {
+          bucketId: buckets.materials,
+          objectKey,
+          status: 'pending',
+        });
+      }
+    }
+
     const snapshots = await client.query<{ storage_ref: string | null }>(
       'SELECT storage_ref FROM classroom_snapshots WHERE owner_id=$1',
       [ownerId],
@@ -500,6 +517,15 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM render_job_owners WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM usage_events WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM account_kv WHERE owner_id=$1', [ownerId]);
+      // Study materials (v23): session refs and space links first, then
+      // artifacts and versions under their materials, then the task queue.
+      await client.query('DELETE FROM study_session_material_refs WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_space_materials WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_material_artifacts WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_material_versions WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_materials WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM learning_task_attempts WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM learning_tasks WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM owner_material WHERE owner_id=$1', [ownerId]);
       // Study links and progress reference the owner's spaces and courses, so
       // they go before both.
