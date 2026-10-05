@@ -7,9 +7,9 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | B00 | 完成（基线与台账） | `learn/b01-spaces` | `a1a0a7b6`（main） | 不适用 | 不适用 | — |
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
-| B02 | 本地实现与验收完成，未合并 | `learn/b02-materials`（未推送） | — | 本地托管模式验收通过（见 B02 节） | 未上线（需 v23 迁移 + 开关） | 见 B02“遗留事项” |
+| B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 
-## B02 共享资料版本、结构化解析与阅读（2026-10-05，本地完成）
+## B02 共享资料版本、结构化解析与阅读（2026-10-05，已上线）
 
 ### 范围与起点
 
@@ -102,9 +102,20 @@
 2. Supabase `apply_migration` 只执行仓库 v23 SQL（逐字相同），写入 `app_schema_migrations(23, 3fe42841…)`；核对 7 张新表 RLS 开启且强制、授权与本文一致、anon/authenticated 无授权；`app_internal.learning_task_readiness()` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
 3. 构建并发布镜像（开关先关）→ readiness ready、accountsVersion 23 → 确认 0 个未完成任务后切换 → 在 Web 与 Worker env 设置 `ZHIYU_STUDY_MATERIALS_ENABLED=1`（并发保持 1）→ apply → 检查 Worker 心跳出现 `#learning` 行、`capabilities.materials=true`。
 
+### 生产发布（2026-10-05）
+
+- 合并：main 快进到 `11113d2e`（含孤立对象修复）并推送 `tokyo`。
+- 镜像：本地构建 `release-20261005c`（web `f76dfd12`、worker `4586cd52`）；两镜像内 `smoke-pi-runtime` 通过；worker 镜像内 unpdf 按页提取冒烟通过；`docker save | gzip | ssh docker load` 送到东京，镜像 ID 一致。
+- 迁移：生产 v22 checksum 与仓库一致 → Supabase `apply_migration`（`accounts_v23_study_materials`，SQL 与仓库 v23 逐字相同；第一次调用因网络错误未执行，核对无任何对象后重试成功）→ `app_schema_migrations(23, 3fe42841…)`。核对：7 张新表 RLS 开启且强制；授权与设计一致，anon/authenticated 无授权；`heavy_task_capacity` 函数体 md5 与仓库 v23 一致。
+- **顺带修正的历史差异**：迁移前生产的 `heavy_task_capacity` 与仓库 v11 不同（即已知的 v11 checksum 差异）：生产版本缺少“同步容量占用的 `independent:` 根算作本根已占用（inherited）”这一判断。仓库的托管函数与本地模式 SQL 从首次提交起都有这一判断，测试也按此断言；v23 替换函数后生产与代码一致。影响仅是同一同步根重入时不再被重复计数。
+- 切换：服务器备份 `.env.hosted.local.bak-20261005c-pre`、`docker-compose.supabase.yml.bak-20261005c-pre`（指向 release-20261005b）；compose 更新为仓库版本（只多三项 B02 透传）；确认 0 个进行中的课程生成任务、智能体会话与学习任务后切换镜像（开关关）→ readiness ready、accountsVersion 23、liveWorkers 2/2、日志无错误 → 在 env 加 `ZHIYU_STUDY_MATERIALS_ENABLED=1` 后 apply → readiness 同上；三个容器内开关均为 1；两个 Worker 都有存活的 `#learning` 心跳（`learning-tasks-v1`）；`/api/study/capabilities` 返回 `{"spaces":true,"materials":true}`；未登录访问资料接口 401、资料库页面跳转登录。
+- 未做：登录账号在生产上传/解析一份资料的端到端验收（需要用户登录）。
+- 磁盘：加载新镜像后东京根分区 87%（剩 5.3 GB），建议清理更早的镜像（需用户同意）。
+- 回退：恢复上述两份 `*.bak-20261005c-pre`（回到 release-20261005b，开关关）后 apply；或只删掉 `ZHIYU_STUDY_MATERIALS_ENABLED` 后 apply 隐藏功能。v23 表保留，旧镜像不读取。
+
 ### 下一批（B03）前置条件
 
-- B02 合并并上线（v23 + 开关），生产验收通过。**B03 在用户明确指示前不开始。**
+- B02 已合并并上线；登录账号的生产端到端验收待做。**B03 在用户明确指示前不开始。**
 - B03 的索引/检索任务作为 `learning_tasks` 的新 kind（新迁移修改 kind CHECK 与必要的新表），复用 `lib/server/task-queue/lease-queue.ts` 与学习调度，不新建队列。
 - 索引以 `study_material_artifacts` 的按页分块（`readerBlocksForPage` / artifact JSON）为输入，引用定位回到“版本 + 页 + 块”；阅读器已能按页跳转，B03 再决定是否引入高亮库。
 - 涉及模型调用（嵌入/答疑）时只经模型网关并带 FundingSource、计入 heavy-task 与配额；重新评估 `app_worker` 连接池（若并发 >1）。
