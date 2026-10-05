@@ -111,6 +111,50 @@ describe('projectZhiyuGenerationSteps', () => {
     ]);
   });
 
+  it('keeps the actions column active between pages once a page has actions', () => {
+    const progress = (published: number, actions: number) =>
+      projectZhiyuGenerationSteps({
+        outlineReady: true,
+        agentsReady: true,
+        generatedSceneCount: 0,
+        totalSceneCount: 8,
+        mediaPending: true,
+        jobStatus: 'running',
+        displayProgress: {
+          phase: 'content',
+          content: { completed: 1, total: 8, active: 1 },
+          actions: { completed: actions, total: 8, active: 0 },
+          speech: { completed: 0, total: null, active: 0, skipped: 0 },
+          published: { completed: published, total: 8 },
+        },
+      }).find((step) => step.id === 'media');
+
+    // Page 2 content is generating; page 1 already has its actions.
+    expect(progress(1, 1)).toMatchObject({ status: 'active', detail: '1 / 8' });
+    // Nothing has reached the actions stage yet.
+    expect(progress(0, 0)).toMatchObject({ status: 'pending', detail: '0 / 8' });
+  });
+
+  it('does not animate the actions column of a stopped job', () => {
+    const media = projectZhiyuGenerationSteps({
+      outlineReady: true,
+      agentsReady: true,
+      generatedSceneCount: 0,
+      totalSceneCount: 8,
+      mediaPending: true,
+      jobStatus: 'cancelled',
+      displayProgress: {
+        phase: 'content',
+        content: { completed: 1, total: 8, active: 0 },
+        actions: { completed: 1, total: 8, active: 0 },
+        speech: { completed: 0, total: null, active: 0, skipped: 0 },
+        published: { completed: 1, total: 8 },
+      },
+    }).find((step) => step.id === 'media');
+
+    expect(media?.status).toBe('pending');
+  });
+
   it('follows the actions phase before the first complete scene is published', () => {
     const steps = projectZhiyuGenerationSteps({
       outlineReady: true,

@@ -431,7 +431,15 @@ export function projectZhiyuGenerationSteps(input: {
     const contentActive =
       progress.content.active > 0 ||
       (!contentDone && phaseIndex >= displayOrder.indexOf('content'));
+    // Pages run content → actions one at a time, so between pages no action
+    // call is in flight. Once any page has actions, the stage stays active
+    // until it is done, like the content step above.
+    const mediaStarted =
+      progress.actions.completed > 0 ||
+      progress.speech.completed > 0 ||
+      progress.published.completed > 0;
     const mediaActive =
+      mediaStarted ||
       progress.actions.active > 0 ||
       progress.speech.active > 0 ||
       ['actions', 'tts', 'media', 'finalizing'].includes(progress.phase);
