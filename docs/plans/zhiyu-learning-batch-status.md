@@ -145,6 +145,9 @@
 3. **自动回收存储**：素材回收器只在 Worker 中开启（`WORKER_ASSET_COLLECTION_ENABLED`，`app_worker` 可删 blob；Web 角色不可，保持关闭）。修复：托管模式下回收器启动时不再执行 `ensureAssetSchema`（`app_worker` 在 public 无建表权限，真实 PostgreSQL 上复现为 permission denied——这也是此前回收一直未启用的阻碍）。回收器在宽限期（默认 1 小时）后删除 S3 对象和 blob 行。启用前只读核对：生产当前无引用为零的 blob 为 0，启用不会删除任何现有对象。
 4. **存量已删课程**：`COURSE_PURGE_DELETED_SINCE` 只清理该时间之后删除的课程。上线时设为上线时刻，此前已删除的 143 门课程（含管理员刚删的 45 门）不自动清理——它们的清理不可恢复，由用户确认后自行删除该行并 apply 触发（见发布记录）。
 5. **验证**：`tests/server/course-purge.test.ts`：PGlite 上清理范围（本课独占素材删除、共享/他人素材保留、墓碑保留、幂等、宽限期、截止时间）、配额只计上传；真实 PostgreSQL（全新托管 schema、RLS、修订触发器）以 `app_worker` 执行清理，并用生产同一工厂在托管模式下以 `app_worker` 运行回收器，成功回收被释放的 blob。
+6. **发布（2026-10-06，release-20261006c，`b6ba667b`）**：web `d5c5485b`、worker `95315698`，两镜像 smoke 通过；备份 `*.bak-20261006c-pre`（指向 release-20261006b）；compose 更新为仓库版本（只多 Worker 的回收/清理变量）；env 增加 `WORKER_ASSET_COLLECTION_ENABLED=true`、`COURSE_PURGE_ENABLED=1`、`COURSE_PURGE_DELETED_SINCE=2026-10-05T18:20:00Z`。上线前只读核对：可回收 blob 为 0。readiness ready、2/2、日志无错误；Worker 容器内回收与清理开启、Web 容器关闭。
+7. **生产复测（管理员账号，内置浏览器）**：用资料库中的测试讲义（2 页、2 张图）在测试学科开课 → 两张图片作为素材上传成功（配额 A 生效：此前因 578 MB 被拒），任务输入含 2 张图与 827 字文字，生成 3 页课程成功并自动关联到学科；第 2 页幻灯片直接使用了讲义中的“Figure 2: stretching by a”图。
+8. **回退**：恢复两份 `*.bak-20261006c-pre` 后 apply（回到 release-20261006b，回收与清理关闭）。已清理的课程无法恢复。
 
 ### 下一批（B03）前置条件
 
