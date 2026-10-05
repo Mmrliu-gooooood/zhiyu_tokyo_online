@@ -23,9 +23,10 @@ export async function POST(req: Request) {
           "SELECT pg_advisory_xact_lock(hashtext('generation:upload:' || $1 || ':' || $2))",
           [ownerId, digest],
         );
+        // The registry keys blobs as `sha256-<hex>`; the response keeps the bare digest.
         const existing = await transaction.query<{ id: string; revision: number }>(
           'SELECT id,revision FROM asset_entries WHERE principal=$1 AND content_hash=$2 ORDER BY id LIMIT 1',
-          [ownerId, digest],
+          [ownerId, `sha256-${digest}`],
         );
         if (existing.rows[0])
           return { assetId: existing.rows[0].id, revision: existing.rows[0].revision };

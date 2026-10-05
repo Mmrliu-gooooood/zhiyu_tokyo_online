@@ -84,6 +84,25 @@ async function createSelectedAssetByteStore(
     : storage.loadS3AssetByteStore(bucket, clientConfig, ...timing);
 }
 
+/**
+ * Whether asset bytes live outside PostgreSQL (the local file adapter or an S3
+ * bucket). With an external store, `asset_blobs.bytes` is always NULL and the
+ * registry writes the object before it inserts the entry that references it,
+ * so an entry row is itself proof that its bytes were stored.
+ */
+export function assetBytesAreExternal(bucketValue: string | undefined): boolean {
+  const fileStoreFactory = configuredFileAssetByteStoreFactory();
+  return Boolean(fileStoreFactory) || Boolean(configuredBucket(fileStoreFactory, bucketValue));
+}
+
+/** The object-store bucket in effect: none when the file adapter is selected. */
+function configuredBucket(
+  fileStoreFactory: AssetByteStoreFactory | undefined,
+  bucketValue: string | undefined,
+): string | undefined {
+  return fileStoreFactory ? undefined : configuredS3Bucket(bucketValue);
+}
+
 export function createAssetByteStore(
   bucket: string | undefined,
   queryable: Queryable,
@@ -113,7 +132,7 @@ export function lazyAssetByteStore(
   const resolve = (): Promise<AssetByteStore> =>
     (pending ??= createSelectedAssetByteStore(
       fileStoreFactory,
-      fileStoreFactory ? undefined : configuredS3Bucket(bucketValue),
+      configuredBucket(fileStoreFactory, bucketValue),
       queryable,
     ).catch((error: unknown) => {
       pending = undefined;

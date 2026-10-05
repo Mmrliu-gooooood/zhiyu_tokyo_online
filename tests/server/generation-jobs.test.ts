@@ -695,6 +695,67 @@ describe('generation repository PostgreSQL statements (PGlite, not a lock-concur
       (await pool.query<{ n: number }>('SELECT count(*)::int n FROM document_stages')).rows[0].n,
     ).toBe(0);
   });
+  it('accepts an owner upload whose bytes live in an external store (S3)', async () => {
+    // The registry row exists only after the object was written; bytes stay NULL.
+    await pool.query(
+      'INSERT INTO asset_blobs (content_hash, byte_size, unreferenced_at) VALUES ($1, 3, NULL)',
+      ['a'.repeat(64)],
+    );
+    await pool.query(
+      `INSERT INTO asset_entries (id, principal, content_hash, mime, meta, revision, created_at)
+       VALUES ('ast_external', 'owner', $1, 'image/png', '{}'::jsonb, 1, 0)`,
+      ['a'.repeat(64)],
+    );
+    const withImage = {
+      ...input,
+      materials: { images: [{ id: 'img_1', assetId: 'ast_external', pageNumber: 1 }] },
+    };
+    vi.stubEnv('ASSET_S3_BUCKET', '');
+    await expect(repo.createJob('owner', 'pg-bytes-required', withImage)).rejects.toThrow(
+      'BACKGROUND_MATERIAL_UNAVAILABLE',
+    );
+    vi.stubEnv('ASSET_S3_BUCKET', 'zhiyu-assets');
+    const job = await repo.createJob('owner', 'external-bytes', withImage);
+    expect(
+      (
+        await pool.query<{ asset_id: string }>(
+          'SELECT asset_id FROM generation_job_assets WHERE job_id=$1',
+          [job.jobId],
+        )
+      ).rows,
+    ).toEqual([{ asset_id: 'ast_external' }]);
+    // Another owner's entry is still not usable.
+    await expect(repo.createJob('intruder', 'foreign-asset', withImage)).rejects.toThrow(
+      'BACKGROUND_MATERIAL_UNAVAILABLE',
+    );
+    vi.unstubAllEnvs();
+  });
+  it('matches an uploaded source by the bare digest the upload route returns', async () => {
+    const hex = 'b'.repeat(64);
+    // The registry keys blobs as sha256-<hex>.
+    await pool.query(
+      'INSERT INTO asset_blobs (content_hash, byte_size, unreferenced_at) VALUES ($1, 3, NULL)',
+      [`sha256-${hex}`],
+    );
+    await pool.query(
+      `INSERT INTO asset_entries (id, principal, content_hash, mime, meta, revision, created_at)
+       VALUES ('ast_source', 'owner', $1, 'application/pdf', '{}'::jsonb, 1, 0)`,
+      [`sha256-${hex}`],
+    );
+    vi.stubEnv('ASSET_S3_BUCKET', 'zhiyu-assets');
+    const withSource = (digest: string) => ({
+      ...input,
+      materials: {
+        sources: [{ assetId: 'ast_source', digest, revision: 1, name: 'plan.pdf' }],
+      },
+    });
+    await expect(
+      repo.createJob('owner', 'wrong-digest', withSource('c'.repeat(64))),
+    ).rejects.toThrow('BACKGROUND_MATERIAL_UNAVAILABLE');
+    const job = await repo.createJob('owner', 'right-digest', withSource(hex));
+    expect(job.jobId).toBeTruthy();
+    vi.unstubAllEnvs();
+  });
   it('enforces owner queue/active limits and skips incompatible pipeline versions', async () => {
     repo = new GenerationJobRepository(pool, { maxQueuedPerOwner: 2 });
     await create();

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { PgAssetStore } from '@openmaic/storage/asset/pg';
-import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
+import { assetBytesAreExternal, lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { resolveAssetCollectionGraceMs } from '@/lib/persistence/asset-collection-grace';
 import { DSL_VERSION, DSL_VERSION_KEY } from '@openmaic/dsl';
 import type { Queryable } from '@openmaic/storage/document/pg';
@@ -126,6 +126,14 @@ function view(r: JobRow): GenerationJobView {
     pollIntervalMs: 2000,
   };
 }
+/**
+ * The asset registry stores content hashes as `sha256-<hex>`; generation
+ * inputs carry the bare hex digest the upload route returned.
+ */
+function sameContentDigest(contentHash: string, digest: string): boolean {
+  return contentHash === `sha256-${digest}` || contentHash === digest;
+}
+
 export class GenerationJobRepository {
   readonly config: GenerationConfig;
   private readonly leaseTransactions = new GenerationTransactionQueue();
@@ -584,6 +592,7 @@ export class GenerationJobRepository {
         ...(input.materials?.images ?? []).map((i) => i.assetId),
       ]);
       let inputBytes = 0;
+      const externalBytes = assets.size > 0 && assetBytesAreExternal(process.env.ASSET_S3_BUCKET);
       for (const assetId of assets) {
         const result = await q.query<{
           revision: number;
@@ -597,13 +606,19 @@ export class GenerationJobRepository {
         const asset = result.rows[0],
           source = sources.find((s) => s.assetId === assetId);
         inputBytes += Number(asset?.byte_size ?? 0);
-        // Native PG bytes are validated here. Other backends require a verified owner upload adapter.
+        // Native PG bytes must be present. With an external byte store (S3 or
+        // the local file adapter) the column is always NULL; the registry
+        // stores the object before inserting the owner's entry, so the entry
+        // found above is the verified upload, and the worker re-checks the
+        // length when it reads the bytes.
         if (
           !asset ||
           inputBytes > 100_000_000 ||
-          asset.bytes === null ||
+          (asset.bytes === null && !externalBytes) ||
           Number(asset.byte_size) > 100_000_000 ||
-          (source && (asset.revision !== source.revision || asset.content_hash !== source.digest))
+          (source &&
+            (asset.revision !== source.revision ||
+              !sameContentDigest(asset.content_hash, source.digest)))
         )
           throw new GenerationJobError('BACKGROUND_MATERIAL_UNAVAILABLE', 422);
         await q.query(
