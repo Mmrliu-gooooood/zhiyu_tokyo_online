@@ -33,6 +33,7 @@ function createPdfBackedDocumentExtractor(id: PDFProviderId): DocumentExtractorP
         accessKeySecret: input.config.accessKeySecret,
         allowEnvFallback: input.config.allowEnvFallback,
         textOnly: input.config.textOnly,
+        pageTexts: input.config.pageTexts,
         signal: input.signal,
       };
       let parsed;

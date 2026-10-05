@@ -34,6 +34,12 @@ import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
 import { getMaterialByteStore } from '@/lib/server/materials/bytes';
+import {
+  findStudyVersionByUpload,
+  readableStudySharedKey,
+  recordStudySessionRef,
+  type StudySessionBinding,
+} from '@/lib/server/study/materials/repository';
 
 import { getAgentSessionStore, nodePostgresTransaction } from './store';
 import { agentRuntimeConfig } from './config';
@@ -194,6 +200,87 @@ function isSessionMaterialKey(sessionId: string, key: string): boolean {
 }
 
 /**
+ * A shared study-library object (raw upload or parsed text) outside the
+ * session prefix is readable only through a recorded session reference to a
+ * live version of the session owner's material (learning plan B02).
+ */
+async function readableSharedKey(sessionId: string, key: string): Promise<{ mime: string } | null> {
+  if (!key.startsWith('materials/') && !key.startsWith('study/')) return null;
+  const connectionString = tryAgentRuntimeDatabaseUrl();
+  if (!connectionString) return null;
+  try {
+    const { pool } = await getServerPersistenceProvider(connectionString);
+    return await readableStudySharedKey(pool, sessionId, key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bind one study-library version by reference: the session's source row points
+ * at the shared upload, and when the version is already parsed a completed
+ * extraction row points at the shared parsed text, so the agent neither copies
+ * bytes nor re-extracts. Idempotent per (session, material row).
+ */
+async function bindStudyVersionToSession(
+  store: PgAgentSessionMaterialStore,
+  ownerDb: Parameters<typeof recordStudySessionRef>[0],
+  input: {
+    ownerId: string;
+    sessionId: string;
+    sessionMaterialId: string;
+    title: string;
+    version: StudySessionBinding;
+  },
+): Promise<void> {
+  const { sessionId, sessionMaterialId, version } = input;
+  if (!(await store.getMaterial(sessionId, sessionMaterialId))) {
+    await store.createMaterial(sessionId, {
+      id: sessionMaterialId,
+      kind: 'source',
+      title: input.title,
+      rawAssetId: version.objectKey,
+      textChars: 0,
+    });
+  }
+  await recordStudySessionRef(ownerDb, {
+    ownerId: input.ownerId,
+    sessionId,
+    sessionMaterialId,
+    versionId: version.versionId,
+    artifactId: version.artifact?.artifactId ?? null,
+  });
+  const artifact = version.artifact;
+  if (!artifact) return;
+  const derivedId = boundOwnerMaterialId(sessionId, artifact.artifactId);
+  if (await store.getMaterial(sessionId, derivedId)) return;
+  await store.createMaterial(sessionId, {
+    id: derivedId,
+    kind: 'extraction',
+    title: `${input.title}.extracted.md`,
+    textAssetId: artifact.textKey,
+    textChars: artifact.textChars,
+    derivedFrom: sessionMaterialId,
+  });
+  await ownerDb.query(
+    `UPDATE agent_session_materials
+        SET extraction_status='done', extractor_version=$3, extraction_stats=$4::jsonb
+      WHERE id=$1 AND session_id=$2 AND kind='source' AND extraction_status='idle'`,
+    [
+      sessionMaterialId,
+      sessionId,
+      `${artifact.extractorId}@${artifact.extractorVersion}`,
+      JSON.stringify({
+        chars: artifact.textChars,
+        pages: artifact.pageCount,
+        imageCount: artifact.imageCount,
+        ...(artifact.diagnostics.length ? { diagnostics: artifact.diagnostics } : {}),
+      }),
+    ],
+  );
+}
+
+/**
  * Persist a fetched web page as a session material: the extracted markdown
  * goes into the byte store, the material row records the object key plus the
  * fetch's provenance (title / source URL / text character count). A confirmed
@@ -321,7 +408,20 @@ export async function bindOwnerMaterialsToSession(
     // binding; new sessions need a distinct globally unique material-row id.
     const legacyBinding = await store.getMaterial(sessionId, id);
     const sessionMaterialId = legacyBinding ? id : boundOwnerMaterialId(sessionId, id);
-    if (!(legacyBinding ?? (await store.getMaterial(sessionId, sessionMaterialId)))) {
+    const studyVersion = legacyBinding
+      ? null
+      : await findStudyVersionByUpload(ownerDb, ownerId, id).catch(() => null);
+    if (studyVersion) {
+      // Study library version: reference the shared bytes and parse instead
+      // of copying them into the session (learning plan B02).
+      await bindStudyVersionToSession(store, ownerDb, {
+        ownerId,
+        sessionId,
+        sessionMaterialId,
+        title: record.originalName ?? id,
+        version: studyVersion,
+      });
+    } else if (!(legacyBinding ?? (await store.getMaterial(sessionId, sessionMaterialId)))) {
       let source: Buffer;
       try {
         source = await byteStore.get(record.ossKey);
@@ -417,7 +517,11 @@ export async function resolveSessionMaterialText(
   sessionId: string,
   textAssetId: string,
 ): Promise<Buffer | null> {
-  if (!isSessionMaterialKey(sessionId, textAssetId)) return null;
+  if (
+    !isSessionMaterialKey(sessionId, textAssetId) &&
+    !(await readableSharedKey(sessionId, textAssetId))
+  )
+    return null;
   try {
     return await getMaterialByteStore().get(textAssetId);
   } catch {
@@ -449,9 +553,20 @@ export async function resolveSessionMaterialRawAsset(
   sessionId: string,
   rawAssetId: string,
 ): Promise<{ bytes: Buffer; mime: string } | null> {
-  if (!isSessionMaterialKey(sessionId, rawAssetId)) return null;
+  if (isSessionMaterialKey(sessionId, rawAssetId)) {
+    try {
+      return {
+        bytes: await getMaterialByteStore().get(rawAssetId),
+        mime: rawObjectMime(rawAssetId),
+      };
+    } catch {
+      return null;
+    }
+  }
+  const shared = await readableSharedKey(sessionId, rawAssetId);
+  if (!shared) return null;
   try {
-    return { bytes: await getMaterialByteStore().get(rawAssetId), mime: rawObjectMime(rawAssetId) };
+    return { bytes: await getMaterialByteStore().get(rawAssetId), mime: shared.mime };
   } catch {
     return null;
   }

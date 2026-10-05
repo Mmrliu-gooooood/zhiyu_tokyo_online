@@ -30,13 +30,10 @@
  * The configured runtime gates the family (the workbench is agent-runtime
  * territory): off, or on without a DATABASE_URL, answers the same plain 404.
  */
-import { createHash, randomUUID } from 'node:crypto';
-import { basename } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-
-import { createMaterialId } from '@openmaic/storage';
 
 import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { apiError } from '@/lib/server/api-response';
@@ -48,17 +45,12 @@ import {
   listSessionMaterials,
   publicMaterialView,
 } from '@/lib/server/agent-runtime/session-materials';
+import { publicMaterial } from '@/lib/persistence/owner-materials';
 import {
-  abandonOwnerMaterial,
-  finalizeOwnerMaterial,
-  MaterialQuotaExceededError,
-  publicMaterial,
-  reclaimStaleOwnerMaterialUploads,
-  registerOwnerMaterial,
-} from '@/lib/persistence/owner-materials';
-import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
-import { createOwnerBoundQueryable } from '@/lib/db/request-queryable';
-import { getMaterialByteStore } from '@/lib/server/materials/bytes';
+  OwnerUploadRejected,
+  storeOwnerMaterialUpload,
+  type OwnerUploadState,
+} from '@/lib/server/materials/owner-upload';
 import {
   isWorkbenchMaterialMime,
   MEDIA_MIME_TYPES,
@@ -75,22 +67,6 @@ const MEDIA_MIME_SET = new Set<string>(MEDIA_MIME_TYPES);
 
 /** The store's keyset-paging ceiling (default 50, capped at 200). */
 const MAX_MATERIAL_LIST_LIMIT = 200;
-
-class MaterialPayloadTooLarge extends Error {}
-
-/** The `x-material-filename` header, sanitized to a bare file name. */
-function materialFilename(req: NextRequest): string | null {
-  const raw = req.headers.get('x-material-filename');
-  if (!raw) return null;
-  let decoded = raw;
-  try {
-    decoded = decodeURIComponent(raw);
-  } catch {
-    // Preserve a plain header value; malformed percent escapes are not paths.
-  }
-  const name = basename(decoded.replace(/\\/g, '/')).trim().slice(0, 512);
-  return name || null;
-}
 
 function materialUploadRequestId(req: NextRequest): string {
   const upstream = req.headers.get('x-request-id')?.trim();
@@ -175,8 +151,21 @@ export async function POST(req: NextRequest) {
   if (!isAgentRuntimeConfigured()) return new Response('Not found', { status: 404 });
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
+    const state: OwnerUploadState = {
+      phase,
+      declaredBytes: 0,
+      receivedBytes: 0,
+      failureLogged: false,
+    };
+    const sync = () => {
+      phase = state.phase;
+      materialId = state.materialId;
+      declaredBytes = state.declaredBytes;
+      receivedBytes = state.receivedBytes;
+      failureLogged = state.failureLogged;
+    };
     try {
-      phase = 'validate_request';
+      phase = state.phase = 'validate_request';
       const rawMime = (req.headers.get('content-type') ?? '').split(';', 1)[0];
       mime = normalizeWorkbenchMaterialMime(rawMime);
       if (!isWorkbenchMaterialMime(mime)) {
@@ -194,199 +183,40 @@ export async function POST(req: NextRequest) {
         ? agentRuntimeConfig.maxUploadBytes
         : DOCUMENT_UPLOAD_LIMIT;
 
-      declaredBytes = Number(req.headers.get('content-length') ?? 0);
-      if (Number.isFinite(declaredBytes) && declaredBytes > uploadLimit) {
-        return reject(
-          apiError('INVALID_REQUEST', 413, `upload exceeds ${uploadLimit} bytes`),
-          'declared_body_too_large',
-          responseHeaders,
-        );
-      }
-      if (!req.body) {
-        return reject(
-          apiError('INVALID_REQUEST', 400, 'empty body'),
-          'empty_body',
-          responseHeaders,
-        );
-      }
-
-      const originalName = materialFilename(req);
-      if (!originalName) {
-        return reject(
-          apiError('MISSING_REQUIRED_FIELD', 400, 'x-material-filename header is required'),
-          'missing_filename',
-          responseHeaders,
-        );
-      }
-      const createdMaterialId = createMaterialId();
-      materialId = createdMaterialId;
-      const ossKey = `materials/${ownerId}/${createdMaterialId}`;
-
-      const provider = await getServerPersistenceProvider(process.env.DATABASE_URL ?? '');
-      const ownerDb = createOwnerBoundQueryable(provider.pool, ownerId);
-      const byteStore = getMaterialByteStore();
-
-      // Browsers send Content-Length for a File body. When an intermediary
-      // strips it, reserve the per-file maximum so an unmeasured stream can
-      // never bypass the owner byte quota; finalize shrinks the reservation to
-      // its actual size.
-      const reservedBytes =
-        Number.isFinite(declaredBytes) && declaredBytes > 0 ? declaredBytes : uploadLimit;
-
-      // Reclaim uploads that crashed before finalize and are older than the
-      // 24-hour horizon. Each reservation's byte object is removed first; the reservation is
-      // deleted only after that, so a failure here keeps the reservation for
-      // the next pass instead of losing the pointer to its bytes.
-      phase = 'reclaim_stale_uploads';
-      await reclaimStaleOwnerMaterialUploads(
-        ownerDb,
-        ownerId,
-        async (objectKey) => {
-          try {
-            await byteStore.delete(objectKey);
-          } catch (error) {
-            console.warn(
-              'material stale byte deletion failed; keeping its reservation for the next pass',
-              context({ objectKey }),
-              error,
-            );
-            throw error;
-          }
+      const row = await storeOwnerMaterialUpload(req, ownerId, {
+        mime,
+        uploadLimit,
+        state,
+        warn: (message, extra, error) => {
+          sync();
+          console.warn(message, context(extra), error);
         },
-      ).catch((error) => {
-        console.warn(
-          'material stale-upload reclaim failed; retrying on the next upload',
-          context(),
-          error,
-        );
       });
-
-      phase = 'reserve_material';
-      try {
-        await registerOwnerMaterial(
-          ownerDb,
-          {
-            id: createdMaterialId,
-            ownerId,
-            kind: 'source',
-            mime,
-            bytes: reservedBytes,
-            originalName,
-            ossKey,
-            extraction: { status: 'idle' },
-          },
-          {
-            maxCount: agentRuntimeConfig.maxMaterialsPerOwner,
-            maxTotalBytes: agentRuntimeConfig.maxMaterialBytesPerOwner,
-          },
-          ownerDb.withTransaction,
-        );
-      } catch (error) {
-        if (error instanceof MaterialQuotaExceededError) {
-          return reject(
-            apiError('INVALID_REQUEST', 429, error.message),
-            'quota_exceeded',
-            responseHeaders,
-          );
-        }
-        throw error;
-      }
-
-      phase = 'store_bytes';
-      // Read the body through a sha256 meter, enforcing the per-class cap on
-      // the streamed size (an unmeasured stream cannot bypass the cap).
-      let bytes: Buffer;
-      try {
-        bytes = await readMeteredBody(req, uploadLimit);
-        receivedBytes = bytes.byteLength;
-      } catch (error) {
-        if (error instanceof MaterialPayloadTooLarge) {
-          await abandonOwnerMaterial(
-            ownerDb,
-            createdMaterialId,
-          ).catch(() => undefined);
-          return reject(
-            apiError('INVALID_REQUEST', 413, `upload exceeds ${uploadLimit} bytes`),
-            'streamed_body_too_large',
-            responseHeaders,
-          );
-        }
-        failureLogged = true;
-        await abandonOwnerMaterial(ownerDb, createdMaterialId).catch(() => undefined);
-        throw error;
-      }
-      if (bytes.byteLength === 0) {
-        await abandonOwnerMaterial(
-          ownerDb,
-          createdMaterialId,
-        ).catch(() => undefined);
-        return reject(
-          apiError('INVALID_REQUEST', 400, 'empty body'),
-          'empty_stream',
-          responseHeaders,
-        );
-      }
-      if (bytes.byteLength > reservedBytes) {
-        await abandonOwnerMaterial(ownerDb, createdMaterialId).catch(() => undefined);
-        return reject(
-          apiError('INVALID_REQUEST', 413, 'upload body exceeds its declared content length'),
-          'declared_length_mismatch',
-          responseHeaders,
-        );
-      }
-
-      // The object key is recorded by the reservation before bytes are stored.
-      // A crash after the write therefore leaves a durable pointer for the
-      // 24-hour reclaim, preserving delete-before-reservation-removal order.
-      const hash = createHash('sha256').update(bytes).digest('hex');
-      let bytesStored = false;
-      try {
-        await byteStore.put(ossKey, bytes, mime);
-        bytesStored = true;
-        const row = await finalizeOwnerMaterial(
-          ownerDb,
-          createdMaterialId,
-          bytes.byteLength,
-          hash,
-        );
-        const view = publicMaterial(row);
-        const res = NextResponse.json(
-          {
-            materialId: view.materialId,
-            originalName: view.originalName,
-            bytes: view.bytes,
-            mime: view.mime,
-            extraction: view.extraction,
-          },
-          { status: 201 },
-        );
-        res.headers.set('x-request-id', requestId);
-        for (const [key, value] of responseHeaders) res.headers.append(key, value);
-        console.info('material upload completed', context({ status: 201 }));
-        return res;
-      } catch (error) {
-        let bytesDeleted = !bytesStored;
-        if (bytesStored) {
-          try {
-            await byteStore.delete(ossKey);
-            bytesDeleted = true;
-          } catch (cleanupError) {
-            console.warn(
-              'material byte cleanup failed; keeping its reservation for stale reclaim',
-              context({ objectKey: ossKey }),
-              cleanupError,
-            );
-          }
-        }
-        if (bytesDeleted) {
-          await abandonOwnerMaterial(
-            ownerDb,
-            createdMaterialId,
-          ).catch(() => undefined);
-        }
-        throw error;
-      }
+      sync();
+      const view = publicMaterial(row);
+      const res = NextResponse.json(
+        {
+          materialId: view.materialId,
+          originalName: view.originalName,
+          bytes: view.bytes,
+          mime: view.mime,
+          extraction: view.extraction,
+        },
+        { status: 201 },
+      );
+      res.headers.set('x-request-id', requestId);
+      for (const [key, value] of responseHeaders) res.headers.append(key, value);
+      console.info('material upload completed', context({ status: 201 }));
+      return res;
     } catch (error) {
+      sync();
+      if (error instanceof OwnerUploadRejected) {
+        return reject(
+          apiError(error.code, error.status, error.message),
+          error.reason,
+          responseHeaders,
+        );
+      }
       if (!failureLogged) console.error('material upload failed', context({ status: 500 }), error);
       const res = apiError('INTERNAL_ERROR', 500, 'material upload failed');
       res.headers.set('x-request-id', requestId);
@@ -394,23 +224,4 @@ export async function POST(req: NextRequest) {
       return res;
     }
   });
-}
-
-/** Read the body up to `limit` bytes; throws {@link MaterialPayloadTooLarge} over the cap. */
-async function readMeteredBody(req: NextRequest, limit: number): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  let total = 0;
-  const reader = req.body!.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const buffer = Buffer.from(value);
-    total += buffer.byteLength;
-    if (total > limit) {
-      await reader.cancel().catch(() => undefined);
-      throw new MaterialPayloadTooLarge();
-    }
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks);
 }

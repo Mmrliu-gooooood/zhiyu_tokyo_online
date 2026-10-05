@@ -22,6 +22,8 @@ export interface DocumentExtractorConfig {
   allowEnvFallback?: boolean;
   /** Skip image extraction when the caller needs text only. */
   textOnly?: boolean;
+  /** unpdf only: also keep per-page text (providerRaw.metadata.pageTexts). */
+  pageTexts?: boolean;
 }
 
 export interface DocumentExtractorInput {

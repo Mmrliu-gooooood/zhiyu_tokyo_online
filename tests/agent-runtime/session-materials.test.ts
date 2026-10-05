@@ -11,9 +11,15 @@ import { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ensureAgentSessionSchema, PgAgentSessionStore } from '@openmaic/storage/agent-session/pg';
-import { ensureAgentSessionMaterialSchema, PgAgentSessionMaterialStore } from '@openmaic/storage/material/pg';
+import {
+  ensureAgentSessionMaterialSchema,
+  PgAgentSessionMaterialStore,
+} from '@openmaic/storage/material/pg';
 import type { Queryable } from '@openmaic/storage/asset/pg';
+import { ensureDocumentSchema } from '@openmaic/storage/document/pg';
 import { setMaterialByteStoreForTests } from '@/lib/server/materials/bytes';
+import { ensureStageMetaSchema } from '@/lib/persistence/stage-meta';
+import { ensureStudySchema } from '@/lib/server/study/schema';
 
 const mocks = vi.hoisted(() => ({
   getAgentSessionStore: vi.fn(),
@@ -41,6 +47,8 @@ import {
   bindOwnerMaterialsToSession,
   getSessionMaterial,
   listSessionMaterials,
+  resolveSessionMaterialRawAsset,
+  resolveSessionMaterialText,
   sessionMaterialsPromptBlock,
 } from '@/lib/server/agent-runtime/session-materials';
 import { buildFetchUrlTool } from '@/lib/server/agent-runtime/fetch-url';
@@ -86,7 +94,13 @@ describe('session materials persistence', () => {
     const sourceId = 'mat_123456789abcdefghjkmnpqrs';
     bytes.set('owner/material.txt', Buffer.from('one source'));
     mocks.getReadyOwnerMaterials.mockResolvedValue([
-      { id: sourceId, ossKey: 'owner/material.txt', mime: 'text/plain', originalName: 'material.txt', bytes: 10 },
+      {
+        id: sourceId,
+        ossKey: 'owner/material.txt',
+        mime: 'text/plain',
+        originalName: 'material.txt',
+        bytes: 10,
+      },
     ]);
 
     const first = await bindOwnerMaterialsToSession('session-1', 'owner-a', [sourceId]);
@@ -98,7 +112,10 @@ describe('session materials persistence', () => {
     expect(first[0]?.materialId).not.toBe(second[0]?.materialId);
     expect(retried).toEqual(first);
     expect((await db.query('SELECT id FROM agent_session_materials')).rows).toHaveLength(2);
-    for (const [sessionId, binding] of [['session-1', first], ['session-2', second]] as const) {
+    for (const [sessionId, binding] of [
+      ['session-1', first],
+      ['session-2', second],
+    ] as const) {
       const material = await getSessionMaterial(sessionId, binding[0]!.materialId);
       expect(material?.kind).toBe('source');
       expect(bytes.get(material!.rawAssetId!)?.toString()).toBe('one source');
@@ -118,7 +135,13 @@ describe('session materials persistence', () => {
       rawAssetId: 'materials/session-legacy/mat_legacy/raw.dGV4dC9wbGFpbg',
     });
     mocks.getReadyOwnerMaterials.mockResolvedValue([
-      { id: sourceId, ossKey: 'owner/material.txt', mime: 'text/plain', originalName: 'material.txt', bytes: 10 },
+      {
+        id: sourceId,
+        ossKey: 'owner/material.txt',
+        mime: 'text/plain',
+        originalName: 'material.txt',
+        bytes: 10,
+      },
     ]);
 
     expect(await bindOwnerMaterialsToSession('session-legacy', 'owner-a', [sourceId])).toEqual([
@@ -126,6 +149,81 @@ describe('session materials persistence', () => {
     ]);
     expect((await db.query('SELECT id FROM agent_session_materials')).rows).toHaveLength(1);
     expect(bytes.size).toBe(0);
+  });
+
+  it('binds a parsed study-library version by reference in two sessions, without copying', async () => {
+    const { bytes, db, sessionStore } = await makeHost();
+    await ensureAgentSessionMaterialSchema(db);
+    await ensureDocumentSchema(db);
+    await ensureStageMetaSchema(db);
+    await ensureStudySchema(db);
+    for (const id of ['session-1', 'session-2', 'session-3']) {
+      await sessionStore.createSession({ id, ownerId: 'owner-a', prompt: 'p' });
+    }
+    const rawKey = 'materials/owner-a/mat_upload';
+    const textKey = 'study/owner-a/artifacts/sart-1/text.md';
+    bytes.set(rawKey, Buffer.from('%PDF raw bytes'));
+    bytes.set(textKey, Buffer.from('parsed text'));
+    await db.exec(`
+      INSERT INTO study_materials(id,owner_id,title,current_version_id,version_count)
+        VALUES('smat-1','owner-a','Book','sver-1',1);
+      INSERT INTO study_material_versions(id,owner_id,material_id,version_no,owner_material_id,
+        object_key,sha256,mime,byte_size,original_name,active_artifact_id)
+        VALUES('sver-1','owner-a','smat-1',1,'mat_upload','${rawKey}','${'a'.repeat(64)}',
+          'application/pdf',14,'book.pdf','sart-1');
+      INSERT INTO study_material_artifacts(id,owner_id,version_id,fingerprint,extractor_id,
+        extractor_version,transform_version,artifact_key,text_key,page_count,text_chars)
+        VALUES('sart-1','owner-a','sver-1','${'b'.repeat(64)}','unpdf','1','study-artifact-v1',
+          'study/owner-a/artifacts/sart-1/artifact.json','${textKey}',3,11);
+    `);
+    mocks.getReadyOwnerMaterials.mockResolvedValue([
+      {
+        id: 'mat_upload',
+        ossKey: rawKey,
+        mime: 'application/pdf',
+        originalName: 'book.pdf',
+        bytes: 14,
+      },
+    ]);
+    const objectsBefore = bytes.size;
+
+    await bindOwnerMaterialsToSession('session-1', 'owner-a', ['mat_upload']);
+    await bindOwnerMaterialsToSession('session-2', 'owner-a', ['mat_upload']);
+    await bindOwnerMaterialsToSession('session-1', 'owner-a', ['mat_upload']);
+
+    // No bytes copied into either session, and no re-extraction needed.
+    expect(bytes.size).toBe(objectsBefore);
+    for (const session of ['session-1', 'session-2']) {
+      const rows = await listSessionMaterials(session);
+      expect(rows).toHaveLength(2);
+      const source = rows.find((row) => row.kind === 'source')!;
+      const extraction = rows.find((row) => row.kind === 'extraction')!;
+      expect(source).toMatchObject({
+        rawAssetId: rawKey,
+        extraction: { status: 'done', extractorVersion: 'unpdf@1' },
+      });
+      expect(extraction).toMatchObject({
+        textAssetId: textKey,
+        textChars: 11,
+        derivedFrom: source.id,
+      });
+      expect((await resolveSessionMaterialText(session, textKey))?.toString()).toBe('parsed text');
+      expect(await resolveSessionMaterialRawAsset(session, rawKey)).toMatchObject({
+        mime: 'application/pdf',
+      });
+    }
+    // A session without a reference cannot read the shared objects.
+    expect(await resolveSessionMaterialText('session-3', textKey)).toBeNull();
+    expect(await resolveSessionMaterialRawAsset('session-3', rawKey)).toBeNull();
+    // Deleting one session leaves the other session reading the shared file.
+    await db.query("UPDATE agent_sessions SET deleted_at=now() WHERE id='session-1'");
+    expect(await resolveSessionMaterialText('session-1', textKey)).toBeNull();
+    expect((await resolveSessionMaterialText('session-2', textKey))?.toString()).toBe(
+      'parsed text',
+    );
+    // Permanently deleting the material revokes the remaining reference.
+    await db.query("UPDATE study_materials SET status='deleting'");
+    expect(await resolveSessionMaterialText('session-2', textKey)).toBeNull();
   });
 
   it('persists a fetched page as a web material linking its object key, and reads it back', async () => {

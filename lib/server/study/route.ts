@@ -16,6 +16,8 @@ import { createLogger } from '@/lib/logger';
 import { getOwnerBoundStageAccessDb } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
+import { LearningTaskError } from '@/lib/server/learning-tasks/contracts';
+import { isStudyMaterialsFlagOn } from '@/lib/server/study/flags';
 
 const log = createLogger('StudyRoute');
 
@@ -50,6 +52,9 @@ export async function studyRoute(
       if (error instanceof StudyError) {
         return studyJson({ error: error.code, ...error.details }, error.status, headers);
       }
+      if (error instanceof LearningTaskError) {
+        return studyJson({ error: error.code }, error.httpStatus, headers);
+      }
       log.error('study request failed', {
         name: error instanceof Error ? error.name : typeof error,
         code:
@@ -58,6 +63,24 @@ export async function studyRoute(
       return studyJson({ error: 'STUDY_UNAVAILABLE' }, 503, headers);
     }
   });
+}
+
+/** B02 material library gate: needs study spaces plus ZHIYU_STUDY_MATERIALS_ENABLED. */
+export function isStudyMaterialsEnabled(): boolean {
+  return isStudyMaterialsFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the material library and learning-task APIs. */
+export function studyMaterialsRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyMaterialsEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
 }
 
 /** A small JSON object body, or undefined when absent, oversized or malformed. */

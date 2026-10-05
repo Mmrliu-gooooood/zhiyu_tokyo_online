@@ -218,7 +218,12 @@ export async function parsePDF(
 
   switch (config.providerId) {
     case 'unpdf':
-      result = await parseWithUnpdf(pdfBuffer, config.textOnly === true, config.signal);
+      result = await parseWithUnpdf(
+        pdfBuffer,
+        config.textOnly === true,
+        config.signal,
+        config.pageTexts === true,
+      );
       break;
 
     case 'mineru':
@@ -253,6 +258,7 @@ async function parseWithUnpdf(
   pdfBuffer: Buffer,
   textOnly = false,
   signal?: AbortSignal,
+  pageTexts = false,
 ): Promise<ParsedPdfContent> {
   throwIfAborted(signal);
   const uint8Array = new Uint8Array(pdfBuffer);
@@ -270,10 +276,11 @@ async function parseWithUnpdf(
   signal?.addEventListener('abort', abortPdf, { once: true });
 
   try {
-    // Extract text using the document proxy
-    const { text: pdfText } = await extractText(pdf, {
-      mergePages: true,
-    });
+    // Extract text using the document proxy. Pages are merged exactly the
+    // way unpdf's mergePages does (newline join, whitespace collapsed), so
+    // asking for per-page text never changes the merged text.
+    const { text: pages } = await extractText(pdf, { mergePages: false });
+    const pdfText = pages.join('\n').replace(/\s+/g, ' ');
     throwIfAborted(signal);
 
     // Extract images using the same document proxy
@@ -335,6 +342,7 @@ async function parseWithUnpdf(
       metadata: {
         pageCount: numPages,
         parser: 'unpdf',
+        ...(pageTexts ? { pageTexts: pages } : {}),
         imageMapping: Object.fromEntries(pdfImagesMeta.map((m) => [m.id, m.src])),
         pdfImages: pdfImagesMeta,
       },

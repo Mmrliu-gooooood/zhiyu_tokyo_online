@@ -37,6 +37,11 @@ export interface PDFParserConfig {
   allowEnvFallback?: boolean;
   /** Skip image extraction when the caller needs text only. */
   textOnly?: boolean;
+  /**
+   * unpdf only: also return each page's text as `metadata.pageTexts` so a
+   * reader can address pages. The merged `text` is unchanged.
+   */
+  pageTexts?: boolean;
   /** Cancels provider I/O and long local parsing. */
   signal?: AbortSignal;
 }
