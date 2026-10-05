@@ -117,6 +117,8 @@ export interface StudyMaterialArtifactView {
 
 export interface StudyMaterialVersionView {
   versionId: string;
+  /** The owner upload behind this version (what workbench sessions bind by reference). */
+  uploadId: string;
   versionNo: number;
   originalName: string;
   mime: string;

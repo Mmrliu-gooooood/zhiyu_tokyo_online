@@ -3,7 +3,7 @@
 /**
  * Chrome and status states shared by the study pages (learning plan B01).
  */
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
 
@@ -13,10 +13,20 @@ import { Button } from '@/components/ui/button';
 import { peekAccountUserId } from '@/lib/auth/account-environment';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { flushAllStudyProgress } from '@/lib/study/progress/sync';
-import { fetchStudyCapability } from '@/lib/study/spaces/client';
+import { fetchStudyCapabilities, fetchStudyCapability } from '@/lib/study/spaces/client';
 
 export function StudyShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
+  const [materialsOn, setMaterialsOn] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchStudyCapabilities().then(
+      (capabilities) => !cancelled && setMaterialsOn(capabilities.materials),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   return (
     <div className="min-h-[100dvh] bg-background">
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8">
@@ -30,6 +40,15 @@ export function StudyShell({ children }: { children: ReactNode }) {
           >
             {t('study.nav')}
           </Link>
+          {materialsOn ? (
+            <Link
+              href="/study/materials"
+              data-testid="study-nav-materials"
+              className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {t('study.materials.nav')}
+            </Link>
+          ) : null}
           <Link
             href="/"
             className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -129,7 +148,7 @@ export function studyFailureState(error: unknown): Exclude<StudyLoadState, 'load
   const status = (error as { status?: number })?.status;
   const code = (error as { code?: string })?.code;
   if (code === 'STUDY_ACCOUNT_REQUIRED' || status === 401) return 'signed-out';
-  if (code === 'STUDY_SPACE_NOT_FOUND') return 'not-found';
+  if (code === 'STUDY_SPACE_NOT_FOUND' || code === 'STUDY_MATERIAL_NOT_FOUND') return 'not-found';
   if (status === 404) return 'unavailable';
   return 'error';
 }

@@ -36,6 +36,11 @@ import {
   StudySpacesNavButton,
   useStudyGenerationTarget,
 } from '@/components/study/spaces/home-entry';
+import { GenerationMaterialPicker } from '@/components/study/materials/GenerationMaterialPicker';
+import {
+  studyMaterialsGenerationText,
+  type StudyMaterialSelection,
+} from '@/lib/study/materials/generation';
 import { createLogger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupInput, InputGroupButton } from '@/components/ui/input-group';
@@ -174,6 +179,8 @@ function HomePage() {
   }, [router, workbenchEntryEnabled]);
   const [form, setForm] = useState<FormState>(initialFormState);
   const studyTarget = useStudyGenerationTarget();
+  // Parsed study-library materials chosen as course material (learning plan B02).
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterialSelection[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<
     import('@/lib/types/settings').SettingsSection | undefined
@@ -687,10 +694,21 @@ function HomePage() {
         }
       }
 
+      // Library materials reuse their stored parse: the text goes straight
+      // into the session, so neither generation path extracts anything.
+      let studyText = '';
+      if (!documentSources?.length && studyTarget.target && studyMaterials.length > 0) {
+        try {
+          studyText = (await studyMaterialsGenerationText(studyMaterials)).text;
+        } catch {
+          throw new Error(t('study.materials.generation.loadFailed'));
+        }
+      }
+
       const sessionState = {
         sessionId: nanoid(),
         requirements,
-        pdfText: '',
+        pdfText: studyText,
         pdfImages: [],
         imageStorageIds: [],
         documentSources,
@@ -703,6 +721,14 @@ function HomePage() {
         sceneOutlines: null,
         currentStep: 'generating' as const,
         ...(studyTarget.target ? { studySpaceId: studyTarget.target.id } : {}),
+        ...(studyText
+          ? {
+              studyMaterialVersions: studyMaterials.map(({ materialId, versionId }) => ({
+                materialId,
+                versionId,
+              })),
+            }
+          : {}),
       };
       sessionStorage.setItem('generationSession', JSON.stringify(sessionState));
 
@@ -883,10 +909,21 @@ function HomePage() {
             </div>
 
             {studyTarget.target ? (
-              <StudyGenerationTargetBanner
-                target={studyTarget.target}
-                onClear={studyTarget.clear}
-              />
+              <>
+                <StudyGenerationTargetBanner
+                  target={studyTarget.target}
+                  onClear={() => {
+                    setStudyMaterials([]);
+                    studyTarget.clear();
+                  }}
+                />
+                <GenerationMaterialPicker
+                  spaceId={studyTarget.target.id}
+                  selected={studyMaterials}
+                  onChange={setStudyMaterials}
+                  disabled={form.courseMaterials.length > 0}
+                />
+              </>
             ) : null}
 
             {/* Textarea */}
@@ -915,7 +952,7 @@ function HomePage() {
                   onCourseMaterialsAdd={addCourseMaterials}
                   onCourseMaterialRemove={removeCourseMaterial}
                   onPdfError={setError}
-                  materialsLocked={preparingGenerate}
+                  materialsLocked={preparingGenerate || studyMaterials.length > 0}
                 />
               </div>
 

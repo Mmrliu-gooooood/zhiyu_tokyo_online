@@ -50,7 +50,8 @@ import {
 } from '@/components/study/spaces/StudyShell';
 import { ExamCountdown, RelativeTime } from '@/components/study/spaces/study-format';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { StudyApiError, studyApi } from '@/lib/study/spaces/client';
+import { StudyApiError, fetchStudyCapabilities, studyApi } from '@/lib/study/spaces/client';
+import { SpaceMaterialsSection } from '@/components/study/materials/SpaceMaterialsSection';
 import type { StudySpaceCourse, StudySpaceDetail } from '@/lib/study/spaces/contracts';
 import {
   courseViewStatus,
@@ -71,6 +72,17 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
   const [removeTarget, setRemoveTarget] = useState<StudySpaceCourse | null>(null);
 
   const [loadKey, setLoadKey] = useState(0);
+  const [materialsOn, setMaterialsOn] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchStudyCapabilities().then(
+      (capabilities) => !cancelled && setMaterialsOn(capabilities.materials),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -322,6 +334,8 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
           </ul>
         )}
       </section>
+
+      {materialsOn ? <SpaceMaterialsSection spaceId={space.id} archived={archived} /> : null}
 
       {editOpen ? (
         <StudySpaceFormDialog

@@ -25,7 +25,11 @@ export class StudyApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+/** JSON request to a study API; non-2xx throws StudyApiError with the server's code. */
+export async function studyRequest<T>(
+  path: string,
+  init: RequestInit & { json?: unknown } = {},
+): Promise<T> {
   const { json, ...rest } = init;
   const response = await fetch(path, {
     credentials: 'include',
@@ -57,21 +61,32 @@ async function request<T>(path: string, init: RequestInit & { json?: unknown } =
   return body as T;
 }
 
-let capabilityPromise: Promise<boolean> | undefined;
+export interface StudyCapabilities {
+  spaces: boolean;
+  /** B02 material library (needs spaces). */
+  materials: boolean;
+}
 
-/** Whether this deployment serves study spaces. Cached for the page session; failures retry. */
-export function fetchStudyCapability(): Promise<boolean> {
+let capabilityPromise: Promise<StudyCapabilities> | undefined;
+
+/** Which study features this deployment serves. Cached for the page session; failures retry. */
+export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
   capabilityPromise ??= fetch('/api/study/capabilities', { cache: 'no-store' })
     .then(async (response) => {
-      if (!response.ok) return false;
-      const body = (await response.json()) as { spaces?: unknown };
-      return body.spaces === true;
+      if (!response.ok) return { spaces: false, materials: false };
+      const body = (await response.json()) as { spaces?: unknown; materials?: unknown };
+      return { spaces: body.spaces === true, materials: body.materials === true };
     })
     .catch(() => {
       capabilityPromise = undefined;
-      return false;
+      return { spaces: false, materials: false };
     });
   return capabilityPromise;
+}
+
+/** Whether this deployment serves study spaces. */
+export function fetchStudyCapability(): Promise<boolean> {
+  return fetchStudyCapabilities().then((capabilities) => capabilities.spaces);
 }
 
 /** Test hook. */
@@ -83,44 +98,47 @@ const enc = encodeURIComponent;
 
 export const studyApi = {
   listSpaces: () =>
-    request<{ spaces: StudySpaceSummary[] }>('/api/study/spaces').then((body) => body.spaces),
+    studyRequest<{ spaces: StudySpaceSummary[] }>('/api/study/spaces').then((body) => body.spaces),
   getSpace: (spaceId: string) =>
-    request<{ space: StudySpaceDetail }>(`/api/study/spaces/${enc(spaceId)}`).then(
+    studyRequest<{ space: StudySpaceDetail }>(`/api/study/spaces/${enc(spaceId)}`).then(
       (body) => body.space,
     ),
   createSpace: (input: StudySpaceInput) =>
-    request<{ space: StudySpaceSummary }>('/api/study/spaces', {
+    studyRequest<{ space: StudySpaceSummary }>('/api/study/spaces', {
       method: 'POST',
       json: input,
     }).then((body) => body.space),
   updateSpace: (spaceId: string, revision: number, patch: StudySpacePatch) =>
-    request<{ space: StudySpaceDetail }>(`/api/study/spaces/${enc(spaceId)}`, {
+    studyRequest<{ space: StudySpaceDetail }>(`/api/study/spaces/${enc(spaceId)}`, {
       method: 'PATCH',
       json: { ...patch, revision },
     }).then((body) => body.space),
   deleteSpace: (spaceId: string) =>
-    request<{ deleted: true }>(`/api/study/spaces/${enc(spaceId)}`, { method: 'DELETE' }),
+    studyRequest<{ deleted: true }>(`/api/study/spaces/${enc(spaceId)}`, { method: 'DELETE' }),
   linkCourse: (spaceId: string, stageId: string, via: 'link' | 'generation' = 'link') =>
-    request<{ created: boolean }>(`/api/study/spaces/${enc(spaceId)}/courses`, {
+    studyRequest<{ created: boolean }>(`/api/study/spaces/${enc(spaceId)}/courses`, {
       method: 'POST',
       json: { stageId, via },
     }),
   unlinkCourse: (spaceId: string, stageId: string) =>
-    request<{ removed: true }>(`/api/study/spaces/${enc(spaceId)}/courses/${enc(stageId)}`, {
+    studyRequest<{ removed: true }>(`/api/study/spaces/${enc(spaceId)}/courses/${enc(stageId)}`, {
       method: 'DELETE',
     }),
   listCourses: () =>
-    request<{ courses: LinkableCourse[] }>('/api/study/courses').then((body) => body.courses),
+    studyRequest<{ courses: LinkableCourse[] }>('/api/study/courses').then((body) => body.courses),
   getProgress: (stageId: string, signal?: AbortSignal) =>
-    request<{ progress: StudyCourseProgressView | null }>(`/api/study/progress/${enc(stageId)}`, {
-      signal,
-    }).then((body) => body.progress),
+    studyRequest<{ progress: StudyCourseProgressView | null }>(
+      `/api/study/progress/${enc(stageId)}`,
+      {
+        signal,
+      },
+    ).then((body) => body.progress),
   putProgress: (
     stageId: string,
     input: ProgressWriteInput,
     options: { keepalive?: boolean } = {},
   ) =>
-    request<{ progress: StudyCourseProgressView }>(`/api/study/progress/${enc(stageId)}`, {
+    studyRequest<{ progress: StudyCourseProgressView }>(`/api/study/progress/${enc(stageId)}`, {
       method: 'PUT',
       json: input,
       keepalive: options.keepalive,
