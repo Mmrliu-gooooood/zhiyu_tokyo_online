@@ -34,6 +34,7 @@ import { runMaterialParseTask } from '@/lib/server/study/materials/parse';
 import { getMaterialByteStore } from '@/lib/server/materials/bytes';
 import { isStudyMaterialsFlagOn } from '@/lib/server/study/flags';
 import { startAssetCollectorSchedule } from '@/lib/persistence/asset-collector-schedule';
+import { startCoursePurgeSchedule } from '@/lib/server/courses/purge';
 import {
   assertFreshWorkerHealthMarker,
   clearWorkerHealthMarker,
@@ -53,6 +54,11 @@ async function main() {
   const controller = new AbortController();
   for (const event of ['SIGINT', 'SIGTERM'] as const) process.once(event, () => controller.abort());
   const assetCollector = startAssetCollectorSchedule();
+  // Physically remove deleted courses (and release their media) once their
+  // tombstone's grace period has passed; off unless COURSE_PURGE_ENABLED=1.
+  const coursePurge = startCoursePurgeSchedule(pool, {
+    report: (event) => process.stdout.write(`${JSON.stringify(event)}\n`),
+  });
   const agentEventBus = isAgentRuntimeWorkerConfigured() ? startAgentEventNotifyBus() : undefined;
   const agentRunner = isAgentRuntimeWorkerConfigured()
     ? startAgentRunner({
@@ -186,6 +192,7 @@ async function main() {
     await extractionRunner?.stop();
     await agentRunner?.stop();
     await agentEventBus?.stop();
+    coursePurge?.stop();
     await assetCollector?.stop();
     await pool.end();
   }

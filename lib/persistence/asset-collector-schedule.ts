@@ -24,6 +24,7 @@ import {
 } from '@openmaic/storage/server/reference';
 import type { Pool } from 'pg';
 
+import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { trySystemDatabaseUrl } from '@/lib/db/database-urls';
 import { getSystemPool } from '@/lib/db/pool-registry';
 import { resolveAssetCollectionGraceMs } from '@/lib/persistence/asset-collection-grace';
@@ -87,6 +88,26 @@ const globalState = globalThis as typeof globalThis & {
  * to reclaim from; or the operator disabled collection because they run their
  * own.
  */
+/**
+ * The collector one process runs. Hosted deployments manage the asset schema
+ * through versioned migrations, and their runtime roles (app_worker) may not
+ * create objects in `public`, so only self-migrating installs ensure it here.
+ */
+export async function createAssetCollector(
+  queryable: ConnectableQueryable,
+  graceMs: number,
+): Promise<AssetCollector> {
+  if (!isHostedAuthEnabled()) await ensureAssetSchema(queryable);
+  const byteStore = await createAssetByteStore(
+    configuredS3Bucket(process.env.ASSET_S3_BUCKET),
+    queryable,
+  );
+  return new AssetCollector(queryable, byteStore, {
+    withTransaction: nodePostgresTransaction(queryable),
+    graceMs,
+  });
+}
+
 export function startAssetCollectorSchedule(
   deps: AssetCollectorScheduleDeps = {},
 ): AssetCollectorSchedule | undefined {
@@ -128,17 +149,7 @@ export function startAssetCollectorSchedule(
   // means resolving the optional AWS SDK. Both belong inside the pass, where a
   // failure is logged and retried instead of escaping into server startup.
   let prepared: Promise<AssetCollector> | undefined;
-  const prepare = async (): Promise<AssetCollector> => {
-    await ensureAssetSchema(queryable);
-    const byteStore = await createAssetByteStore(
-      configuredS3Bucket(process.env.ASSET_S3_BUCKET),
-      queryable,
-    );
-    return new AssetCollector(queryable, byteStore, {
-      withTransaction: nodePostgresTransaction(queryable),
-      graceMs,
-    });
-  };
+  const prepare = (): Promise<AssetCollector> => createAssetCollector(queryable, graceMs);
   const collector = (): Promise<AssetCollector> =>
     (prepared ??= prepare().catch((error: unknown) => {
       prepared = undefined;

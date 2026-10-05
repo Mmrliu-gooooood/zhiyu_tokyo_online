@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { AssetQuotaExceededError, PgAssetStore } from '@openmaic/storage/asset/pg';
+import { PgAssetStore } from '@openmaic/storage/asset/pg';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { hostedAssetBlobMutations } from '@/lib/persistence/hosted-asset-blob-mutations';
 import {
@@ -8,6 +8,10 @@ import {
   withGenerationRequest,
 } from '@/lib/server/generation-jobs/http';
 import { GenerationJobError } from '@/lib/server/generation-jobs/contracts';
+import {
+  GENERATION_UPLOAD_ORIGIN,
+  assertGenerationUploadQuota,
+} from '@/lib/server/generation-jobs/upload-quota';
 export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   return withGenerationRequest(
@@ -30,25 +34,19 @@ export async function POST(req: Request) {
         );
         if (existing.rows[0])
           return { assetId: existing.rows[0].id, revision: existing.rows[0].revision };
+        // The quota covers uploaded materials only, never generated course media.
+        await assertGenerationUploadQuota(transaction, ownerId, bytes.length);
         const store = new PgAssetStore(transaction, {
           withTransaction: (body) => body(transaction),
           byteStore: lazyAssetByteStore(process.env.ASSET_S3_BUCKET, transaction),
           blobMutations: hostedAssetBlobMutations,
-          quotaBytes: 300_000_000,
         });
-        try {
-          const assetId = await store.put(
-            { key: ownerId },
-            new Blob([bytes as BlobPart], { type: mime }),
-            { contentType: mime, filename: name },
-          );
-          return { assetId, revision: 1 };
-        } catch (error) {
-          // A full account asset quota is the caller's state, not an outage.
-          if (error instanceof AssetQuotaExceededError)
-            throw new GenerationJobError('ASSET_QUOTA_EXCEEDED', 413);
-          throw error;
-        }
+        const assetId = await store.put(
+          { key: ownerId },
+          new Blob([bytes as BlobPart], { type: mime }),
+          { contentType: mime, filename: name, origin: GENERATION_UPLOAD_ORIGIN },
+        );
+        return { assetId, revision: 1 };
       });
       return generationResponse({ success: true, ...uploaded, digest }, headers, 201);
     },

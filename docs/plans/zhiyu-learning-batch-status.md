@@ -134,6 +134,18 @@
    - 配额构成（管理员账号）：578 MB 中 575 MB 是课程生成产生的语音（1887 段），图片约 3 MB；生成本身不受配额限制，只有“上传课程材料”被拦。课程删除是软删除（`stage_meta.deleted_at`），素材不回收（生产 `ASSET_COLLECTION_ENABLED=false`），删课不会降低该统计。
    - 应用户要求（2026-10-06）删除管理员账号全部 45 门课程（软删除，内容仍在库中，可由运维恢复；清单保存在本地 `.scratch/prod-course-delete-20261006.txt`）；学科“高中数学”仍在，课程数 0；素材统计仍为 578 MB。
 
+### 上传配额只计上传材料 + 删除课程物理清理（2026-10-06）
+
+用户决定（2026-10-06）：配额选 A（只统计上传的材料）；删除课程要真正从数据库删除并自动回收存储；删除东京旧镜像 `release-20261003`、`release-20261004`（已删，磁盘 89% → 68%）。
+
+1. **配额 A**：生成素材上传接口给每个上传打 `origin: generation-upload` 标记，300 MB 只统计带标记的上传（`lib/server/generation-jobs/upload-quota.ts`，同账号上传用 advisory lock 串行）；课程生成产生的语音、图片不再计入。旧上传没有标记，不计入。
+2. **删除课程 = 物理清理**（`lib/server/courses/purge.ts`，Worker 每 5 分钟一轮，`COURSE_PURGE_ENABLED=1` 开启）：用户删除时仍立即隐藏并取消/隔离生成（原逻辑不变）；墓碑超过宽限期（默认 10 分钟）后，Worker 以 `app_worker` 身份删除该课程的页面、大纲、修订记录、生成任务全链路（steps/attempts/events/commands/scenes/job_assets/jobs/ownership）、运行会话，以及**只被这门课使用**的本人素材（任务输入/输出 + 课程内容中引用的 `ast_` id；被其他课程引用或属于他人的不删），并把这些素材的 blob 标记为无引用。
+   - **保留一行极小的墓碑**：`document_stages` 行清空（无名称、内容只剩 `purgedAt`）连同 `stage_meta.deleted_at`。原因：墓碑负责拒绝旧设备用同一 id 保存或重建已删课程，删掉它课程可能被旧的本地副本“复活”。
+   - 学科空间的课程链接/进度由 Web 角色所有，Worker 无权限，不在本次清理内（学科读取早已过滤已删课程，数据极小）。classroom 快照/媒体表在生产为空，未纳入。
+3. **自动回收存储**：素材回收器只在 Worker 中开启（`WORKER_ASSET_COLLECTION_ENABLED`，`app_worker` 可删 blob；Web 角色不可，保持关闭）。修复：托管模式下回收器启动时不再执行 `ensureAssetSchema`（`app_worker` 在 public 无建表权限，真实 PostgreSQL 上复现为 permission denied——这也是此前回收一直未启用的阻碍）。回收器在宽限期（默认 1 小时）后删除 S3 对象和 blob 行。启用前只读核对：生产当前无引用为零的 blob 为 0，启用不会删除任何现有对象。
+4. **存量已删课程**：`COURSE_PURGE_DELETED_SINCE` 只清理该时间之后删除的课程。上线时设为上线时刻，此前已删除的 143 门课程（含管理员刚删的 45 门）不自动清理——它们的清理不可恢复，由用户确认后自行删除该行并 apply 触发（见发布记录）。
+5. **验证**：`tests/server/course-purge.test.ts`：PGlite 上清理范围（本课独占素材删除、共享/他人素材保留、墓碑保留、幂等、宽限期、截止时间）、配额只计上传；真实 PostgreSQL（全新托管 schema、RLS、修订触发器）以 `app_worker` 执行清理，并用生产同一工厂在托管模式下以 `app_worker` 运行回收器，成功回收被释放的 blob。
+
 ### 下一批（B03）前置条件
 
 - B02 已合并并上线；登录账号的生产端到端验收待做。**B03 在用户明确指示前不开始。**

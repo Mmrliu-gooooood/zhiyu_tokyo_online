@@ -353,6 +353,15 @@ services:
       WORKER_DATABASE_URL: ${WORKER_DATABASE_URL:?Set the app_worker pooled URL}
       DATABASE_LISTEN_URL: ${DATABASE_LISTEN_URL:?Set a session/direct app_worker URL for LISTEN}
       PRO_MODEL_ENCRYPTION_KEY: ${PRO_MODEL_ENCRYPTION_KEY:?Set the shared server-only Pro model key}
+      # Only the worker (app_worker may delete blobs) reclaims unreferenced
+      # asset bytes; the Web role cannot, so it keeps collection off.
+      ASSET_COLLECTION_ENABLED: ${WORKER_ASSET_COLLECTION_ENABLED:-false}
+      # Physical purge of deleted courses (content, generation records, media).
+      # COURSE_PURGE_DELETED_SINCE limits it to courses deleted at/after that
+      # ISO instant; unset purges every tombstoned course.
+      COURSE_PURGE_ENABLED: ${COURSE_PURGE_ENABLED:-}
+      COURSE_PURGE_DELETED_SINCE: ${COURSE_PURGE_DELETED_SINCE:-}
+      COURSE_PURGE_GRACE_MS: ${COURSE_PURGE_GRACE_MS:-}
     secrets: *db-ca-secrets
     tmpfs:
       - /app/data:uid=1001,gid=1001,mode=0770
