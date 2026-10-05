@@ -108,6 +108,7 @@ export function projectGenerationJobPresentation(input: {
       BACKGROUND_IMAGE_PROVIDER_UNAVAILABLE: 'generation.preflightImageUnavailable',
       BACKGROUND_VIDEO_PROVIDER_UNAVAILABLE: 'generation.preflightVideoUnavailable',
       BACKGROUND_SEARCH_PROVIDER_UNAVAILABLE: 'generation.preflightSearchUnavailable',
+      ASSET_QUOTA_EXCEEDED: 'generation.preflightAssetQuota',
     };
     const providerDetail = providerDetails[input.submissionError];
     return {

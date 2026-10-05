@@ -213,7 +213,11 @@ export async function buildGenerationJobInput(
     });
   }
   const images: NonNullable<NonNullable<GenerationInput['materials']>['images']> = [];
+  let quotaReached = false;
   for (const image of session.pdfImages ?? []) {
+    // Images enrich the course: once the account's asset quota is full, the
+    // rest are left out and the job runs on the text and sources alone.
+    if (quotaReached && !uploaded[`image:${image.id}`]) continue;
     const key = `image:${image.id}`;
     let blob: Blob | null = null;
     if (!uploaded[key]) {
@@ -225,7 +229,16 @@ export async function buildGenerationJobInput(
       if (!blob && image.src?.startsWith('data:'))
         blob = await (await fetch(image.src, { signal })).blob();
     }
-    const asset = await upload(key, blob, `${image.id}.png`);
+    let asset: GenerationUploadedAsset;
+    try {
+      asset = await upload(key, blob, `${image.id}.png`);
+    } catch (error) {
+      if (error instanceof GenerationJobRequestError && error.code === 'ASSET_QUOTA_EXCEEDED') {
+        quotaReached = true;
+        continue;
+      }
+      throw error;
+    }
     images.push({
       id: image.id,
       assetId: asset.assetId,

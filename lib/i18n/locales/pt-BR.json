@@ -1348,6 +1348,7 @@
     "preflightImageUnavailable": "A configuração de imagens está indisponível. Confira o modelo de imagens ativado e sua conexão no início.",
     "preflightVideoUnavailable": "A configuração de vídeo está indisponível. Confira o modelo de vídeo ativado e sua conexão no início.",
     "preflightSearchUnavailable": "A pesquisa na web está indisponível. Confira o serviço de pesquisa selecionado e sua conexão no início.",
+    "preflightAssetQuota": "O armazenamento de materiais da sua conta está cheio, então os materiais do curso não puderam ser enviados. Exclua os cursos de que não precisa mais e tente novamente.",
     "statusQueueExpired": "O tempo de espera na fila expirou",
     "statusQueueExpiredDesc": "Os dados inseridos para o curso foram mantidos. Quando estiver tudo pronto, volte ao Início e envie uma nova tarefa.",
     "statusOutlineReviewExpired": "O prazo para revisar o roteiro expirou",

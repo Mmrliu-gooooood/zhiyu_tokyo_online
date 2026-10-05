@@ -1263,6 +1263,7 @@
     "preflightImageUnavailable": "The image configuration is unavailable. Return Home and check the enabled image model and its connection before retrying.",
     "preflightVideoUnavailable": "The video configuration is unavailable. Return Home and check the enabled video model and its connection before retrying.",
     "preflightSearchUnavailable": "The web search configuration is unavailable. Return Home and check the selected search service and its connection before retrying.",
+    "preflightAssetQuota": "Your account’s material storage is full, so the course materials could not be uploaded. Delete courses you no longer need and try again.",
     "statusQueueExpired": "Queue wait expired",
     "statusQueueExpiredDesc": "Your course input was retained. Return Home and submit a new task when ready.",
     "statusOutlineReviewExpired": "Outline review expired",

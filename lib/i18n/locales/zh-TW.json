@@ -1329,6 +1329,7 @@
     "preflightImageUnavailable": "圖片生成設定無法使用，請返回首頁檢查已啟用的圖片模型及連線設定後重試。",
     "preflightVideoUnavailable": "影片生成設定無法使用，請返回首頁檢查已啟用的影片模型及連線設定後重試。",
     "preflightSearchUnavailable": "網路搜尋設定無法使用，請返回首頁檢查所選搜尋服務及連線設定後重試。",
+    "preflightAssetQuota": "帳號的素材儲存空間已滿，無法上傳課程材料。請刪除不再需要的課程後重試。",
     "statusQueueExpired": "排隊等候已逾時",
     "statusQueueExpiredDesc": "你的課程輸入內容已保留。準備好後請返回首頁並提交新任務。",
     "statusOutlineReviewExpired": "大綱審閱已逾時",

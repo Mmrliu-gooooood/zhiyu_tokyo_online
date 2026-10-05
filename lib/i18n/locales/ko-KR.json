@@ -1348,6 +1348,7 @@
     "preflightImageUnavailable": "이미지 생성 설정을 사용할 수 없습니다. 홈에서 활성화된 이미지 모델과 연결 설정을 확인하세요.",
     "preflightVideoUnavailable": "동영상 생성 설정을 사용할 수 없습니다. 홈에서 활성화된 동영상 모델과 연결 설정을 확인하세요.",
     "preflightSearchUnavailable": "웹 검색 설정을 사용할 수 없습니다. 홈에서 선택한 검색 서비스와 연결 설정을 확인하세요.",
+    "preflightAssetQuota": "계정의 자료 저장 공간이 가득 차 강의 자료를 업로드하지 못했습니다. 더 이상 필요 없는 강의를 삭제한 후 다시 시도해 주세요.",
     "statusQueueExpired": "대기열 대기 시간이 만료되었습니다",
     "statusQueueExpiredDesc": "입력한 강좌 정보는 보관되었습니다. 준비가 되면 홈으로 돌아가 새 작업을 제출하세요.",
     "statusOutlineReviewExpired": "개요 검토 시간이 만료되었습니다",

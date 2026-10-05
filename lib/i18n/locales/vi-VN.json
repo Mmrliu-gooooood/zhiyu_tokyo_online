@@ -1348,6 +1348,7 @@
     "preflightImageUnavailable": "Cấu hình hình ảnh không khả dụng. Kiểm tra mô hình hình ảnh đã bật và kết nối trên trang chủ.",
     "preflightVideoUnavailable": "Cấu hình video không khả dụng. Kiểm tra mô hình video đã bật và kết nối trên trang chủ.",
     "preflightSearchUnavailable": "Tìm kiếm web không khả dụng. Kiểm tra dịch vụ tìm kiếm đã chọn và kết nối trên trang chủ.",
+    "preflightAssetQuota": "Dung lượng lưu trữ tài liệu của tài khoản đã đầy nên không thể tải tài liệu khóa học lên. Hãy xóa các khóa học không còn cần và thử lại.",
     "statusQueueExpired": "Đã hết thời gian chờ trong hàng đợi",
     "statusQueueExpiredDesc": "Nội dung bạn nhập cho khóa học đã được lưu. Hãy quay lại Trang chủ và gửi tác vụ mới khi sẵn sàng.",
     "statusOutlineReviewExpired": "Đã hết thời hạn duyệt đề cương",

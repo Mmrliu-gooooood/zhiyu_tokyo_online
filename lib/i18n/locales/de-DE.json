@@ -1348,6 +1348,7 @@
     "preflightImageUnavailable": "Die Bildkonfiguration ist nicht verfügbar. Prüfen Sie auf der Startseite das aktivierte Bildmodell und seine Verbindung.",
     "preflightVideoUnavailable": "Die Videokonfiguration ist nicht verfügbar. Prüfen Sie auf der Startseite das aktivierte Videomodell und seine Verbindung.",
     "preflightSearchUnavailable": "Die Websuche ist nicht verfügbar. Prüfen Sie auf der Startseite den ausgewählten Suchdienst und seine Verbindung.",
+    "preflightAssetQuota": "Der Speicher für Materialien in deinem Konto ist voll, daher konnten die Kursmaterialien nicht hochgeladen werden. Lösche nicht mehr benötigte Kurse und versuche es erneut.",
     "statusQueueExpired": "Wartezeit in der Warteschlange abgelaufen",
     "statusQueueExpiredDesc": "Ihre Kurseingaben wurden beibehalten. Kehren Sie zur Startseite zurück und senden Sie eine neue Aufgabe, wenn Sie bereit sind.",
     "statusOutlineReviewExpired": "Frist für die Gliederungsprüfung abgelaufen",

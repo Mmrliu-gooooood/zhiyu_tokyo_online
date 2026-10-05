@@ -546,6 +546,70 @@ describe('background session input', () => {
     expect(input.tts?.providerId).toBe('browser-native-tts');
     expect(onAsset).toHaveBeenCalledTimes(1);
   });
+  it('drops the remaining images once the account asset quota is full, not the course', async () => {
+    let uploads = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith('/assets')) {
+        uploads += 1;
+        if (uploads >= 2) {
+          return Response.json(
+            { success: false, errorCode: 'ASSET_QUOTA_EXCEEDED', error: 'ASSET_QUOTA_EXCEEDED' },
+            { status: 413 },
+          );
+        }
+        return Response.json({
+          success: true,
+          assetId: 'img-1',
+          revision: 1,
+          digest: 'b'.repeat(64),
+        });
+      }
+      if (url === '/api/agent/media-config-snapshots') {
+        return Response.json({ id: 'ignored', ref: { id: crypto.randomUUID(), revision: 1 } });
+      }
+      return Response.json({ jobs: [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.loadBlob.mockResolvedValue(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
+    const image = (id: string) => ({ id, src: '', pageNumber: 1, storageId: `session_x_${id}` });
+    const input = await buildGenerationJobInput(
+      {
+        ...session,
+        pdfText: 'Parabolas',
+        pdfImages: [image('img_1'), image('img_2'), image('img_3')],
+      },
+      'zh-CN',
+      new AbortController().signal,
+      vi.fn(),
+    );
+    expect(GenerationInputSchema.safeParse(input).success).toBe(true);
+    expect(input.materials?.images?.map((item) => item.id)).toEqual(['img_1']);
+    // After the first refusal no further image is attempted.
+    expect(uploads).toBe(2);
+
+    uploads = 1;
+    mocks.loadAsset.mockResolvedValue(new Blob(['lesson'], { type: 'text/plain' }));
+    await expect(
+      buildGenerationJobInput(
+        {
+          ...session,
+          documentSources: [
+            {
+              id: 'source',
+              name: 'lesson.txt',
+              size: 6,
+              order: 0,
+              storageKey: 'local',
+              assetId: 'a',
+            },
+          ],
+        },
+        'zh-CN',
+        new AbortController().signal,
+        vi.fn(),
+      ),
+    ).rejects.toMatchObject({ status: 413, code: 'ASSET_QUOTA_EXCEEDED' });
+  });
   it('binds client model credentials through an opaque worker snapshot reference', async () => {
     const ref = { id: '123e4567-e89b-42d3-a456-426614174099', revision: 1 };
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {

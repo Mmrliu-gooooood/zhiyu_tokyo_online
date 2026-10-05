@@ -1348,6 +1348,7 @@
     "preflightImageUnavailable": "画像生成の設定を利用できません。ホームで有効な画像モデルと接続設定を確認してください。",
     "preflightVideoUnavailable": "動画生成の設定を利用できません。ホームで有効な動画モデルと接続設定を確認してください。",
     "preflightSearchUnavailable": "ウェブ検索の設定を利用できません。ホームで選択した検索サービスと接続設定を確認してください。",
+    "preflightAssetQuota": "アカウントの教材ストレージがいっぱいのため、コース教材をアップロードできませんでした。不要なコースを削除してから再試行してください。",
     "statusQueueExpired": "キューの待機期限が切れました",
     "statusQueueExpiredDesc": "入力したコース情報は保持されています。準備ができたらホームに戻り、新しいタスクを送信してください。",
     "statusOutlineReviewExpired": "アウトラインの確認期限が切れました",

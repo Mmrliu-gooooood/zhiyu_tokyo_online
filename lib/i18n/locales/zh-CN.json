@@ -1263,6 +1263,7 @@
     "preflightImageUnavailable": "图片生成配置不可用，请返回首页检查已启用的图片模型及其连接配置后重试。",
     "preflightVideoUnavailable": "视频生成配置不可用，请返回首页检查已启用的视频模型及其连接配置后重试。",
     "preflightSearchUnavailable": "网络搜索配置不可用，请返回首页检查所选搜索服务及其连接配置后重试。",
+    "preflightAssetQuota": "账号的素材存储空间已满，无法上传课程材料。请删除不再需要的课程后重试。",
     "statusQueueExpired": "排队等待已超时",
     "statusQueueExpiredDesc": "课程输入已保留，请返回首页后主动提交新任务。",
     "statusOutlineReviewExpired": "大纲审阅已到期",

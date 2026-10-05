@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { PgAssetStore } from '@openmaic/storage/asset/pg';
+import { AssetQuotaExceededError, PgAssetStore } from '@openmaic/storage/asset/pg';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { hostedAssetBlobMutations } from '@/lib/persistence/hosted-asset-blob-mutations';
 import {
@@ -36,12 +36,19 @@ export async function POST(req: Request) {
           blobMutations: hostedAssetBlobMutations,
           quotaBytes: 300_000_000,
         });
-        const assetId = await store.put(
-          { key: ownerId },
-          new Blob([bytes as BlobPart], { type: mime }),
-          { contentType: mime, filename: name },
-        );
-        return { assetId, revision: 1 };
+        try {
+          const assetId = await store.put(
+            { key: ownerId },
+            new Blob([bytes as BlobPart], { type: mime }),
+            { contentType: mime, filename: name },
+          );
+          return { assetId, revision: 1 };
+        } catch (error) {
+          // A full account asset quota is the caller's state, not an outage.
+          if (error instanceof AssetQuotaExceededError)
+            throw new GenerationJobError('ASSET_QUOTA_EXCEEDED', 413);
+          throw error;
+        }
       });
       return generationResponse({ success: true, ...uploaded, digest }, headers, 201);
     },

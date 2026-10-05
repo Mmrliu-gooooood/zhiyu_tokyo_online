@@ -1348,6 +1348,7 @@
     "preflightImageUnavailable": "La configuration des images est indisponible. Vérifiez le modèle d’image activé et sa connexion à l’accueil.",
     "preflightVideoUnavailable": "La configuration vidéo est indisponible. Vérifiez le modèle vidéo activé et sa connexion à l’accueil.",
     "preflightSearchUnavailable": "La recherche web est indisponible. Vérifiez le service de recherche choisi et sa connexion à l’accueil.",
+    "preflightAssetQuota": "L’espace de stockage des supports de votre compte est plein : les supports du cours n’ont pas pu être envoyés. Supprimez les cours dont vous n’avez plus besoin, puis réessayez.",
     "statusQueueExpired": "Délai d’attente dans la file dépassé",
     "statusQueueExpiredDesc": "Les données de votre cours ont été conservées. Retournez à l’accueil et soumettez une nouvelle tâche lorsque vous êtes prêt.",
     "statusOutlineReviewExpired": "Délai de validation du plan dépassé",
