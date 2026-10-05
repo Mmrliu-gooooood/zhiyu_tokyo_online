@@ -179,6 +179,30 @@ export interface ReaderBlock {
   imageId?: string;
 }
 
+/** An image the parse extracted, as course generation reuses it (bytes via the image endpoint). */
+export interface StudyMaterialImageInfo {
+  id: string;
+  mimeType: string;
+  pageNumber?: number;
+  width?: number;
+  height?: number;
+  description?: string;
+}
+
+/** The reusable parse output of one version: text plus the images it extracted. */
+export interface StudyMaterialTextView {
+  materialId: string;
+  versionId: string;
+  versionNo: number;
+  name: string;
+  title: string;
+  artifactId: string | null;
+  pageCount: number;
+  text: string;
+  truncated: boolean;
+  images: StudyMaterialImageInfo[];
+}
+
 export interface ReaderPageView {
   materialId: string;
   versionId: string;

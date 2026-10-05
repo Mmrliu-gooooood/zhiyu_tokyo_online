@@ -12,6 +12,7 @@ import {
   type ReaderPageView,
   type StudyMaterialDetail,
   type StudyMaterialSummary,
+  type StudyMaterialTextView,
   type StudyMaterialUploadResult,
 } from '@/lib/study/materials/contracts';
 
@@ -140,15 +141,10 @@ export const materialsApi = {
       { signal },
     ).then((body) => body.reader);
   },
-  text: (materialId: string, versionId: string) =>
-    studyRequest<{
-      name: string;
-      title: string;
-      text: string;
-      truncated: boolean;
-      pageCount: number;
-      versionNo: number;
-    }>(`${versionPath(materialId, versionId)}/text`),
+  text: (materialId: string, versionId: string, signal?: AbortSignal) =>
+    studyRequest<StudyMaterialTextView>(`${versionPath(materialId, versionId)}/text`, {
+      signal,
+    }),
   fileUrl: (materialId: string, versionId: string, download = false) =>
     `${versionPath(materialId, versionId)}/file${download ? '?download=1' : ''}`,
   imageUrl: (materialId: string, versionId: string, imageId: string, artifactId?: string) =>

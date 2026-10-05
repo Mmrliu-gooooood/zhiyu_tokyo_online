@@ -38,7 +38,7 @@ import {
 } from '@/components/study/spaces/home-entry';
 import { GenerationMaterialPicker } from '@/components/study/materials/GenerationMaterialPicker';
 import {
-  studyMaterialsGenerationText,
+  studyMaterialsGenerationInput,
   type StudyMaterialSelection,
 } from '@/lib/study/materials/generation';
 import { createLogger } from '@/lib/logger';
@@ -51,13 +51,19 @@ import { GenerationToolbar } from '@/components/generation/generation-toolbar';
 import { AgentBar } from '@/components/agent/agent-bar';
 import { useTheme } from '@/lib/hooks/use-theme';
 import { nanoid } from 'nanoid';
-import { deleteDocumentBlob, storeDocumentBlob } from '@/lib/utils/image-storage';
+import {
+  deleteDocumentBlob,
+  deleteStoredImages,
+  storeDocumentBlob,
+  storeImages,
+} from '@/lib/utils/image-storage';
 import { normalizeDocumentMimeType } from '@/lib/document/mime';
 import {
   courseMaterialFingerprint,
   dedupeCourseMaterialFiles,
 } from '@/lib/document/course-materials';
 import type {
+  PdfImage,
   SelectedCourseMaterial,
   SessionDocumentSource,
   UserRequirements,
@@ -645,6 +651,8 @@ function HomePage() {
 
     // Flip the generating UI state before material bytes are copied locally.
     setPreparingGenerate(true);
+    // Library images copied into the browser image store; released on failure.
+    let studyImageIds: string[] = [];
     try {
       const userProfile = useUserProfileStore.getState();
       const requirements: UserRequirements = {
@@ -695,13 +703,40 @@ function HomePage() {
       }
 
       // Library materials reuse their stored parse: the text goes straight
-      // into the session, so neither generation path extracts anything.
+      // into the session and the extracted images into the same browser image
+      // store a direct upload uses, so neither generation path extracts anything.
       let studyText = '';
+      let studyImages: PdfImage[] = [];
       if (!documentSources?.length && studyTarget.target && studyMaterials.length > 0) {
+        let input: Awaited<ReturnType<typeof studyMaterialsGenerationInput>>;
         try {
-          studyText = (await studyMaterialsGenerationText(studyMaterials)).text;
+          input = await studyMaterialsGenerationInput(studyMaterials);
         } catch {
           throw new Error(t('study.materials.generation.loadFailed'));
+        }
+        studyText = input.text;
+        if (input.images.length > 0) {
+          try {
+            studyImageIds = await storeImages(input.images);
+            studyImages = input.images.map((image, index) => ({
+              id: image.id,
+              src: '',
+              pageNumber: image.pageNumber,
+              description: image.description,
+              width: image.width,
+              height: image.height,
+              originalId: image.originalId,
+              sourceDocumentId: image.sourceDocumentId,
+              sourceDocumentName: image.sourceDocumentName,
+              sourceDocumentOrder: image.sourceDocumentOrder,
+              visionPriority: image.visionPriority,
+              storageId: studyImageIds[index],
+            }));
+          } catch (error) {
+            // Images enrich the course; without browser storage it is text-only.
+            log.warn('Library images unavailable for generation:', error);
+            studyImageIds = [];
+          }
         }
       }
 
@@ -709,8 +744,8 @@ function HomePage() {
         sessionId: nanoid(),
         requirements,
         pdfText: studyText,
-        pdfImages: [],
-        imageStorageIds: [],
+        pdfImages: studyImages,
+        imageStorageIds: studyImageIds,
         documentSources,
         // Backward-compatible single-document fields for previously saved sessions.
         pdfStorageKey: documentSources?.[0]?.storageKey,
@@ -734,6 +769,7 @@ function HomePage() {
 
       router.push('/generation-preview');
     } catch (err) {
+      if (studyImageIds.length > 0) void deleteStoredImages(studyImageIds).catch(() => undefined);
       log.error('Error preparing generation:', err);
       setError(err instanceof Error ? err.message : t('upload.generateFailed'));
     } finally {

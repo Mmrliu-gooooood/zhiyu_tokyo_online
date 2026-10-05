@@ -26,6 +26,7 @@ import {
   isStudyMaterialMime,
   type MaterialParserOption,
   type ReaderPageView,
+  type StudyMaterialImageInfo,
   type StudyMaterialUploadResult,
 } from '@/lib/study/materials/contracts';
 
@@ -319,7 +320,12 @@ export async function readStudyMaterialText(
   db: StudyDb,
   ownerId: string,
   input: { materialId: string; versionId: string },
-): Promise<{ version: ResolvedStudyVersion; text: string; truncated: boolean }> {
+): Promise<{
+  version: ResolvedStudyVersion;
+  text: string;
+  truncated: boolean;
+  images: StudyMaterialImageInfo[];
+}> {
   const version = await resolveStudyVersion(db, ownerId, input.materialId, input.versionId);
   const artifact = requireArtifact(version);
   let text: string;
@@ -328,11 +334,21 @@ export async function readStudyMaterialText(
   } catch {
     throw new StudyError('STUDY_MATERIAL_UNAVAILABLE');
   }
+  const document = await loadArtifactDocument(artifact.artifactKey);
   const truncated = text.length > STUDY_MATERIAL_LIMITS.maxTextChars;
   return {
     version,
     text: truncated ? text.slice(0, STUDY_MATERIAL_LIMITS.maxTextChars) : text,
     truncated,
+    // Metadata only (never object keys); bytes are read through the image endpoint.
+    images: document.images.map((image) => ({
+      id: image.id,
+      mimeType: image.mimeType,
+      ...(image.pageNumber !== undefined ? { pageNumber: image.pageNumber } : {}),
+      ...(image.width !== undefined ? { width: image.width } : {}),
+      ...(image.height !== undefined ? { height: image.height } : {}),
+      ...(image.description !== undefined ? { description: image.description } : {}),
+    })),
   };
 }
 

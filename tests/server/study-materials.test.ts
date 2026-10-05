@@ -40,6 +40,7 @@ import {
   materialParserOptions,
   purgeStudyMaterial,
   readStudyMaterialPage,
+  readStudyMaterialImage,
   readStudyMaterialText,
   requestMaterialParse,
 } from '@/lib/server/study/materials/service';
@@ -301,6 +302,31 @@ describe('study material library', () => {
       [2, 'succeeded'],
       [1, 'succeeded'],
     ]);
+  });
+
+  it('offers the extracted images to course generation as metadata, bytes by id', async () => {
+    const pdf = await PDFDocument.load(await scannedPdf());
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    pdf.getPage(0).drawText('Figure 1 shows the curve', { x: 40, y: 40, size: 14, font });
+    const created = await createStudyMaterialFromUpload(study, OWNER_A, {
+      upload: await upload(OWNER_A, Buffer.from(await pdf.save())),
+    });
+    await requestMaterialParse(study, OWNER_A, created.material.materialId, created.versionId);
+    await runNextParse();
+    const ref = { materialId: created.material.materialId, versionId: created.versionId };
+    const { text, images } = await readStudyMaterialText(study, OWNER_A, ref);
+    expect(text).toContain('Figure 1 shows the curve');
+    expect(images).toEqual([
+      expect.objectContaining({ id: 'img_1', mimeType: expect.stringMatching(/^image\//) }),
+    ]);
+    expect(images[0]!.pageNumber).toBe(1);
+    // Storage keys never leave the server.
+    expect(JSON.stringify(images)).not.toContain('study/');
+    const image = await readStudyMaterialImage(study, OWNER_A, { ...ref, imageId: 'img_1' });
+    expect(image.bytes.byteLength).toBeGreaterThan(0);
+    await expect(
+      readStudyMaterialImage(study, OWNER_B, { ...ref, imageId: 'img_1' }),
+    ).rejects.toMatchObject({ code: 'STUDY_MATERIAL_NOT_FOUND' });
   });
 
   it('reports a scan without a text layer as a readable failure', async () => {
