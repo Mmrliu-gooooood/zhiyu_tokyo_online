@@ -10,7 +10,7 @@
  */
 
 import type { Action, ActionType } from '@openmaic/dsl';
-import { SLIDE_ONLY_ACTIONS } from '@openmaic/dsl';
+import { SLIDE_ONLY_ACTIONS, isActionType } from '@openmaic/dsl';
 import { nanoid } from 'nanoid';
 import { parse as parsePartialJson, Allow } from 'partial-json';
 import { jsonrepair } from 'jsonrepair';
@@ -106,6 +106,12 @@ export function parseActionsFromStructuredOutput(
       try {
         // Support both new format (name/params) and legacy format (tool_name/parameters)
         const actionName = typedItem.name || typedItem.tool_name;
+        // An invented action name would fail scene validation and stop the
+        // whole job at publish time; drop just that item.
+        if (!isActionType(actionName)) {
+          log.warn('Unknown action type, skipping:', JSON.stringify(actionName).slice(0, 60));
+          continue;
+        }
         const actionParams = (typedItem.params || typedItem.parameters || {}) as Record<
           string,
           unknown

@@ -14,6 +14,18 @@ describe('action parser', () => {
     ]);
   });
 
+  it('drops actions with an unknown type', () => {
+    expect(
+      parseActionsFromStructuredOutput(
+        '[{"type":"text","content":"Hi"},{"type":"action","name":"skill"},{"type":"action","name":"spotlight","params":{"elementId":"x"}}]',
+        'slide',
+      ),
+    ).toEqual([
+      expect.objectContaining({ type: 'speech', text: 'Hi' }),
+      expect.objectContaining({ type: 'spotlight', elementId: 'x' }),
+    ]);
+  });
+
   it('filters slide-only actions from non-slide scenes', () => {
     expect(
       parseActionsFromStructuredOutput(
