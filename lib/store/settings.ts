@@ -2477,10 +2477,17 @@ export const useSettingsStore = create<SettingsState>()(
                 }),
                 ...(selectedTtsDefault && {
                   ttsProviderId: selectedTtsDefault.providerId as TTSProviderId,
-                  ...(state.platformDefaultAutoSelectPending && {
-                    ttsVoice: selectedTtsDefault.parameters.ttsVoice || state.ttsVoice,
-                    ttsEnabled: true,
-                  }),
+                  // The provider validation above resets the voice of a provider
+                  // the user has no key for; a platform voice picked on that
+                  // provider stays. Otherwise start from the platform voice.
+                  ttsVoice:
+                    !state.platformDefaultAutoSelectPending &&
+                    state.ttsProviderId === selectedTtsDefault.providerId &&
+                    state.ttsVoice &&
+                    state.ttsVoice !== 'default'
+                      ? state.ttsVoice
+                      : selectedTtsDefault.parameters.ttsVoice || state.ttsVoice,
+                  ...(state.platformDefaultAutoSelectPending && { ttsEnabled: true }),
                 }),
               };
             });

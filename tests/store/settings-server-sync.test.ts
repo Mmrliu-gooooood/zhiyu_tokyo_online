@@ -2162,6 +2162,48 @@ describe('custom image/video provider core', () => {
     });
   });
 
+  it('keeps a picked platform TTS voice across syncs and repairs a reset one', async () => {
+    const store = await getStore();
+    const ttsCatalog = {
+      platformDefaults: {
+        version: 2 as const,
+        entries: [
+          {
+            defaultId: 'zhiyu-default-tts' as const,
+            capability: 'tts' as const,
+            providerId: 'minimax-tts',
+            providerName: 'MiniMax',
+            modelId: 'speech-2.8-turbo',
+            displayName: 'MiniMax Speech 2.8 Turbo',
+            available: true,
+            status: 'available' as const,
+            revision: 'tts-r1',
+            parameters: { ttsVoice: 'male-qn-qingse' },
+          },
+        ],
+      },
+    };
+    // The user has no MiniMax key: provider validation alone would reset it.
+    store.setState({
+      platformDefaultAutoSelectPending: false,
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      ttsProviderId: 'minimax-tts',
+      ttsVoice: 'male-qn-jingying',
+    });
+    mockServerResponse(ttsCatalog);
+    await store.getState().fetchServerProviders();
+    expect(store.getState()).toMatchObject({
+      ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+      ttsProviderId: 'minimax-tts',
+      ttsVoice: 'male-qn-jingying',
+    });
+
+    store.setState({ ttsVoice: 'default' });
+    mockServerResponse(ttsCatalog);
+    await store.getState().fetchServerProviders();
+    expect(store.getState().ttsVoice).toBe('male-qn-qingse');
+  });
+
   it('does not replace an explicit user DeepSeek selection or its model list', async () => {
     const store = await getStore();
     store.getState().setProviderConfig('deepseek', { apiKey: 'user-deepseek-key' });
