@@ -14,6 +14,7 @@ import { prepareGenerationModelSnapshot } from './model-snapshot-client';
 import { syncGenerationSearchSnapshot } from './search-snapshot-client';
 import { CLASSMATE_LIMITS } from '@/lib/study/classmates/contracts';
 import { countClassmates, rosterAgentId } from '@/lib/study/classmates/roster';
+import { roleVoiceBinding } from '@/lib/audio/platform-tts-selection';
 
 export interface GenerationUploadedAsset {
   assetId: string;
@@ -117,7 +118,12 @@ export async function buildGenerationJobInput(
   const items = selected.map((agent) => {
     if (!agent || !['teacher', 'assistant', 'student'].includes(agent.role))
       throw new GenerationJobRequestError(422, 'BACKGROUND_AGENT_ROLE_UNSUPPORTED');
-    const savedVoice = settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig;
+    const savedVoice = roleVoiceBinding(
+      [settings.agentVoiceOverrides[agent.id], agent.voiceConfig],
+      settings.ttsSelection,
+      settings.platformDefaults,
+      settings.ttsProvidersConfig,
+    );
     const voiceDefault =
       savedVoice?.source === 'platform'
         ? settings.platformDefaults?.entries.find(

@@ -56,6 +56,7 @@ import {
 } from '@openmaic/generation/generation-retry';
 import {
   platformTTSRequestFields,
+  scopeProvidersToPlatformTTS,
   withPlatformTTSAvailability,
 } from '@/lib/audio/platform-tts-selection';
 
@@ -346,7 +347,12 @@ export async function generateAndStoreTTS(
       toast.warning(getClientTranslation('settings.qwenCloneNarrationUnavailable'));
     }
     return resolveDeterministicFallbackVoice(
-      getEnabledProvidersWithVoices(effectiveTTSProvidersConfig),
+      scopeProvidersToPlatformTTS(
+        getEnabledProvidersWithVoices(effectiveTTSProvidersConfig),
+        ttsSelection,
+        settings.platformDefaults,
+        settings.ttsProvidersConfig,
+      ),
       0,
     );
   };

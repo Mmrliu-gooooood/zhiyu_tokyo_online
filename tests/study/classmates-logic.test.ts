@@ -179,10 +179,10 @@ describe('classmate roster for a new classroom', () => {
   });
 
   it('freezes the whole roster, classmates under their revision id, built-ins unchanged', () => {
-    const roster = buildClassmateRoster([teacher, classmate], (id) =>
-      id === 'default-1'
+    const roster = buildClassmateRoster([teacher, classmate], (picked) =>
+      picked.id === 'default-1'
         ? ({ providerId: 'qwen-tts', voiceId: 'Ethan' } as AgentConfig['voiceConfig'])
-        : undefined,
+        : picked.voiceConfig,
     );
     expect(roster?.map((entry) => entry.id)).toEqual(['default-1', `${ID}-r4`]);
     expect(roster?.[0]?.voiceConfig).toEqual({ providerId: 'qwen-tts', voiceId: 'Ethan' });

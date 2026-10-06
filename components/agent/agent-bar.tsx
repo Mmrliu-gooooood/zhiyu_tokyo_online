@@ -35,6 +35,7 @@ import type { TTSProviderId } from '@/lib/audio/types';
 import type { ProviderWithVoices } from '@/lib/audio/voice-resolver';
 import {
   platformTTSRequestFields,
+  scopeProvidersToPlatformTTS,
   withPlatformTTSAvailability,
 } from '@/lib/audio/platform-tts-selection';
 
@@ -129,7 +130,8 @@ function AgentVoicePill({
   }, []);
 
   const handlePreview = useCallback(
-    async (providerId: TTSProviderId, voiceId: string, modelId?: string) => {
+    async (provider: ProviderWithVoices, voiceId: string, modelId?: string) => {
+      const providerId = provider.providerId;
       const key = `${providerId}::${voiceId}`;
       if (previewingId === key) {
         stopPreview();
@@ -169,15 +171,19 @@ function AgentVoicePill({
           body: JSON.stringify({
             text: previewText,
             audioId: 'voice-preview',
-            modelSource: 'user',
-            ttsProviderId: providerId,
-            ttsModelId: modelId || providerConfig?.modelId,
+            ...(provider.source === 'platform' && provider.defaultId
+              ? { modelSource: 'platform', platformDefaultId: provider.defaultId }
+              : {
+                  modelSource: 'user',
+                  ttsProviderId: providerId,
+                  ttsModelId: modelId || providerConfig?.modelId,
+                  ttsApiKey: providerConfig?.apiKey,
+                  // Managed providers resolve their base URL server-side; only send
+                  // the client's own base URL (custom providers).
+                  ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
+                }),
             ttsVoice: voiceId,
             ttsSpeed: 1,
-            ttsApiKey: providerConfig?.apiKey,
-            // Managed providers resolve their base URL server-side; only send
-            // the client's own base URL (custom providers).
-            ttsBaseUrl: providerConfig?.baseUrl || providerConfig?.customDefaultBaseUrl,
             ttsProviderOptions: providerOptions,
           }),
           signal: controller.signal,
@@ -297,7 +303,13 @@ function AgentVoicePill({
                           // default agent records are reset from code on every
                           // load and would drop the pick.
                           setAgentVoiceOverride(agent.id, {
-                            source: 'user',
+                            ...(provider.source === 'platform'
+                              ? {
+                                  source: 'platform',
+                                  defaultId: provider.defaultId,
+                                  revision: provider.revision,
+                                }
+                              : { source: 'user' }),
                             providerId: provider.providerId,
                             modelId: group.modelId || undefined,
                             voiceId: voice.id,
@@ -318,7 +330,7 @@ function AgentVoicePill({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePreview(provider.providerId, voice.id, group.modelId);
+                            handlePreview(provider, voice.id, group.modelId);
                           }}
                           className={cn(
                             'flex size-6 shrink-0 items-center justify-center rounded-sm transition-colors',
@@ -574,7 +586,10 @@ function TeacherVoicePill({
                     : provider.providerName}
                 </div>
                 {group.voices.map((voice) => {
-                  const currentModelId = ttsProvidersConfig[ttsProviderId]?.modelId || '';
+                  const currentModelId =
+                    provider.source === 'platform'
+                      ? provider.modelId || ''
+                      : ttsProvidersConfig[ttsProviderId]?.modelId || '';
                   const isActive =
                     ttsProviderId === provider.providerId &&
                     ttsVoice === voice.id &&
@@ -593,11 +608,16 @@ function TeacherVoicePill({
                       <button
                         type="button"
                         onClick={() => {
-                          setTTSProvider(provider.providerId);
-                          setTTSVoice(voice.id);
-                          if (group.modelId) {
-                            setTTSProviderConfig(provider.providerId, { modelId: group.modelId });
+                          // A platform voice changes only the voice: switching the
+                          // provider would trade the platform default for the
+                          // user's own (unconfigured) credential.
+                          if (provider.source !== 'platform') {
+                            setTTSProvider(provider.providerId);
+                            if (group.modelId) {
+                              setTTSProviderConfig(provider.providerId, { modelId: group.modelId });
+                            }
                           }
+                          setTTSVoice(voice.id);
                           setPopoverOpen(false);
                         }}
                         className={cn(
@@ -698,10 +718,11 @@ export function AgentBar() {
     ttsSelection,
     platformDefaults,
   );
-  const availableProviders = getSelectableProvidersWithVoices(
-    effectiveTTSProvidersConfig,
-    voiceProfiles,
-    browserVoices,
+  const availableProviders = scopeProvidersToPlatformTTS(
+    getSelectableProvidersWithVoices(effectiveTTSProvidersConfig, voiceProfiles, browserVoices),
+    ttsSelection,
+    platformDefaults,
+    ttsProvidersConfig,
   );
 
   useEffect(() => {

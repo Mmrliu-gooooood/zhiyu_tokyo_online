@@ -1,5 +1,8 @@
 import type { ModelSelection, PlatformDefaultCatalog } from '@/lib/types/platform-default-models';
 import type { GeneratedAgentConfig } from '@/lib/types/stage';
+import type { ProviderWithVoices } from '@/lib/audio/voice-resolver';
+import { isTTSProviderEnabled, type TTSEnablementConfig } from '@/lib/audio/provider-enablement';
+import type { TTSProviderId } from '@/lib/audio/types';
 
 interface TTSAvailabilityConfig {
   enabled?: boolean;
@@ -28,6 +31,83 @@ export function withPlatformTTSAvailability<
       serverDisabled: false,
     },
   } as T;
+}
+
+/**
+ * While a platform TTS default is selected, its provider offers only the
+ * platform model's voices, stamped with the platform binding, so a pick never
+ * lands on another model of the same vendor. `ownConfig` is the user's own
+ * TTS configuration (before withPlatformTTSAvailability): without a usable
+ * credential of their own, the provider is marked `platformOnly`.
+ */
+export function scopeProvidersToPlatformTTS(
+  providers: ProviderWithVoices[],
+  selection: ModelSelection | undefined,
+  catalog: PlatformDefaultCatalog | null,
+  ownConfig: Partial<Record<string, TTSEnablementConfig>>,
+): ProviderWithVoices[] {
+  const entry = availablePlatformTTSEntry(selection, catalog);
+  if (!entry) return providers;
+  const platformOnly = !isTTSProviderEnabled(
+    entry.providerId as TTSProviderId,
+    ownConfig[entry.providerId],
+  );
+  return providers.flatMap((provider) => {
+    if (provider.providerId !== entry.providerId) return [provider];
+    const group = provider.modelGroups.find((candidate) => candidate.modelId === entry.modelId);
+    if (!group || group.voices.length === 0) return [];
+    return [
+      {
+        ...provider,
+        source: 'platform' as const,
+        defaultId: entry.defaultId,
+        revision: entry.revision,
+        modelId: entry.modelId,
+        ...(platformOnly ? { platformOnly } : {}),
+        voices: group.voices,
+        modelGroups: [group],
+      },
+    ];
+  });
+}
+
+/**
+ * A role's voice for a new course: the first usable of its saved pick and its
+ * own binding. Under a platform TTS default, a binding on the platform's
+ * provider is skipped when it names another default, or when it belongs to
+ * the user but their own configuration cannot serve it (as in the picker).
+ */
+export function roleVoiceBinding<
+  T extends { providerId: string; source?: string; defaultId?: string },
+>(
+  candidates: ReadonlyArray<T | undefined>,
+  selection: ModelSelection | undefined,
+  catalog: PlatformDefaultCatalog | null,
+  ownConfig: Partial<Record<string, TTSEnablementConfig>>,
+): T | undefined {
+  const entry = availablePlatformTTSEntry(selection, catalog);
+  const ownUsable =
+    !!entry && isTTSProviderEnabled(entry.providerId as TTSProviderId, ownConfig[entry.providerId]);
+  return candidates.find(
+    (voice): voice is T =>
+      !!voice &&
+      !(
+        entry &&
+        voice.providerId === entry.providerId &&
+        (voice.source === 'platform' ? voice.defaultId !== entry.defaultId : !ownUsable)
+      ),
+  );
+}
+
+function availablePlatformTTSEntry(
+  selection: ModelSelection | undefined,
+  catalog: PlatformDefaultCatalog | null,
+) {
+  if (selection?.source !== 'platform') return undefined;
+  const entry = catalog?.entries.find(
+    (candidate) => candidate.defaultId === selection.defaultId && candidate.capability === 'tts',
+  );
+  return entry?.available ? entry : undefined;
 }
 
 /** Stamp newly generated roster voices that came from the advertised platform list. */

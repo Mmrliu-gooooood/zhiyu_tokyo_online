@@ -25,6 +25,8 @@ import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants
 import { isTTSProviderEnabled } from '@/lib/audio/provider-enablement';
 import {
   bindGeneratedPlatformTTSVoices,
+  roleVoiceBinding,
+  scopeProvidersToPlatformTTS,
   withPlatformTTSAvailability,
 } from '@/lib/audio/platform-tts-selection';
 import { useAllVoiceProfiles } from '@/lib/audio/voxcpm-voices';
@@ -1141,7 +1143,12 @@ function GenerationPreviewContent() {
           ];
 
           const getAvailableVoicesForGeneration = () => {
-            const providers = getEnabledProvidersWithVoices(ttsProvidersConfig, voiceProfiles);
+            const providers = scopeProvidersToPlatformTTS(
+              getEnabledProvidersWithVoices(ttsProvidersConfig, voiceProfiles),
+              settings.ttsSelection,
+              settings.platformDefaults,
+              settings.ttsProvidersConfig,
+            );
             return providers.flatMap((p) =>
               p.voices.map((v) => {
                 const cloneModelGroup =
@@ -1274,7 +1281,13 @@ function GenerationPreviewContent() {
         // the course plays the same on other devices and after template edits.
         const classmateRoster = buildClassmateRoster(
           presetAgentIds.map((id) => registry.getAgent(id)!),
-          (id) => settings.agentVoiceOverrides[id],
+          (agent) =>
+            roleVoiceBinding(
+              [settings.agentVoiceOverrides[agent.id], agent.voiceConfig],
+              settings.ttsSelection,
+              settings.platformDefaults,
+              settings.ttsProvidersConfig,
+            ),
         );
         if (classmateRoster) {
           stage.generatedAgentConfigs = classmateRoster;

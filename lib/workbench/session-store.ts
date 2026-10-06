@@ -28,6 +28,7 @@ import { syncCurrentMediaConfigSnapshot } from './media-config-snapshot-client';
 import { useSettingsStore } from '@/lib/store/settings';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
+import { roleVoiceBinding } from '@/lib/audio/platform-tts-selection';
 import { isSkillLoadTool, skillLoadId } from './skill-load';
 import { defaultWorkbenchTranslator, type WorkbenchCopyKey } from '@/lib/i18n/workbench';
 import { parseElementRefs, type ElementRef } from './element-refs';
@@ -1944,7 +1945,12 @@ function currentSessionRoleVoices(stageId?: string) {
         !!agent.classmate,
     )
     .flatMap((agent) => {
-      const voice = settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig;
+      const voice = roleVoiceBinding(
+        [settings.agentVoiceOverrides[agent.id], agent.voiceConfig],
+        settings.ttsSelection,
+        settings.platformDefaults,
+        settings.ttsProvidersConfig,
+      );
       if (!voice) return [];
       if (!agent.classmate) return [voice];
       // The classmate form stamps the credential owner; keep it explicit so

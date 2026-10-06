@@ -30,7 +30,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { BROWSER_NATIVE_TTS_PROVIDER_ID } from '@/lib/audio/provider-enablement';
-import { withPlatformTTSAvailability } from '@/lib/audio/platform-tts-selection';
+import {
+  scopeProvidersToPlatformTTS,
+  withPlatformTTSAvailability,
+} from '@/lib/audio/platform-tts-selection';
 import { getSelectableProvidersWithVoices } from '@/lib/audio/voice-resolver';
 import { useAllVoiceProfiles } from '@/lib/audio/voxcpm-voices';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -71,9 +74,14 @@ function useVoiceOptions(current: ClassmateVoice | null): VoiceOption[] {
   const platformDefaults = useSettingsStore((s) => s.platformDefaults);
   const { profiles } = useAllVoiceProfiles();
   return useMemo(() => {
-    const providers = getSelectableProvidersWithVoices(
-      withPlatformTTSAvailability(ttsProvidersConfig, ttsSelection, platformDefaults),
-      profiles,
+    const providers = scopeProvidersToPlatformTTS(
+      getSelectableProvidersWithVoices(
+        withPlatformTTSAvailability(ttsProvidersConfig, ttsSelection, platformDefaults),
+        profiles,
+      ),
+      ttsSelection,
+      platformDefaults,
+      ttsProvidersConfig,
     ).filter((provider) => provider.providerId !== BROWSER_NATIVE_TTS_PROVIDER_ID);
     const options: VoiceOption[] = providers.flatMap((provider) =>
       provider.modelGroups.flatMap((group) =>

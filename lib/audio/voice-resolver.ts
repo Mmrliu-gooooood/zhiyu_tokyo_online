@@ -130,6 +130,16 @@ export function resolveAgentVoice(
     }
     const fromEnabled = enabledProviders.find((p) => p.providerId === choice.providerId);
     if (!fromEnabled) continue;
+    // On a provider offered through the platform default, a platform binding
+    // must name that default, and the user's own binding needs the user's own
+    // credential, which a `platformOnly` provider lacks.
+    if (
+      fromEnabled.source === 'platform' &&
+      (choice.source === 'platform'
+        ? choice.defaultId !== fromEnabled.defaultId
+        : fromEnabled.platformOnly)
+    )
+      continue;
     if (choice.providerId === 'qwen-tts') {
       const catalogVoice = isQwenCatalogVoice(choice.voiceId);
       if (catalogVoice || choice.voiceId.trim()) {
@@ -259,6 +269,8 @@ export interface ProviderWithVoices {
   defaultId?: string;
   revision?: string;
   modelId?: string;
+  /** Offered only through the platform default: the user has no credential of their own. */
+  platformOnly?: boolean;
   providerName: string;
   voices: Array<{ id: string; name: string; language?: string }>;
   modelGroups: ModelVoiceGroup[]; // voices grouped by model

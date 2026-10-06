@@ -31,7 +31,7 @@ export function countClassmates(agents: ReadonlyArray<Pick<AgentConfig, 'classma
  */
 export function buildClassmateRoster(
   picked: ReadonlyArray<AgentConfig>,
-  voiceFor: (agentId: string) => AgentConfig['voiceConfig'] | undefined,
+  voiceFor: (agent: AgentConfig) => AgentConfig['voiceConfig'] | undefined,
 ): GeneratedAgentConfig[] | null {
   const classmates = countClassmates(picked);
   if (classmates === 0) return null;
@@ -39,7 +39,7 @@ export function buildClassmateRoster(
     throw new Error('CLASSMATE_ROSTER_TOO_LARGE');
   }
   return picked.map((agent) => {
-    const voice = voiceFor(agent.id) ?? agent.voiceConfig;
+    const voice = voiceFor(agent);
     return {
       id: rosterAgentId(agent),
       name: agent.name,

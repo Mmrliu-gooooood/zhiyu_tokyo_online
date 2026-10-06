@@ -21,6 +21,7 @@ import { isQwenCloneVoice, resolveTTSModelForVoice } from '@/lib/audio/constants
 import { toast } from 'sonner';
 import {
   platformTTSRequestFields,
+  scopeProvidersToPlatformTTS,
   withPlatformTTSAvailability,
 } from '@/lib/audio/platform-tts-selection';
 import {
@@ -141,20 +142,11 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       // server/custom providers + opt-in browser-native. Students resolve against
       // it (fixes the #665 student-silence bug); the teacher uses the global
       // lecture voice (below).
-      const providers = getSelectableProvidersWithVoices(
-        effectiveTTSProvidersConfig,
-        voiceProfiles,
-        browserVoices,
-      ).map((provider) =>
-        platformTTSDefault?.available && provider.providerId === platformTTSDefault.providerId
-          ? {
-              ...provider,
-              source: 'platform' as const,
-              defaultId: platformTTSDefault.defaultId,
-              revision: platformTTSDefault.revision,
-              modelId: platformTTSDefault.modelId,
-            }
-          : provider,
+      const providers = scopeProvidersToPlatformTTS(
+        getSelectableProvidersWithVoices(effectiveTTSProvidersConfig, voiceProfiles, browserVoices),
+        ttsSelection,
+        platformDefaults,
+        ttsProvidersConfig,
       );
       const firstVoice = (): ResolvedVoice | null =>
         resolveDeterministicFallbackVoice(providers, 0);
@@ -247,6 +239,7 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       globalTtsVoice,
       agentVoiceOverrides,
       platformTTSDefault,
+      platformDefaults,
       ttsSelection,
     ],
   );
