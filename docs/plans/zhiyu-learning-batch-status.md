@@ -9,7 +9,7 @@
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
-| B04 | 实现完成，本地托管模式验收通过（2026-10-06）；未合并、未上线 | `learn/b04-classmates`（已提交，未推送） | — | 本地托管模式验收通过（见 B04 节） | 未启用（新开关 `ZHIYU_STUDY_CLASSMATES_ENABLED`，需先在生产执行 accounts v25） | 见 B04“未验证 / 已知问题” |
+| B04 | 已上线（2026-10-06，release-20261006f） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产未登录检查通过，登录后验收待用户登录 | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -96,7 +96,7 @@
 
 ### 未验证
 
-- 生产环境：v25 未执行、开关未开、镜像未构建（见“上线步骤”）。
+- 生产环境登录后的验收（新建学伴、生成带学伴的课、课堂点名/不点名提问）：生产登录需要用户本人输入密码，待用户登录后进行。
 
 ### 已修复的既有问题（2026-10-06 晚）
 
@@ -116,7 +116,16 @@
 - 运行时止损：把 Web 与 Worker 的 `ZHIYU_STUDY_CLASSMATES_ENABLED` 置空后 apply——学伴页面、API、首页分组与 Pro 工具消失；已生成的带学伴课堂照常播放（快照在课堂文档里），课堂聊天仍按快照执行发言规则（v25 表保留）。
 - 版本回退：回到 release-20261006e 镜像；v25 表保留不用。
 
-### 上线步骤（待用户指示，按 B01–B03 流程；以下都尚未执行）
+### 上线记录（2026-10-06，用户批准）
+
+- **迁移**：只读核对生产 v24 checksum `84a64ee3…` 与仓库一致 → Supabase `apply_migration`（名称 `accounts_v25_study_classmates`）执行仓库 v25 SQL 原文 → `app_schema_migrations(25, d6bdefd18c12…)`。核对：四张表 RLS 开启且强制；策略数 2/3/1/2（模板/版本/资料/头像）；授权只有 `app_web`（模板与资料增删改查、版本与头像查/插）与 `app_worker`（模板与版本只读），anon/authenticated 无授权。
+- **代码**：`learn/b04-classmates` 快进合并到 main `733888b1`，main 与分支推送 tokyo。
+- **镜像**：本机构建 `release-20261006f`（web 74258ffc、worker 9af2c505），`docker save | gzip | ssh docker load` 装入服务器（磁盘 57%，未删除旧镜像）。
+- **切换**：确认生产 0 个进行中生成任务 → 备份 `*.bak-20261006f-pre`（指向 release-20261006e）→ 服务器 compose 换成仓库版本（唯一差异是新开关透传）→ env 改镜像标签并加 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` → `supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`。
+- **检查**：三个容器 healthy；readiness `ready: true`、`accountsVersion: 25`、2 个 Worker 心跳；三个容器内开关均为 1；`/api/study/capabilities` 返回 `classmates: true`；未登录访问 `/api/study/classmates` 为 401、`/study/classmates` 跳转登录页。
+- **回退**：开关置空后 apply（学伴入口消失，已有课照常播放）；或恢复 `*.bak-20261006f-pre` 回到 release-20261006e 后 apply；v25 表保留不用。
+
+### 原上线步骤（已按此执行）
 
 1. 先问用户：核对生产 v24 checksum `84a64ee3…` → Supabase `apply_migration` 执行仓库 v25 SQL 原文 → 写入 `app_schema_migrations(25, d6bdefd1…)` → 核对四张表强制 RLS、授权与本文一致。**绝不对生产运行 `pnpm accounts:migrate`。**
 2. 合并 main 并推送 tokyo → 本机构建 `release-2026100Xx` → 装入服务器（必要时先问是否删除旧镜像）→ 0 个进行中任务后切换 → Web 与 Worker env 加 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` → apply → readiness ready、accountsVersion 25、`/api/study/capabilities` 含 `classmates: true`。
