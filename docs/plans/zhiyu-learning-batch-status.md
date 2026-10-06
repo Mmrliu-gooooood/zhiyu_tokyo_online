@@ -9,7 +9,7 @@
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
-| B04 | 已上线（2026-10-06，release-20261006f） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产未登录检查通过，登录后验收待用户登录 | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
+| B04 | 已上线（2026-10-06，release-20261006f） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -96,7 +96,7 @@
 
 ### 未验证
 
-- 生产环境登录后的验收（新建学伴、生成带学伴的课、课堂点名/不点名提问）：生产登录需要用户本人输入密码，待用户登录后进行。
+- 无。生产登录后的验收已完成（见“生产验收”）。
 
 ### 已修复的既有问题（2026-10-06 晚）
 
@@ -124,6 +124,17 @@
 - **切换**：确认生产 0 个进行中生成任务 → 备份 `*.bak-20261006f-pre`（指向 release-20261006e）→ 服务器 compose 换成仓库版本（唯一差异是新开关透传）→ env 改镜像标签并加 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` → `supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`。
 - **检查**：三个容器 healthy；readiness `ready: true`、`accountsVersion: 25`、2 个 Worker 心跳；三个容器内开关均为 1；`/api/study/capabilities` 返回 `classmates: true`；未登录访问 `/api/study/classmates` 为 401、`/study/classmates` 跳转登录页。
 - **回退**：开关置空后 apply（学伴入口消失，已有课照常播放）；或恢复 `*.bak-20261006f-pre` 回到 release-20261006e 后 apply；v25 表保留不用。
+
+### 生产验收（2026-10-06，用户登录后进行）
+
+该账号的文本与 TTS 都用平台默认（DeepSeek Flash、MiniMax Speech 2.8 Turbo），因此学伴声音的凭据归属修复在生产同样生效。
+
+1. `/study/classmates` 用表单新建“小林”（同学、提问引导、仅点名时发言、少女音色 2.8 Turbo）→ 保存为 `cm-be8857466f44d41b` r1，声音绑定为平台默认 `zhiyu-default-tts`。
+2. 首页“预设模式”勾选小林 → 后台生成 2 页光合作用小课 → 任务冻结角色表 `default-1/2/3 + cm-be8857466f44d41b-r1`（带平台音色）→ 一次成功，2/2 页，TTS 无卡顿（本机的 TTS 卡顿确认是本机网络问题）。
+3. 课堂不点名提问“为什么光合作用一定要有光？”→ 启衡（老师）与知微（正常参与的助教）回答，小林未发言。
+4. “小林，你觉得叶子为什么是绿色的？”→ 小林先答：“因为它吸收了别的颜色的光，唯独把绿色反射出来，我们才看见绿！”——简短、活泼；这一次直接给出了答案，没有像本地两次那样用反问引导，陪学方式的效果受模型发挥影响，属于提示词约束而非硬性规则。
+5. 小林的实时发言 TTS 用 `female-shaonv`，4 次 `/api/generate/tts` 全部 200。
+6. 从课堂地址栏跳回首页后仍是“预设模式 + 小林”（首页选择修复在生产生效）；验收后已把首页改回用户原来的“自动生成”。验收产生的学伴“小林”和课程“光合作用原理”保留在该账号中。
 
 ### 原上线步骤（已按此执行）
 
