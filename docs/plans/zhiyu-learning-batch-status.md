@@ -10,6 +10,12 @@
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 
+## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
+
+- 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
+- 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
+- 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
+
 ## B03 持久检索与带引用答疑（2026-10-06）
 
 ### 范围与起点
@@ -155,7 +161,7 @@
 3. **服务器**：用户批准后删除旧镜像 `release-20261005`、`release-20261005b`（磁盘 78% → 57%，装入新镜像后 68%；内存一直充足，约 6.3 GB 可用）。确认 0 个进行中的生成任务与学习任务 → 备份 `.env.hosted.local.bak-20261006d-pre`、`docker-compose.supabase.yml.bak-20261006d-pre` → compose 换成仓库版本（只多 B03 的 4 个透传变量）→ 镜像改为 `release-20261006d`、加 `ZHIYU_STUDY_QA_ENABLED=1`（`STUDY_EMBEDDING_MODEL` 不设）→ `apply --tier 4 --mode background` → readiness ready、accountsVersion 24、2/2 Worker；两个新 Worker 心跳含 `learning-kind:material_parse` 与 `learning-kind:material_index`；`/api/study/capabilities` = `{spaces, materials, qa: true}`。
 4. **生产登录验收**（用户账号，学科“资料功能验收（可删除）”、资料 `smat-aR7KpBSulcDF`）：答疑页显示“检索方式：关键词匹配（不调用检索模型）”→ 建立索引 → 可检索、2 个片段、无向量 → 中文提问“二次函数的顶点坐标怎么求？”检索 0 条（该资料是英文，关键词模式不能跨语言匹配，属预期限制）→ 英文提问 “What is the vertex of a quadratic function in vertex form?” → “资料依据”两条（[E1] 第 2 页、[E2] 第 1 页）+ “补充说明”，元信息“关键词检索 · platform:zhiyu-default-text · 输入 634 / 输出 228 tokens，1 次调用”→ 点 [E1] 阅读器第 2 页加框并标出摘录；`usage_events` 一条 `study-qa`（platform、ok），无 embedding 记录。
 5. **回退**：恢复 `*.bak-20261006d-pre`（回到 release-20261006c）后 apply；或只把 `ZHIYU_STUDY_QA_ENABLED` 置空后 apply。v24 表与扩展保留（旧版本不使用）。
-6. **release-20261006e**（`886f98eb`，同日）：资料详情页只列出可用解析器（隐藏未配置的 OCR 选项）。0 个进行中任务 → 备份 `.env.hosted.local.bak-20261006e-pre`（→ release-20261006d）→ 换镜像 → apply → readiness ready、v24、2/2 Worker；生产资料页解析方式下拉只剩“unpdf · 默认（免费）”。装入后磁盘 78%（服务器上还有 release-20261005c/20261006/20261006b/20261006c/20261006d 五组旧镜像）。
+6. **release-20261006e**（`886f98eb`，同日）：资料详情页只列出可用解析器（隐藏未配置的 OCR 选项）。0 个进行中任务 → 备份 `.env.hosted.local.bak-20261006e-pre`（→ release-20261006d）→ 换镜像 → apply → readiness ready、v24、2/2 Worker；生产资料页解析方式下拉只剩“unpdf · 默认（免费）”。装入后磁盘 78%；用户确认后删除 release-20261006b、20261006c 两组旧镜像（磁盘 57%），保留 20261005c、20261006、20261006d（回退目标）。注意 `*.bak-20261006d-pre` 指向已删除的 20261006c，不再可用；回退只用 `*.bak-20261006e-pre`（→ 20261006d）。
 
 ### 下一批（B04/B05）前置条件
 
