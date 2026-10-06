@@ -9,12 +9,103 @@
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
+| B04 | 实现完成，本地托管模式验收通过（2026-10-06）；未合并、未上线 | `learn/b04-classmates`（已提交，未推送） | — | 本地托管模式验收通过（见 B04 节） | 未启用（新开关 `ZHIYU_STUDY_CLASSMATES_ENABLED`，需先在生产执行 accounts v25） | 见 B04“未验证 / 已知问题” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
 - 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
 - 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
+
+## B04 自定义学伴与课堂接入（2026-10-06）
+
+### 范围与起点
+
+- 分支 `learn/b04-classmates` 从 main `77811b87`（= `tokyo/main`，含 B03 全部后续）创建；生产为 release-20261006e、accounts v24。
+- 范围：服务端学伴模板的增改、归档/恢复与 revision；表单（姓名、角色、头像、性格、陪学方式、发言规则、声音、可用资料）；把模板投影到浏览器 registry；为新课堂冻结学伴快照；覆盖首页前台生成、首页后台生成与 Pro `submit_course_generation`；两条课堂聊天路径（LangGraph Director `/api/chat`、Pi Director `/api/chat/pi`）执行一致的发言规则；本机旧角色一次性导入；账号删除清理。
+- 不包含：B05 课后答疑与持续会话（资料授权在 B04 只保存，不参与检索）、学伴独立模型策略（B05）、embedding / OCR（见“全部批次完成后再做”）、DiceBear 头像生成。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 设计决策（实际实现）
+
+- **模板 + 不可变版本快照**：`study_classmates` 保存当前模板，每次保存（含归档/恢复、改资料）revision + 1，并在同一事务写入 `study_classmate_revisions` 的该版本快照（姓名、角色、人设、陪学方式、发言规则、头像、颜色、声音）。Web 角色对快照表只有 SELECT/INSERT，历史不可改。
+- **课堂里只放快照，不引用活模板**：新课堂把用户选中的整份角色表冻结到 `stage.generatedAgentConfigs`，学伴以 `<学伴ID>-r<版本>`（如 `cm-…-r5`）为课堂角色 ID；人设 = 用户填写的性格 + 陪学方式对应的固定提示规则。之后编辑、换头像、归档模板都不改已生成的课；别的设备打开课堂也直接读快照。系统教师等内置角色在快照中保留原 ID，加载时继续使用代码内置条目（修复了“含 `default-*` 的角色表加载后把内置教师替换成生成副本、下一门课时被删掉”的既有问题）。
+- **不新增绑定表**：方案中的 `classmate_stage_bindings` 由“课堂角色 ID 本身编码模板与版本 + 不可变版本表”代替——任何课堂角色都能在服务端追溯到确切的模板版本，无需在生成时（前台/后台/Pro 三条路径时机不同）额外写一行。
+- **发言规则在服务端执行，两条路径一致**：`正常参与`（老师可按需请它发言）/`仅点名时发言`。两个聊天路由在 Director 运行前按快照 ID 读取该版本（owner 隔离），把未被点名的“仅点名”学伴从本次请求的角色里移除；被点名的学伴记为服务端字段 `addressedAgentId`（丢弃客户端传入值），LangGraph 首轮直接调度它，Pi 的 `call_agent` 允许它先于老师回答（其余仍是“老师先答”），两边提示词都加一句说明。学伴的角色与可用动作也按快照重置，人设不能扩大权限。没有学伴角色的请求不访问数据库；查不到/查询失败时按原请求处理（发言规则是对话体验，不是访问控制）。
+- **角色只能是助教/同学**：老师仍由系统担任；每门课最多 3 个学伴；每个账号最多 30 个模板（含归档）。
+- **头像**：12 个内置头像或上传（浏览器裁成 128px WebP/PNG，服务端按文件头校验类型、≤ 96 KB、按内容去重、每账号 ≤ 60 张），存数据库 `study_classmate_avatars`，经 `/api/study/classmates/avatars/<id>` 只给本人；每次使用都重新鉴权（`private, no-cache` + ETag/304），同一浏览器换账号不会读到缓存。
+- **声音**：只能从当前可用的音色目录里选（与首页角色栏同一来源，不含仅本机有效的浏览器音色），保存为现有的 `voiceConfig` 结构；不触发克隆或付费生成。Pro 中只有本次会话音色目录里存在的声音才会带上。
+- **registry 投影**：登录账号的有效模板只在内存里投影为首页“预设模式”中的“我的学伴”分组，不写入设备级 localStorage；换账号先清掉上一账号的投影。
+- **Pro**：新增只读工具 `list_classmates`；`submit_course_generation` 新增 `classmateIds`，服务端按当前版本补进角色表（模型给了 agents 就追加，没给就用系统教师 + 学伴），模型不复制人设/头像/声音；未知或已归档 ID 拒绝、不建任务。Pro 运行在 Worker，Worker 对模板与版本表只读（按 owner 显式过滤）。
+- **开关**：`ZHIYU_STUDY_CLASSMATES_ENABLED`（Web 与 Worker 都读），依赖学科空间；`/api/study/capabilities` 增加 `classmates`。
+
+### 偏离方案之处
+
+- 不建 `classmate_stage_bindings` 表（理由见上）。
+- 头像默认值用仓库内置头像，没有引入 DiceBear。
+- 首页“自动生成”模式不带学伴（界面有提示）：学伴只在“预设模式”中选择，用户选的角色表即最终角色表，不会被自动生成覆盖。
+- Pi 路径“被点名学伴先答”在代码中允许、由 Director 提示执行；LangGraph 路径在代码中直接调度。不被点名的学伴在两条路径都由代码排除。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-classmates.ts`（v25，4 张表）、`migrations.ts`、`sql-accounts.ts`（版本 25）、`lib/server/study/schema.ts`（旧式安装）、`deletion.ts`（账号删除）。
+- 服务端：`lib/server/study/classmates/{repository,speech-policy}.ts`、`lib/server/study/{flags,route}.ts`、`app/api/study/classmates/**`（列表/新建、单个读取/修改、导入、头像上传/读取）、`app/api/study/capabilities`、`app/api/chat/route.ts`、`app/api/chat/pi/route.ts`、`lib/orchestration/director-graph.ts`、`lib/chat/pi/{prompts.ts,tools/call-agent.ts}`、`lib/server/agent-runtime/{classmate-tools,generation-job-tools,runner}.ts`。
+- 共享/前端：`lib/study/classmates/{contracts,speech,roster,client}.ts`、`lib/orchestration/registry/{types,store}.ts`、`lib/generation/session-input.ts`、`app/generation-preview/GenerationSessionController.tsx`、`components/agent/agent-bar.tsx`、`components/study/classmates/*`、`app/study/classmates/page.tsx`、`StudyShell` 导航、12 个语言文件。
+- 开发工具：`scripts/dev-fake-model-server.ts` 可驱动 Pi Director（`call_agent`/`cue_user`）。
+
+### 数据迁移
+
+- accounts **v25**，checksum `d6bdefd18c125d63d5df8d159a93287c91f9fe26eff7e3edc2c3aa4159725a89`；只新增表，不改旧迁移。四张表 RLS 开启且强制，anon/authenticated 无授权；Web：模板与资料关联可增删改，版本与头像只能读/插入；Worker：只读模板与版本。
+- 已在本地一次性 PostgreSQL 17（带扩展）用全新 bootstrap 执行 v1–v25 验证。**生产尚未执行**；上线时按 B01–B03 流程只用 Supabase `apply_migration`，绝不对生产运行 `pnpm accounts:migrate`。
+
+### 测试
+
+- 新增：`tests/study/classmates-logic.test.ts`（校验、快照 ID、人设组合、角色表冻结、发言规则）、`tests/server/study-classmates.test.ts`（仓储：版本快照、冲突、归档、资料与头像归属、上限、导入去重）、`tests/server/study-classmates-migration.test.ts`（v25：可重复执行、强制 RLS、Web 隔离与历史不可改、Worker 只读；设 `TEST_STUDY_CLASSMATES_DATABASE_URL` 可在真实 PG 上重跑）、`tests/server/classmate-speech-policy.test.ts`（服务端规则、Pi 提示、LangGraph 首轮调度）、`tests/agent-runtime/classmate-tools.test.ts`（Pro 工具与提交）、`tests/api/study-classmates-routes.test.ts`（API 端到端，含头像 304）；扩充 registry、后台生成输入、Pi `call_agent`、账号删除、迁移版本列表等既有测试。
+- 全量 Vitest（`--maxWorkers=4`）：**862 个文件通过、17 个文件跳过；8942 项通过、94 项跳过，2 项失败**——`principal-mode` 的迁移版本列表未含 25（已更新，单独重跑 25 项通过）；`golden-replay`（模型网关特征回放）全量负载下失败、单独重跑通过，与本批无关。
+- `tsc --noEmit` 通过；本批改动的 55 个 TS/TSX 文件 ESLint 0 问题（仓库其余位置既有 159 个错误未处理）；Prettier、`check:i18n-keys`（12 个语言文件）通过；`build:worker` 通过且 Worker 可启动。
+
+### 浏览器验收（2026-10-06，本地托管模式）
+
+一次性 PostgreSQL 17（v1–v25）、假登录、假模型、假 S3、生成 Worker；环境文件把 `.env.local` 的全部变量置空，无真实密钥或生产地址。设备 A = `localhost:3100`，设备 B = `127.0.0.1:3100`（不共享 cookie）。
+
+1. 账号 A 在 `/study/classmates` 用表单新建中文名学伴“小林”（同学、提问引导、仅点名时发言）→ 第二设备登录同一账号，列表读回一致。
+2. 首页“预设模式”出现“我的学伴”分组与“管理学伴”入口 → 勾选小林；设备 localStorage 的 registry 快照里没有学伴。
+3. **后台生成**一门课 → 课堂文档角色表 `default-1/2/3 + cm-…-r1`，人设含陪学规则；课堂里显示小林。
+4. **LangGraph 课堂提问**：不点名 → 只有老师回答；“小林，你觉得…” → 小林先回答。
+5. 编辑模板（改名“小林同学”、上传头像、改为正常参与）→ 归档 → 重新打开旧课：仍显示“小林”与原头像，仍按 r1 的“仅点名”规则只让老师回答。
+6. 账号 B：学伴列表为空；读取/修改 A 的学伴、读取 A 的头像均为 404。
+7. 界面恢复归档、用编辑表单改回“仅点名”（v5）→ **前台生成**另一门课 → 角色表 `default-1 + cm-…-r5`，带上传头像；第一门课仍是 r1。
+8. **Pi 课堂提问**（`NEXT_PUBLIC_PI_CHAT_ENABLED=true`）：不点名 → 服务端请求角色只剩 `default-1`，老师回答；点名 → 小林先回答。（首次验收发现 Pi 的 `call_agent` 代码强制“老师先答”，会拒绝被点名的学伴，已修复。）
+9. 真实 PostgreSQL 上核对权限：Worker 能读模板/版本，读头像与改模板被拒；Web 角色未设 owner 时看不到任何行，改版本快照被拒。
+10. 验收后停止全部服务，删除数据库容器、环境文件、测试账号密码文件与假 S3 数据。
+
+### 未验证
+
+- Pro 会话中真实模型调用 `list_classmates` 并带 `classmateIds` 提交（只有单元测试；假模型不驱动 Pro 流程）。
+- 学伴声音在真实 TTS 上的实时讨论朗读（本地无 TTS 服务；快照里 `voiceConfig` 已保存并在后台/前台角色表中保留）。
+- 真实模型下台词风格是否体现陪学方式（假模型只返回固定文本）。
+- 生产环境：v25 未执行、开关未开、镜像未构建。
+
+### 已知问题（既有行为，未在本批修改）
+
+- 打开一门“生成角色表”的课（自动生成的课、后台生成的预设课，以及本批的带学伴课）后，课堂页只在正常离开（组件卸载）时恢复首页的角色选择；直接刷新/关闭标签页/地址栏跳转后，首页会停在“自动生成”模式，需重新选“预设模式”与学伴。带学伴的课让这一现象更常见，建议作为后续单独修复（把首页选择与课堂播放选择分开保存）。
+- `golden-replay` 在全量并发下偶发失败（单独运行通过）。
+
+### 回退
+
+- 运行时止损：把 Web 与 Worker 的 `ZHIYU_STUDY_CLASSMATES_ENABLED` 置空后 apply——学伴页面、API、首页分组与 Pro 工具消失；已生成的带学伴课堂照常播放（快照在课堂文档里），课堂聊天仍按快照执行发言规则（v25 表保留）。
+- 版本回退：回到 release-20261006e 镜像；v25 表保留不用。
+
+### 上线步骤（待用户指示，按 B01–B03 流程；以下都尚未执行）
+
+1. 先问用户：核对生产 v24 checksum `84a64ee3…` → Supabase `apply_migration` 执行仓库 v25 SQL 原文 → 写入 `app_schema_migrations(25, d6bdefd1…)` → 核对四张表强制 RLS、授权与本文一致。**绝不对生产运行 `pnpm accounts:migrate`。**
+2. 合并 main 并推送 tokyo → 本机构建 `release-2026100Xx` → 装入服务器（必要时先问是否删除旧镜像）→ 0 个进行中任务后切换 → Web 与 Worker env 加 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` → apply → readiness ready、accountsVersion 25、`/api/study/capabilities` 含 `classmates: true`。
+3. 登录账号在生产新建学伴、生成一门带学伴的课、在课堂分别不点名/点名提问各一次。
+
+### 下一批（B05）前置条件
+
+- B04 合并上线（或至少合并）。B05 复用：模板与版本快照（`readClassmateRevisions`）、课堂角色 ID → 模板版本的追溯（`parseClassmateStageAgentId`）、学伴资料授权（`study_classmate_materials`，在 B03 的 `resolveQuestionScope` 中与学科选择求交集）、发言规则模块。学伴独立模型策略（`modelPolicy`）在 B05 新增列。
+- “继续问这个学伴”入口可从课堂角色 ID 直接解析出模板，不需要额外绑定表。
 
 ## B03 持久检索与带引用答疑（2026-10-06）
 
