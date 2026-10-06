@@ -1,0 +1,357 @@
+{
+  "description": "Labelled questions over corpus.json. evidence: acceptable sources as material@version#page; requireAll: every listed source must be retrieved (conflicts). answerable=false expects the answer kind not_found. scope.pin limits retrieval to the listed material versions (default: the current version of every material of the owner). mention: terms a supported answer is expected to contain.",
+  "questions": [
+    {
+      "id": "q01",
+      "category": "body",
+      "question": "数列极限的定义是什么？",
+      "evidence": ["calc@1#1"],
+      "mention": ["ε", "N"]
+    },
+    {
+      "id": "q02",
+      "category": "body",
+      "question": "函数极限的定义要求 f(x_0) 本身有定义吗？",
+      "evidence": ["calc@1#1"],
+      "mention": ["无关"]
+    },
+    {
+      "id": "q03",
+      "category": "body",
+      "question": "函数在一点可导和连续是什么关系？",
+      "evidence": ["calc@1#3"],
+      "mention": ["连续"]
+    },
+    {
+      "id": "q04",
+      "category": "body",
+      "question": "为什么 |x| 在 x=0 处不可导？",
+      "evidence": ["calc@1#3"],
+      "mention": ["左导数"]
+    },
+    {
+      "id": "q05",
+      "category": "body",
+      "question": "罗尔定理需要满足哪些条件？",
+      "evidence": ["calc@1#6"],
+      "mention": ["f(a) = f(b)"]
+    },
+    {
+      "id": "q06",
+      "category": "body",
+      "question": "罗尔定理和拉格朗日中值定理之间是什么关系？",
+      "evidence": ["calc@1#6"],
+      "mention": ["特例"]
+    },
+    {
+      "id": "q07",
+      "category": "body",
+      "question": "什么叫原函数？",
+      "evidence": ["calc@1#7"],
+      "mention": ["F'(x) = f(x)"]
+    },
+    {
+      "id": "q08",
+      "category": "body",
+      "question": "分部积分选取 u 的经验顺序是什么？",
+      "evidence": ["calc@1#7"],
+      "mention": ["反对幂指三"]
+    },
+    {
+      "id": "q09",
+      "category": "body",
+      "question": "栈遵循什么原则，有哪些典型应用？",
+      "evidence": ["ds@1#1"],
+      "mention": ["后进先出"]
+    },
+    {
+      "id": "q10",
+      "category": "body",
+      "question": "循环队列怎样判断队满？",
+      "evidence": ["ds@1#1"],
+      "mention": ["MaxSize"]
+    },
+    {
+      "id": "q11",
+      "category": "body",
+      "question": "二分查找对序列有什么要求？",
+      "evidence": ["ds@1#2"],
+      "mention": ["有序"]
+    },
+    {
+      "id": "q12",
+      "category": "body",
+      "question": "对二叉搜索树做中序遍历会得到什么结果？",
+      "evidence": ["ds@1#3"],
+      "mention": ["递增"]
+    },
+    {
+      "id": "q13",
+      "category": "body",
+      "question": "AVL 树靠什么保持平衡？",
+      "evidence": ["ds@1#3"],
+      "mention": ["旋转"]
+    },
+    {
+      "id": "q14",
+      "category": "body",
+      "question": "广度优先搜索用什么数据结构实现，能解决什么问题？",
+      "evidence": ["ds@1#4"],
+      "mention": ["队列"]
+    },
+    {
+      "id": "q15",
+      "category": "body",
+      "question": "用邻接表存储时 DFS 和 BFS 的时间复杂度是多少？",
+      "evidence": ["ds@1#4"],
+      "mention": ["O(V + E)"]
+    },
+    {
+      "id": "q16",
+      "category": "body",
+      "question": "高等数学期末考试可以带计算器吗？",
+      "evidence": ["notice@1#1"],
+      "mention": ["无存储功能"]
+    },
+    {
+      "id": "q17",
+      "category": "body",
+      "question": "高等数学的平时成绩在总评中占多少？",
+      "evidence": ["notice@1#1"],
+      "mention": ["30%"]
+    },
+
+    {
+      "id": "q18",
+      "category": "formula",
+      "question": "第一个重要极限是什么？",
+      "evidence": ["calc@1#2"],
+      "mention": ["sin x"]
+    },
+    {
+      "id": "q19",
+      "category": "formula",
+      "question": "第二个重要极限有哪种等价写法？",
+      "evidence": ["calc@1#2"],
+      "mention": ["1/t"]
+    },
+    {
+      "id": "q20",
+      "category": "formula",
+      "question": "x→0 时 1 - cos x 等价于什么？",
+      "evidence": ["calc@1#2"],
+      "mention": ["x²/2"]
+    },
+    {
+      "id": "q21",
+      "category": "formula",
+      "question": "导数的定义式怎么写？",
+      "evidence": ["calc@1#3"],
+      "mention": ["Δx"]
+    },
+    {
+      "id": "q22",
+      "category": "formula",
+      "question": "两个函数相除的求导法则是什么？",
+      "evidence": ["calc@1#3"],
+      "mention": ["v²"]
+    },
+    {
+      "id": "q23",
+      "category": "formula",
+      "question": "牛顿-莱布尼茨公式的内容是什么？",
+      "evidence": ["calc@1#7"],
+      "mention": ["F(b) - F(a)"]
+    },
+    {
+      "id": "q24",
+      "category": "formula",
+      "question": "柯西中值定理的结论是什么？",
+      "evidence": ["calc@1#6"],
+      "mention": ["g'(ξ)"]
+    },
+    {
+      "id": "q25",
+      "category": "formula",
+      "question": "复合函数的链式法则怎么写？",
+      "evidence": ["calc@1#3"],
+      "mention": ["g'(x)"]
+    },
+
+    {
+      "id": "q26",
+      "category": "table",
+      "question": "arctan x 的导数是什么？",
+      "evidence": ["calc@1#4"],
+      "mention": ["1 + x²"]
+    },
+    {
+      "id": "q27",
+      "category": "table",
+      "question": "a 的 x 次方求导结果是什么？",
+      "evidence": ["calc@1#4"],
+      "mention": ["ln a"]
+    },
+    {
+      "id": "q28",
+      "category": "table",
+      "question": "快速排序最坏情况下的时间复杂度是多少，是否稳定？",
+      "evidence": ["ds@1#2"],
+      "mention": ["不稳定"]
+    },
+    {
+      "id": "q29",
+      "category": "table",
+      "question": "表中哪些排序算法是稳定的？",
+      "evidence": ["ds@1#2"],
+      "mention": ["归并"]
+    },
+    {
+      "id": "q30",
+      "category": "table",
+      "question": "堆排序需要多少额外空间？",
+      "evidence": ["ds@1#2"],
+      "mention": ["O(1)"]
+    },
+
+    {
+      "id": "q31",
+      "category": "figure",
+      "question": "图 2-1 表达了导数的什么含义？",
+      "evidence": ["calc@1#3"],
+      "mention": ["切线"]
+    },
+    {
+      "id": "q32",
+      "category": "figure",
+      "question": "图 3-1 中二叉搜索树的根结点是几？",
+      "evidence": ["ds@1#3"],
+      "mention": ["8"]
+    },
+
+    {
+      "id": "q33",
+      "category": "scan",
+      "question": "板书照片里的洛必达法则例题是怎么解的？",
+      "answerable": false,
+      "evidence": []
+    },
+    {
+      "id": "q34",
+      "category": "scan",
+      "question": "洛必达法则适用于哪些类型的未定式？",
+      "answerable": false,
+      "evidence": []
+    },
+
+    {
+      "id": "q35",
+      "category": "conflict",
+      "question": "高等数学期末考试是哪一天？",
+      "evidence": ["notice@1#1", "notice_fix@1#1"],
+      "requireAll": true,
+      "mention": ["1 月 15 日"]
+    },
+    {
+      "id": "q36",
+      "category": "conflict",
+      "question": "泰勒公式在期末考试范围内吗？",
+      "evidence": ["notice@1#1", "notice_fix@1#1"],
+      "requireAll": true,
+      "mention": ["麦克劳林"]
+    },
+    {
+      "id": "q37",
+      "category": "conflict",
+      "question": "高等数学期末考试几点开始？",
+      "evidence": ["notice@1#1", "notice_fix@1#1"],
+      "requireAll": true,
+      "mention": ["14:00"]
+    },
+
+    {
+      "id": "q38",
+      "category": "version",
+      "question": "sin x 的麦克劳林展开中 x³ 项的系数是多少？",
+      "evidence": ["supp@2#1"],
+      "mention": ["-1/6"]
+    },
+    {
+      "id": "q39",
+      "category": "version",
+      "question": "sin x 的麦克劳林展开中 x³ 项的系数是多少？",
+      "scope": { "pin": ["supp@1"] },
+      "evidence": ["supp@1#1"],
+      "mention": ["1/3"]
+    },
+    {
+      "id": "q40",
+      "category": "version",
+      "question": "e 的 x 次方的麦克劳林公式是什么？",
+      "evidence": ["supp@2#1"],
+      "mention": ["x²/2!"]
+    },
+
+    {
+      "id": "q41",
+      "category": "no_answer",
+      "question": "什么是傅里叶变换？",
+      "answerable": false,
+      "evidence": []
+    },
+    {
+      "id": "q42",
+      "category": "no_answer",
+      "question": "Dijkstra 算法的时间复杂度是多少？",
+      "answerable": false,
+      "evidence": []
+    },
+    {
+      "id": "q43",
+      "category": "no_answer",
+      "question": "红黑树有哪五条性质？",
+      "answerable": false,
+      "evidence": []
+    },
+    {
+      "id": "q44",
+      "category": "no_answer",
+      "question": "高等数学期末考试在哪个教室？",
+      "answerable": false,
+      "evidence": []
+    },
+
+    {
+      "id": "q45",
+      "category": "isolation",
+      "question": "矩阵可逆的充要条件是什么？",
+      "answerable": false,
+      "evidence": [],
+      "note": "only account B's material answers this"
+    },
+    {
+      "id": "q46",
+      "category": "isolation",
+      "question": "特征值是怎么求的？",
+      "answerable": false,
+      "evidence": [],
+      "note": "only account B's material answers this"
+    },
+    {
+      "id": "q47",
+      "category": "isolation",
+      "owner": "B",
+      "question": "线性代数期末考试是什么时候？",
+      "evidence": ["linalg_b@1#1"],
+      "mention": ["1 月 20 日"]
+    },
+    {
+      "id": "q48",
+      "category": "isolation",
+      "owner": "B",
+      "question": "导数的定义是什么？",
+      "evidence": ["linalg_b@1#2"],
+      "mention": ["Δx"]
+    }
+  ]
+}
