@@ -153,7 +153,7 @@
 
 ### 下一批（B03）前置条件
 
-- B02 已合并并上线；登录账号的生产端到端验收待做。**B03 在用户明确指示前不开始。**
+- B02 已合并并上线（当前 release-20261006c）；登录账号的生产端到端验收已完成（资料 `smat-aR7KpBSulcDF` 上传 → 解析任务成功 → 生成 artifact → 用于课程生成）。**B03 在用户明确指示前不开始。**
 - B03 的索引/检索任务作为 `learning_tasks` 的新 kind（新迁移修改 kind CHECK 与必要的新表），复用 `lib/server/task-queue/lease-queue.ts` 与学习调度，不新建队列。
 - 索引以 `study_material_artifacts` 的按页分块（`readerBlocksForPage` / artifact JSON）为输入，引用定位回到“版本 + 页 + 块”；阅读器已能按页跳转，B03 再决定是否引入高亮库。
 - 涉及模型调用（嵌入/答疑）时只经模型网关并带 FundingSource、计入 heavy-task 与配额；重新评估 `app_worker` 连接池（若并发 >1）。
