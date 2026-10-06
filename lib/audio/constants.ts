@@ -778,6 +778,14 @@ export const TTS_PROVIDERS: Record<BuiltInTTSProviderId, TTSProviderConfig> = {
         language: 'en-US',
         gender: 'neutral',
       },
+      // The platform TTS default voice (zhiyu-default-tts); last, so the
+      // index-based fallback picks of earlier voices stay unchanged.
+      {
+        id: 'male-qn-qingse',
+        name: '青涩青年',
+        language: 'zh-CN',
+        gender: 'male',
+      },
     ],
     supportedFormats: ['mp3', 'wav', 'flac', 'pcm'],
     speedRange: {
