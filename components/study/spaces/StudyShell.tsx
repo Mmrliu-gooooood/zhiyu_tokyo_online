@@ -18,11 +18,14 @@ import { fetchStudyCapabilities, fetchStudyCapability } from '@/lib/study/spaces
 export function StudyShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const [materialsOn, setMaterialsOn] = useState(false);
+  const [classmatesOn, setClassmatesOn] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    void fetchStudyCapabilities().then(
-      (capabilities) => !cancelled && setMaterialsOn(capabilities.materials),
-    );
+    void fetchStudyCapabilities().then((capabilities) => {
+      if (cancelled) return;
+      setMaterialsOn(capabilities.materials);
+      setClassmatesOn(capabilities.classmates);
+    });
     return () => {
       cancelled = true;
     };
@@ -47,6 +50,15 @@ export function StudyShell({ children }: { children: ReactNode }) {
               className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {t('study.materials.nav')}
+            </Link>
+          ) : null}
+          {classmatesOn ? (
+            <Link
+              href="/study/classmates"
+              data-testid="study-nav-classmates"
+              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {t('study.classmates.nav')}
             </Link>
           ) : null}
           <Link

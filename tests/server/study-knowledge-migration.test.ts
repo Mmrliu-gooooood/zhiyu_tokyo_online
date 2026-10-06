@@ -170,7 +170,7 @@ describe.each(engines)('accounts v24 study knowledge (%s)', (_name, open, storag
     try {
       await bootstrapFreshAccountsDatabase(db.source, { stubSupabaseAuth: true });
       const version = await db.query<{ version: number }>(
-        'SELECT max(version)::int AS version FROM app_schema_migrations',
+        'SELECT version FROM app_schema_migrations WHERE version = 24',
       );
       expect(version.rows[0]?.version).toBe(24);
       const expected = storage ? [...TABLES, 'study_knowledge_chunks'] : TABLES;

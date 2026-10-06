@@ -108,6 +108,11 @@ import { inventorySlide } from './course-edit/apply';
 import { buildGenerationJobTools, GENERATION_JOB_TOOL_NAMES } from './generation-job-tools';
 import { GenerationJobRepository } from '@/lib/server/generation-jobs/repository';
 import { assertGenerationReady, getGenerationPool } from '@/lib/server/generation-jobs/runtime';
+import { buildClassmateTools } from './classmate-tools';
+import { parseOwnerUserId } from '@/lib/auth/principal';
+import type { Queryable } from '@openmaic/storage/document/pg';
+import { listActiveClassmateSnapshots } from '@/lib/server/study/classmates/repository';
+import { isStudyClassmatesFlagOn } from '@/lib/server/study/flags';
 import {
   generationModelSnapshotContent,
   syncGenerationModelSnapshot,
@@ -1494,6 +1499,18 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       id,
     );
     const generationRepository = () => new GenerationJobRepository(getGenerationPool());
+    // Classmates (B04): read-only, owner captured from the claimed session.
+    const classmateSource =
+      isStudyClassmatesFlagOn() && parseOwnerUserId(meta.ownerId)
+        ? {
+            listActive: () =>
+              listActiveClassmateSnapshots(
+                getGenerationPool() as unknown as Queryable,
+                meta.ownerId,
+              ),
+          }
+        : undefined;
+    const classmateTools = classmateSource ? buildClassmateTools(classmateSource) : [];
     const generationJobTools = buildGenerationJobTools({
       ownerId: meta.ownerId,
       sessionId: id,
@@ -1511,6 +1528,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         : undefined,
       mediaConfigRef: meta.activeMediaConfigRef,
       mediaConfig,
+      ...(classmateSource ? { classmates: classmateSource } : {}),
       ensureReady: () => assertGenerationReady(true),
       resolveSkills: async (ids) =>
         ids.flatMap((skillId) => {
@@ -1563,6 +1581,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       voiceCloneTools,
       personalHistoryTools,
       generationJobTools,
+      classmateTools,
     );
     const askUserLatch = createAskUserTerminateLatch();
     const courseRuntimeBoundary = createProCourseRuntimeBoundary();
@@ -1594,6 +1613,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         ...ROSTER_TOOL_NAMES,
         ...PERSONAL_HISTORY_TOOL_NAMES,
         ...GENERATION_JOB_TOOL_NAMES,
+        ...classmateTools.map((tool) => tool.name),
         // register_voice is registered only when the deployment has a voice
         // registration backend, so the allowlist follows: clip_audio is always
         // available, register_voice only with a backend.

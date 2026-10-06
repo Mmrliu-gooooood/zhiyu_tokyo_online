@@ -33,6 +33,13 @@ export interface AgentConfig {
   // LLM-generated agent fields
   isGenerated?: boolean; // true for LLM-generated agents
   boundStageId?: string; // stage ID this agent was generated for
+
+  /**
+   * Set on the in-memory projection of the signed-in student's server-side
+   * classmate template (learning plan B04). Never persisted on this device;
+   * a classroom copies one revision instead (see lib/study/classmates).
+   */
+  classmate?: { id: string; revision: number };
 }
 
 export interface AgentTemplate {

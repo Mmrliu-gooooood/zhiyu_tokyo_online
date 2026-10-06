@@ -19,3 +19,9 @@ export function isStudyQaFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
   const flag = env.ZHIYU_STUDY_QA_ENABLED;
   return (flag === '1' || flag === 'true') && isStudyMaterialsFlagOn(env);
 }
+
+/** ZHIYU_STUDY_CLASSMATES_ENABLED: classmate templates and their classroom use (learning plan B04). */
+export function isStudyClassmatesFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_CLASSMATES_ENABLED;
+  return flag === '1' || flag === 'true';
+}

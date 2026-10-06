@@ -356,7 +356,11 @@
     "voiceAutoAssign": "Las voces se asignarán automáticamente",
     "searchVoice": "Buscar voces",
     "noMatchingVoices": "No hay voces que coincidan",
-    "noVoice": "Sin voz"
+    "noVoice": "Sin voz",
+    "classmates": "Mis compañeros",
+    "classmateLimit": "(máximo {{count}} por curso)",
+    "manageClassmates": "Administrar compañeros",
+    "classmatesPresetOnly": "Los compañeros solo se pueden elegir en modo Predefinido."
   },
   "proactiveCard": {
     "discussion": "Debate",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "Este material aún no se ha analizado.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Tienes demasiadas tareas en curso. Inténtalo cuando terminen.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "El servicio está ocupado. Inténtalo más tarde."
+      }
+    },
+    "classmates": {
+      "nav": "Compañeros",
+      "title": "Mis compañeros",
+      "subtitle": "Crea compañeros que estudien contigo: tú eliges su nombre, avatar, personalidad, voz y estilo de acompañamiento. Al generar un curso nuevo, márcalos en “Predefinidos” en la página de inicio para llevarlos a clase.",
+      "create": "Nuevo compañero",
+      "edit": "Editar",
+      "archive": "Archivar",
+      "restore": "Restaurar",
+      "empty": "Aún no tienes compañeros. Crea uno para que participe en clase junto al profesor.",
+      "howToUse": "Editar o archivar un compañero no cambia los cursos ya generados: los cursos anteriores lo conservan como era entonces.",
+      "archivedTitle": "Archivados",
+      "importLocal": "Importar roles de este dispositivo ({{count}})",
+      "imported": "Se importaron {{created}} y se omitieron {{skipped}} ya existentes",
+      "materialCount": "{{count}} materiales",
+      "role": {
+        "assistant": "Asistente",
+        "student": "Compañero"
+      },
+      "style": {
+        "encouraging": "Alentador",
+        "socratic": "Preguntas guía",
+        "peer": "Compañero de estudio",
+        "summarizer": "Toma apuntes"
+      },
+      "speech": {
+        "active": "Participa",
+        "on_demand": "Solo cuando se le nombra"
+      },
+      "speechHint": {
+        "active": "El profesor lo incluye cuando ayuda.",
+        "on_demand": "Solo habla cuando lo llamas por su nombre en tu mensaje."
+      },
+      "form": {
+        "createTitle": "Nuevo compañero",
+        "editTitle": "Editar compañero",
+        "description": "Los compañeros participan en clase; el profesor sigue siendo del sistema.",
+        "name": "Nombre",
+        "namePlaceholder": "p. ej. Lin",
+        "role": "Rol",
+        "avatar": "Avatar",
+        "upload": "Subir imagen",
+        "avatarFailed": "No se pudo subir el avatar. Prueba con otra imagen.",
+        "color": "Color",
+        "persona": "Personalidad y forma de hablar",
+        "personaPlaceholder": "p. ej. paciente, usa ejemplos cotidianos, habla breve.",
+        "learningStyle": "Estilo de acompañamiento",
+        "speechPolicy": "Regla para hablar",
+        "voice": "Voz",
+        "voiceAuto": "Automática (según la clase)",
+        "materials": "Materiales que puede usar",
+        "materialsHint": "En las preguntas después de clase, el compañero solo cita los materiales marcados aquí.",
+        "noMaterials": "Tu biblioteca aún no tiene materiales.",
+        "save": "Guardar",
+        "create": "Crear",
+        "invalid": {
+          "name": "Escribe un nombre (hasta 40 caracteres).",
+          "other": "Hay un dato no válido. Revísalo."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "Llegaste al límite de 30 compañeros (incluidos los archivados).",
+        "STUDY_REVISION_CONFLICT": "El compañero cambió en otro lugar; se muestra la versión más reciente.",
+        "STUDY_CLASSMATE_ARCHIVED": "Restaura un compañero archivado antes de editarlo.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "Un material marcado ya no está disponible. Vuelve a elegir.",
+        "STUDY_AVATAR_INVALID": "Solo se admiten imágenes PNG, JPEG o WebP.",
+        "STUDY_AVATAR_LIMIT": "Llegaste al límite de avatares subidos.",
+        "STUDY_AVATAR_NOT_FOUND": "Ese avatar ya no existe. Elige otro.",
+        "STUDY_CLASSMATE_NOT_FOUND": "No se encontró el compañero."
       }
     }
   }

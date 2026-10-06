@@ -373,6 +373,12 @@ export interface StatelessChatRequest {
     discussionPrompt?: string;
     /** Which agent should speak first in a discussion */
     triggerAgentId?: string;
+    /**
+     * Server-set only (classmate speaking rules, learning plan B04): the
+     * classmate the student named in this message. Any client value is
+     * discarded before the directors run.
+     */
+    addressedAgentId?: string;
     /** Full agent configs for generated (non-default) agents that aren't in the server-side registry */
     agentConfigs?: Array<{
       id: string;

@@ -356,7 +356,11 @@
     "voiceAutoAssign": "음성이 자동으로 배정됩니다",
     "searchVoice": "음성 검색",
     "noMatchingVoices": "일치하는 음성 없음",
-    "noVoice": "음성 없음"
+    "noVoice": "음성 없음",
+    "classmates": "내 학습 친구",
+    "classmateLimit": "(코스당 최대 {{count}}명)",
+    "manageClassmates": "학습 친구 관리",
+    "classmatesPresetOnly": "학습 친구는 프리셋 모드에서만 선택할 수 있습니다."
   },
   "proactiveCard": {
     "discussion": "토론",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "이 자료는 아직 분석되지 않았습니다.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "실행 중인 작업이 너무 많습니다. 다른 작업이 끝난 뒤 다시 시도하세요.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "서비스가 혼잡합니다. 잠시 후 다시 시도하세요."
+      }
+    },
+    "classmates": {
+      "nav": "학습 친구",
+      "title": "내 학습 친구",
+      "subtitle": "함께 공부할 학습 친구를 만드세요. 이름, 아바타, 성격, 목소리, 동반 방식을 직접 정할 수 있습니다. 새 코스를 생성할 때 홈의 “프리셋”에서 선택하면 수업에 함께합니다.",
+      "create": "새 학습 친구",
+      "edit": "편집",
+      "archive": "보관",
+      "restore": "복원",
+      "empty": "아직 학습 친구가 없습니다. 하나 만들어 선생님과 함께 수업에 참여시키세요.",
+      "howToUse": "학습 친구를 편집하거나 보관해도 이미 생성된 코스는 바뀌지 않습니다. 이전 코스는 당시 설정을 그대로 사용합니다.",
+      "archivedTitle": "보관됨",
+      "importLocal": "이 기기의 역할 가져오기({{count}})",
+      "imported": "{{created}}개 가져옴, 이미 있는 {{skipped}}개 건너뜀",
+      "materialCount": "자료 {{count}}개",
+      "role": {
+        "assistant": "조교",
+        "student": "친구"
+      },
+      "style": {
+        "encouraging": "격려형",
+        "socratic": "질문 유도형",
+        "peer": "함께 토론형",
+        "summarizer": "요점 정리형"
+      },
+      "speech": {
+        "active": "일반 참여",
+        "on_demand": "이름을 부를 때만"
+      },
+      "speechHint": {
+        "active": "선생님이 필요할 때 발언을 요청합니다.",
+        "on_demand": "메시지에서 이름을 부를 때만 발언합니다."
+      },
+      "form": {
+        "createTitle": "새 학습 친구",
+        "editTitle": "학습 친구 편집",
+        "description": "학습 친구는 수업 참여자이며 선생님은 시스템이 맡습니다.",
+        "name": "이름",
+        "namePlaceholder": "예: 린",
+        "role": "역할",
+        "avatar": "아바타",
+        "upload": "이미지 업로드",
+        "avatarFailed": "아바타를 업로드하지 못했습니다. 다른 이미지를 사용해 보세요.",
+        "color": "색상",
+        "persona": "성격과 말투",
+        "personaPlaceholder": "예: 인내심 있고, 일상적인 예를 즐겨 쓰며, 짧게 말함.",
+        "learningStyle": "동반 방식",
+        "speechPolicy": "발언 규칙",
+        "voice": "목소리",
+        "voiceAuto": "자동(수업 설정 따름)",
+        "materials": "사용할 수 있는 자료",
+        "materialsHint": "수업 후 질의응답에서 여기서 선택한 자료만 인용합니다.",
+        "noMaterials": "자료실에 아직 자료가 없습니다.",
+        "save": "저장",
+        "create": "만들기",
+        "invalid": {
+          "name": "이름을 입력하세요(최대 40자).",
+          "other": "유효하지 않은 항목이 있습니다. 확인해 주세요."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "학습 친구는 최대 30명(보관 포함)까지입니다.",
+        "STUDY_REVISION_CONFLICT": "다른 곳에서 변경되어 최신 내용을 표시합니다.",
+        "STUDY_CLASSMATE_ARCHIVED": "보관된 학습 친구는 복원한 뒤 편집하세요.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "선택한 자료를 더 이상 사용할 수 없습니다. 다시 선택하세요.",
+        "STUDY_AVATAR_INVALID": "PNG, JPEG, WebP 이미지만 지원합니다.",
+        "STUDY_AVATAR_LIMIT": "아바타 업로드 한도에 도달했습니다.",
+        "STUDY_AVATAR_NOT_FOUND": "해당 아바타가 없습니다. 다시 선택하세요.",
+        "STUDY_CLASSMATE_NOT_FOUND": "학습 친구를 찾을 수 없습니다."
       }
     }
   }

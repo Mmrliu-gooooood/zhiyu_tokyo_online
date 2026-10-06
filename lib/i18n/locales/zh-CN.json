@@ -356,7 +356,11 @@
     "voiceAutoAssign": "音色将自动分配",
     "searchVoice": "搜索音色",
     "noMatchingVoices": "没有匹配音色",
-    "noVoice": "无可用音色"
+    "noVoice": "无可用音色",
+    "classmates": "我的学伴",
+    "classmateLimit": "（每门课最多 {{count}} 个）",
+    "manageClassmates": "管理学伴",
+    "classmatesPresetOnly": "学伴只能在“指定角色”模式中选择。"
   },
   "proactiveCard": {
     "discussion": "讨论",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "这份资料还没有解析完成。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "你同时进行的任务太多了，请等其他任务完成后再试。",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "系统当前繁忙，请稍后再试。"
+      }
+    },
+    "classmates": {
+      "nav": "学伴",
+      "title": "我的学伴",
+      "subtitle": "创建陪你学习的学伴：名字、头像、性格、声音和陪学方式都由你决定。生成新课程时，在首页“指定角色”里勾选学伴即可带进课堂。",
+      "create": "新建学伴",
+      "edit": "编辑",
+      "archive": "归档",
+      "restore": "恢复",
+      "empty": "还没有学伴。新建一个，让它和老师一起陪你上课。",
+      "howToUse": "编辑或归档学伴不会改动已经生成的课程：旧课程继续使用当时的学伴设定。",
+      "archivedTitle": "已归档",
+      "importLocal": "导入本机角色（{{count}}）",
+      "imported": "已导入 {{created}} 个，跳过 {{skipped}} 个已存在的角色",
+      "materialCount": "{{count}} 份资料",
+      "role": {
+        "assistant": "助教",
+        "student": "同学"
+      },
+      "style": {
+        "encouraging": "鼓励陪伴",
+        "socratic": "提问引导",
+        "peer": "同伴讨论",
+        "summarizer": "记要点"
+      },
+      "speech": {
+        "active": "正常参与",
+        "on_demand": "仅点名时发言"
+      },
+      "speechHint": {
+        "active": "老师可以按需请它发言。",
+        "on_demand": "只有你在提问里叫到它的名字时才会发言。"
+      },
+      "form": {
+        "createTitle": "新建学伴",
+        "editTitle": "编辑学伴",
+        "description": "学伴只作为课堂参与者，老师仍由系统担任。",
+        "name": "名字",
+        "namePlaceholder": "例如：小林",
+        "role": "角色",
+        "avatar": "头像",
+        "upload": "上传图片",
+        "avatarFailed": "头像上传失败，请换一张图片再试。",
+        "color": "颜色",
+        "persona": "性格与说话方式",
+        "personaPlaceholder": "例如：耐心、爱用生活中的例子，说话简短。",
+        "learningStyle": "陪学方式",
+        "speechPolicy": "发言规则",
+        "voice": "声音",
+        "voiceAuto": "自动（跟随课堂设置）",
+        "materials": "可使用的资料",
+        "materialsHint": "课后答疑时，学伴只会引用这里勾选的资料。",
+        "noMaterials": "资料库里还没有资料。",
+        "save": "保存",
+        "create": "创建",
+        "invalid": {
+          "name": "请填写名字（最多 40 个字）。",
+          "other": "有内容无效，请检查后再试。"
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "学伴数量已达上限（30 个，含已归档）。",
+        "STUDY_REVISION_CONFLICT": "学伴已在其他地方修改，已为你刷新最新内容。",
+        "STUDY_CLASSMATE_ARCHIVED": "已归档的学伴需要先恢复才能编辑。",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "勾选的资料已不可用，请重新选择。",
+        "STUDY_AVATAR_INVALID": "只支持 PNG、JPEG 或 WebP 图片。",
+        "STUDY_AVATAR_LIMIT": "上传的头像已达上限。",
+        "STUDY_AVATAR_NOT_FOUND": "头像已不存在，请重新选择。",
+        "STUDY_CLASSMATE_NOT_FOUND": "学伴不存在。"
       }
     }
   }

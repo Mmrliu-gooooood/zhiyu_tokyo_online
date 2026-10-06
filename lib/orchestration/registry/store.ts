@@ -64,9 +64,13 @@ export const useAgentRegistry = create<AgentRegistryState>()(
       // from it on every classroom load — keep them out of the localStorage
       // snapshot entirely. The merge filter below stays as defense in depth
       // for snapshots written before this partialize existed.
+      // Classmate projections (B04) belong to the signed-in account and are
+      // re-read from the server, so they never reach this device-wide snapshot.
       partialize: (state) => ({
         agents: Object.fromEntries(
-          Object.entries(state.agents).filter(([, agent]) => !agent.isGenerated),
+          Object.entries(state.agents).filter(
+            ([, agent]) => !agent.isGenerated && !agent.classmate,
+          ),
         ),
       }),
       // Merge persisted state with default agents
@@ -81,7 +85,7 @@ export const useAgentRegistry = create<AgentRegistryState>()(
         // Generated agents are loaded on-demand from IndexedDB per stage
         for (const [id, agent] of Object.entries(persistedAgents)) {
           const agentConfig = agent as AgentConfig;
-          if (!id.startsWith('default-') && !agentConfig.isGenerated) {
+          if (!id.startsWith('default-') && !agentConfig.isGenerated && !agentConfig.classmate) {
             mergedAgents[id] = agentConfig;
           }
         }
@@ -187,6 +191,14 @@ export function applyGeneratedAgentsToRegistry(
   const now = Date.now();
   const ids: string[] = [];
   for (const agent of agents) {
+    // A roster that names a built-in agent (e.g. a background or classmate
+    // roster with the system teacher) uses the built-in entry as is. Replacing
+    // it with a generated copy would drop it from the registry with the next
+    // classroom's roster.
+    if (DEFAULT_AGENTS[agent.id]) {
+      ids.push(agent.id);
+      continue;
+    }
     const { voiceConfig, ...rest } = agent;
     registry.addAgent({
       ...rest,

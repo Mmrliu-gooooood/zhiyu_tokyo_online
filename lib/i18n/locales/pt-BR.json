@@ -356,7 +356,11 @@
     "voiceAutoAssign": "As vozes serão atribuídas automaticamente",
     "searchVoice": "Pesquisar vozes",
     "noMatchingVoices": "Nenhuma voz correspondente",
-    "noVoice": "Sem voz"
+    "noVoice": "Sem voz",
+    "classmates": "Meus colegas",
+    "classmateLimit": "(até {{count}} por curso)",
+    "manageClassmates": "Gerenciar colegas",
+    "classmatesPresetOnly": "Colegas só podem ser escolhidos no modo Predefinido."
   },
   "proactiveCard": {
     "discussion": "Discussão",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "Este material ainda não foi analisado.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Há tarefas demais em andamento. Tente quando outras terminarem.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "O serviço está ocupado. Tente mais tarde."
+      }
+    },
+    "classmates": {
+      "nav": "Colegas",
+      "title": "Meus colegas",
+      "subtitle": "Crie colegas que estudam com você: você escolhe nome, avatar, personalidade, voz e estilo de acompanhamento. Ao gerar um curso novo, marque-os em “Predefinido” na página inicial para levá-los à aula.",
+      "create": "Novo colega",
+      "edit": "Editar",
+      "archive": "Arquivar",
+      "restore": "Restaurar",
+      "empty": "Ainda não há colegas. Crie um para participar das aulas com o professor.",
+      "howToUse": "Editar ou arquivar um colega não altera cursos já gerados: os cursos antigos mantêm o colega como era na época.",
+      "archivedTitle": "Arquivados",
+      "importLocal": "Importar papéis deste dispositivo ({{count}})",
+      "imported": "{{created}} importado(s), {{skipped}} já existente(s) ignorado(s)",
+      "materialCount": "{{count}} materiais",
+      "role": {
+        "assistant": "Assistente",
+        "student": "Colega"
+      },
+      "style": {
+        "encouraging": "Encorajador",
+        "socratic": "Perguntas guiadas",
+        "peer": "Parceiro de estudo",
+        "summarizer": "Anotador"
+      },
+      "speech": {
+        "active": "Participa",
+        "on_demand": "Só quando chamado"
+      },
+      "speechHint": {
+        "active": "O professor o chama quando ajuda.",
+        "on_demand": "Só fala quando você usa o nome dele na mensagem."
+      },
+      "form": {
+        "createTitle": "Novo colega",
+        "editTitle": "Editar colega",
+        "description": "Colegas participam da aula; o professor continua sendo do sistema.",
+        "name": "Nome",
+        "namePlaceholder": "ex.: Lin",
+        "role": "Papel",
+        "avatar": "Avatar",
+        "upload": "Enviar imagem",
+        "avatarFailed": "Não foi possível enviar o avatar. Tente outra imagem.",
+        "color": "Cor",
+        "persona": "Personalidade e jeito de falar",
+        "personaPlaceholder": "ex.: paciente, usa exemplos do dia a dia, fala pouco.",
+        "learningStyle": "Estilo de acompanhamento",
+        "speechPolicy": "Regra de fala",
+        "voice": "Voz",
+        "voiceAuto": "Automática (configuração da aula)",
+        "materials": "Materiais que pode usar",
+        "materialsHint": "Nas perguntas pós-aula, o colega só cita os materiais marcados aqui.",
+        "noMaterials": "Sua biblioteca ainda não tem materiais.",
+        "save": "Salvar",
+        "create": "Criar",
+        "invalid": {
+          "name": "Informe um nome (até 40 caracteres).",
+          "other": "Há um campo inválido. Verifique."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "Você atingiu o limite de 30 colegas (incluindo arquivados).",
+        "STUDY_REVISION_CONFLICT": "Este colega foi alterado em outro lugar; mostramos a versão mais recente.",
+        "STUDY_CLASSMATE_ARCHIVED": "Restaure um colega arquivado antes de editá-lo.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "Um material marcado não está mais disponível. Escolha de novo.",
+        "STUDY_AVATAR_INVALID": "Apenas imagens PNG, JPEG ou WebP são aceitas.",
+        "STUDY_AVATAR_LIMIT": "Você atingiu o limite de avatares enviados.",
+        "STUDY_AVATAR_NOT_FOUND": "Esse avatar não existe mais. Escolha outro.",
+        "STUDY_CLASSMATE_NOT_FOUND": "Colega não encontrado."
       }
     }
   }

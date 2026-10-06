@@ -28,6 +28,7 @@ import {
   withThinking,
 } from '@/lib/model-gateway';
 import { apiError } from '@/lib/server/api-response';
+import { applyClassmateSpeechRules } from '@/lib/server/study/classmates/speech-policy';
 import type { StatelessChatRequest } from '@/lib/types/chat';
 import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
 import { authenticatePersistenceHeaders } from '@/lib/persistence/server-auth';
@@ -102,6 +103,8 @@ async function handlePOST(req: NextRequest) {
         'config.agentIds must be a non-empty array of unique, non-empty strings',
       );
     }
+    // Classmate speaking rules (B04) may drop quiet classmates from the roster.
+    await applyClassmateSpeechRules(req, body);
 
     // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
     // thinking wins, an unrouted one honors this client thinking.
@@ -113,7 +116,7 @@ async function handlePOST(req: NextRequest) {
 
     const agentConfigs = resolveAgentConfigs(body);
     const resolvedAgentIds = new Set(agentConfigs.map((agent) => agent.id));
-    const unresolvedAgentIds = agentIds.filter((id) => !resolvedAgentIds.has(id));
+    const unresolvedAgentIds = body.config.agentIds.filter((id) => !resolvedAgentIds.has(id));
     if (unresolvedAgentIds.length > 0) {
       return apiError(
         'INVALID_REQUEST',

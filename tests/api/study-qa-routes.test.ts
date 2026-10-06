@@ -76,6 +76,7 @@ describe('study QA routes', () => {
       spaces: true,
       materials: true,
       qa: true,
+      classmates: false,
     });
     vi.stubEnv('ZHIYU_STUDY_QA_ENABLED', '');
     expect((await (await capabilities()).json()).qa).toBe(false);

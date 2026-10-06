@@ -22,7 +22,13 @@ import {
   VolumeX,
   Loader2,
   Search,
+  UserPlus,
 } from 'lucide-react';
+import Link from 'next/link';
+import { syncClassmateRegistry } from '@/lib/study/classmates/client';
+import { CLASSMATE_LIMITS } from '@/lib/study/classmates/contracts';
+import { countClassmates } from '@/lib/study/classmates/roster';
+import { fetchStudyCapabilities } from '@/lib/study/spaces/client';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import type { TTSProviderId } from '@/lib/audio/types';
@@ -668,6 +674,22 @@ export function AgentBar() {
   const teacherAgent = agents.find((a) => a.role === 'teacher');
   const selectedAgents = agents.filter((a) => selectedAgentIds.includes(a.id));
   const nonTeacherSelected = selectedAgents.filter((a) => a.role !== 'teacher');
+  // Classmates (B04): the signed-in student's templates, projected into the registry.
+  const classmateAgents = agents.filter((a) => a.classmate);
+  const classmateLimitReached =
+    countClassmates(selectedAgents) >= CLASSMATE_LIMITS.classmatesPerClassroom;
+  const [classmatesOn, setClassmatesOn] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchStudyCapabilities().then((capabilities) => {
+      if (cancelled) return;
+      setClassmatesOn(capabilities.classmates);
+      if (capabilities.classmates) void syncClassmateRegistry();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Single source of truth for selectable provider+voice options (enabled
   // providers + opt-in browser-native), shared with discussion TTS (#665).
@@ -729,6 +751,7 @@ export function AgentBar() {
   const toggleAgent = (agentId: string) => {
     const agent = agents.find((a) => a.id === agentId);
     if (agent?.role === 'teacher') return;
+    if (agent?.classmate && !selectedAgentIds.includes(agentId) && classmateLimitReached) return;
     setAgentSelectionIsUserSet(true);
     if (selectedAgentIds.includes(agentId)) {
       setSelectedAgentIds(selectedAgentIds.filter((id) => id !== agentId));
@@ -943,8 +966,36 @@ export function AgentBar() {
               {agentMode === 'preset' ? (
                 <div className="max-h-56 overflow-y-auto -mx-0.5">
                   {agents
-                    .filter((a) => a.role !== 'teacher')
+                    .filter((a) => a.role !== 'teacher' && !a.classmate)
                     .map((agent, idx) => renderAgentRow(agent, idx + 1, false))}
+                  {classmateAgents.length > 0 && (
+                    <div
+                      className="px-2.5 pt-2 pb-1 text-[11px] font-medium text-muted-foreground/60"
+                      data-testid="agent-bar-classmates"
+                    >
+                      {t('agentBar.classmates')}
+                      {classmateLimitReached && (
+                        <span className="ml-1 font-normal">
+                          {t('agentBar.classmateLimit', {
+                            count: CLASSMATE_LIMITS.classmatesPerClassroom,
+                          })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {classmateAgents.map((agent, idx) =>
+                    renderAgentRow(agent, agents.length + idx, false),
+                  )}
+                  {classmatesOn && (
+                    <Link
+                      href="/study/classmates"
+                      data-testid="agent-bar-manage-classmates"
+                      className="mx-2.5 mt-1 mb-1 inline-flex items-center gap-1 text-[11px] text-primary/80 hover:text-primary"
+                    >
+                      <UserPlus className="size-3" />
+                      {t('agentBar.manageClassmates')}
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center pt-6 pb-3 gap-4">
@@ -961,6 +1012,11 @@ export function AgentBar() {
                     <p className="text-[10px] text-muted-foreground/40">
                       {t('agentBar.voiceAutoAssign')}
                     </p>
+                    {classmateAgents.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground/60">
+                        {t('agentBar.classmatesPresetOnly')}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

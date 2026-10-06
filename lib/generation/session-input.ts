@@ -12,6 +12,8 @@ import { GenerationJobRequestError, generationJobRequest } from './job-client';
 import { syncCurrentMediaConfigSnapshot } from '@/lib/workbench/media-config-snapshot-client';
 import { prepareGenerationModelSnapshot } from './model-snapshot-client';
 import { syncGenerationSearchSnapshot } from './search-snapshot-client';
+import { CLASSMATE_LIMITS } from '@/lib/study/classmates/contracts';
+import { countClassmates, rosterAgentId } from '@/lib/study/classmates/roster';
 
 export interface GenerationUploadedAsset {
   assetId: string;
@@ -108,6 +110,10 @@ export async function buildGenerationJobInput(
       : settings.selectedAgentIds
           .map((id) => useAgentRegistry.getState().getAgent(id))
           .filter((agent) => agent && !agent.isGenerated);
+  if (
+    countClassmates(selected.filter((agent) => !!agent)) > CLASSMATE_LIMITS.classmatesPerClassroom
+  )
+    throw new GenerationJobRequestError(422, 'BACKGROUND_AGENT_ROLE_UNSUPPORTED');
   const items = selected.map((agent) => {
     if (!agent || !['teacher', 'assistant', 'student'].includes(agent.role))
       throw new GenerationJobRequestError(422, 'BACKGROUND_AGENT_ROLE_UNSUPPORTED');
@@ -125,7 +131,8 @@ export async function buildGenerationJobInput(
       ? { ...savedVoice!, revision: voiceDefault.revision }
       : savedVoice;
     return {
-      id: agent.id,
+      // A classmate (B04) enters as the snapshot of its current revision.
+      id: rosterAgentId(agent),
       name: agent.name,
       role: agent.role as 'teacher' | 'assistant' | 'student',
       persona: agent.persona,
@@ -157,8 +164,9 @@ export async function buildGenerationJobInput(
   // Stored overrides may belong to old or unselected rosters. Only voices used
   // by this job are included in its media snapshot and may be required by preflight.
   const agentVoiceOverrides = Object.fromEntries(
-    items.flatMap((agent) => {
-      const voice = settings.agentVoiceOverrides[agent.id] ? agent.voiceConfig : undefined;
+    items.flatMap((agent, index) => {
+      const sourceId = selected[index]!.id;
+      const voice = settings.agentVoiceOverrides[sourceId] ? agent.voiceConfig : undefined;
       return voice ? [[agent.id, voice]] : [];
     }),
   );

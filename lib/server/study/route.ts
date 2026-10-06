@@ -17,7 +17,11 @@ import { getOwnerBoundStageAccessDb } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import { LearningTaskError } from '@/lib/server/learning-tasks/contracts';
-import { isStudyMaterialsFlagOn, isStudyQaFlagOn } from '@/lib/server/study/flags';
+import {
+  isStudyClassmatesFlagOn,
+  isStudyMaterialsFlagOn,
+  isStudyQaFlagOn,
+} from '@/lib/server/study/flags';
 
 const log = createLogger('StudyRoute');
 
@@ -94,6 +98,24 @@ export function studyQaRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyQaEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B04 classmate templates: needs study spaces plus ZHIYU_STUDY_CLASSMATES_ENABLED. */
+export function isStudyClassmatesEnabled(): boolean {
+  return isStudyClassmatesFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the classmate APIs. */
+export function studyClassmatesRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyClassmatesEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

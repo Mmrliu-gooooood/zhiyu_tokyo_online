@@ -356,7 +356,11 @@
     "voiceAutoAssign": "سيتم تعيين الأصوات تلقائيًا",
     "searchVoice": "البحث عن الأصوات",
     "noMatchingVoices": "لا توجد أصوات مطابقة",
-    "noVoice": "لا يوجد صوت"
+    "noVoice": "لا يوجد صوت",
+    "classmates": "زملائي",
+    "classmateLimit": "(بحد أقصى {{count}} لكل دورة)",
+    "manageClassmates": "إدارة الزملاء",
+    "classmatesPresetOnly": "يمكن اختيار الزملاء في وضع «مُعَدّ مسبقًا» فقط."
   },
   "proactiveCard": {
     "discussion": "نقاش",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "لم يُحلَّل هذا المصدر بعد.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "لديك مهام كثيرة قيد التشغيل. حاول بعد انتهاء غيرها.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "الخدمة مشغولة. حاول لاحقًا."
+      }
+    },
+    "classmates": {
+      "nav": "الزملاء",
+      "title": "زملائي",
+      "subtitle": "أنشئ زملاء يدرسون معك: تختار الاسم والصورة والشخصية والصوت وأسلوب المرافقة. عند إنشاء دورة جديدة، حددهم ضمن «مُعَدّ مسبقًا» في الصفحة الرئيسية لإحضارهم إلى الصف.",
+      "create": "زميل جديد",
+      "edit": "تعديل",
+      "archive": "أرشفة",
+      "restore": "استعادة",
+      "empty": "لا يوجد زملاء بعد. أنشئ زميلًا يشارك في الصف مع المعلم.",
+      "howToUse": "تعديل الزميل أو أرشفته لا يغيّر الدورات المُنشأة: تحتفظ الدورات القديمة بإعداداته في ذلك الوقت.",
+      "archivedTitle": "المؤرشفون",
+      "importLocal": "استيراد الأدوار من هذا الجهاز ({{count}})",
+      "imported": "تم استيراد {{created}} وتخطي {{skipped}} موجودة مسبقًا",
+      "materialCount": "{{count}} مواد",
+      "role": {
+        "assistant": "مساعد تدريس",
+        "student": "زميل"
+      },
+      "style": {
+        "encouraging": "مشجّع",
+        "socratic": "أسئلة موجِّهة",
+        "peer": "رفيق دراسة",
+        "summarizer": "مدوّن ملاحظات"
+      },
+      "speech": {
+        "active": "يشارك",
+        "on_demand": "فقط عند ذكر اسمه"
+      },
+      "speechHint": {
+        "active": "يشركه المعلم عند الحاجة.",
+        "on_demand": "لا يتحدث إلا إذا ذكرت اسمه في رسالتك."
+      },
+      "form": {
+        "createTitle": "زميل جديد",
+        "editTitle": "تعديل الزميل",
+        "description": "الزملاء مشاركون في الصف؛ يبقى المعلم من النظام.",
+        "name": "الاسم",
+        "namePlaceholder": "مثال: لين",
+        "role": "الدور",
+        "avatar": "الصورة",
+        "upload": "رفع صورة",
+        "avatarFailed": "تعذّر رفع الصورة. جرّب صورة أخرى.",
+        "color": "اللون",
+        "persona": "الشخصية وطريقة الكلام",
+        "personaPlaceholder": "مثال: صبور، يحب الأمثلة اليومية، يتحدث باختصار.",
+        "learningStyle": "أسلوب المرافقة",
+        "speechPolicy": "قاعدة الكلام",
+        "voice": "الصوت",
+        "voiceAuto": "تلقائي (حسب إعدادات الصف)",
+        "materials": "المواد المسموح بها",
+        "materialsHint": "في أسئلة ما بعد الصف، يستشهد الزميل بالمواد المحددة هنا فقط.",
+        "noMaterials": "لا توجد مواد في مكتبتك بعد.",
+        "save": "حفظ",
+        "create": "إنشاء",
+        "invalid": {
+          "name": "أدخل اسمًا (حتى 40 حرفًا).",
+          "other": "هناك قيمة غير صالحة. تحقّق منها."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "بلغت الحد الأقصى وهو 30 زميلًا (بما فيهم المؤرشفون).",
+        "STUDY_REVISION_CONFLICT": "تم تعديل الزميل في مكان آخر؛ يُعرض أحدث إصدار.",
+        "STUDY_CLASSMATE_ARCHIVED": "استعد الزميل المؤرشف قبل تعديله.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "لم تعد إحدى المواد المحددة متاحة. اختر مجددًا.",
+        "STUDY_AVATAR_INVALID": "يُدعم فقط PNG أو JPEG أو WebP.",
+        "STUDY_AVATAR_LIMIT": "بلغت الحد الأقصى للصور المرفوعة.",
+        "STUDY_AVATAR_NOT_FOUND": "تلك الصورة لم تعد موجودة. اختر غيرها.",
+        "STUDY_CLASSMATE_NOT_FOUND": "الزميل غير موجود."
       }
     }
   }

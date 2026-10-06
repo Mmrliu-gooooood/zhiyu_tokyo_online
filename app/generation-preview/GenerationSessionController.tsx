@@ -58,6 +58,7 @@ import {
   type ParsedDocumentPart,
 } from '@/lib/document/bundle';
 import { buildVideoManifestFromOutlines } from '@/lib/media/video-manifest';
+import { buildClassmateRoster } from '@/lib/study/classmates/roster';
 import { nanoid } from 'nanoid';
 import type { GeneratedAgentConfig, Scene, Stage } from '@/lib/types/stage';
 import type {
@@ -1269,16 +1270,33 @@ function GenerationPreviewContent() {
           const a = registry.getAgent(id);
           return a && !a.isGenerated;
         });
-        agents = presetAgentIds
-          .map((id) => registry.getAgent(id))
-          .filter(Boolean)
-          .map((a) => ({
-            id: a!.id,
-            name: a!.name,
-            role: a!.role,
-            persona: a!.persona,
+        // Classmates (B04): freeze the whole picked roster onto the stage so
+        // the course plays the same on other devices and after template edits.
+        const classmateRoster = buildClassmateRoster(
+          presetAgentIds.map((id) => registry.getAgent(id)!),
+          (id) => settings.agentVoiceOverrides[id],
+        );
+        if (classmateRoster) {
+          stage.generatedAgentConfigs = classmateRoster;
+          stage.agentIds = classmateRoster.map((agent) => agent.id);
+          agents = classmateRoster.map((agent) => ({
+            id: agent.id,
+            name: agent.name,
+            role: agent.role,
+            persona: agent.persona,
           }));
-        stage.agentIds = presetAgentIds;
+        } else {
+          agents = presetAgentIds
+            .map((id) => registry.getAgent(id))
+            .filter(Boolean)
+            .map((a) => ({
+              id: a!.id,
+              name: a!.name,
+              role: a!.role,
+              persona: a!.persona,
+            }));
+          stage.agentIds = presetAgentIds;
+        }
       }
 
       // Move to scene generation step

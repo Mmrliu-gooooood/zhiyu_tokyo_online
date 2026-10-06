@@ -8,6 +8,7 @@ import { getActionDescriptions } from '@/lib/orchestration/tool-schemas';
 import type { AgentTurnSummary, WhiteboardActionRecord } from '@/lib/orchestration/types';
 import type { StatelessChatRequest } from '@/lib/types/chat';
 import { buildUserReplyGuidance } from '../reply-policy';
+import { addressedAgentGuidance } from '@/lib/study/classmates/speech';
 
 function compactOutlineText(value: string, maxLength: number): string {
   const compact = value.replace(/\s+/g, ' ').trim();
@@ -153,7 +154,14 @@ export function buildDirectorPrompt(
     'Available agents:',
     agentList || '(none)',
     buildUserReplyGuidance(body.messages),
+    ...addressedGuidance(body, agents),
   ].join('\n');
+}
+
+/** The student named a classmate (B04): that classmate answers first. */
+function addressedGuidance(body: StatelessChatRequest, agents: AgentConfig[]): string[] {
+  const addressed = agents.find((agent) => agent.id === body.config.addressedAgentId);
+  return addressed ? [addressedAgentGuidance(addressed.name)] : [];
 }
 
 export function buildChildPrompt(

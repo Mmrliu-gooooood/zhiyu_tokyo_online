@@ -356,7 +356,11 @@
     "voiceAutoAssign": "聲線將自動分配",
     "searchVoice": "搜尋聲音",
     "noMatchingVoices": "沒有符合的聲音",
-    "noVoice": "無可用音色"
+    "noVoice": "無可用音色",
+    "classmates": "我的學伴",
+    "classmateLimit": "（每門課最多 {{count}} 個）",
+    "manageClassmates": "管理學伴",
+    "classmatesPresetOnly": "學伴只能在「指定角色」模式中選擇。"
   },
   "proactiveCard": {
     "discussion": "討論",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "這份資料還沒有解析完成。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "你同時進行的任務太多了，請等其他任務完成後再試。",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "系統目前繁忙，請稍後再試。"
+      }
+    },
+    "classmates": {
+      "nav": "學伴",
+      "title": "我的學伴",
+      "subtitle": "建立陪你學習的學伴：名字、頭像、個性、聲音和陪學方式都由你決定。產生新課程時，在首頁「指定角色」中勾選學伴即可帶進課堂。",
+      "create": "新增學伴",
+      "edit": "編輯",
+      "archive": "封存",
+      "restore": "還原",
+      "empty": "還沒有學伴。新增一個，讓它和老師一起陪你上課。",
+      "howToUse": "編輯或封存學伴不會改動已產生的課程：舊課程繼續使用當時的學伴設定。",
+      "archivedTitle": "已封存",
+      "importLocal": "匯入本機角色（{{count}}）",
+      "imported": "已匯入 {{created}} 個，略過 {{skipped}} 個已存在的角色",
+      "materialCount": "{{count}} 份資料",
+      "role": {
+        "assistant": "助教",
+        "student": "同學"
+      },
+      "style": {
+        "encouraging": "鼓勵陪伴",
+        "socratic": "提問引導",
+        "peer": "同儕討論",
+        "summarizer": "記重點"
+      },
+      "speech": {
+        "active": "正常參與",
+        "on_demand": "僅點名時發言"
+      },
+      "speechHint": {
+        "active": "老師可以視需要請它發言。",
+        "on_demand": "只有你在提問中叫到它的名字時才會發言。"
+      },
+      "form": {
+        "createTitle": "新增學伴",
+        "editTitle": "編輯學伴",
+        "description": "學伴只作為課堂參與者，老師仍由系統擔任。",
+        "name": "名字",
+        "namePlaceholder": "例如：小林",
+        "role": "角色",
+        "avatar": "頭像",
+        "upload": "上傳圖片",
+        "avatarFailed": "頭像上傳失敗，請換一張圖片再試。",
+        "color": "顏色",
+        "persona": "個性與說話方式",
+        "personaPlaceholder": "例如：耐心、愛用生活中的例子，說話簡短。",
+        "learningStyle": "陪學方式",
+        "speechPolicy": "發言規則",
+        "voice": "聲音",
+        "voiceAuto": "自動（跟隨課堂設定）",
+        "materials": "可使用的資料",
+        "materialsHint": "課後答疑時，學伴只會引用這裡勾選的資料。",
+        "noMaterials": "資料庫裡還沒有資料。",
+        "save": "儲存",
+        "create": "建立",
+        "invalid": {
+          "name": "請填寫名字（最多 40 個字）。",
+          "other": "有內容無效，請檢查後再試。"
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "學伴數量已達上限（30 個，含已封存）。",
+        "STUDY_REVISION_CONFLICT": "學伴已在其他地方修改，已為你重新整理。",
+        "STUDY_CLASSMATE_ARCHIVED": "已封存的學伴需要先還原才能編輯。",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "勾選的資料已無法使用，請重新選擇。",
+        "STUDY_AVATAR_INVALID": "只支援 PNG、JPEG 或 WebP 圖片。",
+        "STUDY_AVATAR_LIMIT": "上傳的頭像已達上限。",
+        "STUDY_AVATAR_NOT_FOUND": "頭像已不存在，請重新選擇。",
+        "STUDY_CLASSMATE_NOT_FOUND": "學伴不存在。"
       }
     }
   }

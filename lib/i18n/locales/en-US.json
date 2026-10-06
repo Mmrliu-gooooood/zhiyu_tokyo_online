@@ -356,7 +356,11 @@
     "voiceAutoAssign": "Voices will be auto-assigned",
     "searchVoice": "Search voices",
     "noMatchingVoices": "No matching voices",
-    "noVoice": "No voice"
+    "noVoice": "No voice",
+    "classmates": "My classmates",
+    "classmateLimit": "(up to {{count}} per course)",
+    "manageClassmates": "Manage classmates",
+    "classmatesPresetOnly": "Classmates can only be picked in Preset mode."
   },
   "proactiveCard": {
     "discussion": "Discussion",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "This material has not been parsed yet.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "You have too many tasks running. Try again when others finish.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "The service is busy. Please try again later."
+      }
+    },
+    "classmates": {
+      "nav": "Classmates",
+      "title": "My classmates",
+      "subtitle": "Create classmates who study with you: you choose their name, avatar, personality, voice and companion style. When you generate a new course, tick them under “Preset” on the home page to bring them into class.",
+      "create": "New classmate",
+      "edit": "Edit",
+      "archive": "Archive",
+      "restore": "Restore",
+      "empty": "No classmates yet. Create one to join your classes alongside the teacher.",
+      "howToUse": "Editing or archiving a classmate never changes courses already generated: older courses keep the classmate as it was then.",
+      "archivedTitle": "Archived",
+      "importLocal": "Import roles from this device ({{count}})",
+      "imported": "Imported {{created}}, skipped {{skipped}} already there",
+      "materialCount": "{{count}} materials",
+      "role": {
+        "assistant": "Teaching assistant",
+        "student": "Classmate"
+      },
+      "style": {
+        "encouraging": "Encouraging",
+        "socratic": "Guiding questions",
+        "peer": "Study peer",
+        "summarizer": "Note-taker"
+      },
+      "speech": {
+        "active": "Joins in",
+        "on_demand": "Only when named"
+      },
+      "speechHint": {
+        "active": "The teacher can bring them in when it helps.",
+        "on_demand": "Speaks only when you use their name in your message."
+      },
+      "form": {
+        "createTitle": "New classmate",
+        "editTitle": "Edit classmate",
+        "description": "Classmates take part in class; the teacher stays with the system.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Lin",
+        "role": "Role",
+        "avatar": "Avatar",
+        "upload": "Upload image",
+        "avatarFailed": "Could not upload the avatar. Try another image.",
+        "color": "Colour",
+        "persona": "Personality and way of speaking",
+        "personaPlaceholder": "e.g. patient, likes everyday examples, keeps it short.",
+        "learningStyle": "Companion style",
+        "speechPolicy": "Speaking rule",
+        "voice": "Voice",
+        "voiceAuto": "Automatic (follow the class settings)",
+        "materials": "Materials they may use",
+        "materialsHint": "In after-class Q&A, the classmate only cites the materials ticked here.",
+        "noMaterials": "Your library has no materials yet.",
+        "save": "Save",
+        "create": "Create",
+        "invalid": {
+          "name": "Enter a name (up to 40 characters).",
+          "other": "Something is not valid. Check and try again."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "You have reached the limit of 30 classmates (archived ones included).",
+        "STUDY_REVISION_CONFLICT": "This classmate was changed elsewhere; the latest version is shown.",
+        "STUDY_CLASSMATE_ARCHIVED": "Restore an archived classmate before editing it.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "A ticked material is no longer available. Choose again.",
+        "STUDY_AVATAR_INVALID": "Only PNG, JPEG or WebP images are supported.",
+        "STUDY_AVATAR_LIMIT": "You have reached the avatar upload limit.",
+        "STUDY_AVATAR_NOT_FOUND": "That avatar no longer exists. Choose another.",
+        "STUDY_CLASSMATE_NOT_FOUND": "Classmate not found."
       }
     }
   }

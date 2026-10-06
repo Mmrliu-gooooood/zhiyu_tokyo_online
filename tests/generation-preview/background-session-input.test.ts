@@ -19,15 +19,28 @@ vi.mock('@/lib/orchestration/registry/store', () => ({
   useAgentRegistry: {
     getState: () => ({
       listAgents: () => [],
-      getAgent: () => ({
-        id: 'teacher',
-        name: 'Teacher',
-        role: 'teacher',
-        persona: 'Teach carefully',
-        avatar: 'T',
-        color: '#123456',
-        priority: 1,
-      }),
+      getAgent: (id: string) =>
+        id === 'cm-0123456789abcdef'
+          ? {
+              id,
+              name: '小林',
+              role: 'student',
+              persona: 'Classmate persona',
+              avatar: '/avatars/curious.png',
+              color: '#10b981',
+              priority: 5,
+              classmate: { id, revision: 3 },
+              voiceConfig: { source: 'user', providerId: 'qwen-tts', voiceId: 'Cherry' },
+            }
+          : {
+              id: 'teacher',
+              name: 'Teacher',
+              role: 'teacher',
+              persona: 'Teach carefully',
+              avatar: 'T',
+              color: '#123456',
+              priority: 1,
+            },
     }),
   },
 }));
@@ -465,6 +478,45 @@ describe('background session input', () => {
       expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/generate-classroom');
     },
   );
+
+  it('freezes a classmate as the snapshot of its current revision (B04)', async () => {
+    mocks.settings.mockReturnValue({
+      ...settings,
+      ttsEnabled: false,
+      selectedAgentIds: ['teacher', 'cm-0123456789abcdef'],
+      agentVoiceOverrides: {
+        'cm-0123456789abcdef': { source: 'user', providerId: 'qwen-tts', voiceId: 'Ethan' },
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url === '/api/agent/media-config-snapshots'
+          ? Response.json({ ref: { id: crypto.randomUUID(), revision: 1 } })
+          : Response.json({ jobs: [] }),
+      ),
+    );
+    const input = await buildGenerationJobInput(
+      session as never,
+      'zh-CN',
+      new AbortController().signal,
+      () => undefined,
+    );
+    expect(GenerationInputSchema.safeParse(input).success).toBe(true);
+    expect(input.agents).toMatchObject({
+      mode: 'custom',
+      items: [
+        { id: 'teacher', role: 'teacher' },
+        {
+          id: 'cm-0123456789abcdef-r3',
+          name: '小林',
+          role: 'student',
+          persona: 'Classmate persona',
+          voiceConfig: { providerId: 'qwen-tts', voiceId: 'Ethan' },
+        },
+      ],
+    });
+  });
 
   it('ignores unused document and search credentials for a text-only course', async () => {
     mocks.settings.mockReturnValue({

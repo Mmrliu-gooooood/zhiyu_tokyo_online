@@ -158,6 +158,13 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE study_qa_citations(owner_id text,answer_id text,version_id text,
         foreign key(owner_id,answer_id) references study_qa_answers(owner_id,id),
         foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
+      CREATE TABLE study_classmates(id text primary key,owner_id text,unique(owner_id,id));
+      CREATE TABLE study_classmate_revisions(owner_id text,classmate_id text,revision int,
+        foreign key(owner_id,classmate_id) references study_classmates(owner_id,id));
+      CREATE TABLE study_classmate_materials(owner_id text,classmate_id text,material_id text,
+        foreign key(owner_id,classmate_id) references study_classmates(owner_id,id),
+        foreign key(owner_id,material_id) references study_materials(owner_id,id));
+      CREATE TABLE study_classmate_avatars(id text primary key,owner_id text);
       CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
       CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text,
         staged_object_keys jsonb not null default '[]');
@@ -206,6 +213,12 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         ('ans-owner','${OWNER}','space-owner'),('ans-other','${OTHER}','space-other');
       INSERT INTO study_qa_citations VALUES
         ('${OWNER}','ans-owner','ver-owner'),('${OTHER}','ans-other','ver-other');
+      INSERT INTO study_classmates VALUES('cm-owner','${OWNER}'),('cm-other','${OTHER}');
+      INSERT INTO study_classmate_revisions VALUES
+        ('${OWNER}','cm-owner',1),('${OTHER}','cm-other',1);
+      INSERT INTO study_classmate_materials VALUES
+        ('${OWNER}','cm-owner','mat-owner'),('${OTHER}','cm-other','mat-other');
+      INSERT INTO study_classmate_avatars VALUES('av-owner','${OWNER}'),('av-other','${OTHER}');
       INSERT INTO learning_tasks VALUES
         ('30000000-0000-4000-8000-000000000001','${OWNER}'),
         ('30000000-0000-4000-8000-000000000002','${OTHER}');
@@ -415,6 +428,10 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_knowledge_chunks',
       'study_qa_answers',
       'study_qa_citations',
+      'study_classmates',
+      'study_classmate_revisions',
+      'study_classmate_materials',
+      'study_classmate_avatars',
     ]) {
       expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
     }

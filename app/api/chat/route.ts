@@ -16,6 +16,7 @@ import { hostedAuthGate, withHostedProviderQuota } from '@/lib/auth/api';
 import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-owner-gate';
 import { NextRequest } from 'next/server';
 import { statelessGenerate } from '@/lib/orchestration/stateless-generate';
+import { applyClassmateSpeechRules } from '@/lib/server/study/classmates/speech-policy';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
@@ -77,6 +78,7 @@ async function handlePOST(req: NextRequest) {
     if (!body.config || !body.config.agentIds || body.config.agentIds.length === 0) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: config.agentIds');
     }
+    await applyClassmateSpeechRules(req, body);
 
     // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
     // thinking wins, an unrouted one honors this client thinking.

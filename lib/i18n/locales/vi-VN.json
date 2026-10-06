@@ -356,7 +356,11 @@
     "voiceAutoAssign": "Giọng đọc sẽ được gán tự động",
     "searchVoice": "Tìm giọng đọc",
     "noMatchingVoices": "Không có giọng nào khớp",
-    "noVoice": "Không có giọng"
+    "noVoice": "Không có giọng",
+    "classmates": "Bạn học của tôi",
+    "classmateLimit": "(tối đa {{count}} mỗi khóa)",
+    "manageClassmates": "Quản lý bạn học",
+    "classmatesPresetOnly": "Chỉ chọn được bạn học ở chế độ Đặt sẵn."
   },
   "proactiveCard": {
     "discussion": "Thảo luận",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "Tài liệu này chưa được phân tích.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Bạn đang chạy quá nhiều tác vụ. Hãy thử lại khi các tác vụ khác xong.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Hệ thống đang bận. Vui lòng thử lại sau."
+      }
+    },
+    "classmates": {
+      "nav": "Bạn học",
+      "title": "Bạn học của tôi",
+      "subtitle": "Tạo bạn học cùng học với bạn: bạn chọn tên, ảnh đại diện, tính cách, giọng nói và cách đồng hành. Khi tạo khóa học mới, đánh dấu họ trong “Đặt sẵn” ở trang chủ để đưa vào lớp.",
+      "create": "Bạn học mới",
+      "edit": "Sửa",
+      "archive": "Lưu trữ",
+      "restore": "Khôi phục",
+      "empty": "Chưa có bạn học. Hãy tạo một bạn để cùng giáo viên tham gia lớp học.",
+      "howToUse": "Sửa hoặc lưu trữ bạn học không thay đổi các khóa học đã tạo: khóa học cũ giữ nguyên thiết lập lúc đó.",
+      "archivedTitle": "Đã lưu trữ",
+      "importLocal": "Nhập vai trò từ thiết bị này ({{count}})",
+      "imported": "Đã nhập {{created}}, bỏ qua {{skipped}} đã có",
+      "materialCount": "{{count}} tài liệu",
+      "role": {
+        "assistant": "Trợ giảng",
+        "student": "Bạn cùng lớp"
+      },
+      "style": {
+        "encouraging": "Khích lệ",
+        "socratic": "Câu hỏi gợi mở",
+        "peer": "Bạn cùng học",
+        "summarizer": "Ghi ý chính"
+      },
+      "speech": {
+        "active": "Tham gia",
+        "on_demand": "Chỉ khi được gọi tên"
+      },
+      "speechHint": {
+        "active": "Giáo viên mời phát biểu khi cần.",
+        "on_demand": "Chỉ nói khi bạn gọi tên trong tin nhắn."
+      },
+      "form": {
+        "createTitle": "Bạn học mới",
+        "editTitle": "Sửa bạn học",
+        "description": "Bạn học là người tham gia lớp; giáo viên vẫn do hệ thống đảm nhận.",
+        "name": "Tên",
+        "namePlaceholder": "ví dụ: Lin",
+        "role": "Vai trò",
+        "avatar": "Ảnh đại diện",
+        "upload": "Tải ảnh lên",
+        "avatarFailed": "Không tải được ảnh đại diện. Hãy thử ảnh khác.",
+        "color": "Màu",
+        "persona": "Tính cách và cách nói",
+        "personaPlaceholder": "ví dụ: kiên nhẫn, hay dùng ví dụ đời thường, nói ngắn gọn.",
+        "learningStyle": "Cách đồng hành",
+        "speechPolicy": "Quy tắc phát biểu",
+        "voice": "Giọng nói",
+        "voiceAuto": "Tự động (theo thiết lập lớp)",
+        "materials": "Tài liệu được dùng",
+        "materialsHint": "Khi hỏi đáp sau giờ học, bạn học chỉ trích dẫn tài liệu được chọn ở đây.",
+        "noMaterials": "Thư viện chưa có tài liệu.",
+        "save": "Lưu",
+        "create": "Tạo",
+        "invalid": {
+          "name": "Hãy nhập tên (tối đa 40 ký tự).",
+          "other": "Có mục không hợp lệ. Hãy kiểm tra lại."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "Bạn đã đạt giới hạn 30 bạn học (kể cả đã lưu trữ).",
+        "STUDY_REVISION_CONFLICT": "Bạn học đã được sửa ở nơi khác; đang hiển thị bản mới nhất.",
+        "STUDY_CLASSMATE_ARCHIVED": "Hãy khôi phục bạn học đã lưu trữ trước khi sửa.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "Một tài liệu đã chọn không còn dùng được. Hãy chọn lại.",
+        "STUDY_AVATAR_INVALID": "Chỉ hỗ trợ ảnh PNG, JPEG hoặc WebP.",
+        "STUDY_AVATAR_LIMIT": "Bạn đã đạt giới hạn ảnh đại diện tải lên.",
+        "STUDY_AVATAR_NOT_FOUND": "Ảnh đại diện đó không còn. Hãy chọn ảnh khác.",
+        "STUDY_CLASSMATE_NOT_FOUND": "Không tìm thấy bạn học."
       }
     }
   }

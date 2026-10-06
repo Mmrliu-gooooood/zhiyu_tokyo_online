@@ -356,7 +356,11 @@
     "voiceAutoAssign": "Stimmen werden automatisch zugewiesen",
     "searchVoice": "Stimmen durchsuchen",
     "noMatchingVoices": "Keine passenden Stimmen",
-    "noVoice": "Keine Stimme"
+    "noVoice": "Keine Stimme",
+    "classmates": "Meine Lernbuddys",
+    "classmateLimit": "(höchstens {{count}} pro Kurs)",
+    "manageClassmates": "Lernbuddys verwalten",
+    "classmatesPresetOnly": "Lernbuddys können nur im Modus „Voreinstellung“ gewählt werden."
   },
   "proactiveCard": {
     "discussion": "Diskussion",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "Dieses Material wurde noch nicht analysiert.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Zu viele laufende Aufgaben. Versuche es, wenn andere fertig sind.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Der Dienst ist ausgelastet. Bitte später erneut versuchen."
+      }
+    },
+    "classmates": {
+      "nav": "Lernbuddys",
+      "title": "Meine Lernbuddys",
+      "subtitle": "Erstelle Lernbuddys, die mit dir lernen: Name, Avatar, Persönlichkeit, Stimme und Begleitstil bestimmst du. Beim Erstellen eines neuen Kurses wählst du sie auf der Startseite unter „Voreinstellung“ aus.",
+      "create": "Neuer Lernbuddy",
+      "edit": "Bearbeiten",
+      "archive": "Archivieren",
+      "restore": "Wiederherstellen",
+      "empty": "Noch keine Lernbuddys. Erstelle einen, der mit der Lehrkraft am Unterricht teilnimmt.",
+      "howToUse": "Bearbeiten oder Archivieren ändert keine bereits erstellten Kurse: Ältere Kurse behalten den damaligen Stand.",
+      "archivedTitle": "Archiviert",
+      "importLocal": "Rollen von diesem Gerät importieren ({{count}})",
+      "imported": "{{created}} importiert, {{skipped}} vorhandene übersprungen",
+      "materialCount": "{{count}} Materialien",
+      "role": {
+        "assistant": "Tutor",
+        "student": "Mitschüler"
+      },
+      "style": {
+        "encouraging": "Ermutigend",
+        "socratic": "Leitfragen",
+        "peer": "Lernpartner",
+        "summarizer": "Notizen"
+      },
+      "speech": {
+        "active": "Nimmt teil",
+        "on_demand": "Nur wenn angesprochen"
+      },
+      "speechHint": {
+        "active": "Die Lehrkraft bezieht ihn bei Bedarf ein.",
+        "on_demand": "Spricht nur, wenn du ihn in deiner Nachricht mit Namen ansprichst."
+      },
+      "form": {
+        "createTitle": "Neuer Lernbuddy",
+        "editTitle": "Lernbuddy bearbeiten",
+        "description": "Lernbuddys nehmen am Unterricht teil; die Lehrkraft bleibt beim System.",
+        "name": "Name",
+        "namePlaceholder": "z. B. Lin",
+        "role": "Rolle",
+        "avatar": "Avatar",
+        "upload": "Bild hochladen",
+        "avatarFailed": "Avatar konnte nicht hochgeladen werden. Versuche ein anderes Bild.",
+        "color": "Farbe",
+        "persona": "Persönlichkeit und Sprechweise",
+        "personaPlaceholder": "z. B. geduldig, nutzt Alltagsbeispiele, fasst sich kurz.",
+        "learningStyle": "Begleitstil",
+        "speechPolicy": "Sprechregel",
+        "voice": "Stimme",
+        "voiceAuto": "Automatisch (Kurseinstellungen)",
+        "materials": "Nutzbare Materialien",
+        "materialsHint": "In der Fragerunde nach dem Unterricht zitiert der Lernbuddy nur die hier gewählten Materialien.",
+        "noMaterials": "Deine Bibliothek enthält noch keine Materialien.",
+        "save": "Speichern",
+        "create": "Erstellen",
+        "invalid": {
+          "name": "Gib einen Namen ein (bis 40 Zeichen).",
+          "other": "Eine Angabe ist ungültig. Bitte prüfen."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "Du hast das Limit von 30 Lernbuddys erreicht (archivierte eingeschlossen).",
+        "STUDY_REVISION_CONFLICT": "Der Lernbuddy wurde anderswo geändert; der neueste Stand wird angezeigt.",
+        "STUDY_CLASSMATE_ARCHIVED": "Stelle einen archivierten Lernbuddy wieder her, bevor du ihn bearbeitest.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "Ein gewähltes Material ist nicht mehr verfügbar. Bitte neu wählen.",
+        "STUDY_AVATAR_INVALID": "Nur PNG-, JPEG- oder WebP-Bilder werden unterstützt.",
+        "STUDY_AVATAR_LIMIT": "Das Limit für hochgeladene Avatare ist erreicht.",
+        "STUDY_AVATAR_NOT_FOUND": "Dieser Avatar existiert nicht mehr. Wähle einen anderen.",
+        "STUDY_CLASSMATE_NOT_FOUND": "Lernbuddy nicht gefunden."
       }
     }
   }

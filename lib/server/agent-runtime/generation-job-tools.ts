@@ -21,6 +21,7 @@ import {
   ProOutlineParams,
 } from './pro-generation-input';
 import { checkOutlineAgainstSkill, type OutlineConstraints } from './skills';
+import { castWithClassmates, type ClassmateRosterSource } from './classmate-tools';
 
 const SubmitParams = Type.Object({
   requirement: Type.String({ description: 'The complete course generation brief.' }),
@@ -34,6 +35,13 @@ const SubmitParams = Type.Object({
       maxItems: 10,
       description:
         'Optional complete custom cast: unique stable IDs and exactly one teacher. Omit to generate the cast automatically.',
+    }),
+  ),
+  classmateIds: Type.Optional(
+    Type.Array(Type.String({ maxLength: 64 }), {
+      maxItems: 3,
+      description:
+        'Ids from list_classmates. The server adds the saved snapshot of each classmate to the cast (with agents, or with the system teacher when agents is omitted). Never copy a classmate into agents.',
     }),
   ),
   skillIds: Type.Optional(Type.Array(Type.String(), { maxItems: 30 })),
@@ -87,6 +95,8 @@ export interface GenerationJobToolDeps {
     ids: readonly string[],
   ) => Promise<Array<{ id: string; constraints?: Record<string, unknown> }>>;
   onCompleted?: (job: GenerationJobView) => void;
+  /** The owner's classmate templates (B04); absent when classmates are off. */
+  classmates?: ClassmateRosterSource;
 }
 
 function key(kind: string, sessionId: string, callId: string) {
@@ -277,8 +287,27 @@ export function buildGenerationJobTools(deps: GenerationJobToolDeps): AgentTool<
         let agents: GenerationInput['agents'];
         let outlines: ReturnType<typeof normalizePlannedOutlines> | undefined;
         const errors: GenerationJobError[] = [];
+        let suppliedAgents: readonly unknown[] | undefined = params.agents;
+        if (params.classmateIds?.length) {
+          const cast = await castWithClassmates({
+            classmateIds: params.classmateIds,
+            agents: params.agents,
+            source: deps.classmates,
+            mediaConfig: deps.mediaConfig,
+          });
+          if (!cast.ok)
+            return result(
+              `${cast.message} No job was created.`,
+              {
+                refused: true,
+                code: cast.code,
+              },
+              true,
+            );
+          suppliedAgents = cast.agents;
+        }
         try {
-          agents = normalizeProAgents(params.agents, deps.mediaConfig);
+          agents = normalizeProAgents(suppliedAgents, deps.mediaConfig);
         } catch (error) {
           if (!(error instanceof GenerationJobError)) throw error;
           errors.push(error);

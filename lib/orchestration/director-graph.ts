@@ -40,6 +40,7 @@ import type { AgentTurnSummary, WhiteboardActionRecord } from './types';
 import { parseStructuredChunk, createParserState, finalizeParser } from './stateless-generate';
 import { createLogger } from '@/lib/logger';
 import { getReplyPolicy, buildUserReplyGuidance } from '@/lib/chat/reply-policy';
+import { addressedAgentGuidance } from '@/lib/study/classmates/speech';
 
 const log = createLogger('DirectorGraph');
 
@@ -57,6 +58,8 @@ const OrchestratorState = Annotation.Root({
   binding: Annotation<ModelBinding>,
   discussionContext: Annotation<{ topic: string; prompt?: string } | null>,
   triggerAgentId: Annotation<string | null>,
+  /** Server-set: the classmate the student named in this message (B04). */
+  addressedAgentId: Annotation<string | null>,
   userProfile: Annotation<{ nickname?: string; bio?: string } | null>,
   /** Request-scoped agent configs for generated agents (not in the default registry) */
   agentConfigOverrides: Annotation<Record<string, AgentConfig>>,
@@ -119,6 +122,14 @@ async function directorNode(
     if (completed >= replyPolicy.maxTurns) return { shouldEnd: true };
     // A question/acknowledgment belongs to the learner, even when they reply
     // inside a previously agent-initiated discussion session.
+    if (completed === 0 && state.addressedAgentId) {
+      // The student named a classmate: it answers first (B04 speaking rules).
+      if (state.availableAgentIds.includes(state.addressedAgentId)) {
+        const agentId = state.addressedAgentId;
+        write({ type: 'thinking', data: { stage: 'agent_loading', agentId } });
+        return { currentAgentId: agentId, shouldEnd: false };
+      }
+    }
     if (completed === 0) {
       const teacher = state.availableAgentIds
         .map((id) => resolveAgent(state, id))
@@ -191,7 +202,8 @@ async function directorNode(
       state.storeState.whiteboardOpen,
     ) +
     '\n' +
-    buildUserReplyGuidance(state.messages);
+    buildUserReplyGuidance(state.messages) +
+    addressedPromptLine(state, agents);
 
   const adapter = new GatewayLangGraphAdapter(state.binding);
 
@@ -252,6 +264,12 @@ async function directorNode(
     log.error('[Director] Error:', error);
     return { shouldEnd: true };
   }
+}
+
+/** The student named a classmate (B04): the director keeps that in view after its first answer. */
+function addressedPromptLine(state: OrchestratorStateType, agents: AgentConfig[]): string {
+  const addressed = agents.find((agent) => agent.id === state.addressedAgentId);
+  return addressed ? `\n${addressedAgentGuidance(addressed.name)}` : '';
 }
 
 function directorCondition(state: OrchestratorStateType): 'agent_generate' | typeof END {
@@ -569,6 +587,7 @@ export function buildInitialState(
     binding,
     discussionContext,
     triggerAgentId: request.config.triggerAgentId || null,
+    addressedAgentId: request.config.addressedAgentId || null,
     userProfile: request.userProfile || null,
     agentConfigOverrides,
     currentAgentId: null,

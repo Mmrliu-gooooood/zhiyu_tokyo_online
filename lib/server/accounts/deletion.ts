@@ -534,6 +534,12 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM study_knowledge_indexes WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_citations WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_answers WHERE owner_id=$1', [ownerId]);
+      // Classmates (v25) link to materials, so they go first; revisions and
+      // material links cascade from their template but are named explicitly.
+      await client.query('DELETE FROM study_classmate_materials WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_classmate_revisions WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_classmates WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_classmate_avatars WHERE owner_id=$1', [ownerId]);
       // Study materials (v23): session refs and space links first, then
       // artifacts and versions under their materials, then the task queue.
       await client.query('DELETE FROM study_session_material_refs WHERE owner_id=$1', [ownerId]);

@@ -356,7 +356,11 @@
     "voiceAutoAssign": "Les voix seront attribuées automatiquement",
     "searchVoice": "Rechercher une voix",
     "noMatchingVoices": "Aucune voix correspondante",
-    "noVoice": "Aucune voix"
+    "noVoice": "Aucune voix",
+    "classmates": "Mes camarades",
+    "classmateLimit": "({{count}} max. par cours)",
+    "manageClassmates": "Gérer les camarades",
+    "classmatesPresetOnly": "Les camarades ne se choisissent qu’en mode Prédéfini."
   },
   "proactiveCard": {
     "discussion": "Discussion",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "Ce support n’a pas encore été analysé.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Trop de tâches en cours. Réessayez quand elles seront terminées.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Le service est occupé. Réessayez plus tard."
+      }
+    },
+    "classmates": {
+      "nav": "Camarades",
+      "title": "Mes camarades",
+      "subtitle": "Créez des camarades qui étudient avec vous : vous choisissez leur nom, avatar, personnalité, voix et style d’accompagnement. Lors de la génération d’un nouveau cours, cochez-les sous « Prédéfini » sur la page d’accueil.",
+      "create": "Nouveau camarade",
+      "edit": "Modifier",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "empty": "Pas encore de camarade. Créez-en un pour participer aux cours avec l’enseignant.",
+      "howToUse": "Modifier ou archiver un camarade ne change pas les cours déjà générés : les anciens cours le gardent tel qu’il était.",
+      "archivedTitle": "Archivés",
+      "importLocal": "Importer les rôles de cet appareil ({{count}})",
+      "imported": "{{created}} importé(s), {{skipped}} déjà présent(s) ignoré(s)",
+      "materialCount": "{{count}} documents",
+      "role": {
+        "assistant": "Assistant",
+        "student": "Camarade"
+      },
+      "style": {
+        "encouraging": "Encourageant",
+        "socratic": "Questions guides",
+        "peer": "Partenaire d’étude",
+        "summarizer": "Prise de notes"
+      },
+      "speech": {
+        "active": "Participe",
+        "on_demand": "Seulement si nommé"
+      },
+      "speechHint": {
+        "active": "L’enseignant le fait intervenir quand c’est utile.",
+        "on_demand": "Ne parle que si vous l’appelez par son nom dans votre message."
+      },
+      "form": {
+        "createTitle": "Nouveau camarade",
+        "editTitle": "Modifier le camarade",
+        "description": "Les camarades participent au cours ; l’enseignant reste géré par le système.",
+        "name": "Nom",
+        "namePlaceholder": "p. ex. Lin",
+        "role": "Rôle",
+        "avatar": "Avatar",
+        "upload": "Importer une image",
+        "avatarFailed": "Impossible d’importer l’avatar. Essayez une autre image.",
+        "color": "Couleur",
+        "persona": "Personnalité et façon de parler",
+        "personaPlaceholder": "p. ex. patient, aime les exemples du quotidien, parle brièvement.",
+        "learningStyle": "Style d’accompagnement",
+        "speechPolicy": "Règle de parole",
+        "voice": "Voix",
+        "voiceAuto": "Automatique (réglages du cours)",
+        "materials": "Documents utilisables",
+        "materialsHint": "Lors des questions après le cours, le camarade ne cite que les documents cochés ici.",
+        "noMaterials": "Votre bibliothèque ne contient encore aucun document.",
+        "save": "Enregistrer",
+        "create": "Créer",
+        "invalid": {
+          "name": "Saisissez un nom (40 caractères max.).",
+          "other": "Un champ n’est pas valide. Vérifiez."
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "Vous avez atteint la limite de 30 camarades (archivés compris).",
+        "STUDY_REVISION_CONFLICT": "Ce camarade a été modifié ailleurs ; la dernière version est affichée.",
+        "STUDY_CLASSMATE_ARCHIVED": "Restaurez un camarade archivé avant de le modifier.",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "Un document coché n’est plus disponible. Choisissez à nouveau.",
+        "STUDY_AVATAR_INVALID": "Seules les images PNG, JPEG ou WebP sont acceptées.",
+        "STUDY_AVATAR_LIMIT": "Vous avez atteint la limite d’avatars importés.",
+        "STUDY_AVATAR_NOT_FOUND": "Cet avatar n’existe plus. Choisissez-en un autre.",
+        "STUDY_CLASSMATE_NOT_FOUND": "Camarade introuvable."
       }
     }
   }

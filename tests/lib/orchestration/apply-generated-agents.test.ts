@@ -153,6 +153,23 @@ describe('applyGeneratedAgentsToRegistry', () => {
     expect(useAgentRegistry.getState().getAgent('default-1')?.isDefault).toBe(true);
   });
 
+  it('keeps the built-in entry when a roster names a default agent (B04 classmate rosters)', () => {
+    const ids = applyGeneratedAgentsToRegistry('stage-1', [
+      { ...makeConfig('default-1'), name: 'snapshot teacher' },
+      makeConfig('cm-0123456789abcdef-r1'),
+    ]);
+    expect(ids).toEqual(['default-1', 'cm-0123456789abcdef-r1']);
+    expect(useAgentRegistry.getState().getAgent('default-1')).toMatchObject({
+      isDefault: true,
+      name: '启衡',
+    });
+    expect(useAgentRegistry.getState().getAgent('default-1')?.isGenerated).toBeFalsy();
+    // The next classroom's roster replaces generated agents only.
+    applyGeneratedAgentsToRegistry('stage-2', []);
+    expect(useAgentRegistry.getState().getAgent('default-1')).toBeDefined();
+    expect(useAgentRegistry.getState().getAgent('cm-0123456789abcdef-r1')).toBeUndefined();
+  });
+
   it('clears generated agents when applying an empty roster', () => {
     applyGeneratedAgentsToRegistry('stage-1', [makeConfig('gen-a')]);
     const ids = applyGeneratedAgentsToRegistry('stage-2', []);
@@ -196,6 +213,37 @@ describe('registry persistence excludes generated agents', () => {
       expect(persisted.state.agents['default-1']).toBeDefined();
     } finally {
       useAgentRegistry.getState().deleteAgent('custom-1');
+    }
+  });
+
+  it('never persists classmate projections, which belong to the signed-in account', () => {
+    useAgentRegistry.getState().addAgent({
+      ...makeCustomAgent('cm-0123456789abcdef'),
+      classmate: { id: 'cm-0123456789abcdef', revision: 2 },
+    });
+    try {
+      useAgentRegistry.getState().addAgent(makeCustomAgent('custom-2'));
+      const persisted = JSON.parse(localStorage.getItem('agent-registry-storage')!) as {
+        state: { agents: Record<string, AgentConfig> };
+      };
+      expect(persisted.state.agents['cm-0123456789abcdef']).toBeUndefined();
+      expect(persisted.state.agents['custom-2']).toBeDefined();
+      const { merge } = useAgentRegistry.persist.getOptions();
+      const merged = merge!(
+        {
+          agents: {
+            'cm-0123456789abcdef': {
+              ...makeCustomAgent('cm-0123456789abcdef'),
+              classmate: { id: 'cm-0123456789abcdef', revision: 1 },
+            },
+          },
+        },
+        useAgentRegistry.getState(),
+      ) as { agents: Record<string, AgentConfig> };
+      expect(merged.agents['cm-0123456789abcdef']).toBeUndefined();
+    } finally {
+      useAgentRegistry.getState().deleteAgent('cm-0123456789abcdef');
+      useAgentRegistry.getState().deleteAgent('custom-2');
     }
   });
 

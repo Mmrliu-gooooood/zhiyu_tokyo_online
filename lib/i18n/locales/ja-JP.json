@@ -356,7 +356,11 @@
     "voiceAutoAssign": "ボイスは自動的に割り当てられます",
     "searchVoice": "音色を検索",
     "noMatchingVoices": "一致する音色はありません",
-    "noVoice": "音声なし"
+    "noVoice": "音声なし",
+    "classmates": "マイクラスメイト",
+    "classmateLimit": "（1 コース最大 {{count}} 人）",
+    "manageClassmates": "クラスメイトを管理",
+    "classmatesPresetOnly": "クラスメイトはプリセットモードでのみ選べます。"
   },
   "proactiveCard": {
     "discussion": "ディスカッション",
@@ -2758,6 +2762,76 @@
         "STUDY_MATERIAL_NOT_PARSED": "この資料はまだ解析されていません。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "実行中のタスクが多すぎます。他のタスクが終わってから再試行してください。",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "システムが混み合っています。しばらくしてから再試行してください。"
+      }
+    },
+    "classmates": {
+      "nav": "クラスメイト",
+      "title": "マイクラスメイト",
+      "subtitle": "一緒に学ぶクラスメイトを作成します。名前、アバター、性格、声、伴走スタイルを自由に決められます。新しいコースを生成するとき、ホームの「プリセット」でチェックすると授業に参加します。",
+      "create": "新規作成",
+      "edit": "編集",
+      "archive": "アーカイブ",
+      "restore": "復元",
+      "empty": "まだクラスメイトがいません。作成すると先生と一緒に授業に参加します。",
+      "howToUse": "クラスメイトを編集・アーカイブしても、生成済みのコースは変わりません。古いコースは当時の設定のままです。",
+      "archivedTitle": "アーカイブ済み",
+      "importLocal": "この端末の役割をインポート（{{count}}）",
+      "imported": "{{created}} 件をインポート、既存の {{skipped}} 件をスキップしました",
+      "materialCount": "資料 {{count}} 件",
+      "role": {
+        "assistant": "アシスタント",
+        "student": "クラスメイト"
+      },
+      "style": {
+        "encouraging": "励まし",
+        "socratic": "問いかけ",
+        "peer": "学習仲間",
+        "summarizer": "まとめ役"
+      },
+      "speech": {
+        "active": "通常参加",
+        "on_demand": "名前を呼ばれたときだけ"
+      },
+      "speechHint": {
+        "active": "先生が必要に応じて発言を促します。",
+        "on_demand": "メッセージで名前を呼んだときだけ発言します。"
+      },
+      "form": {
+        "createTitle": "クラスメイトを作成",
+        "editTitle": "クラスメイトを編集",
+        "description": "クラスメイトは授業の参加者です。先生はシステムが担当します。",
+        "name": "名前",
+        "namePlaceholder": "例：リン",
+        "role": "役割",
+        "avatar": "アバター",
+        "upload": "画像をアップロード",
+        "avatarFailed": "アバターをアップロードできませんでした。別の画像でお試しください。",
+        "color": "色",
+        "persona": "性格と話し方",
+        "personaPlaceholder": "例：辛抱強く、身近な例を使い、短く話す。",
+        "learningStyle": "伴走スタイル",
+        "speechPolicy": "発言ルール",
+        "voice": "声",
+        "voiceAuto": "自動（授業の設定に従う）",
+        "materials": "使用できる資料",
+        "materialsHint": "授業後の質問では、ここでチェックした資料だけを引用します。",
+        "noMaterials": "資料ライブラリにまだ資料がありません。",
+        "save": "保存",
+        "create": "作成",
+        "invalid": {
+          "name": "名前を入力してください（40 文字まで）。",
+          "other": "無効な項目があります。確認してください。"
+        }
+      },
+      "errors": {
+        "STUDY_CLASSMATE_LIMIT": "クラスメイトは 30 人（アーカイブ含む）までです。",
+        "STUDY_REVISION_CONFLICT": "別の場所で変更されたため、最新の内容を表示しました。",
+        "STUDY_CLASSMATE_ARCHIVED": "アーカイブ済みのクラスメイトは復元してから編集してください。",
+        "STUDY_CLASSMATE_MATERIAL_UNAVAILABLE": "チェックした資料は利用できなくなりました。選び直してください。",
+        "STUDY_AVATAR_INVALID": "PNG、JPEG、WebP 画像のみ対応しています。",
+        "STUDY_AVATAR_LIMIT": "アバターのアップロード上限に達しました。",
+        "STUDY_AVATAR_NOT_FOUND": "そのアバターは存在しません。選び直してください。",
+        "STUDY_CLASSMATE_NOT_FOUND": "クラスメイトが見つかりません。"
       }
     }
   }
