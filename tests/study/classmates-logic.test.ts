@@ -12,6 +12,7 @@ import {
   classmateAvatarPath,
   classmateRosterConfig,
   classmateStageAgentId,
+  classmateVoiceBinding,
   composeClassmatePersona,
   parseClassmateInput,
   parseClassmatePatch,
@@ -261,5 +262,72 @@ describe('classmate speaking rules', () => {
     ).toBe('小林\n');
     expect(lastUserText([{ role: 'assistant', content: 'x' }])).toBeNull();
     expect(lastUserText('nope')).toBeNull();
+  });
+});
+
+describe('classmate voice binding', () => {
+  const pick = {
+    providerId: 'minimax-tts',
+    modelId: 'speech-2.8-turbo',
+    voiceId: 'Chinese (Mandarin)_Warm_Girl',
+  };
+  const platformDefaults = {
+    entries: [
+      {
+        capability: 'tts',
+        defaultId: 'zhiyu-default-tts',
+        providerId: 'minimax-tts',
+        modelId: 'speech-2.8-turbo',
+        available: true,
+        revision: 'rev-1',
+      },
+    ],
+  };
+
+  it('binds the selected platform default when provider and model are its own', () => {
+    expect(
+      classmateVoiceBinding(pick, {
+        ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+        platformDefaults,
+        ttsProvidersConfig: { 'minimax-tts': { isServerConfigured: true } },
+      }),
+    ).toEqual({ ...pick, source: 'platform', defaultId: 'zhiyu-default-tts', revision: 'rev-1' });
+  });
+
+  it('binds the server key for another model of a server-configured provider', () => {
+    expect(
+      classmateVoiceBinding(
+        { ...pick, modelId: 'speech-2.8-hd' },
+        {
+          ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+          platformDefaults,
+          ttsProvidersConfig: { 'minimax-tts': { isServerConfigured: true } },
+        },
+      ),
+    ).toEqual({ ...pick, modelId: 'speech-2.8-hd', source: 'legacy-managed' });
+  });
+
+  it("binds the student's own configuration otherwise", () => {
+    const own = {
+      ttsProvidersConfig: { 'minimax-tts': { apiKey: 'k', isServerConfigured: true } },
+    };
+    expect(classmateVoiceBinding(pick, own)).toEqual({ ...pick, source: 'user' });
+    expect(
+      classmateVoiceBinding(pick, {
+        ttsSelection: { source: 'user' },
+        platformDefaults,
+        ttsProvidersConfig: {},
+      }),
+    ).toEqual({ ...pick, source: 'user' });
+    const unavailable = {
+      entries: platformDefaults.entries.map((entry) => ({ ...entry, available: false })),
+    };
+    expect(
+      classmateVoiceBinding(pick, {
+        ttsSelection: { source: 'platform', defaultId: 'zhiyu-default-tts' },
+        platformDefaults: unavailable,
+        ttsProvidersConfig: {},
+      }).source,
+    ).toBe('user');
   });
 });

@@ -26,6 +26,7 @@ import { getProModelRef } from '@/lib/utils/model-config';
 import { proModelConfigurationMessage } from './pro-model-connection-client';
 import { syncCurrentMediaConfigSnapshot } from './media-config-snapshot-client';
 import { useSettingsStore } from '@/lib/store/settings';
+import type { ModelSelection } from '@/lib/types/platform-default-models';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { isSkillLoadTool, skillLoadId } from './skill-load';
 import { defaultWorkbenchTranslator, type WorkbenchCopyKey } from '@/lib/i18n/workbench';
@@ -1937,11 +1938,26 @@ function currentSessionRoleVoices(stageId?: string) {
     .filter(
       (agent) =>
         settings.selectedAgentIds.includes(agent.id) ||
-        (!!stageId && agent.isGenerated && agent.boundStageId === stageId),
+        (!!stageId && agent.isGenerated && agent.boundStageId === stageId) ||
+        // Pro may bring any active classmate (B04) into a course; its voice
+        // is kept only when the session can speak with it.
+        !!agent.classmate,
     )
     .flatMap((agent) => {
       const voice = settings.agentVoiceOverrides[agent.id] ?? agent.voiceConfig;
-      return voice ? [voice] : [];
+      if (!voice) return [];
+      if (!agent.classmate) return [voice];
+      // The classmate form stamps the credential owner; keep it explicit so
+      // the snapshot does not reinterpret it.
+      const selection: ModelSelection | undefined =
+        voice.source === 'platform'
+          ? voice.defaultId === 'zhiyu-default-tts'
+            ? { source: 'platform', defaultId: voice.defaultId }
+            : undefined
+          : voice.source
+            ? { source: voice.source, providerId: voice.providerId, modelId: voice.modelId }
+            : undefined;
+      return [{ ...voice, selection }];
     });
 }
 

@@ -376,6 +376,63 @@ const ROLE_DEFAULT_PERSONA: Record<ClassmateRole, string> = {
 };
 
 /**
+ * The credential owner of a voice picked in the classmate form, decided the
+ * same way the media snapshot decides it for the session narrator: the
+ * selected platform TTS default when provider and model are that default's,
+ * the server's own key when the server configured the provider and the
+ * student has none, otherwise the student's own provider configuration.
+ * Pro keeps a classmate's voice only when this owner is in the session.
+ */
+export function classmateVoiceBinding(
+  pick: { providerId: string; modelId?: string; voiceId: string },
+  settings: {
+    ttsSelection?: { source: string; defaultId?: string };
+    platformDefaults?: {
+      entries: ReadonlyArray<{
+        capability: string;
+        defaultId: string;
+        providerId: string;
+        modelId: string;
+        available: boolean;
+        revision: string;
+      }>;
+    } | null;
+    ttsProvidersConfig: Record<
+      string,
+      { isServerConfigured?: boolean; apiKey?: string } | undefined
+    >;
+  },
+): ClassmateVoice {
+  const base = {
+    providerId: pick.providerId,
+    ...(pick.modelId ? { modelId: pick.modelId } : {}),
+    voiceId: pick.voiceId,
+  };
+  const platform =
+    settings.ttsSelection?.source === 'platform'
+      ? settings.platformDefaults?.entries.find(
+          (entry) =>
+            entry.capability === 'tts' &&
+            entry.available &&
+            entry.defaultId === settings.ttsSelection?.defaultId,
+        )
+      : undefined;
+  if (platform && platform.providerId === pick.providerId && platform.modelId === pick.modelId) {
+    return {
+      ...base,
+      source: 'platform',
+      defaultId: platform.defaultId,
+      revision: platform.revision,
+    };
+  }
+  const config = settings.ttsProvidersConfig[pick.providerId];
+  return {
+    ...base,
+    source: config?.isServerConfigured && !config.apiKey ? 'legacy-managed' : 'user',
+  };
+}
+
+/**
  * The persona text a classroom snapshot carries: the student's own words (or
  * a role default), then the fixed rule for the chosen companion style. The
  * speaking rule is not prompt text — the chat routes enforce it in code.

@@ -43,6 +43,7 @@ import {
   CLASSMATE_PRESET_AVATARS,
   CLASSMATE_ROLES,
   CLASSMATE_SPEECH_POLICIES,
+  classmateVoiceBinding,
   parseClassmateInput,
   type ClassmateInput,
   type ClassmateView,
@@ -77,22 +78,14 @@ function useVoiceOptions(current: ClassmateVoice | null): VoiceOption[] {
     const options: VoiceOption[] = providers.flatMap((provider) =>
       provider.modelGroups.flatMap((group) =>
         group.voices.map((entry) => {
-          const voice: ClassmateVoice =
-            provider.source === 'platform' && provider.defaultId
-              ? {
-                  source: 'platform',
-                  defaultId: provider.defaultId,
-                  ...(provider.revision ? { revision: provider.revision } : {}),
-                  providerId: provider.providerId,
-                  ...(group.modelId ? { modelId: group.modelId } : {}),
-                  voiceId: entry.id,
-                }
-              : {
-                  source: 'user',
-                  providerId: provider.providerId,
-                  ...(group.modelId ? { modelId: group.modelId } : {}),
-                  voiceId: entry.id,
-                };
+          const voice = classmateVoiceBinding(
+            {
+              providerId: provider.providerId,
+              ...(group.modelId ? { modelId: group.modelId } : {}),
+              voiceId: entry.id,
+            },
+            { ttsSelection, platformDefaults, ttsProvidersConfig },
+          );
           return {
             key: voiceKey(voice),
             label: `${entry.name} · ${group.modelId ? `${provider.providerName} ${group.modelName}` : provider.providerName}`,
