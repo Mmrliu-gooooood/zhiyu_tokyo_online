@@ -18,7 +18,7 @@ import {
   type FakeHandler,
   type FakeRequest,
 } from '../lib/model-gateway/testing/fake-openai-server';
-import { fakeEmbedding } from '../eval/study-qa/fixture';
+import { fakeEmbedding } from '../lib/model-gateway/testing/fake-embedding';
 
 type Stage = 'outlines' | 'slide-content' | 'slide-actions' | 'agent-profiles' | 'other';
 
