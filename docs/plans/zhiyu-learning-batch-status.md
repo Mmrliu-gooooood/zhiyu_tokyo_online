@@ -142,12 +142,14 @@
 2. **删除课程 = 物理清理**（`lib/server/courses/purge.ts`，Worker 每 5 分钟一轮，`COURSE_PURGE_ENABLED=1` 开启）：用户删除时仍立即隐藏并取消/隔离生成（原逻辑不变）；墓碑超过宽限期（默认 10 分钟）后，Worker 以 `app_worker` 身份删除该课程的页面、大纲、修订记录、生成任务全链路（steps/attempts/events/commands/scenes/job_assets/jobs/ownership）、运行会话，以及**只被这门课使用**的本人素材（任务输入/输出 + 课程内容中引用的 `ast_` id；被其他课程引用或属于他人的不删），并把这些素材的 blob 标记为无引用。
    - **保留一行极小的墓碑**：`document_stages` 行清空（无名称、内容只剩 `purgedAt`）连同 `stage_meta.deleted_at`。原因：墓碑负责拒绝旧设备用同一 id 保存或重建已删课程，删掉它课程可能被旧的本地副本“复活”。
    - 学科空间的课程链接/进度由 Web 角色所有，Worker 无权限，不在本次清理内（学科读取早已过滤已删课程，数据极小）。classroom 快照/媒体表在生产为空，未纳入。
-3. **自动回收存储**：素材回收器只在 Worker 中开启（`WORKER_ASSET_COLLECTION_ENABLED`，`app_worker` 可删 blob；Web 角色不可，保持关闭）。修复：托管模式下回收器启动时不再执行 `ensureAssetSchema`（`app_worker` 在 public 无建表权限，真实 PostgreSQL 上复现为 permission denied——这也是此前回收一直未启用的阻碍）。回收器在宽限期（默认 1 小时）后删除 S3 对象和 blob 行。启用前只读核对：生产当前无引用为零的 blob 为 0，启用不会删除任何现有对象。
+3. **自动回收存储**：素材回收器只在 Worker 中开启（`WORKER_ASSET_COLLECTION_ENABLED`，`app_worker` 可删 blob；Web 角色不可，保持关闭）。修复：托管模式下回收器启动时不再执行 `ensureAssetSchema`（`app_worker` 在 public 无建表权限，真实 PostgreSQL 上复现为 permission denied——这也是此前回收一直未启用的阻碍）。回收器在宽限期后删除 S3 对象和 blob 行：生产开启了后台生成（`GENERATION_BACKGROUND_ENABLED=1`），宽限期下限为 24 小时（`lib/persistence/asset-collection-grace.ts`，保护排队输入与孤立写入），即删除课程约 24 小时后存储才真正释放。启用前只读核对：生产当前无引用为零的 blob 为 0，启用不会删除任何现有对象。
 4. **存量已删课程**：`COURSE_PURGE_DELETED_SINCE` 只清理该时间之后删除的课程。上线时设为上线时刻，此前已删除的 143 门课程（含管理员刚删的 45 门）不自动清理——它们的清理不可恢复，由用户确认后自行删除该行并 apply 触发（见发布记录）。
 5. **验证**：`tests/server/course-purge.test.ts`：PGlite 上清理范围（本课独占素材删除、共享/他人素材保留、墓碑保留、幂等、宽限期、截止时间）、配额只计上传；真实 PostgreSQL（全新托管 schema、RLS、修订触发器）以 `app_worker` 执行清理，并用生产同一工厂在托管模式下以 `app_worker` 运行回收器，成功回收被释放的 blob。
 6. **发布（2026-10-06，release-20261006c，`b6ba667b`）**：web `d5c5485b`、worker `95315698`，两镜像 smoke 通过；备份 `*.bak-20261006c-pre`（指向 release-20261006b）；compose 更新为仓库版本（只多 Worker 的回收/清理变量）；env 增加 `WORKER_ASSET_COLLECTION_ENABLED=true`、`COURSE_PURGE_ENABLED=1`、`COURSE_PURGE_DELETED_SINCE=2026-10-05T18:20:00Z`。上线前只读核对：可回收 blob 为 0。readiness ready、2/2、日志无错误；Worker 容器内回收与清理开启、Web 容器关闭。
 7. **生产复测（管理员账号，内置浏览器）**：用资料库中的测试讲义（2 页、2 张图）在测试学科开课 → 两张图片作为素材上传成功（配额 A 生效：此前因 578 MB 被拒），任务输入含 2 张图与 827 字文字，生成 3 页课程成功并自动关联到学科；第 2 页幻灯片直接使用了讲义中的“Figure 2: stretching by a”图。
 8. **回退**：恢复两份 `*.bak-20261006c-pre` 后 apply（回到 release-20261006b，回收与清理关闭）。已清理的课程无法恢复。
+9. **生产清理验证（2026-10-06）**：在管理员账号中通过页面删除测试课程（墓碑 03:09:36 UTC），Worker 于 03:20:41 清理：页面 3→0、大纲/修订/生成任务/ownership 全部删除，stage 行只剩 `purgedAt`，该课独占的 16 个素材（3.8 MB）删除并标记待回收；学科链接按设计保留。
+10. **存量清理（用户确认，2026-10-06 03:21 UTC）**：备份 `.env.hosted.local.bak-20261006-pre-backlog-purge` 后删除 `COURSE_PURGE_DELETED_SINCE` 并 apply（readiness ready、2/2）。143 门已删课程（全部属于管理员账号）按每 5 分钟约 5 门清理；04:22 时已清理 79 门，待回收 706 个 blob / 231 MB，日志无失败事件。存储字节在 24 小时宽限期后由回收器删除（约 2026-10-07 03:20–05:40 UTC）。
 
 ### 下一批（B03）前置条件
 
