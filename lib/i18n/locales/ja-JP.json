@@ -2588,7 +2588,6 @@
       "parser": "解析方法",
       "parserDefault": "既定（無料）",
       "parserPaid": "有料 OCR",
-      "parserUnavailable": "未設定",
       "paidNotice": "この解析方法は有料の外部サービスを使います。解析を開始したときだけ使われます。",
       "parse": "解析を開始",
       "parseAgain": "もう一度解析",

@@ -2588,7 +2588,6 @@
       "parser": "Parser",
       "parserDefault": "Standard (kostenlos)",
       "parserPaid": "kostenpflichtige OCR",
-      "parserUnavailable": "nicht eingerichtet",
       "paidNotice": "Dieser Parser ruft einen kostenpflichtigen externen Dienst auf. Er läuft nur, wenn du die Analyse startest.",
       "parse": "Analysieren",
       "parseAgain": "Erneut analysieren",

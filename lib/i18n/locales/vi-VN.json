@@ -2588,7 +2588,6 @@
       "parser": "Cách phân tích",
       "parserDefault": "mặc định (miễn phí)",
       "parserPaid": "OCR trả phí",
-      "parserUnavailable": "chưa cấu hình",
       "paidNotice": "Cách phân tích này gọi dịch vụ bên ngoài có trả phí và chỉ chạy khi bạn bắt đầu phân tích.",
       "parse": "Phân tích",
       "parseAgain": "Phân tích lại",

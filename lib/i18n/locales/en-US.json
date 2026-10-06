@@ -2588,7 +2588,6 @@
       "parser": "Parser",
       "parserDefault": "default (free)",
       "parserPaid": "paid OCR",
-      "parserUnavailable": "not configured",
       "paidNotice": "This parser calls a paid external service. It runs only when you start the parse.",
       "parse": "Parse",
       "parseAgain": "Parse again",

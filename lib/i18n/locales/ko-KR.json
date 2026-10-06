@@ -2588,7 +2588,6 @@
       "parser": "분석 방식",
       "parserDefault": "기본(무료)",
       "parserPaid": "유료 OCR",
-      "parserUnavailable": "설정 안 됨",
       "paidNotice": "이 분석 방식은 유료 외부 서비스를 호출하며, 분석을 시작할 때만 사용됩니다.",
       "parse": "분석 시작",
       "parseAgain": "다시 분석",

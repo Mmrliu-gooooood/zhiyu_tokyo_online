@@ -397,6 +397,9 @@ function ParsePanel({
   const task = version.latestTask;
   const active = isParseActive(version.parseState);
   const chosen = parsers.find((parser) => parser.providerId === providerId);
+  // Only parsers this server can run are offered: unconfigured paid OCR
+  // providers stay hidden (the library supports text PDFs only for now).
+  const choices = parsers.filter((parser) => parser.available);
   const note = taskText(task);
   const parseLabel = version.artifact
     ? t('study.materials.reparse')
@@ -460,16 +463,11 @@ function ParsePanel({
             <SelectValue placeholder={t('study.materials.parser')} />
           </SelectTrigger>
           <SelectContent>
-            {parsers.map((parser) => (
-              <SelectItem
-                key={parser.providerId}
-                value={parser.providerId}
-                disabled={!parser.available}
-              >
+            {choices.map((parser) => (
+              <SelectItem key={parser.providerId} value={parser.providerId}>
                 {parser.displayName}
                 {parser.isDefault ? ` · ${t('study.materials.parserDefault')}` : ''}
                 {parser.paid ? ` · ${t('study.materials.parserPaid')}` : ''}
-                {!parser.available ? ` · ${t('study.materials.parserUnavailable')}` : ''}
               </SelectItem>
             ))}
           </SelectContent>

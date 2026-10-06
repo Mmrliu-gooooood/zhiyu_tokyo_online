@@ -2588,7 +2588,6 @@
       "parser": "解析方式",
       "parserDefault": "預設（免費）",
       "parserPaid": "付費 OCR",
-      "parserUnavailable": "未設定",
       "paidNotice": "這種解析方式會呼叫付費的外部服務，只有在你按下解析時才會使用。",
       "parse": "開始解析",
       "parseAgain": "再次解析",

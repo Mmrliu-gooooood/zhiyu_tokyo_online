@@ -2588,7 +2588,6 @@
       "parser": "Analisador",
       "parserDefault": "padrão (grátis)",
       "parserPaid": "OCR pago",
-      "parserUnavailable": "não configurado",
       "paidNotice": "Este analisador usa um serviço externo pago. Ele só roda quando você inicia a análise.",
       "parse": "Analisar",
       "parseAgain": "Analisar novamente",
