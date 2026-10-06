@@ -8,7 +8,7 @@
 | B00 | 完成（基线与台账） | `learn/b01-spaces` | `a1a0a7b6`（main） | 不适用 | 不适用 | — |
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
-| B03 | 实现完成，用户已批准上线（2026-10-06） | `learn/b03-grounded-qa` | — | 本地托管模式验收通过（关键词模式复验，见 B03 节）；真实模型评测完成 | 见“生产发布” | 见 B03“未验证” |
+| B03 | 已上线（2026-10-06，release-20261006d） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 
 ## B03 持久检索与带引用答疑（2026-10-06）
 
@@ -146,6 +146,14 @@
 1. 先问用户（已批准）：在生产启用扩展并执行 v24。核对生产 v23 checksum = `3fe42841…`；Supabase `apply_migration` 只执行仓库 v24 SQL（逐字相同，含在 `extensions` schema 创建 vector/pgroonga），写入 `app_schema_migrations(24, 84a64ee3…)`；核对四张新表 RLS 开启且强制、授权与本文一致、`study_knowledge_search` 只授予 `app_web`、`learning_task_kind_ready` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
 2. 关键词模式不配置 embedding（`STUDY_EMBEDDING_MODEL` 留空）；构建发布镜像 → 0 个未完成任务后切换 → Web 与 Worker env 设置 `ZHIYU_STUDY_QA_ENABLED=1` → apply → readiness ready、accountsVersion 24、Worker 心跳含 `learning-kind:material_index`、`capabilities.qa=true`。
 3. 登录账号在生产为一份资料建索引并提问，核对引用跳转与用量。
+
+### 生产发布（2026-10-06，release-20261006d）
+
+1. **v24**：核对生产 v23 checksum `3fe42841…` 一致 → Supabase `apply_migration`（`accounts_v24_study_knowledge`，仓库 v24 SQL 原文）→ `app_schema_migrations(24, 84a64ee3…)`。核对：`vector` 0.8.2、`pgroonga` 3.2.5 装在 `extensions`；四张新表 RLS 开启且强制、anon/authenticated 无授权；`embedding` 可空；`study_knowledge_search` 的应用角色执行权只有 `app_web`；kind CHECK 含 `material_index`；空表上调用检索函数正常。数据库 64 MB → 149 MB（PGroonga 表观大小，与 spike 预测一致）。Security advisor 没有新增项（现存的 `reserved_admin_lifecycle_snapshot`、`app_schema_migrations` 无策略、泄露密码保护为既有项）。**未运行 `pnpm accounts:migrate`。**
+2. **镜像**：main 快进到 `e0aa27b1` 后首次构建 Web 镜像失败——`scripts/dev-fake-model-server.ts` 引用了 `eval/`，而镜像构建上下文排除 `eval/`、`next build` 又会类型检查 `scripts/`；把假 embedding 移到 `lib/model-gateway/testing/fake-embedding.ts`（`f7f87190`）后构建通过。本机构建 → `release-20261006d`（web `81cbdd62`、worker `b38c511c`）→ `docker save | gzip | ssh docker load`。
+3. **服务器**：用户批准后删除旧镜像 `release-20261005`、`release-20261005b`（磁盘 78% → 57%，装入新镜像后 68%；内存一直充足，约 6.3 GB 可用）。确认 0 个进行中的生成任务与学习任务 → 备份 `.env.hosted.local.bak-20261006d-pre`、`docker-compose.supabase.yml.bak-20261006d-pre` → compose 换成仓库版本（只多 B03 的 4 个透传变量）→ 镜像改为 `release-20261006d`、加 `ZHIYU_STUDY_QA_ENABLED=1`（`STUDY_EMBEDDING_MODEL` 不设）→ `apply --tier 4 --mode background` → readiness ready、accountsVersion 24、2/2 Worker；两个新 Worker 心跳含 `learning-kind:material_parse` 与 `learning-kind:material_index`；`/api/study/capabilities` = `{spaces, materials, qa: true}`。
+4. **生产登录验收**（用户账号，学科“资料功能验收（可删除）”、资料 `smat-aR7KpBSulcDF`）：答疑页显示“检索方式：关键词匹配（不调用检索模型）”→ 建立索引 → 可检索、2 个片段、无向量 → 中文提问“二次函数的顶点坐标怎么求？”检索 0 条（该资料是英文，关键词模式不能跨语言匹配，属预期限制）→ 英文提问 “What is the vertex of a quadratic function in vertex form?” → “资料依据”两条（[E1] 第 2 页、[E2] 第 1 页）+ “补充说明”，元信息“关键词检索 · platform:zhiyu-default-text · 输入 634 / 输出 228 tokens，1 次调用”→ 点 [E1] 阅读器第 2 页加框并标出摘录；`usage_events` 一条 `study-qa`（platform、ok），无 embedding 记录。
+5. **回退**：恢复 `*.bak-20261006d-pre`（回到 release-20261006c）后 apply；或只把 `ZHIYU_STUDY_QA_ENABLED` 置空后 apply。v24 表与扩展保留（旧版本不使用）。
 
 ### 下一批（B04/B05）前置条件
 
