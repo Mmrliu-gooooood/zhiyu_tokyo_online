@@ -95,7 +95,7 @@
 - 数据：合成中文资料 + 近似干扰资料，48 个标注问题（正文 17、公式 8、表格 5、图 2、扫描页 2、冲突 3、版本 3、无答案 4、隔离 4）；没有可授权的真实教材，按约定先用合成资料。
 - 运行（2026-10-06，假 embedding + 假提取式答疑模型，一次性 PostgreSQL）：13 个版本 45 个 chunk；混合 recall@5 **40/40**，仅关键词 40/40；检索 p50 5.9 ms / p95 9.0 ms；权限隔离：419 个结果中外账号 **0**、范围外 **0**；固定版本 1/1、默认范围旧版本命中 0；（假答疑模型）引用支持率 36/39 = 92.3%，无答案判对 6/8，有答案且给出依据 37/40。
 - **解读**：语料小（每账号约 43 个 chunk），假 embedding 本质上是另一路词法信号，recall 近乎必然很高；这组数字证明管线、权限与版本正确，**不代表真实语义检索质量**。假答疑模型的支持率只验证引用校验与保存。真实 embedding（推荐 `BAAI/bge-m3`，1024 维）与真实答疑模型的评测需用户同意后运行（`EVAL_EMBEDDING_*`、`EVAL_ANSWER_MODEL`），再据此定生产时延与门槛。
-- promptfoo：`eval/study-qa/promptfoo/` 用同一管线输出 recall@5、isolation、version、citation-support、not-found 指标（运行情况见“最终校验”）。
+- promptfoo：`eval/study-qa/promptfoo/` 用同一管线输出 recall@5、isolation、version、citation-support、not-found 指标。**本机未能运行**：npm 安装 promptfoo 0.124.0 时其安装后构建步骤失败（两次尝试），因此该外壳未经实测；指标以 `run.mjs` 的结果为准。
 
 ### 未验证
 
@@ -125,7 +125,7 @@
 - 全量 Vitest（`--maxWorkers=4`，带扩展的一次性 PostgreSQL 提供 `TEST_STUDY_KNOWLEDGE_DATABASE_URL`）：**859 个文件 / 8910 项通过，16 个文件、84 项跳过**；运行中唯一失败是 `learning-tasks` 一处心跳断言（Worker 心跳现在附带 kind 列表），已更新后单独重跑通过。
 - 真实 PostgreSQL（一次性 `*_rls_proof`，普通 PG16，验证 v24 的“无扩展”路径）：全新 bootstrap、v22/v23/v24 迁移、账号删除（16）、课程清理、heavy-task 容量 RLS、生成队列/事务队列/Worker 管线、用量迁移共 11 个文件全部通过（账号删除在独立 schema 中运行，暴露了 chunk 表存在性检查写死 `public.` 的问题，已改为按 search_path 查找）。带扩展的 PostgreSQL 17：v24 迁移 4 项、检索端到端 9 项通过。
 - `tsc --noEmit`、`check:i18n-keys`（12 个语言文件）、改动文件 ESLint（0 问题）与 Prettier 通过；`build:worker` 通过且产物可加载；`next build` 通过，`/study/[spaceId]/ask` 与 `/api/study/spaces/[spaceId]/{knowledge,ask,search}` 已生成，唯一警告是既有的 `unpdf` “Critical dependency”。
-- 未运行：Playwright e2e、生产镜像构建。
+- 未运行：Playwright e2e、生产镜像构建、promptfoo 外壳（本机安装失败）。
 
 ## B02 共享资料版本、结构化解析与阅读（2026-10-05，已上线）
 
@@ -283,7 +283,7 @@
 - 真实 PostgreSQL（一次性 `*_rls_proof`）：迁移与 bootstrap 19 项、生成队列/容量/账号删除回归 44 项，全部通过；容器已 `down -v`。
 - `tsc --noEmit`：通过。`check:i18n-keys`：通过（12 个语言文件）。改动文件 ESLint：0 个问题；改动文件 Prettier：通过。
 - `pnpm build:worker`：通过。`pnpm build`：通过，资料库 3 个页面与 13 个新增 `/api/study/*` 路由均已生成；唯一警告是 `unpdf` 经已有的 `material-extraction` → `pdf-providers` 服务端引用产生的 “Critical dependency”，非本批引入。
-- 未运行：Playwright e2e、生产镜像构建。
+- 未运行：Playwright e2e、生产镜像构建、promptfoo 外壳（本机安装失败）。
 - 孤立对象修复后复验：全量 Vitest **851 个文件 / 8861 项通过，0 失败**；真实 PostgreSQL 上 v23 迁移、全新 bootstrap 与账号删除 31 项通过；`tsc`、改动文件 ESLint/Prettier、`build:worker` 通过。
 
 ## B00 + B01 学科学习空间与继续学习
