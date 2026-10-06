@@ -360,7 +360,7 @@
     "classmates": "Meine Lernbuddys",
     "classmateLimit": "(höchstens {{count}} pro Kurs)",
     "manageClassmates": "Lernbuddys verwalten",
-    "classmatesPresetOnly": "Lernbuddys können nur im Modus „Voreinstellung“ gewählt werden."
+    "classmatesPresetOnly": "Lernbuddys können nur unter „{{mode}}“ gewählt werden."
   },
   "proactiveCard": {
     "discussion": "Diskussion",
@@ -2767,7 +2767,7 @@
     "classmates": {
       "nav": "Lernbuddys",
       "title": "Meine Lernbuddys",
-      "subtitle": "Erstelle Lernbuddys, die mit dir lernen: Name, Avatar, Persönlichkeit, Stimme und Begleitstil bestimmst du. Beim Erstellen eines neuen Kurses wählst du sie auf der Startseite unter „Voreinstellung“ aus.",
+      "subtitle": "Erstelle Lernbuddys, die mit dir lernen: Name, Avatar, Persönlichkeit, Stimme und Begleitstil bestimmst du. Beim Erstellen eines neuen Kurses wählst du sie in den Rollen auf der Startseite unter „{{mode}}“ aus.",
       "create": "Neuer Lernbuddy",
       "edit": "Bearbeiten",
       "archive": "Archivieren",

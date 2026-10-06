@@ -203,6 +203,69 @@ describe('Pi chat cue_user tool', () => {
     expect(result.details).toEqual({ skipped: true, reason: 'user_already_cued' });
   });
 
+  it('lets only the addressed classmate answer before the teacher (B04)', async () => {
+    const agentConfigs = [
+      {
+        id: 'default-1',
+        name: 'T',
+        role: 'teacher',
+        persona: '',
+        avatar: '',
+        color: '',
+        allowedActions: [],
+        priority: 10,
+      },
+      {
+        id: 'cm-0123456789abcdef-r1',
+        name: '小林',
+        role: 'student',
+        persona: '',
+        avatar: '',
+        color: '',
+        allowedActions: [],
+        priority: 5,
+      },
+    ] as never;
+    const build = (addressedAgentId?: string) =>
+      buildCallAgentTool({
+        body: {
+          messages: [{ id: 'u1', role: 'user', parts: [{ type: 'text', text: '小林，你说呢' }] }],
+          storeState: {
+            stage: { id: 'stage-1', name: 'Stage' },
+            scenes: [],
+            currentSceneId: null,
+            whiteboardOpen: false,
+          },
+          config: {
+            agentIds: ['default-1', 'cm-0123456789abcdef-r1'],
+            ...(addressedAgentId ? { addressedAgentId } : {}),
+          },
+          apiKey: '',
+        } as never,
+        agentConfigs,
+        send: async () => {
+          throw new Error('stop after the policy check');
+        },
+        binding: {} as never,
+        onAgentDone: () => {},
+        onActionDone: () => {},
+        abortSignal: new AbortController().signal,
+        maxAgentTurns: 2,
+        getAgentTurnCount: () => 0,
+        getAgentResponses: () => [],
+        getWhiteboardLedger: () => [],
+        maxActionsPerAgent: 1,
+        enableWhiteboardTools: false,
+      });
+    const params = { agentId: 'cm-0123456789abcdef-r1', instruction: 'Answer.' };
+    const refused = await build().execute('call-1', params);
+    expect(refused.details).toEqual({ skipped: true, reason: 'teacher_answers_first' });
+    const allowed = await build('cm-0123456789abcdef-r1')
+      .execute('call-2', params)
+      .catch((error: Error) => ({ details: { reachedAgent: error.message } }));
+    expect(allowed.details).not.toEqual({ skipped: true, reason: 'teacher_answers_first' });
+  });
+
   it('skips call_agent after the session is closed', async () => {
     const tool = buildCallAgentTool({
       body: {

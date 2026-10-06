@@ -236,7 +236,7 @@ export function ClassmatesPage() {
             {t('study.classmates.title')}
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {t('study.classmates.subtitle')}
+            {t('study.classmates.subtitle', { mode: t('settings.agentModePreset') })}
           </p>
         </div>
         <div className="flex gap-2">

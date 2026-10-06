@@ -360,7 +360,7 @@
     "classmates": "Mes camarades",
     "classmateLimit": "({{count}} max. par cours)",
     "manageClassmates": "Gérer les camarades",
-    "classmatesPresetOnly": "Les camarades ne se choisissent qu’en mode Prédéfini."
+    "classmatesPresetOnly": "Les camarades ne se choisissent que sous « {{mode}} »."
   },
   "proactiveCard": {
     "discussion": "Discussion",
@@ -2767,7 +2767,7 @@
     "classmates": {
       "nav": "Camarades",
       "title": "Mes camarades",
-      "subtitle": "Créez des camarades qui étudient avec vous : vous choisissez leur nom, avatar, personnalité, voix et style d’accompagnement. Lors de la génération d’un nouveau cours, cochez-les sous « Prédéfini » sur la page d’accueil.",
+      "subtitle": "Créez des camarades qui étudient avec vous : vous choisissez leur nom, avatar, personnalité, voix et style d’accompagnement. Lors de la génération d’un nouveau cours, cochez-les sous « {{mode}} » dans les rôles de la page d’accueil.",
       "create": "Nouveau camarade",
       "edit": "Modifier",
       "archive": "Archiver",

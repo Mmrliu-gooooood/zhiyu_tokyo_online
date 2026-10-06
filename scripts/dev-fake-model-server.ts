@@ -16,6 +16,7 @@
 import {
   startFakeModelServer,
   type FakeHandler,
+  type FakeReply,
   type FakeRequest,
 } from '../lib/model-gateway/testing/fake-openai-server';
 import { fakeEmbedding } from '../lib/model-gateway/testing/fake-embedding';
@@ -190,7 +191,50 @@ function studyAnswer(request: FakeRequest): unknown {
   };
 }
 
+const PI_DIRECTOR = 'You are the director of an in-class multi-agent classroom.';
+
+/**
+ * Pi classroom director: call one agent (the one the student addressed, when
+ * the prompt names one, else the first listed), then hand back to the user.
+ */
+function piDirectorTurn(request: FakeRequest): FakeReply {
+  const messages =
+    ((request.body ?? {}) as { messages?: Array<{ role?: string; content?: unknown }> }).messages ??
+    [];
+  const text = (content: unknown) =>
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((part) => String((part as { text?: unknown }).text ?? '')).join('')
+        : '';
+  const toolTurns = messages.filter((message) => message.role === 'tool').length;
+  if (toolTurns >= 2) return { kind: 'auto', text: 'done' };
+  if (toolTurns === 1) {
+    return { kind: 'auto', toolCalls: [{ name: 'cue_user', arguments: {} }] };
+  }
+  const system = messages.map((message) => text(message.content)).join('\n');
+  const agents = [...system.matchAll(/- id: "([^"]+)", name: "([^"]+)"/g)].map((match) => ({
+    id: match[1]!,
+    name: match[2]!,
+  }));
+  const addressed = /The student addressed (.+?) by name/.exec(system)?.[1];
+  const pick = agents.find((agent) => agent.name === addressed) ?? agents[0];
+  return {
+    kind: 'auto',
+    toolCalls: [
+      {
+        name: 'call_agent',
+        arguments: { agentId: pick?.id ?? 'default-1', instruction: 'Answer briefly.' },
+      },
+    ],
+  };
+}
+
 const handler: FakeHandler = (request) => {
+  if (request.rawBody.includes(PI_DIRECTOR)) {
+    console.log(`[fake-model] ${request.method} ${request.path} stage=pi-director`);
+    return piDirectorTurn(request);
+  }
   if (request.path.endsWith('/embeddings')) {
     console.log(`[fake-model] ${request.method} ${request.path} stage=embeddings`);
     return {

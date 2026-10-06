@@ -360,7 +360,7 @@
     "classmates": "Bạn học của tôi",
     "classmateLimit": "(tối đa {{count}} mỗi khóa)",
     "manageClassmates": "Quản lý bạn học",
-    "classmatesPresetOnly": "Chỉ chọn được bạn học ở chế độ Đặt sẵn."
+    "classmatesPresetOnly": "Chỉ chọn được bạn học trong “{{mode}}”."
   },
   "proactiveCard": {
     "discussion": "Thảo luận",
@@ -2767,7 +2767,7 @@
     "classmates": {
       "nav": "Bạn học",
       "title": "Bạn học của tôi",
-      "subtitle": "Tạo bạn học cùng học với bạn: bạn chọn tên, ảnh đại diện, tính cách, giọng nói và cách đồng hành. Khi tạo khóa học mới, đánh dấu họ trong “Đặt sẵn” ở trang chủ để đưa vào lớp.",
+      "subtitle": "Tạo bạn học cùng học với bạn: bạn chọn tên, ảnh đại diện, tính cách, giọng nói và cách đồng hành. Khi tạo khóa học mới, đánh dấu họ trong “{{mode}}” ở phần vai trò trên trang chủ để đưa vào lớp.",
       "create": "Bạn học mới",
       "edit": "Sửa",
       "archive": "Lưu trữ",

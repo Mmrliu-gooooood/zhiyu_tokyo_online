@@ -651,8 +651,10 @@ export function buildCallAgentTool(opts: {
 
       if (getReplyPolicy(opts.body.messages, opts.body.config).userInitiated) {
         const teacher = opts.agentConfigs.find((candidate) => candidate.role === 'teacher');
+        // A classmate the student named (server-set, B04) may answer first.
+        const addressed = agent.id === opts.body.config.addressedAgentId;
         const reason =
-          spokenAgentIds.size === 0 && teacher && agent.role !== 'teacher'
+          spokenAgentIds.size === 0 && teacher && agent.role !== 'teacher' && !addressed
             ? 'teacher_answers_first'
             : agent.role !== 'teacher' && spokenAgentIds.has(agent.id)
               ? 'agent_already_spoke'

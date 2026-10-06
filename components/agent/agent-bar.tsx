@@ -1014,7 +1014,9 @@ export function AgentBar() {
                     </p>
                     {classmateAgents.length > 0 && (
                       <p className="text-[10px] text-muted-foreground/60">
-                        {t('agentBar.classmatesPresetOnly')}
+                        {t('agentBar.classmatesPresetOnly', {
+                          mode: t('settings.agentModePreset'),
+                        })}
                       </p>
                     )}
                   </div>

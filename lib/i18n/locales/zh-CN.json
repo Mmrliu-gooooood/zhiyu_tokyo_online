@@ -360,7 +360,7 @@
     "classmates": "我的学伴",
     "classmateLimit": "（每门课最多 {{count}} 个）",
     "manageClassmates": "管理学伴",
-    "classmatesPresetOnly": "学伴只能在“指定角色”模式中选择。"
+    "classmatesPresetOnly": "学伴只能在“{{mode}}”中选择。"
   },
   "proactiveCard": {
     "discussion": "讨论",
@@ -2767,7 +2767,7 @@
     "classmates": {
       "nav": "学伴",
       "title": "我的学伴",
-      "subtitle": "创建陪你学习的学伴：名字、头像、性格、声音和陪学方式都由你决定。生成新课程时，在首页“指定角色”里勾选学伴即可带进课堂。",
+      "subtitle": "创建陪你学习的学伴：名字、头像、性格、声音和陪学方式都由你决定。生成新课程时，在首页角色设置的“{{mode}}”里勾选学伴即可带进课堂。",
       "create": "新建学伴",
       "edit": "编辑",
       "archive": "归档",

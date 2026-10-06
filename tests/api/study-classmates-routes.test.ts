@@ -154,6 +154,14 @@ describe('classmate routes', () => {
     expect(served.headers.get('content-type')).toBe('image/png');
     expect(served.headers.get('x-content-type-options')).toBe('nosniff');
     expect(new Uint8Array(await served.arrayBuffer())).toEqual(PNG);
+    expect(served.headers.get('cache-control')).toBe('private, no-cache');
+    const revalidated = await readAvatar(
+      new Request(`https://zhiyu.test${avatar}`, {
+        headers: { 'if-none-match': served.headers.get('etag')! },
+      }),
+      params({ avatarId: id }),
+    );
+    expect(revalidated.status).toBe(304);
     owner.id = OTHER;
     expect(
       (await readAvatar(new Request(`https://zhiyu.test${avatar}`), params({ avatarId: id })))

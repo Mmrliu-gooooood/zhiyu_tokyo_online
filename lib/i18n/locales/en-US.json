@@ -360,7 +360,7 @@
     "classmates": "My classmates",
     "classmateLimit": "(up to {{count}} per course)",
     "manageClassmates": "Manage classmates",
-    "classmatesPresetOnly": "Classmates can only be picked in Preset mode."
+    "classmatesPresetOnly": "Classmates can only be picked under “{{mode}}”."
   },
   "proactiveCard": {
     "discussion": "Discussion",
@@ -2767,7 +2767,7 @@
     "classmates": {
       "nav": "Classmates",
       "title": "My classmates",
-      "subtitle": "Create classmates who study with you: you choose their name, avatar, personality, voice and companion style. When you generate a new course, tick them under “Preset” on the home page to bring them into class.",
+      "subtitle": "Create classmates who study with you: you choose their name, avatar, personality, voice and companion style. When you generate a new course, tick them under “{{mode}}” in the home roster settings to bring them into class.",
       "create": "New classmate",
       "edit": "Edit",
       "archive": "Archive",
