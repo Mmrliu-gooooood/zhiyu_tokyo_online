@@ -149,6 +149,15 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         foreign key(owner_id,material_id) references study_materials(owner_id,id));
       CREATE TABLE study_session_material_refs(owner_id text,session_id text,version_id text,
         foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
+      CREATE TABLE study_knowledge_indexes(id text primary key,owner_id text,version_id text,
+        unique(owner_id,id),foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
+      CREATE TABLE study_knowledge_chunks(owner_id text,index_id text,id text,
+        foreign key(owner_id,index_id) references study_knowledge_indexes(owner_id,id));
+      CREATE TABLE study_qa_answers(id text primary key,owner_id text,space_id text,unique(owner_id,id),
+        foreign key(owner_id,space_id) references study_spaces(owner_id,id));
+      CREATE TABLE study_qa_citations(owner_id text,answer_id text,version_id text,
+        foreign key(owner_id,answer_id) references study_qa_answers(owner_id,id),
+        foreign key(owner_id,version_id) references study_material_versions(owner_id,id));
       CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
       CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text,
         staged_object_keys jsonb not null default '[]');
@@ -189,6 +198,14 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         ('${OWNER}','space-owner','mat-owner'),('${OTHER}','space-other','mat-other');
       INSERT INTO study_session_material_refs VALUES
         ('${OWNER}','session-1','ver-owner'),('${OTHER}','session-x','ver-other');
+      INSERT INTO study_knowledge_indexes VALUES
+        ('idx-owner','${OWNER}','ver-owner'),('idx-other','${OTHER}','ver-other');
+      INSERT INTO study_knowledge_chunks VALUES
+        ('${OWNER}','idx-owner','c-1'),('${OTHER}','idx-other','c-1');
+      INSERT INTO study_qa_answers VALUES
+        ('ans-owner','${OWNER}','space-owner'),('ans-other','${OTHER}','space-other');
+      INSERT INTO study_qa_citations VALUES
+        ('${OWNER}','ans-owner','ver-owner'),('${OTHER}','ans-other','ver-other');
       INSERT INTO learning_tasks VALUES
         ('30000000-0000-4000-8000-000000000001','${OWNER}'),
         ('30000000-0000-4000-8000-000000000002','${OTHER}');
@@ -394,6 +411,10 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_session_material_refs',
       'learning_tasks',
       'learning_task_attempts',
+      'study_knowledge_indexes',
+      'study_knowledge_chunks',
+      'study_qa_answers',
+      'study_qa_citations',
     ]) {
       expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
     }

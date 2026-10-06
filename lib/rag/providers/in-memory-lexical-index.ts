@@ -114,7 +114,12 @@ function snapshotChunk(chunk: KnowledgeChunk): KnowledgeChunk {
 
 export class InMemoryLexicalIndex implements KnowledgeIndex {
   readonly id = 'in-memory-lexical';
-  readonly capabilities = { lexical: true, vector: false, metadataFilter: true } as const;
+  readonly capabilities = {
+    lexical: true,
+    vector: false,
+    metadataFilter: true,
+    resourceVersionFilter: true,
+  } as const;
   private chunks = new Map<string, KnowledgeChunk>();
 
   async replaceResourceVersion(request: KnowledgeIndexReplaceRequest): Promise<void> {
@@ -146,8 +151,12 @@ export class InMemoryLexicalIndex implements KnowledgeIndex {
     const queryTokens = new Set(tokenize(normalizedQuery));
     if (!normalizedQuery || queryTokens.size === 0 || request.topK <= 0) return [];
 
+    const allowed = request.allowedResourceVersionIds
+      ? new Set(request.allowedResourceVersionIds)
+      : null;
     return Array.from(this.chunks.values())
       .filter((chunk) => matchesScope(chunk, request))
+      .filter((chunk) => !allowed || allowed.has(chunk.resourceVersionId))
       .filter((chunk) => filterMatches(chunk, request.filters))
       .map((chunk) => ({
         chunk: snapshotChunk(chunk),

@@ -70,9 +70,17 @@ afterEach(() => {
 
 describe('study material routes', () => {
   it('report the capability and hide the family unless both switches are on', async () => {
-    expect(await (await capabilities()).json()).toEqual({ spaces: true, materials: true });
+    expect(await (await capabilities()).json()).toEqual({
+      spaces: true,
+      materials: true,
+      qa: false,
+    });
     vi.stubEnv('ZHIYU_STUDY_MATERIALS_ENABLED', '');
-    expect(await (await capabilities()).json()).toEqual({ spaces: true, materials: false });
+    expect(await (await capabilities()).json()).toEqual({
+      spaces: true,
+      materials: false,
+      qa: false,
+    });
     expect((await listMaterials(request())).status).toBe(404);
     expect((await getTask(request(), params({ taskId: 'x' }))).status).toBe(404);
     vi.stubEnv('ZHIYU_STUDY_MATERIALS_ENABLED', '1');

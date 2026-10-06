@@ -59,3 +59,18 @@ export {
 } from './runtime/entitlement';
 export { createBinding, withThinking } from './credentials/handles';
 export type { BindingFields, CredentialHandle } from './credentials/handles';
+export {
+  MAX_EMBEDDING_INPUTS,
+  createEmbeddingBinding,
+  createEmbeddingGateway,
+  embeddingGateway,
+  resolveOperatorEmbeddingBinding,
+} from './runtime/embeddings';
+export type {
+  EmbedOptions,
+  EmbedResult,
+  EmbeddingBinding,
+  EmbeddingGateway,
+  EmbeddingGatewayDeps,
+  EmbeddingSpec,
+} from './runtime/embeddings';

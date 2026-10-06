@@ -13,3 +13,9 @@ export function isStudyMaterialsFlagOn(env: NodeJS.ProcessEnv = process.env): bo
 export function isStudyTaskIntakeOpen(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.ZHIYU_STUDY_TASKS_ACCEPTING !== '0';
 }
+
+/** ZHIYU_STUDY_QA_ENABLED: retrieval indexing and cited answers (learning plan B03); needs materials. */
+export function isStudyQaFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_QA_ENABLED;
+  return (flag === '1' || flag === 'true') && isStudyMaterialsFlagOn(env);
+}

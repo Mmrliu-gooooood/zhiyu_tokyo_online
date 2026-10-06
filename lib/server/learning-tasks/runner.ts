@@ -92,7 +92,7 @@ export function startLearningTaskRunner(
     if (maintaining) return;
     maintaining = true;
     try {
-      await queue.workerHeartbeat(workerId, stopping);
+      await queue.workerHeartbeat(workerId, stopping, kinds);
       if (!stopping) {
         await queue.reapExpired();
         await queue.expireQueued();
@@ -201,7 +201,7 @@ export function startLearningTaskRunner(
         task.controller.abort(new RunnerAbort('WORKER_DRAIN_TIMEOUT'));
       }
       await Promise.allSettled([...running.values()].map((task) => task.promise));
-      await queue.workerHeartbeat(workerId, true).catch(() => undefined);
+      await queue.workerHeartbeat(workerId, true, kinds).catch(() => undefined);
     },
   };
 }

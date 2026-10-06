@@ -60,9 +60,17 @@ afterEach(() => {
 
 describe('study routes', () => {
   it('report the capability and hide the family when it is off', async () => {
-    expect(await (await capabilities()).json()).toEqual({ spaces: true, materials: false });
+    expect(await (await capabilities()).json()).toEqual({
+      spaces: true,
+      materials: false,
+      qa: false,
+    });
     vi.stubEnv('ZHIYU_STUDY_SPACES_ENABLED', '');
-    expect(await (await capabilities()).json()).toEqual({ spaces: false, materials: false });
+    expect(await (await capabilities()).json()).toEqual({
+      spaces: false,
+      materials: false,
+      qa: false,
+    });
     const hidden = await listSpaces(request());
     expect(hidden.status).toBe(404);
     expect(repo.listStudySpaces).not.toHaveBeenCalled();

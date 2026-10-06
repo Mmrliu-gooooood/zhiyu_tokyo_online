@@ -17,6 +17,8 @@ export {
 
 /** Worker capability published in generation_worker_heartbeats.pipeline_versions. */
 export const LEARNING_TASK_WORKER_CAPABILITY = 'learning-tasks-v1';
+/** Per-kind capability (`learning-kind:material_index`) next to the generic one (B03). */
+export const LEARNING_TASK_KIND_CAPABILITY_PREFIX = 'learning-kind:';
 
 export function isLearningTaskKind(value: unknown): value is LearningTaskKind {
   return typeof value === 'string' && (LEARNING_TASK_KINDS as readonly string[]).includes(value);
@@ -82,4 +84,11 @@ export const NON_RETRYABLE_TASK_CODES = new Set([
   'PARSER_UNAVAILABLE',
   'MATERIAL_NO_TEXT',
   'MATERIAL_DIGEST_MISMATCH',
+  // material_index (B03): the request no longer matches this server or material.
+  'ARTIFACT_GONE',
+  'INDEX_STORAGE_UNAVAILABLE',
+  'INDEX_POLICY_CHANGED',
+  'INDEX_TOO_LARGE',
+  'EMBEDDING_NOT_CONFIGURED',
+  'EMBEDDING_MODEL_CHANGED',
 ]);

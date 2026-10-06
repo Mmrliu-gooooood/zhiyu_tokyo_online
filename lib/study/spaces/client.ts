@@ -65,6 +65,8 @@ export interface StudyCapabilities {
   spaces: boolean;
   /** B02 material library (needs spaces). */
   materials: boolean;
+  /** B03 retrieval and cited answers (needs materials). */
+  qa: boolean;
 }
 
 let capabilityPromise: Promise<StudyCapabilities> | undefined;
@@ -73,13 +75,21 @@ let capabilityPromise: Promise<StudyCapabilities> | undefined;
 export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
   capabilityPromise ??= fetch('/api/study/capabilities', { cache: 'no-store' })
     .then(async (response) => {
-      if (!response.ok) return { spaces: false, materials: false };
-      const body = (await response.json()) as { spaces?: unknown; materials?: unknown };
-      return { spaces: body.spaces === true, materials: body.materials === true };
+      if (!response.ok) return { spaces: false, materials: false, qa: false };
+      const body = (await response.json()) as {
+        spaces?: unknown;
+        materials?: unknown;
+        qa?: unknown;
+      };
+      return {
+        spaces: body.spaces === true,
+        materials: body.materials === true,
+        qa: body.qa === true,
+      };
     })
     .catch(() => {
       capabilityPromise = undefined;
-      return { spaces: false, materials: false };
+      return { spaces: false, materials: false, qa: false };
     });
   return capabilityPromise;
 }

@@ -119,3 +119,5 @@ e2e/__screenshots-619/
 
 # Superdesign temp HTML (never commit)
 .superdesign/tmp/
+
+eval/study-qa/results/

@@ -18,6 +18,7 @@ import {
   type FakeHandler,
   type FakeRequest,
 } from '../lib/model-gateway/testing/fake-openai-server';
+import { fakeEmbedding } from '../eval/study-qa/fixture';
 
 type Stage = 'outlines' | 'slide-content' | 'slide-actions' | 'agent-profiles' | 'other';
 
@@ -123,7 +124,84 @@ function agentProfiles(request: FakeRequest): unknown {
   };
 }
 
+/**
+ * OpenAI-compatible `/embeddings` (study retrieval, learning plan B03):
+ * deterministic hashing vectors, so indexing and search run end to end.
+ */
+function embeddings(request: FakeRequest) {
+  const body = (request.body ?? {}) as { input?: unknown; dimensions?: unknown };
+  const inputs = Array.isArray(body.input) ? body.input.map(String) : [String(body.input ?? '')];
+  const width = typeof body.dimensions === 'number' ? body.dimensions : 1024;
+  return {
+    object: 'list',
+    data: inputs.map((text, index) => ({
+      object: 'embedding',
+      index,
+      embedding: fakeEmbedding(text, width),
+    })),
+    usage: { prompt_tokens: inputs.reduce((sum, text) => sum + text.length, 0) },
+  };
+}
+
+/**
+ * Study QA (B03): cite the passages that share the most character pairs with
+ * the question, or answer "not found" when none shares at least three.
+ */
+function studyAnswer(request: FakeRequest): unknown {
+  const messages = ((request.body ?? {}) as { messages?: Array<{ content?: unknown }> }).messages;
+  const content = messages?.at(-1)?.content;
+  const user =
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((part) => String((part as { text?: unknown }).text ?? '')).join('')
+        : '';
+  const question = /问题：(.*)/.exec(user)?.[1] ?? '';
+  const pairs = new Set(
+    [...question].slice(0, -1).map((char, index) => `${char}${question[index + 1]}`),
+  );
+  const passages = [...user.matchAll(/\[(E\d+)\][^\n]*\n([\s\S]*?)(?=\n\n\[E\d+\]|$)/g)]
+    .map((match) => ({
+      ref: match[1]!,
+      text: match[2]!,
+      score: [...pairs].filter((pair) => match[2]!.includes(pair)).length,
+    }))
+    .sort((a, b) => b.score - a.score);
+  const best = passages.filter((passage) => passage.score >= 3).slice(0, 2);
+  if (best.length === 0) {
+    return {
+      status: 'not_found',
+      segments: [],
+      not_found_note: '资料片段中没有与问题对应的内容。',
+    };
+  }
+  return {
+    status: 'answered',
+    segments: [
+      {
+        kind: 'grounded',
+        text: `根据资料：${best[0]!.text.replace(/\s+/g, ' ').slice(0, 80)}…`,
+        citations: best.map((passage) => passage.ref),
+      },
+      { kind: 'supplement', text: '（假模型）这是一条补充说明，不来自资料。' },
+    ],
+  };
+}
+
 const handler: FakeHandler = (request) => {
+  if (request.path.endsWith('/embeddings')) {
+    console.log(`[fake-model] ${request.method} ${request.path} stage=embeddings`);
+    return {
+      kind: 'raw',
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(embeddings(request)),
+    };
+  }
+  if (request.rawBody.includes('学习平台的资料答疑助手')) {
+    console.log(`[fake-model] ${request.method} ${request.path} stage=study-qa`);
+    return { kind: 'auto', text: JSON.stringify(studyAnswer(request)) };
+  }
   const stage = stageOf(request);
   const body = (request.body ?? {}) as { model?: unknown };
   const auth = request.headers.authorization || request.headers['x-api-key'] ? 'auth' : 'no-auth';

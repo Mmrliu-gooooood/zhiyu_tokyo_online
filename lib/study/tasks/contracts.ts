@@ -3,7 +3,7 @@
  * the owner-facing task view. Server persistence lives in
  * lib/server/learning-tasks.
  */
-export const LEARNING_TASK_KINDS = ['material_parse'] as const;
+export const LEARNING_TASK_KINDS = ['material_parse', 'material_index'] as const;
 export type LearningTaskKind = (typeof LEARNING_TASK_KINDS)[number];
 
 export const LEARNING_TASK_STATUSES = [

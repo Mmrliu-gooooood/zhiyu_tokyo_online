@@ -13,6 +13,7 @@ import {
   ArchiveRestore,
   CalendarClock,
   ChevronLeft,
+  MessageSquareQuote,
   MoreHorizontal,
   Pencil,
   Play,
@@ -73,12 +74,15 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
 
   const [loadKey, setLoadKey] = useState(0);
   const [materialsOn, setMaterialsOn] = useState(false);
+  const [qaOn, setQaOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchStudyCapabilities().then(
-      (capabilities) => !cancelled && setMaterialsOn(capabilities.materials),
-    );
+    void fetchStudyCapabilities().then((capabilities) => {
+      if (cancelled) return;
+      setMaterialsOn(capabilities.materials);
+      setQaOn(capabilities.qa);
+    });
     return () => {
       cancelled = true;
     };
@@ -174,6 +178,14 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {qaOn ? (
+            <Button asChild data-testid="study-open-ask">
+              <Link href={`/study/${encodeURIComponent(space.id)}/ask`}>
+                <MessageSquareQuote className="mr-1 size-4" />
+                {t('study.qa.open')}
+              </Link>
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             onClick={() => setEditOpen(true)}

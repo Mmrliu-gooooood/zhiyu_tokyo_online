@@ -32,7 +32,8 @@ import {
 } from '@/lib/server/learning-tasks/runner';
 import { runMaterialParseTask } from '@/lib/server/study/materials/parse';
 import { getMaterialByteStore } from '@/lib/server/materials/bytes';
-import { isStudyMaterialsFlagOn } from '@/lib/server/study/flags';
+import { isStudyMaterialsFlagOn, isStudyQaFlagOn } from '@/lib/server/study/flags';
+import { runMaterialIndexTask } from '@/lib/server/study/knowledge/index-task';
 import { startAssetCollectorSchedule } from '@/lib/persistence/asset-collector-schedule';
 import { startCoursePurgeSchedule } from '@/lib/server/courses/purge';
 import {
@@ -72,13 +73,17 @@ async function main() {
   const extractionRunner = isAgentRuntimeWorkerConfigured()
     ? startMaterialExtractionRunner()
     : undefined;
-  // Learning tasks (study material parsing) share this process, its app_worker
+  // Learning tasks (study material parsing and indexing) share this process, its app_worker
   // pool and the heavy-task admission; on shutdown they drain in parallel with
   // generation so both fit the container's stop grace period.
   const learningRunner = isStudyMaterialsFlagOn()
     ? startLearningTaskRunner({
         queue: new LearningTaskQueue(pool),
-        handlers: { material_parse: runMaterialParseTask },
+        // Search indexing (B03) only when retrieval is switched on.
+        handlers: {
+          material_parse: runMaterialParseTask,
+          ...(isStudyQaFlagOn() ? { material_index: runMaterialIndexTask } : {}),
+        },
         workerId,
         concurrency: learningTaskWorkerConcurrency(),
         removeStagedObject: (key) => getMaterialByteStore().delete(key),

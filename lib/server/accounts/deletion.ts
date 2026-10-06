@@ -523,6 +523,17 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM render_job_owners WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM usage_events WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM account_kv WHERE owner_id=$1', [ownerId]);
+      // Retrieval (v24): chunks only exist where the extensions were
+      // available; indexes and saved answers with their citations always do.
+      const knowledgeChunks = await client.query<{ present: boolean }>(
+        "SELECT to_regclass('study_knowledge_chunks') IS NOT NULL AS present",
+      );
+      if (knowledgeChunks.rows[0]?.present) {
+        await client.query('DELETE FROM study_knowledge_chunks WHERE owner_id=$1', [ownerId]);
+      }
+      await client.query('DELETE FROM study_knowledge_indexes WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_qa_citations WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_qa_answers WHERE owner_id=$1', [ownerId]);
       // Study materials (v23): session refs and space links first, then
       // artifacts and versions under their materials, then the task queue.
       await client.query('DELETE FROM study_session_material_refs WHERE owner_id=$1', [ownerId]);

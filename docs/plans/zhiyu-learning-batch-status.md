@@ -8,6 +8,124 @@
 | B00 | 完成（基线与台账） | `learn/b01-spaces` | `a1a0a7b6`（main） | 不适用 | 不适用 | — |
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
+| B03 | 实现完成，待用户验收（未合并、未上线） | `learn/b03-grounded-qa`（未推送） | — | 本地托管模式验收通过（假模型，见 B03 节） | 未启用；生产未装扩展、未执行 v24 | 真实 embedding/LLM 效果未测；见 B03“未验证” |
+
+## B03 持久检索与带引用答疑（2026-10-06，待验收）
+
+### 范围与起点
+
+- 分支 `learn/b03-grounded-qa` 从 main `ef1a399e`（= `tokyo/main`，含 B02 全部后续）创建；生产为 release-20261006c、accounts v23（只读核对 checksum `3fe42841…` 一致）。
+- 范围：候选 A 验证与选型（第 1 步）；索引任务（`learning_tasks` 新 kind `material_index`）、索引建立/替换/删除/重试、允许资源版本过滤、`/study/[spaceId]/ask`、结构化引用与回到“版本/页/块”、三种呈现、就绪检查与不可用状态、预算/取消/用量；资料删除/账号删除时清理索引；可重复评测集（第 2、3 步）。
+- 不包含：B04 及之后（学伴、课后会话等）；rerank；付费 OCR；扫描页的文字识别（扫描页只报告为“无文字、未纳入检索”）。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 第 1 步：候选 A 验证与选型（提交 `d9db9c69`）
+
+验证代码与结果在 [spikes/b03-candidate-a](../../spikes/b03-candidate-a/README.md)（独立目录，生产代码不导入）。
+
+- **扩展**：生产（只读核对）为 Supabase Pro、PostgreSQL 17.6，`vector` 0.8.2 与 `pgroonga` 3.2.5 可用但未安装；`app_web`/`app_worker` 的 search_path 不含 `extensions`。本地用 `groonga/pgroonga:3.2.5-debian-17` + PGDG `postgresql-17-pgvector`（与生产同版本 PGroonga）。
+- **形态**：`halfvec(1024)`（2 KB/向量）；PGroonga **多列索引** `(owner_id, index_id, text)` 让 owner、允许索引与关键词匹配在同一次索引扫描完成（单列索引时规划器走 btree 过滤，`pgroonga_score` 全为 0——第一次运行即发现并改正）；向量侧在已限定范围内精确排序、不建 HNSW；RRF（k=60）融合两路各 30 个候选。
+- **结果（假 embedding，合成语料 + 干扰资料）**：混合 recall@5 40/40、仅关键词 40/40、仅向量 39/40；606 个结果中外账号 0、范围外 0；230 个结果的定位与原文一致；单账号 2 万 chunk 全在范围内的最坏情况 p50 491 ms；表+TOAST+btree 约 3.3 KB/chunk。
+- **成本发现**：PGroonga 的 Groonga 文件按表观大小计入 `pg_database_size`：装扩展 +43 MB、空索引 +42 MB、6000 行约 150 MB（实际磁盘 54 MB），删行不缩小。生产是 Pro（含 8 GB），当前库 64 MB，可接受。
+- **选型结论：采用候选 A，不验证候选 B**（DeepTutor 派生服务需在 4 vCPU/8 GB 主机上再跑一个 Python 常驻进程并重做 owner 隔离/删除/恢复/归集；A 在同库里直接满足定位、权限、恢复与资源门槛）。语义质量需真实 embedding 评测，按约定未调用。
+
+### 设计决策（实际实现）
+
+1. **迁移 accounts v24**（`lib/server/accounts/sql-study-knowledge.ts`，checksum `07219ff1e16274c73b4d4b9f1e87fb3aaee38e14759370fd68bec78b6a28ffd9`；v22/v23 未变）：
+   - 无条件部分：`learning_tasks.kind` 增加 `material_index`；`study_knowledge_indexes`（一份解析结果 × 分块策略 × embedding 签名一行，`active` 部分唯一索引保证每版本最多一个在用索引）、`study_qa_answers`、`study_qa_citations`（引用按版本外键级联）；FORCE RLS，`app_web` 只读/删除索引、读写自己的答案，`app_worker` 写索引；anon/authenticated 无授权；`app_internal.learning_task_kind_ready()`。
+   - **条件部分**（只在 `vector` 与 `pgroonga` 都可用时执行，DO 块 + EXECUTE）：在 `extensions` schema 建扩展、`study_knowledge_chunks`（`extensions.halfvec(1024)`、PGroonga 多列索引）、检索函数 `study_knowledge_search`（SECURITY INVOKER、固定 search_path、`enable_seqscan=off`，RLS 在函数内照常生效，仅授予 `app_web`）、`USAGE ON SCHEMA extensions`。原因：PGlite、普通 `postgres:16` 证明库和旧版自迁移安装没有这两个扩展，而全新 bootstrap 会跑所有迁移；没有 chunk 表时检索显示“不可用”。旧版安装通过 `ensureStudySchema` 应用同一文本，扩展创建失败只记 notice、不影响启动。
+2. **索引任务**：`material_index` 复用 `learning_tasks`、租约队列与现有 Worker（不新建队列）。subject 为 `index:{versionId}`，B02 的按版本解析状态不受影响。Worker 读解析结果 JSON → 用仓库 `lib/rag` 分块器（800 字/块）→ 经网关分批 embedding（32 条/批）→ 在**带租约栅栏的提交**里一次写入索引行与全部 chunk，同一事务里删除该版本的旧索引并激活新索引：重建失败或丢租约绝不影响正在使用的索引。无对象存储写入。embedding 是付费调用，任务 `externalCost=true`（过期回收标记结果未知而不自动重放）；可重试错误（限流/网络/上游）按队列退避最多 3 次；模型或分块策略变更、存储不可用、超过 3000 块等为不可重试。Worker 心跳新增 `learning-kind:<kind>` 能力，Web 只有在存活 Worker 能跑 `material_index` 时才接受建索引请求（防止只开了 Web 开关时任务无人执行）。
+3. **embedding 只经模型网关**：pi-ai 没有 embedding 接口，因此在网关内新增 `lib/model-gateway/runtime/embeddings.ts`（OpenAI 兼容 `/embeddings`），与文本调用同样的阶段：私有凭据句柄、撤销栅栏、配额槽、传输、分类与有限重试、每次尝试写用量（`funding_kind=operator`、`api=openai-embeddings`）与结构化日志。本批 embedding **由运营方出资**：`STUDY_EMBEDDING_MODEL=provider:model` 指向服务器已配置的 provider（复用其 key/base URL/代理，未设 base URL 时用目录里的官方地址），维度必须是 1024。embedding 签名 = 模型 + 维度 + 地址指纹；换模型后旧索引显示“需要更新”，提问只用同一签名的索引。
+4. **答疑在 Web 同步执行**（不是学习任务）：放在现有的同步重任务租约（`runIndependentHeavyTaskRequest`，新 kind `study-qa`）里，计入个人/站点 heavy-task 上限与公平调度；用户选择的模型从请求头解析（与其他模型功能相同，`resolveRequestBinding(..., 'study-qa')`，可被 MODEL_ROUTES 路由），因而用户 Key 不落库。理由：BYOK 选择若放进任务需要加密快照，答疑又需要即时返回。每问预算（服务端执行）：1 次查询 embedding、≤8 段证据/8000 字、≤2 次模型调用（第二次只用于修复非 JSON 输出）、每次 ≤1500 输出 token、每账号每小时 60 个已保存回答；检索无结果直接“未找到”、不调用模型。客户端中断即取消，取消的问题不保存。
+5. **范围与权限**：允许范围由服务端计算 = 学科内存活资料 ∩ 在用且同签名的索引 ∩（当前版本，或用户固定的版本）；固定了范围外/他人/无索引的版本返回 400。范围在产生候选的 SQL 里（参数 + FORCE RLS），不是事后过滤。`KnowledgeIndex` 契约增加 `allowedResourceVersionIds`（候选前过滤）与 `method: 'hybrid'` + 分项名次/分数，内存实现同步支持。
+6. **引用**：模型只能引用给出的 `E1…E8`；未知编号被丢弃，“资料依据”段落若没有有效编号改为“补充说明”，“已回答”但没有有效依据改为“未找到”。引用行由服务端用自己的检索结果写入（资料、版本、解析结果 id、页、块、≤300 字摘录、内容 hash），不取模型输出。阅读器 `…/read?version=&page=&artifact=&block=` 打开指定版本与解析结果，给块加框并标出摘录。
+7. **三种呈现**：“资料依据”（每条带引用）、“补充说明”（标明是模型补充、非资料原文）、“资料中未找到”（附模型的简短说明）；另有“只检索原文”（不调用答疑模型）。元信息显示检索方式（语义+关键词 / 仅关键词）、模型、token 与“部分用量未知”。
+8. **就绪与降级**：`/api/study/capabilities` 增加 `qa`；`GET …/knowledge` 返回原因 `STORAGE_UNAVAILABLE`（库无扩展）、`EMBEDDING_NOT_CONFIGURED`、`WORKER_UNAVAILABLE`（已有索引仍可提问，只是不能建新索引）。embedding 服务在提问时失败 → 只用关键词检索并明确标注，不触发其他高消耗路径。
+9. **删除与清理**：永久删除资料时，在第一阶段事务里取消 `index:` 任务并删除索引（chunk 级联），检索立即停止；第二阶段删除任务行；已保存的回答保留正文，引用随版本删除，界面显示“来源已删除”。账号删除清单加入 chunk（表存在时）、索引、答案与引用。**课程物理清理**：索引只挂在资料版本上，不引用课程，课程清理不涉及索引数据（核对后无需改动）。
+10. **开关**：`ZHIYU_STUDY_QA_ENABLED`（默认关，需资料库开关）控制页面、`/api/study/spaces/[id]/{knowledge,ask,search,answers}`、`…/versions/[vid]/index` 与 Worker 的 `material_index` 处理器；Web 与 Worker 都要设置（compose 已透传，另透传 `STUDY_EMBEDDING_*`）。
+
+### 偏离方案之处
+
+- 答疑不是 `learning_tasks` 任务，而是同步请求 + 同步重任务租约（决策 4）；只有索引是任务。
+- 方案写“允许资源版本集合直接作为 SQL 过滤”：实现为服务端计算的“索引 id 集合”（索引 = 版本 × 解析 × 策略 × 签名），效果相同且能区分同版本的新旧索引。
+- 没有 rerank（方案允许“需要时再接”）；没有引入 react-pdf-highlighter（块级框选 + 摘录标记已满足“回到页/块”）。
+- 评测用自建 runner 计算指标，promptfoo 作为同一管线的外壳（见“评测”）；Ragas 未用（Python）。
+- 扫描页不做 OCR（B02 决定只用 unpdf），只在索引状态里列出“无文字、未纳入检索”的页。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-knowledge.ts`（v24）、`migrations.ts`、`sql-accounts.ts`、`lib/server/study/schema.ts`、`deletion.ts`。
+- 网关：`lib/model-gateway/runtime/embeddings.ts`（新）、`index.ts`。
+- 检索与答疑：`lib/server/study/knowledge/{config,chunks,query-terms,repository,index-task,ask,service,http}.ts`；`lib/rag/{types,index}.ts`、`providers/in-memory-lexical-index.ts`、`chunking/grapheme.ts`（见“发现的问题”）。
+- 队列：`lib/study/tasks/contracts.ts`、`lib/server/learning-tasks/{contracts,repository,runner}.ts`（kind、每 kind 能力心跳、按 kind 的 Worker 就绪）、`lib/server/heavy-task-admission/{index,independent-request}.ts`（`study-qa`）、`workers/generation/main.ts`。
+- 资料：`lib/server/study/materials/repository.ts`（删除时清理索引）、`lib/server/study/{flags,route}.ts`、`spaces/repository.ts`（错误码）。
+- 接口与页面：`app/api/study/spaces/[spaceId]/{knowledge,ask,search,answers/[answerId]}`、`app/api/study/materials/[materialId]/versions/[versionId]/index`、`capabilities`；`app/study/[spaceId]/ask`、`components/study/knowledge/StudyAskPage.tsx`、学科页入口、阅读器引用定位；`lib/study/knowledge/{contracts,client}.ts`、`lib/study/spaces/client.ts`；12 个语言文件 `study.qa.*`。
+- 配置与工具：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`；`scripts/dev-fake-model-server.ts`（假 `/embeddings` 与答疑回答）。
+- 评测：`eval/study-qa/**`；验证：`spikes/b03-candidate-a/**`。
+
+### 发现的问题
+
+- **Worker ESM 包与 `graphemer`**：`lib/rag` 分块器第一次进入 Worker 包；`graphemer` 是带 `exports.default` 的 CommonJS，Worker 的 ESM 包原生导入时默认导入是整个 `exports` 对象，启动即崩溃（`Graphemer is not a constructor`）。Next 与 Vitest 会自动解包所以测试没发现，本地托管验收启动 Worker 时发现；已改为兼容两种形态。已上线的 B02 镜像不导入该模块，不受影响。
+- 验收中发现 `POST …/knowledge` 对他人学科返回 202（逐项报错）而不是统一的 404，已修复。
+
+### 测试
+
+- 新增：`tests/server/study-knowledge-migration.test.ts`（PGlite 2 + 带扩展的 PostgreSQL 2：v24 应用、FORCE RLS、Data API 无授权、kind 约束、owner 隔离、函数内 RLS、Worker 不能调检索函数、版本删除级联）；`tests/server/study-knowledge.test.ts`（真实 PostgreSQL + vector + pgroonga 9 项：经队列建索引与状态、无 `material_index` Worker 时拒绝、范围/固定版本/跨账号/换模型、混合与仅关键词检索及降级、引用只认服务端编号、无结果不调模型、丢租约不写入且重建原子替换、可重试/不可重试失败、永久删除）；`tests/study/knowledge-logic.test.ts`（11）、`tests/model-gateway/embeddings.test.ts`（6）、`tests/api/study-qa-routes.test.ts`（6）、`tests/rag/allowed-resource-versions.test.ts`（3）。
+- 调整：`tests/auth/principal-mode.test.ts`（v24）、`tests/api/study-routes.test.ts` 与 `study-materials-routes.test.ts`（capabilities 含 `qa`）、`tests/server/account-deletion-lifecycle.test.ts`（四张新表只删本人）。
+- 全量结果见本节末“最终校验”。
+
+### 浏览器验收（2026-10-06，本地托管模式）
+
+环境：一次性 PostgreSQL 17 + PGroonga 3.2.5 + pgvector（全新 bootstrap 到 v24，`zhiyu_app_web`/`zhiyu_app_worker` 登录角色，RLS 生效）、假认证、假 S3、两个假模型服务器（答疑 LLM 18787；embedding 18788，经 `siliconflow` provider 配置）、带学习调度的 Worker、`next dev`。资料为按评测语料用黑体生成的真实 PDF（第 5 页为无文字层的灰色图）。临时环境文件把 `.env.local` 的 145 个变量全部置空，无真实密钥与生产地址；结束后环境文件、账号文件、PDF、假 S3 数据与数据库容器已删除。没有调用任何真实模型。
+
+1. 学科页出现“资料答疑”入口 → 答疑页列出 5 份资料（含第 2 版的补充讲义），全部“未建立索引”，提问按钮不可用。
+2. “为全部资料建立索引” → Worker 依次完成，全部“可检索”；讲义显示“第 5 页没有文字，未纳入检索”；再为旧版本（第 1 版）单独建索引。
+3. 问“arctan x 的导数是什么？” → “资料依据”带 [E1]“高等数学讲义（上册）· 第 1 版 · 第 4 页”，“补充说明”单独显示且标明非资料原文；元信息“语义 + 关键词检索 · 模型输入 10 / 输出 5 tokens，1 次调用”。点 [E1] → 阅读器打开该版本第 4 页、对应解析结果，块加框、摘录标记。
+4. 问“红黑树有哪五条性质？” → “资料中未找到”。固定第 1 版后问 x³ 系数 → 只引用“第 1 版 · 第 1 页”。“只检索原文”问考试日期 → 两份冲突通知排在前两位。提问后立即取消 → 提示“已取消，本次提问没有保存”，已保存回答数不变。
+5. 用量：索引 embedding 6 次记在 `learning:` 根；查询 embedding 与答疑调用记在 `independent:` 同步重任务根；同步租约全部释放；每个索引 attempt 记录 chunk 数、调用次数、token，完整度 complete。
+6. 账号 B（另一 origin）：对 A 的学科/资料的知识状态、建索引、答案列表、提问、固定 A 版本提问、检索、删答案、删索引、阅读共 10 个探测全部 404（修复后）；在 B 自己的学科固定 A 的版本 → 400；B 打开 A 的答疑页显示“找不到这个学科空间”。
+7. 停掉 embedding 服务 → 提问仍成功，标注“仅关键词匹配（语义检索暂不可用）”与“部分用量未知”；此时重建索引 → 3 次尝试后失败（`EMBEDDING_NETWORK`），界面显示原因与“重试”；恢复服务后点“重试” → 可检索。
+8. 停掉 Worker → 横幅“后台处理服务暂时不可用：已建好的索引可以继续提问…”，建索引按钮不可用，提问仍可用。
+9. 375px 宽度无横向滚动。
+10. 永久删除被引用的讲义 → 该资料的索引、chunk、引用与索引任务全部清除，旧回答正文保留、[E1] 显示“来源已删除”。
+11. 关闭 `ZHIYU_STUDY_QA_ENABLED` 重启 → `capabilities.qa=false`、入口消失、答疑接口 404，资料库照常。
+
+### 评测（`eval/study-qa`，可重复运行）
+
+- 数据：合成中文资料 + 近似干扰资料，48 个标注问题（正文 17、公式 8、表格 5、图 2、扫描页 2、冲突 3、版本 3、无答案 4、隔离 4）；没有可授权的真实教材，按约定先用合成资料。
+- 运行（2026-10-06，假 embedding + 假提取式答疑模型，一次性 PostgreSQL）：13 个版本 45 个 chunk；混合 recall@5 **40/40**，仅关键词 40/40；检索 p50 5.9 ms / p95 9.0 ms；权限隔离：419 个结果中外账号 **0**、范围外 **0**；固定版本 1/1、默认范围旧版本命中 0；（假答疑模型）引用支持率 36/39 = 92.3%，无答案判对 6/8，有答案且给出依据 37/40。
+- **解读**：语料小（每账号约 43 个 chunk），假 embedding 本质上是另一路词法信号，recall 近乎必然很高；这组数字证明管线、权限与版本正确，**不代表真实语义检索质量**。假答疑模型的支持率只验证引用校验与保存。真实 embedding（推荐 `BAAI/bge-m3`，1024 维）与真实答疑模型的评测需用户同意后运行（`EVAL_EMBEDDING_*`、`EVAL_ANSWER_MODEL`），再据此定生产时延与门槛。
+- promptfoo：`eval/study-qa/promptfoo/` 用同一管线输出 recall@5、isolation、version、citation-support、not-found 指标（运行情况见“最终校验”）。
+
+### 未验证
+
+- 真实 embedding 与真实答疑模型的效果、时延与费用；生产 Supabase 上的扩展安装与 v24；生产镜像构建；Playwright e2e。
+- PGroonga 3.2.5 + pgvector 0.8.2 组合只在本地 PGroonga 3.2.5 + pgvector 0.8.7 上验证（所用 `halfvec`/`<=>` 自 0.7 起存在）。
+- 单账号超过约 2 万 chunk 的时延（设了每账号 2 万 chunk 上限）；并发多 Worker 下的索引构建。
+
+### 回退
+
+- 运行时：取消 `ZHIYU_STUDY_QA_ENABLED`（Web 与 Worker）→ 入口、接口与 Worker 处理器全部关闭；资料库、阅读、B01/B02 不受影响；已保存回答与索引保留。
+- 数据：v24 为纯新增；表、扩展保留不回滚。确需移除时可 `DROP` 新表/函数后 `DROP EXTENSION pgroonga, vector`（无其他依赖），但不建议在回退时做。
+
+### 上线步骤（待用户指示，按 B01/B02 流程；以下都尚未执行）
+
+1. 先问用户：在生产启用扩展并执行 v24。核对生产 v23 checksum = `3fe42841…`；Supabase `apply_migration` 只执行仓库 v24 SQL（逐字相同，含在 `extensions` schema 创建 vector/pgroonga），写入 `app_schema_migrations(24, 07219ff1…)`；核对四张新表 RLS 开启且强制、授权与本文一致、`study_knowledge_search` 只授予 `app_web`、`learning_task_kind_ready` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
+2. 选定并配置 embedding provider（例如 SiliconFlow `BAAI/bge-m3`）——真实调用前先问用户；构建发布镜像（开关先关）→ readiness ready、accountsVersion 24 → 0 个未完成任务后切换 → Web 与 Worker env 设置 `ZHIYU_STUDY_QA_ENABLED=1`、`STUDY_EMBEDDING_MODEL` 及 provider key → apply → Worker 心跳含 `learning-kind:material_index`、`capabilities.qa=true`。
+3. 登录账号在生产为一份资料建索引并提问，核对引用跳转与用量。
+
+### 下一批（B04/B05）前置条件
+
+- B03 合并并上线（或至少合并，B04 可与之并行）。B05“课后与指定学伴答疑”直接复用：`resolveQuestionScope`（再交学伴授权资料集合）、`searchStudyKnowledge`、`askSpace` 的证据组装/引用校验，以及 `study_qa_*` 的引用保存与“来源已删除”语义；学伴的资料授权应表达为允许的资料版本集合，在 `resolveQuestionScope` 里求交集，而不是事后过滤。
+- 真实 embedding 模型确定后跑一次真实评测，作为 B05/B11 的检索基线。
+- 若要支持扫描件，需先完成 OCR provider 的计费接入（B02 遗留）。
+
+### B03 最终校验（2026-10-06，Node 24.19.0）
+
+- 全量 Vitest（`--maxWorkers=4`，带扩展的一次性 PostgreSQL 提供 `TEST_STUDY_KNOWLEDGE_DATABASE_URL`）：**859 个文件 / 8910 项通过，16 个文件、84 项跳过**；运行中唯一失败是 `learning-tasks` 一处心跳断言（Worker 心跳现在附带 kind 列表），已更新后单独重跑通过。
+- 真实 PostgreSQL（一次性 `*_rls_proof`，普通 PG16，验证 v24 的“无扩展”路径）：全新 bootstrap、v22/v23/v24 迁移、账号删除（16）、课程清理、heavy-task 容量 RLS、生成队列/事务队列/Worker 管线、用量迁移共 11 个文件全部通过（账号删除在独立 schema 中运行，暴露了 chunk 表存在性检查写死 `public.` 的问题，已改为按 search_path 查找）。带扩展的 PostgreSQL 17：v24 迁移 4 项、检索端到端 9 项通过。
+- `tsc --noEmit`、`check:i18n-keys`（12 个语言文件）、改动文件 ESLint（0 问题）与 Prettier 通过；`build:worker` 通过且产物可加载；`next build` 通过，`/study/[spaceId]/ask` 与 `/api/study/spaces/[spaceId]/{knowledge,ask,search}` 已生成，唯一警告是既有的 `unpdf` “Critical dependency”。
+- 未运行：Playwright e2e、生产镜像构建。
 
 ## B02 共享资料版本、结构化解析与阅读（2026-10-05，已上线）
 

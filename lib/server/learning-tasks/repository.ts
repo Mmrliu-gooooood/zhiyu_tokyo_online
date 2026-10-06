@@ -32,6 +32,7 @@ import {
 } from '@/lib/server/task-queue/lease-queue';
 
 import {
+  LEARNING_TASK_KIND_CAPABILITY_PREFIX,
   LEARNING_TASK_WORKER_CAPABILITY,
   LearningTaskError,
   NON_RETRYABLE_TASK_CODES,
@@ -788,8 +789,15 @@ export class LearningTaskQueue {
     });
   }
 
-  /** Publish this process as a live (or draining) learning-task worker. */
-  async workerHeartbeat(workerId: string, draining = false): Promise<void> {
+  /**
+   * Publish this process as a live (or draining) learning-task worker, with
+   * the task kinds it runs (`learning-kind:<kind>`).
+   */
+  async workerHeartbeat(
+    workerId: string,
+    draining = false,
+    kinds: readonly LearningTaskKind[] = [],
+  ): Promise<void> {
     await this.transaction((q) =>
       q.query(
         `INSERT INTO generation_worker_heartbeats(worker_id,pipeline_versions,draining)
@@ -798,7 +806,10 @@ export class LearningTaskQueue {
            heartbeat_at=clock_timestamp(), draining=EXCLUDED.draining`,
         [
           learningWorkerHeartbeatId(workerId),
-          JSON.stringify([LEARNING_TASK_WORKER_CAPABILITY]),
+          JSON.stringify([
+            LEARNING_TASK_WORKER_CAPABILITY,
+            ...kinds.map((kind) => `${LEARNING_TASK_KIND_CAPABILITY_PREFIX}${kind}`),
+          ]),
           draining,
         ],
       ),
@@ -811,9 +822,32 @@ export function learningWorkerHeartbeatId(workerId: string): string {
   return `${workerId}#learning`;
 }
 
-/** Whether a non-draining worker that runs learning tasks heartbeated recently. */
-export async function isLearningTaskWorkerLive(q: Queryable): Promise<boolean> {
+/**
+ * Whether a non-draining worker that runs learning tasks heartbeated recently;
+ * with `kind`, one that runs that task kind.
+ */
+export async function isLearningTaskWorkerLive(
+  q: Queryable,
+  kind?: LearningTaskKind,
+): Promise<boolean> {
   try {
+    if (kind) {
+      const capability = `${LEARNING_TASK_KIND_CAPABILITY_PREFIX}${kind}`;
+      if (isHostedAuthEnabled()) {
+        const result = await q.query<{ live: boolean }>(
+          'SELECT app_internal.learning_task_kind_ready($1) AS live',
+          [capability],
+        );
+        return result.rows[0]?.live === true;
+      }
+      const result = await q.query<{ live: boolean }>(
+        `SELECT EXISTS(SELECT 1 FROM generation_worker_heartbeats
+           WHERE heartbeat_at > clock_timestamp() - interval '30 seconds' AND NOT draining
+             AND pipeline_versions @> $1::jsonb) AS live`,
+        [JSON.stringify([capability])],
+      );
+      return result.rows[0]?.live === true;
+    }
     if (isHostedAuthEnabled()) {
       const result = await q.query<{ worker_live: boolean }>(
         'SELECT worker_live FROM app_internal.learning_task_readiness()',

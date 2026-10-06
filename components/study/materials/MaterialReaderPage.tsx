@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * /study/materials/[materialId]/read?version=&page= — read one version
+ * /study/materials/[materialId]/read?version=&page=[&artifact=&block=] — read one version
  * (learning plan B02): the original file (PDF pages rendered with pdf.js from
  * unpdf, images, text) beside the parsed text of the same page. Every
  * location names a version, so it keeps pointing at the same content after
- * the file is replaced.
+ * the file is replaced. A citation (B03) also names the parse it came from and
+ * the block, which is highlighted (with the cited passage, when known).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -23,6 +24,7 @@ import {
 } from '@/components/study/spaces/StudyShell';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { materialsApi, readerHref } from '@/lib/study/materials/client';
+import { readCitationQuote } from '@/lib/study/knowledge/client';
 import {
   readerOriginalKind,
   type ReaderBlock,
@@ -36,6 +38,10 @@ export function MaterialReaderPage({ materialId }: { materialId: string }) {
   const search = useSearchParams();
   const versionId = search.get('version') ?? '';
   const requestedPage = Number(search.get('page') ?? '1') || 1;
+  const artifactId = search.get('artifact') || undefined;
+  const blockId = search.get('block') || null;
+  const [quote, setQuote] = useState<string | null>(null);
+  useEffect(() => setQuote(blockId ? readCitationQuote(blockId) : null), [blockId]);
   const [state, setState] = useState<StudyLoadState>('loading');
   const [view, setView] = useState<ReaderPageView | null>(null);
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
@@ -73,7 +79,7 @@ export function MaterialReaderPage({ materialId }: { materialId: string }) {
     const controller = new AbortController();
     setPageLoading(true);
     materialsApi
-      .reader(materialId, versionId, requestedPage, undefined, controller.signal)
+      .reader(materialId, versionId, requestedPage, artifactId, controller.signal)
       .then((next) => {
         setView(next);
         setState('ready');
@@ -91,11 +97,24 @@ export function MaterialReaderPage({ materialId }: { materialId: string }) {
         if (!controller.signal.aborted) setPageLoading(false);
       });
     return () => controller.abort();
-  }, [materialId, versionId, requestedPage]);
+  }, [materialId, versionId, requestedPage, artifactId]);
+
+  useEffect(() => {
+    if (!blockId || !view) return;
+    document
+      .querySelector(`[data-block-id="${CSS.escape(blockId)}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [blockId, view]);
 
   const goTo = useCallback(
-    (page: number) => router.replace(readerHref(materialId, versionId, page), { scroll: false }),
-    [materialId, router, versionId],
+    (page: number) => {
+      // Paging keeps the parse a citation named, but not its block highlight.
+      const href = readerHref(materialId, versionId, page);
+      router.replace(artifactId ? `${href}&artifact=${encodeURIComponent(artifactId)}` : href, {
+        scroll: false,
+      });
+    },
+    [artifactId, materialId, router, versionId],
   );
 
   if (state !== 'ready') {
@@ -221,6 +240,8 @@ export function MaterialReaderPage({ materialId }: { materialId: string }) {
                 <BlockView
                   key={block.id}
                   block={block}
+                  cited={block.id === blockId}
+                  quote={block.id === blockId ? quote : null}
                   imageUrl={
                     block.imageId
                       ? materialsApi.imageUrl(
@@ -319,7 +340,54 @@ function PageNav({
   );
 }
 
-function BlockView({ block, imageUrl }: { block: ReaderBlock; imageUrl?: string }) {
+/** Text with the cited passage marked (its start, matched across whitespace). */
+function MarkedText({ text, quote }: { text: string; quote: string | null }) {
+  const probe = quote?.replace(/…$/, '').replace(/\s+/g, ' ').trim();
+  if (!probe) return <>{text}</>;
+  const pattern = probe
+    .split(' ')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+  const match = new RegExp(pattern).exec(text);
+  if (!match) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, match.index)}
+      <mark className="rounded bg-amber-200/70 px-0.5 text-foreground dark:bg-amber-500/30">
+        {match[0]}
+      </mark>
+      {text.slice(match.index + match[0].length)}
+    </>
+  );
+}
+
+function BlockView(props: {
+  block: ReaderBlock;
+  imageUrl?: string;
+  cited?: boolean;
+  quote?: string | null;
+}) {
+  const { cited = false } = props;
+  return (
+    <div
+      data-block-id={props.block.id}
+      data-cited={cited ? 'true' : undefined}
+      className={cited ? 'rounded-lg ring-2 ring-amber-400/70 ring-offset-2 ring-offset-card' : ''}
+    >
+      <BlockContent {...props} />
+    </div>
+  );
+}
+
+function BlockContent({
+  block,
+  imageUrl,
+  quote = null,
+}: {
+  block: ReaderBlock;
+  imageUrl?: string;
+  quote?: string | null;
+}) {
   const { t } = useI18n();
   if (block.type === 'image' && imageUrl) {
     return (
@@ -352,7 +420,7 @@ function BlockView({ block, imageUrl }: { block: ReaderBlock; imageUrl?: string 
       className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground"
       data-testid="study-reader-block"
     >
-      {block.text}
+      <MarkedText text={block.text ?? ''} quote={quote} />
     </p>
   );
 }

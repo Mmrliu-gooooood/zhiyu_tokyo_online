@@ -1,0 +1,19 @@
+# B03 grounded-QA evaluation under promptfoo (learning plan B03).
+#
+# The provider runs the same pipeline as eval/study-qa/run.mjs once (disposable
+# database, real index task, hybrid retrieval, optional answers) and returns
+# each question's measured result; the assertions below turn them into
+# promptfoo metrics (recall@5, isolation, version, citation support, not-found).
+#
+#   EVAL_STUDY_DATABASE_URL=postgres://…@127.0.0.1:55435/knowledge_rls_proof \
+#   [EVAL_ANSWERS=1 EVAL_ANSWER_MODEL=fake|provider:model] \
+#   npx promptfoo@0.124.0 eval -c eval/study-qa/promptfoo/promptfooconfig.yaml --no-cache
+description: Zhiyu B03 grounded QA (synthetic Chinese study materials)
+prompts:
+  - '{{question}}'
+providers:
+  - id: file://provider.mjs
+    label: zhiyu-study-qa
+tests: file://tests.mjs
+evaluateOptions:
+  maxConcurrency: 1

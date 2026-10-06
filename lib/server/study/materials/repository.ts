@@ -29,6 +29,7 @@ import {
   listLearningTasksForSubjects,
 } from '@/lib/server/learning-tasks/repository';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
+import { indexTaskSubject } from '@/lib/server/study/knowledge/repository';
 
 export function createStudyMaterialId(): string {
   return `smat-${randomBytes(9).toString('base64url')}`;
@@ -653,7 +654,17 @@ export async function beginStudyMaterialPurge(
         WHERE owner_id=$1 AND version_id=ANY($2::text[])`,
       [ownerId, versionIds],
     );
-    await cancelLearningTasksForSubjects(tx, ownerId, versionIds);
+    await cancelLearningTasksForSubjects(tx, ownerId, [
+      ...versionIds,
+      ...versionIds.map(indexTaskSubject),
+    ]);
+    // Retrieval stops now: search indexes and their chunks (B03) go in this
+    // transaction; cited answers keep their text, the citations go with the
+    // versions in phase two.
+    await tx.query(
+      'DELETE FROM study_knowledge_indexes WHERE owner_id=$1 AND version_id=ANY($2::text[])',
+      [ownerId, versionIds],
+    );
     await tx.query(
       'DELETE FROM study_session_material_refs WHERE owner_id=$1 AND version_id=ANY($2::text[])',
       [ownerId, versionIds],
@@ -685,7 +696,8 @@ export async function finishStudyMaterialPurge(
     // sweep has removed them (its keys would otherwise be lost with the row).
     await tx.query(
       `DELETE FROM learning_tasks task
-        WHERE task.owner_id=$1 AND task.subject_id=ANY($2::text[])
+        WHERE task.owner_id=$1
+          AND task.subject_id=ANY($2::text[] || ARRAY(SELECT 'index:' || unnest($2::text[])))
           AND NOT EXISTS (SELECT 1 FROM learning_task_attempts attempt
                            WHERE attempt.task_id=task.id
                              AND attempt.staged_object_keys <> '[]'::jsonb)`,

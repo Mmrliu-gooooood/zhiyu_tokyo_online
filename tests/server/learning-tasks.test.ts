@@ -348,7 +348,9 @@ describe('learning task runner', () => {
       expect.objectContaining({ code: 'PARSER_TIMEOUT', retryable: true }),
     );
     await runner.stop();
-    expect(fake.workerHeartbeat).toHaveBeenLastCalledWith(runner.workerId, true);
+    expect(fake.workerHeartbeat).toHaveBeenLastCalledWith(runner.workerId, true, [
+      'material_parse',
+    ]);
   });
 
   it('drains on stop: aborts a task past the grace period and re-queues it', async () => {

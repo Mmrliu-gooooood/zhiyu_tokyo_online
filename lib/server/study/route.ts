@@ -17,7 +17,7 @@ import { getOwnerBoundStageAccessDb } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import { LearningTaskError } from '@/lib/server/learning-tasks/contracts';
-import { isStudyMaterialsFlagOn } from '@/lib/server/study/flags';
+import { isStudyMaterialsFlagOn, isStudyQaFlagOn } from '@/lib/server/study/flags';
 
 const log = createLogger('StudyRoute');
 
@@ -76,6 +76,24 @@ export function studyMaterialsRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyMaterialsEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B03 retrieval and cited answers: needs the material library plus ZHIYU_STUDY_QA_ENABLED. */
+export function isStudyQaEnabled(): boolean {
+  return isStudyQaFlagOn() && isStudyMaterialsEnabled();
+}
+
+/** studyRoute for the retrieval / answer APIs. */
+export function studyQaRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyQaEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

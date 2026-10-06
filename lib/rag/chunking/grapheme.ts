@@ -1,5 +1,10 @@
-import Graphemer from 'graphemer';
+import GraphemerExport from 'graphemer';
 
+// graphemer is CommonJS with `exports.default`. Bundlers unwrap it, but the
+// worker's ESM bundle imports it natively, where the default import is the
+// whole `exports` object; accept both shapes.
+const Graphemer =
+  (GraphemerExport as unknown as { default?: typeof GraphemerExport }).default ?? GraphemerExport;
 const GRAPHEME_SPLITTER = new Graphemer();
 
 export type GraphemeChunk = {

@@ -15,7 +15,8 @@ export type HeavyTaskKind =
   | 'material-extraction'
   | 'document-extraction'
   | 'media'
-  | 'learning-task';
+  | 'learning-task'
+  | 'study-qa';
 
 /**
  * Stable root identity carried by a root task and every heavy child it starts.

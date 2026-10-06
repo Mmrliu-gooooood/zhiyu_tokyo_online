@@ -14,6 +14,7 @@ export type {
   KnowledgeExactScope,
   KnowledgeFilterValue,
   KnowledgeHit,
+  KnowledgeHitComponents,
   KnowledgeIndex,
   KnowledgeIndexCapabilities,
   KnowledgeIndexDeleteRequest,
