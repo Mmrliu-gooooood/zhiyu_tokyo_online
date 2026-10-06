@@ -133,7 +133,7 @@ describe('classmate routes', () => {
   });
 
   it('serves an uploaded avatar to its owner only, with the sniffed type', async () => {
-    const upload = (type: string, bytes: Uint8Array) =>
+    const upload = (type: string, bytes: Uint8Array<ArrayBuffer>) =>
       uploadAvatar(
         new Request('https://zhiyu.test/api/study/classmates/avatars', {
           method: 'POST',
