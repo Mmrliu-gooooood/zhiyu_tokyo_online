@@ -29,7 +29,7 @@ import { useClassroomGenerationJob } from '@/lib/hooks/use-generation-job';
 import { Stage } from '@/components/stage';
 import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { useStageStore } from '@/lib/store';
-import { useSettingsStore } from '@/lib/store/settings';
+import { beginClassroomAgentVisit, useSettingsStore } from '@/lib/store/settings';
 import { claimStageSceneLoadToken, isCurrentStageSceneLoadToken } from '@/lib/store/stage';
 import { loadImageMapping } from '@/lib/utils/image-storage';
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -177,15 +177,11 @@ export function ClassroomSurface({
   );
 
   useEffect(() => {
-    // Classroom roster hydration temporarily uses the shared selection for
-    // playback. Keep the Home creation choice scoped to this visit so a
-    // stage-derived fallback cannot replace it after returning to Home.
-    const settingsBeforeVisit = useSettingsStore.getState();
-    const homeAgentSelection = {
-      agentMode: settingsBeforeVisit.agentMode,
-      selectedAgentIds: settingsBeforeVisit.selectedAgentIds,
-      agentSelectionIsUserSet: settingsBeforeVisit.agentSelectionIsUserSet,
-    };
+    // Roster hydration uses the shared selection for this classroom's
+    // playback. The Home creation choice is recorded (persisted, so a reload
+    // or closed tab still restores it on the next load) and put back when
+    // this visit ends.
+    const endAgentVisit = beginClassroomAgentVisit();
 
     // Reset loading state on course switch to unmount Stage during transition,
     // preventing stale data from syncing back to the new course
@@ -240,7 +236,7 @@ export function ClassroomSurface({
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
       stop();
-      useSettingsStore.setState(homeAgentSelection);
+      endAgentVisit();
     };
   }, [classroomId, loadClassroom, stop, variant]);
 

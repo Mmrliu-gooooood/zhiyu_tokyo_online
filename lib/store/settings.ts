@@ -74,6 +74,34 @@ const log = createLogger('Settings');
 /** Persisted-blob version for zustand's `persist` `migrate` ladder. */
 const SETTINGS_PERSIST_VERSION = 7;
 let serverProviderRequestSequence = 0;
+/** Classroom visits open in this tab; see {@link beginClassroomAgentVisit}. */
+let classroomAgentVisits = 0;
+
+function asHomeAgentSelection(value: unknown): HomeAgentSelection | null {
+  if (!value || typeof value !== 'object') return null;
+  const { agentMode, selectedAgentIds, agentSelectionIsUserSet } = value as Record<string, unknown>;
+  if (agentMode !== 'preset' && agentMode !== 'auto') return null;
+  if (!Array.isArray(selectedAgentIds) || !selectedAgentIds.every((id) => typeof id === 'string')) {
+    return null;
+  }
+  if (typeof agentSelectionIsUserSet !== 'boolean') return null;
+  return { agentMode, selectedAgentIds: [...selectedAgentIds], agentSelectionIsUserSet };
+}
+
+/**
+ * Put back a Home selection left behind by a classroom visit that ended
+ * without unmounting (reload, closed tab). Not while a visit in this tab is
+ * still open: a mid-visit rehydrate (storage recovery) keeps its roster.
+ */
+function restoreHomeAgentSelection(state: Record<string, unknown>): void {
+  const home = asHomeAgentSelection(state.homeAgentSelectionDuringVisit);
+  if (classroomAgentVisits > 0) {
+    state.homeAgentSelectionDuringVisit = home;
+    return;
+  }
+  if (home) Object.assign(state, home);
+  state.homeAgentSelectionDuringVisit = null;
+}
 
 /**
  * Bound after the store exists; see `onWriteRefused` for why it is not inlined.
@@ -105,6 +133,13 @@ function pruneThinkingConfigs(
 /** Available playback speed tiers */
 export const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 2] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
+
+/** The Home roster choice (AgentBar) that a classroom visit temporarily replaces. */
+export interface HomeAgentSelection {
+  agentMode: 'preset' | 'auto';
+  selectedAgentIds: string[];
+  agentSelectionIsUserSet: boolean;
+}
 
 export interface SettingsState {
   // Model selection
@@ -265,6 +300,12 @@ export interface SettingsState {
    * load. Only a user-set selection carries across classrooms on restore.
    */
   agentSelectionIsUserSet: boolean;
+  /**
+   * Set while a classroom visit is using the shared selection for playback:
+   * the Home choice to put back when the visit ends. Persisted so a reload or
+   * closed tab (no unmount) still restores it on the next load.
+   */
+  homeAgentSelectionDuringVisit: HomeAgentSelection | null;
 
   // Layout preferences (persisted via localStorage)
   sidebarCollapsed: boolean;
@@ -1045,6 +1086,7 @@ export const useSettingsStore = create<SettingsState>()(
         autoAgentCount: 3,
         agentVoiceOverrides: {},
         agentSelectionIsUserSet: false,
+        homeAgentSelectionDuringVisit: null,
 
         // Playback controls
         ttsMuted: false,
@@ -2761,6 +2803,7 @@ export const useSettingsStore = create<SettingsState>()(
         ensureBuiltInWebSearchProviders(merged as Partial<SettingsState>);
         ensureValidProviderSelections(merged as Partial<SettingsState>);
         stripLegacyServerBaseUrl(merged as Partial<SettingsState>);
+        restoreHomeAgentSelection(merged);
         const typedMerged = merged as Partial<SettingsState>;
         typedMerged.thinkingConfigs = pruneThinkingConfigs(
           typedMerged.thinkingConfigs,
@@ -2775,6 +2818,32 @@ export const useSettingsStore = create<SettingsState>()(
 // Bound after the store exists so the `onWriteRefused` hook above stays free of
 // a self-reference (see the comment there).
 recovery.rehydrate = () => useSettingsStore.persist.rehydrate();
+
+/**
+ * Start a classroom visit that may replace the shared agent selection with the
+ * classroom's roster for playback. Records the Home choice (unless an earlier
+ * visit already did) and returns the function that ends the visit and puts it
+ * back. Ending is idempotent; the last open visit restores.
+ */
+export function beginClassroomAgentVisit(): () => void {
+  classroomAgentVisits += 1;
+  const state = useSettingsStore.getState();
+  const home = state.homeAgentSelectionDuringVisit ?? {
+    agentMode: state.agentMode,
+    selectedAgentIds: state.selectedAgentIds,
+    agentSelectionIsUserSet: state.agentSelectionIsUserSet,
+  };
+  useSettingsStore.setState({ homeAgentSelectionDuringVisit: home });
+  let ended = false;
+  return () => {
+    if (ended) return;
+    ended = true;
+    classroomAgentVisits -= 1;
+    if (classroomAgentVisits > 0) return;
+    const pending = useSettingsStore.getState().homeAgentSelectionDuringVisit ?? home;
+    useSettingsStore.setState({ ...pending, homeAgentSelectionDuringVisit: null });
+  };
+}
 
 // Best-effort, fire-and-forget: drop the pre-cutover raw `localStorage` blob.
 // It is never read (this store does not migrate legacy data), and the old blob

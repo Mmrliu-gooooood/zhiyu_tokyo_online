@@ -5,7 +5,7 @@ import { canGenerateLocally } from '@/lib/generation/ownership';
 import { useClassroomGenerationJob } from '@/lib/hooks/use-generation-job';
 import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { useStageStore } from '@/lib/store';
-import { useSettingsStore } from '@/lib/store/settings';
+import { beginClassroomAgentVisit, useSettingsStore } from '@/lib/store/settings';
 import {
   awaitStageSelfHealSave,
   claimStageSceneLoadToken,
@@ -195,13 +195,10 @@ export default function ClassroomDetailPage() {
 
   useEffect(() => {
     // Roster hydration uses the shared selection for this classroom's
-    // playback. Restore the Home creation preference when this visit ends.
-    const settingsBeforeVisit = useSettingsStore.getState();
-    const homeAgentSelection = {
-      agentMode: settingsBeforeVisit.agentMode,
-      selectedAgentIds: settingsBeforeVisit.selectedAgentIds,
-      agentSelectionIsUserSet: settingsBeforeVisit.agentSelectionIsUserSet,
-    };
+    // playback. The Home creation choice is recorded (persisted, so a reload
+    // or closed tab still restores it on the next load) and put back when
+    // this visit ends.
+    const endAgentVisit = beginClassroomAgentVisit();
 
     // Reset loading state on course switch to unmount Stage during transition,
     // preventing stale data from syncing back to the new course
@@ -229,7 +226,7 @@ export default function ClassroomDetailPage() {
     return () => {
       cancelled = true;
       stop();
-      useSettingsStore.setState(homeAgentSelection);
+      endAgentVisit();
     };
   }, [classroomId, loadClassroom, stop]);
 
