@@ -2701,6 +2701,7 @@
       "sources": "Supports consultables",
       "buildAll": "Indexer tous les supports",
       "embeddingModel": "Modèle de recherche : {{model}}",
+      "keywordMode": "Méthode de recherche : mots-clés (sans modèle de recherche)",
       "noMaterials": "Cet espace n’a pas encore de supports. Ajoutez-en depuis la page de l’espace.",
       "build": "Créer l’index",
       "rebuild": "Mettre à jour l’index",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "(pas la version actuelle)",
       "lexicalOnly": "Correspondance par mots-clés uniquement (recherche sémantique indisponible)",
       "hybrid": "Recherche sémantique + mots-clés",
+      "keyword": "Recherche par mots-clés",
       "usage": "Modèle : entrée {{input}} / sortie {{output}} jetons, {{calls}} appel(s)",
       "usageUnknown": "Une partie de l’usage est inconnue",
       "removeAnswer": "Supprimer cette réponse",
@@ -2729,7 +2731,7 @@
       "noHits": "Aucun passage pertinent trouvé.",
       "reason": {
         "STORAGE_UNAVAILABLE": "La recherche dans les supports n’est pas disponible sur ce déploiement (extensions de recherche absentes de la base). La lecture reste possible.",
-        "EMBEDDING_NOT_CONFIGURED": "Aucun modèle de recherche n’est configuré sur le serveur ; indexation et questions indisponibles.",
+        "EMBEDDING_NOT_CONFIGURED": "La configuration du modèle de recherche du serveur est invalide ; indexation et questions indisponibles.",
         "WORKER_UNAVAILABLE": "Le service d’arrière-plan est indisponible : vous pouvez interroger les index existants ; créez-en de nouveaux plus tard."
       },
       "state": {

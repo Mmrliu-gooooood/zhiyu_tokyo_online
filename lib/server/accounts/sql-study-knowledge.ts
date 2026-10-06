@@ -11,9 +11,12 @@
  *   same commit that retires the old one, so a failed rebuild never touches
  *   the active index.
  * - study_knowledge_chunks: the chunks with their locator (version, page,
- *   block), content hash and a halfvec(1024) embedding. A multi-column
- *   PGroonga index over (owner, index, text) runs scope and keyword match in
- *   one index scan; vector distance is exact over the already scoped rows.
+ *   block), content hash and an optional halfvec(1024) embedding. Indexes
+ *   built in keyword-only mode (no embedding model configured, the default)
+ *   store no vectors; their embedding signature names that mode. A
+ *   multi-column PGroonga index over (owner, index, text) runs scope and
+ *   keyword match in one index scan; vector distance is exact over the
+ *   already scoped rows that have a vector.
  * - study_qa_answers / study_qa_citations: saved answers of the ask page and
  *   the server-approved citations they name. Citations reference the material
  *   version and go with it when the material is permanently deleted; the
@@ -132,7 +135,7 @@ const KNOWLEDGE_STORAGE_STATEMENTS = [
   block_type text NOT NULL CHECK (length(block_type) BETWEEN 1 AND 40),
   text text NOT NULL CHECK (char_length(text) BETWEEN 1 AND 4000),
   content_hash text NOT NULL CHECK (length(content_hash) BETWEEN 1 AND 128),
-  embedding extensions.halfvec(${STUDY_KNOWLEDGE_EMBEDDING_DIMENSIONS}) NOT NULL,
+  embedding extensions.halfvec(${STUDY_KNOWLEDGE_EMBEDDING_DIMENSIONS}),
   PRIMARY KEY (owner_id, index_id, id),
   CONSTRAINT study_knowledge_chunks_index_fk FOREIGN KEY (owner_id, index_id)
     REFERENCES public.study_knowledge_indexes (owner_id, id) ON DELETE CASCADE
@@ -172,6 +175,7 @@ AS $study_knowledge_search$
       FROM public.study_knowledge_chunks c
      WHERE p_embedding IS NOT NULL
        AND c.owner_id = p_owner_id AND c.index_id = ANY (p_index_ids)
+       AND c.embedding IS NOT NULL
      ORDER BY c.embedding <=> p_embedding::halfvec, c.id
      LIMIT LEAST(GREATEST(p_candidates, 1), 100)
   ), lex AS (

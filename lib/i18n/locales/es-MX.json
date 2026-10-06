@@ -2701,6 +2701,7 @@
       "sources": "Materiales consultables",
       "buildAll": "Indexar todos los materiales",
       "embeddingModel": "Modelo de búsqueda: {{model}}",
+      "keywordMode": "Método de búsqueda: palabras clave (sin modelo de búsqueda)",
       "noMaterials": "Este espacio aún no tiene materiales. Súbelos o agrégalos en la página del espacio.",
       "build": "Crear índice",
       "rebuild": "Actualizar índice",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "(no es la versión actual)",
       "lexicalOnly": "Solo coincidencia de palabras clave (búsqueda semántica no disponible)",
       "hybrid": "Búsqueda semántica + palabras clave",
+      "keyword": "Búsqueda por palabras clave",
       "usage": "Modelo: entrada {{input}} / salida {{output}} tokens, {{calls}} llamada(s)",
       "usageUnknown": "Parte del uso es desconocida",
       "removeAnswer": "Eliminar esta respuesta",
@@ -2729,7 +2731,7 @@
       "noHits": "No se encontraron fragmentos relevantes.",
       "reason": {
         "STORAGE_UNAVAILABLE": "La búsqueda de materiales no está disponible en esta implementación (faltan las extensiones de búsqueda en la base de datos). La lectura sigue funcionando.",
-        "EMBEDDING_NOT_CONFIGURED": "El servidor no tiene un modelo de búsqueda configurado; no se puede indexar ni preguntar.",
+        "EMBEDDING_NOT_CONFIGURED": "La configuración del modelo de búsqueda del servidor no es válida; no se puede indexar ni preguntar.",
         "WORKER_UNAVAILABLE": "El servicio en segundo plano no está disponible: puedes seguir preguntando con los índices existentes; crea nuevos más tarde."
       },
       "state": {

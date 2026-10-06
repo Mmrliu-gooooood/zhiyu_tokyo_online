@@ -1,19 +1,49 @@
 /**
- * Pure B03 logic: the model-answer reader (only server-issued passage ids
- * count as evidence), evidence budget, chunk planning from stored artifacts
- * (locators, tables, image descriptions, unparsed scan pages) and question
- * keywords.
+ * Pure B03 logic: the retrieval mode, the model-answer reader (only
+ * server-issued passage ids count as evidence), evidence budget, chunk
+ * planning from stored artifacts (locators, tables, image descriptions,
+ * unparsed scan pages) and question keywords.
  */
 import { describe, expect, it } from 'vitest';
 
 import { parseModelAnswer, selectEvidence } from '@/lib/server/study/knowledge/ask';
 import { planStudyChunks } from '@/lib/server/study/knowledge/chunks';
+import {
+  STUDY_KEYWORD_SIGNATURE,
+  resolveStudyRetrieval,
+} from '@/lib/server/study/knowledge/config';
 import { questionTerms } from '@/lib/server/study/knowledge/query-terms';
 import type { StudySearchHit } from '@/lib/server/study/knowledge/repository';
 import { STUDY_QA_LIMITS, citationReaderHref } from '@/lib/study/knowledge/contracts';
 import { fixtureArtifact, loadStudyQaFixture } from '@/eval/study-qa/fixture';
 
 const allowed = new Set(['E1', 'E2']);
+
+describe('resolveStudyRetrieval', () => {
+  it('is keyword-only without an embedding model', () => {
+    expect(resolveStudyRetrieval({} as unknown as NodeJS.ProcessEnv)).toEqual({
+      mode: 'keyword',
+      signature: STUDY_KEYWORD_SIGNATURE,
+      embedding: null,
+    });
+    expect(
+      resolveStudyRetrieval({ STUDY_EMBEDDING_MODEL: '  ' } as unknown as NodeJS.ProcessEnv).mode,
+    ).toBe('keyword');
+  });
+
+  it('reports a set but unusable embedding model instead of silently using keywords', () => {
+    for (const env of [
+      { STUDY_EMBEDDING_MODEL: 'no-separator' },
+      { STUDY_EMBEDDING_MODEL: 'siliconflow:BAAI/bge-m3', STUDY_EMBEDDING_DIMENSIONS: '768' },
+    ]) {
+      expect(resolveStudyRetrieval(env as unknown as NodeJS.ProcessEnv)).toEqual({
+        mode: 'misconfigured',
+        signature: null,
+        embedding: null,
+      });
+    }
+  });
+});
 
 describe('parseModelAnswer', () => {
   it('keeps grounded segments only with accepted ids', () => {

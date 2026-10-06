@@ -18,8 +18,14 @@ EVAL_STUDY_DATABASE_URL=postgres://postgres:proof@127.0.0.1:55435/knowledge_rls_
 ```
 
 - 每次运行新建并删除一个数据库，用生产 schema（`ensureStudySchema`，含 v24 的检索表），经真实的 `material_index` 任务处理器建索引，用生产的检索 SQL 与答疑流程。
-- 默认用**假 embedding**（确定性哈希向量）与**假答疑模型**（按关键词重合引用片段）：验证管线、权限与版本，不代表语义质量。
-- 真实模型（付费，先征得同意）：`EVAL_EMBEDDING_URL`、`EVAL_EMBEDDING_KEY`、`EVAL_EMBEDDING_MODEL`（OpenAI 兼容、1024 维；可选 `EVAL_EMBEDDING_SEND_DIMENSIONS=1`），`EVAL_ANSWER_MODEL=provider:model`（走模型网关）。
+- 检索方式：`EVAL_RETRIEVAL=keyword`（默认，与生产默认一致：仅关键词索引、不调用 embedding）或 `hybrid`（语义 + 关键词）。`hybrid` 下默认用**假 embedding**（确定性哈希向量），只验证管线。
+- 答疑：`--answers` 默认用**假答疑模型**（按关键词重合引用片段），只验证引用校验与保存。
+- 真实模型（先征得同意）：`EVAL_EMBEDDING_URL`、`EVAL_EMBEDDING_KEY`、`EVAL_EMBEDDING_MODEL`（OpenAI 兼容、1024 维；可选 `EVAL_EMBEDDING_SEND_DIMENSIONS=1`，SiliconFlow bge-m3 不接受该参数），`EVAL_ANSWER_MODEL=provider:model`（走模型网关，provider 的 key 用其环境变量，如 `SILICONFLOW_API_KEY`）。例：
+
+```bash
+SILICONFLOW_API_KEY=… EVAL_ANSWER_MODEL=siliconflow:deepseek-ai/DeepSeek-V3.2 EVAL_STUDY_DATABASE_URL=… node eval/study-qa/run.mjs --answers
+EVAL_RETRIEVAL=hybrid EVAL_EMBEDDING_URL=https://api.siliconflow.cn/v1 EVAL_EMBEDDING_KEY=… EVAL_EMBEDDING_MODEL=BAAI/bge-m3 … node eval/study-qa/run.mjs --answers
+```
 - 报告写到 `eval/study-qa/results/<时间>/report.{json,md}`（不入库）。
 
 promptfoo 方式（同一管线，指标为 recall@5、isolation、version、citation-support、not-found）：

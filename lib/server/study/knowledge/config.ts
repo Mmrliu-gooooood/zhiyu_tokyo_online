@@ -4,11 +4,15 @@
  *
  * - The chunk policy is part of an index's identity: changing it makes every
  *   index stale (a rebuild is offered, the old index keeps serving meanwhile).
- * - The embedding model is operator-configured: STUDY_EMBEDDING_MODEL names
- *   `provider:model` of a provider in the server provider configuration (its
- *   key, base URL and proxy are used). The vector column is 1024 wide, so the
- *   model must return 1024 dimensions (STUDY_EMBEDDING_SEND_DIMENSIONS=1 asks
- *   models with adjustable width for exactly that).
+ * - Retrieval is keyword-only by default: no embedding model, no external
+ *   cost for indexing or search. An operator turns on hybrid (semantic +
+ *   keyword) retrieval with STUDY_EMBEDDING_MODEL = `provider:model` of a
+ *   provider in the server provider configuration (its key, base URL and
+ *   proxy are used). The vector column is 1024 wide, so the model must return
+ *   1024 dimensions (STUDY_EMBEDDING_SEND_DIMENSIONS=1 asks models with
+ *   adjustable width for exactly that). Switching modes changes the index
+ *   signature, so existing indexes show "needs update" and keep serving until
+ *   rebuilt.
  */
 import {
   resolveOperatorEmbeddingBinding,
@@ -52,4 +56,24 @@ export function resolveStudyEmbeddingBinding(
 ): EmbeddingBinding | null {
   const spec = studyEmbeddingSpec(env);
   return spec ? resolveOperatorEmbeddingBinding(spec) : null;
+}
+
+/** Index signature of keyword-only indexes (chunks stored without vectors). */
+export const STUDY_KEYWORD_SIGNATURE = 'keyword@1';
+
+export type StudyRetrievalConfig =
+  | { mode: 'keyword'; signature: string; embedding: null }
+  | { mode: 'hybrid'; signature: string; embedding: EmbeddingBinding }
+  /** STUDY_EMBEDDING_MODEL is set but unusable (bad value or missing key). */
+  | { mode: 'misconfigured'; signature: null; embedding: null };
+
+/** Keyword-only unless an embedding model is configured. */
+export function resolveStudyRetrieval(env: NodeJS.ProcessEnv = process.env): StudyRetrievalConfig {
+  if (!env.STUDY_EMBEDDING_MODEL?.trim()) {
+    return { mode: 'keyword', signature: STUDY_KEYWORD_SIGNATURE, embedding: null };
+  }
+  const binding = resolveStudyEmbeddingBinding(env);
+  return binding && binding.credentialReady
+    ? { mode: 'hybrid', signature: binding.signature, embedding: binding }
+    : { mode: 'misconfigured', signature: null, embedding: null };
 }

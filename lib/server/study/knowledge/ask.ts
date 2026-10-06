@@ -4,13 +4,15 @@
  * One question = one budgeted operation on the server:
  *   1. scope: the space's live materials (current versions, or the pinned
  *      ones) with a usable index — computed here, never taken from the client;
- *   2. at most one query embedding through the gateway (operator-funded); if
- *      the embedding model is unavailable the search is keyword-only and the
- *      answer says so — nothing more expensive is attempted instead;
- *   3. hybrid search (≤ 8 passages, ≤ 8000 characters of evidence);
- *   4. no passages → "not found" without any model call; otherwise at most two
- *      calls of the user's selected model (the second only to repair output
- *      that was not valid JSON), ≤ 1500 output tokens each;
+ *   2. keyword-only retrieval by default (no external call); with an
+ *      embedding model configured, at most one query embedding through the
+ *      gateway (operator-funded) — if it fails the search falls back to
+ *      keywords and the answer says so, nothing more expensive is attempted;
+ *   3. keyword or hybrid search (≤ 8 passages, ≤ 8000 characters of evidence);
+ *   4. at most two calls of the user's selected model (the second only to
+ *      repair output that was not valid JSON), ≤ 1500 output tokens each.
+ *      Without passages the model is still asked, but everything it says is
+ *      a labelled supplement from its own knowledge under "not found";
  *   5. the model may cite only the passage ids it was given: unknown ids are
  *      dropped, a "grounded" segment left without a valid id is shown as a
  *      supplement, and "answered" without any grounded segment becomes
@@ -39,6 +41,7 @@ import {
   type StudyAnswerSegment,
   type StudyAnswerUsage,
   type StudyAnswerView,
+  type StudyRetrievalKind,
   type StudySearchResult,
 } from '@/lib/study/knowledge/contracts';
 
@@ -88,7 +91,7 @@ const SYSTEM_PROMPT = `你是“智域”学习平台的资料答疑助手。你
 规则：
 1. 只能把资料片段里明确写着的内容作为“资料依据”(grounded)，并在 citations 中列出支持它的片段编号；不要引用没有给出的编号。
 2. 为了帮助理解而补充的、片段里没有写的解释、例子或常识，放在“补充说明”(supplement)，不带编号。
-3. 如果片段不能回答问题，status 用 "not_found"，在 not_found_note 中简短说明资料缺少什么；此时不要编造资料依据，可以给出简短的补充说明。
+3. 如果片段不能回答问题（或没有提供片段），status 用 "not_found"，在 not_found_note 中简短说明资料缺少什么；此时不要编造资料依据，但应当用你自己的知识在“补充说明”中给出有帮助的解答（这部分会标明不是来自资料）。
 4. 不同片段说法不一致时，分别陈述并各自引用；片段写明更正、勘误或更新的，指出以哪一份为准。
 5. 用学生提问的语言回答，简洁准确；公式保留原写法。
 6. 只输出一个 JSON 对象，不要输出 Markdown 代码块或其他文字：
@@ -232,6 +235,10 @@ async function embedQuestion(
   }
 }
 
+function retrievalKind(input: SearchInput, vector: number[] | null): StudyRetrievalKind {
+  return !input.embedding ? 'keyword' : vector ? 'hybrid' : 'lexical';
+}
+
 /** Retrieval only (no model call): the scoped hybrid or keyword hits. */
 export async function searchSpace(
   transact: Transact,
@@ -248,7 +255,7 @@ export async function searchSpace(
     searchStudyKnowledge(tx, input.ownerId, scope, questionTerms(input.question), vector, 10),
   );
   return {
-    retrieval: vector ? 'hybrid' : 'lexical',
+    retrieval: retrievalKind(input, vector),
     hits: hits.map((hit) => ({
       chunkId: hit.chunkId,
       materialId: hit.index.materialId,
@@ -316,58 +323,54 @@ export async function askSpace(
   const refs = hits.map((_, index) => `E${index + 1}`);
   const allowed = new Set(refs);
 
-  let parsed: ParsedAnswer;
-  if (hits.length === 0) {
-    parsed = { status: 'not_found', segments: [], notFoundNote: null, rejectedRefs: [] };
-  } else {
-    const prompt = [
-      `问题：${input.question}`,
-      '',
-      '资料片段：',
-      ...hits.map((hit, index) => evidenceBlock(refs[index]!, hit)),
-    ].join('\n\n');
-    const call = async (messages: string): Promise<GatewayResult> => {
-      usage.modelCalls += 1;
-      try {
-        const result = await (deps.gateway ?? gateway).complete(
-          input.model,
-          {
-            system: SYSTEM_PROMPT,
-            messages: [userText(messages)],
-            maxOutputTokens: STUDY_QA_LIMITS.maxAnswerOutputTokens,
-            temperature: 0.2,
+  // No passages: the model may only add a labelled supplement (no ids to cite).
+  const prompt = [
+    `问题：${input.question}`,
+    '',
+    hits.length > 0 ? '资料片段：' : '资料片段：无（学生的资料中没有找到相关内容）。',
+    ...hits.map((hit, index) => evidenceBlock(refs[index]!, hit)),
+  ].join('\n\n');
+  const call = async (messages: string): Promise<GatewayResult> => {
+    usage.modelCalls += 1;
+    try {
+      const result = await (deps.gateway ?? gateway).complete(
+        input.model,
+        {
+          system: SYSTEM_PROMPT,
+          messages: [userText(messages)],
+          maxOutputTokens: STUDY_QA_LIMITS.maxAnswerOutputTokens,
+          temperature: 0.2,
+        },
+        {
+          source: 'study-qa',
+          signal: input.signal,
+          ownerId: input.ownerId,
+          usage: {
+            requestId: input.requestId,
+            eventKey: `${input.requestId}:answer:${usage.modelCalls}`,
           },
-          {
-            source: 'study-qa',
-            signal: input.signal,
-            ownerId: input.ownerId,
-            usage: {
-              requestId: input.requestId,
-              eventKey: `${input.requestId}:answer:${usage.modelCalls}`,
-            },
-          },
-        );
-        usage.inputTokens += result.usage.inputTokens;
-        usage.outputTokens += result.usage.outputTokens;
-        if (result.usage.inputTokens === 0 && result.usage.outputTokens === 0) usageKnown = false;
-        return result;
-      } catch (error) {
-        usageKnown = false;
-        return gatewayFailure(error);
-      }
-    };
-    const first = await call(prompt);
-    let candidate = parseModelAnswer(first.text, allowed);
-    if (!candidate) {
-      // One repair call, inside the per-question budget of two model calls.
-      const repaired = await call(
-        `${prompt}\n\n上一次的输出不是要求的 JSON 对象。请只输出符合格式的 JSON 对象。`,
+        },
       );
-      candidate = parseModelAnswer(repaired.text, allowed);
+      usage.inputTokens += result.usage.inputTokens;
+      usage.outputTokens += result.usage.outputTokens;
+      if (result.usage.inputTokens === 0 && result.usage.outputTokens === 0) usageKnown = false;
+      return result;
+    } catch (error) {
+      usageKnown = false;
+      return gatewayFailure(error);
     }
-    if (!candidate) throw new StudyError('STUDY_QA_ANSWER_INVALID');
-    parsed = candidate;
+  };
+  const first = await call(prompt);
+  let candidate = parseModelAnswer(first.text, allowed);
+  if (!candidate) {
+    // One repair call, inside the per-question budget of two model calls.
+    const repaired = await call(
+      `${prompt}\n\n上一次的输出不是要求的 JSON 对象。请只输出符合格式的 JSON 对象。`,
+    );
+    candidate = parseModelAnswer(repaired.text, allowed);
   }
+  if (!candidate) throw new StudyError('STUDY_QA_ANSWER_INVALID');
+  const parsed: ParsedAnswer = candidate;
   input.signal.throwIfAborted();
 
   const cited = new Set(
@@ -383,7 +386,7 @@ export async function askSpace(
       body: {
         segments: parsed.segments,
         notFoundNote: parsed.notFoundNote,
-        retrieval: vector ? 'hybrid' : 'lexical',
+        retrieval: retrievalKind(input, vector),
       },
       pinnedVersionIds: input.pinnedVersionIds,
       modelString: usage.modelCalls > 0 ? input.model.modelString : null,

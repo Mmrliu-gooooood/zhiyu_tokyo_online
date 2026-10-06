@@ -2701,6 +2701,7 @@
       "sources": "Tài liệu có thể tìm",
       "buildAll": "Lập chỉ mục tất cả tài liệu",
       "embeddingModel": "Mô hình tìm kiếm: {{model}}",
+      "keywordMode": "Cách tìm kiếm: khớp từ khóa (không dùng mô hình tìm kiếm)",
       "noMaterials": "Không gian học này chưa có tài liệu. Hãy tải lên hoặc thêm ở trang không gian.",
       "build": "Tạo chỉ mục",
       "rebuild": "Cập nhật chỉ mục",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "(không phải phiên bản hiện tại)",
       "lexicalOnly": "Chỉ khớp từ khóa (tìm kiếm ngữ nghĩa tạm không dùng được)",
       "hybrid": "Tìm kiếm ngữ nghĩa + từ khóa",
+      "keyword": "Tìm kiếm theo từ khóa",
       "usage": "Mô hình: đầu vào {{input}} / đầu ra {{output}} token, {{calls}} lần gọi",
       "usageUnknown": "Một phần mức dùng chưa rõ",
       "removeAnswer": "Xóa câu trả lời này",
@@ -2729,7 +2731,7 @@
       "noHits": "Không tìm thấy đoạn liên quan.",
       "reason": {
         "STORAGE_UNAVAILABLE": "Bản triển khai này chưa hỗ trợ tìm kiếm tài liệu (cơ sở dữ liệu thiếu tiện ích tìm kiếm). Việc đọc tài liệu vẫn bình thường.",
-        "EMBEDDING_NOT_CONFIGURED": "Máy chủ chưa cấu hình mô hình tìm kiếm nên chưa thể lập chỉ mục hay đặt câu hỏi.",
+        "EMBEDDING_NOT_CONFIGURED": "Cấu hình mô hình tìm kiếm trên máy chủ không hợp lệ nên chưa thể lập chỉ mục hay đặt câu hỏi.",
         "WORKER_UNAVAILABLE": "Dịch vụ nền tạm không khả dụng: vẫn hỏi được với chỉ mục đã có; hãy tạo chỉ mục mới sau."
       },
       "state": {

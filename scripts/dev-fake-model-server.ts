@@ -171,7 +171,9 @@ function studyAnswer(request: FakeRequest): unknown {
   if (best.length === 0) {
     return {
       status: 'not_found',
-      segments: [],
+      segments: [
+        { kind: 'supplement', text: '（假模型）资料中没有，这是基于通用知识的补充说明。' },
+      ],
       not_found_note: '资料片段中没有与问题对应的内容。',
     };
   }

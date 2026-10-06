@@ -2701,6 +2701,7 @@
       "sources": "检索资料",
       "buildAll": "为全部资料建立索引",
       "embeddingModel": "检索模型：{{model}}",
+      "keywordMode": "检索方式：关键词匹配（不调用检索模型）",
       "noMaterials": "这个学科还没有资料。先在学科页上传或添加资料。",
       "build": "建立索引",
       "rebuild": "更新索引",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "（非当前版本）",
       "lexicalOnly": "仅关键词匹配（语义检索暂不可用）",
       "hybrid": "语义 + 关键词检索",
+      "keyword": "关键词检索",
       "usage": "模型输入 {{input}} / 输出 {{output}} tokens，{{calls}} 次调用",
       "usageUnknown": "部分用量未知",
       "removeAnswer": "删除这条问答",
@@ -2729,7 +2731,7 @@
       "noHits": "没有找到相关片段。",
       "reason": {
         "STORAGE_UNAVAILABLE": "这个部署暂未开通资料检索（数据库缺少检索扩展），资料阅读不受影响。",
-        "EMBEDDING_NOT_CONFIGURED": "服务器尚未配置检索模型，暂时不能建立索引或提问。",
+        "EMBEDDING_NOT_CONFIGURED": "服务器的检索模型配置无效，暂时不能建立索引或提问。",
         "WORKER_UNAVAILABLE": "后台处理服务暂时不可用：已建好的索引可以继续提问，新的索引稍后再建。"
       },
       "state": {

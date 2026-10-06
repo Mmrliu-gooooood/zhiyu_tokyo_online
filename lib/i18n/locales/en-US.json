@@ -2701,6 +2701,7 @@
       "sources": "Searchable materials",
       "buildAll": "Index all materials",
       "embeddingModel": "Search model: {{model}}",
+      "keywordMode": "Search method: keyword matching (no search model)",
       "noMaterials": "This space has no materials yet. Upload or add some on the space page.",
       "build": "Build index",
       "rebuild": "Update index",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "(not the current version)",
       "lexicalOnly": "Keyword matching only (semantic search unavailable)",
       "hybrid": "Semantic + keyword search",
+      "keyword": "Keyword search",
       "usage": "Model input {{input}} / output {{output}} tokens, {{calls}} call(s)",
       "usageUnknown": "Some usage unknown",
       "removeAnswer": "Delete this answer",
@@ -2729,7 +2731,7 @@
       "noHits": "No relevant passages found.",
       "reason": {
         "STORAGE_UNAVAILABLE": "Material search is not available on this deployment (the database lacks the search extensions). Reading materials still works.",
-        "EMBEDDING_NOT_CONFIGURED": "No search model is configured on the server, so indexing and asking are unavailable.",
+        "EMBEDDING_NOT_CONFIGURED": "The server’s search model configuration is invalid, so indexing and asking are unavailable.",
         "WORKER_UNAVAILABLE": "The background service is unavailable: you can still ask over existing indexes; build new ones later."
       },
       "state": {

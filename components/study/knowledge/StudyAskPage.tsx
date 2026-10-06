@@ -46,6 +46,7 @@ import {
   type StudyIndexState,
   type StudyKnowledgeStatus,
   type StudyKnowledgeVersionView,
+  type StudyRetrievalKind,
   type StudySearchResult,
 } from '@/lib/study/knowledge/contracts';
 
@@ -362,11 +363,11 @@ export function StudyAskPage({ spaceId }: { spaceId: string }) {
               {t('study.qa.buildAll')}
             </Button>
           </div>
-          {status.embeddingModel ? (
-            <p className="text-xs text-muted-foreground">
-              {t('study.qa.embeddingModel', { model: status.embeddingModel })}
-            </p>
-          ) : null}
+          <p className="text-xs text-muted-foreground" data-testid="study-qa-retrieval-mode">
+            {status.embeddingModel
+              ? t('study.qa.embeddingModel', { model: status.embeddingModel })
+              : t('study.qa.keywordMode')}
+          </p>
           {status.materials.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
               {t('study.qa.noMaterials')}
@@ -436,6 +437,12 @@ function qaError(t: (key: string, values?: Record<string, unknown>) => string, c
   ];
   return known.includes(code) ? t(`study.qa.errors.${code}`) : t('study.errors.generic');
 }
+
+const RETRIEVAL_LABEL: Record<StudyRetrievalKind, string> = {
+  keyword: 'study.qa.keyword',
+  hybrid: 'study.qa.hybrid',
+  lexical: 'study.qa.lexicalOnly',
+};
 
 const STATE_TONE: Record<StudyIndexState, string> = {
   not_parsed: 'bg-muted text-muted-foreground',
@@ -704,7 +711,7 @@ function AnswerCard({
       ) : null}
 
       <p className="text-[11px] text-muted-foreground" data-testid="study-qa-answer-meta">
-        {answer.retrieval === 'lexical' ? t('study.qa.lexicalOnly') : t('study.qa.hybrid')}
+        {t(RETRIEVAL_LABEL[answer.retrieval])}
         {answer.modelString ? ` · ${answer.modelString}` : ''}
         {answer.usage
           ? ` · ${t('study.qa.usage', {
@@ -730,7 +737,7 @@ function SearchResults({ result }: { result: StudySearchResult }) {
     >
       <h3 className="mb-1 text-sm font-medium text-foreground">{t('study.qa.searchResults')}</h3>
       <p className="mb-3 text-[11px] text-muted-foreground">
-        {result.retrieval === 'lexical' ? t('study.qa.lexicalOnly') : t('study.qa.hybrid')}
+        {t(RETRIEVAL_LABEL[result.retrieval])}
       </p>
       {result.hits.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('study.qa.noHits')}</p>

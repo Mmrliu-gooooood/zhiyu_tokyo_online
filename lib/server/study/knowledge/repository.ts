@@ -28,6 +28,7 @@ import {
   type StudyAnswerView,
   type StudyIndexState,
   type StudyKnowledgeMaterialView,
+  type StudyRetrievalKind,
 } from '@/lib/study/knowledge/contracts';
 
 import { STUDY_CHUNK_POLICY_KEY } from './config';
@@ -469,7 +470,7 @@ export async function searchStudyKnowledge(
 export interface StoredAnswerBody {
   segments: StudyAnswerSegment[];
   notFoundNote: string | null;
-  retrieval: 'hybrid' | 'lexical';
+  retrieval: StudyRetrievalKind;
 }
 
 export interface NewStudyAnswer {

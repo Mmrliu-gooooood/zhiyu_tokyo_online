@@ -2701,6 +2701,7 @@
       "sources": "檢索資料",
       "buildAll": "為全部資料建立索引",
       "embeddingModel": "檢索模型：{{model}}",
+      "keywordMode": "檢索方式：關鍵詞比對（不呼叫檢索模型）",
       "noMaterials": "這個學科還沒有資料。先在學科頁上傳或加入資料。",
       "build": "建立索引",
       "rebuild": "更新索引",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "（非目前版本）",
       "lexicalOnly": "僅關鍵詞比對（語意檢索暫不可用）",
       "hybrid": "語意 + 關鍵詞檢索",
+      "keyword": "關鍵詞檢索",
       "usage": "模型輸入 {{input}} / 輸出 {{output}} tokens，{{calls}} 次呼叫",
       "usageUnknown": "部分用量未知",
       "removeAnswer": "刪除這則問答",
@@ -2729,7 +2731,7 @@
       "noHits": "沒有找到相關片段。",
       "reason": {
         "STORAGE_UNAVAILABLE": "此部署暫未開通資料檢索（資料庫缺少檢索擴充），資料閱讀不受影響。",
-        "EMBEDDING_NOT_CONFIGURED": "伺服器尚未設定檢索模型，暫時不能建立索引或提問。",
+        "EMBEDDING_NOT_CONFIGURED": "伺服器的檢索模型設定無效，暫時不能建立索引或提問。",
         "WORKER_UNAVAILABLE": "背景處理服務暫時不可用：已建好的索引可以繼續提問，新的索引稍後再建。"
       },
       "state": {

@@ -2,8 +2,9 @@
  * Worker handler for `material_index` learning tasks (learning plan B03).
  *
  * Reads the parse artifact the task names, chunks it with the current policy,
- * embeds the chunks through the gateway (operator-funded embedding model) and
- * writes the index with all chunks in the lease-fenced commit of the task.
+ * embeds the chunks through the gateway when an embedding model is configured
+ * (operator-funded; keyword-only indexes, the default, make no external call)
+ * and writes the index with all chunks in the lease-fenced commit of the task.
  * The new index becomes active in that same commit and the version's older
  * indexes are removed, so a build that fails or loses its lease never touches
  * the index that is serving. Nothing is written to object storage.
@@ -25,7 +26,9 @@ import { planStudyChunks } from './chunks';
 import {
   STUDY_CHUNK_POLICY_KEY,
   STUDY_EMBEDDING_BATCH,
-  resolveStudyEmbeddingBinding,
+  STUDY_KEYWORD_SIGNATURE,
+  resolveStudyRetrieval,
+  type StudyRetrievalConfig,
 } from './config';
 import { createStudyIndexId, halfvecLiteral, knowledgeStorageReady } from './repository';
 
@@ -51,6 +54,7 @@ const RETRYABLE_EMBEDDING = new Set([
 
 export interface MaterialIndexDependencies {
   byteStore?: () => MaterialByteStore;
+  /** Test seam: a binding means hybrid retrieval, null keyword-only. */
   embeddingBinding?: () => EmbeddingBinding | null;
   embed?: ReturnType<typeof createEmbeddingGateway>['embed'];
 }
@@ -63,6 +67,12 @@ interface Facts extends Record<string, unknown> {
 }
 
 const workerEmbeddings = createEmbeddingGateway({ quota: async () => undefined });
+
+function retrievalFor(binding: EmbeddingBinding | null): StudyRetrievalConfig {
+  return binding
+    ? { mode: 'hybrid', signature: binding.signature, embedding: binding }
+    : { mode: 'keyword', signature: STUDY_KEYWORD_SIGNATURE, embedding: null };
+}
 
 async function lockLiveVersion(q: Queryable, lease: LearningTaskLease, versionId: string) {
   const version = await q.query<{ material_id: string }>(
@@ -103,12 +113,15 @@ export async function runMaterialIndexTask(
     await fail('INDEX_POLICY_CHANGED');
     return;
   }
-  const binding = (deps.embeddingBinding ?? resolveStudyEmbeddingBinding)();
-  if (!binding) {
+  const retrieval: StudyRetrievalConfig = deps.embeddingBinding
+    ? retrievalFor(deps.embeddingBinding())
+    : resolveStudyRetrieval();
+  if (retrieval.mode === 'misconfigured') {
     await fail('EMBEDDING_NOT_CONFIGURED');
     return;
   }
-  if (binding.signature !== input.embeddingSignature) {
+  const binding = retrieval.embedding;
+  if (retrieval.signature !== input.embeddingSignature) {
     await fail('EMBEDDING_MODEL_CHANGED');
     return;
   }
@@ -162,24 +175,26 @@ export async function runMaterialIndexTask(
     return;
   }
 
-  // Embed: one call per batch, all through the gateway under this task's root.
+  // Embed (hybrid only): one call per batch, all through the gateway under this task's root.
   const embed = deps.embed ?? workerEmbeddings.embed;
   const startedAt = Date.now();
-  const vectors: number[][] = [];
+  const vectors: Array<number[] | null> = [];
   let calls = 0;
   let tokens = 0;
   let tokensKnown = true;
   const usage = () => ({
     chunks: plan.chunks.length,
     embeddingCalls: calls,
-    embeddingInputs: vectors.length,
+    embeddingInputs: binding ? vectors.length : 0,
     embeddingInputTokens: tokensKnown ? tokens : null,
-    embeddingModel: binding.modelString,
+    embeddingModel: binding?.modelString ?? null,
     durationMs: Date.now() - startedAt,
   });
-  const completeness = () => (calls === 0 ? 'none' : tokensKnown ? 'complete' : 'partial');
+  const completeness = () =>
+    !binding ? 'complete' : calls === 0 ? 'none' : tokensKnown ? 'complete' : 'partial';
   try {
-    for (let i = 0; i < plan.chunks.length; i += STUDY_EMBEDDING_BATCH) {
+    if (!binding) vectors.push(...plan.chunks.map(() => null));
+    for (let i = 0; binding && i < plan.chunks.length; i += STUDY_EMBEDDING_BATCH) {
       signal.throwIfAborted();
       const batch = plan.chunks.slice(i, i + STUDY_EMBEDDING_BATCH);
       calls += 1;
@@ -204,7 +219,7 @@ export async function runMaterialIndexTask(
     await queue.fail(lease, {
       code: `EMBEDDING_${code.replace(/^MODEL_/, '')}`,
       retryable: RETRYABLE_EMBEDDING.has(code),
-      providerId: binding.providerId,
+      providerId: binding?.providerId,
       usage: usage(),
       usageCompleteness: calls > 0 ? 'unknown' : 'none',
     });
@@ -224,7 +239,7 @@ export async function runMaterialIndexTask(
           unparsedPages: plan.unparsedPages,
           embeddingCalls: calls,
         },
-        providerId: binding.providerId,
+        providerId: binding?.providerId,
         usage: usage(),
         usageCompleteness: completeness(),
       },
@@ -243,7 +258,7 @@ export async function runMaterialIndexTask(
             versionId,
             artifactId,
             STUDY_CHUNK_POLICY_KEY,
-            binding.signature,
+            retrieval.signature,
             plan.chunks.length,
             plan.textChars,
             JSON.stringify(plan.unparsedPages),
@@ -272,7 +287,7 @@ export async function runMaterialIndexTask(
                 String(chunk.metadata.blockType ?? 'text').slice(0, 40),
                 chunk.text,
                 chunk.contentHash,
-                halfvecLiteral(vectors[i + j]!),
+                vectors[i + j] ? halfvecLiteral(vectors[i + j]!) : null,
               );
             });
             await q.query(
@@ -287,7 +302,7 @@ export async function runMaterialIndexTask(
           const existing = await q.query<{ id: string }>(
             `SELECT id FROM study_knowledge_indexes WHERE owner_id=$1 AND artifact_id=$2
                AND chunk_policy=$3 AND embedding_signature=$4`,
-            [lease.ownerId, artifactId, STUDY_CHUNK_POLICY_KEY, binding.signature],
+            [lease.ownerId, artifactId, STUDY_CHUNK_POLICY_KEY, retrieval.signature],
           );
           activeId = existing.rows[0]!.id;
         }
@@ -307,7 +322,7 @@ export async function runMaterialIndexTask(
       await queue.fail(lease, {
         code: 'MATERIAL_DELETED',
         retryable: false,
-        providerId: binding.providerId,
+        providerId: binding?.providerId,
         usage: usage(),
         usageCompleteness: completeness(),
       });

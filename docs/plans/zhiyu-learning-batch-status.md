@@ -8,9 +8,9 @@
 | B00 | 完成（基线与台账） | `learn/b01-spaces` | `a1a0a7b6`（main） | 不适用 | 不适用 | — |
 | B01 | 已上线（2026-10-05，release-20261005） | `learn/b01-spaces` → main（快进，已推送 tokyo） | `a1a0a7b6` | 无预发布环境，生产按开关灰度 | 已启用 `ZHIYU_STUDY_SPACES_ENABLED=1` | 见“生产发布与验收” |
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
-| B03 | 实现完成，待用户验收（未合并、未上线） | `learn/b03-grounded-qa`（未推送） | — | 本地托管模式验收通过（假模型，见 B03 节） | 未启用；生产未装扩展、未执行 v24 | 真实 embedding/LLM 效果未测；见 B03“未验证” |
+| B03 | 实现完成，用户已批准上线（2026-10-06） | `learn/b03-grounded-qa` | — | 本地托管模式验收通过（关键词模式复验，见 B03 节）；真实模型评测完成 | 见“生产发布” | 见 B03“未验证” |
 
-## B03 持久检索与带引用答疑（2026-10-06，待验收）
+## B03 持久检索与带引用答疑（2026-10-06）
 
 ### 范围与起点
 
@@ -18,6 +18,39 @@
 - 范围：候选 A 验证与选型（第 1 步）；索引任务（`learning_tasks` 新 kind `material_index`）、索引建立/替换/删除/重试、允许资源版本过滤、`/study/[spaceId]/ask`、结构化引用与回到“版本/页/块”、三种呈现、就绪检查与不可用状态、预算/取消/用量；资料删除/账号删除时清理索引；可重复评测集（第 2、3 步）。
 - 不包含：B04 及之后（学伴、课后会话等）；rerank；付费 OCR；扫描页的文字识别（扫描页只报告为“无文字、未纳入检索”）。
 - 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 用户决定后的调整（2026-10-06）
+
+用户看过第一版报告后决定：答疑默认**纯关键词检索、零外部成本**，再结合模型自身知识回答；bge-m3 等日后自部署或商用 key 再开；资料库**不做 OCR**，只支持文字版 PDF；批准真实模型评测、生产安装扩展并执行 v24、推送 tokyo，验收后按 B01/B02 流程合并上线并启用开关；删除 1–2 个旧镜像。
+
+1. **检索方式默认关键词**（`lib/server/study/knowledge/config.ts` `resolveStudyRetrieval`）：`STUDY_EMBEDDING_MODEL` 为空 = 关键词模式，索引签名 `keyword@1`，建索引与提问都不调用 embedding；设置后 = 语义 + 关键词（原实现）；设置了但不可用（格式错、维度不是 1024、缺 key）= `EMBEDDING_NOT_CONFIGURED`，不静默降级。切换模式会改变签名，旧索引显示“需要更新”并在重建前继续服务。
+2. **v24 改为允许无向量的 chunk**：`study_knowledge_chunks.embedding` 去掉 `NOT NULL`，检索函数的向量一路加 `c.embedding IS NOT NULL`。v24 尚未在任何持久环境执行，因此直接修改，**新 checksum `84a64ee3ccddaa42babda1b5fd96984918f4b86eeec7da85373b4fcf06725320`**（取代 `07219ff1…`；v22/v23 未变）。
+3. **“资料中未找到”时也给模型知识的补充说明**：检索为空时不再跳过模型，而是告诉模型“资料片段：无”，模型的所有内容都只能作为“补充说明”（没有可引用编号，`grounded` 段落被改成补充说明），状态仍是“资料中未找到”。提示词第 3 条改为要求在补充说明里用自身知识给出有帮助的解答。每问预算不变（≤2 次模型调用）。
+4. **界面**：检索区显示“检索方式：关键词匹配（不调用检索模型）”；回答元信息区分 `keyword`（关键词检索）、`hybrid`（语义 + 关键词）、`lexical`（配置了 embedding 但本次失败、退回关键词，保留原警示）。12 个语言文件新增 `study.qa.keyword`、`study.qa.keywordMode`，`EMBEDDING_NOT_CONFIGURED` 文案改为“检索模型配置无效”。
+5. 测试：真实 PG 新增“关键词索引不存向量、不调用 embedding、关键词模式检索、向量查询只走关键词一路、混合索引对关键词模式显示 stale”；“未找到”测试改为验证只有补充说明、提示词含“资料片段：无”；`resolveStudyRetrieval` 单元测试。
+
+#### OCR 检查（用户提供的 MinerU Cloud key，2026-10-06）
+
+- 用黑体渲染两页**纯图片**中文 PDF（无文字层：定积分公式、积分表），经仓库的文档提取器注册表与资料库规范化流程解析：unpdf 0 字、两页都“无文字”；MinerU Cloud（vlm、ch）约 13 秒识别成功，中文正文、标题、公式（LaTeX）、表格文字都正确。
+- **当前不能用**：MinerU 下载结果用的 CDN `cdn-mineru.openxlab.org.cn` 证书 **2026-10-02 已过期**（本机与东京服务器都校验失败），代码在下载 ZIP 时失败；为判断识别质量只用 `curl -k` 取了这一次结果，产品代码不关闭证书校验。另外现有 MinerU 解析器把整份结果合成一个块、**没有页码**，用于资料库时引用只能定位到资料而不能到页；资料库解析也只用服务器配置的 key，不用设置里的用户 key。
+- **结论（按用户决定）**：资料库继续只用 unpdf、只支持文字版 PDF，扫描页标“无文字、未纳入检索”；不再计划 OCR 计费接入或重新配置。用户自己需要 OCR 时，在设置里配置 MinerU Cloud（课程生成的文档提取已支持用户自带 key），前提是 MinerU 修复证书。
+
+#### SiliconFlow bge-m3（用户提供的 .cn key）
+
+- `https://api.siliconflow.cn/v1/embeddings` + `BAAI/bge-m3` 可用，1024 维；**不接受 `dimensions` 参数**（400 参数无效），所以 `STUDY_EMBEDDING_SEND_DIMENSIONS` 必须为空。从东京服务器单条查询约 0.6 s，本机 0.5–5.5 s，32 条一批约 28 s（免费档限速）。生产暂不配置（关键词模式）。
+
+#### 真实模型评测（2026-10-06，合成语料 48 题，一次性 PostgreSQL 17 + 扩展）
+
+| 运行 | recall@5 | 引用支持率 | 未找到判对 | 有答案且给出依据 | 权限隔离（外账号/范围外） | 版本 | 模型调用 / 输入 / 输出 token |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 关键词 + 假答疑 | 40/40 | 36/39 = 92.3% | 6/8 | 37/40 | 0 / 0（378） | 1/1，旧版本 0 | 48 / — / — |
+| **关键词 + DeepSeek-V3.2**（SiliconFlow） | **40/40** | **39/40 = 97.5%** | **8/8** | 39/40 | **0 / 0**（378） | 1/1，旧版本 0 | 48 / 54434 / 7957 |
+| 混合（真实 bge-m3）+ DeepSeek-V3.2 | 40/40 | 39/39 = 100% | 8/8 | 39/40 | 0 / 0（419） | 1/1，旧版本 0 | 48 / 66613 / 7716 |
+
+- 未找到的 9 个回答都带有模型的补充说明。关键词模式下唯一的“不支持”是 q16（模型另引了考试通知更正，标注只认原通知）；两种模式都没答出的是 q31（图 2-1 的说明已检索到第 3 页，模型认为资料不足）。
+- 每问答疑模型耗时约 13–16 s（DeepSeek-V3.2，首 token 约 1.9 s）；检索本身 p50 55–62 ms。
+- **解读**：这套合成题的措辞接近原文，关键词与混合 recall 相同，不能说明真实学生改写提问时向量的增益；但足以支持“默认关键词、零外部成本”上线。拟定生产门槛（以本评测为基线，复评时不得低于）：recall@5 ≥ 85%、引用支持率 ≥ 90%、权限隔离 0、版本正确 100%、未找到判对 ≥ 7/8。
+- 两个用户提供的 key 只通过进程环境变量传入，未写入任何文件；报告在 `eval/study-qa/results/`（不入库）。
 
 ### 第 1 步：候选 A 验证与选型（提交 `d9db9c69`）
 
@@ -31,7 +64,7 @@
 
 ### 设计决策（实际实现）
 
-1. **迁移 accounts v24**（`lib/server/accounts/sql-study-knowledge.ts`，checksum `07219ff1e16274c73b4d4b9f1e87fb3aaee38e14759370fd68bec78b6a28ffd9`；v22/v23 未变）：
+1. **迁移 accounts v24**（`lib/server/accounts/sql-study-knowledge.ts`，checksum 原为 `07219ff1…`，关键词模式后为 `84a64ee3ccddaa42babda1b5fd96984918f4b86eeec7da85373b4fcf06725320`，见“用户决定后的调整”；v22/v23 未变）：
    - 无条件部分：`learning_tasks.kind` 增加 `material_index`；`study_knowledge_indexes`（一份解析结果 × 分块策略 × embedding 签名一行，`active` 部分唯一索引保证每版本最多一个在用索引）、`study_qa_answers`、`study_qa_citations`（引用按版本外键级联）；FORCE RLS，`app_web` 只读/删除索引、读写自己的答案，`app_worker` 写索引；anon/authenticated 无授权；`app_internal.learning_task_kind_ready()`。
    - **条件部分**（只在 `vector` 与 `pgroonga` 都可用时执行，DO 块 + EXECUTE）：在 `extensions` schema 建扩展、`study_knowledge_chunks`（`extensions.halfvec(1024)`、PGroonga 多列索引）、检索函数 `study_knowledge_search`（SECURITY INVOKER、固定 search_path、`enable_seqscan=off`，RLS 在函数内照常生效，仅授予 `app_web`）、`USAGE ON SCHEMA extensions`。原因：PGlite、普通 `postgres:16` 证明库和旧版自迁移安装没有这两个扩展，而全新 bootstrap 会跑所有迁移；没有 chunk 表时检索显示“不可用”。旧版安装通过 `ensureStudySchema` 应用同一文本，扩展创建失败只记 notice、不影响启动。
 2. **索引任务**：`material_index` 复用 `learning_tasks`、租约队列与现有 Worker（不新建队列）。subject 为 `index:{versionId}`，B02 的按版本解析状态不受影响。Worker 读解析结果 JSON → 用仓库 `lib/rag` 分块器（800 字/块）→ 经网关分批 embedding（32 条/批）→ 在**带租约栅栏的提交**里一次写入索引行与全部 chunk，同一事务里删除该版本的旧索引并激活新索引：重建失败或丢租约绝不影响正在使用的索引。无对象存储写入。embedding 是付费调用，任务 `externalCost=true`（过期回收标记结果未知而不自动重放）；可重试错误（限流/网络/上游）按队列退避最多 3 次；模型或分块策略变更、存储不可用、超过 3000 块等为不可重试。Worker 心跳新增 `learning-kind:<kind>` 能力，Web 只有在存活 Worker 能跑 `material_index` 时才接受建索引请求（防止只开了 Web 开关时任务无人执行）。
@@ -99,7 +132,7 @@
 
 ### 未验证
 
-- 真实 embedding 与真实答疑模型的效果、时延与费用；生产 Supabase 上的扩展安装与 v24；生产镜像构建；Playwright e2e。
+- 真实学生提问（改写、口语）下关键词与语义检索的差距：合成题措辞接近原文，无法回答；Playwright e2e。
 - PGroonga 3.2.5 + pgvector 0.8.2 组合只在本地 PGroonga 3.2.5 + pgvector 0.8.7 上验证（所用 `halfvec`/`<=>` 自 0.7 起存在）。
 - 单账号超过约 2 万 chunk 的时延（设了每账号 2 万 chunk 上限）；并发多 Worker 下的索引构建。
 
@@ -110,14 +143,14 @@
 
 ### 上线步骤（待用户指示，按 B01/B02 流程；以下都尚未执行）
 
-1. 先问用户：在生产启用扩展并执行 v24。核对生产 v23 checksum = `3fe42841…`；Supabase `apply_migration` 只执行仓库 v24 SQL（逐字相同，含在 `extensions` schema 创建 vector/pgroonga），写入 `app_schema_migrations(24, 07219ff1…)`；核对四张新表 RLS 开启且强制、授权与本文一致、`study_knowledge_search` 只授予 `app_web`、`learning_task_kind_ready` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
-2. 选定并配置 embedding provider（例如 SiliconFlow `BAAI/bge-m3`）——真实调用前先问用户；构建发布镜像（开关先关）→ readiness ready、accountsVersion 24 → 0 个未完成任务后切换 → Web 与 Worker env 设置 `ZHIYU_STUDY_QA_ENABLED=1`、`STUDY_EMBEDDING_MODEL` 及 provider key → apply → Worker 心跳含 `learning-kind:material_index`、`capabilities.qa=true`。
+1. 先问用户（已批准）：在生产启用扩展并执行 v24。核对生产 v23 checksum = `3fe42841…`；Supabase `apply_migration` 只执行仓库 v24 SQL（逐字相同，含在 `extensions` schema 创建 vector/pgroonga），写入 `app_schema_migrations(24, 84a64ee3…)`；核对四张新表 RLS 开启且强制、授权与本文一致、`study_knowledge_search` 只授予 `app_web`、`learning_task_kind_ready` 可调用。**绝不对生产运行 `pnpm accounts:migrate`。**
+2. 关键词模式不配置 embedding（`STUDY_EMBEDDING_MODEL` 留空）；构建发布镜像 → 0 个未完成任务后切换 → Web 与 Worker env 设置 `ZHIYU_STUDY_QA_ENABLED=1` → apply → readiness ready、accountsVersion 24、Worker 心跳含 `learning-kind:material_index`、`capabilities.qa=true`。
 3. 登录账号在生产为一份资料建索引并提问，核对引用跳转与用量。
 
 ### 下一批（B04/B05）前置条件
 
 - B03 合并并上线（或至少合并，B04 可与之并行）。B05“课后与指定学伴答疑”直接复用：`resolveQuestionScope`（再交学伴授权资料集合）、`searchStudyKnowledge`、`askSpace` 的证据组装/引用校验，以及 `study_qa_*` 的引用保存与“来源已删除”语义；学伴的资料授权应表达为允许的资料版本集合，在 `resolveQuestionScope` 里求交集，而不是事后过滤。
-- 真实 embedding 模型确定后跑一次真实评测，作为 B05/B11 的检索基线。
+- 检索基线：2026-10-06 真实评测（关键词 + DeepSeek-V3.2，见上表）；B05 若改动检索或提示词，用 `eval/study-qa` 复评且不低于拟定门槛。日后开启 bge-m3 时先用真实学生问题补充评测集。
 - 扫描件 OCR 不是 B04/B05 的前置条件：用户已决定（2026-10-06）不做 OCR，继续只用 unpdf；扫描页继续标为“无文字、未纳入检索”。
 
 ### B03 最终校验（2026-10-06，Node 24.19.0）
@@ -126,6 +159,7 @@
 - 真实 PostgreSQL（一次性 `*_rls_proof`，普通 PG16，验证 v24 的“无扩展”路径）：全新 bootstrap、v22/v23/v24 迁移、账号删除（16）、课程清理、heavy-task 容量 RLS、生成队列/事务队列/Worker 管线、用量迁移共 11 个文件全部通过（账号删除在独立 schema 中运行，暴露了 chunk 表存在性检查写死 `public.` 的问题，已改为按 search_path 查找）。带扩展的 PostgreSQL 17：v24 迁移 4 项、检索端到端 9 项通过。
 - `tsc --noEmit`、`check:i18n-keys`（12 个语言文件）、改动文件 ESLint（0 问题）与 Prettier 通过；`build:worker` 通过且产物可加载；`next build` 通过，`/study/[spaceId]/ask` 与 `/api/study/spaces/[spaceId]/{knowledge,ask,search}` 已生成，唯一警告是既有的 `unpdf` “Critical dependency”。
 - 未运行：Playwright e2e、生产镜像构建、promptfoo 外壳（本机安装失败）。
+- **关键词模式复验（2026-10-06）**：全量 Vitest `--maxWorkers=4` **858 个文件 / 8901 项通过，17 个文件、94 项跳过，0 失败**；带扩展的 PostgreSQL 17：检索端到端 10 项 + v24 迁移 4 项通过；`tsc`、改动文件 ESLint/Prettier、`check:i18n-keys` 通过。本地托管模式浏览器复验（不启动 embedding 服务，`STUDY_EMBEDDING_MODEL` 为空）：答疑页显示“检索方式：关键词匹配（不调用检索模型）”→“为全部资料建立索引”4 份全部可检索（讲义第 5 页无文字）→ 数据库 4 个 `keyword@1` 索引、12 个 chunk、0 个向量，Worker 日志 0 次 embedding 调用 → 问 arctan x 的导数得 [E1] 第 4 页依据，元信息“关键词检索”→ 点 [E1] 阅读器第 4 页加框并标出摘录 → 问红黑树得“资料中未找到”+ 模型补充说明 → 只检索原文“期末考试是哪一天”两份冲突通知排前两位；用量只有 2 条答疑调用。环境文件、测试账号、PDF、假 S3 数据与数据库容器已删除。
 
 ## B02 共享资料版本、结构化解析与阅读（2026-10-05，已上线）
 
@@ -203,7 +237,7 @@
 
 ### 遗留事项
 
-- 付费 OCR（MinerU Cloud、AliDocMind）路径未做真实调用验证；开放前需配置、计费接入（`usage_events`/预算）并单独验收。
+- ~~付费 OCR 计费接入~~：用户决定（2026-10-06）资料库只支持文字版 PDF（unpdf），不再计划 OCR 计费接入；需要 OCR 的用户在设置里自行配置 MinerU Cloud（自带 key，只用于课程生成）。2026-10-06 的实测见 B03“OCR 检查”。
 - Windows 本地字节存储不支持含冒号的 owner key（既有问题，生产用 S3 不受影响）；假模型服务器缺少 agent profile 的 id/difficulty，本地验收用了预设智能体。
 - 未运行：Playwright e2e、生产镜像构建；未在部署环境演练开关与排空。
 - 阅读器无划词/引用定位（B03）。（“解析图片不进入课程生成”已在 2026-10-06 后续中完成，见下。）
@@ -275,7 +309,7 @@
 - B03 的索引/检索任务作为 `learning_tasks` 的新 kind（新迁移修改 kind CHECK 与必要的新表），复用 `lib/server/task-queue/lease-queue.ts` 与学习调度，不新建队列。
 - 索引以 `study_material_artifacts` 的按页分块（`readerBlocksForPage` / artifact JSON）为输入，引用定位回到“版本 + 页 + 块”；阅读器已能按页跳转，B03 再决定是否引入高亮库。
 - 涉及模型调用（嵌入/答疑）时只经模型网关并带 FundingSource、计入 heavy-task 与配额；重新评估 `app_worker` 连接池（若并发 >1）。
-- 付费 OCR 若要开放，先完成计费接入与真实验证。
+- ~~付费 OCR 若要开放，先完成计费接入与真实验证。~~（用户 2026-10-06 决定不做，见 B03“OCR 检查”。）
 
 ### B02 最终校验（2026-10-05，Node 24.19.0）
 

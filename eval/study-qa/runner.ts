@@ -18,10 +18,13 @@
  *   EVAL_STUDY_DATABASE_URL=postgres://postgres:…@127.0.0.1:55435/knowledge_rls_proof \
  *   node eval/study-qa/run.mjs [--answers]
  *
- * Embeddings: fake hashing by default; a real OpenAI-compatible model only
- * when EVAL_EMBEDDING_URL / EVAL_EMBEDDING_KEY / EVAL_EMBEDDING_MODEL are set
- * (paid; ask first). Answers: `--answers` uses EVAL_ANSWER_MODEL
- * (`provider:model`, real and paid) or the deterministic `fake` answerer.
+ * Retrieval mode: EVAL_RETRIEVAL=keyword (default, the production default:
+ * keyword-only indexes, no embedding calls) or hybrid. In hybrid mode the
+ * embeddings are fake hashing unless EVAL_EMBEDDING_URL / EVAL_EMBEDDING_KEY /
+ * EVAL_EMBEDDING_MODEL name a real OpenAI-compatible model (ask first).
+ * Answers: `--answers` uses EVAL_ANSWER_MODEL (`provider:model`, real) or the
+ * deterministic `fake` answerer. In keyword mode the "hybrid" columns of the
+ * report are the keyword-only results.
  */
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -49,6 +52,7 @@ import { setMaterialByteStoreForTests } from '@/lib/server/materials/bytes';
 import { LearningTaskQueue } from '@/lib/server/learning-tasks/repository';
 import type { StudyDb } from '@/lib/server/study/spaces/repository';
 import { runMaterialIndexTask } from '@/lib/server/study/knowledge/index-task';
+import { STUDY_KEYWORD_SIGNATURE } from '@/lib/server/study/knowledge/config';
 import {
   requestStudyIndexBuild,
   resetKnowledgeStorageReadiness,
@@ -81,6 +85,7 @@ export interface QuestionResult {
     supportedClaims: number;
     citedRefs: string[];
     notFoundCorrect: boolean | null;
+    supplements: number;
     modelCalls: number;
     inputTokens: number;
     outputTokens: number;
@@ -89,6 +94,7 @@ export interface QuestionResult {
 
 export interface EvalReport {
   startedAt: string;
+  mode: 'keyword' | 'hybrid';
   embedding: { model: string; real: boolean; calls: number; inputTokens: number | null };
   answerModel: string | null;
   indexing: { versions: number; chunks: number; ms: number };
@@ -108,6 +114,8 @@ export interface EvalReport {
     citationSupportRate: string;
     notFoundQuestions: number;
     notFoundCorrect: number;
+    /** Not-found answers that still carry a labelled supplement from the model. */
+    notFoundWithSupplement: number;
     answerableAnsweredGrounded: number;
     answerableQuestions: number;
     modelCalls: number;
@@ -256,11 +264,12 @@ export async function runStudyQaEval(options: {
       async (key, body) => void bytes.set(key, body),
     );
 
-    // Embedding binding: real only when explicitly configured.
-    const realEmbedding = Boolean(
-      process.env.EVAL_EMBEDDING_URL && process.env.EVAL_EMBEDDING_MODEL,
-    );
-    const binding: EmbeddingBinding = realEmbedding
+    // Retrieval mode; in hybrid mode a real embedding only when explicitly configured.
+    const mode = process.env.EVAL_RETRIEVAL === 'hybrid' ? 'hybrid' : 'keyword';
+    const realEmbedding =
+      mode === 'hybrid' &&
+      Boolean(process.env.EVAL_EMBEDDING_URL && process.env.EVAL_EMBEDDING_MODEL);
+    const hybridBinding: EmbeddingBinding = realEmbedding
       ? createEmbeddingBinding(
           {
             providerId: 'eval',
@@ -277,6 +286,8 @@ export async function runStudyQaEval(options: {
           { providerId: 'fake', modelId: 'hash-1024', dimensions: 1024 },
           { baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'fake' },
         );
+    const binding: EmbeddingBinding | null = mode === 'hybrid' ? hybridBinding : null;
+    const signature = binding?.signature ?? STUDY_KEYWORD_SIGNATURE;
     let embedCalls = 0;
     let embedTokens: number | null = 0;
     const realGateway = createEmbeddingGateway({
@@ -309,10 +320,12 @@ export async function runStudyQaEval(options: {
       const seededMaterial = seeded.materials.get(material.key)!;
       for (const version of material.versions) {
         const ownerId = fixture.owners[material.owner];
+        // Real embeddings can outlast the worker heartbeat window: stay "live".
+        await queue.workerHeartbeat('eval-worker', false, ['material_index']);
         await requestStudyIndexBuild(study, ownerId, {
           materialId: seededMaterial.materialId,
           versionId: seededMaterial.versions.get(version.no)!.versionId,
-          signature: binding.signature,
+          signature,
         });
         const lease = await queue.claim('eval-worker', ['material_index']);
         if (!lease) throw new Error('index task not queued');
@@ -363,14 +376,15 @@ export async function runStudyQaEval(options: {
         return seeded.materials.get(key!)!.versions.get(Number(no))!.versionId;
       });
       const scope = await transact((tx) =>
-        resolveQuestionScope(tx, ownerId, spaceId, binding.signature, pins),
+        resolveQuestionScope(tx, ownerId, spaceId, signature, pins),
       );
       const allowed = new Set(scope.map((index) => index.versionId));
-      const [vector] = (await embeddings.embed(binding, [question.question], { source: 'eval' }))
-        .vectors;
+      const vector = binding
+        ? (await embeddings.embed(binding, [question.question], { source: 'eval' })).vectors[0]!
+        : null;
       const started = process.hrtime.bigint();
       const hybrid = await transact((tx) =>
-        searchStudyKnowledge(tx, ownerId, scope, questionTerms(question.question), vector!, 5),
+        searchStudyKnowledge(tx, ownerId, scope, questionTerms(question.question), vector, 5),
       );
       latencies.push(Number(process.hrtime.bigint() - started) / 1e6);
       const lexical = await transact((tx) =>
@@ -416,7 +430,7 @@ export async function runStudyQaEval(options: {
             pinnedVersionIds: pins,
             model: answerBinding,
             embedding: binding,
-            signature: binding.signature,
+            signature,
             signal: new AbortController().signal,
             requestId: `eval-${question.id}`,
           },
@@ -440,8 +454,9 @@ export async function runStudyQaEval(options: {
     const answered = results.filter((r) => r.answer);
     const report: EvalReport = {
       startedAt: new Date().toISOString(),
+      mode,
       embedding: {
-        model: binding.modelString,
+        model: binding?.modelString ?? 'none (keyword-only)',
         real: realEmbedding,
         calls: embedCalls,
         inputTokens: embedTokens,
@@ -480,6 +495,9 @@ export async function runStudyQaEval(options: {
             notFoundQuestions: answered.filter((r) => !r.answerable).length,
             notFoundCorrect: answered.filter((r) => !r.answerable && r.answer!.notFoundCorrect)
               .length,
+            notFoundWithSupplement: answered.filter(
+              (r) => r.answer!.status === 'not_found' && r.answer!.supplements > 0,
+            ).length,
             answerableAnsweredGrounded: answered.filter(
               (r) => r.answerable && r.answer!.status === 'answered',
             ).length,
@@ -534,6 +552,7 @@ function scoreAnswer(
       (citation) => label(citation.versionId, citation.pageNumber).ref,
     ),
     notFoundCorrect: question.answerable === false ? answer.status === 'not_found' : null,
+    supplements: answer.segments.filter((segment) => segment.kind === 'supplement').length,
     modelCalls: answer.usage?.modelCalls ?? 0,
     inputTokens: answer.usage?.inputTokens ?? 0,
     outputTokens: answer.usage?.outputTokens ?? 0,
@@ -544,15 +563,16 @@ function markdown(report: EvalReport): string {
   const lines = [
     `# B03 grounded-QA evaluation (${report.startedAt})`,
     '',
-    `- Embedding: \`${report.embedding.model}\` (${report.embedding.real ? 'real' : 'fake hashing stand-in'}), ${report.embedding.calls} calls`,
+    `- Retrieval mode: ${report.mode}`,
+    `- Embedding: \`${report.embedding.model}\` (${report.mode === 'keyword' ? 'not used' : report.embedding.real ? 'real' : 'fake hashing stand-in'}), ${report.embedding.calls} calls`,
     `- Answer model: ${report.answerModel ?? '—'}`,
     `- Indexed ${report.indexing.versions} versions, ${report.indexing.chunks} chunks in ${report.indexing.ms} ms`,
     '',
     '| Metric | Result |',
     '| --- | --- |',
-    `| Evidence recall@5 (hybrid) | ${report.retrieval.recallAt5Hybrid} |`,
+    `| Evidence recall@5 (${report.mode}) | ${report.retrieval.recallAt5Hybrid} |`,
     `| Evidence recall@5 (keyword only) | ${report.retrieval.recallAt5Lexical} |`,
-    `| Hybrid latency p50 / p95 | ${report.retrieval.latencyMsP50} / ${report.retrieval.latencyMsP95} ms |`,
+    `| Search latency p50 / p95 | ${report.retrieval.latencyMsP50} / ${report.retrieval.latencyMsP95} ms |`,
     `| Foreign-owner hits | ${report.isolation.foreignHits} of ${report.isolation.checkedHits} |`,
     `| Out-of-scope hits | ${report.isolation.outOfScopeHits} of ${report.isolation.checkedHits} |`,
     `| Pinned-version questions correct | ${report.versions.correct}/${report.versions.pinnedQuestions} |`,
@@ -562,11 +582,12 @@ function markdown(report: EvalReport): string {
     lines.push(
       `| Citation support rate | ${report.answers.citationSupportRate} |`,
       `| Not-found correct | ${report.answers.notFoundCorrect}/${report.answers.notFoundQuestions} |`,
+      `| Not-found answers with a model supplement | ${report.answers.notFoundWithSupplement} |`,
       `| Answerable questions answered with evidence | ${report.answers.answerableAnsweredGrounded}/${report.answers.answerableQuestions} |`,
       `| Model calls / tokens in / out | ${report.answers.modelCalls} / ${report.answers.inputTokens} / ${report.answers.outputTokens} |`,
     );
   }
-  lines.push('', '## By category (hybrid recall@5)', '');
+  lines.push('', `## By category (${report.mode} recall@5)`, '');
   for (const [category, value] of Object.entries(report.retrieval.byCategory)) {
     lines.push(`- ${category}: ${value}`);
   }

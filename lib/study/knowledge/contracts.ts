@@ -65,6 +65,8 @@ export interface StudyKnowledgeStatus {
   /** Retrieval can index and answer on this server. */
   available: boolean;
   reason: StudyKnowledgeUnavailableReason | null;
+  /** Keyword-only (the default, no external cost) or semantic + keyword. */
+  retrievalMode: 'keyword' | 'hybrid';
   /** Embedding model identity shown to the owner ("provider:model"), when configured. */
   embeddingModel: string | null;
   materials: StudyKnowledgeMaterialView[];
@@ -108,8 +110,12 @@ export interface StudyAnswerView {
   /** Model's short note on what is missing (not_found) — never shown as evidence. */
   notFoundNote: string | null;
   citations: StudyAnswerCitation[];
-  /** Semantic+keyword, or keyword only when embeddings were unavailable. */
-  retrieval: 'hybrid' | 'lexical';
+  /**
+   * keyword: keyword-only retrieval (no embedding model configured); hybrid:
+   * semantic + keyword; lexical: keyword only because the configured embedding
+   * model failed for this question.
+   */
+  retrieval: StudyRetrievalKind;
   pinnedVersionIds: string[];
   modelString: string | null;
   usage: StudyAnswerUsage | null;
@@ -133,8 +139,10 @@ export interface StudySearchHitView {
   lexicalRank: number | null;
 }
 
+export type StudyRetrievalKind = 'keyword' | 'hybrid' | 'lexical';
+
 export interface StudySearchResult {
-  retrieval: 'hybrid' | 'lexical';
+  retrieval: StudyRetrievalKind;
   hits: StudySearchHitView[];
 }
 

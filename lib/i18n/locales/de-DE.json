@@ -2701,6 +2701,7 @@
       "sources": "Durchsuchbare Materialien",
       "buildAll": "Alle Materialien indexieren",
       "embeddingModel": "Suchmodell: {{model}}",
+      "keywordMode": "Suchverfahren: Stichwortsuche (ohne Suchmodell)",
       "noMaterials": "Dieser Lernbereich hat noch keine Materialien. Lade auf der Bereichsseite welche hoch oder füge sie hinzu.",
       "build": "Index erstellen",
       "rebuild": "Index aktualisieren",
@@ -2722,6 +2723,7 @@
       "notCurrentVersion": "(nicht die aktuelle Version)",
       "lexicalOnly": "Nur Stichwortsuche (semantische Suche nicht verfügbar)",
       "hybrid": "Semantische + Stichwortsuche",
+      "keyword": "Stichwortsuche",
       "usage": "Modell-Eingabe {{input}} / Ausgabe {{output}} Tokens, {{calls}} Aufruf(e)",
       "usageUnknown": "Teilweise unbekannter Verbrauch",
       "removeAnswer": "Diese Antwort löschen",
@@ -2729,7 +2731,7 @@
       "noHits": "Keine passenden Abschnitte gefunden.",
       "reason": {
         "STORAGE_UNAVAILABLE": "Die Materialsuche ist in dieser Bereitstellung nicht verfügbar (der Datenbank fehlen die Sucherweiterungen). Das Lesen von Materialien funktioniert weiterhin.",
-        "EMBEDDING_NOT_CONFIGURED": "Auf dem Server ist kein Suchmodell konfiguriert; Indexieren und Fragen sind nicht möglich.",
+        "EMBEDDING_NOT_CONFIGURED": "Die Suchmodell-Konfiguration auf dem Server ist ungültig; Indexieren und Fragen sind nicht möglich.",
         "WORKER_UNAVAILABLE": "Der Hintergrunddienst ist nicht verfügbar: Fragen zu vorhandenen Indizes sind weiter möglich, neue Indizes später erstellen."
       },
       "state": {

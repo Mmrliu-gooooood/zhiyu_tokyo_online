@@ -2,9 +2,9 @@
  * Retrieval and cited answers (learning plan B03) end to end on real
  * PostgreSQL with vector + pgroonga: index tasks through the shared learning
  * queue, the active-index swap, scope and version pins, owner isolation,
- * hybrid and keyword-only search, answers with server-approved citations
- * (faux model), lost leases, material purge and the permanent-delete fate of
- * citations.
+ * hybrid and keyword-only search, keyword-only indexes (the default mode, no
+ * vectors), answers with server-approved citations (faux model), lost leases,
+ * material purge and the permanent-delete fate of citations.
  *
  * Needs TEST_STUDY_KNOWLEDGE_DATABASE_URL: the admin URL of a disposable
  * *_rls_proof database on 127.0.0.1 whose server offers both extensions
@@ -32,6 +32,7 @@ import { LearningTaskQueue, getLearningTask } from '@/lib/server/learning-tasks/
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import { purgeStudyMaterial } from '@/lib/server/study/materials/service';
 import { runMaterialIndexTask } from '@/lib/server/study/knowledge/index-task';
+import { STUDY_KEYWORD_SIGNATURE } from '@/lib/server/study/knowledge/config';
 import {
   listSpaceKnowledge,
   listStudyAnswers,
@@ -355,8 +356,27 @@ describe.skipIf(!adminUrl)('study knowledge on PostgreSQL + vector + pgroonga', 
     expect(await transact((tx) => listStudyAnswers(tx, B, seeded.spaceIds.A))).toEqual([]);
   });
 
-  it('answers "not found" without a model call when nothing matches', async () => {
-    const faux = createFauxGateway({ responses: [] });
+  it('answers "not found" with only a labelled model supplement when nothing matches', async () => {
+    let prompt = '';
+    const faux = createFauxGateway({
+      responses: [
+        (context) => {
+          prompt = JSON.stringify(context.messages);
+          return fauxAssistantMessage(
+            fauxText(
+              JSON.stringify({
+                status: 'answered',
+                segments: [
+                  { kind: 'grounded', text: '编造的资料依据。', citations: ['E1'] },
+                  { kind: 'supplement', text: '这是通用知识的解释。' },
+                ],
+                not_found_note: '资料里没有相关内容',
+              }),
+            ),
+          );
+        },
+      ],
+    });
     const answer = await askSpace(
       transact,
       {
@@ -372,9 +392,19 @@ describe.skipIf(!adminUrl)('study knowledge on PostgreSQL + vector + pgroonga', 
       },
       { gateway: faux.gateway, embeddings: fakeEmbeddings },
     );
-    expect(answer).toMatchObject({ status: 'not_found', segments: [], retrieval: 'lexical' });
-    expect(faux.calls).toHaveLength(0);
-    expect(answer.usageCompleteness).toBe('none');
+    // No passages were given, so nothing can be presented as evidence.
+    expect(answer).toMatchObject({
+      status: 'not_found',
+      retrieval: 'keyword',
+      citations: [],
+      segments: [
+        { kind: 'supplement', text: '编造的资料依据。' },
+        { kind: 'supplement', text: '这是通用知识的解释。' },
+      ],
+    });
+    expect(faux.calls).toHaveLength(1);
+    expect(prompt).toContain('资料片段：无');
+    expect(answer.usage).toMatchObject({ embeddingCalls: 0, modelCalls: 1 });
   });
 
   it('keeps the serving index until a rebuild commits, and a fenced build writes nothing', async () => {
@@ -480,6 +510,86 @@ describe.skipIf(!adminUrl)('study knowledge on PostgreSQL + vector + pgroonga', 
       lastErrorCode: 'EMBEDDING_MODEL_CHANGED',
       retryable: false,
     });
+  });
+
+  it('builds keyword-only indexes without vectors and searches them without embeddings', async () => {
+    const ds = seeded.materials.get('ds')!;
+    const versionId = ds.versions.get(1)!.versionId;
+    // The hybrid index of the version is stale for the keyword mode but keeps serving it.
+    const before = await transact((tx) =>
+      listSpaceKnowledge(tx, A, seeded.spaceIds.A, STUDY_KEYWORD_SIGNATURE, true),
+    );
+    expect(before.find((m) => m.materialId === ds.materialId)!.versions[0]!.state).toBe('stale');
+    const outcome = await requestStudyIndexBuild(study, A, {
+      materialId: ds.materialId,
+      versionId,
+      signature: STUDY_KEYWORD_SIGNATURE,
+    });
+    expect(outcome.status).toBe('queued');
+    const lease = (await queue.claim('worker-1', ['material_index']))!;
+    await runMaterialIndexTask(
+      lease,
+      { queue, signal: new AbortController().signal },
+      {
+        embeddingBinding: () => null,
+        embed: async () => {
+          throw new Error('keyword-only indexing must not embed');
+        },
+      },
+    );
+    expect(await getLearningTask(study, A, lease.taskId)).toMatchObject({ status: 'succeeded' });
+    const stored = await pool.query<{ signature: string; chunks: number; vectors: number }>(
+      `SELECT i.embedding_signature AS signature, count(c.*)::int AS chunks,
+              count(c.embedding)::int AS vectors
+         FROM study_knowledge_indexes i JOIN study_knowledge_chunks c ON c.index_id=i.id
+        WHERE i.version_id=$1 AND i.active GROUP BY 1`,
+      [versionId],
+    );
+    expect(stored.rows).toEqual([
+      { signature: STUDY_KEYWORD_SIGNATURE, chunks: expect.any(Number), vectors: 0 },
+    ]);
+    const attempt = await pool.query(
+      `SELECT usage, usage_completeness FROM learning_task_attempts WHERE task_id=$1`,
+      [lease.taskId],
+    );
+    expect(attempt.rows[0]).toMatchObject({
+      usage_completeness: 'complete',
+      usage: expect.objectContaining({ embeddingCalls: 0, embeddingModel: null }),
+    });
+    const after = await transact((tx) =>
+      listSpaceKnowledge(tx, A, seeded.spaceIds.A, STUDY_KEYWORD_SIGNATURE, true),
+    );
+    expect(after.find((m) => m.materialId === ds.materialId)!.versions[0]!.state).toBe('ready');
+
+    const question = '用邻接表存储时 DFS 和 BFS 的时间复杂度是多少？';
+    const result = await searchSpace(
+      transact,
+      {
+        ownerId: A,
+        spaceId: seeded.spaceIds.A,
+        question,
+        pinnedVersionIds: [],
+        embedding: null,
+        signature: STUDY_KEYWORD_SIGNATURE,
+        signal: new AbortController().signal,
+        requestId: 'r-keyword',
+      },
+      { embeddings: { embed: async () => Promise.reject(new Error('no embedding expected')) } },
+    );
+    expect(result.retrieval).toBe('keyword');
+    expect(result.hits.length).toBeGreaterThan(0);
+    expect(
+      result.hits.every((hit) => hit.versionId === versionId && hit.method === 'lexical'),
+    ).toBe(true);
+    // A query vector over vector-less chunks only uses the keyword leg.
+    const scope = await transact((tx) =>
+      resolveQuestionScope(tx, A, seeded.spaceIds.A, STUDY_KEYWORD_SIGNATURE, []),
+    );
+    const mixed = await transact((tx) =>
+      searchStudyKnowledge(tx, A, scope, questionTerms(question), fakeEmbedding(question), 5),
+    );
+    expect(mixed.length).toBeGreaterThan(0);
+    expect(mixed.every((hit) => hit.vectorRank === null)).toBe(true);
   });
 
   it('permanent delete stops retrieval, removes indexes and keeps the answer text', async () => {

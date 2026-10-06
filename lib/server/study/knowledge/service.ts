@@ -22,7 +22,7 @@ import type {
 } from '@/lib/study/knowledge/contracts';
 
 import { askSpace, searchSpace, type AskDependencies } from './ask';
-import { resolveStudyEmbeddingBinding } from './config';
+import { resolveStudyRetrieval } from './config';
 import {
   knowledgeStorageReady,
   listSpaceKnowledge,
@@ -32,6 +32,8 @@ import {
 
 export interface KnowledgeReadiness {
   storage: boolean;
+  /** Keyword-only (default, no external cost) or semantic + keyword. */
+  mode: 'keyword' | 'hybrid';
   embeddingModel: string | null;
   signature: string | null;
   worker: boolean;
@@ -40,18 +42,19 @@ export interface KnowledgeReadiness {
 
 export async function knowledgeReadiness(db: StudyDb): Promise<KnowledgeReadiness> {
   const storage = await knowledgeStorageReady(db);
-  const binding = resolveStudyEmbeddingBinding();
-  const embedding = binding && binding.credentialReady ? binding : null;
+  const retrieval = resolveStudyRetrieval();
+  const embedding = retrieval.embedding;
   const worker =
     storage && isStudyTaskIntakeOpen() && (await isLearningTaskWorkerLive(db, 'material_index'));
   return {
     storage,
+    mode: retrieval.mode === 'hybrid' ? 'hybrid' : 'keyword',
     embeddingModel: embedding?.modelString ?? null,
-    signature: embedding?.signature ?? null,
+    signature: retrieval.signature,
     worker,
     reason: !storage
       ? 'STORAGE_UNAVAILABLE'
-      : !embedding
+      : retrieval.mode === 'misconfigured'
         ? 'EMBEDDING_NOT_CONFIGURED'
         : !worker
           ? 'WORKER_UNAVAILABLE'
@@ -69,9 +72,10 @@ export async function spaceKnowledgeStatus(
     listSpaceKnowledge(tx, ownerId, spaceId, readiness.signature, readiness.storage),
   );
   return {
-    // Asking needs storage and embeddings; a stopped worker only blocks new builds.
+    // Asking needs storage and a usable retrieval mode; a stopped worker only blocks new builds.
     available: readiness.storage && readiness.signature !== null,
     reason: readiness.reason,
+    retrievalMode: readiness.mode,
     embeddingModel: readiness.embeddingModel,
     materials,
   };
@@ -162,7 +166,7 @@ export async function answerQuestion(
     throw new StudyError('STUDY_QA_UNAVAILABLE', { reason: readiness.reason });
   }
   const model = await bindingFor(req, request.body);
-  const embedding = resolveStudyEmbeddingBinding();
+  const embedding = resolveStudyRetrieval().embedding;
   return runIndependentHeavyTaskRequest(req, 'study-qa', async (leaseSignal) => {
     try {
       const answer = await askSpace(
@@ -200,7 +204,7 @@ export async function searchQuestion(
   if (!readiness.storage || !readiness.signature) {
     throw new StudyError('STUDY_QA_UNAVAILABLE', { reason: readiness.reason });
   }
-  const embedding = resolveStudyEmbeddingBinding();
+  const embedding = resolveStudyRetrieval().embedding;
   return runIndependentHeavyTaskRequest(req, 'study-qa', async (leaseSignal) => {
     try {
       const result = await searchSpace(
