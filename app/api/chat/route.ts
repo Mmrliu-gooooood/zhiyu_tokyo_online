@@ -17,6 +17,10 @@ import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-
 import { NextRequest } from 'next/server';
 import { statelessGenerate } from '@/lib/orchestration/stateless-generate';
 import { applyClassmateSpeechRules } from '@/lib/server/study/classmates/speech-policy';
+import {
+  noticeOnlyResponse,
+  resolveClassroomClassmateModels,
+} from '@/lib/server/study/companion/classroom-models';
 import type { StatelessChatRequest, StatelessEvent } from '@/lib/types/chat';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
@@ -79,6 +83,9 @@ async function handlePOST(req: NextRequest) {
       return apiError('MISSING_REQUIRED_FIELD', 400, 'Missing required field: config.agentIds');
     }
     await applyClassmateSpeechRules(req, body);
+    // Classmates with their own live-answer model (B05).
+    const classmateModels = await resolveClassroomClassmateModels(req, body);
+    if (classmateModels.nothingToRun) return noticeOnlyResponse(classmateModels.notices);
 
     // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
     // thinking wins, an unrouted one honors this client thinking.
@@ -125,6 +132,13 @@ async function handlePOST(req: NextRequest) {
 
       try {
         startHeartbeat();
+        for (const notice of classmateModels.notices) {
+          await writer.write(
+            encoder.encode(`data: ${JSON.stringify(notice)}
+
+`),
+          );
+        }
 
         // Use the resolved thinking (route-pinned for a routed chat-adapter,
         // else the client's). Default to disabled for low-latency chat.
@@ -132,7 +146,7 @@ async function handlePOST(req: NextRequest) {
           ? resolvedBinding
           : withThinking(resolvedBinding, { mode: 'disabled', enabled: false });
 
-        const generator = statelessGenerate(body, signal, binding);
+        const generator = statelessGenerate(body, signal, binding, classmateModels.agentBindings);
 
         for await (const event of generator) {
           if (signal.aborted) {

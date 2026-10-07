@@ -7,8 +7,30 @@ const GATEWAY_CODE_MESSAGES: Partial<Record<string, string>> = {
   MODEL_ABORTED: 'PRO_MODEL_CANCELLED: 模型调用已取消。',
 };
 
+/** After-class classmate chats (B05): fixed codes the chat page explains. */
+const STUDY_CODE_MESSAGES: Partial<Record<string, string>> = {
+  STUDY_CLASSMATE_MODEL_UNAVAILABLE:
+    '学伴的独立回答模型当前不可用，没有改用其他模型；请到学伴设置中修改，或改回“继承当前模型”。',
+  STUDY_CLASSMATE_ARCHIVED: '这个学伴已归档，恢复后才能继续对话。',
+  STUDY_CLASSMATE_NOT_FOUND: '这个学伴已不存在。',
+  STUDY_SPACE_ARCHIVED: '这个学科已归档，恢复后才能继续对话。',
+  STUDY_SPACE_NOT_FOUND: '这个学科已不存在。',
+  STUDY_COMPANION_UNAVAILABLE: '课后答疑功能当前未开启。',
+};
+
 /** Never expose provider response bodies, request headers, or connection secrets. */
 export function safeModelError(error: unknown): string {
+  // A CompanionRunError, or its already-mapped message passed back in.
+  const studyMatch =
+    error instanceof Error && error.name === 'CompanionRunError'
+      ? /^(STUDY_[A-Z_]+)(?::([a-z_]+))?:/.exec(error.message)
+      : typeof error === 'string'
+        ? /^(STUDY_[A-Z_]+)(?::([a-z_]+))?: /.exec(error)
+        : null;
+  if (studyMatch && STUDY_CODE_MESSAGES[studyMatch[1]!]) {
+    const code = studyMatch[2] ? `${studyMatch[1]}:${studyMatch[2]}` : studyMatch[1]!;
+    return `${code}: ${STUDY_CODE_MESSAGES[studyMatch[1]!]}`;
+  }
   const gatewayCode =
     error instanceof Error && error.name === 'GatewayError'
       ? (error as Error & { code?: string }).code
@@ -53,7 +75,7 @@ export function safeModelError(error: unknown): string {
 
 /** These failures require a new configuration before an undelivered message can run. */
 export function isModelConfigurationError(error: unknown): boolean {
-  return /^PRO_MODEL_(AUTH|REVOKED|PROTOCOL|TOOLS|MISSING|THINKING|ENCRYPTION):/.test(
+  return /^(PRO_MODEL_(AUTH|REVOKED|PROTOCOL|TOOLS|MISSING|THINKING|ENCRYPTION)|STUDY_[A-Z_]+(:[a-z_]+)?):/.test(
     safeModelError(error),
   );
 }

@@ -305,7 +305,8 @@ function visibleActionText(action: Action): string[] {
   }
 }
 
-function textScene(scene: Scene) {
+/** Visible text of one scene (title, content, spoken lines); reused by after-class chat (B05). */
+export function textScene(scene: Scene) {
   const entries: Array<{ path: string; text: string }> = [];
   const add = (path: string, value: unknown) => {
     if (typeof value === 'string' && value.trim()) entries.push({ path, text: value });

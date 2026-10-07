@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
+import { withoutCompanionSessions } from '@/lib/server/study/companion/service';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +14,10 @@ export async function GET(req: NextRequest) {
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const store = await getAgentSessionStore(ownerId);
-    const sessions = await store.listSessionsByOwner(ownerId);
+    const sessions = await withoutCompanionSessions(
+      ownerId,
+      await store.listSessionsByOwner(ownerId),
+    );
     const statuses = Object.fromEntries(sessions.map((session) => [session.id, session.status]));
     return NextResponse.json(statuses, { headers: responseHeaders });
   });

@@ -17,8 +17,10 @@ import { getOwnerBoundStageAccessDb } from '@/lib/server/stage-access';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import { LearningTaskError } from '@/lib/server/learning-tasks/contracts';
+import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import {
   isStudyClassmatesFlagOn,
+  isStudyCompanionChatFlagOn,
   isStudyMaterialsFlagOn,
   isStudyQaFlagOn,
 } from '@/lib/server/study/flags';
@@ -116,6 +118,24 @@ export function studyClassmatesRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyClassmatesEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B05 after-class classmate chats: classmates plus the agent runtime and its flag. */
+export function isStudyCompanionChatEnabled(): boolean {
+  return isStudyCompanionChatFlagOn() && isStudyClassmatesEnabled() && isAgentRuntimeConfigured();
+}
+
+/** studyRoute for the after-class chat APIs. */
+export function studyCompanionRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyCompanionChatEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

@@ -75,6 +75,9 @@ INSERT INTO study_materials (id, owner_id, title) VALUES
   ('mat-a', '${OWNER_A}', 'A'), ('mat-b', '${OWNER_B}', 'B');
 `;
 
+/** The repository also reads the v26 model policy column (B05); v26 itself is tested separately. */
+const V26_MODEL_POLICY = 'ALTER TABLE study_classmates ADD COLUMN IF NOT EXISTS model_policy jsonb';
+
 interface Db {
   query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
   as<T>(
@@ -204,6 +207,7 @@ describe.each(engines)('accounts v25 study classmates (%s)', (_name, open) => {
     try {
       await applySql(db, BASELINE);
       await applySql(db, ACCOUNTS_MIGRATION_25);
+      await applySql(db, V26_MODEL_POLICY);
       const a = roleDb(db, 'app_web', OWNER_A);
       const b = roleDb(db, 'app_web', OWNER_B);
 
@@ -263,6 +267,7 @@ describe.each(engines)('accounts v25 study classmates (%s)', (_name, open) => {
     try {
       await applySql(db, BASELINE);
       await applySql(db, ACCOUNTS_MIGRATION_25);
+      await applySql(db, V26_MODEL_POLICY);
       const created = await createClassmate(
         roleDb(db, 'app_web', OWNER_A),
         OWNER_A,

@@ -9,6 +9,7 @@ import { MAX_SESSION_TEXT_LENGTH } from '@/lib/server/agent-runtime/limits';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
 import { validateSessionModelBinding } from '@/lib/server/agent-runtime/session-model-binding';
 import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
+import { isCompanionSession } from '@/lib/server/study/companion/service';
 import { decodeElementRefs } from '@/lib/workbench/element-refs';
 import { decodeCourseRefs } from '@/lib/workbench/course-refs';
 import {
@@ -53,6 +54,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const meta = await store.getSession(id);
     if (!meta || meta.ownerId !== ownerId) {
       return new Response('Not found', { status: 404, headers: responseHeaders });
+    }
+    // After-class classmate chats (B05) take messages through their own study
+    // API, which checks the classmate, the space and the hourly cap first.
+    if (await isCompanionSession(ownerId, id)) {
+      const response = apiError(
+        'INVALID_REQUEST',
+        409,
+        'this session is an after-class classmate chat; post to /api/study/companion-chats/:id/messages',
+      );
+      responseHeaders.forEach((value, name) => response.headers.append(name, value));
+      return response;
     }
 
     let body: {

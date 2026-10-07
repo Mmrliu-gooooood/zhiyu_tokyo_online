@@ -392,6 +392,7 @@ export async function* statelessGenerate(
   request: StatelessChatRequest,
   abortSignal: AbortSignal,
   binding: ModelBinding,
+  agentBindings: Record<string, ModelBinding> = {},
 ): AsyncGenerator<StatelessEvent> {
   log.info(
     `[StatelessGenerate] Starting orchestration for agents: ${request.config.agentIds.join(', ')}`,
@@ -402,7 +403,7 @@ export async function* statelessGenerate(
 
   try {
     const graph = createOrchestrationGraph();
-    const initialState = buildInitialState(request, binding);
+    const initialState = buildInitialState(request, binding, agentBindings);
 
     const stream = await graph.stream(initialState, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

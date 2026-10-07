@@ -22,6 +22,7 @@ import { withRequestOwnerId } from '@/lib/server/agent-runtime/with-owner';
 import { buildRequestOrigin, isValidClassroomId } from '@/lib/server/classroom-storage';
 import { decodeCourseRefs } from '@/lib/workbench/course-refs';
 import { HeavyTaskCapacityError } from '@/lib/server/heavy-task-admission';
+import { withoutCompanionSessions } from '@/lib/server/study/companion/service';
 
 export const runtime = 'nodejs';
 
@@ -266,7 +267,11 @@ export async function GET(req: NextRequest) {
 
   return withRequestOwnerId(req, async (ownerId, responseHeaders) => {
     const store = await getAgentSessionStore(ownerId);
-    const sessions = await store.listSessionsByOwner(ownerId);
+    // After-class classmate chats (B05) are listed on their own study page.
+    const sessions = await withoutCompanionSessions(
+      ownerId,
+      await store.listSessionsByOwner(ownerId),
+    );
     return NextResponse.json(sessions, { headers: responseHeaders });
   });
 }

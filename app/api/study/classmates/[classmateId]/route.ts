@@ -12,6 +12,7 @@ import {
 } from '@/lib/server/study/route';
 import { getClassmate, updateClassmate } from '@/lib/server/study/classmates/repository';
 import { StudyError } from '@/lib/server/study/spaces/repository';
+import { assertClassmateModelPolicy } from '@/lib/server/study/companion/model-policy';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,8 @@ export function PATCH(req: Request, context: Context) {
     }
     const parsed = parseClassmatePatch(fields);
     if (!parsed.ok) return invalidInput(parsed.field, headers);
+    if (parsed.value.modelPolicy)
+      await assertClassmateModelPolicy(ownerId, parsed.value.modelPolicy);
     const classmate = await updateClassmate(
       db,
       ownerId,

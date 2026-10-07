@@ -25,3 +25,12 @@ export function isStudyClassmatesFlagOn(env: NodeJS.ProcessEnv = process.env): b
   const flag = env.ZHIYU_STUDY_CLASSMATES_ENABLED;
   return flag === '1' || flag === 'true';
 }
+
+/**
+ * ZHIYU_STUDY_COMPANION_CHAT_ENABLED: after-class chats with one classmate
+ * (learning plan B05); needs classmates. Read by web and the worker's runner.
+ */
+export function isStudyCompanionChatFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_COMPANION_CHAT_ENABLED;
+  return (flag === '1' || flag === 'true') && isStudyClassmatesFlagOn(env);
+}

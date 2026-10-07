@@ -33,6 +33,8 @@ export async function runPiDirectorLoop(opts: {
   send: SendEvent;
   /** Resolved chat model; its thinking configuration travels with it. */
   binding: ModelBinding;
+  /** Classmates' own live-answer models (B05), keyed by classroom agent id. */
+  agentBindings?: Readonly<Record<string, ModelBinding>>;
   /** Catalog output window; undefined (unknown model) omits the wire cap. */
   maxOutputTokens?: number;
   contextWindow?: number;
@@ -148,6 +150,7 @@ export async function runPiDirectorLoop(opts: {
       agentConfigs: opts.agentConfigs,
       send: opts.send,
       binding: opts.binding,
+      bindingFor: (agentId) => opts.agentBindings?.[agentId],
       onAgentDone: (summary) => {
         totalAgents += 1;
         if (summary.contentPreview || summary.actionCount > 0) agentHadContent = true;

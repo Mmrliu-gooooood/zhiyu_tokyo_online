@@ -11,6 +11,7 @@ import {
   studyJson,
 } from '@/lib/server/study/route';
 import { createClassmate, listClassmates } from '@/lib/server/study/classmates/repository';
+import { assertClassmateModelPolicy } from '@/lib/server/study/companion/model-policy';
 
 export const runtime = 'nodejs';
 
@@ -33,6 +34,8 @@ export function POST(req: Request) {
   return studyClassmatesRoute(req, async (ownerId, db, headers) => {
     const parsed = parseClassmateInput(await readStudyBody(req));
     if (!parsed.ok) return invalidInput(parsed.field, headers);
+    if (parsed.value.modelPolicy)
+      await assertClassmateModelPolicy(ownerId, parsed.value.modelPolicy);
     return studyJson({ classmate: await createClassmate(db, ownerId, parsed.value) }, 201, headers);
   });
 }

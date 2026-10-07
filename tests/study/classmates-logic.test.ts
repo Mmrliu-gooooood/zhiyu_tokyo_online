@@ -59,6 +59,8 @@ describe('classmate input', () => {
         name: '小林',
         color: '#10b981',
         materialIds: ['mat-1', 'mat-2'],
+        // B05: absent policy means inherit.
+        modelPolicy: { mode: 'inherit' },
       },
     });
   });

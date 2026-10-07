@@ -533,6 +533,8 @@ export function buildCallAgentTool(opts: {
   agentConfigs: AgentConfig[];
   send: SendEvent;
   binding: ModelBinding;
+  /** A classmate's own live-answer model (B05); other agents use `binding`. */
+  bindingFor?: (agentId: string) => ModelBinding | undefined;
   onAgentDone: (summary: AgentTurnSummary) => void;
   onActionDone: (record?: WhiteboardActionRecord) => void;
   maxOutputTokens?: number;
@@ -797,7 +799,7 @@ export function buildCallAgentTool(opts: {
         try {
           nativeResult = await runNativeChild({
             streamFn: createGatewayStreamFn({
-              binding: opts.binding,
+              binding: opts.bindingFor?.(agent.id) ?? opts.binding,
               source: 'pi-chat-native-child',
               maxOutputTokens: opts.maxOutputTokens,
               omitMaxOutputTokens: opts.maxOutputTokens === undefined,
@@ -900,7 +902,7 @@ export function buildCallAgentTool(opts: {
 
       const child = buildAgent({
         streamFn: createGatewayStreamFn({
-          binding: opts.binding,
+          binding: opts.bindingFor?.(agent.id) ?? opts.binding,
           source: 'pi-chat-child',
           maxOutputTokens: opts.maxOutputTokens,
           omitMaxOutputTokens: opts.maxOutputTokens === undefined,

@@ -69,6 +69,8 @@ export interface StudyCapabilities {
   qa: boolean;
   /** B04 classmate templates (needs spaces). */
   classmates: boolean;
+  /** B05 after-class classmate chats (needs classmates and the agent runtime). */
+  companionChat: boolean;
 }
 
 let capabilityPromise: Promise<StudyCapabilities> | undefined;
@@ -77,23 +79,38 @@ let capabilityPromise: Promise<StudyCapabilities> | undefined;
 export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
   capabilityPromise ??= fetch('/api/study/capabilities', { cache: 'no-store' })
     .then(async (response) => {
-      if (!response.ok) return { spaces: false, materials: false, qa: false, classmates: false };
+      if (!response.ok)
+        return {
+          spaces: false,
+          materials: false,
+          qa: false,
+          classmates: false,
+          companionChat: false,
+        };
       const body = (await response.json()) as {
         spaces?: unknown;
         materials?: unknown;
         qa?: unknown;
         classmates?: unknown;
+        companionChat?: unknown;
       };
       return {
         spaces: body.spaces === true,
         materials: body.materials === true,
         qa: body.qa === true,
         classmates: body.classmates === true,
+        companionChat: body.companionChat === true,
       };
     })
     .catch(() => {
       capabilityPromise = undefined;
-      return { spaces: false, materials: false, qa: false, classmates: false };
+      return {
+        spaces: false,
+        materials: false,
+        qa: false,
+        classmates: false,
+        companionChat: false,
+      };
     });
   return capabilityPromise;
 }

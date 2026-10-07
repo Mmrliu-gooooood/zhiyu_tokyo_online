@@ -14,11 +14,14 @@ import type { Queryable } from '@openmaic/storage/document/pg';
 import {
   CLASSMATE_LIMITS,
   classmateAvatarPath,
+  INHERIT_MODEL_POLICY,
+  parseClassmateModelPolicy,
   parseClassmateSnapshot,
   snapshotOf,
   uploadedAvatarId,
   type ClassmateAvatarType,
   type ClassmateInput,
+  type ClassmateModelPolicy,
   type ClassmatePatch,
   type ClassmateSnapshot,
   type ClassmateStatus,
@@ -50,10 +53,11 @@ interface ClassmateRow extends Record<string, unknown> {
   created_at: string | Date;
   updated_at: string | Date;
   material_ids: string[] | null;
+  model_policy: Record<string, unknown> | string | null;
 }
 
 const COLUMNS = `c.id, c.name, c.role, c.persona, c.learning_style, c.speech_policy, c.avatar,
-  c.color, c.voice, c.status, c.revision, c.created_at, c.updated_at,
+  c.color, c.voice, c.status, c.revision, c.created_at, c.updated_at, c.model_policy,
   COALESCE((SELECT array_agg(m.material_id ORDER BY m.added_at, m.material_id)
               FROM study_classmate_materials m
              WHERE m.owner_id = c.owner_id AND m.classmate_id = c.id), '{}') AS material_ids`;
@@ -65,6 +69,17 @@ function iso(value: string | Date): string {
 function jsonValue<T>(value: T | string | null): T | null {
   if (value === null || value === undefined) return null;
   return typeof value === 'string' ? (JSON.parse(value) as T) : value;
+}
+
+/** A stored policy that no longer parses is treated as inherit, never as some other model. */
+export function modelPolicyFromColumn(value: unknown): ClassmateModelPolicy {
+  const parsed = parseClassmateModelPolicy(jsonValue(value as string | null));
+  return parsed.ok ? parsed.value : INHERIT_MODEL_POLICY;
+}
+
+/** The column value for a policy: inherit is stored as NULL. */
+export function modelPolicyColumn(policy: ClassmateModelPolicy | undefined): string | null {
+  return policy && policy.mode === 'custom' ? JSON.stringify(policy) : null;
 }
 
 function viewFromRow(row: ClassmateRow): ClassmateView {
@@ -79,6 +94,7 @@ function viewFromRow(row: ClassmateRow): ClassmateView {
     color: row.color,
     voice: jsonValue<ClassmateVoice>(row.voice),
     materialIds: row.material_ids ?? [],
+    modelPolicy: modelPolicyFromColumn(row.model_policy),
     status: row.status,
     revision: Number(row.revision),
     createdAt: iso(row.created_at),
@@ -188,8 +204,8 @@ async function insertClassmate(
   const inserted = await tx.query<{ id: string }>(
     `INSERT INTO study_classmates
        (id, owner_id, name, role, persona, learning_style, speech_policy, avatar, color, voice,
-        import_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+        import_key, model_policy)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb)
      ON CONFLICT DO NOTHING
      RETURNING id`,
     [
@@ -204,6 +220,7 @@ async function insertClassmate(
       input.color,
       input.voice ? JSON.stringify(input.voice) : null,
       importKey,
+      modelPolicyColumn(input.modelPolicy),
     ],
   );
   if (inserted.rows.length === 0) return null;
@@ -234,6 +251,7 @@ const PATCH_COLUMNS: Array<[keyof ClassmateInput, string, string]> = [
   ['avatar', 'avatar', ''],
   ['color', 'color', ''],
   ['voice', 'voice', '::jsonb'],
+  ['modelPolicy', 'model_policy', '::jsonb'],
 ];
 
 /**
@@ -272,7 +290,15 @@ export async function updateClassmate(
       for (const [field, column, cast] of PATCH_COLUMNS) {
         if (!(field in patch)) continue;
         const value = patch[field];
-        values.push(field === 'voice' ? (value ? JSON.stringify(value) : null) : value);
+        values.push(
+          field === 'voice'
+            ? value
+              ? JSON.stringify(value)
+              : null
+            : field === 'modelPolicy'
+              ? modelPolicyColumn(value as ClassmateModelPolicy)
+              : value,
+        );
         sets.push(`${column} = $${values.length}${cast}`);
       }
       if (patch.status) {

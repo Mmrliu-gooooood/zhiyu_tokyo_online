@@ -29,6 +29,10 @@ import {
 } from '@/lib/model-gateway';
 import { apiError } from '@/lib/server/api-response';
 import { applyClassmateSpeechRules } from '@/lib/server/study/classmates/speech-policy';
+import {
+  noticeOnlyResponse,
+  resolveClassroomClassmateModels,
+} from '@/lib/server/study/companion/classroom-models';
 import type { StatelessChatRequest } from '@/lib/types/chat';
 import { resolveClassroomWebSearchConfig } from '@/lib/server/web-search-config';
 import { authenticatePersistenceHeaders } from '@/lib/persistence/server-auth';
@@ -105,6 +109,9 @@ async function handlePOST(req: NextRequest) {
     }
     // Classmate speaking rules (B04) may drop quiet classmates from the roster.
     await applyClassmateSpeechRules(req, body);
+    // Classmates with their own live-answer model (B05).
+    const classmateModels = await resolveClassroomClassmateModels(req, body);
+    if (classmateModels.nothingToRun) return noticeOnlyResponse(classmateModels.notices);
 
     // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
     // thinking wins, an unrouted one honors this client thinking.
@@ -226,6 +233,7 @@ async function handlePOST(req: NextRequest) {
 
       try {
         startHeartbeat();
+        for (const notice of classmateModels.notices) await send(notice);
 
         await runPiDirectorLoop({
           body,
@@ -233,6 +241,7 @@ async function handlePOST(req: NextRequest) {
           agentConfigs,
           send,
           binding,
+          agentBindings: classmateModels.agentBindings,
           maxOutputTokens: binding.capabilities.knownModel
             ? binding.capabilities.maxOutputTokens
             : undefined,

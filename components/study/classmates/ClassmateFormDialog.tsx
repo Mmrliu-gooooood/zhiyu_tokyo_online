@@ -55,6 +55,8 @@ import {
 import type { StudyMaterialSummary } from '@/lib/study/materials/contracts';
 import { cn } from '@/lib/utils';
 
+import { ClassmateModelPolicyField } from './ClassmateModelPolicyField';
+
 const NO_VOICE = 'none';
 
 interface VoiceOption {
@@ -151,6 +153,7 @@ function initialValues(classmate: ClassmateView | null | undefined, index: numbe
         color: classmate.color,
         voice: classmate.voice,
         materialIds: classmate.materialIds,
+        modelPolicy: classmate.modelPolicy,
       }
     : {
         name: '',
@@ -162,6 +165,7 @@ function initialValues(classmate: ClassmateView | null | undefined, index: numbe
         color: CLASSMATE_COLORS[index % CLASSMATE_COLORS.length]!,
         voice: null,
         materialIds: [],
+        modelPolicy: { mode: 'inherit' },
       };
 }
 
@@ -475,6 +479,11 @@ export function ClassmateFormDialog({
               )}
             </div>
           ) : null}
+
+          <ClassmateModelPolicyField
+            value={values.modelPolicy ?? { mode: 'inherit' }}
+            onChange={(policy) => set('modelPolicy', policy)}
+          />
 
           {error ? (
             <p role="alert" className="text-sm text-destructive">

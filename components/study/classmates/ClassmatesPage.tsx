@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Archive, ChevronLeft, Pencil, Plus, RotateCcw, Upload } from 'lucide-react';
+import { Archive, ChevronLeft, MessageCircle, Pencil, Plus, RotateCcw, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -35,12 +35,18 @@ import { ClassmateFormDialog } from './ClassmateFormDialog';
 interface PageData {
   classmates: ClassmateView[];
   materials: StudyMaterialSummary[] | null;
+  /** B05 after-class chats are served here. */
+  companionChat: boolean;
 }
 
 export function ClassmatesPage() {
   const { t } = useI18n();
   const [state, setState] = useState<StudyLoadState>('loading');
-  const [data, setData] = useState<PageData>({ classmates: [], materials: null });
+  const [data, setData] = useState<PageData>({
+    classmates: [],
+    materials: null,
+    companionChat: false,
+  });
   const [loadKey, setLoadKey] = useState(0);
   const [editing, setEditing] = useState<ClassmateView | null | 'new'>(null);
   const [importable, setImportable] = useState(0);
@@ -57,7 +63,7 @@ export function ClassmatesPage() {
         classmateApi.list(),
         capabilities.materials ? materialsApi.list().catch(() => null) : Promise.resolve(null),
       ]);
-      return { classmates, materials };
+      return { classmates, materials, companionChat: capabilities.companionChat };
     }).then((result) => {
       if (cancelled) return;
       if (result.state === 'ready') {
@@ -186,6 +192,17 @@ export function ClassmatesPage() {
         ) : null}
       </div>
       <div className="flex shrink-0 gap-1">
+        {data.companionChat ? (
+          <Button variant="ghost" size="icon" asChild aria-label={t('study.companion.open')}>
+            <Link
+              href={`/study/classmates/${encodeURIComponent(classmate.id)}/chat`}
+              title={t('study.companion.open')}
+              data-testid="classmate-chat"
+            >
+              <MessageCircle className="size-4" />
+            </Link>
+          </Button>
+        ) : null}
         {classmate.status === 'active' ? (
           <>
             <Button

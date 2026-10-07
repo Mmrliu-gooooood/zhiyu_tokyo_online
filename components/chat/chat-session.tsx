@@ -11,6 +11,25 @@ import { CircleStop, MessageCircleMore } from 'lucide-react';
 import { InlineActionTag } from './inline-action-tag';
 import { useUserProfileStore } from '@/lib/store/user-profile';
 import { useSoftCloseCountdown } from './use-soft-close-countdown';
+import { ContinueWithClassmate } from './continue-with-classmate';
+
+function messageText(message: UIMessage<ChatMessageMetadata> | undefined): string {
+  return ((message?.parts ?? []) as MessagePart[])
+    .map((part) => (part.type === 'text' ? (part.text ?? '') : ''))
+    .join('')
+    .trim();
+}
+
+/** The question a classmate reply answered: the nearest earlier user message, else the reply. */
+function classmateQuestion(
+  messages: ReadonlyArray<UIMessage<ChatMessageMetadata>>,
+  index: number,
+): string {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (messages[cursor]?.metadata?.originalRole === 'user') return messageText(messages[cursor]);
+  }
+  return messageText(messages[index]);
+}
 
 /** Extended message part type covering standard + custom action parts */
 interface MessagePart {
@@ -323,6 +342,13 @@ export function ChatSessionComponent({
                   isLastMessage={isLastMessage}
                   isActive={isActive}
                 />
+                {!isUser && !(isStreaming && isLastMessage) && messageText(message) ? (
+                  <ContinueWithClassmate
+                    agentId={message.metadata?.agentId}
+                    name={message.metadata?.senderName ?? ''}
+                    question={classmateQuestion(session.messages, msgIdx)}
+                  />
+                ) : null}
               </div>
             </motion.div>
           );

@@ -109,6 +109,8 @@ import { buildGenerationJobTools, GENERATION_JOB_TOOL_NAMES } from './generation
 import { GenerationJobRepository } from '@/lib/server/generation-jobs/repository';
 import { assertGenerationReady, getGenerationPool } from '@/lib/server/generation-jobs/runtime';
 import { buildClassmateTools } from './classmate-tools';
+import { loadCompanionChat, prepareCompanionRun, type CompanionRun } from './companion-run';
+import { COMPANION_TURN_EVENT, decodeCompanionMessage } from '@/lib/study/companion/contracts';
 import { parseOwnerUserId } from '@/lib/auth/principal';
 import type { Queryable } from '@openmaic/storage/document/pg';
 import { listActiveClassmateSnapshots } from '@/lib/server/study/classmates/repository';
@@ -1207,6 +1209,13 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       ]),
     ];
 
+    // ── After-class classmate chat (B05) ───────────────────────────────────────
+    // A session bound in study_companion_chats is never run as a Pro session:
+    // it gets its own prompt, toolset, model and history view (companion-run.ts)
+    // and no skills. The lookup runs for every session so a chat can never fall
+    // back to the Pro toolset, even with the feature switched off.
+    const companionChat = await loadCompanionChat(meta.ownerId, id);
+
     // ── Skills ─────────────────────────────────────────────────────────────────
     // The installed set (builtins + this owner's user-authored skills) is loaded
     // once per run. An explicit API selection (the session's frozen `skillId`)
@@ -1214,9 +1223,9 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     // hard error. Automatic activation lives in the transcript: a successful pi
     // `read` of SKILL.md. An explicit selection stays authoritative for this
     // session rather than being silently replaced by a later model read.
-    const installedSkills = await listSkills(meta.ownerId);
-    const requestedSkill = await findSkill(meta.skillId, meta.ownerId);
-    if (meta.skillId && !requestedSkill) {
+    const installedSkills = companionChat ? [] : await listSkills(meta.ownerId);
+    const requestedSkill = companionChat ? null : await findSkill(meta.skillId, meta.ownerId);
+    if (!companionChat && meta.skillId && !requestedSkill) {
       throw new Error(`session skill "${meta.skillId}" is unavailable for its owner`);
     }
     let activeSkill = requestedSkill ?? skillReadFromTranscript(historyMessages, installedSkills);
@@ -1300,6 +1309,37 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     const modelContext = meta.activeModelRef
       ? await loadModelConnectionForWorker(meta.ownerId, meta.activeModelRef)
       : undefined;
+    // The owner-bound document store (created below for Pro runs). An
+    // after-class chat opens it lazily, only when a course page is read.
+    let ownerScopedStoreOpening: Promise<CourseStore> | undefined;
+    const openOwnerScopedStore = (): Promise<CourseStore> =>
+      (ownerScopedStoreOpening ??= getOwnerScopedDocumentStore(
+        meta.ownerId,
+        async (transaction) => {
+          assertCurrentStageMutationActive();
+          await store.assertActiveLease(id, WORKER_ID, attempt, transaction);
+          assertCurrentStageMutationActive();
+        },
+      ) as Promise<CourseStore>);
+    let companionRun: CompanionRun | undefined;
+    if (companionChat) {
+      const opening = pending[0];
+      companionRun = await prepareCompanionRun({
+        chat: companionChat,
+        ownerId: meta.ownerId,
+        sessionId: id,
+        historyMessages: modelMessages,
+        turnText:
+          plan.kind === 'start'
+            ? meta.prompt
+            : plan.kind === 'continue'
+              ? ''
+              : (opening?.text ?? ''),
+        modelContext,
+        store: openOwnerScopedStore,
+      });
+      emit(COMPANION_TURN_EVENT, companionRun.turnInfo);
+    }
     if (meta.activeMediaConfigRef && !ctx.loadMediaConfigSnapshot) {
       throw new Error('media configuration snapshot loader is unavailable');
     }
@@ -1330,19 +1370,21 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
       mediaConfig.tts === undefined
         ? undefined
         : voiceSource;
-    const modelReadiness = await preflightProModel(modelContext);
-    if (!modelReadiness.chatReady || !modelReadiness.generationReady) {
-      throw new Error(modelReadiness.error);
+    if (!companionRun) {
+      const modelReadiness = await preflightProModel(modelContext);
+      if (!modelReadiness.chatReady || !modelReadiness.generationReady) {
+        throw new Error(modelReadiness.error);
+      }
     }
-    const driver = await resolveAgentDriverModel(modelContext);
+    const driver = companionRun ? companionRun.driver : await resolveAgentDriverModel(modelContext);
     // Pre-send DNS retries and their diagnostics live in the gateway (plan 3.8).
     const streamFn = createGatewayStreamFn({
       binding: driver.binding,
       maxOutputTokens: driver.wireMaxOutputTokens,
       omitMaxOutputTokens: driver.wireMaxOutputTokens === undefined,
-      source: 'agent-runtime',
+      source: companionRun ? 'study-companion' : 'agent-runtime',
       abortSignal: abort.signal,
-      beforeCall: modelContext?.assertActive,
+      beforeCall: companionRun ? companionRun.beforeCall : modelContext?.assertActive,
       retry: 'none',
       formatError: safeModelError,
     });
@@ -1378,14 +1420,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     // that carries them never persists a JSON-null key (reference semantics).
     // `getAgentSessionStore` above already guards on DATABASE_URL, so the
     // provider can only be reached with a configured connection string.
-    const ownerScopedStore = (await getOwnerScopedDocumentStore(
-      meta.ownerId,
-      async (transaction) => {
-        assertCurrentStageMutationActive();
-        await store.assertActiveLease(id, WORKER_ID, attempt, transaction);
-        assertCurrentStageMutationActive();
-      },
-    )) as CourseStore;
+    const ownerScopedStore = await openOwnerScopedStore();
     const resolveFollowUpElementContext = async (
       message: FollowUpMessage,
     ): Promise<FollowUpMessage> => {
@@ -1460,7 +1495,7 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     // semantics: the material tools are always registered alongside the
     // capability-gated web_search). The listing only feeds the prompt block;
     // the tools read through the same session-scoped store on each call.
-    const materials = await listSessionMaterials(id);
+    const materials = companionRun ? [] : await listSessionMaterials(id);
     const materialTools = buildMaterialTools({ sessionId: id });
     // Session-scoped registered voices: register_voice appends here, and
     // list_voices / set_roster (roster-tools) read the same array, so a cloned
@@ -1586,57 +1621,72 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     const askUserLatch = createAskUserTerminateLatch();
     const courseRuntimeBoundary = createProCourseRuntimeBoundary();
     let toolCalls = 0;
-    const agent = buildAgent({
-      streamFn,
-      systemPrompt: buildRunnerCoursePrompt({
-        availableSkills: availableSkillsPromptBlock(installedSkills),
-        curriculum: CURRICULUM_TOOLS_PROMPT,
-        ...(search ? { search: searchPromptBlock() } : {}),
-        fetch: fetchPromptBlock(),
-        untrustedContent: untrustedContentPolicyPromptBlock(),
-        ...(materials.length ? { materials: sessionMaterialsPromptBlock(materials) } : {}),
-        roster: ROSTER_TOOLS_PROMPT,
-        voice: voiceCloneToolsPrompt(voiceRegistrationEnabled),
-      }),
-      model: driver.piModel,
-      tools,
-      allowedToolNames: new Set([
-        ...MINIMAL_AGENT_TOOL_NAMES,
-        ...(search ? ['web_search'] : []),
-        'create_skill',
-        ...SKILL_EDIT_TOOL_NAMES,
-        ...(skillReadTool ? ['read'] : []),
-        ...MATERIAL_TOOL_NAMES,
-        ...dslTools.map((tool) => tool.name),
-        ...scenePreviewTools.map((tool) => tool.name),
-        ...CURRICULUM_ALLOWLIST,
-        ...ROSTER_TOOL_NAMES,
-        ...PERSONAL_HISTORY_TOOL_NAMES,
-        ...GENERATION_JOB_TOOL_NAMES,
-        ...classmateTools.map((tool) => tool.name),
-        // register_voice is registered only when the deployment has a voice
-        // registration backend, so the allowlist follows: clip_audio is always
-        // available, register_voice only with a backend.
-        ...(voiceRegistrationEnabled ? VOICE_CLONE_TOOL_NAMES : ['clip_audio']),
-      ]),
-      ...(plan.kind === 'start' ? {} : { history: modelMessages }),
-      beforeToolCall: (toolContext) =>
-        courseRuntimeBoundary.before(
-          toolContext.toolCall.name,
-          meta.existingCourse
-            ? 'existing-course-edit'
-            : activeSkill?.id === 'pptx-import'
-              ? 'pptx-import'
-              : 'new-course',
-        ),
-      afterToolCall: (toolContext) => {
-        toolCalls += 1;
-        if (askUserLatch.shouldTerminate(toolContext.toolCall.name, toolContext.isError)) {
-          return { terminate: true };
-        }
-        return courseRuntimeBoundary.after(toolContext.toolCall.name, toolContext.isError);
-      },
-    });
+    const agent = companionRun
+      ? buildAgent({
+          streamFn,
+          systemPrompt: companionRun.systemPrompt,
+          model: driver.piModel,
+          // The companion toolset only: material search/reading, course page
+          // reading and (when the student chose it) inviting classmates.
+          tools: companionRun.tools,
+          allowedToolNames: companionRun.toolNames,
+          ...(plan.kind === 'start' ? {} : { history: companionRun.history }),
+          afterToolCall: () => {
+            toolCalls += 1;
+            return undefined;
+          },
+        })
+      : buildAgent({
+          streamFn,
+          systemPrompt: buildRunnerCoursePrompt({
+            availableSkills: availableSkillsPromptBlock(installedSkills),
+            curriculum: CURRICULUM_TOOLS_PROMPT,
+            ...(search ? { search: searchPromptBlock() } : {}),
+            fetch: fetchPromptBlock(),
+            untrustedContent: untrustedContentPolicyPromptBlock(),
+            ...(materials.length ? { materials: sessionMaterialsPromptBlock(materials) } : {}),
+            roster: ROSTER_TOOLS_PROMPT,
+            voice: voiceCloneToolsPrompt(voiceRegistrationEnabled),
+          }),
+          model: driver.piModel,
+          tools,
+          allowedToolNames: new Set([
+            ...MINIMAL_AGENT_TOOL_NAMES,
+            ...(search ? ['web_search'] : []),
+            'create_skill',
+            ...SKILL_EDIT_TOOL_NAMES,
+            ...(skillReadTool ? ['read'] : []),
+            ...MATERIAL_TOOL_NAMES,
+            ...dslTools.map((tool) => tool.name),
+            ...scenePreviewTools.map((tool) => tool.name),
+            ...CURRICULUM_ALLOWLIST,
+            ...ROSTER_TOOL_NAMES,
+            ...PERSONAL_HISTORY_TOOL_NAMES,
+            ...GENERATION_JOB_TOOL_NAMES,
+            ...classmateTools.map((tool) => tool.name),
+            // register_voice is registered only when the deployment has a voice
+            // registration backend, so the allowlist follows: clip_audio is always
+            // available, register_voice only with a backend.
+            ...(voiceRegistrationEnabled ? VOICE_CLONE_TOOL_NAMES : ['clip_audio']),
+          ]),
+          ...(plan.kind === 'start' ? {} : { history: modelMessages }),
+          beforeToolCall: (toolContext) =>
+            courseRuntimeBoundary.before(
+              toolContext.toolCall.name,
+              meta.existingCourse
+                ? 'existing-course-edit'
+                : activeSkill?.id === 'pptx-import'
+                  ? 'pptx-import'
+                  : 'new-course',
+            ),
+          afterToolCall: (toolContext) => {
+            toolCalls += 1;
+            if (askUserLatch.shouldTerminate(toolContext.toolCall.name, toolContext.isError)) {
+              return { terminate: true };
+            }
+            return courseRuntimeBoundary.after(toolContext.toolCall.name, toolContext.isError);
+          },
+        });
 
     // Every finalized pi message is inserted into the only history source on
     // the same ordered chain as its event. The INSERT is a critical write: a
@@ -1701,6 +1751,10 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
     const acceptedMessageSeqs = new Set<number>();
     const drainMessages = async (): Promise<number> => {
       if (questionEmitted || askUserLatch.isCommitted()) return 0;
+      // After-class chats answer one message per run: a message that arrives
+      // mid-run waits for the settle requeue, so its turn re-resolves the
+      // classmate, its materials and its model on the server.
+      if (companionRun) return 0;
       // These reads deliberately avoid a shared transaction: a message added
       // between them is left for the next serialized drain, while the lease
       // snapshot prevents steering after ownership has already changed.
@@ -1775,44 +1829,62 @@ async function runAdmittedSession(ctx: RunContext, meta: ClaimedAgentSession): P
         if (plannedStart.durableMessageSeq !== undefined) {
           acceptedMessageSeqs.add(plannedStart.durableMessageSeq);
         }
-        // ── Forced skill loading ─────────────────────────────────────────────
-        //
-        // A skill the user chose must be LOADED, not merely hinted at, and ONE
-        // path does it for every turn: the skill arrives as a `read` that
-        // already happened (see skill-preload.ts for the message shape, the
-        // caps, and why nothing here is a `user` message).
-        //
-        // `forced` is the session's own frozen `skillId`, on the FIRST run
-        // only. It is not redundant with the text: a `?skill=` launch link sets
-        // `skillId` from the URL, and its prompt text contains no handle at
-        // all. On later runs the skill is already in the transcript, so the
-        // transcript dedupe (not a special case) keeps it to one load.
-        const preload = await buildSkillPreload({
-          text: plannedStart.text,
-          skills: installedSkills,
-          transcript: modelMessages,
-          ...(plan.kind === 'start' && requestedSkill ? { forced: [requestedSkill] } : {}),
-          model: {
-            api: driver.piModel.api,
-            provider: driver.piModel.provider,
-            id: driver.piModel.id,
-          },
-          onSkipped: (skill, reason) =>
-            emit(LIFECYCLE.trace, {
-              message: `skill "${skill.id}" not preloaded (${reason}); its location is named in the prompt instead`,
-            }),
-        });
-        adoptPreload(preload, true);
-        if (preload.messages.length === 0 && plannedStart.durableMessageSeq === undefined) {
-          await agent.prompt(preload.text);
-        } else {
-          const promptMessage = preloadUserMessage(preload.text);
-          const deliveredPrompt =
+        if (companionRun) {
+          // No skills in an after-class chat; the per-message options envelope
+          // is stripped before the model sees the question.
+          const companionPrompt = {
+            role: 'user',
+            content: decodeCompanionMessage(plannedStart.text).text,
+            timestamp: Date.now(),
+          } as unknown as AgentMessage;
+          await agent.prompt(
             plannedStart.durableMessageSeq === undefined
-              ? promptMessage
-              : tagDurableUserMessage(promptMessage, plannedStart.durableMessageSeq);
-          await agent.prompt([deliveredPrompt, ...preload.messages]);
+              ? companionPrompt
+              : tagDurableUserMessage(companionPrompt, plannedStart.durableMessageSeq),
+          );
+        } else {
+          // ── Forced skill loading ─────────────────────────────────────────────
+          //
+          // A skill the user chose must be LOADED, not merely hinted at, and ONE
+          // path does it for every turn: the skill arrives as a `read` that
+          // already happened (see skill-preload.ts for the message shape, the
+          // caps, and why nothing here is a `user` message).
+          //
+          // `forced` is the session's own frozen `skillId`, on the FIRST run
+          // only. It is not redundant with the text: a `?skill=` launch link sets
+          // `skillId` from the URL, and its prompt text contains no handle at
+          // all. On later runs the skill is already in the transcript, so the
+          // transcript dedupe (not a special case) keeps it to one load.
+          const preload = await buildSkillPreload({
+            text: plannedStart.text,
+            skills: installedSkills,
+            transcript: modelMessages,
+            ...(plan.kind === 'start' && requestedSkill ? { forced: [requestedSkill] } : {}),
+            model: {
+              api: driver.piModel.api,
+              provider: driver.piModel.provider,
+              id: driver.piModel.id,
+            },
+            onSkipped: (skill, reason) =>
+              emit(LIFECYCLE.trace, {
+                message: `skill "${skill.id}" not preloaded (${reason}); its location is named in the prompt instead`,
+              }),
+          });
+          adoptPreload(preload, true);
+          if (preload.messages.length === 0 && plannedStart.durableMessageSeq === undefined) {
+            await agent.prompt(preload.text);
+          } else {
+            const promptMessage = preloadUserMessage(preload.text);
+            const deliveredPrompt =
+              plannedStart.durableMessageSeq === undefined
+                ? promptMessage
+                : tagDurableUserMessage(promptMessage, plannedStart.durableMessageSeq);
+            await agent.prompt([deliveredPrompt, ...preload.messages]);
+          }
         }
+      } else if (companionRun) {
+        // An interrupted after-class turn simply continues; there are no skills.
+        await agent.continue();
       } else {
         // ── Resume repair ─────────────────────────────────────────────────────
         //

@@ -21,6 +21,7 @@ import {
 import { isHostedAuthEnabled } from '@/lib/auth/mode';
 import { shouldIsolateOwner } from '@/lib/auth/principal';
 import { tryPrincipal } from '@/lib/auth/session';
+import { withoutCompanionSessions } from '@/lib/server/study/companion/service';
 
 export const runtime = 'nodejs';
 // Self-hosted `next start` ignores maxDuration; Vercel's adapter can still use
@@ -162,8 +163,36 @@ export async function GET(req: NextRequest) {
         );
       };
 
+      // After-class classmate chats (B05) are agent sessions too, but they are
+      // not Pro conversations: their summaries are skipped (the cursor still
+      // advances past them).
+      const companionIds = new Set<string>();
+      const checkedIds = new Set<string>();
+      const hideCompanionChats = async (events: PersistedOwnerSessionEvent[]) => {
+        const unchecked = [
+          ...new Set(events.map((event) => event.sessionId).filter((id) => !checkedIds.has(id))),
+        ];
+        if (unchecked.length === 0) return;
+        const visible = new Set(
+          (
+            await withoutCompanionSessions(
+              ownerId,
+              unchecked.map((id) => ({ id })),
+            )
+          ).map((session) => session.id),
+        );
+        for (const id of unchecked) {
+          checkedIds.add(id);
+          if (!visible.has(id)) companionIds.add(id);
+        }
+      };
+
       const writePage = (events: PersistedOwnerSessionEvent[]) => {
         for (const event of events) {
+          if (companionIds.has(event.sessionId)) {
+            cursor = BigInt(event.id);
+            continue;
+          }
           if (
             !write(
               `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify({
@@ -198,6 +227,7 @@ export async function GET(req: NextRequest) {
             return;
           }
           consecutiveBacklogFailures = 0;
+          await hideCompanionChats(page).catch(() => undefined);
           if (!writePage(page)) return;
           if (page.length < BACKLOG_PAGE) break;
         }
@@ -224,6 +254,7 @@ export async function GET(req: NextRequest) {
         try {
           const page = await readPage();
           consecutiveBacklogFailures = 0;
+          await hideCompanionChats(page).catch(() => undefined);
           if (!writePage(page)) return;
           if (degradedCaughtUp) {
             // The authoritative signal has to pass the SAME exhaustion check

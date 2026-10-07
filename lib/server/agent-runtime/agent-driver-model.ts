@@ -48,8 +48,15 @@ function driverWireMaxOutputTokens(binding: ModelBinding): number | undefined {
   return binding.capabilities.knownModel ? binding.capabilities.maxOutputTokens : undefined;
 }
 
-/** Dedicated route wins; otherwise use the run's bound Home connection. */
-export async function resolveAgentDriverModel(modelContext?: ProModelContext): Promise<{
+/**
+ * Dedicated route wins; otherwise use the run's bound Home connection.
+ * After-class classmate chats (B05) resolve through their own stage so an
+ * operator route for the Pro driver does not silently replace them.
+ */
+export async function resolveAgentDriverModel(
+  modelContext?: ProModelContext,
+  stage: typeof AGENT_DRIVER_STAGE | 'study-companion' = AGENT_DRIVER_STAGE,
+): Promise<{
   binding: ModelBinding;
   piModel: AgentLlmModel;
   /** Catalog-backed API limit; undefined means omit the output cap on the wire. */
@@ -57,11 +64,11 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   /** Internal compaction output-space estimate; never used as a conversation API limit. */
   reservedOutputTokens: number;
 }> {
-  const route = getStageRoute(AGENT_DRIVER_STAGE);
+  const route = getStageRoute(stage);
   await modelContext?.assertActive?.();
   if (!route && !modelContext) {
     throw new Error(
-      `MODEL_ROUTES must explicitly configure stage "${AGENT_DRIVER_STAGE}" ` +
+      `MODEL_ROUTES must explicitly configure stage "${stage}" ` +
         `with a provider-prefixed model id.`,
     );
   }
@@ -76,7 +83,7 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   const modelId = providerSeparator > 0 ? modelString.slice(providerSeparator + 1) : undefined;
   if (!modelId) {
     throw new Error(
-      `MODEL_ROUTES stage "${AGENT_DRIVER_STAGE}" must use a model id with an explicit ` +
+      `MODEL_ROUTES stage "${stage}" must use a model id with an explicit ` +
         `provider prefix; received an invalid model identifier.`,
     );
   }
@@ -84,7 +91,7 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   // so personal credentials never reach an administrator-selected model.
   let binding = await resolveBinding({
     selection: modelContext?.selection,
-    stage: AGENT_DRIVER_STAGE,
+    stage,
   });
   if (binding.capabilities.tools === false) {
     throw new Error('PRO_MODEL_TOOLS: 当前模型已确认不支持工具调用，请在模型设置中更换模型。');
@@ -94,7 +101,7 @@ export async function resolveAgentDriverModel(modelContext?: ProModelContext): P
   if (binding.capabilities.rejectsReasoningWithTools && binding.thinking?.effort !== undefined) {
     if (route) {
       throw new Error(
-        `MODEL_ROUTES stage "${AGENT_DRIVER_STAGE}" must not set thinking.effort because ` +
+        `MODEL_ROUTES stage "${stage}" must not set thinking.effort because ` +
           `${modelId} cannot combine a reasoning effort with function tools.`,
       );
     }

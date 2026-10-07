@@ -1381,6 +1381,13 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
           case 'error':
             currentBuffer.pushError(event.data.message);
             throw new Error(event.data.message);
+          case 'notice':
+            // B05: a classmate's own live-answer model is unavailable, so it
+            // sat this reply out instead of answering with another model.
+            toast.warning(
+              t('study.companion.classroomModelUnavailable', { name: event.data.agentName }),
+            );
+            break;
         }
       };
 
@@ -1412,7 +1419,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
 
       return { onEvent, onIterationEnd };
     },
-    [createBufferForSession],
+    [createBufferForSession, t],
   );
 
   if (!teachBackRef.current) {

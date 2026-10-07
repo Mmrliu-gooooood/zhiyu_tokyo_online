@@ -14,6 +14,13 @@
  *
  * Classmates are participants only (assistant or student role). The system
  * teacher keeps the classroom; a persona never widens the role's actions.
+ *
+ * B05 adds `modelPolicy`: by default a classmate answers with the student's
+ * current model; an advanced option names an existing connection (platform
+ * default, a signed-in account, or a provider the server configured) for
+ * live answers only. It is application policy, not persona: it lives on the
+ * template, not in revision snapshots, so a change applies to later live
+ * answers of every classroom and chat, and never to pre-generated lines.
  */
 
 export const CLASSMATE_ROLES = ['assistant', 'student'] as const;
@@ -89,6 +96,23 @@ export interface ClassmateVoice {
   revision?: string;
 }
 
+/**
+ * Which existing connection a classmate answers with (B05). Never a key:
+ * - platform: a platform text default (`zhiyu-default-text`);
+ * - credential: an account the student signed in to (model_credentials id);
+ * - server: a provider the operator configured on the server.
+ */
+export type ClassmateModelChoice =
+  | { kind: 'platform'; defaultId: string }
+  | { kind: 'credential'; credentialId: string; providerId: string; modelId: string }
+  | { kind: 'server'; providerId: string; modelId: string };
+
+export type ClassmateModelPolicy =
+  | { mode: 'inherit' }
+  | { mode: 'custom'; model: ClassmateModelChoice };
+
+export const INHERIT_MODEL_POLICY: ClassmateModelPolicy = { mode: 'inherit' };
+
 /** The editable fields of a template. */
 export interface ClassmateInput {
   name: string;
@@ -100,6 +124,8 @@ export interface ClassmateInput {
   color: string;
   voice: ClassmateVoice | null;
   materialIds: string[];
+  /** Absent = inherit (the create parser always fills it in). */
+  modelPolicy?: ClassmateModelPolicy;
 }
 
 export type ClassmatePatch = Partial<ClassmateInput> & { status?: ClassmateStatus };
@@ -119,6 +145,7 @@ export interface ClassmateSnapshot {
 export interface ClassmateView extends ClassmateSnapshot {
   id: string;
   materialIds: string[];
+  modelPolicy: ClassmateModelPolicy;
   status: ClassmateStatus;
   revision: number;
   createdAt: string;
@@ -255,6 +282,69 @@ function parseMaterialIds(value: unknown): { ok: true; value: string[] } | { ok:
   return { ok: true, value: [...ids] };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PROVIDER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+function modelId(value: unknown): string | undefined {
+  return typeof value === 'string' &&
+    value.trim() === value &&
+    value.length >= 1 &&
+    value.length <= 200 &&
+    !CONTROL.test(value)
+    ? value
+    : undefined;
+}
+
+/** Shape check only; the server also checks ownership and availability before saving. */
+export function parseClassmateModelPolicy(
+  value: unknown,
+): { ok: true; value: ClassmateModelPolicy } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, value: INHERIT_MODEL_POLICY };
+  if (!isObject(value)) return { ok: false };
+  if (value.mode === 'inherit') return { ok: true, value: INHERIT_MODEL_POLICY };
+  if (value.mode !== 'custom' || !isObject(value.model)) return { ok: false };
+  const model = value.model;
+  if (model.kind === 'platform') {
+    if (typeof model.defaultId !== 'string' || !/^zhiyu-default-text$/.test(model.defaultId)) {
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      value: { mode: 'custom', model: { kind: 'platform', defaultId: model.defaultId } },
+    };
+  }
+  const providerId =
+    typeof model.providerId === 'string' && PROVIDER.test(model.providerId)
+      ? model.providerId
+      : undefined;
+  const id = modelId(model.modelId);
+  if (!providerId || !id) return { ok: false };
+  if (model.kind === 'server') {
+    return {
+      ok: true,
+      value: { mode: 'custom', model: { kind: 'server', providerId, modelId: id } },
+    };
+  }
+  if (model.kind === 'credential') {
+    if (typeof model.credentialId !== 'string' || !UUID.test(model.credentialId)) {
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      value: {
+        mode: 'custom',
+        model: {
+          kind: 'credential',
+          credentialId: model.credentialId.toLowerCase(),
+          providerId,
+          modelId: id,
+        },
+      },
+    };
+  }
+  return { ok: false };
+}
+
 const FIELD_PARSERS: {
   [K in keyof ClassmateInput]: (
     value: unknown,
@@ -287,6 +377,7 @@ const FIELD_PARSERS: {
       : { ok: false },
   voice: parseVoice,
   materialIds: parseMaterialIds,
+  modelPolicy: parseClassmateModelPolicy,
 };
 
 /** Validate a create body. Unknown fields are ignored. */

@@ -146,6 +146,7 @@ export const LLM_STAGES = [
   'web-search-query-rewrite',
   'maic-agent',
   'maic-agent-driver',
+  'study-companion',
 ] as const;
 
 export type LlmStage = (typeof LLM_STAGES)[number];

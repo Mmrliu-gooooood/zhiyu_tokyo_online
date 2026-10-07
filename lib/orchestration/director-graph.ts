@@ -56,6 +56,8 @@ const OrchestratorState = Annotation.Root({
   availableAgentIds: Annotation<string[]>,
   /** Resolved model; its thinking configuration travels with it. */
   binding: Annotation<ModelBinding>,
+  /** Classmates' own live-answer models (B05), keyed by classroom agent id. */
+  agentBindings: Annotation<Record<string, ModelBinding>>,
   discussionContext: Annotation<{ topic: string; prompt?: string } | null>,
   triggerAgentId: Annotation<string | null>,
   /** Server-set: the classmate the student named in this message (B04). */
@@ -338,7 +340,7 @@ async function runAgentGeneration(
     '\n' +
     buildUserReplyGuidance(state.messages, agentConfig.role);
   const openaiMessages = convertMessagesToOpenAI(state.messages, agentId);
-  const adapter = new GatewayLangGraphAdapter(state.binding);
+  const adapter = new GatewayLangGraphAdapter(state.agentBindings?.[agentId] ?? state.binding);
 
   const lcMessages = [
     new SystemMessage(systemPrompt),
@@ -555,6 +557,7 @@ export function createOrchestrationGraph() {
 export function buildInitialState(
   request: StatelessChatRequest,
   binding: ModelBinding,
+  agentBindings: Record<string, ModelBinding> = {},
 ): typeof OrchestratorState.State {
   // Build request-scoped agent config overrides for generated agents.
   // These travel with each request — no server-side persistence needed.
@@ -585,6 +588,7 @@ export function buildInitialState(
     storeState: request.storeState,
     availableAgentIds: request.config.agentIds,
     binding,
+    agentBindings,
     discussionContext,
     triggerAgentId: request.config.triggerAgentId || null,
     addressedAgentId: request.config.addressedAgentId || null,

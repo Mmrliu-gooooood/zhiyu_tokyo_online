@@ -505,4 +505,12 @@ export type StatelessEvent =
         learningOutcome?: GuidedLearningOutcome;
       };
     }
-  | { type: 'error'; data: { message: string } };
+  | { type: 'error'; data: { message: string } }
+  /**
+   * A non-fatal notice (B05): a classmate whose own live-answer model is
+   * unavailable was left out of this reply instead of using another model.
+   */
+  | {
+      type: 'notice';
+      data: { code: 'CLASSMATE_MODEL_UNAVAILABLE'; agentId: string; agentName: string };
+    };
