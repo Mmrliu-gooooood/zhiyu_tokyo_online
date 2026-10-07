@@ -144,7 +144,9 @@ export function ClassmateModelPolicyField({
               </option>
             ))}
             {current && !sources.some((entry) => sourceKey(entry.source) === currentKey) ? (
-              <option value={currentKey}>{t('study.classmates.model.saved')}</option>
+              <option value={currentKey}>
+                {options ? t('study.classmates.model.saved') : '…'}
+              </option>
             ) : null}
           </select>
           {current && current.kind !== 'platform' ? (

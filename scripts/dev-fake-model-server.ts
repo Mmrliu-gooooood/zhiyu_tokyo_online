@@ -230,7 +230,81 @@ function piDirectorTurn(request: FakeRequest): FakeReply {
   };
 }
 
+/**
+ * After-class classmate chat (B05): search the materials for the student's
+ * question, invite the first offered classmate when the turn has an invite
+ * tool, then answer as the classmate citing the first excerpt returned (or
+ * saying nothing was found). An invited classmate's single reply cites what
+ * it was given.
+ */
+function companionTurn(request: FakeRequest): FakeReply {
+  const body = (request.body ?? {}) as {
+    messages?: Array<{ role?: string; content?: unknown }>;
+    tools?: Array<{ function?: { name?: string; description?: string } }>;
+  };
+  const messages = body.messages ?? [];
+  const text = (content: unknown) =>
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((part) => String((part as { text?: unknown }).text ?? '')).join('')
+        : '';
+  const lastUser = messages.findLastIndex((message) => message.role === 'user');
+  const turn = messages.slice(lastUser + 1);
+  const results = turn.filter((message) => message.role === 'tool').map((m) => text(m.content));
+  const system = text(messages.find((message) => message.role === 'system')?.content);
+  const name = /你是「([^」]+)」/.exec(system)?.[1] ?? '学伴';
+  const question = text(messages[lastUser]?.content).slice(0, 40);
+  const tools = (body.tools ?? []).map((tool) => tool.function ?? {});
+  const invite = tools.find((tool) => tool.name === 'invite_classmate');
+  if (results.length === 0) {
+    return {
+      kind: 'auto',
+      toolCalls: [{ name: 'search_materials', arguments: { query: question || '资料' } }],
+    };
+  }
+  const invited = turn.some((message) => text(message.content).includes('的发言：'));
+  const candidate = invite?.description
+    ? /\((cm-[0-9a-f]{16})\)/.exec(invite.description)?.[1]
+    : null;
+  if (invite && candidate && !invited && results.length === 1) {
+    return {
+      kind: 'auto',
+      toolCalls: [
+        {
+          name: 'invite_classmate',
+          arguments: { classmateId: candidate, request: '补充一个要点' },
+        },
+      ],
+    };
+  }
+  const found = /\[(M\d+)\] [^\n]*\n([^\n[]+)/.exec(results[0] ?? '');
+  return {
+    kind: 'auto',
+    text: found
+      ? `我是${name}。资料里这样写：${found[2]!.slice(0, 40)} [${found[1]}]`
+      : `我是${name}。资料中没有找到相关内容，以下是补充说明：先回顾定义再做题。`,
+    textChunks: 4,
+    chunkDelayMs: 60,
+  };
+}
+
 const handler: FakeHandler = (request) => {
+  if (request.rawBody.includes('正在课后陪学生继续学习')) {
+    // FAKE_MODEL_PROBE: report whether a phrase reached the model context
+    // (acceptance check that withheld material text is filtered out).
+    const probe = process.env.FAKE_MODEL_PROBE;
+    console.log(
+      `[fake-model] ${request.method} ${request.path} stage=study-companion` +
+        (probe ? ` probe=${request.rawBody.includes(probe) ? 'present' : 'absent'}` : ''),
+    );
+    return companionTurn(request);
+  }
+  if (request.rawBody.includes('学生课后学习讨论里被邀请的')) {
+    console.log(`[fake-model] ${request.method} ${request.path} stage=study-companion-invite`);
+    const cite = /\[(M\d+)\]/.exec(request.rawBody)?.[1];
+    return { kind: 'auto', text: `我补充一点：注意检查适用条件${cite ? ` [${cite}]` : ''}。` };
+  }
   if (request.rawBody.includes(PI_DIRECTOR)) {
     console.log(`[fake-model] ${request.method} ${request.path} stage=pi-director`);
     return piDirectorTurn(request);

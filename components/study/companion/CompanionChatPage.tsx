@@ -93,6 +93,9 @@ function useCompanionStream(sessionId: string | null) {
   // The fold belongs to one session: switching sessions starts from scratch.
   const [state, setState] = useState(() => ({ sessionId, fold: createCompanionFold() }));
   const [connected, setConnected] = useState(false);
+  // Bumped when the browser gives up on the stream (e.g. the server was
+  // unreachable), so a fresh EventSource resumes from the last applied id.
+  const [attempt, setAttempt] = useState(0);
   const fold = state.sessionId === sessionId ? state.fold : EMPTY_FOLD;
   // The resume point for a reconnect, read inside the stream effect.
   const foldRef = useRef(fold);
@@ -127,8 +130,15 @@ function useCompanionStream(sessionId: string | null) {
       for (const type of COMPANION_EVENT_TYPES)
         source.addEventListener(type, onEvent as EventListener);
       source.addEventListener('caught_up', onCaughtUp);
-      source.onerror = () => setConnected(false);
+      let retry: ReturnType<typeof setTimeout> | undefined;
+      source.onerror = () => {
+        setConnected(false);
+        if (source.readyState === EventSource.CLOSED) {
+          retry = setTimeout(() => setAttempt((value) => value + 1), 3000);
+        }
+      };
       return () => {
+        if (retry) clearTimeout(retry);
         for (const type of COMPANION_EVENT_TYPES)
           source.removeEventListener(type, onEvent as EventListener);
         source.removeEventListener('caught_up', onCaughtUp);
@@ -137,7 +147,7 @@ function useCompanionStream(sessionId: string | null) {
         setConnected(false);
       };
     });
-  }, [sessionId]);
+  }, [sessionId, attempt]);
 
   return { fold, connected };
 }
