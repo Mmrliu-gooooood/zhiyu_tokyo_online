@@ -57,7 +57,8 @@
 - 迁移：`lib/server/accounts/sql-study-companion.ts`（v26）、`migrations.ts`、`sql-accounts.ts`（版本 26）、`lib/server/study/schema.ts`（旧式安装）、`deletion.ts`（账号删除）。
 - 服务端：`lib/server/study/companion/{repository,turn,tools,context,model-policy,classroom-models,service}.ts`、`lib/server/agent-runtime/{companion-run,runner,agent-driver-model,model-errors,dsl-tools}.ts`、`lib/server/study/{flags,route}.ts`、`lib/server/study/classmates/repository.ts`、`lib/server/study/spaces/repository.ts`（错误码）、`lib/server/model-routes.ts`（`study-companion` 阶段）、`lib/orchestration/{director-graph,stateless-generate}.ts`、`lib/chat/pi/{director-loop.ts,tools/call-agent.ts}`、`lib/types/chat.ts`（`notice` 事件）。
 - 接口：`app/api/study/classmates/[classmateId]/chats`、`app/api/study/classmates/model-options`、`app/api/study/companion-chats/[sessionId]{,/messages}`、`app/api/study/classmates{,/[classmateId]}`（保存时校验模型策略）、`app/api/study/capabilities`、`app/api/chat{,/pi}`、`app/api/agent/sessions{,/status,/[id]/messages}`、`app/api/agent/owner-events`。
-- 前端：`lib/study/companion/{contracts,fold,client}.ts`、`components/study/companion/CompanionChatPage.tsx`、`app/study/classmates/[classmateId]/chat/page.tsx`、`components/study/classmates/{ClassmateModelPolicyField,ClassmateFormDialog,ClassmatesPage}.tsx`、`components/chat/{continue-with-classmate.tsx,chat-session.tsx,use-chat-sessions.ts}`、`lib/study/{classmates/contracts,spaces/client}.ts`、12 个语言文件（`study.companion.*`、`study.classmates.model.*`）。
+- 前端：`lib/study/companion/{contracts,fold,client}.ts`、`components/study/companion/{CompanionChatPage,CompanionAnswer}.tsx`、`app/study/classmates/[classmateId]/chat/page.tsx`、`components/study/classmates/{ClassmateModelPolicyField,ClassmateFormDialog,ClassmatesPage}.tsx`、`components/chat/{continue-with-classmate.tsx,chat-session.tsx,use-chat-sessions.ts}`、`lib/study/{classmates/contracts,spaces/client}.ts`、12 个语言文件（`study.companion.*`、`study.classmates.model.*`）。
+- 依赖：`remark-math`、`rehype-katex`（下午为学伴回答的公式渲染新增；KaTeX 本身已是依赖）。
 - 配置与工具：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`（新开关透传）；`scripts/dev-fake-model-server.ts`（假模型可驱动学伴检索/引用/邀请，`FAKE_MODEL_PROBE` 报告某句话是否进入模型上下文）。
 
 ### 数据迁移
@@ -72,7 +73,7 @@
 
 - 新增：`tests/server/study-companion-migration.test.ts`（v26：可重复执行、强制 RLS、Data API 无授权、Web 隔离且对话不能移动、Worker 只读且能读资料范围、随学伴级联删除；设 `TEST_STUDY_COMPANION_DATABASE_URL` 可在真实 PG 上重跑）、`tests/study/companion-logic.test.ts`（消息选项封装、事件折叠的去重/续传一致性、人设/资料/模型标记、历史重渲染与隐去、历史窗口、提示词、模型策略解析）、`tests/server/study-companion-tools.test.ts`（每次调用重新解析范围、撤权后不能读、课程限制、邀请次数与去重）、`tests/server/study-companion-model-policy.test.ts`（凭据缺失/需重登/服务商不符、平台与服务器服务商不可用、凭据未就绪、工具不支持、不回退；课堂按 agent 绑定、不可用时移出并提示、唯一角色时只提示、无学伴或开关关闭不查库）、`tests/server/study-companion-turn.test.ts`（教材 A/B、两个学科不串、撤权/删除即时生效、归档与跨账号）、`tests/api/study-companion-routes.test.ts`（PGlite + 真实 Agent 会话存储：开关、开对话写绑定后排队、拒绝他人/归档/他人课程/错学伴角色、后续消息与小时上限、通用消息接口 409、Pro 列表过滤、归档后拒绝但可读）、`tests/agent-runtime/runner-companion-chat.test.ts`（绑定会话只拿学伴工具与提示词、不加载 skill、不做 Pro 预检、写 turn 事件、去掉选项封装；失败码保留且不重排；Pro 会话不变）。
 - 调整：`principal-mode`（迁移版本到 26）、`account-deletion-lifecycle`（新表只删本人）、`study-classmates-migration`（仓储读取新列）、`classmates-logic`（解析结果含继承策略）、三个 capabilities 断言。
-- 全量 Vitest（`TEST_LOAD_LOCAL_ENV=0`，`--maxWorkers=4`）：**872 个文件通过、17 个跳过；9000 项通过、94 项跳过、0 失败**。`tsc --noEmit` 通过；本批改动的 68 个 TS/TSX 文件 ESLint 0 错误（唯一警告 `use-chat-sessions.ts` 的 `GuidedInteractionMode` 未使用为既有问题）；Prettier 通过；`check:i18n-keys`（12 个语言文件）通过；`build:worker` 通过且 Worker 启动后 runner 正常认领。
+- 全量 Vitest（`TEST_LOAD_LOCAL_ENV=0`，`--maxWorkers=4`）：**872 个文件通过、17 个跳过；9000 项通过、94 项跳过、0 失败**。下午修复后重跑：**872 个文件通过、17 个跳过；9004 项通过、94 项跳过、0 失败**，`tsc`、改动文件 ESLint（0 错误）、Prettier、i18n、`build:worker` 均通过。`tsc --noEmit` 通过；本批改动的 68 个 TS/TSX 文件 ESLint 0 错误（唯一警告 `use-chat-sessions.ts` 的 `GuidedInteractionMode` 未使用为既有问题）；Prettier 通过；`check:i18n-keys`（12 个语言文件）通过；`build:worker` 通过且 Worker 启动后 runner 正常认领。
 
 ### 浏览器验收（2026-10-07，本地托管模式）
 
@@ -92,19 +93,53 @@
 12. **轮数与工具调用可核对**：Worker 日志每条消息一行 `session … -> succeeded (attempt 1, N tool calls)`（讨论那一轮为 2）；数据库中三个对话的 run 数与用户消息数一致（7/7、6/6、3/3）；`usage_events` 中 29 次调用全部记为 `source=study-companion`、`funding=operator`。Pro 会话列表与状态接口返回 0 条（学伴对话被过滤）。
 13. 验收后停止全部服务，删除数据库容器、临时环境文件、测试账号密码文件、假 S3 数据与 PDF。
 
+### 真实模型验收与修复（2026-10-07 下午，用户同意调用真实模型）
+
+环境与上午相同（一次性 PostgreSQL 17、假登录、假 S3），模型换成真实的平台默认文本模型（DeepSeek V4.1 Flash）：`.scratch/b05-acceptance/make-env-real.mjs` 把 `.env.local` 的其余变量全部置空，`DEEPSEEK_*` 不写入任何文件——Next 开发进程从 `.env.local` 读取，Worker 由启动脚本在内存中导出。本地 `.env.local` 没有 OpenRouter 密钥，所以 OpenRouter 只能在生产上用用户自己的账号验证。全部调用约 0.02 美元（`usage_events`：`study-companion` 37 次、`pi-chat-director` 5 次、`pi-chat-child` 2 次，均为 `funding=platform`）。
+
+已用真实模型验证：
+
+1. **检索与引用**：问“导数的定义和几何意义”→ 检索 2 次后回答，引用 [M1] 指向 calc 第 3 页，并按“苏格拉底式”陪学方式以提问收尾。
+2. **只授权 A 不能用 B**：问栈/队列 → 检索 3–4 次均未命中（B 未授权），回答明确写“资料中没找到，以下是补充说明”，没有任何 B 的引用。
+3. **授权 → 引用 → 撤权**：授权 B 后引用 ds 第 1 页；撤权后再问“把原话念一遍”→ 出现“1 份资料已取消授权…已隐去”提示，旧引用划线，模型说明该资料已不在授权范围、不复述原文，只保留自己上一条的概括。运行中撤权也立即生效（工具每次调用重新解析范围，有时间戳为证）。
+4. **两个学科不串**：同一学伴在“数据结构”问第二个重要极限 → 只检索到 ds，回答“资料里没找到”。
+5. **多学伴讨论**：勾选小周并要求“深入讨论”→ 小林回答后调用 `invite_classmate`，小周用自己的检索结果补充一次（带自己的引用），小林收尾。
+6. **独立模型（平台默认）**：小林设为独立“平台默认”→ 页头显示“独立模型：DeepSeek V4.1 Flash（只作用于实时答疑）”，回答正常。
+7. **课堂 Pi 路径**（`NEXT_PUBLIC_PI_CHAT_ENABLED=true`，真实课堂界面发问）：导演 `call_agent` 点名小林（`cm-…-r11`），小林用自己的 binding 回答；把策略改成已断开的账号后，老师与小林同在时返回 `notice`（`CLASSMATE_MODEL_UNAVAILABLE`）且只有老师回答，只有小林时只返回提示、不调用模型。
+8. **从课堂继续问**：带课程/页面/角色版本/问题原话打开 → 问题预填、学科预选“高数 · 这门课所在的学科”→ 模型先 `read_course_page` 读课堂页，再检索资料作答。
+9. **流式中断线**：回答流式输出时切到后台 12 秒（连接显示“正在重新连接…”）再切回 → 续传后与整页回放完全一致（回答 2、工具 2、字符数 982）。
+10. **轮数可核对**：10 个对话的 run 数、`study_companion_turn` 数、`session_end` 数都等于用户消息数。
+
+真实模型暴露并已修复的问题：
+
+- **提示词让模型凭资料标题跳过检索**：原规则“涉及学生资料里的内容时先检索”，模型只看得到标题，就凭“calc”判断栈不在资料里。改为“每个新的知识性问题都先检索，不要凭标题或之前的检索结果断定资料里没有”。
+- **撤权被模型理解成“我引用错了”并道歉**：隐去占位文字改为“学生已取消这份资料的授权…当时基于它的回答并没有错，不用更正或道歉；只是现在不能再引用或转述它”，系统提示的撤权说明同步。修改后模型只说明资料已不在授权范围。
+- **聊天页按纯文本显示 Markdown**：真实模型大量使用加粗、列表、表格和 LaTeX，页面原样露出 `**` 与 `$$`。新增 `components/study/companion/CompanionAnswer.tsx`，用工作台同款 Streamdown（CJK 友好强调、`.wb-prose` 样式）渲染，并加入 `remark-math` + `rehype-katex`（KaTeX 已是依赖、样式已全局加载；新增的只是这两个插件及其依赖链）。引用 [M3] 先转成 Markdown 链接，再在链接组件里渲染成阅读器链接或划线；独占一行的 `$$…$$` 规范为块级公式。提示词改为“公式用 LaTeX，行内 `$…$`，独立成行 `$$…$$`”。
+- **流式中途渲染残留 `[blocked]`**：输出到 `[f(b)-f(a` 时，未闭合的方括号被补成链接并被安全检查拦下，结束后 Streamdown 沿用了中间渲染结果。回答结束时重新挂载渲染器（按流式/完成切换 key）。
+- **引用的授权状态不随页头刷新**：Streamdown 缓存已渲染的块，撤权或重新授权后旧引用的划线状态不变。引用解析函数改由 React Context 传入（Context 变化会穿透缓存）；页头也在每轮的 turn 事件和回答数变化时重新读取，事件成批到达时也不会漏掉。
+- **工具调用附带的过渡语**（DeepSeek 常在调用检索时附一句英文 “I'll search the materials first.”，提示词约束无效）：与检索/阅读工具在同一条消息里的文字改为灰色过程行（与“检索资料：…”同样式），不再作为一次回答显示；带邀请工具的那条（正文 + 邀请）仍是回答。
+- **“N 次回答”数的是模型消息条数**：过渡语也被计入，改为按成功结束的 run 计数（失败轮不算）。
+- **对话列表标题露出讨论选项封装**：首条消息带讨论对象时，列表标题显示 `[[companion-options…`；改为解码后取问题原文。
+- **模型选项会列出 embedding 模型**：服务器服务商的模型列表现在排除 `STUDY_EMBEDDING_MODEL`，只剩 embedding 模型的服务商不再出现；保存/使用时服务器服务商的模型也必须在配置列表内，否则 `model_unresolvable`。
+
+排查结论：
+
+- **上午 Next 开发进程内 runner 失败的根因**：runner 的模型调用要经过网关的服务商并发槽位（`acquireDeploymentQuota` → `PostgresGenerationLimiter`，表 `generation_provider_slots`），Web 进程用的是 `app_web` 连接，没有该表权限（`42501 permission denied`），网关再按错误文本把它误判为 `MODEL_AUTH_FAILED` →“模型凭据缺失或无效”。托管模式下 Web 进程本就不应持有 Worker 凭据或运行 runner（`instrumentation.ts`），生产 compose 也确实没有给，因此不影响生产。网关把这类非服务商错误误判为凭据错误是共用代码的问题，已单独记为后续任务，B05 不改网关。
+- 验收中途发现用后台任务停止 Worker 并未结束其 node 进程（Git Bash 下 `exec` 不替换进程），一度有多个旧代码 Worker 同时认领会话；之后全部按 PID 停止、只留一个，受影响的提示词检查（检索、撤权、公式、过渡语）都在单一新 Worker 上重测，上面的结论以重测结果为准。
+- 课堂里小林说“我查过人教版教材”：来自本次测试人设“会主动指出自己引用的资料”，课堂发言没有资料工具，属于 B04 课堂人设的已知局限，未改。
+
 ### 发现的问题
 
-- **本地套件让 Web 进程也跑了 Agent runner**：B04 的本地环境脚本给 Web 也设置了 `WORKER_DATABASE_URL`，Next 开发进程于是也启动 runner；本次第一条消息被 Web 进程认领，调用前失败（`PRO_MODEL_AUTH`，假模型未收到请求），同一连接在 Worker 进程里调用正常。生产 compose 的 Web 不设置 `WORKER_DATABASE_URL`（runner 只在 Worker），因此不影响生产；B05 套件已改为与生产一致。Next 开发进程内 runner 为何调用失败未深究（Pro 在该配置下应同样受影响），记录在此。
+- **本地套件让 Web 进程也跑了 Agent runner**：B04 的本地环境脚本给 Web 也设置了 `WORKER_DATABASE_URL`，Next 开发进程于是也启动 runner；本次第一条消息被 Web 进程认领，调用前失败（`PRO_MODEL_AUTH`，假模型未收到请求），同一连接在 Worker 进程里调用正常。生产 compose 的 Web 不设置 `WORKER_DATABASE_URL`（runner 只在 Worker），因此不影响生产；B05 套件已改为与生产一致。根因见上节“排查结论”（Web 连接无服务商槽位表权限，网关误判为凭据错误），生产不受影响。
 - 浏览器在服务重启时会放弃事件流（EventSource 进入 CLOSED），聊天页原本不会重连；已改为 3 秒后用最后的事件 id 重新连接。
-- 模型选项会列出所有服务器配置的服务商，包括只用于 embedding 的（本地为 siliconflow）；选它会在保存或使用时失败并明确提示。生产目前只有平台默认和 OpenRouter 登录，暂不处理。
+- 模型选项会列出只用于 embedding 的服务器服务商：已在下午修复（见上节）。
 
 ### 未验证
 
-- **真实模型**：未调用任何真实 LLM（按要求先问）；回答质量、真实模型是否按提示先检索再引用、`invite_classmate` 的实际调用习惯、DeepSeek 对工具调用 + 中文引用格式的遵循程度，都需要真实模型验证。
-- 生产环境（apply v26、开关、登录后验收）未做，等你说上线。
-- Pi 课堂路径（`/api/chat/pi`）的独立模型只有单元测试，浏览器只验收了生产使用的 LangGraph 路径。
-- 平台默认与 OpenRouter 账号作为独立模型的真实调用（本地未配置），只有单元测试。
+- OpenRouter 账号（凭据库）作为独立模型的真实调用：本地没有 OpenRouter 密钥，需在生产由用户登录自己的 OpenRouter 后验证；凭据路径的检查（归属、状态、服务商、就绪）有单元测试。
+- 服务器配置的服务商作为独立模型的真实调用：生产与本地都只有平台默认的后备服务商（不提供选择），上午用假模型验证过该路径。
 - 账号删除清单中新表的删除只在 PGlite 夹具中验证。
+- 生产环境：见下方“上线记录”。
 
 ### 回退
 
@@ -352,6 +387,7 @@
 - 队列：`lib/study/tasks/contracts.ts`、`lib/server/learning-tasks/{contracts,repository,runner}.ts`（kind、每 kind 能力心跳、按 kind 的 Worker 就绪）、`lib/server/heavy-task-admission/{index,independent-request}.ts`（`study-qa`）、`workers/generation/main.ts`。
 - 资料：`lib/server/study/materials/repository.ts`（删除时清理索引）、`lib/server/study/{flags,route}.ts`、`spaces/repository.ts`（错误码）。
 - 接口与页面：`app/api/study/spaces/[spaceId]/{knowledge,ask,search,answers/[answerId]}`、`app/api/study/materials/[materialId]/versions/[versionId]/index`、`capabilities`；`app/study/[spaceId]/ask`、`components/study/knowledge/StudyAskPage.tsx`、学科页入口、阅读器引用定位；`lib/study/knowledge/{contracts,client}.ts`、`lib/study/spaces/client.ts`；12 个语言文件 `study.qa.*`。
+- 依赖：`remark-math`、`rehype-katex`（下午为学伴回答的公式渲染新增；KaTeX 本身已是依赖）。
 - 配置与工具：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`；`scripts/dev-fake-model-server.ts`（假 `/embeddings` 与答疑回答）。
 - 评测：`eval/study-qa/**`；验证：`spikes/b03-candidate-a/**`。
 

@@ -31,6 +31,11 @@ export type CompanionNode =
       key: string;
       text: string;
       streaming: boolean;
+      /**
+       * Text the model wrote alongside a material/course tool call ("let me
+       * look that up"): shown as a process line, not as an answer.
+       */
+      narration: boolean;
       turn: CompanionTurnInfo | null;
       excerpts: Record<string, CompanionExcerpt>;
       ts: number;
@@ -74,9 +79,9 @@ export interface CompanionFold {
   turn: CompanionTurnInfo | null;
   /** Every excerpt seen so far, by ref (citations in any answer resolve here). */
   excerpts: Record<string, CompanionExcerpt>;
-  /** Tool calls and model rounds of this chat, for the usage line. */
+  /** Tool calls and answered turns (one run per student message) of this chat, for the usage line. */
   toolCalls: number;
-  answers: number;
+  answered: number;
 }
 
 export function createCompanionFold(): CompanionFold {
@@ -87,7 +92,7 @@ export function createCompanionFold(): CompanionFold {
     turn: null,
     excerpts: {},
     toolCalls: 0,
-    answers: 0,
+    answered: 0,
   };
 }
 
@@ -106,6 +111,14 @@ function assistantText(message: unknown): string | null {
       return item.type === 'text' && typeof item.text === 'string' ? item.text : '';
     })
     .join('');
+}
+
+/** Whether the message calls tools, none of them the invitation (whose text is the answer itself). */
+function isNarration(message: unknown): boolean {
+  const content = record(message).content;
+  if (!Array.isArray(content)) return false;
+  const calls = content.map(record).filter((block) => block.type === 'toolCall');
+  return calls.length > 0 && calls.every((call) => call.name !== COMPANION_TOOL_NAMES.invite);
 }
 
 function isMaterialDetails(value: unknown): value is CompanionMaterialDetails {
@@ -195,11 +208,10 @@ export function foldCompanionEvent(state: CompanionFold, event: CompanionEvent):
           ...open,
           text: text || open.text,
           streaming: event.type !== 'message_end',
+          narration: open.narration || isNarration(data.message),
         };
         if (event.type === 'message_end' && !(text || open.text).trim()) {
           next.nodes.splice(openIndex, 1);
-        } else if (event.type === 'message_end') {
-          next.answers += 1;
         }
       } else if (event.type !== 'message_end' || text.trim()) {
         next.nodes.push({
@@ -207,11 +219,11 @@ export function foldCompanionEvent(state: CompanionFold, event: CompanionEvent):
           key,
           text,
           streaming: event.type !== 'message_end',
+          narration: isNarration(data.message),
           turn: next.turn ?? lastTurnBefore(next.nodes),
           excerpts: {},
           ts: event.ts,
         });
-        if (event.type === 'message_end') next.answers += 1;
       }
       break;
     }
@@ -263,6 +275,7 @@ export function foldCompanionEvent(state: CompanionFold, event: CompanionEvent):
       next.nodes = next.nodes.map((node) =>
         node.kind === 'assistant' && node.streaming ? { ...node, streaming: false } : node,
       );
+      if (status === 'succeeded') next.answered += 1;
       if (status === 'failed') {
         next.status = 'failed';
         next.nodes.push({
@@ -299,19 +312,26 @@ export function companionErrorCode(error: string | undefined): string | null {
   return match ? match[1]! : null;
 }
 
-/** Split an answer into text and citation parts ([M3]). */
-export function citationParts(
-  text: string,
-): Array<{ kind: 'text'; text: string } | { kind: 'cite'; ref: string }> {
-  const parts: Array<{ kind: 'text'; text: string } | { kind: 'cite'; ref: string }> = [];
-  let last = 0;
-  for (const match of text.matchAll(/\[(M\d{1,4})\]/gu)) {
-    if (match.index! > last) parts.push({ kind: 'text', text: text.slice(last, match.index) });
-    parts.push({ kind: 'cite', ref: match[1]! });
-    last = match.index! + match[0].length;
-  }
-  if (last < text.length) parts.push({ kind: 'text', text: text.slice(last) });
-  return parts;
+/** Link prefix that marks a citation ([M3]) once an answer is turned into Markdown links. */
+export const CITATION_HREF_PREFIX = '#companion-cite-';
+
+/**
+ * Prepare an answer for the Markdown renderer: a line holding only `$$…$$`
+ * becomes a display-math block (remark-math reads single-line `$$…$$` as
+ * inline), and each citation ([M3]) becomes a link the renderer resolves.
+ */
+export function answerMarkdown(text: string): string {
+  return linkCitations(
+    text.replace(/^[ \t]*\$\$([^\n]+?)\$\$[ \t]*$/gmu, (_match, body: string) => `$$\n${body}\n$$`),
+  );
+}
+
+/** Turn each citation ([M3]) of an answer into a Markdown link the renderer resolves. */
+export function linkCitations(text: string): string {
+  return text.replace(
+    /\[(M\d{1,4})\]/gu,
+    (_match, ref: string) => `[${ref}](${CITATION_HREF_PREFIX}${ref})`,
+  );
 }
 
 /** Every named SSE frame the chat page subscribes to (EventSource drops unlisted names). */

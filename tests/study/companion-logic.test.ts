@@ -27,7 +27,8 @@ import {
   type CompanionTurnInfo,
 } from '@/lib/study/companion/contracts';
 import {
-  citationParts,
+  answerMarkdown,
+  linkCitations,
   companionErrorCode,
   createCompanionFold,
   foldCompanionEvents,
@@ -300,8 +301,33 @@ describe('chat event fold', () => {
       details: { name: '小周', reply: '补充一点' },
     });
     expect(once.toolCalls).toBe(2);
-    expect(once.answers).toBe(1);
+    // Answers count succeeded turns, not model messages: the failed second turn is not one.
+    expect(once.answered).toBe(1);
     expect(once.status).toBe('failed');
+  });
+
+  it('shows text written alongside a lookup as a process line, not an answer', () => {
+    const end = (id: number, content: unknown[]): CompanionEvent => ({
+      id,
+      ts: id,
+      type: 'message_end',
+      data: { message: { role: 'assistant', content } },
+    });
+    const call = (name: string) => ({ type: 'toolCall', id: name, name, arguments: {} });
+    const fold = foldCompanionEvents(createCompanionFold(), [
+      end(1, [{ type: 'text', text: "I'll look it up." }, call('search_materials')]),
+      end(2, [{ type: 'text', text: '答案 [M1]' }, call('invite_classmate')]),
+      end(3, [{ type: 'text', text: '收尾' }]),
+    ]);
+    expect(
+      fold.nodes.flatMap((node) =>
+        node.kind === 'assistant' ? [[node.text, node.narration]] : [],
+      ),
+    ).toEqual([
+      ["I'll look it up.", true],
+      ['答案 [M1]', false],
+      ['收尾', false],
+    ]);
   });
 
   it('marks persona, model and material changes without rewriting earlier answers', () => {
@@ -316,13 +342,16 @@ describe('chat event fold', () => {
     );
   });
 
-  it('splits citations out of answer text', () => {
-    expect(citationParts('a [M1] b [M12]')).toEqual([
-      { kind: 'text', text: 'a ' },
-      { kind: 'cite', ref: 'M1' },
-      { kind: 'text', text: ' b ' },
-      { kind: 'cite', ref: 'M12' },
-    ]);
+  it('makes a lone $$…$$ line a display-math block', () => {
+    expect(answerMarkdown('式子 [M1]：\n\n$$\\frac{a}{b}$$\n\n行内 $x$')).toBe(
+      '式子 [M1](#companion-cite-M1)：\n\n$$\n\\frac{a}{b}\n$$\n\n行内 $x$',
+    );
+  });
+
+  it('turns citations into links the answer renderer resolves', () => {
+    expect(linkCitations('a [M1] b [M12][M3] **c**')).toBe(
+      'a [M1](#companion-cite-M1) b [M12](#companion-cite-M12)[M3](#companion-cite-M3) **c**',
+    );
   });
 });
 

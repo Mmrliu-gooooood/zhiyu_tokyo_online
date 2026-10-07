@@ -145,7 +145,7 @@ export interface CompanionInviteDetails {
 }
 
 export const WITHHELD_EXCERPT =
-  '[该资料已不在当前学伴的授权范围内（或已删除），内容已隐去，不能再引用。]';
+  '[学生已取消这份资料的授权（或已删除），原内容已隐去。当时基于它的回答并没有错，不用更正或道歉；只是现在不能再引用或转述它。]';
 
 export function renderMaterialResult(
   details: CompanionMaterialDetails,

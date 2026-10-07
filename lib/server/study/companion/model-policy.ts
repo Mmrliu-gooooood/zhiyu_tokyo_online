@@ -30,10 +30,10 @@ import {
   getPlatformDefaultCatalog,
   getServerProviders,
   isPlatformDefaultBackingProvider,
-  isServerConfiguredProvider,
   resolvePlatformDefault,
 } from '@/lib/server/provider-config';
 import type { LlmStage } from '@/lib/server/model-routes';
+import { studyEmbeddingSpec } from '@/lib/server/study/knowledge/config';
 import { StudyError } from '@/lib/server/study/spaces/repository';
 import type { ClassmateModelChoice, ClassmateModelPolicy } from '@/lib/study/classmates/contracts';
 
@@ -106,11 +106,10 @@ export async function resolveClassmateModelChoice(
       throw error;
     }
   } else if (choice.kind === 'server') {
-    if (
-      !isServerConfiguredProvider('providers', choice.providerId) ||
-      isPlatformDefaultBackingProvider('providers', choice.providerId)
-    ) {
-      throw classmateModelUnavailable('server_provider_unavailable');
+    const models = serverAnswerModels()[choice.providerId];
+    if (!models) throw classmateModelUnavailable('server_provider_unavailable');
+    if (models.length > 0 && !models.includes(choice.modelId)) {
+      throw classmateModelUnavailable('model_unresolvable');
     }
   } else {
     const database = deps.credentialDatabase ?? defaultCredentialDatabase;
@@ -195,10 +194,32 @@ export async function listClassmateModelOptions(
     // simply offer no signed-in accounts.
     credentials = [];
   }
-  const server = Object.entries(getServerProviders())
-    .filter(([providerId]) => !isPlatformDefaultBackingProvider('providers', providerId))
-    .map(([providerId, info]) => ({ providerId, models: info.models ?? [] }));
+  const server = Object.entries(serverAnswerModels()).map(([providerId, models]) => ({
+    providerId,
+    models,
+  }));
   return { platform, credentials, server };
+}
+
+/**
+ * Server-configured providers a classmate may answer with, and their models
+ * (empty = the provider's whole catalog). Platform-default backing providers
+ * are not offered, and the study embedding model is not a chat model: a
+ * provider configured only for embeddings is left out.
+ */
+function serverAnswerModels(): Record<string, string[]> {
+  const embedding = studyEmbeddingSpec();
+  const result: Record<string, string[]> = {};
+  for (const [providerId, info] of Object.entries(getServerProviders())) {
+    if (isPlatformDefaultBackingProvider('providers', providerId)) continue;
+    const configured = info.models ?? [];
+    const models = configured.filter(
+      (modelId) => !(embedding?.providerId === providerId && embedding.modelId === modelId),
+    );
+    if (configured.length > 0 && models.length === 0) continue;
+    result[providerId] = models;
+  }
+  return result;
 }
 
 /** Save-time check for the classmate form: a custom choice must resolve for this owner now. */

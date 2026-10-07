@@ -8,6 +8,7 @@ import type { Queryable } from '@openmaic/storage/document/pg';
 import { StudyError } from '@/lib/server/study/spaces/repository';
 import {
   COMPANION_LIMITS,
+  decodeCompanionMessage,
   type CompanionChatView,
   type CompanionOrigin,
   type CompanionPurpose,
@@ -127,7 +128,10 @@ export async function listCompanionChats(
       purpose: base.purpose,
       origin: base.origin,
       createdAt: base.createdAt,
-      title: row.title?.trim() || Array.from(row.prompt).slice(0, 40).join(''),
+      // The opening prompt may carry the discussion-options envelope.
+      title:
+        row.title?.trim() ||
+        Array.from(decodeCompanionMessage(row.prompt).text).slice(0, 40).join(''),
       status: row.status,
       updatedAt: iso(row.updated_at),
     };

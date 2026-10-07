@@ -49,7 +49,6 @@ import {
 } from '@/lib/study/companion/contracts';
 import {
   COMPANION_EVENT_TYPES,
-  citationParts,
   companionErrorCode,
   createCompanionFold,
   foldCompanionEvent,
@@ -59,6 +58,7 @@ import {
 import { StudyApiError, fetchStudyCapabilities, studyApi } from '@/lib/study/spaces/client';
 import type { StudySpaceSummary } from '@/lib/study/spaces/contracts';
 import { whilePageVisible } from '@/lib/workbench/page-visible-lifecycle';
+import { CompanionAnswer } from './CompanionAnswer';
 
 interface PageData {
   classmate: ClassmateView;
@@ -238,7 +238,9 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
   }, [classmateId, origin, loadKey]);
 
   // The chat header re-reads the classmate's current template, space and
-  // authorised materials whenever a turn finishes.
+  // authorised materials whenever a turn starts (its server-resolved turn
+  // record arrives) or finishes — also when a reconnect delivers a whole turn
+  // at once and the status ends where it began.
   useEffect(() => {
     if (!sessionId) {
       setHeader(null);
@@ -254,7 +256,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, fold.status, errorText]);
+  }, [sessionId, fold.status, fold.turn, fold.answered, errorText]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -341,42 +343,43 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
     if (!ok) toast.message(t('study.companion.cancelNotNeeded'));
   }
 
-  const renderAnswer = (text: string, own: Record<string, CompanionExcerpt>) =>
-    citationParts(text).map((part, index) => {
-      if (part.kind === 'text') return <span key={index}>{part.text}</span>;
-      const excerpt = own[part.ref] ?? fold.excerpts[part.ref];
-      const allowed = excerpt && header?.materials.some((m) => m.id === excerpt.materialId);
-      if (!excerpt) {
-        return (
-          <span
-            key={index}
-            className="mx-0.5 rounded bg-muted px-1 text-[11px] text-muted-foreground"
-          >
-            {part.ref}
-          </span>
-        );
-      }
-      return allowed ? (
-        <Link
-          key={index}
-          href={excerptReaderHref(excerpt)}
-          title={`${excerpt.title}${excerpt.page ? ` · p.${excerpt.page}` : ''}`}
-          className="mx-0.5 rounded bg-primary/10 px-1 text-[11px] font-medium text-primary hover:underline"
-          data-testid="companion-citation"
-        >
-          {part.ref}
-        </Link>
-      ) : (
-        <span
-          key={index}
-          title={t('study.companion.citationWithdrawn')}
-          className="mx-0.5 rounded bg-muted px-1 text-[11px] text-muted-foreground line-through"
-          data-testid="companion-citation-withdrawn"
-        >
-          {part.ref}
+  const renderCitation = (ref: string, own: Record<string, CompanionExcerpt>) => {
+    const excerpt = own[ref] ?? fold.excerpts[ref];
+    const allowed = excerpt && header?.materials.some((m) => m.id === excerpt.materialId);
+    if (!excerpt) {
+      return (
+        <span className="mx-0.5 rounded bg-muted px-1 text-[11px] text-muted-foreground">
+          {ref}
         </span>
       );
-    });
+    }
+    return allowed ? (
+      <Link
+        href={excerptReaderHref(excerpt)}
+        title={`${excerpt.title}${excerpt.page ? ` · p.${excerpt.page}` : ''}`}
+        className="mx-0.5 rounded bg-primary/10 px-1 text-[11px] font-medium text-primary no-underline hover:underline"
+        data-testid="companion-citation"
+      >
+        {ref}
+      </Link>
+    ) : (
+      <span
+        title={t('study.companion.citationWithdrawn')}
+        className="mx-0.5 rounded bg-muted px-1 text-[11px] text-muted-foreground line-through"
+        data-testid="companion-citation-withdrawn"
+      >
+        {ref}
+      </span>
+    );
+  };
+
+  const renderAnswer = (text: string, own: Record<string, CompanionExcerpt>, streaming = false) => (
+    <CompanionAnswer
+      text={text}
+      streaming={streaming}
+      renderCitation={(ref) => renderCitation(ref, own)}
+    />
+  );
 
   const renderNode = (node: CompanionNode) => {
     switch (node.kind) {
@@ -398,6 +401,17 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
           </div>
         );
       case 'assistant':
+        if (node.narration) {
+          return (
+            <p
+              key={node.key}
+              className="pl-11 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
+              data-testid="companion-narration"
+            >
+              {node.text}
+            </p>
+          );
+        }
         return (
           <div key={node.key} className="flex gap-3" data-testid="companion-answer">
             <Avatar
@@ -410,8 +424,8 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                 {node.turn?.name ?? classmate.name}
                 {node.turn ? ` · v${node.turn.revision}` : ''}
               </div>
-              <div className="rounded-2xl bg-muted/60 px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-foreground">
-                {renderAnswer(node.text, node.excerpts)}
+              <div className="rounded-2xl bg-muted/60 px-4 py-2.5 text-sm leading-6 text-foreground">
+                {renderAnswer(node.text, node.excerpts, node.streaming)}
                 {node.streaming ? <Loader2 className="ml-1 inline size-3 animate-spin" /> : null}
               </div>
             </div>
@@ -425,7 +439,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
               <div className="mb-1 text-xs text-muted-foreground">
                 {node.details.name} · {t('study.companion.invited')}
               </div>
-              <div className="rounded-2xl border border-border px-4 py-2 text-sm leading-6 whitespace-pre-wrap">
+              <div className="rounded-2xl border border-border px-4 py-2 text-sm leading-6">
                 {node.details.error ?? renderAnswer(node.details.reply, {})}
               </div>
             </div>
@@ -738,7 +752,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                 ? t('study.companion.queued')
                 : fold.status === 'running'
                   ? t('study.companion.thinking', { name: classmate.name })
-                  : t('study.companion.usage', { answers: fold.answers, tools: fold.toolCalls })}
+                  : t('study.companion.usage', { answers: fold.answered, tools: fold.toolCalls })}
             </p>
           </footer>
         </section>

@@ -18,7 +18,6 @@ vi.mock('@/lib/model-gateway/credentials/vault-auth', () => ({
   defaultCredentialDatabase: vi.fn(async () => ({})),
 }));
 const platformAvailable = { value: true };
-const serverProviders = new Set<string>(['deepseek']);
 vi.mock('@/lib/server/provider-config', () => {
   class PlatformDefaultModelError extends Error {}
   return {
@@ -34,10 +33,12 @@ vi.mock('@/lib/server/provider-config', () => {
         },
       ],
     }),
-    getServerProviders: () => ({ deepseek: { models: ['deepseek-chat'] } }),
+    getServerProviders: () => ({
+      deepseek: { models: ['deepseek-chat'] },
+      siliconflow: { models: ['BAAI/bge-m3'] },
+      openai: {},
+    }),
     isPlatformDefaultBackingProvider: () => false,
-    isServerConfiguredProvider: (_section: string, providerId: string) =>
-      serverProviders.has(providerId),
     resolvePlatformDefault: () => {
       if (!platformAvailable.value) throw new PlatformDefaultModelError('off');
       return { defaultId: 'zhiyu-default-text' };
@@ -47,6 +48,7 @@ vi.mock('@/lib/server/provider-config', () => {
 
 import type { ModelBinding } from '@/lib/model-gateway';
 import {
+  listClassmateModelOptions,
   resolveClassmateModelChoice,
   resolveClassmateModelPolicy,
 } from '@/lib/server/study/companion/model-policy';
@@ -181,6 +183,41 @@ describe('resolveClassmateModelChoice', () => {
         ),
       ),
     ).toBe('tools_unsupported');
+  });
+
+  it('offers server providers for answers, not the study embedding model', async () => {
+    vi.stubEnv('STUDY_EMBEDDING_MODEL', 'siliconflow:BAAI/bge-m3');
+    try {
+      const options = await listClassmateModelOptions(OWNER);
+      expect(options.server).toEqual([
+        { providerId: 'deepseek', models: ['deepseek-chat'] },
+        { providerId: 'openai', models: [] },
+      ]);
+      expect(
+        await reason(
+          resolveClassmateModelChoice(
+            OWNER,
+            { kind: 'server', providerId: 'siliconflow', modelId: 'BAAI/bge-m3' },
+            'chat-adapter',
+            {},
+            { resolve: async () => binding() },
+          ),
+        ),
+      ).toBe('server_provider_unavailable');
+      expect(
+        await reason(
+          resolveClassmateModelChoice(
+            OWNER,
+            { kind: 'server', providerId: 'deepseek', modelId: 'deepseek-reasoner' },
+            'chat-adapter',
+            {},
+            { resolve: async () => binding() },
+          ),
+        ),
+      ).toBe('model_unresolvable');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('inherit resolves to no binding of its own', async () => {

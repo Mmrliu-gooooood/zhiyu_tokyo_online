@@ -201,6 +201,21 @@ describe('after-class chat routes', () => {
     expect(generic.status).toBe(409);
   });
 
+  it('lists a chat opened with discussion partners by its question, not the options envelope', async () => {
+    const response = await open({ spaceId: 'space-a', question: '一起讨论', discuss: [CM_OTHER] });
+    expect(response.status).toBe(202);
+    const { sessionId } = await response.json();
+    const listed = await (
+      await listChats(
+        new NextRequest('https://zhiyu.test/x?spaceId=space-a'),
+        params({ classmateId: CM }),
+      )
+    ).json();
+    expect(
+      listed.chats.find((chat: { sessionId: string }) => chat.sessionId === sessionId)?.title,
+    ).toBe('一起讨论');
+  });
+
   it('refuses foreign or archived classmates, spaces and courses', async () => {
     expect((await open({ spaceId: 'space-b', question: 'q' })).status).toBe(404);
     expect((await open({ spaceId: 'space-a', question: 'q' }, CM_OTHER)).status).toBe(404);
