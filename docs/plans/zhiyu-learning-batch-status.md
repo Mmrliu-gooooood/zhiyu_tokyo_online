@@ -10,12 +10,117 @@
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
+| B05 | 实现完成，待上线（2026-10-07） | `learn/b05-companion-chat`（未合并、未推送） | — | 本地托管模式验收通过（假模型，未调用真实模型） | 未启用（新开关 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED`，需 accounts v26） | 见 B05“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
 - 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
 - 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
+
+## B05 学伴课后答疑与持续会话（2026-10-07）
+
+### 范围与起点
+
+- 分支 `learn/b05-companion-chat` 从 main `98c42e9c`（= `tokyo/main`）创建；生产为 release-20261007c、accounts v25（仓库 v25 checksum `d6bdefd1…` 与生产记录一致）。
+- 范围：方案 B05 第 1–7 条——复用持久 Agent 会话与 SSE 恢复；按用途选择提示词与工具；每轮服务端解析学伴版本、资料授权与模型策略；学伴独立模型策略（课后答疑 + 课堂实时发言）；课堂“继续问这个学伴”入口；默认单学伴回答、用户主动选择时多学伴讨论；恢复/取消/撤权/归档/模型失效/声音状态提示；新开关 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED`。
+- 不包含：embedding、OCR（见“全部批次完成后再做”）、IM 渠道、逐角色重新生成整门课、文字答疑的语音朗读。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 设计决策（实际实现）
+
+- **会话 = 现有持久 Agent 会话 + 一行应用层绑定**：新表 `study_companion_chats`（session_id 主键、学科、学伴、用途 `after_class_qa`、课堂来源 origin）。开新对话时先把会话建成不可认领状态，写入绑定行，再由开场消息把会话排队——runner 不可能在绑定写入前认领。之后的事件流、`Last-Event-ID` 续传、取消都用现有 `/api/agent/sessions/*`；不需要先建空课程。
+- **runner 按绑定切换用途**（`lib/server/agent-runtime/companion-run.ts`）：认领每个会话时都查绑定（开关关闭也查），有绑定就绝不走 Pro：不加载 skill、不做 Pro 生成就绪预检，只注册学伴工具集——`search_materials`（关键词检索）、`read_material`（原文阅读）、`list_space_courses` / `read_course_page`（只读课程，仅限本学科课程与来源课堂）；只有当条消息用户勾选了讨论对象时才再加 `invite_classmate`。课程写入、网页抓取、Skill 编辑、生成任务等 Pro 工具都不注册。
+- **每条用户消息一次 run**：学伴会话关闭 mid-run steer，运行中到达的消息在结束后由现有的 settle 重排逻辑开新 run。因此每轮都重新解析：学伴**当前**模板与版本、资料范围（学科资料 ∩ 学伴授权 ∩ 有效索引）、模型策略。每轮开始写入 `study_companion_turn` 事件（版本、人设指纹、可用资料、被隐去的资料、检索方式、模型标签、讨论对象）。
+- **设定变更只影响之后的回答**：界面按 `study_companion_turn` 比较人设指纹（名字/角色/人设/陪学方式），变化时插入“学伴设定已更新（vX → vY）”；历史回答保留当时的名字和版本，持久记录不改写。
+- **撤权后重新过滤历史**：资料工具的结果把片段结构化保存在 `details`，模型看到的文字始终由 `details` 渲染。每轮构建模型上下文时按**当前**授权重新渲染：失权或已删除资料的片段（连同标题）替换为“已隐去”，结构化副本也剔除；持久的 entry tree 不变（只读视图）。提示词同时提醒模型不要再使用已隐去内容。工具每次调用都重新解析范围，运行中撤权也立刻生效。
+- **只带必要上下文**：模型上下文只保留最近 8 个用户回合（在用户消息处截断，工具调用与结果保持成对）；课堂来源只带课程/页面引用和 ≤600 字的问题原话，页面内容由 `read_course_page` 按需读取（≤4000 字）；资料片段 ≤700 字/段、每次检索 ≤6 段。
+- **模型策略**（`lib/server/study/companion/model-policy.ts`）：`study_classmates.model_policy`（空 = 继承）。自定义只能引用现有连接：平台文本默认（`zhiyu-default-text`）、账号里已登录的凭据（`credentialId`，校验归属、状态、服务商）、服务器配置的服务商（排除平台默认的后备服务商）；不存任何 key。保存时与每次使用时都校验（可用性、凭据就绪；课后答疑还要求支持工具调用）；失败一律 `STUDY_CLASSMATE_MODEL_UNAVAILABLE:<原因>`，**不回退到其他模型**。继承模式使用会话的模型连接（浏览器当前 Home 模型每条消息同步），走新的 `study-companion` 阶段（运营方可单独路由，不受 Pro 驱动路由影响）。费用控制：网关的服务商配额 + 每账号每小时 60 条学伴消息上限 + 受邀学伴单次回复 ≤600 token。
+- **课堂实时发言接同一策略**：`/api/chat`（LangGraph）与 `/api/chat/pi` 在发言规则之后解析课堂中学伴的**当前模板**策略：可用则该学伴用自己的 binding（LangGraph 按 agent 选 binding，Pi 子 agent 同样），不可用则本次把该学伴移出并通过新的 `notice` SSE 事件提示（界面 toast）；若它是唯一角色，只返回提示，不用别的模型代答。整课预生成不变，表单写明“只作用于课后答疑和课堂实时发言”。
+- **多学伴**：默认一个学伴回答；用户在输入框旁勾选讨论对象（最多 2 位）时，主学伴可调用 `invite_classmate`，次数 = 现有回合策略 `getReplyPolicy` 的轮数 − 1（普通问题 1 位，明确要求“深入讨论”2 位，单纯致谢 0 位），每位最多一次。受邀学伴用自己的人设、资料范围（同一学科）与模型策略各回复一次，回复作为独立气泡显示。
+- **Pro 列表隐藏学伴会话**：`GET /api/agent/sessions`、`/status`、owner 事件流都过滤掉；通用消息接口拒绝学伴会话（409），学伴消息只走 `/api/study/companion-chats/[id]/messages`（先校验学伴/学科状态与小时上限）。
+- **界面**：`/study/classmates/[id]/chat`——历史对话列表、学科选择（来自课堂时预选课程所在学科）、引用 [M1] 跳转阅读器（失权后划线不可点）、检索/阅读过程行、讨论对象选择、停止按钮、连接状态、用量行（回答数 · 工具调用数）。状态提示：排队、思考中、已取消、连接中断、学伴/学科已归档（输入框禁用）、独立模型不可用（带“去学伴设置”）、无授权资料、声音不可用、“文字答疑不自动朗读”、头像加载失败自动换默认头像。学伴卡片新增“课后答疑”入口；课堂里学伴的每条回复下有“继续问 XX”（新标签页打开，带课程/页面/角色版本/问题原话）。
+- **语音**：文字答疑不合成 TTS，也没有朗读按钮；页面仅用 B04 的 `roleVoiceBinding` 判断该学伴的声音在当前平台默认语音下是否可用并提示，不改动任何音色设置。
+- **开关**：`ZHIYU_STUDY_COMPANION_CHAT_ENABLED`（Web 与 Worker 都读，依赖学伴开关；Web 侧还需要 Agent runtime）；`/api/study/capabilities` 增加 `companionChat`。开关关闭时学伴会话不会被当成 Pro 运行，而是明确失败“课后答疑功能当前未开启”。
+
+### 偏离方案之处
+
+- 方案 API 表只列了 `/api/study/classmates/[id]/chats`；实际另加 `/api/study/companion-chats/[sessionId]`（对话头信息）与 `/messages`（经校验的发消息），因为通用消息接口不检查学伴/学科状态和小时上限；`/api/study/classmates/model-options` 列出可选连接。
+- 方案 3.2 的 `study_chat_bindings` 实际叫 `study_companion_chats`，没有“会话角色版本”列：每轮都用学伴当前版本，并在事件流里记录该轮用的版本（`study_companion_turn`），满足“显示变更、只影响后续”。
+- 模型策略不放进不可变版本快照，而是模板上的应用策略：改模型立即作用于所有课堂与对话的后续实时回答，与“人设冻结在课堂快照”区分。
+- 讨论模式由主学伴调用 `invite_classmate` 工具实现（在同一 run、同一条持久记录里），而不是像课堂那样由客户端循环多次请求。
+- 每条消息一次 run（关闭 steer）：比 Pro 多一次认领，但保证每轮重新解析。
+- 检索只用关键词（与 B03 默认一致，embedding 延后）。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-companion.ts`（v26）、`migrations.ts`、`sql-accounts.ts`（版本 26）、`lib/server/study/schema.ts`（旧式安装）、`deletion.ts`（账号删除）。
+- 服务端：`lib/server/study/companion/{repository,turn,tools,context,model-policy,classroom-models,service}.ts`、`lib/server/agent-runtime/{companion-run,runner,agent-driver-model,model-errors,dsl-tools}.ts`、`lib/server/study/{flags,route}.ts`、`lib/server/study/classmates/repository.ts`、`lib/server/study/spaces/repository.ts`（错误码）、`lib/server/model-routes.ts`（`study-companion` 阶段）、`lib/orchestration/{director-graph,stateless-generate}.ts`、`lib/chat/pi/{director-loop.ts,tools/call-agent.ts}`、`lib/types/chat.ts`（`notice` 事件）。
+- 接口：`app/api/study/classmates/[classmateId]/chats`、`app/api/study/classmates/model-options`、`app/api/study/companion-chats/[sessionId]{,/messages}`、`app/api/study/classmates{,/[classmateId]}`（保存时校验模型策略）、`app/api/study/capabilities`、`app/api/chat{,/pi}`、`app/api/agent/sessions{,/status,/[id]/messages}`、`app/api/agent/owner-events`。
+- 前端：`lib/study/companion/{contracts,fold,client}.ts`、`components/study/companion/CompanionChatPage.tsx`、`app/study/classmates/[classmateId]/chat/page.tsx`、`components/study/classmates/{ClassmateModelPolicyField,ClassmateFormDialog,ClassmatesPage}.tsx`、`components/chat/{continue-with-classmate.tsx,chat-session.tsx,use-chat-sessions.ts}`、`lib/study/{classmates/contracts,spaces/client}.ts`、12 个语言文件（`study.companion.*`、`study.classmates.model.*`）。
+- 配置与工具：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`（新开关透传）；`scripts/dev-fake-model-server.ts`（假模型可驱动学伴检索/引用/邀请，`FAKE_MODEL_PROBE` 报告某句话是否进入模型上下文）。
+
+### 数据迁移
+
+- accounts **v26**，checksum `354fbeed15c498318fd54b8bb9c2c1b242d0a1b743b69173549af242a2155cdc`；只新增，不改旧迁移：
+  1. `study_companion_chats`：强制 RLS；`app_web` 按 owner 查/插/删（没有 UPDATE，对话不能换学科或学伴）；`app_worker` 只读；anon/authenticated 无授权；外键（owner_id, space_id）→ `study_spaces`、（owner_id, classmate_id）→ `study_classmates`，均级联删除。
+  2. `ALTER TABLE study_classmates ADD COLUMN IF NOT EXISTS model_policy jsonb`（可空，空 = 继承）。
+  3. Worker 只读授权与策略：`study_spaces`、`study_space_materials`、`study_space_courses`、`study_classmate_materials`（查询都显式带 owner，同 B04 方式）；`study_knowledge_search` 函数的 EXECUTE（仅在函数存在时授予，DO 块判断）。
+- 已在本地一次性 PostgreSQL 17（vector + pgroonga）用全新 bootstrap 执行 v1–v26，核对：版本 26、`study_companion_chats` 强制 RLS、`app_worker` 有检索函数 EXECUTE。**生产尚未执行。**
+
+### 测试
+
+- 新增：`tests/server/study-companion-migration.test.ts`（v26：可重复执行、强制 RLS、Data API 无授权、Web 隔离且对话不能移动、Worker 只读且能读资料范围、随学伴级联删除；设 `TEST_STUDY_COMPANION_DATABASE_URL` 可在真实 PG 上重跑）、`tests/study/companion-logic.test.ts`（消息选项封装、事件折叠的去重/续传一致性、人设/资料/模型标记、历史重渲染与隐去、历史窗口、提示词、模型策略解析）、`tests/server/study-companion-tools.test.ts`（每次调用重新解析范围、撤权后不能读、课程限制、邀请次数与去重）、`tests/server/study-companion-model-policy.test.ts`（凭据缺失/需重登/服务商不符、平台与服务器服务商不可用、凭据未就绪、工具不支持、不回退；课堂按 agent 绑定、不可用时移出并提示、唯一角色时只提示、无学伴或开关关闭不查库）、`tests/server/study-companion-turn.test.ts`（教材 A/B、两个学科不串、撤权/删除即时生效、归档与跨账号）、`tests/api/study-companion-routes.test.ts`（PGlite + 真实 Agent 会话存储：开关、开对话写绑定后排队、拒绝他人/归档/他人课程/错学伴角色、后续消息与小时上限、通用消息接口 409、Pro 列表过滤、归档后拒绝但可读）、`tests/agent-runtime/runner-companion-chat.test.ts`（绑定会话只拿学伴工具与提示词、不加载 skill、不做 Pro 预检、写 turn 事件、去掉选项封装；失败码保留且不重排；Pro 会话不变）。
+- 调整：`principal-mode`（迁移版本到 26）、`account-deletion-lifecycle`（新表只删本人）、`study-classmates-migration`（仓储读取新列）、`classmates-logic`（解析结果含继承策略）、三个 capabilities 断言。
+- 全量 Vitest（`TEST_LOAD_LOCAL_ENV=0`，`--maxWorkers=4`）：**872 个文件通过、17 个跳过；9000 项通过、94 项跳过、0 失败**。`tsc --noEmit` 通过；本批改动的 68 个 TS/TSX 文件 ESLint 0 错误（唯一警告 `use-chat-sessions.ts` 的 `GuidedInteractionMode` 未使用为既有问题）；Prettier 通过；`check:i18n-keys`（12 个语言文件）通过；`build:worker` 通过且 Worker 启动后 runner 正常认领。
+
+### 浏览器验收（2026-10-07，本地托管模式）
+
+一次性 PostgreSQL 17（vector + pgroonga，端口 56433——55433 已落入 Windows 保留端口段）、假登录、假 S3、假模型（不产生任何费用）、Worker 跑 Agent runner；临时环境文件把 `.env.local` 的 145 个变量全部置空，无真实密钥或生产地址。资料：教材 A = 高等数学讲义（calc），教材 B = 数据结构课堂笔记（ds）；学科“高数”含 A、B，学科“数据结构”只含 B；学伴“小林”初始只授权 A，“小周”授权 A+B。浏览器面板处于隐藏状态时页面报告 `visibilityState=hidden`，聊天页（与 Pro 一样）暂停事件流，因此验收时在页面里覆盖了 `visibilityState`；这也被用来模拟断线。
+
+1. **只授权教材 A 不能引用教材 B**：在“高数”问“栈和队列有什么区别”→ 检索后“资料中没有找到”（B 在学科里但未授权）；问“导数”→ 引用 [M1] 跳转 calc 第 3 页。
+2. **授权变更与撤权过滤历史**：给小林加授权 B（v2）→ 引用 [M3]（ds 第 1 页）；此时假模型探针报告 B 的原文“括号匹配”在模型上下文中 `present`。撤销 B（v3）→ 下一轮显示“1 份资料已取消授权或删除，相关的历史资料片段已隐去”，旧的 [M3] 变为划线“该资料已不在授权范围内”，资料行只剩《calc-v1》，B 的问题回到“资料中没有找到”，探针报告 `absent`。
+3. **同一学伴两个学科不串**：再给小林授权 A+B，在“数据结构”开新对话：问“导数”→ 未找到（A 不在该学科）；问栈 → 引用 ds。
+4. **SSE 断线无重复**：发问后 200ms 把页面切为 hidden（关闭事件流），5 秒后恢复 → 按 `lastEventId` 续传，只多出 1 条回答和 1 条检索行（用户 7 / 回答 6 / 工具 6）；整页刷新全量回放后计数完全相同。
+5. **设定变更只影响后续**：对话中把小林改名“小林同学”（v5）→ 新回答前出现“学伴设定已更新（v4 → v5）”，新回答署名“小林同学 · v5”，之前的回答仍是“小林 · v4”。
+6. **多学伴讨论**：勾选小周并问“请深入讨论一下栈的应用”→ 小周作为“受邀补充”回复一次（带自己的引用），小林随后总结；未勾选时都只有一个学伴回答。
+7. **独立模型**：表单“高级：回答模型”列出继承、平台默认（本地未配置显示不可用）、服务器提供的服务商；保存不存在的账号凭据被拒（422 `credential_missing`）；保存服务器 openai 后对话头显示“独立模型：openai:gpt-4o-mini（只作用于实时答疑）”。在数据库里把策略改成已断开的账号（模拟保存后断开）→ 下一轮明确失败并显示“学伴的独立回答模型当前不可用，没有改用其他模型…去学伴设置”，没有任何模型调用。
+8. **课堂实时发言**：同一失效策略下，课堂 `/api/chat` 点名小林 → 返回 `notice`（CLASSMATE_MODEL_UNAVAILABLE）且只有老师回答；只有小林一个角色时只返回提示。恢复有效策略后点名 → 小林用自己的 binding 发言。
+9. **从课堂跳转**：课堂里问“小林同学，导数是什么？”→ 小林回复下出现“继续问小林同学”（新标签页链接，带课程、页面、`cm-…-r6`、问题原话）→ 打开后问题已预填、显示“来自课堂的问题”、学科自动选中“高数 · 这门课所在的学科”→ 发送后对话记录“本对话从课堂《导数入门》打开”。
+10. **重新打开可继续**：离开到学伴页 → 点卡片“课后答疑”→ 历史列表打开该对话 → 记录完整，继续追问正常回答。
+11. **取消、失败后续聊、归档**：运行中点“停止”→ 保留已输出部分并显示“已取消本次回答”；早先因本机配置失败的对话再次提问正常回答；归档小林后发消息 409 `STUDY_CLASSMATE_ARCHIVED`，页面显示归档提示、输入框禁用，恢复后可继续。
+12. **轮数与工具调用可核对**：Worker 日志每条消息一行 `session … -> succeeded (attempt 1, N tool calls)`（讨论那一轮为 2）；数据库中三个对话的 run 数与用户消息数一致（7/7、6/6、3/3）；`usage_events` 中 29 次调用全部记为 `source=study-companion`、`funding=operator`。Pro 会话列表与状态接口返回 0 条（学伴对话被过滤）。
+13. 验收后停止全部服务，删除数据库容器、临时环境文件、测试账号密码文件、假 S3 数据与 PDF。
+
+### 发现的问题
+
+- **本地套件让 Web 进程也跑了 Agent runner**：B04 的本地环境脚本给 Web 也设置了 `WORKER_DATABASE_URL`，Next 开发进程于是也启动 runner；本次第一条消息被 Web 进程认领，调用前失败（`PRO_MODEL_AUTH`，假模型未收到请求），同一连接在 Worker 进程里调用正常。生产 compose 的 Web 不设置 `WORKER_DATABASE_URL`（runner 只在 Worker），因此不影响生产；B05 套件已改为与生产一致。Next 开发进程内 runner 为何调用失败未深究（Pro 在该配置下应同样受影响），记录在此。
+- 浏览器在服务重启时会放弃事件流（EventSource 进入 CLOSED），聊天页原本不会重连；已改为 3 秒后用最后的事件 id 重新连接。
+- 模型选项会列出所有服务器配置的服务商，包括只用于 embedding 的（本地为 siliconflow）；选它会在保存或使用时失败并明确提示。生产目前只有平台默认和 OpenRouter 登录，暂不处理。
+
+### 未验证
+
+- **真实模型**：未调用任何真实 LLM（按要求先问）；回答质量、真实模型是否按提示先检索再引用、`invite_classmate` 的实际调用习惯、DeepSeek 对工具调用 + 中文引用格式的遵循程度，都需要真实模型验证。
+- 生产环境（apply v26、开关、登录后验收）未做，等你说上线。
+- Pi 课堂路径（`/api/chat/pi`）的独立模型只有单元测试，浏览器只验收了生产使用的 LangGraph 路径。
+- 平台默认与 OpenRouter 账号作为独立模型的真实调用（本地未配置），只有单元测试。
+- 账号删除清单中新表的删除只在 PGlite 夹具中验证。
+
+### 回退
+
+- 运行时止损：把 Web 与 Worker 的 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED` 置空后 apply——课后答疑入口与接口消失（404），课堂里学伴恢复用请求模型（独立模型策略不再读取），已存在的学伴会话不会被当成 Pro 运行（runner 仍识别绑定并明确失败）；历史数据保留。
+- 版本回退：回到 release-20261007c 镜像；v26 的表和列保留不用（旧代码不读 `model_policy`，也不认绑定表——旧 runner 会把学伴会话当 Pro 会话，但旧版没有入口创建新消息，旧版 Pro 列表会显示这些会话）。
+
+### 上线步骤（待你指示，以下都尚未执行）
+
+1. 先问你：只读核对生产 v25 checksum `d6bdefd1…` → Supabase `apply_migration`（名称 `accounts_v26_study_companion_chats`）执行仓库 v26 SQL 原文 → 写入 `app_schema_migrations(26, 354fbeed…)` → 核对强制 RLS、授权（`app_web` 查/插/删，`app_worker` 只读 + 四张表只读 + 检索函数 EXECUTE）。**绝不对生产运行 `pnpm accounts:migrate`。**
+2. 合并 main 并推送 tokyo → 本机构建 `release-2026100Xx` → 装入前看服务器磁盘（目前 68%，每套镜像约 4.9 GB；如需删旧镜像先问你）→ 确认 0 个进行中任务 → 备份 `*.bak-…-pre` → 服务器 compose 换成仓库版本（新开关透传）→ env 改镜像标签并加 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1` → `supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes` → readiness `accountsVersion 26`、capabilities `companionChat: true`。
+3. 你登录后验收：学伴卡片“课后答疑”、课堂“继续问”、引用、撤权提示、独立模型（平台默认）与失效提示。
+
+### 下一批（B06）前置条件
+
+- B05 合并上线（或至少合并）。B06 的学习事件可以从 `study_companion_chats` + 会话事件（`user_message`、`study_companion_turn`、工具结果）派生“课后答疑”记录；偏好（如讲解方式）可在 `companionSystemPrompt` 中按同样“每轮服务端解析”的方式注入。
+- 记忆/偏好进入学伴上下文时沿用本批规则：只带摘要与引用，按当前授权重新过滤，不改写历史消息。
 
 ## B04 自定义学伴与课堂接入（2026-10-06）
 
