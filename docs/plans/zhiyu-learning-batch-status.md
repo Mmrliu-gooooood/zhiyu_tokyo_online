@@ -10,7 +10,7 @@
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
-| B05 | 实现完成，待上线（2026-10-07） | `learn/b05-companion-chat`（未合并、未推送） | — | 本地托管模式验收通过（假模型，未调用真实模型） | 未启用（新开关 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED`，需 accounts v26） | 见 B05“未验证” |
+| B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收待你登录 | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -146,11 +146,14 @@
 - 运行时止损：把 Web 与 Worker 的 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED` 置空后 apply——课后答疑入口与接口消失（404），课堂里学伴恢复用请求模型（独立模型策略不再读取），已存在的学伴会话不会被当成 Pro 运行（runner 仍识别绑定并明确失败）；历史数据保留。
 - 版本回退：回到 release-20261007c 镜像；v26 的表和列保留不用（旧代码不读 `model_policy`，也不认绑定表——旧 runner 会把学伴会话当 Pro 会话，但旧版没有入口创建新消息，旧版 Pro 列表会显示这些会话）。
 
-### 上线步骤（待你指示，以下都尚未执行）
+### 上线记录（2026-10-07）
 
-1. 先问你：只读核对生产 v25 checksum `d6bdefd1…` → Supabase `apply_migration`（名称 `accounts_v26_study_companion_chats`）执行仓库 v26 SQL 原文 → 写入 `app_schema_migrations(26, 354fbeed…)` → 核对强制 RLS、授权（`app_web` 查/插/删，`app_worker` 只读 + 四张表只读 + 检索函数 EXECUTE）。**绝不对生产运行 `pnpm accounts:migrate`。**
-2. 合并 main 并推送 tokyo → 本机构建 `release-2026100Xx` → 装入前看服务器磁盘（目前 68%，每套镜像约 4.9 GB；如需删旧镜像先问你）→ 确认 0 个进行中任务 → 备份 `*.bak-…-pre` → 服务器 compose 换成仓库版本（新开关透传）→ env 改镜像标签并加 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1` → `supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes` → readiness `accountsVersion 26`、capabilities `companionChat: true`。
-3. 你登录后验收：学伴卡片“课后答疑”、课堂“继续问”、引用、撤权提示、独立模型（平台默认）与失效提示。
+1. 只读核对生产：v24/v25 checksum 与仓库一致，`study_companion_chats` 与 `model_policy` 尚不存在。
+2. Supabase `apply_migration`（`accounts_v26_study_companion_chats`）执行仓库 v26 SQL 原文（本地导出并核对 sha256 = `354fbeed…`），写入 `app_schema_migrations(26, 354fbeed…)`。核对：`study_companion_chats` 强制 RLS；授权只有 `app_web` 查/插/删、`app_worker` 只读（anon/authenticated 无）；`app_worker` 可读 `study_spaces`/`study_space_materials`/`study_space_courses`/`study_classmate_materials` 且有对应策略；`app_worker` 可执行 `study_knowledge_search`；`study_classmates.model_policy` 为 jsonb。**未运行 `pnpm accounts:migrate`。**
+3. main 快进到 `62ba7ede` 并推送 tokyo（`98c42e9c..62ba7ede`）；本机构建镜像 `release-20261007d`，`docker save | gzip | ssh docker load` 装入服务器。装入前磁盘 68%，装入后 78%，未删旧镜像。
+4. 确认 0 个进行中的生成任务；备份 `.env.hosted.local.bak-20261007d-pre`、`docker-compose.supabase.yml.bak-20261007d-pre`（均指向 release-20261007c）；服务器 compose 换成仓库版本（与旧版只差新开关透传）；env 改镜像标签并加 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`；`supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`。
+5. 结果：三个容器 healthy；readiness `accountsVersion 26`、`liveWorkers 2/2`；Web 与 Worker 都读到新开关；`/api/study/capabilities` 返回 `companionChat: true`；Worker runner 正常启动，日志无错误。
+6. 回退：恢复两个 `*.bak-20261007d-pre` 后 apply（回到 release-20261007c）；或只把开关置空后 apply。v26 的表和列保留。
 
 ### 下一批（B06）前置条件
 
