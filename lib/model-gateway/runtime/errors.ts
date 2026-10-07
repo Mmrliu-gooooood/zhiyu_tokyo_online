@@ -18,7 +18,9 @@ export type GatewayErrorCode =
   | 'MODEL_UPSTREAM_UNAVAILABLE'
   | 'MODEL_NETWORK'
   | 'MODEL_TIMEOUT'
-  | 'MODEL_ABORTED';
+  | 'MODEL_ABORTED'
+  /** A gateway-side step before the request (entitlement, quota slot) failed: nothing was sent. */
+  | 'MODEL_GATEWAY_UNAVAILABLE';
 
 const MESSAGES: Record<GatewayErrorCode, string> = {
   MODEL_CONFIGURATION: 'The model is not configured correctly.',
@@ -35,6 +37,7 @@ const MESSAGES: Record<GatewayErrorCode, string> = {
   MODEL_NETWORK: 'The model provider could not be reached.',
   MODEL_TIMEOUT: 'The model request timed out.',
   MODEL_ABORTED: 'The model request was cancelled.',
+  MODEL_GATEWAY_UNAVAILABLE: 'The model service is temporarily unavailable.',
 };
 
 export interface GatewayErrorInit {
@@ -109,4 +112,28 @@ export function isGatewayError(value: unknown): value is GatewayError {
 
 export function gatewayErrorMessage(code: GatewayErrorCode): string {
   return MESSAGES[code];
+}
+
+/**
+ * One-line operator diagnostic for a gateway-side failure (database, limiter,
+ * entitlement backend): error name, its code (e.g. a PostgreSQL SQLSTATE) and
+ * message, with URLs and key-like tokens removed. Never shown to users.
+ */
+export function describeInternalError(error: unknown): string {
+  const record = (error ?? {}) as { name?: unknown; code?: unknown };
+  const name = typeof record.name === 'string' ? record.name : typeof error;
+  const code =
+    (typeof record.code === 'string' || typeof record.code === 'number') &&
+    /^[A-Za-z0-9_]{1,64}$/.test(String(record.code))
+      ? ` code=${record.code}`
+      : '';
+  const message = (error instanceof Error ? error.message : String(error ?? ''))
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, '[redacted-url]')
+    .replace(/\bBearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[redacted-key]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
+  return `${name}${code}: ${message}`;
 }

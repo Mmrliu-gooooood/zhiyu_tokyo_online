@@ -47,7 +47,7 @@ import type {
 } from '../types';
 import { classifyFailure } from './classify';
 import { getEntitlementPolicy } from './entitlement';
-import { GatewayError } from './errors';
+import { GatewayError, describeInternalError } from './errors';
 import { FETCHLESS_APIS, fetchlessRefusal } from './fetchless';
 import { resolveImages, ImageInputError } from './images';
 import {
@@ -400,10 +400,12 @@ export function runStream(
 
       // 3 entitlement (platform-funded calls only)
       if (binding.funding.kind === 'platform') {
-        grant = await policy.authorize({ ownerId: opts.ownerId, binding, source: opts.source });
+        grant = await beforeSend('entitlement', () =>
+          policy.authorize({ ownerId: opts.ownerId, binding, source: opts.source }),
+        );
       }
       // 4 quota
-      lease = await deps.quota(signal);
+      lease = await beforeSend('quota', () => deps.quota(signal));
       const attemptSignal = lease ? AbortSignal.any([signal, lease.signal]) : signal;
 
       const thinking = planThinking(binding);
@@ -515,6 +517,30 @@ export function runStream(
       });
     } finally {
       await lease?.release(finalError);
+    }
+  }
+
+  /**
+   * Stages 3 and 4 run before anything is sent, so their failures (a credit
+   * backend, the provider-slot table) are the gateway's own: they must never be
+   * classified by provider error text ("permission denied" is not a bad key).
+   */
+  async function beforeSend<T>(stage: 'entitlement' | 'quota', work: () => Promise<T>): Promise<T> {
+    try {
+      return await work();
+    } catch (error) {
+      // Policy decisions (MODEL_ENTITLEMENT_DENIED) and cancellation keep their meaning.
+      if (error instanceof GatewayError || signal.aborted) throw error;
+      log.error(
+        `[${opts.source}] ${stage} failed before the model request (${binding.providerId}:${binding.modelId}): ${describeInternalError(error)}`,
+      );
+      throw new GatewayError('MODEL_GATEWAY_UNAVAILABLE', {
+        providerId: binding.providerId,
+        modelId: binding.modelId,
+        requestSent: false,
+        safeToRetry: true,
+        cause: error,
+      });
     }
   }
 

@@ -10,6 +10,8 @@ import {
   type FakeReply,
 } from '@/lib/model-gateway/testing/fake-openai-server';
 import { GatewayError, userText } from '@/lib/model-gateway';
+import { classifyFailure } from '@/lib/model-gateway/runtime/classify';
+import { describeInternalError } from '@/lib/model-gateway/runtime/errors';
 import { bindingFor, testGateway } from './helpers';
 
 let server: FakeModelServer;
@@ -98,6 +100,52 @@ describe('error classification', () => {
     expect(error?.retryAfterMs).toBe(30_000);
     expect(error?.statusCode).toBe(429);
     expect(error?.responseHeaders).toEqual({ 'retry-after': '30' });
+  });
+});
+
+describe('gateway-side failures', () => {
+  it('provider text patterns still read "permission denied" as rejected credentials', () => {
+    // Why pre-request failures must bypass classifyFailure (see gateway-faux tests).
+    const error = classifyFailure({
+      providerId: 'p',
+      modelId: 'm',
+      thrown: new Error('permission denied for table generation_provider_slots'),
+      outputObserved: false,
+      aborted: false,
+    });
+    expect(error.code).toBe('MODEL_AUTH_FAILED');
+  });
+
+  it('MODEL_GATEWAY_UNAVAILABLE has a fixed message and never serializes its cause', () => {
+    const error = new GatewayError('MODEL_GATEWAY_UNAVAILABLE', {
+      providerId: 'p',
+      modelId: 'm',
+      requestSent: false,
+      safeToRetry: true,
+      cause: new Error('secret detail'),
+    });
+    expect(error.message).toBe('The model service is temporarily unavailable.');
+    expect(JSON.stringify(error)).not.toContain('secret detail');
+    expect(error.statusCode).toBeUndefined();
+  });
+
+  it('describes an internal error for operators without URLs or keys', () => {
+    const pg = Object.assign(new Error('permission denied for table generation_provider_slots'), {
+      code: '42501',
+    });
+    expect(describeInternalError(pg)).toBe(
+      'Error code=42501: permission denied for table generation_provider_slots',
+    );
+    const leaky = Object.assign(
+      new Error(
+        'connect failed postgres://app_web:hunter2@db:5432/zhiyu\nBearer abc.def sk-abcdefghijkl',
+      ),
+      { name: 'DatabaseError', code: 'not a code!' },
+    );
+    expect(describeInternalError(leaky)).toBe(
+      'DatabaseError: connect failed [redacted-url] Bearer [redacted] [redacted-key]',
+    );
+    expect(describeInternalError(new Error('x'.repeat(1000))).length).toBeLessThan(320);
   });
 });
 

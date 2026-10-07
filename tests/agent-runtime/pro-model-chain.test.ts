@@ -211,4 +211,22 @@ describe('PRO Home model complete generation chain', () => {
     expect(isModelConfigurationError(authError)).toBe(true);
     expect(isModelConfigurationError(safeModelError('429'))).toBe(false);
   });
+
+  it('treats a gateway-side failure before sending as transient, not a credential problem', async () => {
+    const { GatewayError } =
+      await vi.importActual<typeof import('@/lib/model-gateway')>('@/lib/model-gateway');
+    const error = new GatewayError('MODEL_GATEWAY_UNAVAILABLE', {
+      providerId: 'openai',
+      modelId: 'gpt-5.6',
+      requestSent: false,
+      safeToRetry: true,
+      cause: new Error('permission denied for table generation_provider_slots'),
+    });
+    const message = safeModelError(error);
+    expect(message).toMatch(/^PRO_MODEL_UNAVAILABLE:/);
+    expect(message).not.toContain('generation_provider_slots');
+    expect(safeModelError(message)).toBe(message);
+    expect(isModelConfigurationError(error)).toBe(false);
+    expect(isModelConfigurationError(message)).toBe(false);
+  });
 });

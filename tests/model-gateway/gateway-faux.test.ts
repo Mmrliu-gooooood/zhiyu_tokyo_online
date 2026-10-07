@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createFauxGateway,
   fauxAssistantMessage,
@@ -259,6 +259,119 @@ describe('model gateway pipeline (faux provider)', () => {
       ),
     ).rejects.toMatchObject({ code: 'MODEL_ENTITLEMENT_DENIED' });
     expect(harness.faux.state.callCount).toBe(0);
+  });
+
+  describe('failures before the request (entitlement, quota)', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    /** The 2026-10-07 production failure: app_web could not touch the slot table. */
+    const slotTableDenied = () =>
+      Object.assign(new Error('permission denied for table generation_provider_slots'), {
+        code: '42501',
+        severity: 'ERROR',
+      });
+    const platform = {
+      source: 'platform',
+      funding: { kind: 'platform', defaultId: 'zhiyu-default-text', revision: 'r1' },
+    } as const;
+
+    it('reports a quota database failure as a gateway failure, not rejected credentials', async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const cause = slotTableDenied();
+      const harness = createFauxGateway({
+        responses: [fauxAssistantMessage('never')],
+        deps: {
+          quota: async () => {
+            throw cause;
+          },
+        },
+      });
+      const error = await harness.gateway
+        .complete(harness.binding(), request, { source: 'agent-runner' })
+        .then(
+          () => expect.unreachable('the call must fail'),
+          (caught: unknown) => caught as GatewayError,
+        );
+
+      expect(error).toBeInstanceOf(GatewayError);
+      expect(error).toMatchObject({
+        code: 'MODEL_GATEWAY_UNAVAILABLE',
+        requestSent: false,
+        safeToRetry: true,
+        outputObserved: false,
+      });
+      expect(error.cause).toBe(cause);
+      expect(JSON.stringify(error)).not.toContain('generation_provider_slots');
+      expect(harness.faux.state.callCount).toBe(0);
+      expect(harness.calls).toEqual([]);
+      expect(harness.usage).toEqual([]);
+      // Operators see the database error server-side.
+      const lines = logged.mock.calls.map((args) => args.join(' ')).join('\n');
+      expect(lines).toContain('[agent-runner] quota failed before the model request');
+      expect(lines).toContain('code=42501');
+      expect(lines).toContain('permission denied for table generation_provider_slots');
+    });
+
+    it('reports an entitlement backend failure as a gateway failure and skips quota', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const harness = createFauxGateway({
+        quota: true,
+        responses: [fauxAssistantMessage('never')],
+        deps: {
+          entitlement: () => ({
+            authorize: async () => {
+              throw new Error('permission denied for relation credit_ledger');
+            },
+            settle: async () => undefined,
+          }),
+        },
+      });
+      await expect(
+        harness.gateway.complete(harness.binding(platform), request, { source: 'test' }),
+      ).rejects.toMatchObject({ code: 'MODEL_GATEWAY_UNAVAILABLE', requestSent: false });
+      expect(harness.quota.acquired).toBe(0);
+      expect(harness.faux.state.callCount).toBe(0);
+    });
+
+    it('keeps cancellation while waiting for a quota slot as MODEL_ABORTED', async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const controller = new AbortController();
+      let waiting!: () => void;
+      const entered = new Promise<void>((resolve) => (waiting = resolve));
+      const harness = createFauxGateway({
+        responses: [fauxAssistantMessage('never')],
+        deps: {
+          // Like PostgresGenerationLimiter.run polling for a free slot.
+          quota: (signal) =>
+            new Promise((_, reject) => {
+              signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+              waiting();
+            }),
+        },
+      });
+      const result = harness.gateway.complete(harness.binding(), request, {
+        source: 'test',
+        signal: controller.signal,
+      });
+      await entered;
+      controller.abort(new Error('permission denied (cancelled by the user)'));
+      await expect(result).rejects.toMatchObject({ code: 'MODEL_ABORTED', requestSent: false });
+      expect(logged).not.toHaveBeenCalled();
+    });
+
+    it('passes a GatewayError from the quota step through unchanged', async () => {
+      const limited = new GatewayError('MODEL_RATE_LIMITED', { providerId: 'faux', modelId: 'm' });
+      const harness = createFauxGateway({
+        deps: {
+          quota: async () => {
+            throw limited;
+          },
+        },
+      });
+      await expect(
+        harness.gateway.complete(harness.binding(), request, { source: 'test' }),
+      ).rejects.toBe(limited);
+    });
   });
 
   it('keeps credentials out of enumerable binding fields and JSON', () => {

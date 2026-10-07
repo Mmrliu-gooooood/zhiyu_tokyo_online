@@ -4,7 +4,7 @@
  * per-attempt operator-funded usage and logs, quota release, credentials never
  * in the binding's enumerable fields.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createEmbeddingBinding,
@@ -19,7 +19,10 @@ const binding = createEmbeddingBinding(
   { baseUrl: 'https://embed.example/v1/', apiKey: 'sk-secret' },
 );
 
-function setup(responses: Array<(body: Record<string, unknown>) => Response>) {
+function setup(
+  responses: Array<(body: Record<string, unknown>) => Response>,
+  overrides: Partial<EmbeddingGatewayDeps> = {},
+) {
   const usage: UsageEvent[] = [];
   const logs: unknown[] = [];
   const requests: Array<{ url: string; headers: Headers; body: Record<string, unknown> }> = [];
@@ -40,7 +43,13 @@ function setup(responses: Array<(body: Record<string, unknown>) => Response>) {
       return next(body);
     }) as typeof fetch,
   };
-  return { gateway: createEmbeddingGateway(deps), usage, logs, requests, released: () => released };
+  return {
+    gateway: createEmbeddingGateway({ ...deps, ...overrides }),
+    usage,
+    logs,
+    requests,
+    released: () => released,
+  };
 }
 
 const ok = (body: Record<string, unknown>) =>
@@ -135,6 +144,34 @@ describe('embedding gateway', () => {
       code: 'MODEL_CONFIGURATION',
     });
     expect(harness.requests).toHaveLength(0);
+  });
+
+  it('reports a quota database failure as a gateway failure before any request', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const cause = Object.assign(
+      new Error('permission denied for table generation_provider_slots'),
+      {
+        code: '42501',
+      },
+    );
+    const harness = setup([ok], {
+      quota: async () => {
+        throw cause;
+      },
+    });
+    const error = await harness.gateway.embed(binding, ['x'], { source: 'study-index' }).then(
+      () => expect.unreachable('the call must fail'),
+      (caught: unknown) => caught as GatewayError,
+    );
+    expect(error).toMatchObject({
+      code: 'MODEL_GATEWAY_UNAVAILABLE',
+      requestSent: false,
+      safeToRetry: true,
+    });
+    expect(error.cause).toBe(cause);
+    expect(harness.requests).toHaveLength(0);
+    expect(logged.mock.calls.flat().join(' ')).toContain('code=42501');
+    logged.mockRestore();
   });
 
   it('reports unknown token usage as null and stops on abort', async () => {

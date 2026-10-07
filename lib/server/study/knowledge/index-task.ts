@@ -50,6 +50,7 @@ const RETRYABLE_EMBEDDING = new Set([
   'MODEL_UPSTREAM_UNAVAILABLE',
   'MODEL_NETWORK',
   'MODEL_TIMEOUT',
+  'MODEL_GATEWAY_UNAVAILABLE',
 ]);
 
 export interface MaterialIndexDependencies {

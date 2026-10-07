@@ -22,7 +22,7 @@ import {
 
 import { getDescriptor } from '../catalog/descriptors';
 import type { FundingSource } from '../types';
-import { GatewayError, type GatewayErrorCode } from './errors';
+import { GatewayError, describeInternalError, type GatewayErrorCode } from './errors';
 import { acquireDeploymentQuota, type QuotaAcquirer, type QuotaLease } from './quota';
 import { createTransport, type SideChannel } from './transport';
 import { recordUsageEvent, type UsageRecorder } from './usage';
@@ -241,7 +241,16 @@ export async function runEmbed(
   let lease: QuotaLease | undefined;
   let finalError: unknown;
   try {
-    lease = await deps.quota(signal);
+    try {
+      lease = await deps.quota(signal);
+    } catch (error) {
+      // The slot table is the gateway's own: nothing was sent (see pipeline beforeSend).
+      if (error instanceof GatewayError || signal.aborted) throw error;
+      log.error(
+        `[${opts.source}] quota failed before the embedding request (${binding.providerId}:${binding.modelId}): ${describeInternalError(error)}`,
+      );
+      throw failure(binding, 'MODEL_GATEWAY_UNAVAILABLE', undefined, error);
+    }
     const attemptSignal = lease ? AbortSignal.any([signal, lease.signal]) : signal;
     const maxAttempts = opts.retry === 'none' ? 1 : 3;
     for (let attempt = 1; ; attempt += 1) {

@@ -39,6 +39,7 @@ const GATEWAY_STATUS: Partial<Record<GatewayErrorCode, number>> = {
   MODEL_UPSTREAM_UNAVAILABLE: 503,
   MODEL_NETWORK: 502,
   MODEL_TIMEOUT: 504,
+  MODEL_GATEWAY_UNAVAILABLE: 503,
 };
 
 function gatewayStatus(error: GatewayError): number | undefined {
