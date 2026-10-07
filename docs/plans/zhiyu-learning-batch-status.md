@@ -10,7 +10,7 @@
 | B02 | 已上线（2026-10-05，release-20261005c） | `learn/b02-materials` → main（快进，已推送 tokyo） | `11113d2e` | 本地托管模式验收通过（见 B02 节） | 已启用 `ZHIYU_STUDY_MATERIALS_ENABLED=1` | 见 B02“遗留事项” |
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
-| B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收待你登录 | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
+| B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -136,10 +136,9 @@
 
 ### 未验证
 
-- OpenRouter 账号（凭据库）作为独立模型的真实调用：本地没有 OpenRouter 密钥，需在生产由用户登录自己的 OpenRouter 后验证；凭据路径的检查（归属、状态、服务商、就绪）有单元测试。
 - 服务器配置的服务商作为独立模型的真实调用：生产与本地都只有平台默认的后备服务商（不提供选择），上午用假模型验证过该路径。
 - 账号删除清单中新表的删除只在 PGlite 夹具中验证。
-- 生产环境：见下方“上线记录”。
+- 生产环境：见下方“上线记录”与“生产登录验收”（已通过）。
 
 ### 回退
 
@@ -154,6 +153,20 @@
 4. 确认 0 个进行中的生成任务；备份 `.env.hosted.local.bak-20261007d-pre`、`docker-compose.supabase.yml.bak-20261007d-pre`（均指向 release-20261007c）；服务器 compose 换成仓库版本（与旧版只差新开关透传）；env 改镜像标签并加 `ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`；`supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`。
 5. 结果：三个容器 healthy；readiness `accountsVersion 26`、`liveWorkers 2/2`；Web 与 Worker 都读到新开关；`/api/study/capabilities` 返回 `companionChat: true`；Worker runner 正常启动，日志无错误。
 6. 回退：恢复两个 `*.bak-20261007d-pre` 后 apply（回到 release-20261007c）；或只把开关置空后 apply。v26 的表和列保留。
+
+### 生产登录验收（2026-10-07，用户已登录 admin 并连接 OpenRouter）
+
+在用户的 admin 账号上，用学科“资料功能验收（可删除）”里已建索引的《二次函数讲义-验收》（英文讲义）和课程《光合作用原理》：
+
+1. 给学伴“小林”授权该讲义 → 课后答疑页学科自动选中、没有“声音不可用”提示（B04 音色绑定有效）。用平台默认（继承）提问：只用中文关键词时检索不到英文讲义，回答如实说明并给补充说明（关键词检索的已知局限，B03 未做语义检索）；用 vertex / parabola 检索后引用第 1、2 页，公式由 KaTeX 渲染，中文过程说明显示为灰色过程行。
+2. 独立模型：保存“OpenRouter 凭据 + providerId=deepseek”被拒（422 `credential_provider_mismatch`）；保存“OpenRouter 凭据 + `deepseek/deepseek-v4-flash`”通过（v3）。下一轮出现“回答模型已变为：openrouter:deepseek/deepseek-v4-flash”，页头显示独立模型；`usage_events` 中该轮记为 `openrouter:deepseek/deepseek-v4-flash`、`credential_kind=vault`、`funding=subscription`（用户自己的账号），之前各轮为 `platform:zhiyu-default-text`。
+3. 课堂实时发言：对《光合作用原理》调用 `/api/chat`（请求模型为平台默认），点名小林 → 小林发言记为 `chat-adapter-stream` + `openrouter:deepseek/deepseek-v4-flash`（vault），即课堂里也用了它自己的独立模型。
+4. 从课堂继续问：带课程/页面/角色版本/问题打开 → 问题预填、显示来源课程；该课程未挂到任何学科，所以学科不预选（正确）；选学科后先 `read_course_page` 读课堂页再回答。
+5. 撤权：撤销讲义授权后回到第一个对话再问“把原文再念一遍”→ 出现“已隐去”提示，7 个旧引用全部划线，`read_material` 被拒，模型说明资料已不在授权范围、不道歉、不复述原文。
+6. 核对：两个对话的 run 数 = 用户消息数（4/4、1/1），无失败；本次生产验收共约 0.003 美元（平台约 0.0016，用户 OpenRouter 约 0.0016）。
+7. 验收后把小林恢复为原设置（继承模型、无授权资料，版本升到 v5）；两条测试对话保留在该账号里。
+
+观察：页面刚加载、尚未就绪时点击发送，有一次没有发出去（输入框保留了文字，再点一次正常），未深究。
 
 ### 下一批（B06）前置条件
 
