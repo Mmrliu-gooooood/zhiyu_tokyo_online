@@ -25,7 +25,7 @@
 
 - 分支 `learn/b06-memory` 从 main `6afcbe70`（= `tokyo/main`）创建；生产为 release-20261007d、accounts v26（仓库 v26 checksum `354fbeed…` 与生产记录一致）。
 - 范围：方案 B06 第 1–7 条——小型版本化学习事件（来自服务端已保存的事实、source 唯一键去重、可重放）；明确偏好与目标编辑；Memory 页面（事实/偏好/近期状态，带来源与时间，更正、删除、全局与按学科开关）；所有学伴共用同一份 Memory、按学科少量注入；关闭/删除语义与抑制标记；规则聚合的近期状态（零模型调用）并给 B12 留 `sourceWatermark`/`inputHash` 接口；新开关 `ZHIYU_STUDY_MEMORY_ENABLED`。
-- 不包含：embedding、OCR（见“全部批次完成后再做”）、模型自动抽取记忆（mem0 式）、B12 的摘要与复习规则、IM 渠道、课堂实时发言的注入（见“待用户决定”）。
+- 不包含：embedding、OCR（见“全部批次完成后再做”）、模型自动抽取记忆（mem0 式）、B12 的摘要与复习规则、IM 渠道。课堂实时发言按用户选定的方案 A 只注入讲解偏好（见“课堂实时发言”）。
 - 网关修复分支 `claude/adoring-villani-afd3ce`（d677b860）**未合并**：与 B06 无依赖，单独变基、补 12 种语言文案、跑全量测试后另行上线更清楚。
 - 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
 
@@ -51,19 +51,23 @@
 
 ### 偏离方案之处
 
-- 方案 3.2 的 `learner_preferences / memory_entries` 拆成偏好、事实两张表，另加 `study_memory_controls`（开关）与 `study_memory_suppressions`（抑制标记）；`memory_summaries` 本批不建表（B12 再建），只在近期状态里先算好 watermark/hash。
-- 学习事件不在 B07 之前的每个写入点都内联写入：课堂测验没有可挂的服务端钩子，靠 Memory 页面补投影（幂等、可重放，满足“投影失败可以重放”）。
+用户 2026-10-09 确认：与方案不同之处以实际项目代码为准，逻辑相同或相近即可。逐条复核后保留如下（理由附后）：
+
+- 方案 3.2 的 `learner_preferences / memory_entries` 拆成偏好、事实两张表，另加 `study_memory_controls`（开关）与 `study_memory_suppressions`（抑制标记）；`memory_summaries` 本批不建表（B12 再建），只在近期状态里先算好 watermark/hash。理由：偏好是“每个键一个值”、事实是自由文本，约束与唯一性不同，分表后各自的 CHECK 与唯一索引更直接；摘要表的形状要等 B12 的生成规则定下来再建，避免空表迁移。
+- 学习事件不在 B07 之前的每个写入点都内联写入：课堂测验没有可挂的服务端钩子，靠 Memory 页面补投影（幂等、可重放，满足“投影失败可以重放”）。理由：课堂测验写入走通用的运行时存储（`runtime_sessions/records`），在那里挂学习逻辑会让持久层依赖学习模块；B06 只有 Memory 页面使用学习记录，打开时补投影即可，B12 用到时同样先调用 `syncLearningEvents`。
 - 课堂测验分数不直接采用课堂记录，而是服务器按课程原题复判选择题；无法核对的不出分。
-- 学习记录与近期状态本批**只展示、不注入**答疑（方案第 5 条只要求偏好/事实）；近期状态的注入留给 B12 的短摘要。
+- 学习记录与近期状态本批**只展示、不注入**答疑（方案第 5 条只要求偏好/事实）；近期状态的注入留给 B12 的短摘要。理由：原始记录条目多、价值密度低，直接注入会挤占 token 上限，也容易被模型误读成“已掌握”。
+- 方案的“关闭后清除模型上下文缓存”：实现里 Memory 每轮/每次请求现读，没有跨轮缓存，持久会话里也不存系统提示，关闭后下一次回答即生效——逻辑等价，没有需要清的缓存。
 - API：方案表列了 `/api/study/memory`、`/preferences`；另加 `/api/study/memory/controls`、`/facts`、`/facts/[id]`、`/records/[seq]`、`/suggestions`、`/clear`，各自只做一件事。
 
-### 待用户决定：课堂实时发言是否注入
+### 课堂实时发言：只注入讲解偏好（用户 2026-10-09 选定方案 A）
 
-现状：B06 只在课后答疑注入；`/api/chat`（LangGraph）与 `/api/chat/pi` 不读 Memory。建议方案（**未实现**，等你决定）：
+候选为 A（只注入三项讲解偏好）、B（不注入）、C（与答疑一样全部注入）；用户选 A。实现：
 
-- **A（推荐）**：课堂实时发言只注入三项“讲解偏好”（不含事实与目标），按课程所在学科解析（只在一个学科时用该学科覆盖，否则用全局），受全局/学科开关控制，约 80 token；两条路径在同一位置加同一段（LangGraph 各角色的系统提示、Pi 导演与子 agent 提示），各加探针测试，再用真实模型对比一次。理由：讲解长度、先例子还是先定义对课堂发言同样有用；个人事实在多角色课堂里被多个角色复述的风险更高。整课预生成内容不变。工作量约半天。
-- **B**：保持现状，只在课后答疑用。
-- **C**：偏好、事实、目标都注入课堂（与课后答疑一致），提示更长，且多角色复述个人信息的风险更大。
+- **读什么**（`resolveClassroomMemoryContext`，`lib/server/study/memory/context.ts`）：只读 `explanation_length`、`example_order`、`hint_mode` 三项，**不含**学习目标、事实、学科目标和学习记录——课堂里多个角色同时发言，个人信息不应被复述。按课程所在学科取值（`classroomPreferenceScope`）：课程不在任何学科 → 只用全局偏好；在一个开着 Memory 的学科 → 该学科覆盖全局；在多个开着的学科 → 只用全局（无法判断哪个学科的选择适用于这门课）；所在学科全部关闭 → 不注入（`space_off`）；全局关闭 → `off`。与答疑共用 `effectivePreference`（学科覆盖全局）和同一套开关语义；每次请求现读、不缓存，读失败或表不存在 → `unavailable`、照常回答。
+- **怎么进请求**（`lib/server/study/memory/classroom.ts` 的 `applyClassroomMemory`，形状与 B04 的 `applyClassmateSpeechRules` 相同）：两条路由在说话规则与学伴模型解析之后调用；先删掉客户端传来的 `learnerPreferences`，再写入服务端读到的段落（`StatelessChatRequest.learnerPreferences`，与 `addressedAgentId` 一样“只能由服务端设置”）。未登录、功能关闭、无课程 id 时不查库。每次请求记一行日志 `classroom memory {state, refs, tokens}`（只有引用，不含文字），作为课堂的注入证据。
+- **进哪些提示词**：LangGraph 各角色的系统提示（`buildStructuredPrompt` 的学生信息段之后）；Pi 的旧版与原生子 agent 提示（`buildChildPrompt`、`buildNativeChildPrompt`）。导演（决定谁发言）不需要、不注入。段落是英文（与课堂其他提示一致，回答语言仍由课程语言规则决定），约 60–90 token，写明“由学生在 Memory 里设定或确认、对所有老师和同学生效；在各自角色与长度限制内调整；本轮另有要求以本轮为准；不要说出这些设定”。
+- 整课预生成的讲解内容不变；Memory 页面开关说明同步改为“课堂按讲解偏好、答疑另参考少量事实和目标”（12 种语言）。
 
 ### 实际改动模块
 
@@ -72,6 +76,7 @@
 - 接口：`app/api/study/memory/{route,controls,facts,facts/[factId],records/[seq],suggestions,clear}`、`app/api/study/preferences`、`app/api/study/capabilities`；内联投影接到 `app/api/study/progress/[stageId]`、`app/api/study/classmates/[classmateId]/chats`、`app/api/study/companion-chats/[sessionId]/messages`。
 - 共享/前端：`lib/study/memory/{contracts,projection,recent-state,overview,client}.ts`、`lib/study/companion/contracts.ts`（turn 事件加 `memory`）、`lib/study/spaces/client.ts`（capabilities）、`components/study/memory/{MemoryPage,CompanionMemory}.tsx`、`app/study/memory/page.tsx`、`components/study/companion/CompanionChatPage.tsx`（确认提示、页头 Memory 说明）、`StudyShell` 导航“学习记忆”、12 个语言文件（`study.memory.*`）。
 - 配置：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`（新开关透传）。
+- 课堂注入（方案 A，`99bbac27`）：`lib/server/study/memory/classroom.ts`（新）、`lib/server/study/memory/context.ts`（`resolveClassroomMemoryContext`）、`lib/study/memory/contracts.ts`（`effectivePreference`、`classroomPreferenceScope`、`selectClassroomPreferences`、`renderClassroomPreferenceBlock`；答疑与课堂共用偏好选择）、`lib/types/chat.ts`（`learnerPreferences`，仅服务端设置）、`app/api/chat/route.ts`、`app/api/chat/pi/route.ts`、`lib/orchestration/{director-graph,prompt-builder}.ts`、`lib/chat/pi/prompts.ts`、12 个语言文件（开关说明）、`scripts/dev-fake-model-server.ts`（探针对所有请求生效、支持多个短语）。
 
 ### 数据迁移
 
@@ -82,13 +87,16 @@
   4. `study_memory_controls`：全局一行 + 每学科一行（唯一索引），`enabled_since`。
   5. `study_memory_suppressions`：`(owner_id, kind, target_key)` 主键，`app_web` 只能查/插/删。
   - 五张表强制 RLS，`anon/authenticated/PUBLIC` 无授权；`app_web` 按 owner；`app_worker` 只读偏好、事实、开关（查询都显式带 owner，同 B04/B05）。
-- 已在本地一次性 PostgreSQL 17（vector + pgroonga）用全新 bootstrap 按生产顺序执行 v1–v4、v8–v27，核对：五张表 `relrowsecurity = relforcerowsecurity = true`；授权与上面一致（`app_worker` 对事件与抑制表无权限）。**生产尚未执行。**
+- 已在本地一次性 PostgreSQL 17（vector + pgroonga）用全新 bootstrap 按生产顺序执行 v1–v4、v8–v27，核对：五张表 `relrowsecurity = relforcerowsecurity = true`；授权与上面一致（`app_worker` 对事件与抑制表无权限）。
+- 2026-10-09 补验：迁移单测在真实 PostgreSQL 17（一次性 `*_rls_proof` 库，127.0.0.1:55432，tmpfs，用后删除）上通过（PGlite + PostgreSQL 各 3 项）。
 
 ### 测试
 
 - 新增：`tests/study/memory-logic.test.ts`（长期意愿识别与一次性请求、已设置/已抑制不再提示、学科覆盖全局、条目与 token 上限、更正不注入、进度/测验/答疑的 source key、服务器复判与改题后不出分、AI 评分标注、开关与 `enabled_since`、近期状态无“掌握”字段且 hash 只随记录变化）、`tests/server/study-memory-migration.test.ts`（v27：可重复执行、强制 RLS、Data API 无授权、Web 隔离、事件不可修改且只能挂本人未删除课程、他人学科不能引用、Worker 只读三张表、无权读事件与抑制；设 `TEST_STUDY_MEMORY_DATABASE_URL` 可在真实 PG 上重跑）、`tests/api/study-memory-routes.test.ts`（PGlite + 真实会话存储：开关、三类来源投影与重放不重复、浏览器自称 2/2 而服务器判 1/2、删除后重放不复活、关闭停止投影与读取、关闭期间不补录、学科开关、偏好/事实编辑与冲突、更正、清除默认保留原始测验、账号隔离；每个用例结束断言 `gateway.complete/stream` 未被调用）、`tests/agent-runtime/companion-memory.test.ts`（真实 `prepareCompanionRun`：两个学伴拿到同一段 Memory 且人设各自不同、学科覆盖、他人账号读不到、关闭/学科关闭/功能关闭/表缺失时不注入且 turn 记录状态）、`tests/server/study-memory-projector.test.ts`（并发补投影等待进行中的那次、节流、按账号独立）。
 - 调整：`principal-mode`（迁移版本到 27）、`account-deletion-lifecycle`（五张新表只删本人）、`study-companion-migration`（版本断言放宽为 ≥26）、三个 capabilities 断言（加 `memory`）。
 - 全量 Vitest（`TEST_LOAD_LOCAL_ENV=0`，`--maxWorkers=4`）：首轮 **876 个文件通过、17 个跳过；9029 项通过、94 项跳过、0 失败**；验收修复（`8b402502`）后复跑 **877 个文件通过、17 个跳过；9030 项通过、94 项跳过、0 失败**。`tsc --noEmit` 通过；改动的 TS/TSX 文件 ESLint 0 问题；Prettier 通过；`check:i18n-keys`（12 个语言文件）通过；`build:worker` 通过且 Worker 正常启动。
+- 课堂注入新增 `tests/server/study-classroom-memory.test.ts`（PGlite：课程所在学科覆盖全局、只给讲解偏好不给目标/事实/他人偏好、不在学科的课程用全局、学科关/全局关/功能关/表缺失；请求钩子丢弃客户端值、未登录/关闭/出错时不设置；LangGraph 与 Pi 旧版/原生子 agent 提示都带上该段），`memory-logic` 增加课堂选择与学科判定用例。全量 Vitest：**878 个文件通过、17 个跳过；9041 项通过、94 项跳过、0 失败**；`tsc`、改动文件 ESLint、Prettier、i18n 均通过。
+- 真实 PostgreSQL（`TEST_*_DATABASE_URL` 指向一次性 `*_rls_proof` 库）补跑：`study-memory-migration`、`account-deletion-lifecycle`（postgres 后端 8 项）、`study-{spaces,materials,knowledge,classmates,companion}-migration`、`study-knowledge` 共 64 项。发现 1 项**既有**失败：B03 的 `study-knowledge-migration` 仍断言 Worker 不能执行 `study_knowledge_search`，而 B05 的 v26 已按设计授予 Worker 执行权（课后答疑检索资料）；该断言只在带 vector/pgroonga 的真实库上运行，以前没被跑到。已改为符合 v26 的断言（`2e090ed5`），复跑通过。
 
 ### 浏览器验收（2026-10-09，本地托管模式，先假模型、后真实模型）
 
@@ -117,6 +125,34 @@
 
 `usage_events`：`study-companion` 平台调用 5 次（输入 5990 / 输出 2042 token，约 0.0035 美元）；Memory 相关调用 0 次。
 
+### 第二轮验收（2026-10-09 下午：课堂注入与补验）
+
+环境同上（新建的一次性库，v27 全新 bootstrap；课程《导数入门》挂到“高数”，《函数极限》不在任何学科；账号 B 有自己的《英语语法》）。假模型阶段平台默认文字模型（DeepSeek）指向本机假服务器、假密钥；探针 `FAKE_MODEL_PROBE` = 课堂段的“Start with one concrete example”与答疑段的“先举一个具体例子”。每次课堂请求的服务端日志 `classroom memory {state, refs, tokens}` 是注入证据。
+
+假模型（`/api/chat`，LangGraph；课堂页真实界面提问 + 同源 API 请求）：
+
+| 情况 | 日志 | 子 agent 调用探针 |
+| --- | --- | --- |
+| 未设偏好 | `on`，`[]` | absent |
+| Memory 页按钮设“先举例子”（所有学科） | `on`，`["pref:example_order@global"]`，93 token | present（导演调用 absent，按设计不注入） |
+| “高数”设“先讲定义”覆盖 → 高数的课 | `on`，`["pref:example_order@space"]`，89 token | absent（学科值生效） |
+| 同时 → 不在学科的课 | `on`，`["pref:example_order@global"]` | present |
+| 关掉“高数”学科开关 → 高数的课 / 不在学科的课 | `space_off`，`[]` / `on`，global | absent / present |
+| 关掉全局 | `off`，`[]` | absent |
+| 全局关 + 请求里伪造 `learnerPreferences`（含探针文字） | `off`，`[]` | absent（客户端值被丢弃） |
+| 账号 B 请求账号 A 的课 | —（未到 Memory 读取） | 404 |
+| 账号 B 自己的课（A 的偏好开着） | `on`，`[]` | absent |
+
+Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面提问）：`POST /api/chat/pi` 200，日志 `on`，`["pref:example_order@global"]`；子 agent 调用 present，Pi 导演两次 absent。
+
+真实模型（DeepSeek，平台默认；生产使用 `/api/chat`）：
+
+- **课堂**（不在学科的《函数极限》，老师“启衡”，问“极限是什么？请给我讲一下。”）：设“先举例子”时开头为“好，先从具体例子看。比如数列 1/2…”，另一次为“先看个具体的：x 越来越接近 2 时，2x+1 会越来越接近多少？”并在白板画出 x→2 的取值表；删除偏好后为“极限，说白了就是‘无限接近’的那个目标值……”；关闭 Memory 后为“简单说，极限就是：当自变量无限接近某个值时……”——都是先定义。
+- **课后答疑，小林**（人设“喜欢用生活中的例子”，高数，问“链式法则是什么？请给我讲一下。”，每次新对话）：设“先举例子”时 turn 记录 `on`，`["pref:example_order@global","goal:space"]`，回答小标题“先看一个具体例子”（$y=(3x+1)^5$）后才讲公式；关闭 Memory 后 turn 记录 `{"state":"off","refs":[],"tokens":0}`，页头显示“Memory 已关闭，本轮没有使用你的偏好”，回答先“一句话版本”和公式。与第一轮小周的结果合起来，两位学伴都在真实模型下验证了偏好效果。
+- `usage_events`（整轮，含假模型阶段）：来源只有 `chat-adapter*`、`pi-chat-*`、`study-companion`，没有任何 Memory 来源；真实模型花费约 0.008 美元。
+
+验收后已停止全部服务（Worker 按 PID）、删除数据库容器、临时环境文件、测试账号密码文件与假 S3 数据；Worker 日志与临时文件中未发现真实密钥。
+
 ### 验收中发现并修复的问题
 
 - **补投影与并发读取的竞态**：开发模式 React 会执行两次页面 effect，第二个请求撞上按账号节流直接读取，读在第一个请求的投影提交之前，页面少显示了测验记录。改为并发请求等待进行中的那次补投影（`8b402502`，新增单测）。
@@ -124,15 +160,14 @@
 
 ### 未验证
 
-- 生产环境（v27 未执行、镜像未构建）。
-- 课堂实时发言的注入（未实现，见“待用户决定”）。
-- 真实 PostgreSQL 上的迁移单测（`TEST_STUDY_MEMORY_DATABASE_URL` 需要 55432 端口的 `*_rls_proof` 库，本次未起）；真实 PG 上的 RLS/授权以验收库的全新 bootstrap 与浏览器隔离测试为证。
-- 账号删除清单中新表的删除只在 PGlite 夹具中验证。
-- 课后答疑在真实模型下只验证了小周一位学伴的偏好效果；两位学伴共用偏好用假模型探针与 turn 记录验证。
+第一轮列出的四项已在第二轮补验（课堂注入、真实 PG 迁移单测、真实 PG 账号删除、小林真实模型）。仍未验证：
+
+- 生产环境（见上线记录）。
+- 课堂多角色同时发言时（老师 + 多个学伴）真实模型是否都按偏好调整：本地只验证了单个老师角色；每个角色的提示都带该段由单测与假模型探针保证。
 
 ### 回退
 
-- 运行时止损：Web 与 Worker 的 `ZHIYU_STUDY_MEMORY_ENABLED` 置空后 apply——Memory 页面与接口 404、导航入口消失，答疑不再读取 Memory（turn 记录 `unavailable`），进度与答疑不再投影；资料答疑、课堂、B01–B05 功能照常；数据保留。
+- 运行时止损：Web 与 Worker 的 `ZHIYU_STUDY_MEMORY_ENABLED` 置空后 apply——Memory 页面与接口 404、导航入口消失，答疑与课堂都不再读取 Memory（turn 记录 / 课堂日志 `unavailable`），进度与答疑不再投影；资料答疑、课堂、B01–B05 功能照常；数据保留。
 - 版本回退：回到 release-20261007d 镜像；v27 的表保留不用（旧代码不读）。
 
 ### 上线步骤（待用户指示，以下都尚未执行）
