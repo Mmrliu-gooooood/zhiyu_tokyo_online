@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "بيانات اعتماد النموذج مفقودة أو غير صالحة.",
         "PRO_MODEL_MISSING": "لا يوجد نموذج صالح مرتبط.",
         "PRO_MODEL_RATE_LIMIT": "خدمة النموذج مقيّدة حاليًا. حاول لاحقًا.",
+        "PRO_MODEL_UNAVAILABLE": "خدمة النموذج غير متاحة مؤقتًا. يُرجى المحاولة لاحقًا.",
         "PRO_MODEL_TOOLS": "النموذج الحالي لا يدعم الأدوات.",
         "PRO_MODEL_CANCELLED": "أُلغي.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "لديك مهام كثيرة قيد التشغيل. حاول لاحقًا.",

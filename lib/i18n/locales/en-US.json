@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "Model credentials are missing or invalid.",
         "PRO_MODEL_MISSING": "No usable model is bound. Check your model settings.",
         "PRO_MODEL_RATE_LIMIT": "The model service is rate limited. Try again later.",
+        "PRO_MODEL_UNAVAILABLE": "The model service is temporarily unavailable. Please try again later.",
         "PRO_MODEL_TOOLS": "The current model does not support tool calls. Choose another model.",
         "PRO_MODEL_CANCELLED": "Cancelled.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Too many of your tasks are running. Try again later.",

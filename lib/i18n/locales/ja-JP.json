@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "モデルの認証情報がないか無効です。",
         "PRO_MODEL_MISSING": "使えるモデルが設定されていません。",
         "PRO_MODEL_RATE_LIMIT": "モデルサービスが混雑しています。後で再試行してください。",
+        "PRO_MODEL_UNAVAILABLE": "モデルサービスが一時的に利用できません。しばらくしてから再試行してください。",
         "PRO_MODEL_TOOLS": "現在のモデルはツール呼び出しに対応していません。",
         "PRO_MODEL_CANCELLED": "キャンセルしました。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "同時に実行中のタスクが多すぎます。後で再試行してください。",

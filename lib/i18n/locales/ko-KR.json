@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "모델 자격 증명이 없거나 잘못되었습니다.",
         "PRO_MODEL_MISSING": "연결된 모델이 없습니다. 모델 설정을 확인하세요.",
         "PRO_MODEL_RATE_LIMIT": "모델 서비스가 제한 중입니다. 잠시 후 다시 시도하세요.",
+        "PRO_MODEL_UNAVAILABLE": "모델 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
         "PRO_MODEL_TOOLS": "현재 모델은 도구 호출을 지원하지 않습니다.",
         "PRO_MODEL_CANCELLED": "취소되었습니다.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "진행 중인 작업이 너무 많습니다. 잠시 후 다시 시도하세요.",

@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "Identifiants du modèle manquants ou invalides.",
         "PRO_MODEL_MISSING": "Aucun modèle utilisable n’est lié.",
         "PRO_MODEL_RATE_LIMIT": "Le service de modèle est limité. Réessayez plus tard.",
+        "PRO_MODEL_UNAVAILABLE": "Le service du modèle est temporairement indisponible. Réessayez plus tard.",
         "PRO_MODEL_TOOLS": "Le modèle actuel ne prend pas en charge les outils.",
         "PRO_MODEL_CANCELLED": "Annulé.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Trop de tâches en cours. Réessayez plus tard.",

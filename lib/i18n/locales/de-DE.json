@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "Modell-Zugangsdaten fehlen oder sind ungültig.",
         "PRO_MODEL_MISSING": "Kein nutzbares Modell verbunden.",
         "PRO_MODEL_RATE_LIMIT": "Der Modelldienst ist ausgelastet. Später erneut versuchen.",
+        "PRO_MODEL_UNAVAILABLE": "Der Modelldienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.",
         "PRO_MODEL_TOOLS": "Das aktuelle Modell unterstützt keine Tool-Aufrufe.",
         "PRO_MODEL_CANCELLED": "Abgebrochen.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Zu viele laufende Aufgaben. Später erneut versuchen.",

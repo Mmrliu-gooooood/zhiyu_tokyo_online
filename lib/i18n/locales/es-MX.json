@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "Faltan credenciales del modelo o no son válidas.",
         "PRO_MODEL_MISSING": "No hay un modelo utilizable vinculado.",
         "PRO_MODEL_RATE_LIMIT": "El servicio del modelo está limitado. Inténtalo más tarde.",
+        "PRO_MODEL_UNAVAILABLE": "El servicio del modelo no está disponible por ahora. Inténtalo de nuevo más tarde.",
         "PRO_MODEL_TOOLS": "El modelo actual no admite herramientas.",
         "PRO_MODEL_CANCELLED": "Cancelado.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Tienes demasiadas tareas en curso. Inténtalo más tarde.",

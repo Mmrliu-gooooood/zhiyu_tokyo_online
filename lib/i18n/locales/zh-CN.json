@@ -2915,6 +2915,7 @@
         "PRO_MODEL_AUTH": "模型凭据缺失或无效，请检查模型设置。",
         "PRO_MODEL_MISSING": "尚未绑定可用模型，请检查模型设置。",
         "PRO_MODEL_RATE_LIMIT": "模型服务限流，请稍后重试。",
+        "PRO_MODEL_UNAVAILABLE": "模型服务暂时不可用，请稍后重试。",
         "PRO_MODEL_TOOLS": "当前模型不支持工具调用，请更换模型。",
         "PRO_MODEL_CANCELLED": "已取消。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "你同时进行的任务太多，请稍后再试。",
