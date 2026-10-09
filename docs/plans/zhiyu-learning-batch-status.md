@@ -11,7 +11,7 @@
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
 | B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
-| B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收待用户登录 | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
+| B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -162,7 +162,7 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 
 第一轮列出的四项已在第二轮补验（课堂注入、真实 PG 迁移单测、真实 PG 账号删除、小林真实模型）。仍未验证：
 
-- 生产环境（见上线记录）。
+- 生产只验证了一个账号的单个老师角色与一个学伴；账号隔离与删除不复活在生产未重复（本地真实 RLS 已验证）。
 - 课堂多角色同时发言时（老师 + 多个学伴）真实模型是否都按偏好调整：本地只验证了单个老师角色；每个角色的提示都带该段由单测与假模型探针保证。
 
 ### 回退
@@ -177,7 +177,22 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 3. main 从 `6afcbe70` 快进到 `bb6684a1` 并推送 tokyo；本机构建 web 与 worker 镜像，标记 `release-20261009`（web `91b4c9cd`，worker `1ca8dad8`），`docker save | gzip | ssh docker load` 装入。服务器磁盘 79% → **89%**（剩 4.3 GB），未删除任何旧镜像（现存 20261006d/e/f、20261007b/c/d、20261009）。
 4. 生成任务与答疑会话全部为终态（0 个进行中）；备份 `.env.hosted.local.bak-20261009-pre`、`docker-compose.supabase.yml.bak-20261009-pre`（指向 release-20261007d）；compose 换成仓库版本（只多新开关透传一行）；env 改镜像标签并加 `ZHIYU_STUDY_MEMORY_ENABLED=1`；`supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`。
 5. 结果：`readiness` = `ready:true`、`accountsVersion 27`、`liveWorkers 2/2`；三个容器 `release-20261009` healthy；Web 与 Worker 容器内开关为 1；公网 `/api/study/capabilities` 含 `memory:true`，未登录访问 `/api/study/memory` 为 401；重启后 Web 日志无错误。
-6. **生产登录验收待用户登录后进行**（Claude 不输入生产密码）。回退：恢复两个 `*.bak-20261009-pre` 后 apply（v27 的表保留不用）。
+6. 回退：恢复两个 `*.bak-20261009-pre` 后 apply（v27 的表保留不用）。
+7. 用户同意后删除旧镜像 20261006d、20261006e、20261007b（web + worker），磁盘 89% → 58%（剩 17 GB）；保留 20261006f、20261007c、20261007d、20261009。
+
+### 生产登录验收（2026-10-09，用户自行登录账号 2470034737@qq.com）
+
+- **Memory 页**：正常显示新开关说明、“高中数学”学科目标；首次打开补投影出 6 条既有记录（5 条课后答疑提问、1 条“开始观看《声音是怎么传播的》”，标“观看记录，不代表已掌握”），近期状态“看过 1 门课，其中看完 0 门”，全页没有“已掌握”。
+- **课堂 `/api/chat`**（《声音是怎么传播的》，问“声音为什么能在空气里传播？请给我讲一下。”，平台默认 DeepSeek）：Web 容器日志依次为 `on/[]` → `on/["pref:example_order@global"]/93` → `off/[]`；回答分别为“空气里挤满了分子……”（先讲机制）、“先想一个画面：你敲一下鼓……”（先举例）、“好问题！关键在空气分子之间……”（先讲机制）。
+- **课后答疑**（小林，高中数学，聊天页真实界面）：turn 记录 `on`，`["pref:example_order@global","goal:space"]`，142 token；回答先举 $y=(x-2)^2+3$ 的例子再给一般式。注意：模型开头说了“我先按你的偏好，从例子讲起”，提示词要求不复述设定，模型仍点了一句，影响很小，记为观察项。
+- **零模型调用**：验收窗口内 `usage_events` 只有 `chat-adapter-stream` 3 次、`study-companion` 1 次（共约 0.0025 美元），没有 Memory 来源。
+- **还原账号**：删除测试设的“先举例”偏好；删除偏好产生的 `preference` 抑制标记（否则以后真说“以后先举例”不会再弹确认）；删除测试开关时留下的全局开关行（关→开会写入 `enabled_since`，按规则之后不会再补录此前尚未整理的事实），账号恢复为默认“开启、无起始时间”。留下 1 个测试答疑对话（“二次函数的顶点是什么？”，高中数学）。
+
+### 网关修复随后单独上线（release-20261009b）
+
+- 2026-10-07 评审过的 `claude/adoring-villani-afd3ce`（`d677b860`：配额/权益等“请求发出前”的后端失败不再被文字模式误判为 `MODEL_AUTH_FAILED`，改为 `MODEL_GATEWAY_UNAVAILABLE` → `PRO_MODEL_UNAVAILABLE`、HTTP 503、资料索引可重试）在当前 main 上无冲突地重放为 `7f033752`；补 `study.companion.errors.PRO_MODEL_UNAVAILABLE`（12 种语言，`e1ab2823`）。全量 Vitest **878 个文件通过、17 个跳过；9050 项通过、94 项跳过、0 失败**；`tsc`、ESLint、Prettier、i18n 通过。无迁移。
+- 生产托管模式 Web 不跑 agent runner，原问题在生产没有出现过；本次上线是防止以后同类后端故障被误报成“凭据无效”。
+- 上线（2026-10-09）：main 快进到 `e1ab2823` 并推送 tokyo；镜像 `release-20261009b`（web `6da56182`，worker `5d1a4471`）；0 个进行中任务；备份 `*.bak-20261009b-pre`（→ release-20261009）；只改镜像标签后 apply。`readiness` `ready:true`、v27、2/2 Worker，三个容器 healthy，Web 日志无错误；磁盘 68%。冒烟：课堂 `/api/chat` 正常回答；小林追问正常完成（turn 记录只剩 `goal:space`，与已删除测试偏好一致）。
 
 ### 下一批（B07 / B12）前置条件
 
