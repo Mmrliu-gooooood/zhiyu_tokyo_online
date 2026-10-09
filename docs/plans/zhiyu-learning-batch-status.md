@@ -194,6 +194,17 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 - 生产托管模式 Web 不跑 agent runner，原问题在生产没有出现过；本次上线是防止以后同类后端故障被误报成“凭据无效”。
 - 上线（2026-10-09）：main 快进到 `e1ab2823` 并推送 tokyo；镜像 `release-20261009b`（web `6da56182`，worker `5d1a4471`）；0 个进行中任务；备份 `*.bak-20261009b-pre`（→ release-20261009）；只改镜像标签后 apply。`readiness` `ready:true`、v27、2/2 Worker，三个容器 healthy，Web 日志无错误；磁盘 68%。冒烟：课堂 `/api/chat` 正常回答；小林追问正常完成（turn 记录只剩 `goal:space`，与已删除测试偏好一致）。
 
+### 后续修复与新图标（release-20261009c）
+
+- 用户决定先不做行为偏好推理（“观察到的倾向”），只修当前问题。
+- **关→开不再丢失更早的事实**（`4b8caa3c`）：原规则“开启时间之前的事实不再整理”会让关闭前还没补投影的课堂测验永久丢失（不只是关闭期间）。新增 `switchMemory`（`lib/server/study/memory/service.ts`）：关闭全局或学科开关前先强制补投影一次（失败不阻止关闭），再写开关；“关闭期间不补录”的语义不变，无迁移。新增回归用例（测验未补投影 → 关 → 开 → 测验记录仍在；去掉修复时该用例失败）。同一提交顺带删除了未被引用的旧 `public/zhiyu-{mark,lockup}.svg`。
+- **措辞**：答疑与课堂的 Memory 段改为“直接按偏好讲，不要说‘按你的偏好’之类的话”（生产验收时小林说过一句）。
+- **新图标**（`c46c2784`、`ada6acb9`）：用设计师最新版（绿色翻开的书）生成 `public/zhiyu-mark.png`（512，透明圆角，网站图标与页头）、`public/zhiyu-lockup.png`（只换左侧标志，文字不变）、`app/apple-icon.png`（180，铺图标自身浅绿底，避免 iOS 把透明角显示成黑色）、`app/favicon.ico`（16/32/48）。原 `favicon.ico`、`apple-icon.png` 还是上游 OpenMAIC 的紫色图标，Next 会自动输出，一并替换。PNG 用调色板压缩（标志 212 KB → 70 KB）。`themeColor` 仍是旧深绿 `#356B59`，未改。
+- 全量 Vitest：877 个文件通过、1 个失败（`study-materials.test.ts` 的重复上传断言；单独重跑两次均通过——两次生成“同样的”PDF 跨秒时内嵌时间不同，属既有时序抖动），9050 项通过；`tsc`、ESLint、Prettier 通过。该测试由另开的会话修复（`7bde15c3`：只生成一次 PDF、三次上传同一份字节，顺带让“B 的副本不算重复”真正检验账号隔离），已并入 main，本地连跑 3 次通过。
+- 上线（2026-10-09）：镜像 `release-20261009c`（web `c7bae189`，worker `d8496458`，构建自 `ada6acb9`）；0 个进行中任务；备份 `*.bak-20261009c-pre`（→ 20261009b）；只改镜像标签后 apply。`readiness` `ready:true`、v27、2/2 Worker、healthy、Web 日志无错误；磁盘 79%。生产 `/zhiyu-mark.png`、`/zhiyu-lockup.png`、`/favicon.ico` 与仓库字节一致，页头显示新图标。
+- 上线后发现：布局元数据把 `apple-touch-icon` 指向透明角的 `zhiyu-mark.png`，`app/apple-icon.png` 没被用上（iPhone 添加到主屏幕时角会显示黑色）。已改为显式指向 `/apple-icon.png`（本地核对页面头部），随下一次上线生效。
+- 未在生产重复验证：开关修复（避免改动用户账号状态，由回归用例保证）；“不要说按你的偏好”的措辞效果（模型行为，概率性）。
+
 ### 下一批（B07 / B12）前置条件
 
 - B07 交卷/批改：在各自事务里调用 `recordLearningEvents`（source 类型 `exam_attempt` 已预留），事件类型沿用 `quiz_submitted`/`quiz_graded` 的载荷思路或新增类型（`event_type` 只校验格式，不需改表）；提示使用写 `hint_used`。
