@@ -267,14 +267,15 @@ describe.each(engines)('accounts v24 study knowledge (%s)', (_name, open, storag
             ['c-a-1', null],
           ]);
         });
-        // The worker writes chunks but may not run the search function.
+        // Since v26 the worker may run the search function too (after-class
+        // chats retrieve the classmate's materials, B05); anon still may not.
         expect(
           await as(db, 'app_worker', null, () =>
             errorCode(
               db.query(`SELECT * FROM study_knowledge_search('x', '{}', '{}', NULL, 1, 1)`),
             ),
           ),
-        ).toBe('42501');
+        ).toBeUndefined();
         expect(
           await as(db, 'anon', null, () =>
             errorCode(db.query('SELECT 1 FROM study_knowledge_chunks')),
