@@ -31,7 +31,9 @@ export const metadata: Metadata = {
   icons: {
     icon: DEFAULT_BRAND.markSrc,
     shortcut: DEFAULT_BRAND.markSrc,
-    apple: DEFAULT_BRAND.markSrc,
+    // app/apple-icon.png has an opaque background: iOS shows the mark's
+    // transparent corners as black.
+    apple: '/apple-icon.png',
   },
 };
 
