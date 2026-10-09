@@ -8,10 +8,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   approximateTokens,
+  classroomPreferenceScope,
   detectPreferenceStatements,
   parseEvidence,
   parsePreferenceValue,
+  renderClassroomPreferenceBlock,
   renderMemoryBlock,
+  selectClassroomPreferences,
   selectMemoryContext,
   suggestionsToOffer,
   summaryNeedsRefresh,
@@ -138,6 +141,56 @@ describe('what one turn receives', () => {
     expect(tokens).toBeLessThanOrEqual(300);
     expect(items.length).toBeLessThanOrEqual(4);
     expect(approximateTokens('先举例 abcd')).toBe(3 + 2);
+  });
+});
+
+describe('what a classroom reply receives', () => {
+  it('uses explanation-style preferences only, subject over global', () => {
+    const preferences = [
+      pref('example_order', 'definition_first'),
+      pref('example_order', 'example_first', 'space-a'),
+      pref('hint_mode', 'hint_first'),
+      pref('learning_goal', '期末 85 分'),
+    ];
+    const items = selectClassroomPreferences(preferences, 'space-a');
+    expect(items.map((item) => item.ref)).toEqual([
+      'pref:example_order@space',
+      'pref:hint_mode@global',
+    ]);
+    const block = renderClassroomPreferenceBlock(items);
+    expect(block).toContain('# Learner Preferences');
+    expect(block).toContain('Start with one concrete example');
+    expect(block).toContain('Never mention these settings aloud');
+    expect(block).not.toContain('85');
+    // Outside the subject only the global value applies.
+    expect(selectClassroomPreferences(preferences, null)[0]!.text).toContain(
+      'definition or general rule first',
+    );
+    expect(renderClassroomPreferenceBlock([])).toBe('');
+  });
+
+  it("picks the course's subject from its links and switches", () => {
+    expect(classroomPreferenceScope([])).toEqual({ state: 'on', spaceId: null });
+    expect(classroomPreferenceScope([{ spaceId: 'space-a', enabled: true }])).toEqual({
+      state: 'on',
+      spaceId: 'space-a',
+    });
+    expect(
+      classroomPreferenceScope([
+        { spaceId: 'space-a', enabled: false },
+        { spaceId: 'space-c', enabled: true },
+      ]),
+    ).toEqual({ state: 'on', spaceId: 'space-c' });
+    // Two subjects on: neither subject's own choice wins; global ones apply.
+    expect(
+      classroomPreferenceScope([
+        { spaceId: 'space-a', enabled: true },
+        { spaceId: 'space-c', enabled: true },
+      ]),
+    ).toEqual({ state: 'on', spaceId: null });
+    expect(classroomPreferenceScope([{ spaceId: 'space-a', enabled: false }])).toEqual({
+      state: 'space_off',
+    });
   });
 });
 

@@ -63,6 +63,8 @@ const OrchestratorState = Annotation.Root({
   /** Server-set: the classmate the student named in this message (B04). */
   addressedAgentId: Annotation<string | null>,
   userProfile: Annotation<{ nickname?: string; bio?: string } | null>,
+  /** Server-set: the student's explanation-style preferences from Memory (B06). */
+  learnerPreferences: Annotation<string | null>,
   /** Request-scoped agent configs for generated agents (not in the default registry) */
   agentConfigOverrides: Annotation<Record<string, AgentConfig>>,
 
@@ -336,6 +338,7 @@ async function runAgentGeneration(
       state.whiteboardLedger,
       state.userProfile || undefined,
       state.agentResponses,
+      state.learnerPreferences || undefined,
     ) +
     '\n' +
     buildUserReplyGuidance(state.messages, agentConfig.role);
@@ -593,6 +596,7 @@ export function buildInitialState(
     triggerAgentId: request.config.triggerAgentId || null,
     addressedAgentId: request.config.addressedAgentId || null,
     userProfile: request.userProfile || null,
+    learnerPreferences: request.learnerPreferences || null,
     agentConfigOverrides,
     currentAgentId: null,
     turnCount,

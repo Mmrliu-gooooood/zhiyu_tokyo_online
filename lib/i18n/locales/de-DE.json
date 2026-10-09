@@ -2928,9 +2928,9 @@
       "subtitle": "Was die App über dich speichert: deine Erklärungsvorlieben, was du uns erzählt hast, regelbasierte Lerneinträge und deine letzte Aktivität. Alle Lernpartner nutzen dieselbe Memory; du kannst sie jederzeit korrigieren, löschen oder ausschalten.",
       "switch": {
         "global": "Personalisierte Memory",
-        "onHint": "An: Die Antworten der Lernpartner nach dem Unterricht berücksichtigen einige Vorlieben und Fakten zum aktuellen Fach; Lerneinträge entstehen per Regel, ohne Modellaufrufe.",
-        "offHint": "Aus: Lernpartner lesen deine Vorlieben und Fakten nicht mehr, und es werden keine neuen Lerneinträge gespeichert. Bestehendes kannst du weiter ansehen, bearbeiten und löschen.",
-        "perSpace": "Pro Fach (aus = Chats in diesem Fach nutzen keine Memory, keine neuen Einträge dafür)"
+        "onHint": "An: Lehrkraft und Lernpartner im Unterricht richten sich nach deinen Erklärvorlieben; Antworten nach dem Unterricht berücksichtigen zusätzlich einige Fakten und Ziele zum aktuellen Fach. Lerneinträge entstehen per Regel, ohne Modellaufrufe.",
+        "offHint": "Aus: Weder Unterricht noch Chats nach dem Unterricht lesen deine Vorlieben und Fakten, und es werden keine neuen Lerneinträge gespeichert. Bestehendes kannst du weiter ansehen, bearbeiten und löschen.",
+        "perSpace": "Pro Fach (aus = Unterricht und Chats in diesem Fach nutzen keine Memory, keine neuen Einträge dafür)"
       },
       "sections": {
         "preferences": "Vorlieben und Ziele",

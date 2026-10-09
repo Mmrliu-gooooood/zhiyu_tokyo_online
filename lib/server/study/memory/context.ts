@@ -1,6 +1,6 @@
 /**
- * What one after-class turn receives from Memory (learning plan B06),
- * resolved again for every run — the same "per-turn, on the server" rule as
+ * What one after-class turn — or one live classroom reply — receives from
+ * Memory (learning plan B06), resolved again for every run — the same "per-turn, on the server" rule as
  * the classmate's persona and materials (B05). Nothing is cached between
  * turns, so turning Memory off (or deleting a preference) applies to the very
  * next answer. Every classmate reads the same owner Memory; only the current
@@ -15,7 +15,10 @@ import { createLogger } from '@/lib/logger';
 import { isStudyMemoryFlagOn } from '@/lib/server/study/flags';
 import {
   approximateTokens,
+  classroomPreferenceScope,
+  renderClassroomPreferenceBlock,
   renderMemoryBlock,
+  selectClassroomPreferences,
   selectMemoryContext,
   type MemoryContextItem,
   type MemoryContextState,
@@ -37,8 +40,9 @@ export interface ResolvedMemoryContext {
 function resolved(
   state: MemoryContextState,
   items: MemoryContextItem[] = [],
+  render: (items: readonly MemoryContextItem[]) => string = renderMemoryBlock,
 ): ResolvedMemoryContext {
-  const block = renderMemoryBlock(items);
+  const block = render(items);
   return {
     state,
     items,
@@ -81,6 +85,46 @@ export async function resolveMemoryContext(
     );
   } catch (error) {
     log.warn('memory context unavailable; answering without it', {
+      code: (error as { code?: string }).code,
+    });
+    return resolved('unavailable');
+  }
+}
+
+/**
+ * What a live classroom reply receives (option A of the B06 classroom
+ * decision): the explanation-style preferences only, for the subject the
+ * course belongs to (`classroomPreferenceScope`). Same per-request,
+ * nothing-cached rule as after-class turns; never throws.
+ */
+export async function resolveClassroomMemoryContext(
+  db: Queryable,
+  ownerId: string,
+  stageId: string,
+): Promise<ResolvedMemoryContext> {
+  if (!isStudyMemoryFlagOn()) return resolved('unavailable');
+  try {
+    const controls = await readMemoryControls(db, ownerId);
+    if (!controls.global.enabled) return resolved('off');
+    const links = await db.query<{ space_id: string }>(
+      `SELECT space_id FROM study_space_courses WHERE owner_id = $1 AND stage_id = $2`,
+      [ownerId, stageId],
+    );
+    const scope = classroomPreferenceScope(
+      links.rows.map((row) => ({
+        spaceId: row.space_id,
+        enabled: controls.spaces.get(row.space_id)?.enabled ?? true,
+      })),
+    );
+    if (scope.state === 'space_off') return resolved('space_off');
+    const preferences = await listPreferences(db, ownerId, scope.spaceId ?? undefined);
+    return resolved(
+      'on',
+      selectClassroomPreferences(preferences, scope.spaceId),
+      renderClassroomPreferenceBlock,
+    );
+  } catch (error) {
+    log.warn('classroom memory unavailable; answering without it', {
       code: (error as { code?: string }).code,
     });
     return resolved('unavailable');

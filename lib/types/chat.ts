@@ -408,6 +408,12 @@ export interface StatelessChatRequest {
     nickname?: string;
     bio?: string;
   };
+  /**
+   * Server-set only (Memory, learning plan B06): the system-prompt section
+   * with the student's explanation-style preferences. Any client value is
+   * discarded before the directors run.
+   */
+  learnerPreferences?: string;
   /** OpenAI-compatible API credentials */
   apiKey: string;
   baseUrl?: string;

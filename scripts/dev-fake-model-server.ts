@@ -11,7 +11,9 @@
  * (`baseUrl: http://127.0.0.1:18787/v1`) or a custom provider in settings
  * (needs ALLOW_LOCAL_NETWORKS=true). It logs one line per request: protocol
  * path, model, detected stage and whether an Authorization / x-api-key header
- * was present (never its value).
+ * was present (never its value). With FAKE_MODEL_PROBE set ('|' separates
+ * several phrases) each line also says whether any of them reached the
+ * request — acceptance evidence for what a prompt did or did not carry.
  */
 import {
   startFakeModelServer,
@@ -289,14 +291,16 @@ function companionTurn(request: FakeRequest): FakeReply {
   };
 }
 
+function probeNote(request: FakeRequest): string {
+  const phrases = (process.env.FAKE_MODEL_PROBE ?? '').split('|').filter(Boolean);
+  if (phrases.length === 0) return '';
+  return ` probe=${phrases.some((phrase) => request.rawBody.includes(phrase)) ? 'present' : 'absent'}`;
+}
+
 const handler: FakeHandler = (request) => {
   if (request.rawBody.includes('正在课后陪学生继续学习')) {
-    // FAKE_MODEL_PROBE: report whether a phrase reached the model context
-    // (acceptance check that withheld material text is filtered out).
-    const probe = process.env.FAKE_MODEL_PROBE;
     console.log(
-      `[fake-model] ${request.method} ${request.path} stage=study-companion` +
-        (probe ? ` probe=${request.rawBody.includes(probe) ? 'present' : 'absent'}` : ''),
+      `[fake-model] ${request.method} ${request.path} stage=study-companion${probeNote(request)}`,
     );
     return companionTurn(request);
   }
@@ -306,7 +310,9 @@ const handler: FakeHandler = (request) => {
     return { kind: 'auto', text: `我补充一点：注意检查适用条件${cite ? ` [${cite}]` : ''}。` };
   }
   if (request.rawBody.includes(PI_DIRECTOR)) {
-    console.log(`[fake-model] ${request.method} ${request.path} stage=pi-director`);
+    console.log(
+      `[fake-model] ${request.method} ${request.path} stage=pi-director${probeNote(request)}`,
+    );
     return piDirectorTurn(request);
   }
   if (request.path.endsWith('/embeddings')) {
@@ -326,7 +332,7 @@ const handler: FakeHandler = (request) => {
   const body = (request.body ?? {}) as { model?: unknown };
   const auth = request.headers.authorization || request.headers['x-api-key'] ? 'auth' : 'no-auth';
   console.log(
-    `[fake-model] ${request.method} ${request.path} model=${String(body.model ?? '-')} stage=${stage} ${auth}`,
+    `[fake-model] ${request.method} ${request.path} model=${String(body.model ?? '-')} stage=${stage} ${auth}${probeNote(request)}`,
   );
   switch (stage) {
     case 'outlines':

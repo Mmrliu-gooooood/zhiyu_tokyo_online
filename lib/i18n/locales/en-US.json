@@ -2928,9 +2928,9 @@
       "subtitle": "What the app keeps about you: the explanation preferences you set, what you told us, rule-based learning records and your recent activity. All classmates share it; you can correct, delete or turn it off at any time.",
       "switch": {
         "global": "Personalised Memory",
-        "onHint": "On: classmates' after-class answers use a few preferences and facts for the current subject; learning records are built by rules, with no model calls.",
-        "offHint": "Off: classmates no longer read your preferences or facts, and no new learning records are kept. You can still view, edit and clear what is there.",
-        "perSpace": "Per subject (off = that subject's chats don't use Memory and no new records are kept for it)"
+        "onHint": "On: teachers and classmates in class follow your explanation preferences; after-class answers also use a few facts and goals for the current subject. Learning records are built by rules, with no model calls.",
+        "offHint": "Off: neither the classroom nor after-class chats read your preferences or facts, and no new learning records are kept. You can still view, edit and clear what is there.",
+        "perSpace": "Per subject (off = that subject's classes and chats don't use Memory and no new records are kept for it)"
       },
       "sections": {
         "preferences": "Preferences and goals",

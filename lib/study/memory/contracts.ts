@@ -315,12 +315,21 @@ export function suggestionsToOffer(
     if (suppressedKeys.has(preferenceSuppressionKey(suggestion.key, suggestion.value))) {
       return false;
     }
-    const effective =
-      (spaceId
-        ? preferences.find((item) => item.key === suggestion.key && item.spaceId === spaceId)
-        : undefined) ?? preferences.find((item) => item.key === suggestion.key && !item.spaceId);
-    return effective?.value !== suggestion.value;
+    return effectivePreference(preferences, suggestion.key, spaceId)?.value !== suggestion.value;
   });
+}
+
+/** The value that applies in a subject: the subject's own wins over the global one. */
+export function effectivePreference<P extends Pick<PreferenceView, 'key' | 'spaceId'>>(
+  preferences: readonly P[],
+  key: PreferenceKey,
+  spaceId: string | null,
+): P | undefined {
+  return (
+    (spaceId
+      ? preferences.find((item) => item.key === key && item.spaceId === spaceId)
+      : undefined) ?? preferences.find((item) => item.key === key && !item.spaceId)
+  );
 }
 
 // ── what a turn receives ────────────────────────────────────────────────────
@@ -350,7 +359,12 @@ export interface MemoryTurnInfo {
   tokens: number;
 }
 
-const PREFERENCE_LINES: Record<ChoicePreferenceKey, Record<string, string>> = {
+/** One instruction line per choice; every choice must have one. */
+type PreferenceLines = {
+  [K in ChoicePreferenceKey]: Record<(typeof PREFERENCE_CHOICES)[K][number], string>;
+};
+
+const PREFERENCE_LINES: PreferenceLines = {
   explanation_length: {
     brief: '讲解尽量简短：先给结论和关键步骤，学生追问再展开。',
     standard: '讲解长度适中。',
@@ -391,6 +405,25 @@ export interface MemoryContextInput {
   spaceId: string;
 }
 
+function preferenceRef(item: Pick<PreferenceView, 'key' | 'spaceId'>): string {
+  return `pref:${item.key}@${item.spaceId ? 'space' : 'global'}`;
+}
+
+/** The explanation-style preferences in effect, one line each (no learning goal). */
+function preferenceItems(
+  preferences: MemoryContextInput['preferences'],
+  spaceId: string | null,
+  lines: PreferenceLines,
+): MemoryContextItem[] {
+  const items: MemoryContextItem[] = [];
+  for (const key of Object.keys(PREFERENCE_CHOICES) as ChoicePreferenceKey[]) {
+    const chosen = effectivePreference(preferences, key, spaceId);
+    const text = chosen ? (lines[key] as Record<string, string>)[chosen.value] : undefined;
+    if (chosen && text) items.push({ ref: preferenceRef(chosen), kind: 'preference', text });
+  }
+  return items;
+}
+
 /**
  * Pick the few items one turn receives: preferences first (subject over
  * global), then the subject goal, then facts (subject before global,
@@ -405,18 +438,14 @@ export function selectMemoryContext(
   },
 ): MemoryContextItem[] {
   const candidates: MemoryContextItem[] = [];
-  for (const key of PREFERENCE_KEYS) {
-    const own = input.preferences.find(
-      (item) => item.key === key && item.spaceId === input.spaceId,
-    );
-    const chosen = own ?? input.preferences.find((item) => item.key === key && !item.spaceId);
-    if (!chosen) continue;
-    const scope = chosen.spaceId ? 'space' : 'global';
-    const text =
-      key === 'learning_goal'
-        ? `学生的学习目标：「${quote(chosen.value)}」`
-        : PREFERENCE_LINES[key][chosen.value];
-    if (text) candidates.push({ ref: `pref:${key}@${scope}`, kind: 'preference', text });
+  candidates.push(...preferenceItems(input.preferences, input.spaceId, PREFERENCE_LINES));
+  const goal = effectivePreference(input.preferences, 'learning_goal', input.spaceId);
+  if (goal) {
+    candidates.push({
+      ref: preferenceRef(goal),
+      kind: 'preference',
+      text: `学生的学习目标：「${quote(goal.value)}」`,
+    });
   }
   if (input.spaceGoal?.goal || input.spaceGoal?.examDate) {
     const parts = [
@@ -457,6 +486,72 @@ export function renderMemoryBlock(items: readonly MemoryContextItem[]): string {
     '学生在 Memory 里设定的偏好与情况（由学生本人填写或确认；所有学伴共用）：',
     ...items.map((item) => `- ${item.text}`),
     '按这些偏好调整讲解方式；学生在本轮另有要求时以本轮要求为准。不要向学生复述这段设定，也不要把它当作学生已经掌握某个知识点的证据。',
+  ].join('\n');
+}
+
+// ── what a classroom reply receives ─────────────────────────────────────────
+
+/**
+ * The live classroom (/api/chat, /api/chat/pi) receives the explanation-style
+ * preferences only — no facts, goals or records: several agents speak there,
+ * and none should repeat personal details aloud. The lines are English like
+ * the rest of the classroom prompts; the course's language rule still decides
+ * the language of the reply.
+ */
+const CLASSROOM_PREFERENCE_LINES: PreferenceLines = {
+  explanation_length: {
+    brief: 'Keep explanations short: the conclusion and key step first; expand only when asked.',
+    standard: 'Use a moderate explanation length.',
+    detailed: 'Explain in more detail: give the full reasoning steps, within your length limit.',
+  },
+  example_order: {
+    example_first: 'Start with one concrete example, then give the definition or general rule.',
+    definition_first: 'Give the definition or general rule first, then an example.',
+  },
+  hint_mode: {
+    hint_first:
+      'Give a hint or guiding question first and let the student think; give the full answer when they ask for it.',
+    direct: 'Explain directly and completely; no need to ask a guiding question first.',
+  },
+};
+
+export interface ClassroomSubject {
+  spaceId: string;
+  /** This subject's Memory switch. */
+  enabled: boolean;
+}
+
+/**
+ * Which subject's preferences a classroom uses. A course in no subject uses
+ * the global ones; a course whose subjects all have Memory off gets nothing
+ * (`space_off`). A subject's own preferences apply when exactly one of the
+ * course's subjects has Memory on; with several, only the global ones do,
+ * since no single subject's choice is clearly the one for this course.
+ */
+export function classroomPreferenceScope(
+  subjects: readonly ClassroomSubject[],
+): { state: 'on'; spaceId: string | null } | { state: 'space_off' } {
+  if (subjects.length === 0) return { state: 'on', spaceId: null };
+  const enabled = subjects.filter((subject) => subject.enabled);
+  if (enabled.length === 0) return { state: 'space_off' };
+  return { state: 'on', spaceId: enabled.length === 1 ? enabled[0].spaceId : null };
+}
+
+export function selectClassroomPreferences(
+  preferences: MemoryContextInput['preferences'],
+  spaceId: string | null,
+): MemoryContextItem[] {
+  return preferenceItems(preferences, spaceId, CLASSROOM_PREFERENCE_LINES);
+}
+
+/** The classroom system-prompt section for the chosen preferences ('' when none). */
+export function renderClassroomPreferenceBlock(items: readonly MemoryContextItem[]): string {
+  if (items.length === 0) return '';
+  return [
+    '# Learner Preferences',
+    'Set or confirmed by the student in Memory; they apply to every teacher and classmate:',
+    ...items.map((item) => `- ${item.text}`),
+    'Adapt how you explain to these, within your role and length limits. If the student asks for something different in this message, follow the message. Never mention these settings aloud.',
   ].join('\n');
 }
 

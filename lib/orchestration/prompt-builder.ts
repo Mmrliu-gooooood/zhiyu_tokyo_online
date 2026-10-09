@@ -130,6 +130,7 @@ export function buildStructuredPrompt(
   whiteboardLedger?: WhiteboardActionRecord[],
   userProfile?: { nickname?: string; bio?: string },
   agentResponses?: AgentTurnSummary[],
+  learnerPreferences?: string,
 ): string {
   // Determine current scene type for action filtering
   const currentScene = storeState.currentSceneId
@@ -144,7 +145,9 @@ export function buildStructuredPrompt(
     agentName: agentConfig.name,
     persona: agentConfig.persona,
     roleGuideline: ROLE_GUIDELINES[agentConfig.role] || ROLE_GUIDELINES.student,
-    studentProfileSection: buildStudentProfileSection(userProfile),
+    studentProfileSection:
+      buildStudentProfileSection(userProfile) +
+      (learnerPreferences ? `\n${learnerPreferences}\n` : ''),
     peerContext: buildPeerContextSection(agentResponses, agentConfig.name),
     languageConstraint: buildLanguageConstraint(storeState.stage?.languageDirective),
     formatExample: hasSlideActions ? FORMAT_EXAMPLE_SLIDE : FORMAT_EXAMPLE_WB,

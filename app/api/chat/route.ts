@@ -17,6 +17,7 @@ import { refuseForeignStagePost, stageIdFromStoreState } from '@/lib/auth/stage-
 import { NextRequest } from 'next/server';
 import { statelessGenerate } from '@/lib/orchestration/stateless-generate';
 import { applyClassmateSpeechRules } from '@/lib/server/study/classmates/speech-policy';
+import { applyClassroomMemory } from '@/lib/server/study/memory/classroom';
 import {
   noticeOnlyResponse,
   resolveClassroomClassmateModels,
@@ -86,6 +87,8 @@ async function handlePOST(req: NextRequest) {
     // Classmates with their own live-answer model (B05).
     const classmateModels = await resolveClassroomClassmateModels(req, body);
     if (classmateModels.nothingToRun) return noticeOnlyResponse(classmateModels.notices);
+    // The student's explanation-style preferences from Memory (B06).
+    await applyClassroomMemory(req, body);
 
     // Let resolveBinding arbitrate thinking too: a routed chat-adapter's
     // thinking wins, an unrouted one honors this client thinking.

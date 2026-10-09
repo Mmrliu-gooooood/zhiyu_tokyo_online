@@ -2928,9 +2928,9 @@
       "subtitle": "Lo que la app guarda sobre ti: tus preferencias de explicación, lo que nos contaste, registros de aprendizaje creados por reglas y tu actividad reciente. Todos los compañeros la comparten; puedes corregirla, borrarla o desactivarla cuando quieras.",
       "switch": {
         "global": "Memoria personalizada",
-        "onHint": "Activada: las respuestas de los compañeros después de clase usan algunas preferencias y datos de la materia actual; los registros se crean por reglas, sin llamar a modelos.",
-        "offHint": "Desactivada: los compañeros ya no leen tus preferencias ni datos y no se guardan registros nuevos. Puedes seguir viendo, editando y borrando lo que ya hay.",
-        "perSpace": "Por materia (desactivada = los chats de esa materia no usan la memoria ni guardan registros nuevos)"
+        "onHint": "Activada: el profesor y los compañeros en clase siguen tus preferencias de explicación; las respuestas después de clase también usan algunos datos y metas de la materia actual. Los registros se crean por reglas, sin llamar a modelos.",
+        "offHint": "Desactivada: ni la clase ni los chats después de clase leen tus preferencias o datos, y no se guardan registros nuevos. Puedes seguir viendo, editando y borrando lo que ya hay.",
+        "perSpace": "Por materia (desactivada = las clases y los chats de esa materia no usan la memoria ni guardan registros nuevos)"
       },
       "sections": {
         "preferences": "Preferencias y metas",

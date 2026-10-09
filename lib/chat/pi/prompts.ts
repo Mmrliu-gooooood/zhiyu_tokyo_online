@@ -217,6 +217,7 @@ export function buildChildPrompt(
     `Current scene: ${currentScene?.title ?? currentScene?.id ?? 'none'}`,
     `Stage title: ${body.storeState.stage?.name ?? 'unknown'}`,
     body.userProfile?.nickname ? `User nickname: ${body.userProfile.nickname}` : '',
+    body.learnerPreferences ? `\n${body.learnerPreferences}` : '',
     buildUserReplyGuidance(body.messages, agent.role),
   ]
     .filter(Boolean)
@@ -276,6 +277,7 @@ export function buildNativeChildPrompt(
     `Current scene: ${requestStartScene ? `${requestStartScene.sceneId} (${requestStartScene.sceneType})` : 'none'}`,
     `Stage title: ${body.storeState.stage?.name ?? 'unknown'}`,
     body.userProfile?.nickname ? `User nickname: ${body.userProfile.nickname}` : '',
+    body.learnerPreferences ? `\n${body.learnerPreferences}` : '',
     buildUserReplyGuidance(body.messages, agent.role),
   ]
     .filter(Boolean)

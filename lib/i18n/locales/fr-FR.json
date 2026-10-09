@@ -2928,9 +2928,9 @@
       "subtitle": "Ce que l’application garde sur vous : vos préférences d’explication, ce que vous nous avez dit, des traces d’apprentissage établies par règles et votre activité récente. Tous les camarades la partagent ; vous pouvez la corriger, la supprimer ou la désactiver à tout moment.",
       "switch": {
         "global": "Mémoire personnalisée",
-        "onHint": "Activée : les réponses des camarades après le cours tiennent compte de quelques préférences et faits de la matière en cours ; les traces sont établies par règles, sans appel de modèle.",
-        "offHint": "Désactivée : les camarades ne lisent plus vos préférences ni vos faits, et aucune nouvelle trace n’est enregistrée. Vous pouvez toujours consulter, modifier et effacer l’existant.",
-        "perSpace": "Par matière (désactivée = les discussions de cette matière n’utilisent pas la mémoire, aucune nouvelle trace)"
+        "onHint": "Activée : en classe, l’enseignant et les camarades suivent vos préférences d’explication ; les réponses après le cours tiennent aussi compte de quelques faits et objectifs de la matière en cours. Les traces sont établies par règles, sans appel de modèle.",
+        "offHint": "Désactivée : ni la classe ni les discussions après le cours ne lisent vos préférences ou vos faits, et aucune nouvelle trace n’est enregistrée. Vous pouvez toujours consulter, modifier et effacer l’existant.",
+        "perSpace": "Par matière (désactivée = les cours et discussions de cette matière n’utilisent pas la mémoire, aucune nouvelle trace)"
       },
       "sections": {
         "preferences": "Préférences et objectifs",

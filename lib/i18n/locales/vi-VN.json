@@ -2928,9 +2928,9 @@
       "subtitle": "Những gì ứng dụng ghi nhớ về bạn: sở thích giải thích bạn đặt, thông tin bạn cho biết, bản ghi học tập tạo theo quy tắc và hoạt động gần đây. Tất cả bạn học dùng chung; bạn có thể sửa, xóa hoặc tắt bất cứ lúc nào.",
       "switch": {
         "global": "Bộ nhớ cá nhân hóa",
-        "onHint": "Bật: câu trả lời sau giờ học của bạn học sẽ tham khảo một vài sở thích và thông tin của môn hiện tại; bản ghi học tập tạo theo quy tắc, không gọi mô hình.",
-        "offHint": "Tắt: bạn học không đọc sở thích và thông tin của bạn nữa, cũng không lưu bản ghi mới. Bạn vẫn xem, sửa và xóa được nội dung hiện có.",
-        "perSpace": "Theo môn (tắt = cuộc trò chuyện của môn đó không dùng bộ nhớ, không lưu bản ghi mới)"
+        "onHint": "Bật: giáo viên và bạn học trong lớp sẽ giảng theo sở thích giải thích của bạn; câu trả lời sau giờ học còn tham khảo một vài thông tin và mục tiêu của môn hiện tại. Bản ghi học tập tạo theo quy tắc, không gọi mô hình.",
+        "offHint": "Tắt: cả lớp học lẫn trò chuyện sau giờ học đều không đọc sở thích và thông tin của bạn, cũng không lưu bản ghi mới. Bạn vẫn xem, sửa và xóa được nội dung hiện có.",
+        "perSpace": "Theo môn (tắt = lớp học và cuộc trò chuyện của môn đó không dùng bộ nhớ, không lưu bản ghi mới)"
       },
       "sections": {
         "preferences": "Sở thích và mục tiêu",
