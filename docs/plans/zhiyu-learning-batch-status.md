@@ -11,7 +11,7 @@
 | B03 | 已上线（2026-10-06，release-20261006d；同日 20261006e 隐藏未配置的 OCR 选项） | `learn/b03-grounded-qa` → main（快进，已推送 tokyo） | `f7f87190` | 本地托管模式验收通过（关键词模式复验）；真实模型评测完成；生产登录验收通过 | 已启用 `ZHIYU_STUDY_QA_ENABLED=1`（关键词模式，未配置 embedding） | 见 B03“未验证” |
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
 | B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
-| B06 | 实现完成，待上线（2026-10-09） | `learn/b06-memory`（未合并、未推送） | accounts v27 `62c3e9d2…`（生产未执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek） | 未启用（`ZHIYU_STUDY_MEMORY_ENABLED`） | 见 B06“待用户决定”“未验证” |
+| B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收待用户登录 | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -170,13 +170,14 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 - 运行时止损：Web 与 Worker 的 `ZHIYU_STUDY_MEMORY_ENABLED` 置空后 apply——Memory 页面与接口 404、导航入口消失，答疑与课堂都不再读取 Memory（turn 记录 / 课堂日志 `unavailable`），进度与答疑不再投影；资料答疑、课堂、B01–B05 功能照常；数据保留。
 - 版本回退：回到 release-20261007d 镜像；v27 的表保留不用（旧代码不读）。
 
-### 上线步骤（待用户指示，以下都尚未执行）
+### 上线记录（2026-10-09，用户指示“选 A，做完后上线”）
 
-1. 只读核对生产：v26 checksum = `354fbeed…`，v27 的五张表不存在。
-2. Supabase `apply_migration`（`accounts_v27_study_memory`）执行仓库 v27 SQL 原文（本地导出并核对 sha256 = `62c3e9d2…`），写入 `app_schema_migrations(27, 62c3e9d2…)`；核对五张表强制 RLS、授权（含 Supabase 默认权限下 anon/authenticated 无授权）。**不运行 `pnpm accounts:migrate`。**
-3. main 快进到本分支并推送 tokyo；本机构建镜像（建议 `release-20261009`）；装入前看服务器磁盘（上次 78%），需要删旧镜像先问用户。
-4. 确认 0 个进行中的生成任务；备份 `.env.hosted.local`、`docker-compose.supabase.yml`；服务器 compose 与仓库比对后换成仓库版本（只多新开关透传）；env 改镜像标签并加 `ZHIYU_STUDY_MEMORY_ENABLED=1`；`supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`；`readiness` 应为 `accountsVersion 27`，capabilities 含 `memory: true`。
-5. 生产登录验收由用户登录后进行（Claude 不输入生产密码）。
+1. 只读核对生产：`app_schema_migrations` v26 checksum = `354fbeed…`（与仓库一致），v27 的五张表不存在；服务器 `docker-compose.supabase.yml`（去掉 CRLF 后）、`docker-compose.production.yml`、`scripts/supabase-compose.sh` 与仓库一致。
+2. Supabase `apply_migration`（`accounts_v27_study_memory`）执行仓库 v27 SQL 原文（本地导出文件 sha256 = `62c3e9d2…`，与迁移登记一致），写入 `app_schema_migrations(27, 62c3e9d2…)`。核对：五张表 `relrowsecurity = relforcerowsecurity = true`；授权只有 `app_web`（事件/抑制表查插删，其余三表查插改删）与 `app_worker`（偏好/事实/开关只读）；`anon`/`authenticated`/`PUBLIC` 无任何授权。未运行 `pnpm accounts:migrate`。
+3. main 从 `6afcbe70` 快进到 `bb6684a1` 并推送 tokyo；本机构建 web 与 worker 镜像，标记 `release-20261009`（web `91b4c9cd`，worker `1ca8dad8`），`docker save | gzip | ssh docker load` 装入。服务器磁盘 79% → **89%**（剩 4.3 GB），未删除任何旧镜像（现存 20261006d/e/f、20261007b/c/d、20261009）。
+4. 生成任务与答疑会话全部为终态（0 个进行中）；备份 `.env.hosted.local.bak-20261009-pre`、`docker-compose.supabase.yml.bak-20261009-pre`（指向 release-20261007d）；compose 换成仓库版本（只多新开关透传一行）；env 改镜像标签并加 `ZHIYU_STUDY_MEMORY_ENABLED=1`；`supabase-compose.sh apply --tier 4 --mode background --accept-jobs --confirm-writes`。
+5. 结果：`readiness` = `ready:true`、`accountsVersion 27`、`liveWorkers 2/2`；三个容器 `release-20261009` healthy；Web 与 Worker 容器内开关为 1；公网 `/api/study/capabilities` 含 `memory:true`，未登录访问 `/api/study/memory` 为 401；重启后 Web 日志无错误。
+6. **生产登录验收待用户登录后进行**（Claude 不输入生产密码）。回退：恢复两个 `*.bak-20261009-pre` 后 apply（v27 的表保留不用）。
 
 ### 下一批（B07 / B12）前置条件
 
