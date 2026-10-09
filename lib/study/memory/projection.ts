@@ -39,7 +39,11 @@ export function progressEvents(source: ProgressSource): LearningEventInput[] {
       ...base,
       type: 'course_started',
       sourceKey: `progress:${source.stageId}:started`,
-      occurredAt: source.startedAt,
+      // The row is inserted a moment after the browser observed the first position.
+      occurredAt:
+        Date.parse(source.observedAt) < Date.parse(source.startedAt)
+          ? source.observedAt
+          : source.startedAt,
       payload: {},
     },
   ];

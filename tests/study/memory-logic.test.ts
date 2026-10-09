@@ -168,6 +168,14 @@ describe('projection rules', () => {
     const back = progressEvents({ ...base, sceneIndex: 0 });
     expect(back[1]!.occurredAt).toBe(base.updatedAt);
     expect(progressEvents({ ...base, furthestSceneIndex: 0, sceneIndex: 0 })).toHaveLength(1);
+    // The row is inserted after the browser observed the first position: the earlier time wins.
+    const first = progressEvents({
+      ...base,
+      startedAt: '2026-10-08T01:00:05.000Z',
+      observedAt: '2026-10-08T01:00:00.000Z',
+    });
+    expect(first[0]!.occurredAt).toBe('2026-10-08T01:00:00.000Z');
+    expect(progressEvents(base)[0]!.occurredAt).toBe(base.startedAt);
   });
 
   const snapshot = [

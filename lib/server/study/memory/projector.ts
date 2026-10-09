@@ -276,6 +276,7 @@ export async function projectCompanionChat(
 }
 
 const lastSync = new Map<string, number>();
+const inFlight = new Map<string, Promise<SyncOutcome>>();
 const SYNC_INTERVAL_MS = 15_000;
 
 export interface SyncOutcome {
@@ -286,20 +287,32 @@ export interface SyncOutcome {
 
 /**
  * Replay every source for one owner (the Memory page's catch-up). Throttled
- * per process; each source is independent, so one failing source does not
- * block the others.
+ * per process; a request arriving while a sync runs waits for it, so it never
+ * reads before that sync's records are written. Each source is independent:
+ * one failing source does not block the others.
  */
 export async function syncLearningEvents(
   db: MaybeTransactional,
   ownerId: string,
   options: { force?: boolean; now?: number } = {},
 ): Promise<SyncOutcome> {
+  const running = inFlight.get(ownerId);
+  if (running) {
+    await running.catch(() => undefined);
+    return { ran: false, recorded: 0, failed: [] };
+  }
   const now = options.now ?? Date.now();
   if (!options.force && now - (lastSync.get(ownerId) ?? 0) < SYNC_INTERVAL_MS) {
     return { ran: false, recorded: 0, failed: [] };
   }
   lastSync.set(ownerId, now);
   if (lastSync.size > 5_000) lastSync.clear();
+  const sync = replaySources(db, ownerId).finally(() => inFlight.delete(ownerId));
+  inFlight.set(ownerId, sync);
+  return sync;
+}
+
+async function replaySources(db: MaybeTransactional, ownerId: string): Promise<SyncOutcome> {
   const controls = await readMemoryControls(db, ownerId);
   if (!controls.global.enabled) return { ran: false, recorded: 0, failed: [] };
   let recorded = 0;
