@@ -37,6 +37,8 @@ export interface CompanionPromptInput {
   origin: (CompanionOrigin & { courseTitle?: string; sceneTitle?: string }) | null;
   discussing: ReadonlyArray<{ classmateId: string; name: string }>;
   withheldCount: number;
+  /** The student's Memory items for this subject (B06), already rendered; '' = none. */
+  memoryBlock?: string;
 }
 
 function quote(text: string): string {
@@ -86,6 +88,7 @@ export function companionSystemPrompt(input: CompanionPromptInput): string {
     '4. 你只有阅读权限：不能修改课程、生成课程、联网搜索或执行其他操作；学生要求这些时说明需要回到对应功能。',
     '5. 标记为“已隐去”的历史资料片段已不在授权范围内，不要再使用、转述或引用其中内容。',
     materials,
+    input.memoryBlock ?? '',
     input.withheldCount > 0
       ? `注意：学生调整过你的资料授权，早先对话中有 ${input.withheldCount} 份资料已被取消授权或删除，相关片段已隐去。这不是你之前答错了，不用道歉或更正旧回答；被问到相关内容时，说明这份资料现在不在你的授权范围内即可。`
       : '',

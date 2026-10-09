@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Der Dienst ist ausgelastet. Später erneut versuchen.",
         "STUDY_INVALID_INPUT": "Ungültige Eingabe."
       }
+    },
+    "memory": {
+      "nav": "Memory",
+      "title": "Lern-Memory",
+      "subtitle": "Was die App über dich speichert: deine Erklärungsvorlieben, was du uns erzählt hast, regelbasierte Lerneinträge und deine letzte Aktivität. Alle Lernpartner nutzen dieselbe Memory; du kannst sie jederzeit korrigieren, löschen oder ausschalten.",
+      "switch": {
+        "global": "Personalisierte Memory",
+        "onHint": "An: Die Antworten der Lernpartner nach dem Unterricht berücksichtigen einige Vorlieben und Fakten zum aktuellen Fach; Lerneinträge entstehen per Regel, ohne Modellaufrufe.",
+        "offHint": "Aus: Lernpartner lesen deine Vorlieben und Fakten nicht mehr, und es werden keine neuen Lerneinträge gespeichert. Bestehendes kannst du weiter ansehen, bearbeiten und löschen.",
+        "perSpace": "Pro Fach (aus = Chats in diesem Fach nutzen keine Memory, keine neuen Einträge dafür)"
+      },
+      "sections": {
+        "preferences": "Vorlieben und Ziele",
+        "facts": "Fakten",
+        "recent": "Letzte Aktivität"
+      },
+      "prefHint": "Es gelten nur Vorlieben, die du hier festlegst oder im Chat mit „Merken“ bestätigst; aus Chats wird nichts abgeleitet. Eine Fach-Einstellung hat Vorrang vor „Alle Fächer“.",
+      "scope": "Gilt für",
+      "allSubjects": "Alle Fächer",
+      "pref": {
+        "explanation_length": "Erklärungslänge",
+        "example_order": "Beispiele oder Definitionen zuerst",
+        "hint_mode": "Zuerst Hinweise oder direkt erklären",
+        "learning_goal": "Lernziel",
+        "notSet": "Nicht festgelegt",
+        "followGlobal": "Wie alle Fächer ({{value}})",
+        "cleared": "Vorliebe entfernt",
+        "evidence": "Aus deinen Worten im Chat: „{{excerpt}}“"
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "Kurz",
+          "standard": "Mittel",
+          "detailed": "Ausführlich"
+        },
+        "example_order": {
+          "example_first": "Erst ein Beispiel, dann die Definition",
+          "definition_first": "Erst die Definition, dann Beispiele"
+        },
+        "hint_mode": {
+          "hint_first": "Erst Hinweise, ich denke selbst",
+          "direct": "Gleich vollständig erklären"
+        }
+      },
+      "origin": {
+        "settings": "In den Einstellungen",
+        "confirmed_prompt": "Im Chat bestätigt",
+        "manual": "Von dir eingetragen",
+        "correction": "Deine Korrektur"
+      },
+      "goalPlaceholder": "z. B. mindestens 85 Punkte in der Mathe-Abschlussprüfung",
+      "save": "Speichern",
+      "add": "Hinzufügen",
+      "correct": "Korrigieren",
+      "delete": "Löschen",
+      "deleted": "Gelöscht",
+      "factHint": "Drei Arten von Fakten: was du uns erzählt hast, Fachziele (auf der Fachseite) und regelbasierte Lerneinträge. Einträge sagen, was passiert ist – nicht, was du beherrschst.",
+      "toldUs": "Was du uns erzählt hast",
+      "factPlaceholder": "z. B. Ich bin in der 11. Klasse und schwach bei Funktionen",
+      "noFacts": "Noch nichts.",
+      "spaceGoals": "Fachziele",
+      "examDate": "Prüfung am {{date}}",
+      "editInSpace": "Auf der Fachseite bearbeiten",
+      "records": "Lerneinträge",
+      "recordsHint": "Per Regel aus gespeichertem Fortschritt, Unterrichtsquiz und Chats nach dem Unterricht erstellt. Gelöschte Einträge kommen beim Neuaufbau nicht zurück.",
+      "recordsPaused": "Memory ist aus: Es werden keine neuen Lerneinträge gespeichert; vorhandene können angesehen und gelöscht werden.",
+      "noRecords": "Noch keine Lerneinträge.",
+      "recordDeleted": "Eintrag gelöscht; er kommt nicht automatisch zurück",
+      "correction": "Deine Korrektur: {{text}}",
+      "correctionPlaceholder": "Korrektur eingeben, z. B. Ich habe das Quiz nur durchgeklickt",
+      "record": {
+        "courseStarted": "„{{course}}“ angefangen",
+        "courseProgressed": "„{{course}}“: bis Seite {{page}}/{{count}}",
+        "courseFinished": "„{{course}}“ bis zum Ende angesehen ({{count}} Seiten)",
+        "quizSubmitted": "Unterrichtsquiz in „{{course}}“ abgegeben ({{count}} Fragen)",
+        "quizGraded": "Unterrichtsquiz in „{{course}}“ bewertet",
+        "companionQuestion": "{{classmate}} in {{space}} gefragt: {{preview}}",
+        "hint_used": "Hinweis genutzt",
+        "review_done": "Wiederholung abgeschlossen",
+        "unknownCourse": "ein gelöschter Kurs",
+        "unknownSpace": "ein Fach",
+        "unknownClassmate": "ein Lernpartner",
+        "viewingOnly": "Ansehen-Eintrag, kein Beherrschungsnachweis",
+        "objectiveChecked": "Auswahlfragen {{correct}}/{{total}} richtig (auf dem Server mit dem Kurs abgeglichen)",
+        "objectiveUnverified": "Auswahlpunkte nicht prüfbar (Kurs geändert oder Eintrag unvollständig); nicht gezählt",
+        "aiGraded": "Offene Fragen KI-bewertet {{earned}}/{{points}} (laut Unterricht)"
+      },
+      "source": {
+        "study_progress": "Fortschritt",
+        "quiz_attempt": "Unterrichtsquiz",
+        "companion_chat": "Chat nach dem Unterricht",
+        "exam_attempt": "Test",
+        "review_task": "Wiederholung"
+      },
+      "recentHint": "Letzte {{days}} Tage, nach festen Regeln gezählt (ohne Modell). Zeigt, was du getan hast, nicht ob du es beherrschst.",
+      "recent": {
+        "courses": "{{viewed}} Kurse angesehen, {{finished}} bis zum Ende",
+        "progress": "„{{course}}“: weiteste Seite {{page}}/{{count}}",
+        "quizzes": "Unterrichtsquiz: {{submitted}} abgegeben, {{graded}} bewertet",
+        "objective": "Auswahlfragen {{correct}}/{{total}} richtig (serverseitig geprüft)",
+        "unverified": "{{count}} nicht prüfbar",
+        "companion": "{{count}} Fragen nach dem Unterricht ({{detail}})",
+        "empty": "Keine Lerneinträge in diesem Zeitraum."
+      },
+      "clear": {
+        "open": "Löschen…",
+        "title": "Memory löschen",
+        "text": "Wähle, was gelöscht werden soll. Gelöschte Vorlieben werden nicht wieder vorgeschlagen, gelöschte Einträge kommen beim Neuaufbau nicht zurück.",
+        "preferences": "Vorlieben und Lernziele",
+        "facts": "Von dir erzählte Fakten (inkl. Korrekturen)",
+        "records": "Lerneinträge",
+        "rawQuizAttempts": "Auch die ursprünglichen Antworten und Punkte der Unterrichtsquiz löschen",
+        "rawHint": "Standardmäßig behalten. Wenn angekreuzt, sind die Quiz im Unterricht wieder unbeantwortet. Nicht rückgängig zu machen.",
+        "confirm": "Löschen",
+        "done": "Gelöscht"
+      },
+      "suggest": {
+        "ask": "Diese Erklärungsvorliebe merken? „{{choice}}“",
+        "allSubjects": "Merken (alle Fächer)",
+        "onlySpace": "Nur in {{space}}",
+        "decline": "Nein, danke",
+        "saved": "Gemerkt: „{{choice}}“. Spätere Antworten richten sich danach"
+      },
+      "turn": {
+        "off": "Memory ist aus; diese Antwort nutzte keine deiner Vorlieben.",
+        "spaceOff": "Memory ist für dieses Fach aus; diese Antwort nutzte keine deiner Vorlieben.",
+        "used": "Diese Antwort nutzte deine Memory: {{preferences}} Vorlieben, {{facts}} Fakten.",
+        "none": "Memory ist an, aber es gibt noch keine Vorlieben oder Fakten.",
+        "manage": "Verwalten"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "Wurde an anderer Stelle geändert; die neueste Fassung wird angezeigt.",
+        "STUDY_MEMORY_FACT_LIMIT": "Maximal 100 Fakten. Bitte zuerst einige löschen.",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "Dieser Eintrag existiert nicht mehr.",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "Dieser Lerneintrag existiert nicht mehr.",
+        "STUDY_PREFERENCE_NOT_FOUND": "Diese Vorliebe existiert nicht mehr.",
+        "STUDY_SPACE_NOT_FOUND": "Dieses Fach existiert nicht mehr.",
+        "STUDY_INVALID_INPUT": "Die Eingabe ist ungültig."
+      }
     }
   }
 }

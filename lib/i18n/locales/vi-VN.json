@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Dịch vụ đang bận. Thử lại sau.",
         "STUDY_INVALID_INPUT": "Dữ liệu không hợp lệ."
       }
+    },
+    "memory": {
+      "nav": "Bộ nhớ",
+      "title": "Bộ nhớ học tập",
+      "subtitle": "Những gì ứng dụng ghi nhớ về bạn: sở thích giải thích bạn đặt, thông tin bạn cho biết, bản ghi học tập tạo theo quy tắc và hoạt động gần đây. Tất cả bạn học dùng chung; bạn có thể sửa, xóa hoặc tắt bất cứ lúc nào.",
+      "switch": {
+        "global": "Bộ nhớ cá nhân hóa",
+        "onHint": "Bật: câu trả lời sau giờ học của bạn học sẽ tham khảo một vài sở thích và thông tin của môn hiện tại; bản ghi học tập tạo theo quy tắc, không gọi mô hình.",
+        "offHint": "Tắt: bạn học không đọc sở thích và thông tin của bạn nữa, cũng không lưu bản ghi mới. Bạn vẫn xem, sửa và xóa được nội dung hiện có.",
+        "perSpace": "Theo môn (tắt = cuộc trò chuyện của môn đó không dùng bộ nhớ, không lưu bản ghi mới)"
+      },
+      "sections": {
+        "preferences": "Sở thích và mục tiêu",
+        "facts": "Thông tin",
+        "recent": "Hoạt động gần đây"
+      },
+      "prefHint": "Chỉ những sở thích bạn đặt ở đây hoặc xác nhận bằng \"Ghi nhớ\" trong trò chuyện mới có hiệu lực; không suy đoán từ trò chuyện. Cài đặt của môn được ưu tiên hơn \"Tất cả các môn\".",
+      "scope": "Áp dụng cho",
+      "allSubjects": "Tất cả các môn",
+      "pref": {
+        "explanation_length": "Độ dài giải thích",
+        "example_order": "Ví dụ trước hay định nghĩa trước",
+        "hint_mode": "Gợi ý trước hay giải thích ngay",
+        "learning_goal": "Mục tiêu học tập",
+        "notSet": "Không đặt",
+        "followGlobal": "Theo tất cả các môn ({{value}})",
+        "cleared": "Đã xóa sở thích",
+        "evidence": "Từ lời bạn trong trò chuyện: \"{{excerpt}}\""
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "Ngắn gọn",
+          "standard": "Vừa phải",
+          "detailed": "Chi tiết"
+        },
+        "example_order": {
+          "example_first": "Ví dụ trước, rồi định nghĩa",
+          "definition_first": "Định nghĩa trước, rồi ví dụ"
+        },
+        "hint_mode": {
+          "hint_first": "Gợi ý trước, để tôi tự nghĩ",
+          "direct": "Giải thích đầy đủ ngay"
+        }
+      },
+      "origin": {
+        "settings": "Đặt trong cài đặt",
+        "confirmed_prompt": "Xác nhận trong trò chuyện",
+        "manual": "Bạn tự nhập",
+        "correction": "Bạn đã sửa"
+      },
+      "goalPlaceholder": "vd: thi cuối kỳ Toán từ 8,5 điểm",
+      "save": "Lưu",
+      "add": "Thêm",
+      "correct": "Sửa",
+      "delete": "Xóa",
+      "deleted": "Đã xóa",
+      "factHint": "Có ba loại thông tin: điều bạn cho biết, mục tiêu môn học (đặt ở trang môn) và bản ghi học tập theo quy tắc. Bản ghi cho biết điều đã xảy ra, không có nghĩa là bạn đã nắm vững.",
+      "toldUs": "Bạn đã cho biết",
+      "factPlaceholder": "vd: Mình học lớp 11, phần hàm số còn yếu",
+      "noFacts": "Chưa có gì.",
+      "spaceGoals": "Mục tiêu môn học",
+      "examDate": "thi ngày {{date}}",
+      "editInSpace": "Sửa ở trang môn",
+      "records": "Bản ghi học tập",
+      "recordsHint": "Tạo theo quy tắc từ tiến độ đã lưu, bài kiểm tra trong lớp và trò chuyện sau giờ học. Bản ghi đã xóa sẽ không quay lại khi tạo lại.",
+      "recordsPaused": "Bộ nhớ đang tắt: không lưu bản ghi mới; bản ghi cũ vẫn xem và xóa được.",
+      "noRecords": "Chưa có bản ghi học tập.",
+      "recordDeleted": "Đã xóa bản ghi; nó sẽ không tự quay lại",
+      "correction": "Bạn đã sửa: {{text}}",
+      "correctionPlaceholder": "Ghi nội dung sửa, vd: bài này mình chọn bừa",
+      "record": {
+        "courseStarted": "Bắt đầu xem \"{{course}}\"",
+        "courseProgressed": "\"{{course}}\": xem đến trang {{page}}/{{count}}",
+        "courseFinished": "Xem hết \"{{course}}\" ({{count}} trang)",
+        "quizSubmitted": "Nộp bài kiểm tra trong lớp ở \"{{course}}\" ({{count}} câu)",
+        "quizGraded": "Bài kiểm tra trong lớp ở \"{{course}}\" đã chấm xong",
+        "companionQuestion": "Hỏi {{classmate}} ở {{space}}: {{preview}}",
+        "hint_used": "Đã dùng gợi ý",
+        "review_done": "Đã hoàn thành ôn tập",
+        "unknownCourse": "khóa học đã xóa",
+        "unknownSpace": "môn học",
+        "unknownClassmate": "bạn học",
+        "viewingOnly": "Bản ghi xem bài, không có nghĩa là đã nắm vững",
+        "objectiveChecked": "Trắc nghiệm đúng {{correct}}/{{total}} (đã đối chiếu với đề gốc trên máy chủ)",
+        "objectiveUnverified": "Không thể đối chiếu điểm trắc nghiệm (khóa học đã đổi hoặc bản ghi thiếu); không tính",
+        "aiGraded": "Câu tự luận AI chấm {{earned}}/{{points}} điểm (theo bản ghi trong lớp)"
+      },
+      "source": {
+        "study_progress": "Tiến độ",
+        "quiz_attempt": "Kiểm tra trong lớp",
+        "companion_chat": "Trò chuyện sau giờ học",
+        "exam_attempt": "Bài thi",
+        "review_task": "Ôn tập"
+      },
+      "recentHint": "{{days}} ngày gần đây, thống kê theo quy tắc cố định (không gọi mô hình). Chỉ cho biết bạn đã làm gì, không đánh giá mức nắm vững.",
+      "recent": {
+        "courses": "Đã xem {{viewed}} khóa học, xem hết {{finished}}",
+        "progress": "\"{{course}}\": xa nhất trang {{page}}/{{count}}",
+        "quizzes": "Kiểm tra trong lớp: nộp {{submitted}} lần, chấm xong {{graded}} lần",
+        "objective": "trắc nghiệm đúng {{correct}}/{{total}} (đã đối chiếu)",
+        "unverified": "{{count}} lần không đối chiếu được",
+        "companion": "Hỏi sau giờ học {{count}} lần ({{detail}})",
+        "empty": "Không có bản ghi trong khoảng này."
+      },
+      "clear": {
+        "open": "Xóa…",
+        "title": "Xóa bộ nhớ",
+        "text": "Chọn nội dung cần xóa. Sở thích đã xóa sẽ không được gợi ý lại, bản ghi đã xóa không quay lại khi tạo lại.",
+        "preferences": "Sở thích và mục tiêu",
+        "facts": "Thông tin bạn cho biết (gồm cả phần sửa)",
+        "records": "Bản ghi học tập",
+        "rawQuizAttempts": "Xóa luôn bài làm và điểm gốc của bài kiểm tra trong lớp",
+        "rawHint": "Mặc định được giữ. Nếu chọn, bài kiểm tra trong lớp sẽ trở về chưa làm và không thể hoàn tác.",
+        "confirm": "Xóa",
+        "done": "Đã xóa"
+      },
+      "suggest": {
+        "ask": "Ghi nhớ sở thích giải thích này? \"{{choice}}\"",
+        "allSubjects": "Ghi nhớ (tất cả các môn)",
+        "onlySpace": "Chỉ ở {{space}}",
+        "decline": "Không cần",
+        "saved": "Đã ghi nhớ: \"{{choice}}\". Các câu trả lời sau sẽ theo sở thích này"
+      },
+      "turn": {
+        "off": "Bộ nhớ đang tắt; câu trả lời này không dùng sở thích của bạn.",
+        "spaceOff": "Bộ nhớ của môn này đang tắt; câu trả lời này không dùng sở thích của bạn.",
+        "used": "Câu trả lời này đã tham khảo bộ nhớ: {{preferences}} sở thích, {{facts}} thông tin.",
+        "none": "Bộ nhớ đang bật nhưng chưa có sở thích hay thông tin nào.",
+        "manage": "Quản lý"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "Nội dung đã được sửa ở nơi khác; đang hiển thị bản mới nhất.",
+        "STUDY_MEMORY_FACT_LIMIT": "Đã đạt giới hạn 100 thông tin. Hãy xóa bớt trước.",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "Mục này không còn tồn tại.",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "Bản ghi này không còn tồn tại.",
+        "STUDY_PREFERENCE_NOT_FOUND": "Sở thích này không còn tồn tại.",
+        "STUDY_SPACE_NOT_FOUND": "Môn học này không còn tồn tại.",
+        "STUDY_INVALID_INPUT": "Dữ liệu nhập không hợp lệ."
+      }
     }
   }
 }

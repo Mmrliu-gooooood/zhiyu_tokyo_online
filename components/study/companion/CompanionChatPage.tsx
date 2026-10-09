@@ -33,6 +33,11 @@ import {
   loadStudyPage,
   type StudyLoadState,
 } from '@/components/study/spaces/StudyShell';
+import {
+  MemorySuggestionBar,
+  MemoryTurnNote,
+  useMemorySuggestions,
+} from '@/components/study/memory/CompanionMemory';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { roleVoiceBinding } from '@/lib/audio/platform-tts-selection';
@@ -66,6 +71,8 @@ interface PageData {
   spaces: StudySpaceSummary[];
   chats: CompanionChatView[];
   originSpaces: string[];
+  /** B06 Memory is served (preference confirm prompts, turn notes). */
+  memory: boolean;
 }
 
 const FALLBACK_AVATAR = CLASSMATE_PRESET_AVATARS[0];
@@ -183,6 +190,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
   const [showDiscuss, setShowDiscuss] = useState(false);
   const [sending, setSending] = useState(false);
   const { fold, connected } = useCompanionStream(sessionId);
+  const memory = useMemorySuggestions(data?.memory === true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const errorText = useCallback(
@@ -217,6 +225,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
         spaces: spaces.filter((space) => space.status === 'active'),
         chats,
         originSpaces,
+        memory: capabilities.memory,
       };
     }).then((result) => {
       if (cancelled) return;
@@ -315,6 +324,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
     try {
       if (sessionId) {
         await companionApi.post(sessionId, { text, discuss });
+        memory.consider(text, sessionId, activeSpaceId || null);
       } else {
         const opened = await companionApi.open(classmateId, {
           spaceId,
@@ -322,6 +332,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
           discuss,
           origin,
         });
+        memory.consider(text, opened.sessionId, spaceId || null);
         router.replace(
           `/study/classmates/${encodeURIComponent(classmateId)}/chat?session=${encodeURIComponent(opened.sessionId)}`,
         );
@@ -578,6 +589,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                     : t('study.companion.noMaterials')}
                 </p>
               ) : null}
+              {data.memory ? <MemoryTurnNote info={fold.turn?.memory} /> : null}
             </div>
             <span
               className={`text-[11px] ${sessionId && !connected ? 'text-amber-600' : 'text-muted-foreground'}`}
@@ -661,6 +673,14 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
           </div>
 
           <footer className="border-t border-border px-5 py-3">
+            {memory.offer ? (
+              <MemorySuggestionBar
+                offer={memory.offer}
+                spaceName={spaceName}
+                onAccept={memory.accept}
+                onDecline={() => void memory.decline()}
+              />
+            ) : null}
             {showDiscuss ? (
               <div
                 className="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs"

@@ -66,6 +66,7 @@ describe('study routes', () => {
       qa: false,
       classmates: false,
       companionChat: false,
+      memory: false,
     });
     vi.stubEnv('ZHIYU_STUDY_SPACES_ENABLED', '');
     expect(await (await capabilities()).json()).toEqual({
@@ -74,6 +75,7 @@ describe('study routes', () => {
       qa: false,
       classmates: false,
       companionChat: false,
+      memory: false,
     });
     const hidden = await listSpaces(request());
     expect(hidden.status).toBe(404);

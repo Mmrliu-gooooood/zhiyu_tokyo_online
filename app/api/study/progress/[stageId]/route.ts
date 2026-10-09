@@ -5,6 +5,7 @@
  */
 import { isContentId, parseProgressWrite } from '@/lib/study/spaces/contracts';
 import { invalidInput, readStudyBody, studyJson, studyRoute } from '@/lib/server/study/route';
+import { projectCourseProgress } from '@/lib/server/study/memory/projector';
 import {
   StudyError,
   getCourseProgress,
@@ -30,6 +31,8 @@ export function PUT(req: Request, context: Context) {
     const parsed = parseProgressWrite(await readStudyBody(req));
     if (!parsed.ok) return invalidInput(parsed.field, headers);
     const progress = await writeCourseProgress(db, ownerId, stageId, parsed.value);
+    // Viewing records for Memory (B06), from the saved position; never fails the write.
+    await projectCourseProgress(db, ownerId, stageId);
     return studyJson({ progress }, 200, headers);
   });
 }

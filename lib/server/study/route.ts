@@ -22,6 +22,7 @@ import {
   isStudyClassmatesFlagOn,
   isStudyCompanionChatFlagOn,
   isStudyMaterialsFlagOn,
+  isStudyMemoryFlagOn,
   isStudyQaFlagOn,
 } from '@/lib/server/study/flags';
 
@@ -136,6 +137,24 @@ export function studyCompanionRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyCompanionChatEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B06 learning records, preferences and Memory: study spaces plus ZHIYU_STUDY_MEMORY_ENABLED. */
+export function isStudyMemoryEnabled(): boolean {
+  return isStudyMemoryFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the Memory and preference APIs. */
+export function studyMemoryRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyMemoryEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

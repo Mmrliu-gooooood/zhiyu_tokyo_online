@@ -168,7 +168,7 @@ async function migrated(open: () => Db): Promise<Db> {
 
 describe('accounts v26 registration', () => {
   it('is the newest accounts version with a stable checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(26);
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(26);
     expect(accountsMigrationChecksum(26)).toMatch(/^[a-f0-9]{64}$/);
     expect(ACCOUNTS_MIGRATION_26).toContain('FORCE ROW LEVEL SECURITY');
   });

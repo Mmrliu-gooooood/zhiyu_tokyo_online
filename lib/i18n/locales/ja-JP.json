@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "サービスが混雑しています。後で再試行してください。",
         "STUDY_INVALID_INPUT": "入力が無効です。確認してください。"
       }
+    },
+    "memory": {
+      "nav": "学習メモリー",
+      "title": "学習メモリー（Memory）",
+      "subtitle": "アプリが覚えている内容：あなたが設定した説明の好み、教えてくれた情報、ルールで整理した学習記録と最近の状況です。すべての学習仲間が共有します。いつでも訂正・削除・オフにできます。",
+      "switch": {
+        "global": "パーソナライズ Memory",
+        "onHint": "オン：学習仲間の放課後回答は、現在の科目の好みと事実を少しだけ参考にします。学習記録はルールで作成し、モデルは呼び出しません。",
+        "offHint": "オフ：学習仲間は好みや事実を読まず、新しい学習記録も残しません。既存の内容は引き続き確認・編集・削除できます。",
+        "perSpace": "科目ごと（オフにした科目のチャットでは Memory を使わず、新しい記録も残しません）"
+      },
+      "sections": {
+        "preferences": "好みと目標",
+        "facts": "事実",
+        "recent": "最近の状況"
+      },
+      "prefHint": "ここで設定した好み、またはチャットで「覚える」と確認した好みだけが有効です。チャットから自動推測はしません。科目の設定は「すべての科目」より優先されます。",
+      "scope": "適用範囲",
+      "allSubjects": "すべての科目",
+      "pref": {
+        "explanation_length": "説明の長さ",
+        "example_order": "例が先か定義が先か",
+        "hint_mode": "ヒントが先か直接説明か",
+        "learning_goal": "学習目標",
+        "notSet": "設定しない",
+        "followGlobal": "すべての科目に従う（{{value}}）",
+        "cleared": "この好みを削除しました",
+        "evidence": "チャットでのあなたの言葉：「{{excerpt}}」"
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "短め",
+          "standard": "標準",
+          "detailed": "詳しく"
+        },
+        "example_order": {
+          "example_first": "例を先に、次に定義",
+          "definition_first": "定義を先に、次に例"
+        },
+        "hint_mode": {
+          "hint_first": "まずヒントで自分で考える",
+          "direct": "すぐに完全な説明"
+        }
+      },
+      "origin": {
+        "settings": "設定で入力",
+        "confirmed_prompt": "チャットで確認",
+        "manual": "あなたが入力",
+        "correction": "あなたの訂正"
+      },
+      "goalPlaceholder": "例：期末の数学で 85 点以上",
+      "save": "保存",
+      "add": "追加",
+      "correct": "訂正",
+      "delete": "削除",
+      "deleted": "削除しました",
+      "factHint": "事実は 3 種類：あなたが教えてくれた情報、科目の目標（科目ページで設定）、ルールで整理した学習記録。学習記録は起きたことを示すだけで、習得を意味しません。",
+      "toldUs": "あなたが教えてくれたこと",
+      "factPlaceholder": "例：高校 2 年生で、関数が苦手です",
+      "noFacts": "まだありません。",
+      "spaceGoals": "科目の目標",
+      "examDate": "試験日 {{date}}",
+      "editInSpace": "科目ページで編集",
+      "records": "学習記録",
+      "recordsHint": "保存済みの学習進度、授業内テスト、放課後チャットからルールで作成します。削除した記録は再整理しても戻りません。",
+      "recordsPaused": "Memory はオフです。新しい学習記録は残しません。既存の記録は確認・削除できます。",
+      "noRecords": "学習記録はまだありません。",
+      "recordDeleted": "記録を削除しました。自動で戻ることはありません",
+      "correction": "あなたの訂正：{{text}}",
+      "correctionPlaceholder": "訂正を書く（例：このテストは適当に答えたので実力ではありません）",
+      "record": {
+        "courseStarted": "「{{course}}」の視聴を開始",
+        "courseProgressed": "「{{course}}」{{page}}/{{count}} ページまで視聴",
+        "courseFinished": "「{{course}}」を最後まで視聴（{{count}} ページ）",
+        "quizSubmitted": "「{{course}}」で授業内テストを提出（{{count}} 問）",
+        "quizGraded": "「{{course}}」の授業内テストの採点完了",
+        "companionQuestion": "{{space}}で{{classmate}}に質問：{{preview}}",
+        "hint_used": "ヒントを使用",
+        "review_done": "復習を完了",
+        "unknownCourse": "削除されたコース",
+        "unknownSpace": "科目",
+        "unknownClassmate": "学習仲間",
+        "viewingOnly": "視聴記録であり、習得の証明ではありません",
+        "objectiveChecked": "選択問題 {{correct}}/{{total}} 正解（サーバーでコースの問題と照合済み）",
+        "objectiveUnverified": "選択問題の得点を照合できません（コース変更または記録不足）。集計に含めません",
+        "aiGraded": "記述問題の AI 採点 {{earned}}/{{points}} 点（授業の記録より）"
+      },
+      "source": {
+        "study_progress": "学習進度",
+        "quiz_attempt": "授業内テスト",
+        "companion_chat": "放課後チャット",
+        "exam_attempt": "テスト",
+        "review_task": "復習"
+      },
+      "recentHint": "直近 {{days}} 日を固定ルールで集計（モデルは使いません）。何をしたかを示すだけで、習得は判断しません。",
+      "recent": {
+        "courses": "{{viewed}} コースを視聴、うち {{finished}} コースを最後まで",
+        "progress": "「{{course}}」最大 {{page}}/{{count}} ページ",
+        "quizzes": "授業内テスト：提出 {{submitted}} 回、採点完了 {{graded}} 回",
+        "objective": "選択問題 {{correct}}/{{total}} 正解（サーバー照合）",
+        "unverified": "{{count}} 回は照合不可",
+        "companion": "放課後の質問 {{count}} 回（{{detail}}）",
+        "empty": "この期間の学習記録はありません。"
+      },
+      "clear": {
+        "open": "削除…",
+        "title": "Memory を削除",
+        "text": "削除する内容を選んでください。削除した好みは再提案されず、削除した学習記録は再整理しても戻りません。",
+        "preferences": "好みと学習目標",
+        "facts": "教えてくれた事実（訂正を含む）",
+        "records": "学習記録",
+        "rawQuizAttempts": "元の授業内テストの解答と得点も削除する",
+        "rawHint": "既定では残します。チェックすると授業内テストは未回答に戻り、元に戻せません。",
+        "confirm": "削除",
+        "done": "削除しました"
+      },
+      "suggest": {
+        "ask": "この説明の好みを覚えますか？「{{choice}}」",
+        "allSubjects": "覚える（すべての科目）",
+        "onlySpace": "{{space}}だけ",
+        "decline": "結構です",
+        "saved": "覚えました：「{{choice}}」。今後の回答に反映します"
+      },
+      "turn": {
+        "off": "Memory はオフです。この回答では好みを使っていません。",
+        "spaceOff": "この科目の Memory はオフです。この回答では好みを使っていません。",
+        "used": "この回答は Memory を参考にしました：好み {{preferences}} 件、事実 {{facts}} 件。",
+        "none": "Memory はオンですが、使える好みや事実はまだありません。",
+        "manage": "管理"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "別の画面で変更されました。最新の内容を表示しています。",
+        "STUDY_MEMORY_FACT_LIMIT": "事実は 100 件までです。先にいくつか削除してください。",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "この項目はもう存在しません。",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "この記録はもう存在しません。",
+        "STUDY_PREFERENCE_NOT_FOUND": "この好みはもう存在しません。",
+        "STUDY_SPACE_NOT_FOUND": "この科目はもう存在しません。",
+        "STUDY_INVALID_INPUT": "入力内容が正しくありません。"
+      }
     }
   }
 }

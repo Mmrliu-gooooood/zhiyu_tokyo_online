@@ -10,6 +10,7 @@ import {
   parseDiscuss,
   postCompanionMessage,
 } from '@/lib/server/study/companion/service';
+import { projectCompanionChat } from '@/lib/server/study/memory/projector';
 import {
   invalidInput,
   readStudyBody,
@@ -38,6 +39,8 @@ export function POST(req: Request, context: Context) {
         discuss,
         modelRef: body.modelRef,
       });
+      // Learning record of the question (B06); never fails the message.
+      await projectCompanionChat(db, ownerId, sessionId);
       return studyJson(posted, 202, headers);
     } catch (error) {
       const mapped = companionFailure(error, headers);

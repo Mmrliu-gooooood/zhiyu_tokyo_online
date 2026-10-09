@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "서비스가 바쁩니다. 잠시 후 다시 시도하세요.",
         "STUDY_INVALID_INPUT": "입력이 올바르지 않습니다."
       }
+    },
+    "memory": {
+      "nav": "학습 메모리",
+      "title": "학습 메모리(Memory)",
+      "subtitle": "앱이 기억하는 내용: 직접 설정한 설명 선호, 알려 준 정보, 규칙으로 정리한 학습 기록과 최근 상태입니다. 모든 학습 친구가 함께 사용하며 언제든 수정, 삭제, 끄기가 가능합니다.",
+      "switch": {
+        "global": "개인화 Memory",
+        "onHint": "켜짐: 학습 친구의 방과 후 답변이 현재 과목의 선호와 사실을 조금 참고합니다. 학습 기록은 규칙으로 만들며 모델을 호출하지 않습니다.",
+        "offHint": "꺼짐: 학습 친구가 선호와 사실을 읽지 않고 새 학습 기록도 남기지 않습니다. 기존 내용은 계속 보고, 수정하고, 지울 수 있습니다.",
+        "perSpace": "과목별 설정(끄면 그 과목의 대화에서 Memory를 쓰지 않고 새 기록도 남기지 않음)"
+      },
+      "sections": {
+        "preferences": "선호와 목표",
+        "facts": "사실",
+        "recent": "최근 상태"
+      },
+      "prefHint": "여기서 설정하거나 대화에서 '기억하기'로 확인한 선호만 적용됩니다. 대화에서 자동으로 추측하지 않습니다. 과목 설정이 '모든 과목'보다 우선합니다.",
+      "scope": "적용 범위",
+      "allSubjects": "모든 과목",
+      "pref": {
+        "explanation_length": "설명 길이",
+        "example_order": "예시 먼저 또는 정의 먼저",
+        "hint_mode": "힌트 먼저 또는 바로 설명",
+        "learning_goal": "학습 목표",
+        "notSet": "설정 안 함",
+        "followGlobal": "모든 과목 따르기({{value}})",
+        "cleared": "선호를 지웠습니다",
+        "evidence": "대화에서 한 말: \"{{excerpt}}\""
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "짧게",
+          "standard": "보통",
+          "detailed": "자세히"
+        },
+        "example_order": {
+          "example_first": "예시 먼저, 그다음 정의",
+          "definition_first": "정의 먼저, 그다음 예시"
+        },
+        "hint_mode": {
+          "hint_first": "힌트 먼저, 스스로 생각하기",
+          "direct": "바로 완전한 설명"
+        }
+      },
+      "origin": {
+        "settings": "설정에서 입력",
+        "confirmed_prompt": "대화에서 확인",
+        "manual": "직접 입력",
+        "correction": "내 수정"
+      },
+      "goalPlaceholder": "예: 기말 수학 85점 이상",
+      "save": "저장",
+      "add": "추가",
+      "correct": "수정",
+      "delete": "삭제",
+      "deleted": "삭제했습니다",
+      "factHint": "사실은 세 가지입니다: 알려 준 정보, 과목 목표(과목 페이지에서 설정), 규칙으로 정리한 학습 기록. 학습 기록은 일어난 일을 보여 줄 뿐 숙달을 뜻하지 않습니다.",
+      "toldUs": "알려 준 내용",
+      "factPlaceholder": "예: 고2이고 함수가 약해요",
+      "noFacts": "아직 없습니다.",
+      "spaceGoals": "과목 목표",
+      "examDate": "시험일 {{date}}",
+      "editInSpace": "과목 페이지에서 수정",
+      "records": "학습 기록",
+      "recordsHint": "저장된 학습 진도, 수업 퀴즈, 방과 후 대화에서 규칙으로 만듭니다. 삭제한 기록은 다시 정리해도 돌아오지 않습니다.",
+      "recordsPaused": "Memory가 꺼져 있습니다. 새 학습 기록은 남기지 않으며 기존 기록은 보고 삭제할 수 있습니다.",
+      "noRecords": "아직 학습 기록이 없습니다.",
+      "recordDeleted": "기록을 삭제했습니다. 자동으로 돌아오지 않습니다",
+      "correction": "내 수정: {{text}}",
+      "correctionPlaceholder": "수정 내용 입력(예: 이 퀴즈는 대충 풀어서 실제 실력이 아니에요)",
+      "record": {
+        "courseStarted": "\"{{course}}\" 시청 시작",
+        "courseProgressed": "\"{{course}}\" {{page}}/{{count}}쪽까지 시청",
+        "courseFinished": "\"{{course}}\" 끝까지 시청({{count}}쪽)",
+        "quizSubmitted": "\"{{course}}\"에서 수업 퀴즈 제출({{count}}문항)",
+        "quizGraded": "\"{{course}}\" 수업 퀴즈 채점 완료",
+        "companionQuestion": "{{space}}에서 {{classmate}}에게 질문: {{preview}}",
+        "hint_used": "힌트 사용",
+        "review_done": "복습 완료",
+        "unknownCourse": "삭제된 강의",
+        "unknownSpace": "과목",
+        "unknownClassmate": "학습 친구",
+        "viewingOnly": "시청 기록이며 숙달을 뜻하지 않습니다",
+        "objectiveChecked": "객관식 {{correct}}/{{total}} 정답(서버에서 강의 원문 문제와 대조)",
+        "objectiveUnverified": "객관식 점수를 확인할 수 없음(강의 변경 또는 기록 부족). 통계에서 제외",
+        "aiGraded": "주관식 AI 채점 {{earned}}/{{points}}점(수업 기록 기준)"
+      },
+      "source": {
+        "study_progress": "학습 진도",
+        "quiz_attempt": "수업 퀴즈",
+        "companion_chat": "방과 후 대화",
+        "exam_attempt": "시험",
+        "review_task": "복습"
+      },
+      "recentHint": "최근 {{days}}일, 고정 규칙으로 집계(모델 호출 없음). 무엇을 했는지만 보여 주며 숙달 여부는 판단하지 않습니다.",
+      "recent": {
+        "courses": "강의 {{viewed}}개 시청, 그중 {{finished}}개 완주",
+        "progress": "\"{{course}}\" 최대 {{page}}/{{count}}쪽",
+        "quizzes": "수업 퀴즈: 제출 {{submitted}}회, 채점 완료 {{graded}}회",
+        "objective": "객관식 {{correct}}/{{total}} 정답(서버 확인)",
+        "unverified": "{{count}}회 확인 불가",
+        "companion": "방과 후 질문 {{count}}회({{detail}})",
+        "empty": "이 기간에는 학습 기록이 없습니다."
+      },
+      "clear": {
+        "open": "지우기…",
+        "title": "Memory 지우기",
+        "text": "지울 내용을 선택하세요. 지운 선호는 다시 제안되지 않고, 지운 학습 기록은 다시 정리해도 돌아오지 않습니다.",
+        "preferences": "선호와 학습 목표",
+        "facts": "알려 준 사실(수정 포함)",
+        "records": "학습 기록",
+        "rawQuizAttempts": "원본 수업 퀴즈 답안과 점수도 삭제",
+        "rawHint": "기본적으로 유지됩니다. 선택하면 수업 퀴즈가 미응답 상태로 돌아가며 되돌릴 수 없습니다.",
+        "confirm": "지우기",
+        "done": "지웠습니다"
+      },
+      "suggest": {
+        "ask": "이 설명 선호를 기억할까요? \"{{choice}}\"",
+        "allSubjects": "기억하기(모든 과목)",
+        "onlySpace": "{{space}}에서만",
+        "decline": "괜찮아요",
+        "saved": "기억했습니다: \"{{choice}}\". 이후 답변에 반영합니다"
+      },
+      "turn": {
+        "off": "Memory가 꺼져 있어 이번 답변에는 선호를 사용하지 않았습니다.",
+        "spaceOff": "이 과목의 Memory가 꺼져 있어 이번 답변에는 선호를 사용하지 않았습니다.",
+        "used": "이번 답변은 Memory를 참고했습니다: 선호 {{preferences}}개, 사실 {{facts}}개.",
+        "none": "Memory가 켜져 있지만 사용할 선호나 사실이 아직 없습니다.",
+        "manage": "관리"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "다른 화면에서 변경되었습니다. 최신 내용을 표시합니다.",
+        "STUDY_MEMORY_FACT_LIMIT": "사실은 100개까지입니다. 먼저 일부를 삭제하세요.",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "이 항목은 더 이상 없습니다.",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "이 기록은 더 이상 없습니다.",
+        "STUDY_PREFERENCE_NOT_FOUND": "이 선호는 더 이상 없습니다.",
+        "STUDY_SPACE_NOT_FOUND": "이 과목은 더 이상 없습니다.",
+        "STUDY_INVALID_INPUT": "입력 형식이 올바르지 않습니다."
+      }
     }
   }
 }

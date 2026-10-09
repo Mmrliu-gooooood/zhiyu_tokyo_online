@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "O serviço está ocupado. Tente mais tarde.",
         "STUDY_INVALID_INPUT": "Entrada inválida."
       }
+    },
+    "memory": {
+      "nav": "Memória",
+      "title": "Memória de estudo",
+      "subtitle": "O que o app guarda sobre você: suas preferências de explicação, o que você nos contou, registros de estudo criados por regras e sua atividade recente. Todos os colegas compartilham a mesma memória; você pode corrigir, apagar ou desativar quando quiser.",
+      "switch": {
+        "global": "Memória personalizada",
+        "onHint": "Ativada: as respostas dos colegas depois da aula usam algumas preferências e fatos da matéria atual; os registros são criados por regras, sem chamar modelos.",
+        "offHint": "Desativada: os colegas não leem mais suas preferências e fatos, e nenhum registro novo é guardado. Você ainda pode ver, editar e apagar o que já existe.",
+        "perSpace": "Por matéria (desativada = os chats dessa matéria não usam a memória nem guardam registros novos)"
+      },
+      "sections": {
+        "preferences": "Preferências e metas",
+        "facts": "Fatos",
+        "recent": "Atividade recente"
+      },
+      "prefHint": "Só valem as preferências definidas aqui ou confirmadas com \"Lembrar\" em um chat; nada é deduzido dos chats. A configuração de uma matéria tem prioridade sobre \"Todas as matérias\".",
+      "scope": "Vale para",
+      "allSubjects": "Todas as matérias",
+      "pref": {
+        "explanation_length": "Tamanho das explicações",
+        "example_order": "Exemplos ou definições primeiro",
+        "hint_mode": "Dicas primeiro ou explicação direta",
+        "learning_goal": "Meta de estudo",
+        "notSet": "Não definido",
+        "followGlobal": "Igual a todas as matérias ({{value}})",
+        "cleared": "Preferência apagada",
+        "evidence": "Das suas palavras em um chat: \"{{excerpt}}\""
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "Curta",
+          "standard": "Média",
+          "detailed": "Detalhada"
+        },
+        "example_order": {
+          "example_first": "Primeiro um exemplo, depois a definição",
+          "definition_first": "Primeiro a definição, depois exemplos"
+        },
+        "hint_mode": {
+          "hint_first": "Dicas primeiro, deixe-me pensar",
+          "direct": "Explicação completa logo"
+        }
+      },
+      "origin": {
+        "settings": "Definido nas configurações",
+        "confirmed_prompt": "Confirmado em um chat",
+        "manual": "Escrito por você",
+        "correction": "Sua correção"
+      },
+      "goalPlaceholder": "ex.: tirar 8,5 ou mais na prova final de matemática",
+      "save": "Salvar",
+      "add": "Adicionar",
+      "correct": "Corrigir",
+      "delete": "Apagar",
+      "deleted": "Apagado",
+      "factHint": "Três tipos de fatos: o que você nos contou, metas da matéria (na página da matéria) e registros criados por regras. Um registro diz o que aconteceu, não o que você domina.",
+      "toldUs": "O que você nos contou",
+      "factPlaceholder": "ex.: estou no 2º ano do ensino médio e tenho dificuldade com funções",
+      "noFacts": "Nada ainda.",
+      "spaceGoals": "Metas das matérias",
+      "examDate": "prova em {{date}}",
+      "editInSpace": "Editar na página da matéria",
+      "records": "Registros de estudo",
+      "recordsHint": "Criados por regras a partir do progresso salvo, dos quizzes de aula e dos chats depois da aula. Um registro apagado não volta ao reconstruir.",
+      "recordsPaused": "Memória desativada: nenhum registro novo é guardado; os existentes podem ser vistos e apagados.",
+      "noRecords": "Ainda não há registros.",
+      "recordDeleted": "Registro apagado; ele não volta automaticamente",
+      "correction": "Sua correção: {{text}}",
+      "correctionPlaceholder": "Escreva uma correção, ex.: respondi este quiz no chute",
+      "record": {
+        "courseStarted": "Começou a ver \"{{course}}\"",
+        "courseProgressed": "\"{{course}}\": chegou à página {{page}}/{{count}}",
+        "courseFinished": "Viu \"{{course}}\" até o fim ({{count}} páginas)",
+        "quizSubmitted": "Enviou um quiz de aula em \"{{course}}\" ({{count}} questões)",
+        "quizGraded": "Quiz de aula de \"{{course}}\" corrigido",
+        "companionQuestion": "Perguntou a {{classmate}} em {{space}}: {{preview}}",
+        "hint_used": "Usou uma dica",
+        "review_done": "Concluiu uma revisão",
+        "unknownCourse": "um curso apagado",
+        "unknownSpace": "uma matéria",
+        "unknownClassmate": "um colega",
+        "viewingOnly": "Registro de visualização, não de domínio",
+        "objectiveChecked": "Múltipla escolha {{correct}}/{{total}} corretas (conferido no servidor com o curso)",
+        "objectiveUnverified": "Nota de múltipla escolha não conferível (curso alterado ou registro incompleto); não contada",
+        "aiGraded": "Questões abertas corrigidas por IA {{earned}}/{{points}} (conforme a aula)"
+      },
+      "source": {
+        "study_progress": "Progresso",
+        "quiz_attempt": "Quiz de aula",
+        "companion_chat": "Chat depois da aula",
+        "exam_attempt": "Teste",
+        "review_task": "Revisão"
+      },
+      "recentHint": "Últimos {{days}} dias, contados por regras fixas (sem modelos). Mostra o que você fez, não se domina o conteúdo.",
+      "recent": {
+        "courses": "Viu {{viewed}} cursos, {{finished}} até o fim",
+        "progress": "\"{{course}}\": página mais distante {{page}}/{{count}}",
+        "quizzes": "Quizzes de aula: {{submitted}} enviados, {{graded}} corrigidos",
+        "objective": "múltipla escolha {{correct}}/{{total}} corretas (conferido)",
+        "unverified": "{{count}} não conferíveis",
+        "companion": "{{count}} perguntas depois da aula ({{detail}})",
+        "empty": "Nenhum registro neste período."
+      },
+      "clear": {
+        "open": "Apagar…",
+        "title": "Apagar a memória",
+        "text": "Escolha o que apagar. Preferências apagadas não são sugeridas de novo e registros apagados não voltam ao reconstruir.",
+        "preferences": "Preferências e metas",
+        "facts": "Fatos que você contou (com correções)",
+        "records": "Registros de estudo",
+        "rawQuizAttempts": "Apagar também as respostas e notas originais dos quizzes de aula",
+        "rawHint": "Mantidas por padrão. Se marcado, os quizzes da aula voltam a ficar sem resposta. Não dá para desfazer.",
+        "confirm": "Apagar",
+        "done": "Apagado"
+      },
+      "suggest": {
+        "ask": "Lembrar esta preferência de explicação? \"{{choice}}\"",
+        "allSubjects": "Lembrar (todas as matérias)",
+        "onlySpace": "Só em {{space}}",
+        "decline": "Não, obrigado",
+        "saved": "Lembrado: \"{{choice}}\". As próximas respostas vão seguir isso"
+      },
+      "turn": {
+        "off": "Memória desativada; esta resposta não usou suas preferências.",
+        "spaceOff": "Memória desativada nesta matéria; esta resposta não usou suas preferências.",
+        "used": "Esta resposta usou sua memória: {{preferences}} preferências, {{facts}} fatos.",
+        "none": "A memória está ativada, mas ainda não há preferências ou fatos para usar.",
+        "manage": "Gerenciar"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "Foi alterado em outro lugar; a versão mais recente está sendo exibida.",
+        "STUDY_MEMORY_FACT_LIMIT": "Limite de 100 fatos atingido. Apague alguns primeiro.",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "Este item não existe mais.",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "Este registro não existe mais.",
+        "STUDY_PREFERENCE_NOT_FOUND": "Esta preferência não existe mais.",
+        "STUDY_SPACE_NOT_FOUND": "Esta matéria não existe mais.",
+        "STUDY_INVALID_INPUT": "Entrada inválida."
+      }
     }
   }
 }

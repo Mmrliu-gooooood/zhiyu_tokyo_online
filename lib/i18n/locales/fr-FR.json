@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Le service est occupé. Réessayez plus tard.",
         "STUDY_INVALID_INPUT": "Saisie invalide."
       }
+    },
+    "memory": {
+      "nav": "Mémoire",
+      "title": "Mémoire d’apprentissage",
+      "subtitle": "Ce que l’application garde sur vous : vos préférences d’explication, ce que vous nous avez dit, des traces d’apprentissage établies par règles et votre activité récente. Tous les camarades la partagent ; vous pouvez la corriger, la supprimer ou la désactiver à tout moment.",
+      "switch": {
+        "global": "Mémoire personnalisée",
+        "onHint": "Activée : les réponses des camarades après le cours tiennent compte de quelques préférences et faits de la matière en cours ; les traces sont établies par règles, sans appel de modèle.",
+        "offHint": "Désactivée : les camarades ne lisent plus vos préférences ni vos faits, et aucune nouvelle trace n’est enregistrée. Vous pouvez toujours consulter, modifier et effacer l’existant.",
+        "perSpace": "Par matière (désactivée = les discussions de cette matière n’utilisent pas la mémoire, aucune nouvelle trace)"
+      },
+      "sections": {
+        "preferences": "Préférences et objectifs",
+        "facts": "Faits",
+        "recent": "Activité récente"
+      },
+      "prefHint": "Seules les préférences réglées ici, ou confirmées par « Mémoriser » dans une discussion, s’appliquent ; rien n’est déduit des discussions. Un réglage de matière prime sur « Toutes les matières ».",
+      "scope": "S’applique à",
+      "allSubjects": "Toutes les matières",
+      "pref": {
+        "explanation_length": "Longueur des explications",
+        "example_order": "Exemples ou définitions d’abord",
+        "hint_mode": "Indices d’abord ou explication directe",
+        "learning_goal": "Objectif d’apprentissage",
+        "notSet": "Non défini",
+        "followGlobal": "Comme toutes les matières ({{value}})",
+        "cleared": "Préférence effacée",
+        "evidence": "D’après vos mots dans une discussion : « {{excerpt}} »"
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "Courte",
+          "standard": "Moyenne",
+          "detailed": "Détaillée"
+        },
+        "example_order": {
+          "example_first": "Un exemple, puis la définition",
+          "definition_first": "La définition, puis des exemples"
+        },
+        "hint_mode": {
+          "hint_first": "Des indices d’abord, je réfléchis",
+          "direct": "Explication complète tout de suite"
+        }
+      },
+      "origin": {
+        "settings": "Réglé dans les paramètres",
+        "confirmed_prompt": "Confirmé dans une discussion",
+        "manual": "Écrit par vous",
+        "correction": "Votre correction"
+      },
+      "goalPlaceholder": "ex. : 17/20 à l’examen final de maths",
+      "save": "Enregistrer",
+      "add": "Ajouter",
+      "correct": "Corriger",
+      "delete": "Supprimer",
+      "deleted": "Supprimé",
+      "factHint": "Trois types de faits : ce que vous nous avez dit, les objectifs de matière (page de la matière) et les traces établies par règles. Une trace dit ce qui s’est passé, pas ce que vous maîtrisez.",
+      "toldUs": "Ce que vous nous avez dit",
+      "factPlaceholder": "ex. : je suis en première et j’ai du mal avec les fonctions",
+      "noFacts": "Rien pour l’instant.",
+      "spaceGoals": "Objectifs des matières",
+      "examDate": "examen le {{date}}",
+      "editInSpace": "Modifier sur la page de la matière",
+      "records": "Traces d’apprentissage",
+      "recordsHint": "Établies par règles à partir de la progression enregistrée, des quiz en classe et des discussions après le cours. Une trace supprimée ne revient pas lors d’une reconstruction.",
+      "recordsPaused": "Mémoire désactivée : aucune nouvelle trace n’est enregistrée ; les traces existantes restent consultables et supprimables.",
+      "noRecords": "Aucune trace pour l’instant.",
+      "recordDeleted": "Trace supprimée ; elle ne reviendra pas automatiquement",
+      "correction": "Votre correction : {{text}}",
+      "correctionPlaceholder": "Écrivez une correction, ex. : j’ai répondu au hasard à ce quiz",
+      "record": {
+        "courseStarted": "A commencé « {{course}} »",
+        "courseProgressed": "« {{course}} » : page {{page}}/{{count}} atteinte",
+        "courseFinished": "« {{course}} » regardé jusqu’au bout ({{count}} pages)",
+        "quizSubmitted": "Quiz en classe envoyé dans « {{course}} » ({{count}} questions)",
+        "quizGraded": "Quiz en classe de « {{course}} » corrigé",
+        "companionQuestion": "Question à {{classmate}} ({{space}}) : {{preview}}",
+        "hint_used": "Indice utilisé",
+        "review_done": "Révision terminée",
+        "unknownCourse": "un cours supprimé",
+        "unknownSpace": "une matière",
+        "unknownClassmate": "un camarade",
+        "viewingOnly": "Trace de visionnage, pas une preuve de maîtrise",
+        "objectiveChecked": "QCM {{correct}}/{{total}} justes (vérifié sur le serveur avec le cours)",
+        "objectiveUnverified": "Score QCM invérifiable (cours modifié ou trace incomplète) ; non compté",
+        "aiGraded": "Questions ouvertes notées par l’IA {{earned}}/{{points}} (selon la classe)"
+      },
+      "source": {
+        "study_progress": "Progression",
+        "quiz_attempt": "Quiz en classe",
+        "companion_chat": "Discussion après le cours",
+        "exam_attempt": "Test",
+        "review_task": "Révision"
+      },
+      "recentHint": "{{days}} derniers jours, comptés par règles fixes (sans modèle). Indique ce que vous avez fait, pas si vous le maîtrisez.",
+      "recent": {
+        "courses": "{{viewed}} cours regardés, dont {{finished}} jusqu’au bout",
+        "progress": "« {{course}} » : page la plus loin {{page}}/{{count}}",
+        "quizzes": "Quiz en classe : {{submitted}} envoyés, {{graded}} corrigés",
+        "objective": "QCM {{correct}}/{{total}} justes (vérifié serveur)",
+        "unverified": "{{count}} invérifiables",
+        "companion": "{{count}} questions après le cours ({{detail}})",
+        "empty": "Aucune trace sur cette période."
+      },
+      "clear": {
+        "open": "Effacer…",
+        "title": "Effacer la mémoire",
+        "text": "Choisissez quoi effacer. Les préférences effacées ne seront plus proposées et les traces effacées ne reviendront pas lors d’une reconstruction.",
+        "preferences": "Préférences et objectifs",
+        "facts": "Faits que vous nous avez dits (corrections comprises)",
+        "records": "Traces d’apprentissage",
+        "rawQuizAttempts": "Supprimer aussi les réponses et notes d’origine des quiz en classe",
+        "rawHint": "Conservées par défaut. Si coché, les quiz en classe redeviennent sans réponse. Irréversible.",
+        "confirm": "Effacer",
+        "done": "Effacé"
+      },
+      "suggest": {
+        "ask": "Mémoriser cette préférence d’explication ? « {{choice}} »",
+        "allSubjects": "Mémoriser (toutes les matières)",
+        "onlySpace": "Seulement en {{space}}",
+        "decline": "Non merci",
+        "saved": "Mémorisé : « {{choice}} ». Les prochaines réponses en tiendront compte"
+      },
+      "turn": {
+        "off": "Mémoire désactivée ; cette réponse n’a utilisé aucune de vos préférences.",
+        "spaceOff": "Mémoire désactivée pour cette matière ; cette réponse n’a utilisé aucune de vos préférences.",
+        "used": "Cette réponse a utilisé votre mémoire : {{preferences}} préférences, {{facts}} faits.",
+        "none": "Mémoire activée, mais aucune préférence ni aucun fait à utiliser pour l’instant.",
+        "manage": "Gérer"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "Modifié ailleurs ; la dernière version est affichée.",
+        "STUDY_MEMORY_FACT_LIMIT": "Limite de 100 faits atteinte. Supprimez-en d’abord.",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "Cet élément n’existe plus.",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "Cette trace n’existe plus.",
+        "STUDY_PREFERENCE_NOT_FOUND": "Cette préférence n’existe plus.",
+        "STUDY_SPACE_NOT_FOUND": "Cette matière n’existe plus.",
+        "STUDY_INVALID_INPUT": "La saisie n’est pas valide."
+      }
     }
   }
 }

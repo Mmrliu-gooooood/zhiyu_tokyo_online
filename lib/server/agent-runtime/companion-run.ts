@@ -36,6 +36,7 @@ import {
 } from '@/lib/server/study/companion/model-policy';
 import { getCompanionChat, type CompanionChatRow } from '@/lib/server/study/companion/repository';
 import { buildCompanionTools } from '@/lib/server/study/companion/tools';
+import { resolveMemoryContext } from '@/lib/server/study/memory/context';
 import {
   companionMaterials,
   companionScope,
@@ -184,6 +185,9 @@ export async function prepareCompanionRun(input: PrepareCompanionRunInput): Prom
   } else {
     driver = await inheritedDriver();
   }
+
+  // ── Memory (B06): the same owner Memory for every classmate, this subject ─
+  const memory = await resolveMemoryContext(db, ownerId, chat.spaceId);
 
   // ── history and refs ───────────────────────────────────────────────────
   const view = companionHistoryView(input.historyMessages, turn.allowedMaterialIds);
@@ -355,10 +359,13 @@ export async function prepareCompanionRun(input: PrepareCompanionRunInput): Prom
       `你是「${other.name}」，学生课后学习讨论里被邀请的${other.role === 'assistant' ? '助教' : '同学'}。`,
       composeClassmatePersona(other),
       '只补充一个和主回答不同的要点，两三句话，用学生使用的语言。',
+      memory.block,
       found.length
         ? '可以引用下面你被授权的资料片段，在句末标注编号（如 [M3]）；没有用到就不要标注。'
         : '你没有找到可引用的资料：只能用自己的知识，并说明是补充。',
-    ].join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
     const prompt = [
       `学生的问题：${decoded.text}`,
       `主学伴请你补充：${request}`,
@@ -427,6 +434,7 @@ export async function prepareCompanionRun(input: PrepareCompanionRunInput): Prom
     origin: chat.origin ? { ...chat.origin, ...originTitles } : null,
     discussing: candidates,
     withheldCount: view.withheldMaterialIds.length,
+    memoryBlock: memory.block,
   });
 
   const turnInfo: CompanionTurnInfo = {
@@ -446,6 +454,7 @@ export async function prepareCompanionRun(input: PrepareCompanionRunInput): Prom
         ? { mode: 'custom', label: classmateModelLabel(policy.model) }
         : { mode: 'inherit', label: driver.binding.modelString },
     discuss: candidates,
+    memory: memory.info,
   };
 
   return {

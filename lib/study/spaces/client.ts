@@ -71,6 +71,8 @@ export interface StudyCapabilities {
   classmates: boolean;
   /** B05 after-class classmate chats (needs classmates and the agent runtime). */
   companionChat: boolean;
+  /** B06 learning records, preferences and Memory controls (needs spaces). */
+  memory: boolean;
 }
 
 let capabilityPromise: Promise<StudyCapabilities> | undefined;
@@ -86,6 +88,7 @@ export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
           qa: false,
           classmates: false,
           companionChat: false,
+          memory: false,
         };
       const body = (await response.json()) as {
         spaces?: unknown;
@@ -93,6 +96,7 @@ export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
         qa?: unknown;
         classmates?: unknown;
         companionChat?: unknown;
+        memory?: unknown;
       };
       return {
         spaces: body.spaces === true,
@@ -100,6 +104,7 @@ export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
         qa: body.qa === true,
         classmates: body.classmates === true,
         companionChat: body.companionChat === true,
+        memory: body.memory === true,
       };
     })
     .catch(() => {
@@ -110,6 +115,7 @@ export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
         qa: false,
         classmates: false,
         companionChat: false,
+        memory: false,
       };
     });
   return capabilityPromise;

@@ -534,6 +534,13 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM study_knowledge_indexes WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_citations WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_answers WHERE owner_id=$1', [ownerId]);
+      // Memory (v27): events reference courses and spaces; preferences, facts
+      // and controls reference spaces; suppressions stand alone.
+      await client.query('DELETE FROM study_learning_events WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_learner_preferences WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_memory_facts WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_memory_controls WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_memory_suppressions WHERE owner_id=$1', [ownerId]);
       // After-class chats (v26) name a space and a classmate; their agent
       // sessions are removed with the other agent tables.
       await client.query('DELETE FROM study_companion_chats WHERE owner_id=$1', [ownerId]);

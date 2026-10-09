@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "服务繁忙，请稍后再试。",
         "STUDY_INVALID_INPUT": "内容无效，请检查后再试。"
       }
+    },
+    "memory": {
+      "nav": "学习记忆",
+      "title": "学习记忆（Memory）",
+      "subtitle": "系统为你记住的内容：你设定的讲解偏好、你告诉我们的情况、按规则整理的学习记录和近期状态。所有学伴共用这一份；你可以随时更正、删除或关闭。",
+      "switch": {
+        "global": "个性化 Memory",
+        "onHint": "已开启：学伴课后答疑会参考当前学科的少量偏好与事实；学习记录按规则整理，不调用模型。",
+        "offHint": "已关闭：学伴不再读取你的偏好与事实，也不会记录新的学习记录。你仍可以查看、修改和清除已有内容。",
+        "perSpace": "按学科开关（关闭后该学科的答疑不使用 Memory，也不再为它记录新的学习记录）"
+      },
+      "sections": {
+        "preferences": "偏好与目标",
+        "facts": "事实",
+        "recent": "近期状态"
+      },
+      "prefHint": "只有你在这里设置、或在答疑中点“记住”确认的偏好才会生效；系统不会从聊天里自动推断。学科设置优先于“所有学科”。",
+      "scope": "适用范围",
+      "allSubjects": "所有学科",
+      "pref": {
+        "explanation_length": "讲解长度",
+        "example_order": "先例子还是先定义",
+        "hint_mode": "先给提示还是直接解释",
+        "learning_goal": "学习目标",
+        "notSet": "不设定",
+        "followGlobal": "跟随所有学科（{{value}}）",
+        "cleared": "已清除这项偏好",
+        "evidence": "来自你在答疑中的原话：“{{excerpt}}”"
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "简短",
+          "standard": "适中",
+          "detailed": "详细"
+        },
+        "example_order": {
+          "example_first": "先举例子，再讲定义",
+          "definition_first": "先讲定义，再举例子"
+        },
+        "hint_mode": {
+          "hint_first": "先给提示，让我自己想",
+          "direct": "直接给出完整解释"
+        }
+      },
+      "origin": {
+        "settings": "在设置中填写",
+        "confirmed_prompt": "在答疑中确认",
+        "manual": "你填写的",
+        "correction": "你的更正"
+      },
+      "goalPlaceholder": "例如：期末数学 85 分以上",
+      "save": "保存",
+      "add": "添加",
+      "correct": "更正",
+      "delete": "删除",
+      "deleted": "已删除",
+      "factHint": "事实分三类：你告诉我们的情况、学科目标（在学科页设置）、按规则整理的学习记录。学习记录只描述发生了什么，不代表已经掌握。",
+      "toldUs": "你告诉我们的",
+      "factPlaceholder": "例如：我是高二学生，函数部分基础较弱",
+      "noFacts": "还没有内容。",
+      "spaceGoals": "学科目标",
+      "examDate": "考试日期 {{date}}",
+      "editInSpace": "去学科页修改",
+      "records": "学习记录",
+      "recordsHint": "由已保存的学习进度、课堂测验和课后答疑按规则生成。删除后不会因为再次整理而恢复。",
+      "recordsPaused": "Memory 已关闭：不再记录新的学习记录，已有记录仍可查看和删除。",
+      "noRecords": "还没有学习记录。",
+      "recordDeleted": "已删除这条记录，之后不会再自动恢复",
+      "correction": "你的更正：{{text}}",
+      "correctionPlaceholder": "写下更正，例如：这次测验是随便点的，不代表真实水平",
+      "record": {
+        "courseStarted": "开始观看《{{course}}》",
+        "courseProgressed": "《{{course}}》看到第 {{page}}/{{count}} 页",
+        "courseFinished": "看完《{{course}}》（共 {{count}} 页）",
+        "quizSubmitted": "在《{{course}}》提交课堂测验（{{count}} 题）",
+        "quizGraded": "《{{course}}》课堂测验批改完成",
+        "companionQuestion": "在「{{space}}」问 {{classmate}}：{{preview}}",
+        "hint_used": "使用了提示",
+        "review_done": "完成了一次复习",
+        "unknownCourse": "已删除的课程",
+        "unknownSpace": "学科",
+        "unknownClassmate": "学伴",
+        "viewingOnly": "观看记录，不代表已掌握",
+        "objectiveChecked": "选择题 {{correct}}/{{total}} 正确（已按课程原题在服务器核对）",
+        "objectiveUnverified": "选择题成绩无法核对（课程已修改或记录不完整），不计入统计",
+        "aiGraded": "主观题 AI 评分 {{earned}}/{{points}} 分（来自课堂记录）"
+      },
+      "source": {
+        "study_progress": "学习进度",
+        "quiz_attempt": "课堂测验",
+        "companion_chat": "课后答疑",
+        "exam_attempt": "测试",
+        "review_task": "复习"
+      },
+      "recentHint": "最近 {{days}} 天，按固定规则统计（不调用模型）。只说明做了什么，不判断是否掌握。",
+      "recent": {
+        "courses": "看过 {{viewed}} 门课，其中看完 {{finished}} 门",
+        "progress": "《{{course}}》最远看到第 {{page}}/{{count}} 页",
+        "quizzes": "课堂测验：提交 {{submitted}} 次，批改完成 {{graded}} 次",
+        "objective": "选择题 {{correct}}/{{total}} 正确（服务器核对）",
+        "unverified": "{{count}} 次无法核对",
+        "companion": "课后答疑提问 {{count}} 次（{{detail}}）",
+        "empty": "这段时间没有学习记录。"
+      },
+      "clear": {
+        "open": "清除…",
+        "title": "清除 Memory",
+        "text": "选择要清除的内容。清除的偏好不会再被建议，清除的学习记录不会因为再次整理而恢复。",
+        "preferences": "偏好与学习目标",
+        "facts": "你告诉我们的事实（含更正）",
+        "records": "学习记录",
+        "rawQuizAttempts": "同时删除原始课堂测验的作答与成绩",
+        "rawHint": "默认保留。勾选后课堂里的测验会恢复为未作答，无法撤销。",
+        "confirm": "清除",
+        "done": "已清除"
+      },
+      "suggest": {
+        "ask": "要记住这个讲解偏好吗？“{{choice}}”",
+        "allSubjects": "记住（所有学科）",
+        "onlySpace": "只在「{{space}}」",
+        "decline": "不用了",
+        "saved": "已记住：“{{choice}}”，之后的回答会按这个偏好"
+      },
+      "turn": {
+        "off": "Memory 已关闭，本轮没有使用你的偏好。",
+        "spaceOff": "本学科的 Memory 已关闭，本轮没有使用你的偏好。",
+        "used": "本轮参考了你的 Memory：偏好 {{preferences}} 条、事实 {{facts}} 条。",
+        "none": "Memory 已开启，暂无可用的偏好或事实。",
+        "manage": "管理"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "内容已在其他页面修改，已显示最新内容。",
+        "STUDY_MEMORY_FACT_LIMIT": "事实条数已达上限（100 条），请先删除一些。",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "这条内容已不存在。",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "这条记录已不存在。",
+        "STUDY_PREFERENCE_NOT_FOUND": "这项偏好已不存在。",
+        "STUDY_SPACE_NOT_FOUND": "这个学科已不存在。",
+        "STUDY_INVALID_INPUT": "内容格式不正确。"
+      }
     }
   }
 }

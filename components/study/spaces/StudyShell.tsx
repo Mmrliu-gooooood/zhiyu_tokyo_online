@@ -19,12 +19,14 @@ export function StudyShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const [materialsOn, setMaterialsOn] = useState(false);
   const [classmatesOn, setClassmatesOn] = useState(false);
+  const [memoryOn, setMemoryOn] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void fetchStudyCapabilities().then((capabilities) => {
       if (cancelled) return;
       setMaterialsOn(capabilities.materials);
       setClassmatesOn(capabilities.classmates);
+      setMemoryOn(capabilities.memory);
     });
     return () => {
       cancelled = true;
@@ -59,6 +61,15 @@ export function StudyShell({ children }: { children: ReactNode }) {
               className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {t('study.classmates.nav')}
+            </Link>
+          ) : null}
+          {memoryOn ? (
+            <Link
+              href="/study/memory"
+              data-testid="study-nav-memory"
+              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {t('study.memory.nav')}
             </Link>
           ) : null}
           <Link

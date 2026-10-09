@@ -8,6 +8,8 @@
  * stream, cancel and resume use the agent-session APIs unchanged.
  */
 
+import type { MemoryTurnInfo } from '@/lib/study/memory/contracts';
+
 export const COMPANION_PURPOSES = ['after_class_qa'] as const;
 export type CompanionPurpose = (typeof COMPANION_PURPOSES)[number];
 
@@ -205,6 +207,8 @@ export interface CompanionTurnInfo {
   retrieval: 'keyword' | 'hybrid' | 'unavailable';
   model: { mode: 'inherit' | 'custom'; label: string };
   discuss: Array<{ classmateId: string; name: string }>;
+  /** What this turn took from the student's Memory (B06); absent before B06. */
+  memory?: MemoryTurnInfo;
 }
 
 export const COMPANION_TURN_EVENT = 'study_companion_turn';

@@ -34,3 +34,13 @@ export function isStudyCompanionChatFlagOn(env: NodeJS.ProcessEnv = process.env)
   const flag = env.ZHIYU_STUDY_COMPANION_CHAT_ENABLED;
   return (flag === '1' || flag === 'true') && isStudyClassmatesFlagOn(env);
 }
+
+/**
+ * ZHIYU_STUDY_MEMORY_ENABLED: learning records, editable preferences and the
+ * Memory page (learning plan B06). Read by web and the worker's runner, which
+ * adds the student's preferences to after-class chats.
+ */
+export function isStudyMemoryFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_MEMORY_ENABLED;
+  return flag === '1' || flag === 'true';
+}

@@ -127,6 +127,8 @@ x-runtime-environment: &runtime-environment
   ZHIYU_STUDY_CLASSMATES_ENABLED: ${ZHIYU_STUDY_CLASSMATES_ENABLED:-}
   # After-class classmate chats (B05). Needs accounts v26; web and worker read it.
   ZHIYU_STUDY_COMPANION_CHAT_ENABLED: ${ZHIYU_STUDY_COMPANION_CHAT_ENABLED:-}
+  # Learning records, preferences, Memory (B06). Needs accounts v27; web and worker read it.
+  ZHIYU_STUDY_MEMORY_ENABLED: ${ZHIYU_STUDY_MEMORY_ENABLED:-}
   ZHIYU_DEFAULT_TEXT_MODEL: ${ZHIYU_DEFAULT_TEXT_MODEL:-}
   ZHIYU_DEFAULT_TEXT_DISPLAY_NAME: ${ZHIYU_DEFAULT_TEXT_DISPLAY_NAME:-}
   ZHIYU_DEFAULT_TEXT_ENABLED: ${ZHIYU_DEFAULT_TEXT_ENABLED:-}

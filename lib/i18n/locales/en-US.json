@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "The service is busy. Try again later.",
         "STUDY_INVALID_INPUT": "Invalid input. Please check and try again."
       }
+    },
+    "memory": {
+      "nav": "Memory",
+      "title": "Memory",
+      "subtitle": "What the app keeps about you: the explanation preferences you set, what you told us, rule-based learning records and your recent activity. All classmates share it; you can correct, delete or turn it off at any time.",
+      "switch": {
+        "global": "Personalised Memory",
+        "onHint": "On: classmates' after-class answers use a few preferences and facts for the current subject; learning records are built by rules, with no model calls.",
+        "offHint": "Off: classmates no longer read your preferences or facts, and no new learning records are kept. You can still view, edit and clear what is there.",
+        "perSpace": "Per subject (off = that subject's chats don't use Memory and no new records are kept for it)"
+      },
+      "sections": {
+        "preferences": "Preferences and goals",
+        "facts": "Facts",
+        "recent": "Recent activity"
+      },
+      "prefHint": "Only preferences you set here, or confirm with \"Remember\" in a chat, take effect; nothing is inferred from chats. A subject setting overrides \"All subjects\".",
+      "scope": "Applies to",
+      "allSubjects": "All subjects",
+      "pref": {
+        "explanation_length": "Explanation length",
+        "example_order": "Examples or definitions first",
+        "hint_mode": "Hints first or direct explanations",
+        "learning_goal": "Learning goal",
+        "notSet": "Not set",
+        "followGlobal": "Follow all subjects ({{value}})",
+        "cleared": "Preference cleared",
+        "evidence": "From your words in a chat: \"{{excerpt}}\""
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "Brief",
+          "standard": "Medium",
+          "detailed": "Detailed"
+        },
+        "example_order": {
+          "example_first": "Example first, then the definition",
+          "definition_first": "Definition first, then examples"
+        },
+        "hint_mode": {
+          "hint_first": "Hints first, let me think",
+          "direct": "Explain fully right away"
+        }
+      },
+      "origin": {
+        "settings": "Set in settings",
+        "confirmed_prompt": "Confirmed in a chat",
+        "manual": "Written by you",
+        "correction": "Your correction"
+      },
+      "goalPlaceholder": "e.g. score 85+ in the maths final",
+      "save": "Save",
+      "add": "Add",
+      "correct": "Correct",
+      "delete": "Delete",
+      "deleted": "Deleted",
+      "factHint": "Three kinds of facts: what you told us, subject goals (set on the subject page) and rule-based learning records. Records say what happened, not what you have mastered.",
+      "toldUs": "What you told us",
+      "factPlaceholder": "e.g. I'm in year 11 and weak on functions",
+      "noFacts": "Nothing yet.",
+      "spaceGoals": "Subject goals",
+      "examDate": "exam {{date}}",
+      "editInSpace": "Edit on the subject page",
+      "records": "Learning records",
+      "recordsHint": "Built by rules from saved progress, classroom quizzes and after-class chats. A deleted record does not come back when records are rebuilt.",
+      "recordsPaused": "Memory is off: no new learning records are kept; existing ones can still be viewed and deleted.",
+      "noRecords": "No learning records yet.",
+      "recordDeleted": "Record deleted; it won't come back automatically",
+      "correction": "Your correction: {{text}}",
+      "correctionPlaceholder": "Write a correction, e.g. I clicked through this quiz; it isn't my real level",
+      "record": {
+        "courseStarted": "Started watching \"{{course}}\"",
+        "courseProgressed": "\"{{course}}\": reached page {{page}}/{{count}}",
+        "courseFinished": "Watched \"{{course}}\" to the end ({{count}} pages)",
+        "quizSubmitted": "Submitted a classroom quiz in \"{{course}}\" ({{count}} questions)",
+        "quizGraded": "Classroom quiz in \"{{course}}\" graded",
+        "companionQuestion": "Asked {{classmate}} in {{space}}: {{preview}}",
+        "hint_used": "Used a hint",
+        "review_done": "Completed a review",
+        "unknownCourse": "a deleted course",
+        "unknownSpace": "a subject",
+        "unknownClassmate": "a classmate",
+        "viewingOnly": "Viewing record, not mastery",
+        "objectiveChecked": "Choice questions {{correct}}/{{total}} correct (checked on the server against the course)",
+        "objectiveUnverified": "Choice score could not be checked (course changed or record incomplete); not counted",
+        "aiGraded": "Open questions AI-graded {{earned}}/{{points}} (as recorded in class)"
+      },
+      "source": {
+        "study_progress": "Progress",
+        "quiz_attempt": "Classroom quiz",
+        "companion_chat": "After-class chat",
+        "exam_attempt": "Test",
+        "review_task": "Review"
+      },
+      "recentHint": "Last {{days}} days, counted by fixed rules (no model calls). It says what you did, not whether you mastered it.",
+      "recent": {
+        "courses": "Watched {{viewed}} courses, {{finished}} to the end",
+        "progress": "\"{{course}}\": furthest page {{page}}/{{count}}",
+        "quizzes": "Classroom quizzes: {{submitted}} submitted, {{graded}} graded",
+        "objective": "choice questions {{correct}}/{{total}} correct (server-checked)",
+        "unverified": "{{count}} could not be checked",
+        "companion": "{{count}} after-class questions ({{detail}})",
+        "empty": "No learning records in this period."
+      },
+      "clear": {
+        "open": "Clear…",
+        "title": "Clear Memory",
+        "text": "Choose what to clear. Cleared preferences are not suggested again, and cleared records do not come back when records are rebuilt.",
+        "preferences": "Preferences and learning goals",
+        "facts": "Facts you told us (including corrections)",
+        "records": "Learning records",
+        "rawQuizAttempts": "Also delete the original classroom quiz answers and scores",
+        "rawHint": "Kept by default. If ticked, classroom quizzes return to unanswered. This cannot be undone.",
+        "confirm": "Clear",
+        "done": "Cleared"
+      },
+      "suggest": {
+        "ask": "Remember this explanation preference? \"{{choice}}\"",
+        "allSubjects": "Remember (all subjects)",
+        "onlySpace": "Only in {{space}}",
+        "decline": "No thanks",
+        "saved": "Remembered: \"{{choice}}\". Later answers will follow it"
+      },
+      "turn": {
+        "off": "Memory is off; this answer used none of your preferences.",
+        "spaceOff": "Memory is off for this subject; this answer used none of your preferences.",
+        "used": "This answer used your Memory: {{preferences}} preferences, {{facts}} facts.",
+        "none": "Memory is on, but there are no preferences or facts to use yet.",
+        "manage": "Manage"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "This was changed elsewhere; the latest version is shown.",
+        "STUDY_MEMORY_FACT_LIMIT": "You have reached the limit of 100 facts. Delete some first.",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "This item no longer exists.",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "This record no longer exists.",
+        "STUDY_PREFERENCE_NOT_FOUND": "This preference no longer exists.",
+        "STUDY_SPACE_NOT_FOUND": "This subject no longer exists.",
+        "STUDY_INVALID_INPUT": "The input is not valid."
+      }
     }
   }
 }

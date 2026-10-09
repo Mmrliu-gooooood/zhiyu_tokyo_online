@@ -2921,6 +2921,145 @@
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "服務繁忙，請稍後再試。",
         "STUDY_INVALID_INPUT": "內容無效，請檢查後再試。"
       }
+    },
+    "memory": {
+      "nav": "學習記憶",
+      "title": "學習記憶（Memory）",
+      "subtitle": "系統為你記住的內容：你設定的講解偏好、你告訴我們的情況、按規則整理的學習紀錄和近期狀態。所有學伴共用這一份；你可以隨時更正、刪除或關閉。",
+      "switch": {
+        "global": "個人化 Memory",
+        "onHint": "已開啟：學伴課後答疑會參考目前學科的少量偏好與事實；學習紀錄按規則整理，不呼叫模型。",
+        "offHint": "已關閉：學伴不再讀取你的偏好與事實，也不會記錄新的學習紀錄。你仍可以查看、修改和清除既有內容。",
+        "perSpace": "按學科開關（關閉後該學科的答疑不使用 Memory，也不再為它記錄新的學習紀錄）"
+      },
+      "sections": {
+        "preferences": "偏好與目標",
+        "facts": "事實",
+        "recent": "近期狀態"
+      },
+      "prefHint": "只有你在這裡設定、或在答疑中點「記住」確認的偏好才會生效；系統不會從聊天中自動推斷。學科設定優先於「所有學科」。",
+      "scope": "適用範圍",
+      "allSubjects": "所有學科",
+      "pref": {
+        "explanation_length": "講解長度",
+        "example_order": "先例子還是先定義",
+        "hint_mode": "先給提示還是直接解釋",
+        "learning_goal": "學習目標",
+        "notSet": "不設定",
+        "followGlobal": "跟隨所有學科（{{value}}）",
+        "cleared": "已清除這項偏好",
+        "evidence": "來自你在答疑中的原話：「{{excerpt}}」"
+      },
+      "choice": {
+        "explanation_length": {
+          "brief": "簡短",
+          "standard": "適中",
+          "detailed": "詳細"
+        },
+        "example_order": {
+          "example_first": "先舉例子，再講定義",
+          "definition_first": "先講定義，再舉例子"
+        },
+        "hint_mode": {
+          "hint_first": "先給提示，讓我自己想",
+          "direct": "直接給出完整解釋"
+        }
+      },
+      "origin": {
+        "settings": "在設定中填寫",
+        "confirmed_prompt": "在答疑中確認",
+        "manual": "你填寫的",
+        "correction": "你的更正"
+      },
+      "goalPlaceholder": "例如：期末數學 85 分以上",
+      "save": "儲存",
+      "add": "新增",
+      "correct": "更正",
+      "delete": "刪除",
+      "deleted": "已刪除",
+      "factHint": "事實分三類：你告訴我們的情況、學科目標（在學科頁設定）、按規則整理的學習紀錄。學習紀錄只描述發生了什麼，不代表已經掌握。",
+      "toldUs": "你告訴我們的",
+      "factPlaceholder": "例如：我是高二學生，函數部分基礎較弱",
+      "noFacts": "還沒有內容。",
+      "spaceGoals": "學科目標",
+      "examDate": "考試日期 {{date}}",
+      "editInSpace": "去學科頁修改",
+      "records": "學習紀錄",
+      "recordsHint": "由已儲存的學習進度、課堂測驗和課後答疑按規則產生。刪除後不會因為再次整理而恢復。",
+      "recordsPaused": "Memory 已關閉：不再記錄新的學習紀錄，既有紀錄仍可查看和刪除。",
+      "noRecords": "還沒有學習紀錄。",
+      "recordDeleted": "已刪除這筆紀錄，之後不會再自動恢復",
+      "correction": "你的更正：{{text}}",
+      "correctionPlaceholder": "寫下更正，例如：這次測驗是隨便點的，不代表真實程度",
+      "record": {
+        "courseStarted": "開始觀看《{{course}}》",
+        "courseProgressed": "《{{course}}》看到第 {{page}}/{{count}} 頁",
+        "courseFinished": "看完《{{course}}》（共 {{count}} 頁）",
+        "quizSubmitted": "在《{{course}}》提交課堂測驗（{{count}} 題）",
+        "quizGraded": "《{{course}}》課堂測驗批改完成",
+        "companionQuestion": "在「{{space}}」問 {{classmate}}：{{preview}}",
+        "hint_used": "使用了提示",
+        "review_done": "完成了一次複習",
+        "unknownCourse": "已刪除的課程",
+        "unknownSpace": "學科",
+        "unknownClassmate": "學伴",
+        "viewingOnly": "觀看紀錄，不代表已掌握",
+        "objectiveChecked": "選擇題 {{correct}}/{{total}} 正確（已按課程原題在伺服器核對）",
+        "objectiveUnverified": "選擇題成績無法核對（課程已修改或紀錄不完整），不計入統計",
+        "aiGraded": "主觀題 AI 評分 {{earned}}/{{points}} 分（來自課堂紀錄）"
+      },
+      "source": {
+        "study_progress": "學習進度",
+        "quiz_attempt": "課堂測驗",
+        "companion_chat": "課後答疑",
+        "exam_attempt": "測驗",
+        "review_task": "複習"
+      },
+      "recentHint": "最近 {{days}} 天，按固定規則統計（不呼叫模型）。只說明做了什麼，不判斷是否掌握。",
+      "recent": {
+        "courses": "看過 {{viewed}} 門課，其中看完 {{finished}} 門",
+        "progress": "《{{course}}》最遠看到第 {{page}}/{{count}} 頁",
+        "quizzes": "課堂測驗：提交 {{submitted}} 次，批改完成 {{graded}} 次",
+        "objective": "選擇題 {{correct}}/{{total}} 正確（伺服器核對）",
+        "unverified": "{{count}} 次無法核對",
+        "companion": "課後答疑提問 {{count}} 次（{{detail}}）",
+        "empty": "這段時間沒有學習紀錄。"
+      },
+      "clear": {
+        "open": "清除…",
+        "title": "清除 Memory",
+        "text": "選擇要清除的內容。清除的偏好不會再被建議，清除的學習紀錄不會因為再次整理而恢復。",
+        "preferences": "偏好與學習目標",
+        "facts": "你告訴我們的事實（含更正）",
+        "records": "學習紀錄",
+        "rawQuizAttempts": "同時刪除原始課堂測驗的作答與成績",
+        "rawHint": "預設保留。勾選後課堂中的測驗會恢復為未作答，無法復原。",
+        "confirm": "清除",
+        "done": "已清除"
+      },
+      "suggest": {
+        "ask": "要記住這個講解偏好嗎？「{{choice}}」",
+        "allSubjects": "記住（所有學科）",
+        "onlySpace": "只在「{{space}}」",
+        "decline": "不用了",
+        "saved": "已記住：「{{choice}}」，之後的回答會按這個偏好"
+      },
+      "turn": {
+        "off": "Memory 已關閉，本輪沒有使用你的偏好。",
+        "spaceOff": "本學科的 Memory 已關閉，本輪沒有使用你的偏好。",
+        "used": "本輪參考了你的 Memory：偏好 {{preferences}} 條、事實 {{facts}} 條。",
+        "none": "Memory 已開啟，暫無可用的偏好或事實。",
+        "manage": "管理"
+      },
+      "errors": {
+        "STUDY_REVISION_CONFLICT": "內容已在其他頁面修改，已顯示最新內容。",
+        "STUDY_MEMORY_FACT_LIMIT": "事實數量已達上限（100 條），請先刪除一些。",
+        "STUDY_MEMORY_FACT_NOT_FOUND": "這條內容已不存在。",
+        "STUDY_MEMORY_RECORD_NOT_FOUND": "這筆紀錄已不存在。",
+        "STUDY_PREFERENCE_NOT_FOUND": "這項偏好已不存在。",
+        "STUDY_SPACE_NOT_FOUND": "這個學科已不存在。",
+        "STUDY_INVALID_INPUT": "內容格式不正確。"
+      }
     }
   }
 }

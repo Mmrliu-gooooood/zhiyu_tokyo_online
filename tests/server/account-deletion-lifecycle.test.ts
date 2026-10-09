@@ -167,6 +167,11 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE study_classmate_avatars(id text primary key,owner_id text);
       CREATE TABLE study_companion_chats(session_id text primary key,owner_id text,classmate_id text,
         foreign key(owner_id,classmate_id) references study_classmates(owner_id,id));
+      CREATE TABLE study_learning_events(seq serial primary key,owner_id text,source_key text);
+      CREATE TABLE study_learner_preferences(owner_id text,pref_key text);
+      CREATE TABLE study_memory_facts(id text primary key,owner_id text);
+      CREATE TABLE study_memory_controls(owner_id text,enabled boolean);
+      CREATE TABLE study_memory_suppressions(owner_id text,kind text,target_key text);
       CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
       CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text,
         staged_object_keys jsonb not null default '[]');
@@ -223,6 +228,11 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO study_classmate_avatars VALUES('av-owner','${OWNER}'),('av-other','${OTHER}');
       INSERT INTO study_companion_chats VALUES
         ('chat-owner','${OWNER}','cm-owner'),('chat-other','${OTHER}','cm-other');
+      INSERT INTO study_learning_events(owner_id,source_key) VALUES('${OWNER}','k'),('${OTHER}','k');
+      INSERT INTO study_learner_preferences VALUES('${OWNER}','hint_mode'),('${OTHER}','hint_mode');
+      INSERT INTO study_memory_facts VALUES('mf-owner','${OWNER}'),('mf-other','${OTHER}');
+      INSERT INTO study_memory_controls VALUES('${OWNER}',false),('${OTHER}',false);
+      INSERT INTO study_memory_suppressions VALUES('${OWNER}','event','k'),('${OTHER}','event','k');
       INSERT INTO learning_tasks VALUES
         ('30000000-0000-4000-8000-000000000001','${OWNER}'),
         ('30000000-0000-4000-8000-000000000002','${OTHER}');
@@ -437,6 +447,11 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_classmate_materials',
       'study_classmate_avatars',
       'study_companion_chats',
+      'study_learning_events',
+      'study_learner_preferences',
+      'study_memory_facts',
+      'study_memory_controls',
+      'study_memory_suppressions',
     ]) {
       expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
     }
