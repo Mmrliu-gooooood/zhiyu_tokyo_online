@@ -356,8 +356,11 @@ describe('study material library', () => {
   });
 
   it('isolates owners on every material path', async () => {
+    // Reuse one buffer: pdf-lib stamps the current second into the metadata, so
+    // regenerating the PDF can produce different bytes and defeat duplicate detection.
+    const privatePdf = await textPdf(['Private']);
     const created = await createStudyMaterialFromUpload(study, OWNER_A, {
-      upload: await upload(OWNER_A, await textPdf(['Private'])),
+      upload: await upload(OWNER_A, privatePdf),
     });
     const spaceB = await spaceFor(OWNER_B, 'B space');
     const materialId = created.material.materialId;
@@ -376,11 +379,11 @@ describe('study material library', () => {
     expect(await listStudyMaterials(study, OWNER_B)).toEqual([]);
     // The same bytes uploaded by B are not reported as a duplicate of A's file.
     const bCopy = await createStudyMaterialFromUpload(study, OWNER_B, {
-      upload: await upload(OWNER_B, await textPdf(['Private'])),
+      upload: await upload(OWNER_B, privatePdf),
     });
     expect(bCopy.duplicateOf).toBeNull();
     const aCopy = await createStudyMaterialFromUpload(study, OWNER_A, {
-      upload: await upload(OWNER_A, await textPdf(['Private'])),
+      upload: await upload(OWNER_A, privatePdf),
     });
     expect(aCopy.duplicateOf).toMatchObject({ materialId });
   });
