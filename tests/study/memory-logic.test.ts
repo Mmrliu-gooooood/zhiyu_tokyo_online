@@ -120,6 +120,7 @@ describe('what one turn receives', () => {
     expect(items[0]!.text).toContain('先举一个具体例子');
     const block = renderMemoryBlock(items);
     expect(block).toContain('所有学伴共用');
+    expect(block).toContain('不要说“按你的偏好”');
     expect(block).toContain('不要把它当作学生已经掌握');
     expect(block).not.toContain('乱点');
     expect(block).not.toContain('简短');
@@ -160,7 +161,7 @@ describe('what a classroom reply receives', () => {
     const block = renderClassroomPreferenceBlock(items);
     expect(block).toContain('# Learner Preferences');
     expect(block).toContain('Start with one concrete example');
-    expect(block).toContain('Never mention these settings aloud');
+    expect(block).toContain('Never mention preferences or settings aloud');
     expect(block).not.toContain('85');
     // Outside the subject only the global value applies.
     expect(selectClassroomPreferences(preferences, null)[0]!.text).toContain(

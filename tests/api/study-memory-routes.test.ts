@@ -340,6 +340,20 @@ describe('Memory routes', () => {
     );
   });
 
+  it('records facts saved before switching off, so turning back on loses nothing earlier', async () => {
+    // A classroom quiz is caught up only on demand: nothing has projected it yet.
+    await quizAttempt('quiz-attempt:before-off', { q1: 'B', q2: 'A' });
+    expect(
+      (await pg().query('SELECT count(*)::int AS n FROM study_learning_events')).rows[0],
+    ).toEqual({ n: 0 });
+    resetLearningEventSyncThrottle();
+    expect((await putControl(request('PUT', { spaceId: null, enabled: false }))).status).toBe(200);
+    expect((await putControl(request('PUT', { spaceId: null, enabled: true }))).status).toBe(200);
+    expect(types(await readOverview())).toEqual(
+      expect.arrayContaining(['quiz_submitted', 'quiz_graded']),
+    );
+  });
+
   it('edits preferences and facts explicitly, with suppression on delete', async () => {
     expect((await putPref(request('PUT', { key: 'mood', value: 'x' }))).status).toBe(400);
     expect((await putPref(request('PUT', { key: 'hint_mode', value: 'maybe' }))).status).toBe(400);

@@ -16,7 +16,27 @@ import {
   listPreferences,
   listSuppressions,
   readMemoryControls,
+  setMemoryControl,
 } from './repository';
+
+/**
+ * Turn the global or one subject's switch on or off. Turning a switch off
+ * first records every fact saved so far (classroom quizzes are only caught
+ * up on demand): turning it back on records `enabled_since`, and facts from
+ * before that are never projected again — only the off period itself should
+ * stay unrecorded. The catch-up is best effort: a failure never blocks
+ * switching off.
+ */
+export async function switchMemory(
+  db: StudyDb,
+  ownerId: string,
+  spaceId: string | null,
+  enabled: boolean,
+  baseRevision?: number,
+) {
+  if (!enabled) await syncLearningEvents(db, ownerId, { force: true }).catch(() => undefined);
+  return setMemoryControl(db, ownerId, spaceId, enabled, baseRevision);
+}
 
 export async function readMemoryOverview(
   db: StudyDb,

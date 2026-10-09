@@ -485,7 +485,7 @@ export function renderMemoryBlock(items: readonly MemoryContextItem[]): string {
   return [
     '学生在 Memory 里设定的偏好与情况（由学生本人填写或确认；所有学伴共用）：',
     ...items.map((item) => `- ${item.text}`),
-    '按这些偏好调整讲解方式；学生在本轮另有要求时以本轮要求为准。不要向学生复述这段设定，也不要把它当作学生已经掌握某个知识点的证据。',
+    '直接按这些偏好来讲；学生在本轮另有要求时以本轮要求为准。不要提到偏好或设定本身（不要说“按你的偏好”“根据你的设定”之类的话），也不要向学生复述这段内容，更不要把它当作学生已经掌握某个知识点的证据。',
   ].join('\n');
 }
 
@@ -551,7 +551,7 @@ export function renderClassroomPreferenceBlock(items: readonly MemoryContextItem
     '# Learner Preferences',
     'Set or confirmed by the student in Memory; they apply to every teacher and classmate:',
     ...items.map((item) => `- ${item.text}`),
-    'Adapt how you explain to these, within your role and length limits. If the student asks for something different in this message, follow the message. Never mention these settings aloud.',
+    'Just explain this way, within your role and length limits. If the student asks for something different in this message, follow the message. Never mention preferences or settings aloud (do not say things like "as you prefer").',
   ].join('\n');
 }
 

@@ -2,9 +2,10 @@
  * PUT { spaceId: string | null, enabled, baseRevision? }: the global switch
  * (spaceId null) or one subject's. Off stops personalised reads (no Memory
  * in after-class answers from the next turn) and derived writes (no new
- * learning records); viewing, editing and clearing keep working.
+ * learning records); viewing, editing and clearing keep working. Facts
+ * saved before the switch goes off are recorded first (see switchMemory).
  */
-import { setMemoryControl } from '@/lib/server/study/memory/repository';
+import { switchMemory } from '@/lib/server/study/memory/service';
 import { invalidInput, readStudyBody, studyJson, studyMemoryRoute } from '@/lib/server/study/route';
 import { isContentId } from '@/lib/study/spaces/contracts';
 
@@ -26,7 +27,7 @@ export function PUT(req: Request) {
     ) {
       return invalidInput('baseRevision', headers);
     }
-    const control = await setMemoryControl(
+    const control = await switchMemory(
       db,
       ownerId,
       spaceId as string | null,
