@@ -12,7 +12,7 @@
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
 | B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
-| B07 | 实现完成，本地验收通过（2026-10-11），待上线 | `learn/b07-bank-exams` | accounts v28 `d6e44cc5…`（生产未执行） | 本地托管模式验收通过（不配置任何模型，真实 RLS）；真实 PG 迁移/仓储测试通过 | 未启用（`ZHIYU_STUDY_EXAMS_ENABLED`） | 见 B07“未验证” |
+| B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -109,9 +109,21 @@
 - **第二个账号逐页越权（浏览器）**：B 直接打开 A 的 `/study/<A 的学科>/practice` 与 `/study/<A 的学科>/attempts/<A 的作答>` → 都显示“找不到”。B 对 A 的资源调用 18 个接口（题库列表、知识点、读/改/删题目、在 A 的学科新建题目、导入预览与提交、复制官方题到 A 的学科、组卷预览与发布、试卷列表/读取/删除、开始作答、读作答、保存草稿、交卷）全部 404，与“资源不存在”相同。数据库核对：A 的 3 道题、题目版本 4、1 份试卷、作答 `in_progress` revision 1 都未变，B 没有写入任何行。
 - **发现并修复**：保存题目时对全文做了 Unicode NFKC 规范化，把中文全角标点改成半角（“（改编）”变成“(改编)”，“等于多少？”变成“?”）。改为原文保存，只在比较时（去重 hash、知识点名比较、选项字母/答案字母）做宽度折叠；浏览器复验全角标点保持原样。单测相应调整（全角答案字母“ｂ”仍识别为 B）。
 
+### 上线记录（2026-10-11，用户指示“补验后上线”）
+
+1. 只读核对生产：`app_schema_migrations` v27 checksum = `62c3e9d2…`（与仓库一致），v28 的六张表不存在；服务器 `docker-compose.supabase.yml` 与上一版仓库一致（新版只多 `ZHIYU_STUDY_EXAMS_ENABLED` 透传一行），`docker-compose.production.yml`、`scripts/supabase-compose.sh` 与仓库一致；磁盘 58%；生成任务与学习任务全部为终态。
+2. Supabase `apply_migration`（`accounts_v28_study_exams`）执行仓库 v28 SQL 原文（导出文件 sha256 = `d6e44cc5…`），写入 `app_schema_migrations(28, d6e44cc5…)`。核对：六张表 `relrowsecurity = relforcerowsecurity = true`；授权只有 `app_web`（知识点/题目查插改删、版本与试卷题目查插、试卷查插删、作答查插改），`anon`/`authenticated`/`PUBLIC`/`app_worker` 无授权。未运行 `pnpm accounts:migrate`。
+3. main 快进到 `e7d654cd` 并推送 tokyo；镜像 `release-20261011`（web `6ea82e7c`，worker `39df214a`）装入服务器；备份 `*.bak-20261011-pre`（→ release-20261009c）；compose 换成仓库版本；env 改镜像标签并加 `ZHIYU_STUDY_EXAMS_ENABLED=1`；apply。`readiness` `ready:true`、`accountsVersion 28`、2/2 Worker，三个容器 healthy；公网 capabilities 含 `exams:true`，未登录访问试卷接口 401；磁盘 68%。本次也带上了此前未上线的 apple-touch-icon 修复。
+4. **生产验收中发现公式渲染问题并热修**：题库页沿用课堂测验的公式渲染，它对单个 `$…$` 很保守（课堂题目由模型生成，可能含美元金额），导致 `$AB$`、`$3x$`、`$(x^{3})'$`、矩阵等显示成原文（官方题包第 7 题也受影响）。给渲染函数加可选的 `trustDelimiters`，题库、编辑器、导入、组卷、作答与报告页面都开启（`MathText`），课堂行为不变；单测覆盖该选项，并检查官方题包所有题干、选项、解析都没有残留的 `$`（`2a5f08cb`）。只重建并发布 Web 镜像 `release-20261011b`（`217df0af`），Worker 仍为 `release-20261011`（无服务端改动）；备份 `*.bak-20261011b-pre`（→ release-20261011）。`readiness` 正常，磁盘 69%。
+
+### 生产登录验收（2026-10-11，用户自行登录的非管理员账号，role = user）
+
+- **越权**：用该账号对管理员账号的两个学科调用 16 个接口（题库列表、知识点、新建题目、导入、复制官方题、组卷预览与发布、试卷列表）全部 404 `STUDY_SPACE_NOT_FOUND`；直接打开管理员学科的题库页显示“找不到这个学科空间”。
+- **主流程**（测试学科“B07 上线验收（测试）”）：官方题库对话框勾选 2 题复制 → 题库 2 题“官方核验”；导入公开示例文件 → “3 题可导入，1 题缺答案”，导入后“共 6 题 · 可判分 5 · 已核验 5 · 草稿 1”，全角“？”保留；组卷 4 单选 + 1 多选并启用官方题包 → 先用自有 3 道单选，题包补 1 道，“共 5 题，6 分”；发布后作答页与预览一致，作答接口无答案字段；作答后自动保存，刷新页面答案全部恢复；交卷 → 5/6（只有故意答错的第 4 题错），报告含正确答案、解析与“智域团队编写 · CC BY 4.0”署名；再次交卷返回同一结果（`alreadySubmitted`）；Memory 出现“完成测试”记录（5/6）。热修后报告页 37 处公式全部渲染、无残留 `$`，题库列表同样。
+- **还原**：删除测试学科（级联删除其题库、试卷、作答与那条学习记录）；生产六张新表与 `exam_graded` 记录数均为 0，账号的学科列表恢复为空。
+
 ### 未验证
 
-- 生产环境（上线后用用户的非管理员账号登录验收）。
 - 深色模式未检查（用户 2026-10-11：暂不查看，之后会重做 UI）。
 - 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）。
 
