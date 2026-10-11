@@ -29,8 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { QuizMathText } from '@/components/quiz/QuizMathText';
-import { OriginChip, TypeChip, VerificationChip } from '@/components/study/exams/exam-format';
+import {
+  OriginChip,
+  TypeChip,
+  VerificationChip,
+  MathText,
+} from '@/components/study/exams/exam-format';
 import { ImportQuestionsDialog } from '@/components/study/exams/ImportQuestionsDialog';
 import { OfficialPacksDialog } from '@/components/study/exams/OfficialPacksDialog';
 import {
@@ -272,7 +276,7 @@ export function QuestionBankPanel({
                     }
                   >
                     <span className={cn(!open && 'line-clamp-2')}>
-                      <QuizMathText text={question.stem} allowDisplayMode={open} />
+                      <MathText text={question.stem} allowDisplayMode={open} />
                     </span>
                   </button>
                   {!archived ? (
@@ -334,12 +338,12 @@ export function QuestionBankPanel({
                             : 'text-muted-foreground',
                         )}
                       >
-                        {option.value}. <QuizMathText text={option.label} />
+                        {option.value}. <MathText text={option.label} />
                       </p>
                     ))}
                     {question.explanation ? (
                       <p className="pt-1 text-muted-foreground">
-                        <QuizMathText text={question.explanation} allowDisplayMode />
+                        <MathText text={question.explanation} allowDisplayMode />
                       </p>
                     ) : null}
                     {question.source ? (

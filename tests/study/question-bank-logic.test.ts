@@ -32,6 +32,7 @@ import {
   validateQuestionContent,
 } from '@/lib/study/questions/contracts';
 import { OFFICIAL_PACKS, packQuestionContent } from '@/lib/study/questions/packs';
+import { renderQuizMathText } from '@/lib/quiz/math-text';
 
 const codes = (issues: { code: string; path: string }[]) =>
   issues.map((issue) => `${issue.path}:${issue.code}`);
@@ -174,6 +175,18 @@ describe('official packs', () => {
       for (const question of pack.questions) {
         const content = packQuestionContent(pack, question);
         expect(validateQuestionContent(content), question.id).toEqual([]);
+        // Every formula renders on the bank pages: no raw `$` is left as text.
+        for (const text of [
+          content.stem,
+          ...content.options.map((option) => option.label),
+          content.explanation ?? '',
+        ]) {
+          const leftover = renderQuizMathText(text, { trustDelimiters: true })
+            .filter((segment) => segment.type === 'text')
+            .map((segment) => segment.value)
+            .join('');
+          expect(leftover, `${question.id}: ${text}`).not.toContain('$');
+        }
         expect(content.source?.pack).toEqual({
           id: pack.id,
           version: pack.version,

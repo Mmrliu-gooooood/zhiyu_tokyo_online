@@ -24,12 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { QuizMathText } from '@/components/quiz/QuizMathText';
 import {
   OriginChip,
   TypeChip,
   VerificationChip,
   newRequestKey,
+  MathText,
 } from '@/components/study/exams/exam-format';
 import type { EditorCourse } from '@/components/study/exams/QuestionEditorDialog';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -385,7 +385,7 @@ export function PaperBuilderPanel({
                   <span className="w-6 shrink-0 text-xs text-muted-foreground">{index + 1}.</span>
                   <div className="min-w-0 flex-1">
                     <div className="line-clamp-2">
-                      <QuizMathText text={item.stem} />
+                      <MathText text={item.stem} />
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <TypeChip type={item.type} />

@@ -142,3 +142,24 @@ describe('renderQuizMathText', () => {
     expect(segments[2]).toEqual({ type: 'text', value: '.' });
   });
 });
+
+describe('trusted $…$ delimiters (study question bank)', () => {
+  const kinds = (text: string, trustDelimiters: boolean) =>
+    renderQuizMathText(text, { trustDelimiters }).map((segment) => segment.type);
+
+  it('renders spans the classroom heuristic leaves as text', () => {
+    for (const text of [
+      '则 $AB$ 的形状是',
+      "$(x^{3})'$ 等于",
+      '$3x$',
+      '$A=\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$ 的行列式',
+    ]) {
+      expect(kinds(text, false)).not.toContain('math');
+      expect(kinds(text, true)).toContain('math');
+    }
+  });
+
+  it('still leaves spans KaTeX cannot parse as text', () => {
+    expect(kinds('$\\frac{1}{$', true)).toEqual(['text']);
+  });
+});

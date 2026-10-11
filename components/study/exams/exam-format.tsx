@@ -4,7 +4,10 @@
  * Small shared pieces of the question bank and paper pages (learning plan
  * B07): type, origin and verification chips, and readable issue messages.
  */
+import type { ComponentProps } from 'react';
 import { BadgeCheck, CircleDashed, ShieldCheck } from 'lucide-react';
+
+import { QuizMathText } from '@/components/quiz/QuizMathText';
 
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type {
@@ -14,6 +17,14 @@ import type {
   VerificationState,
 } from '@/lib/study/questions/contracts';
 import { cn } from '@/lib/utils';
+
+/**
+ * Question-bank text: authors are told `$…$` is a formula, so every such span
+ * renders (unlike model-written classroom quizzes, where `$` may be money).
+ */
+export function MathText(props: Omit<ComponentProps<typeof QuizMathText>, 'trustDelimiters'>) {
+  return <QuizMathText {...props} trustDelimiters />;
+}
 
 const CHIP = 'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px]';
 

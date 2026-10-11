@@ -13,12 +13,18 @@ export const QuizMathText = memo(function QuizMathText({
   text,
   className,
   allowDisplayMode = false,
+  trustDelimiters = false,
 }: {
   text: string;
   className?: string;
   allowDisplayMode?: boolean;
+  /** Render every `$…$` span (see QuizMathTextOptions). */
+  trustDelimiters?: boolean;
 }) {
-  const segments = useMemo(() => renderQuizMathText(text), [text]);
+  const segments = useMemo(
+    () => renderQuizMathText(text, { trustDelimiters }),
+    [text, trustDelimiters],
+  );
   if (segments.length === 1 && segments[0].type === 'text') {
     return <span className={className}>{segments[0].value}</span>;
   }

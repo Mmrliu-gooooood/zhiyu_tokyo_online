@@ -20,8 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { QuizMathText } from '@/components/quiz/QuizMathText';
-import { TypeChip } from '@/components/study/exams/exam-format';
+import { TypeChip, MathText } from '@/components/study/exams/exam-format';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { questionBankApi } from '@/lib/study/assessments/client';
 import type { QuestionPack, QuestionPackSummary } from '@/lib/study/questions/packs';
@@ -139,7 +138,7 @@ export function OfficialPacksDialog({
                     />
                   ) : null}
                   <div className="min-w-0 flex-1">
-                    <QuizMathText text={question.stem} />
+                    <MathText text={question.stem} />
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <TypeChip type={question.type} />
                       {question.concepts.map((name) => (

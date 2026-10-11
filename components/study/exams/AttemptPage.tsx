@@ -42,8 +42,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { QuizMathText } from '@/components/quiz/QuizMathText';
-import { TypeChip, newRequestKey } from '@/components/study/exams/exam-format';
+import { TypeChip, newRequestKey, MathText } from '@/components/study/exams/exam-format';
 import {
   StudyShell,
   StudyStatus,
@@ -342,7 +341,7 @@ function AnswerSheet({
                   {item.position}.
                 </span>
                 <div className="min-w-0 flex-1 text-sm leading-6 text-foreground">
-                  <QuizMathText text={item.stem} allowDisplayMode />
+                  <MathText text={item.stem} allowDisplayMode />
                 </div>
               </div>
               <div className="mb-3 flex flex-wrap items-center gap-1.5 pl-6">
@@ -382,7 +381,7 @@ function AnswerSheet({
                         {option.value}
                       </span>
                       <span className="flex-1">
-                        <QuizMathText text={option.label} />
+                        <MathText text={option.label} />
                       </span>
                     </button>
                   );
@@ -589,7 +588,7 @@ function ReportCard({ item }: { item: ReportItem }) {
       <div className="mb-3 flex items-start gap-2">
         <span className="mt-0.5 text-sm font-semibold text-muted-foreground">{item.position}.</span>
         <div className="min-w-0 flex-1 text-sm leading-6 text-foreground">
-          <QuizMathText text={item.stem} allowDisplayMode />
+          <MathText text={item.stem} allowDisplayMode />
         </div>
         <span
           className={cn(
@@ -622,7 +621,7 @@ function ReportCard({ item }: { item: ReportItem }) {
             >
               <span className="w-5 text-xs font-semibold">{option.value}</span>
               <span className="flex-1">
-                <QuizMathText text={option.label} />
+                <MathText text={option.label} />
               </span>
               {chosen ? (
                 <span className="text-[11px] text-muted-foreground">
@@ -639,7 +638,7 @@ function ReportCard({ item }: { item: ReportItem }) {
         </p>
         {item.explanation ? (
           <div className="rounded-xl bg-muted/50 px-3 py-2 text-foreground">
-            <QuizMathText text={item.explanation} allowDisplayMode />
+            <MathText text={item.explanation} allowDisplayMode />
           </div>
         ) : null}
         {sourceLine ? <p className="text-xs text-muted-foreground">{sourceLine}</p> : null}

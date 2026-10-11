@@ -28,8 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { QuizMathText } from '@/components/quiz/QuizMathText';
-import { useIssueText } from '@/components/study/exams/exam-format';
+import { useIssueText, MathText } from '@/components/study/exams/exam-format';
 import {
   QuestionEditorDialog,
   type EditorCourse,
@@ -241,7 +240,7 @@ export function ImportQuestionsDialog({
                         <div className="min-w-0 flex-1">
                           <div className="line-clamp-2">
                             {item.content?.stem ? (
-                              <QuizMathText text={item.content.stem} />
+                              <MathText text={item.content.stem} />
                             ) : (
                               <span className="text-muted-foreground">
                                 {t('study.practice.import.noStem')}

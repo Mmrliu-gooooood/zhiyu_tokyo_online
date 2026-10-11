@@ -80,7 +80,19 @@ function escapeLiteralPercents(value: string): string {
   return escaped;
 }
 
-export function parseQuizMathText(value: string): QuizMathTextSegment[] {
+export interface QuizMathTextOptions {
+  /**
+   * Render every `$…$` span KaTeX can parse. Model-written classroom quizzes
+   * leave this off, since a stray `$` there is often currency; the study
+   * question bank turns it on, since its authors are told `$…$` means math.
+   */
+  trustDelimiters?: boolean;
+}
+
+export function parseQuizMathText(
+  value: string,
+  options: QuizMathTextOptions = {},
+): QuizMathTextSegment[] {
   const segments: QuizMathTextSegment[] = [];
   let cursor = 0;
 
@@ -102,7 +114,10 @@ export function parseQuizMathText(value: string): QuizMathTextSegment[] {
 
     const latex = value.slice(mathStart, closeIndex).trim();
     if (latex) {
-      const shouldRender = opening.delimiter.open !== '$' || isLikelyDelimitedMathText(latex);
+      const shouldRender =
+        options.trustDelimiters ||
+        opening.delimiter.open !== '$' ||
+        isLikelyDelimitedMathText(latex);
       const html = shouldRender ? renderLatexToHtml(latex, opening.delimiter.displayMode) : null;
       if (html) {
         segments.push({
@@ -218,7 +233,10 @@ function isLikelyDelimitedMathText(value: string): boolean {
   return false;
 }
 
-export function renderQuizMathText(value: string): QuizMathTextSegment[] {
+export function renderQuizMathText(
+  value: string,
+  options: QuizMathTextOptions = {},
+): QuizMathTextSegment[] {
   const likelyStandalone = isLikelyStandaloneMathText(value);
   const hasExplicitDelimiter = EXPLICIT_DELIMITER_RE.test(value);
 
@@ -226,7 +244,7 @@ export function renderQuizMathText(value: string): QuizMathTextSegment[] {
     return parseEmbeddedMathText(value) ?? [{ type: 'text', value }];
   }
 
-  const delimited = parseQuizMathText(value);
+  const delimited = parseQuizMathText(value, options);
   if (delimited.some((segment) => segment.type === 'math')) return delimited;
 
   if (!likelyStandalone) return [{ type: 'text', value }];

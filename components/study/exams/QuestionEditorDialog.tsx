@@ -30,8 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { QuizMathText } from '@/components/quiz/QuizMathText';
-import { useIssueText } from '@/components/study/exams/exam-format';
+import { useIssueText, MathText } from '@/components/study/exams/exam-format';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import {
   QUESTION_LIMITS,
@@ -256,7 +255,7 @@ export function QuestionEditorDialog({
             />
             {form.stem.includes('$') ? (
               <p className="rounded-md bg-muted/60 px-3 py-2 text-sm">
-                <QuizMathText text={form.stem} allowDisplayMode />
+                <MathText text={form.stem} allowDisplayMode />
               </p>
             ) : null}
           </div>
