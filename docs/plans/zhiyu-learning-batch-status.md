@@ -12,12 +12,114 @@
 | B04 | 已上线（2026-10-06，release-20261006f；10-07 音色修复 release-20261007c） | `learn/b04-classmates` → main `733888b1`（已推送 tokyo） | accounts v25 已在生产执行 | 本地托管模式 + 真实模型验收通过；生产登录后验收通过（2026-10-06） | 已启用 `ZHIYU_STUDY_CLASSMATES_ENABLED=1` | 见 B04“已知问题” |
 | B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
+| B07 | 实现完成，本地验收通过（2026-10-11），待上线 | `learn/b07-bank-exams` | accounts v28 `d6e44cc5…`（生产未执行） | 本地托管模式验收通过（不配置任何模型，真实 RLS）；真实 PG 迁移/仓储测试通过 | 未启用（`ZHIYU_STUDY_EXAMS_ENABLED`） | 见 B07“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
 - 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
 - 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
+
+## B07 结构化题库、规则组卷与客观题测试（2026-10-11）
+
+### 范围与起点
+
+- 分支 `learn/b07-bank-exams` 从 main `cc8866cd`（= `tokyo/main`）创建；生产为 release-20261009c、accounts v27。
+- 范围：方案 B07 第 1–9 条——JSON 导入（预览、逐题错误定位、人工修改与核验、去重）；版本化题库与平面知识点；来源与核验状态分开；只读官方题包与私有副本；规则组卷（题型/数量、知识点、课程、难度偏好、避开做过的题、是否包含未核验题、官方题包、随机种子）；预览与缺口报告；冻结试卷快照；服务器上的作答（自动保存、revision 冲突、刷新/第二设备恢复）、交卷幂等与服务器判分；报告（解析、只看错题）与历史试卷；学习记录；新开关 `ZHIYU_STUDY_EXAMS_ENABLED`。
+- 不包含：Excel/任意文件导入（只支持 JSON）、主观题（B09）、PDF 习题提取（B08）、AI/混合组卷与补题按钮（B11）、提示功能（`hint_used` 仍无生产者）、错题本（B10）。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 设计决策（实际实现）
+
+- **全程不调用模型**：导入、组卷、作答、判分、学习记录都是规则代码；接口测试每个用例结束断言 `gateway.complete/stream` 未被调用；本地验收时所有模型密钥为空。
+- **题库**（`lib/study/questions/contracts.ts` 纯函数 + `lib/server/study/questions/`）：每题属于一个学科；内容放在不可修改的版本里，编辑即新增版本（`baseVersion` 防覆盖，409 返回最新）。导入格式 `{ format: 'zhiyu-question-bank', version: 1, source?, questions: [...] }` 或题目数组，字段概念对齐 QTI/GIFT（题型、选项、答案、解析、知识点、难度、分值、来源、`verified`）；选项、答案接受几种常见写法。校验逐题给出“路径 + 代码”（例如 `options[2].label: option_empty`），前端翻译成中文。缺答案的题可存为草稿，`gradable=false`，不进入任何试卷，也不能标为已核验。
+- **去重**：内容 hash（题型 + 题干 + 选项 + 答案，归一化后 SHA-256）；首次入库时记为 `source_fingerprint`，`UNIQUE(owner, 学科, fingerprint)`；同时比对当前版本的 hash。重复导入、并发导入都不会重复建题。官方题复制的 fingerprint 是 `pack:<id>@<版本>/<题号>`。
+- **来源与核验分开**：`origin` ∈ `user_import / manual / official / public_source / ai_generated / material_extracted`；`verification` ∈ `unverified / user_verified / official_verified`。导入时学生选择“按文件标记 / 全部已核对 / 全部未核验”；官方副本改了题目内容后不再是官方核验。
+- **官方题包**（`lib/study/questions/packs.ts`）：代码里的只读、带版本的公开目录，不是数据库行，没有任何账号能改；首个题包《高等数学基础：极限、导数与积分》v1，15 题，**智域团队原创**（CC BY 4.0，署名“智域团队编写”），答案已逐题核对，单测保证题目完整一致。没有使用 GAOKAO-Bench / C-Eval 等许可未确认的数据。组卷可直接选用，自己题库优先；复制到题库成为可编辑的私有副本。
+- **组卷**（`lib/study/questions/blueprint.ts`，纯函数、确定性）：候选 = 题库中可判分的当前版本 + 允许的官方题（与自有题内容相同或已复制的不重复出现）；按种子洗牌，自有题在前，按难度偏好稳定排序；选了多个知识点时轮流取，先保证每个知识点都有题。不足时**不凑数**，返回每种题型“需要/可用”，以及因“做过”“未核验”被排除的数量，和没有可用题的知识点。预览返回种子，发布时用同一种子，保证发布的就是预览的那份；有缺口时发布返回 409 `STUDY_EXAM_INSUFFICIENT`。
+- **试卷快照**：发布时逐题冻结题干、选项、分值、知识点名称、来源（含官方题包署名与许可），答案与解析放在单独的列；之后改题、删题都不影响已发布试卷。发布用幂等键，同键同请求返回同一份，同键不同请求 409。
+- **作答**：每份试卷同时最多一个进行中的作答（部分唯一索引），第二设备打开即继续同一份；草稿按 revision 条件保存，过期的保存返回 409 和服务器上的最新答案，前端载入并提示，不静默覆盖；交卷时若发现别处有更新的答案，先停下让学生检查。交卷带每次作答一个的 key，重复、并发交卷只成功一次，其余返回已存结果（`alreadySubmitted`）。数据库的更新策略只匹配进行中的作答，交卷后即使代码出错也改不了。
+- **不泄露答案**：交卷前的题目视图逐字段构造（`toItemView`），读取时根本不查答案列；交卷后报告才带答案、解析、每题结果。
+- **判分**：复用课堂测验的 `arraysEqual`，判分前检查标准答案非空、在选项内、不重复、单选只有一个，学生答案同样检查；空答案永远不等于空标准答案；多选全对才得分（与课堂一致）；标准答案异常的题记为“无法判分”且不计入总分。
+- **学习记录**：新事件 `exam_graded`（source `exam_attempt`，每次交卷一条，载荷含分数）；交卷后内联投影（失败不影响交卷，打开 Memory 页时补投影），遵守 Memory 开关；Memory 页显示“在「学科」完成测试《试卷》· 得分（服务器判分）”，近期状态加“学科测试：交卷 N 次，共得 x/y 分”（规则版本升到 `recent-state-rules-v2`）。
+- **入口**：学科页标题区“题库与测试”；看完的课程旁边出现“测一测”，打开组卷并预选该课程。测试完全自愿，不影响课程完成。
+
+### 偏离方案之处
+
+按用户原则（与方案不同之处以实际代码为准，逻辑相同或相近即可），保留如下：
+
+- 知识点表暂不建 `aliases` 列：同一学科内按归一化名称唯一，导入时按名称自动创建；需要别名时再加列。
+- 题目与课程的关系放在题目上（可选的一门课，须是该学科已关联的课程），没有单独的多对多表；导入时可给整批题选课程。
+- 来源多一个 `manual`（编辑器录入），与“导入”区分。
+- 官方题包放在代码里而不是数据库：只读与版本天然成立，也没有“不属于任何账号的行”需要额外的 RLS 规则；上线新题包 = 发新版本代码。
+- 作答答案与判分结果存在作答行（JSON，≤12 KB / 16 KB）上，没有单独的 `exam_answers`、`grading_records` 表：客观题一次判定、交卷即冻结；B09 主观题需要“重新批改产生新版本”时再加评分记录表。
+- API：报告并入 `GET /api/study/attempts/[id]`（交卷后才带报告），开始/继续作答是 `POST /api/study/papers/[id]/attempts`；导入预览与提交共用 `/api/study/question-bank/imports`（`commit: true`）；另有 `concepts`、`packs`、`packs/[id]/copy`。
+- “避开做过的题”指在本学科**已交卷**的试卷中出现过的题（按题目 id、内容 hash 或官方题号匹配）；只生成未作答的试卷不算做过。
+- 选了却没有可用题的知识点也算缺口，阻止发布（方案只写了“报告缺口”）。
+- 课堂没有“课程完成界面”，自愿测试入口放在学科页（看完的课程旁的“测一测”）。
+- 删除题目是真删除（连同版本）；已发布试卷有完整快照，不受影响。方案回退里“保留题库版本”对现存题目仍成立。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-exams.ts`（v28）、`migrations.ts`、`sql-accounts.ts`（版本 28）、`lib/server/study/schema.ts`（旧式自迁移安装同样建表）、`lib/server/accounts/deletion.ts`（删账号时删六张新表）。
+- 纯逻辑：`lib/study/questions/{contracts,blueprint,packs}.ts`、`lib/study/assessments/{contracts,client}.ts`。
+- 服务端：`lib/server/study/questions/{repository,service}.ts`、`lib/server/study/exams/{repository,service}.ts`；`lib/server/study/{flags,route}.ts`（开关、`studyExamsRoute`、`readStudyBody` 可传上限）；错误码加 11 个。
+- 接口：`app/api/study/question-bank/**`、`exams/preview`、`papers/**`、`attempts/**`；`capabilities` 加 `exams`。
+- 学习记录：`lib/study/memory/{contracts,projection,recent-state}.ts`、`lib/server/study/memory/{projector,repository}.ts`、`components/study/memory/MemoryPage.tsx`。
+- 界面：`components/study/exams/*`（题库、导入、编辑器、官方题库、组卷、试卷记录、作答与报告）、`app/study/[spaceId]/{practice,attempts/[attemptId]}`、学科页入口、`components/quiz/QuizMathText.tsx`（从课堂测验抽出的公式渲染，课堂与试卷共用）。
+- 其他：`public/examples/zhiyu-question-bank-sample.json`（导入示例，单测保证能解析）、12 种语言文案、`.env.example`/`.env.hosted.example`/`docker-compose.supabase.yml` 新开关、`lib/study/spaces/client.ts` 能力解析改为按键表生成。
+
+### 数据迁移
+
+- accounts **v28**，checksum `d6e44cc538842b1cbe0c6d963f3bb889a43dcb7140f21f8a26fa1f5def4e314f`；只新增，不改旧迁移：`study_concepts`、`study_questions`、`study_question_versions`、`study_exam_papers`、`study_exam_items`、`study_exam_attempts`。子表都用 `(owner_id, 父 id)` 外键引用父表并级联删除；学科删除时题库与试卷一起删除（删除学科的确认文案已更新）。
+- 六张表强制 RLS，`anon/authenticated/PUBLIC/app_worker` 无授权；`app_web` 按 owner：知识点、题目可查插改删；题目版本、试卷题目只能查插（不可修改）；试卷可查插删；作答可查插改，且更新策略只匹配进行中的作答。
+- 本地一次性 PostgreSQL 17（vector + pgroonga 镜像）用全新 bootstrap 执行到 v28，核对六张表 `relrowsecurity = relforcerowsecurity = true`；迁移单测在真实 PostgreSQL（一次性 `*_rls_proof` 库，127.0.0.1:55432，用后删除）通过。
+
+### 测试
+
+- 新增：`tests/study/question-bank-logic.test.ts`（各种导入写法、逐题错误路径、缺答案草稿、文件级错误、去重键只看题型/题干/选项/答案、示例文件能解析、官方题包完整且带出处；组卷确定性、自有题优先、缺口与排除原因、知识点轮流覆盖与未覆盖、课程与难度偏好、blueprint 校验；判分不接受空/异常标准答案、单选/多选、只算可判分题、答案格式校验、交卷前视图不带答案）、`tests/server/study-exams-migration.test.ts`（v28 可重复执行、强制 RLS、Data API 与 Worker 无授权、Web 隔离、版本与试卷题目不可修改、一个进行中作答、交卷后不可修改；**用 `app_web` 身份直接跑作答仓储**：草稿冲突、交卷一次、重复交卷识别、交卷后拒绝草稿、他人看不到；真实 PG 上另测两个连接同时交卷只有一个成功）、`tests/api/study-exams-routes.test.ts`（开关；33 题文件预览 30 可导入/1 草稿/1 错误/1 批内重复、导入 30 题、重复导入 0 新增；8 单选 + 2 多选发布即预览的那份、同键重放与冲突、缺口 409；作答不含答案、第二设备继续、过期草稿 409、非法答案 400、交卷判分 8/10、重复交卷、交卷后草稿 409、改题删题后报告不变、避开做过的题、学习记录载荷、再做一次；官方题只读、自有优先、复制幂等、改内容后核验状态变化；账号隔离）。
+- 调整：`study-memory-migration`（版本断言放宽为 ≥27）、`account-deletion-lifecycle`（六张新表只删本人）、三个 capabilities 断言（加 `exams`）、`memory-logic`（规则版本 v2）。
+- 调整：`principal-mode`（迁移版本列表加 28）。
+- 全量 Vitest（`--maxWorkers=4`，不加载 `.env.local`）：**880 个文件通过、17 个跳过；9078 项通过、94 项跳过、1 项失败**——失败的是 `principal-mode` 的迁移版本列表（未加 28），补上后单独重跑 25 项全部通过。`tsc --noEmit` 通过；改动的 TS/TSX 文件 ESLint 0 问题、Prettier 通过；`check:i18n-keys`（12 个语言文件）通过；`build:worker` 通过。
+- 真实 PostgreSQL（一次性 `*_rls_proof` 库）：`study-exams-migration` 9 项（PGlite 4 + PostgreSQL 4 + 登记 1）通过。
+
+### 浏览器验收（2026-10-11，本地托管模式，不配置任何模型）
+
+环境：一次性 PostgreSQL 17（`zhiyu-b07-acceptance-pg`，127.0.0.1:56433，全新 bootstrap 到 v28）、假 Supabase 登录、`next dev`；Web 以 `zhiyu_app_web` 登录（RLS 生效）；所有模型密钥与地址为空（`make-env.mjs` 把 `.env.local` 里的 145 个变量置空）。用后删除容器与临时 env 文件。
+
+1. 学科“算术练习”→“题库与测试”。导入 32 题文件（30 道已核对、1 道选项不足且答案不在选项里、1 道缺答案）：预览“30 题可导入，1 题缺答案（存为草稿），1 题有错误”，错误题显示“选项：至少需要 2 个选项 / 答案：答案里有不存在的选项”。在编辑器里给第 31 题补一个选项并点 B 为正确答案 → 服务器重查后变为可导入；导入后题库“共 32 题 · 可判分 31 · 已核验 30 · 草稿 1”。同一文件再导入：0 新增、31 重复。
+2. 组卷 8 单选 + 2 多选 → 预览“共 10 题，10 分”；“生成试卷并开始”后作答页的 10 题与预览完全一致；作答接口响应里没有 `answer`、解析或标准答案字段。
+3. 自动保存：连点 3 题合并为一次保存（revision 2）。“第二设备”（127.0.0.1 源、单独登录同一账号）打开同一作答，看到相同的 3 个答案；在第二设备改第 3 题、答第 4、9 题（revision 3）；回到第一设备（仍是 revision 2）答第 5 题 → 服务器 409，页面载入第二设备的答案并提示“答案已在其他设备或标签页更新”。
+4. 第二设备交卷（9/10）；第一设备再点交卷 → 显示同一份结果（`alreadySubmitted`）。新开一份作答，同时发 3 个交卷请求 → 1 个交卷、2 个返回已交卷。
+5. 编辑题库中出现在该试卷里的一道题（版本 2，改题干和答案）并删除另一道 → 历史报告逐题不变。
+6. 组卷要 12 道多选 → “多选题：需要 12 题，可用 10 题”，“生成试卷”按钮不可用。
+7. Memory 页显示两条“在「算术练习」完成测试《算术练习 · 10 题练习》”及“9/10 分 · 答对 9/10 题（服务器判分）”等，近期状态“学科测试：交卷 2 次，共得 9/20 分”。
+8. 课程看到最后一页后，学科页该课程旁出现“测一测”，链接到组卷并预选该课程。
+9. 375 px 宽度下题库页与作答页没有横向滚动；报告页“只看错题和未答”正常。服务器日志没有任何模型/网关调用，没有服务端错误。
+
+### 验收中发现并修复的问题
+
+- **重复交卷返回 404**：交卷与保存草稿原来用 `SELECT … FOR UPDATE` 读作答；在 RLS 下，加锁读取会同时套用 UPDATE 策略，而该策略只匹配进行中的作答，于是已交卷的作答“看不见”，重复交卷得到 `STUDY_ATTEMPT_NOT_FOUND`（PGlite 接口测试以超级用户运行，没有暴露）。改为先普通读取判断状态、再只对进行中的作答加锁（`lockOpenAttempt`）；新增以 `app_web` 身份直接运行仓储的回归测试（PGlite 与真实 PG 都跑），并在验收库里确认 `app_web` 普通读取 1 行、加锁读取 0 行。
+
+### 未验证
+
+- 生产环境（待上线后登录验收）。
+- 浏览器里没有用第二个账号逐页尝试越权（接口测试与真实 PG 的 RLS 测试已覆盖）。
+- 官方题包的“复制到我的题库”只在接口测试中验证，浏览器里只打开过组卷中的官方题包选项。
+- 深色模式未逐页目视检查（样式只用现有主题变量）。
+- 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）。
+
+### 回退
+
+- 运行时止损：Web 的 `ZHIYU_STUDY_EXAMS_ENABLED` 置空后 apply——题库、组卷、作答接口 404，入口消失；Memory 中已有的测试记录仍可查看；B01–B06 不受影响；数据保留。
+- 版本回退：回到 release-20261009c 镜像；v28 的表保留不用（旧代码不读，Memory 的记录列表在旧代码里不关联试卷表）。
+
+### 下一批前置条件
+
+- B08：提取的题目以 `origin = 'material_extracted'` 写入同一题库；答案证据（原文答案、模型建议）需要扩展 `verification` 的 CHECK（新迁移）；资料版本引用放在题目的 `source`。
+- B09：`study_question_versions.qtype` 已允许 `short_answer`；试卷快照与判分需扩展；重新批改需要评分记录表（新迁移）。
+- B10：错题来自 `study_exam_attempts.grading` 中 `incorrect` 的题与冻结快照；`exam_graded` 事件可作为来源。
+- B11：`study_exam_papers.mode` 已允许 `ai`/`mixed`；补题沿用 `selectQuestions` 的缺口结果。
 
 ## B06 基础学习事件、可编辑偏好与 Memory 控制（2026-10-09）
 
