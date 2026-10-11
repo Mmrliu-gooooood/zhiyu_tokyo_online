@@ -40,22 +40,22 @@ describe('import parsing', () => {
   it('accepts the documented spellings of options and answers', () => {
     const strings = parseQuestion({
       type: 'single',
-      stem: ' 1+1=? ',
+      stem: ' 1＋1 等于多少？（填写） ',
       options: ['1', '2', '3'],
-      answer: 'B',
-      concepts: ['加法', ' 加法 ', 'ＡＢ'],
+      answer: 'ｂ',
+      concepts: ['加法', ' 加法 ', 'ＡＢ', 'ab'],
       verified: true,
     });
     expect(strings.issues).toEqual([]);
     expect(strings.content).toMatchObject({
-      stem: '1+1=?',
+      stem: '1＋1 等于多少？（填写）',
       options: [
         { value: 'A', label: '1' },
         { value: 'B', label: '2' },
         { value: 'C', label: '3' },
       ],
       answer: ['B'],
-      concepts: ['加法', 'AB'],
+      concepts: ['加法', 'ＡＢ'],
       points: 1,
     });
     expect(strings.verified).toBe(true);

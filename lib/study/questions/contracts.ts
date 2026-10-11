@@ -154,13 +154,23 @@ export interface QuestionIssue {
 /** Warnings never block saving; `answer_missing` makes the question a draft. */
 export const WARNING_CODES: ReadonlySet<QuestionIssue['code']> = new Set(['answer_missing']);
 
+/**
+ * Stored text keeps what the student wrote (full-width Chinese punctuation
+ * included); only line endings and outer spaces are tidied. Width folding
+ * (NFKC) is for comparison keys only.
+ */
 export function normalizeText(value: string): string {
-  return value.normalize('NFKC').replace(/\r\n?/g, '\n').trim();
+  return value.replace(/\r\n?/g, '\n').trim();
+}
+
+/** An option letter or answer as written ("ａ", "Ａ", "a" → "A"). */
+function letterKey(value: string): string {
+  return value.normalize('NFKC').trim().toUpperCase();
 }
 
 /** Comparison key of a concept name (case, width and spacing folded). */
 export function conceptKey(name: string): string {
-  return normalizeText(name).toLowerCase().replace(/\s+/g, ' ');
+  return name.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 const OPTION_KEYS = 'ABCDEFGH';
@@ -182,11 +192,16 @@ function readOptions(raw: unknown, issues: QuestionIssue[]): QuestionOption[] {
   if (Array.isArray(raw)) {
     entries = raw.map((entry, index) =>
       isRecord(entry)
-        ? [str(entry.value ?? entry.key)?.toUpperCase(), entry.label ?? entry.text]
+        ? [
+            typeof (entry.value ?? entry.key) === 'string'
+              ? letterKey(String(entry.value ?? entry.key))
+              : undefined,
+            entry.label ?? entry.text,
+          ]
         : [OPTION_KEYS[index], entry],
     );
   } else if (isRecord(raw)) {
-    entries = Object.entries(raw).map(([key, label]) => [normalizeText(key).toUpperCase(), label]);
+    entries = Object.entries(raw).map(([key, label]) => [letterKey(key), label]);
   } else {
     issues.push({ path: 'options', code: 'options_invalid' });
     return [];
@@ -214,13 +229,13 @@ function readOptions(raw: unknown, issues: QuestionIssue[]): QuestionOption[] {
 function readAnswer(raw: unknown, issues: QuestionIssue[]): string[] {
   if (raw === undefined || raw === null || raw === '') return [];
   if (typeof raw === 'string') {
-    const text = normalizeText(raw).toUpperCase();
+    const text = letterKey(raw);
     return text.includes(',') || text.includes('，') || text.includes(' ')
       ? text.split(/[,，\s]+/).filter(Boolean)
       : [...text];
   }
   if (Array.isArray(raw) && raw.every((entry) => typeof entry === 'string')) {
-    return raw.map((entry) => normalizeText(entry).toUpperCase()).filter(Boolean);
+    return raw.map((entry) => letterKey(entry)).filter(Boolean);
   }
   issues.push({ path: 'answer', code: 'answer_invalid' });
   return [];
