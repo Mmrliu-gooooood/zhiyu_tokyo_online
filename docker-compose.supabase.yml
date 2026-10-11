@@ -129,6 +129,8 @@ x-runtime-environment: &runtime-environment
   ZHIYU_STUDY_COMPANION_CHAT_ENABLED: ${ZHIYU_STUDY_COMPANION_CHAT_ENABLED:-}
   # Learning records, preferences, Memory (B06). Needs accounts v27; web and worker read it.
   ZHIYU_STUDY_MEMORY_ENABLED: ${ZHIYU_STUDY_MEMORY_ENABLED:-}
+  # Question bank, papers, objective tests (B07). Needs accounts v28; web reads it.
+  ZHIYU_STUDY_EXAMS_ENABLED: ${ZHIYU_STUDY_EXAMS_ENABLED:-}
   ZHIYU_DEFAULT_TEXT_MODEL: ${ZHIYU_DEFAULT_TEXT_MODEL:-}
   ZHIYU_DEFAULT_TEXT_DISPLAY_NAME: ${ZHIYU_DEFAULT_TEXT_DISPLAY_NAME:-}
   ZHIYU_DEFAULT_TEXT_ENABLED: ${ZHIYU_DEFAULT_TEXT_ENABLED:-}

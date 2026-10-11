@@ -172,6 +172,15 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE study_memory_facts(id text primary key,owner_id text);
       CREATE TABLE study_memory_controls(owner_id text,enabled boolean);
       CREATE TABLE study_memory_suppressions(owner_id text,kind text,target_key text);
+      CREATE TABLE study_concepts(owner_id text,id text,primary key(owner_id,id));
+      CREATE TABLE study_questions(owner_id text,id text,primary key(owner_id,id));
+      CREATE TABLE study_question_versions(owner_id text,question_id text,version int,
+        foreign key(owner_id,question_id) references study_questions(owner_id,id));
+      CREATE TABLE study_exam_papers(owner_id text,id text,primary key(owner_id,id));
+      CREATE TABLE study_exam_items(owner_id text,paper_id text,position int,
+        foreign key(owner_id,paper_id) references study_exam_papers(owner_id,id));
+      CREATE TABLE study_exam_attempts(owner_id text,id text,paper_id text,
+        foreign key(owner_id,paper_id) references study_exam_papers(owner_id,id));
       CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
       CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text,
         staged_object_keys jsonb not null default '[]');
@@ -233,6 +242,12 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO study_memory_facts VALUES('mf-owner','${OWNER}'),('mf-other','${OTHER}');
       INSERT INTO study_memory_controls VALUES('${OWNER}',false),('${OTHER}',false);
       INSERT INTO study_memory_suppressions VALUES('${OWNER}','event','k'),('${OTHER}','event','k');
+      INSERT INTO study_concepts VALUES('${OWNER}','c-1'),('${OTHER}','c-1');
+      INSERT INTO study_questions VALUES('${OWNER}','q-1'),('${OTHER}','q-1');
+      INSERT INTO study_question_versions VALUES('${OWNER}','q-1',1),('${OTHER}','q-1',1);
+      INSERT INTO study_exam_papers VALUES('${OWNER}','paper-1'),('${OTHER}','paper-1');
+      INSERT INTO study_exam_items VALUES('${OWNER}','paper-1',1),('${OTHER}','paper-1',1);
+      INSERT INTO study_exam_attempts VALUES('${OWNER}','att-1','paper-1'),('${OTHER}','att-1','paper-1');
       INSERT INTO learning_tasks VALUES
         ('30000000-0000-4000-8000-000000000001','${OWNER}'),
         ('30000000-0000-4000-8000-000000000002','${OTHER}');
@@ -452,6 +467,12 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_memory_facts',
       'study_memory_controls',
       'study_memory_suppressions',
+      'study_concepts',
+      'study_questions',
+      'study_question_versions',
+      'study_exam_papers',
+      'study_exam_items',
+      'study_exam_attempts',
     ]) {
       expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
     }

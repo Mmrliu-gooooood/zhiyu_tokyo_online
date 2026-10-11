@@ -16,9 +16,9 @@
 
 /**
  * Event types. `hint_used` and `review_done` have no producer yet (hints
- * arrive with practice in B07+/B10, reviews with B12): the types and payload
+ * arrive with practice in B10/B11, reviews with B12): the types and payload
  * shapes are fixed now so those batches only add a producer; no history is
- * invented for them.
+ * invented for them. `exam_graded` comes from B07 subject papers.
  */
 export const LEARNING_EVENT_TYPES = [
   'course_started',
@@ -29,6 +29,7 @@ export const LEARNING_EVENT_TYPES = [
   'hint_used',
   'review_done',
   'companion_question',
+  'exam_graded',
 ] as const;
 export type LearningEventType = (typeof LEARNING_EVENT_TYPES)[number];
 
@@ -36,8 +37,8 @@ export const LEARNING_SOURCE_TYPES = [
   'study_progress',
   'quiz_attempt',
   'companion_chat',
-  // Reserved for later producers (exam attempts B07, review tasks B12).
   'exam_attempt',
+  // Reserved for a later producer (review tasks, B12).
   'review_task',
 ] as const;
 export type LearningSourceType = (typeof LEARNING_SOURCE_TYPES)[number];
@@ -70,6 +71,18 @@ export interface LearningEventPayloads {
   };
   review_done: { reviewTaskId: string; outcome: 'done' | 'skipped' | 'postponed' };
   companion_question: { sessionId: string; classmateId: string; preview: string };
+  /**
+   * A submitted subject paper, graded on the server against its frozen key
+   * (objective items only in B07). The paper title is joined at read time.
+   */
+  exam_graded: {
+    paperId: string;
+    itemCount: number;
+    correct: number;
+    unanswered: number;
+    earned: number;
+    totalPoints: number;
+  };
 }
 
 export interface LearningEventInput<T extends LearningEventType = LearningEventType> {
@@ -96,6 +109,8 @@ export interface LearningRecordView {
   /** Spaces the record belongs to: the chat's space, or every space the course is in. */
   spaceIds: string[];
   classmate: { id: string; name: string } | null;
+  /** A subject paper record: its paper (title null once the paper was deleted). */
+  paper: { id: string; title: string | null } | null;
   correction: { factId: string; text: string; updatedAt: string } | null;
 }
 

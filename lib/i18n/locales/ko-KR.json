@@ -2462,7 +2462,7 @@
     "restore": "복원",
     "delete": "삭제",
     "deleteTitle": "이 과목 공간을 삭제할까요?",
-    "deleteText": "\"{{name}}\"과(와) 코스 연결이 삭제됩니다. 코스와 학습 진도는 유지됩니다.",
+    "deleteText": "“{{name}}”과 강의 연결, 문제은행, 시험지가 삭제됩니다. 강의 자체와 학습 진도는 유지됩니다.",
     "myCourses": "내 코스",
     "addExisting": "기존 코스 추가",
     "generateCourse": "코스 생성",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "시청 기록이며 숙달을 뜻하지 않습니다",
         "objectiveChecked": "객관식 {{correct}}/{{total}} 정답(서버에서 강의 원문 문제와 대조)",
         "objectiveUnverified": "객관식 점수를 확인할 수 없음(강의 변경 또는 기록 부족). 통계에서 제외",
-        "aiGraded": "주관식 AI 채점 {{earned}}/{{points}}점(수업 기록 기준)"
+        "aiGraded": "주관식 AI 채점 {{earned}}/{{points}}점(수업 기록 기준)",
+        "examGraded": "{{space}}에서 시험지 “{{paper}}” 제출",
+        "examScore": "{{earned}}/{{total}}점 · {{count}}문제 중 {{correct}}문제 정답(서버 채점)",
+        "unknownPaper": "삭제된 시험지",
+        "exam_graded": "시험지를 제출함"
       },
       "source": {
         "study_progress": "학습 진도",
@@ -3024,7 +3028,8 @@
         "objective": "객관식 {{correct}}/{{total}} 정답(서버 확인)",
         "unverified": "{{count}}회 확인 불가",
         "companion": "방과 후 질문 {{count}}회({{detail}})",
-        "empty": "이 기간에는 학습 기록이 없습니다."
+        "empty": "이 기간에는 학습 기록이 없습니다.",
+        "exams": "과목 시험: {{count}}회 제출, 합계 {{earned}}/{{total}}점"
       },
       "clear": {
         "open": "지우기…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "이 선호는 더 이상 없습니다.",
         "STUDY_SPACE_NOT_FOUND": "이 과목은 더 이상 없습니다.",
         "STUDY_INVALID_INPUT": "입력 형식이 올바르지 않습니다."
+      }
+    },
+    "practice": {
+      "open": "문제은행·시험",
+      "title": "문제은행과 시험",
+      "subtitle": "내 문제를 가져오고 규칙에 따라 시험지를 만들어 언제든 스스로 테스트하세요. 채점은 서버에서 하며 AI 모델을 쓰지 않습니다.",
+      "testCourse": "실력 확인",
+      "separator": ", ",
+      "tabs": {
+        "bank": "문제은행",
+        "build": "시험지 만들기",
+        "papers": "내 시험지"
+      },
+      "type": {
+        "single": "단일 선택",
+        "multiple": "복수 선택"
+      },
+      "origin": {
+        "user_import": "가져옴",
+        "manual": "직접 작성",
+        "official": "공식",
+        "public_source": "공개 출처",
+        "ai_generated": "AI 생성",
+        "material_extracted": "자료에서 추출"
+      },
+      "verification": {
+        "unverified": "미확인",
+        "user_verified": "확인함",
+        "official_verified": "공식 확인"
+      },
+      "difficulty": {
+        "unknown": "미지정",
+        "level1": "매우 쉬움",
+        "level2": "쉬움",
+        "level3": "보통",
+        "level4": "어려움",
+        "level5": "매우 어려움"
+      },
+      "issue": {
+        "located": "{{where}}: {{what}}",
+        "atOption": "{{n}}번 보기",
+        "field": {
+          "type": "유형",
+          "stem": "문제",
+          "options": "보기",
+          "answer": "정답",
+          "explanation": "해설",
+          "concepts": "지식 요소",
+          "difficulty": "난이도",
+          "points": "배점",
+          "source": "출처",
+          "verified": "확인 표시"
+        },
+        "not_object": "문제 객체가 아닙니다",
+        "type_unsupported": "현재는 단일 선택과 복수 선택만 지원합니다",
+        "stem_missing": "문제가 비어 있습니다",
+        "stem_too_long": "문제가 너무 깁니다(최대 4,000자)",
+        "options_invalid": "보기는 목록 또는 A–H 키여야 합니다",
+        "options_too_few": "보기가 2개 이상 필요합니다",
+        "options_too_many": "보기는 최대 8개입니다",
+        "option_empty": "보기가 비어 있습니다",
+        "option_too_long": "보기가 너무 깁니다",
+        "option_duplicate": "보기가 중복됩니다",
+        "answer_invalid": "정답은 \"A\" 또는 [\"A\", \"C\"] 같은 글자여야 합니다",
+        "answer_not_in_options": "정답에 없는 보기가 있습니다",
+        "answer_duplicate": "정답에 같은 보기가 반복됩니다",
+        "answer_single_needs_one": "단일 선택 문제는 정답이 하나여야 합니다",
+        "answer_missing": "정답 없음: 초안으로 저장되며 자동 채점 시험지에는 쓰이지 않습니다",
+        "explanation_too_long": "해설이 너무 깁니다",
+        "concepts_invalid": "지식 요소는 최대 8개, 각 40자 이하입니다",
+        "difficulty_invalid": "난이도는 1–5입니다",
+        "points_invalid": "배점은 1–100 사이의 정수입니다",
+        "source_invalid": "출처가 올바르지 않습니다(링크는 http로 시작)",
+        "verified_invalid": "verified는 true 또는 false여야 합니다"
+      },
+      "editor": {
+        "description": "글자를 눌러 정답 보기를 표시하세요. 수식은 $…$ 안에 LaTeX로 쓸 수 있습니다.",
+        "editTitle": "문제 편집",
+        "type": "유형",
+        "difficulty": "난이도",
+        "points": "배점",
+        "stem": "문제",
+        "stemPlaceholder": "문제를 입력하세요…",
+        "options": "보기",
+        "pickOne": "정답 글자 하나를 누르세요.",
+        "pickMany": "정답 글자를 모두 누르세요.",
+        "markCorrect": "{{letter}}를 정답으로 표시",
+        "optionPlaceholder": "보기 {{letter}}",
+        "removeOption": "보기 삭제",
+        "addOption": "보기 추가",
+        "explanation": "해설(제출 후 표시)",
+        "concepts": "지식 요소",
+        "conceptsPlaceholder": "예: 극한, 미분",
+        "course": "강의",
+        "noCourse": "강의 없음",
+        "verified": "정답을 확인했습니다",
+        "verifiedHint": "미확인 문제는 포함하도록 선택하지 않으면 시험지에 들어가지 않습니다.",
+        "draftHint": "정답이 없는 문제는 초안으로 저장되며 확인 표시를 할 수 없습니다.",
+        "save": "저장",
+        "saveDraft": "초안으로 저장"
+      },
+      "errors": {
+        "questionConflict": "이 문제가 다른 곳에서 바뀌어 최신 버전을 표시했습니다. 다시 편집해 주세요.",
+        "questionLimit": "이 과목의 문제은행이 가득 찼습니다(5,000문제)."
+      },
+      "bank": {
+        "counts": "{{all}}문제 · 채점 가능 {{gradable}} · 확인 {{verified}} · 초안 {{drafts}}",
+        "write": "문제 작성",
+        "search": "문제 검색",
+        "allTypes": "모든 유형",
+        "anyCheck": "모든 확인 상태",
+        "checked": "확인함",
+        "anyState": "모든 상태",
+        "gradable": "채점 가능",
+        "drafts": "초안",
+        "allConcepts": "모든 지식 요소",
+        "noMatch": "조건에 맞는 문제가 없습니다.",
+        "empty": "아직 문제가 없습니다. JSON 파일을 가져오거나 직접 쓰거나 공식 문제집에서 복사하세요.",
+        "draftChip": "초안",
+        "more": "더 보기(남은 {{left}}문제)",
+        "deleteTitle": "이 문제를 삭제할까요?",
+        "deleteText": "문제은행에서 삭제됩니다. 이미 이 문제가 들어간 시험지는 그대로 유지됩니다."
+      },
+      "import": {
+        "open": "JSON 가져오기",
+        "title": "문제 가져오기(JSON)",
+        "description": "추가하기 전에 문제를 하나씩 검사합니다. JSON 파일만 지원하며, 형식은 예시 파일을 참고하세요.",
+        "choose": "파일 선택",
+        "another": "다른 파일 선택",
+        "sample": "예시 파일",
+        "tooLarge": "파일이 너무 큽니다(최대 1MB, 500문제).",
+        "notJson": "올바른 JSON 파일이 아닙니다.",
+        "fileError": {
+          "not_question_bank": "문제 목록 파일이 아닙니다(예시 참고).",
+          "empty": "파일에 문제가 없습니다.",
+          "too_many_questions": "한 번에 최대 500문제까지 가져올 수 있습니다."
+        },
+        "summary": "{{total}}문제: 가져오기 가능 {{ready}}, 정답 없음(초안) {{drafts}}, 오류 {{invalid}}, 이미 있음 {{duplicates}}",
+        "noStem": "(문제 없음)",
+        "status": {
+          "ready": "가능",
+          "draft": "초안",
+          "invalid": "오류",
+          "duplicate": "중복",
+          "skipped": "건너뜀"
+        },
+        "edit": "이 문제 수정",
+        "editTitle": "{{n}}번 문제 수정",
+        "skip": "건너뛰기",
+        "include": "다시 포함",
+        "verifiedMode": "정답 확인 여부",
+        "verifiedFile": "파일 표시대로",
+        "verifiedAll": "모든 정답을 확인함",
+        "verifiedNone": "모두 미확인으로",
+        "commit": "{{count}}문제 추가",
+        "done": "{{created}}문제를 추가했습니다({{duplicates}}문제는 이미 있음)."
+      },
+      "packs": {
+        "open": "공식 문제집",
+        "title": "공식 문제집",
+        "description": "출처와 라이선스가 명시된 읽기 전용 문제입니다. 내 문제은행으로 복사하면 편집할 수 있고, 시험지를 만들 때 바로 쓸 수도 있습니다.",
+        "empty": "아직 공식 문제집이 없습니다.",
+        "attribution": "{{attribution}} · 라이선스: {{license}}",
+        "choose": "문제 선택",
+        "copy": "{{count}}문제를 내 문제은행에 복사",
+        "copied": "{{created}}문제를 복사했습니다({{duplicates}}문제는 이미 복사됨)."
+      },
+      "build": {
+        "countOf": "{{type}} 문제 수",
+        "concepts": "지식 요소",
+        "noConcepts": "아직 지식 요소가 없습니다. 문제은행에서 문제에 추가하세요.",
+        "conceptsHint": "비워 두면 과목 전체입니다. 여러 개를 고르면 반복 전에 각 요소에서 먼저 한 문제씩 고릅니다.",
+        "anyCourse": "모든 강의",
+        "difficultyAny": "난이도 무관",
+        "difficultyEasier": "쉬운 쪽",
+        "difficultyHarder": "어려운 쪽",
+        "avoidSeen": "제출한 시험지에 나온 문제 제외",
+        "includeUnverified": "정답 미확인 문제도 포함",
+        "usePack": "공식 문제집 “{{title}}”도 사용({{count}}문제, 내 문제 다음)",
+        "title": "시험지 이름",
+        "defaultTitle": "{{space}} · {{count}}문제",
+        "preview": "미리 보기",
+        "reshuffle": "다시 고르기",
+        "publish": "시험지 만들고 시작",
+        "ready": "{{count}}문제, {{points}}점. 시작할 수 있습니다.",
+        "gapsTitle": "이 시험지를 만들 문제가 부족합니다",
+        "shortfall": "{{type}}: {{wanted}}문제 중 {{available}}문제만 사용 가능.",
+        "excludedSeen": "이미 푼 문제 {{count}}개를 제외했습니다.",
+        "excludedUnverified": "미확인 문제가 {{count}}개 더 있습니다.",
+        "uncovered": "사용할 문제가 없는 지식 요소: {{names}}",
+        "gapsHint": "문제 수를 줄이거나 위 조건을 바꾸거나 문제은행에 문제를 추가하세요.",
+        "changed": "미리 보기 후 문제은행이 바뀌었습니다. 다시 미리 보기를 하세요."
+      },
+      "papers": {
+        "empty": "아직 시험지가 없습니다. “시험지 만들기”에서 만들 수 있습니다.",
+        "meta": "{{count}}문제 · {{points}}점",
+        "score": "{{earned}}/{{total}}점",
+        "continue": "이어서 풀기",
+        "start": "풀기 시작",
+        "again": "다시 풀기",
+        "deleteTitle": "이 시험지를 삭제할까요?",
+        "deleteText": "“{{title}}”과 모든 응시 기록이 삭제됩니다. 이미 만들어진 학습 기록은 Memory에서 지울 때까지 남습니다."
+      },
+      "attempt": {
+        "back": "문제은행과 시험으로",
+        "progress": "답한 문제 {{answered}}/{{total}}",
+        "points": "{{points}}점",
+        "saved": "저장됨",
+        "saving": "저장 중…",
+        "saveFailed": "저장 안 됨 — 다시 시도",
+        "updatedElsewhere": "다른 기기나 탭에서 답이 바뀌어 최신 내용을 표시했습니다.",
+        "submittedElsewhere": "이미 제출한 시험지입니다. 그 결과를 표시합니다.",
+        "conflictBeforeSubmit": "다른 곳에서 저장된 새 답을 표시했습니다. 확인한 뒤 다시 제출하세요.",
+        "submit": "제출",
+        "confirmTitle": "이 시험지를 제출할까요?",
+        "confirmUnanswered": "{{count}}문제에 답하지 않았습니다({{numbers}}번). 제출 후에는 바꿀 수 없습니다.",
+        "confirmAll": "모든 문제에 답했습니다. 제출 후에는 바꿀 수 없습니다.",
+        "keepAnswering": "계속 풀기"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}}점",
+        "summary": "{{count}}문제 중 {{correct}}문제 정답 · 미응답 {{unanswered}}문제",
+        "ungradable": "{{count}}문제는 채점할 수 없습니다",
+        "gradedBy": "시험지에 저장된 정답으로 서버에서 채점했으며 AI 모델은 쓰지 않았습니다.",
+        "onlyMistakes": "오답과 미응답만",
+        "showAll": "모두 보기",
+        "noMistakes": "오답이나 미응답 문제가 없습니다.",
+        "outcome": {
+          "correct": "정답",
+          "incorrect": "오답",
+          "unanswered": "미응답",
+          "ungradable": "채점 불가"
+        },
+        "yourChoice": "내 답",
+        "key": "정답: {{answer}}"
       }
     }
   }

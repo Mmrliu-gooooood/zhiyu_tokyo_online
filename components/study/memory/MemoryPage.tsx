@@ -201,6 +201,11 @@ export function MemoryPage() {
         });
       case 'quiz_graded':
         return t('study.memory.record.quizGraded', { course });
+      case 'exam_graded':
+        return t('study.memory.record.examGraded', {
+          paper: record.paper?.title ?? t('study.memory.record.unknownPaper'),
+          space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
+        });
       case 'companion_question':
         return t('study.memory.record.companionQuestion', {
           space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
@@ -215,6 +220,14 @@ export function MemoryPage() {
   const recordDetail = (record: LearningRecordView): string | null => {
     const payload = record.payload as Record<string, unknown>;
     if (record.type.startsWith('course_')) return t('study.memory.record.viewingOnly');
+    if (record.type === 'exam_graded') {
+      return t('study.memory.record.examScore', {
+        earned: Number(payload.earned ?? 0),
+        total: Number(payload.totalPoints ?? 0),
+        correct: Number(payload.correct ?? 0),
+        count: Number(payload.itemCount ?? 0),
+      });
+    }
     if (record.type !== 'quiz_graded') return null;
     const parts: string[] = [];
     const objective = payload.objective as { correct?: number; total?: number } | null;
@@ -268,6 +281,15 @@ export function MemoryPage() {
           (recent.quizzesUnverified
             ? ` · ${t('study.memory.recent.unverified', { count: recent.quizzesUnverified })}`
             : ''),
+      );
+    }
+    if (recent.examsGraded) {
+      lines.push(
+        t('study.memory.recent.exams', {
+          count: recent.examsGraded,
+          earned: recent.examPoints.earned,
+          total: recent.examPoints.total,
+        }),
       );
     }
     if (recent.companionQuestions) {

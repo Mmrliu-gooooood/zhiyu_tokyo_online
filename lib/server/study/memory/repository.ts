@@ -501,12 +501,13 @@ interface RecordRow extends Record<string, unknown> {
   correction_id: string | null;
   correction_text: string | null;
   correction_updated_at: string | Date | null;
+  paper_title: string | null;
 }
 
 /**
- * Newest learning records with course titles, chat classmates, the spaces a
- * course belongs to and the student's correction. Records of tombstoned
- * courses drop out.
+ * Newest learning records with course titles, chat classmates, paper titles,
+ * the spaces a course belongs to and the student's correction. Records of
+ * tombstoned courses drop out; a deleted paper leaves its record untitled.
  */
 export async function listLearningRecords(
   db: Queryable,
@@ -519,7 +520,8 @@ export async function listLearningRecords(
             cm.id AS classmate_id, cm.name AS classmate_name,
             (SELECT array_agg(l.space_id ORDER BY l.space_id) FROM study_space_courses l
               WHERE l.owner_id = e.owner_id AND l.stage_id = e.stage_id) AS link_space_ids,
-            f.id AS correction_id, f.text AS correction_text, f.updated_at AS correction_updated_at
+            f.id AS correction_id, f.text AS correction_text, f.updated_at AS correction_updated_at,
+            ep.title AS paper_title
        FROM study_learning_events e
        LEFT JOIN stage_meta m ON m.stage_id = e.stage_id AND m.owner_id = e.owner_id
        LEFT JOIN document_stages d ON d.id = e.stage_id
@@ -527,6 +529,8 @@ export async function listLearningRecords(
          ON cm.owner_id = e.owner_id AND cm.id = e.payload->>'classmateId'
        LEFT JOIN study_memory_facts f
          ON f.owner_id = e.owner_id AND f.corrects_key = e.source_key
+       LEFT JOIN study_exam_papers ep
+         ON ep.owner_id = e.owner_id AND ep.id = e.payload->>'paperId'
       WHERE e.owner_id = $1 AND (e.stage_id IS NULL OR m.deleted_at IS NULL)
         AND ($3::timestamptz IS NULL OR e.occurred_at >= $3::timestamptz)
       ORDER BY e.occurred_at DESC, e.seq DESC
@@ -548,6 +552,13 @@ export async function listLearningRecords(
     classmate:
       row.classmate_id && row.classmate_name
         ? { id: row.classmate_id, name: row.classmate_name }
+        : null,
+    paper:
+      row.event_type === 'exam_graded'
+        ? {
+            id: String((json<Record<string, unknown>>(row.payload) ?? {}).paperId ?? ''),
+            title: row.paper_title,
+          }
         : null,
     correction: row.correction_id
       ? {

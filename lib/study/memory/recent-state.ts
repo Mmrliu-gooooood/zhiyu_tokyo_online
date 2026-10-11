@@ -12,7 +12,7 @@ import {
   type MemorySummaryBasis,
 } from '@/lib/study/memory/contracts';
 
-export const RECENT_STATE_POLICY = 'recent-state-rules-v1';
+export const RECENT_STATE_POLICY = 'recent-state-rules-v2';
 
 export interface RecentStateRecord {
   seq: number;
@@ -41,6 +41,9 @@ export interface RecentState extends MemorySummaryBasis {
   quizzesUnverified: number;
   companionQuestions: number;
   companionByClassmate: Array<{ classmateId: string; count: number }>;
+  /** Subject papers submitted in the window, with their server-graded totals. */
+  examsGraded: number;
+  examPoints: { earned: number; total: number };
 }
 
 function fnv1a(text: string): string {
@@ -83,6 +86,9 @@ export function aggregateRecentState(
   let correct = 0;
   let total = 0;
   let companionQuestions = 0;
+  let examsGraded = 0;
+  let examEarned = 0;
+  let examTotal = 0;
   for (const record of inScope) {
     switch (record.type) {
       case 'course_started':
@@ -117,6 +123,11 @@ export function aggregateRecentState(
         }
         break;
       }
+      case 'exam_graded':
+        examsGraded += 1;
+        examEarned += num(record.payload.earned);
+        examTotal += num(record.payload.totalPoints);
+        break;
       case 'companion_question':
         companionQuestions += 1;
         if (record.classmateId) {
@@ -143,6 +154,8 @@ export function aggregateRecentState(
     companionByClassmate: [...byClassmate.entries()]
       .map(([classmateId, count]) => ({ classmateId, count }))
       .sort((a, b) => b.count - a.count),
+    examsGraded,
+    examPoints: { earned: examEarned, total: examTotal },
     sourceWatermark,
     inputHash: `${RECENT_STATE_POLICY}:${fnv1a(
       JSON.stringify(inScope.map((record) => [record.seq, record.type])),

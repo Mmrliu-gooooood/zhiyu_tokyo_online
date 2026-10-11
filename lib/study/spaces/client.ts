@@ -73,6 +73,24 @@ export interface StudyCapabilities {
   companionChat: boolean;
   /** B06 learning records, preferences and Memory controls (needs spaces). */
   memory: boolean;
+  /** B07 question bank, rule-built papers and objective attempts (needs spaces). */
+  exams: boolean;
+}
+
+const CAPABILITY_KEYS = [
+  'spaces',
+  'materials',
+  'qa',
+  'classmates',
+  'companionChat',
+  'memory',
+  'exams',
+] as const satisfies ReadonlyArray<keyof StudyCapabilities>;
+
+function capabilitiesFrom(body: Record<string, unknown> | null): StudyCapabilities {
+  return Object.fromEntries(
+    CAPABILITY_KEYS.map((key) => [key, body?.[key] === true]),
+  ) as unknown as StudyCapabilities;
 }
 
 let capabilityPromise: Promise<StudyCapabilities> | undefined;
@@ -80,43 +98,12 @@ let capabilityPromise: Promise<StudyCapabilities> | undefined;
 /** Which study features this deployment serves. Cached for the page session; failures retry. */
 export function fetchStudyCapabilities(): Promise<StudyCapabilities> {
   capabilityPromise ??= fetch('/api/study/capabilities', { cache: 'no-store' })
-    .then(async (response) => {
-      if (!response.ok)
-        return {
-          spaces: false,
-          materials: false,
-          qa: false,
-          classmates: false,
-          companionChat: false,
-          memory: false,
-        };
-      const body = (await response.json()) as {
-        spaces?: unknown;
-        materials?: unknown;
-        qa?: unknown;
-        classmates?: unknown;
-        companionChat?: unknown;
-        memory?: unknown;
-      };
-      return {
-        spaces: body.spaces === true,
-        materials: body.materials === true,
-        qa: body.qa === true,
-        classmates: body.classmates === true,
-        companionChat: body.companionChat === true,
-        memory: body.memory === true,
-      };
-    })
+    .then(async (response) =>
+      capabilitiesFrom(response.ok ? ((await response.json()) as Record<string, unknown>) : null),
+    )
     .catch(() => {
       capabilityPromise = undefined;
-      return {
-        spaces: false,
-        materials: false,
-        qa: false,
-        classmates: false,
-        companionChat: false,
-        memory: false,
-      };
+      return capabilitiesFrom(null);
     });
   return capabilityPromise;
 }

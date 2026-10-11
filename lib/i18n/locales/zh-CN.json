@@ -2462,7 +2462,7 @@
     "restore": "恢复",
     "delete": "删除",
     "deleteTitle": "删除学科空间？",
-    "deleteText": "将删除“{{name}}”及其课程关联，课程本身和学习进度会保留。",
+    "deleteText": "将删除“{{name}}”及其课程关联、题库和试卷记录；课程本身和学习进度会保留。",
     "myCourses": "我的课程",
     "addExisting": "添加已有课程",
     "generateCourse": "生成新课程",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "观看记录，不代表已掌握",
         "objectiveChecked": "选择题 {{correct}}/{{total}} 正确（已按课程原题在服务器核对）",
         "objectiveUnverified": "选择题成绩无法核对（课程已修改或记录不完整），不计入统计",
-        "aiGraded": "主观题 AI 评分 {{earned}}/{{points}} 分（来自课堂记录）"
+        "aiGraded": "主观题 AI 评分 {{earned}}/{{points}} 分（来自课堂记录）",
+        "examGraded": "在「{{space}}」完成测试《{{paper}}》",
+        "examScore": "{{earned}}/{{total}} 分 · 答对 {{correct}}/{{count}} 题（服务器判分）",
+        "unknownPaper": "已删除的试卷",
+        "exam_graded": "完成了一次测试"
       },
       "source": {
         "study_progress": "学习进度",
@@ -3024,7 +3028,8 @@
         "objective": "选择题 {{correct}}/{{total}} 正确（服务器核对）",
         "unverified": "{{count}} 次无法核对",
         "companion": "课后答疑提问 {{count}} 次（{{detail}}）",
-        "empty": "这段时间没有学习记录。"
+        "empty": "这段时间没有学习记录。",
+        "exams": "学科测试：交卷 {{count}} 次，共得 {{earned}}/{{total}} 分"
       },
       "clear": {
         "open": "清除…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "这项偏好已不存在。",
         "STUDY_SPACE_NOT_FOUND": "这个学科已不存在。",
         "STUDY_INVALID_INPUT": "内容格式不正确。"
+      }
+    },
+    "practice": {
+      "open": "题库与测试",
+      "title": "题库与测试",
+      "subtitle": "导入自己的题目，按规则组卷，随时自测。试卷在服务器判分，不调用 AI 模型。",
+      "testCourse": "测一测",
+      "separator": "、",
+      "tabs": {
+        "bank": "题库",
+        "build": "组卷",
+        "papers": "试卷记录"
+      },
+      "type": {
+        "single": "单选题",
+        "multiple": "多选题"
+      },
+      "origin": {
+        "user_import": "导入",
+        "manual": "自己录入",
+        "official": "官方题库",
+        "public_source": "公开来源",
+        "ai_generated": "AI 生成",
+        "material_extracted": "资料提取"
+      },
+      "verification": {
+        "unverified": "未核验",
+        "user_verified": "已核验",
+        "official_verified": "官方核验"
+      },
+      "difficulty": {
+        "unknown": "未标注",
+        "level1": "很容易",
+        "level2": "较易",
+        "level3": "中等",
+        "level4": "较难",
+        "level5": "很难"
+      },
+      "issue": {
+        "located": "{{where}}：{{what}}",
+        "atOption": "第 {{n}} 个选项",
+        "field": {
+          "type": "题型",
+          "stem": "题干",
+          "options": "选项",
+          "answer": "答案",
+          "explanation": "解析",
+          "concepts": "知识点",
+          "difficulty": "难度",
+          "points": "分值",
+          "source": "来源",
+          "verified": "核验标记"
+        },
+        "not_object": "不是题目对象",
+        "type_unsupported": "目前只支持单选题和多选题",
+        "stem_missing": "题干为空",
+        "stem_too_long": "题干太长（最多 4000 字）",
+        "options_invalid": "选项格式不对，应为列表或 A–H 键",
+        "options_too_few": "至少需要 2 个选项",
+        "options_too_many": "最多 8 个选项",
+        "option_empty": "选项内容为空",
+        "option_too_long": "选项太长",
+        "option_duplicate": "选项重复",
+        "answer_invalid": "答案格式不对，应为 \"A\" 或 [\"A\",\"C\"] 这样的字母",
+        "answer_not_in_options": "答案里有不存在的选项",
+        "answer_duplicate": "答案里有重复的选项",
+        "answer_single_needs_one": "单选题只能有一个答案",
+        "answer_missing": "没有答案：会存为草稿，不能用于自动判分的试卷",
+        "explanation_too_long": "解析太长",
+        "concepts_invalid": "知识点最多 8 个，每个不超过 40 字",
+        "difficulty_invalid": "难度应为 1–5",
+        "points_invalid": "分值应为 1–100 的整数",
+        "source_invalid": "来源信息不对（链接需以 http 开头）",
+        "verified_invalid": "verified 只能是 true 或 false"
+      },
+      "editor": {
+        "description": "点击字母标出正确选项。公式可以用 $…$ 包住的 LaTeX 书写。",
+        "editTitle": "编辑题目",
+        "type": "题型",
+        "difficulty": "难度",
+        "points": "分值",
+        "stem": "题干",
+        "stemPlaceholder": "输入题目…",
+        "options": "选项",
+        "pickOne": "点击一个字母标出正确答案。",
+        "pickMany": "点击所有正确选项的字母。",
+        "markCorrect": "将 {{letter}} 标为正确答案",
+        "optionPlaceholder": "选项 {{letter}}",
+        "removeOption": "删除选项",
+        "addOption": "添加选项",
+        "explanation": "解析（交卷后显示）",
+        "concepts": "知识点",
+        "conceptsPlaceholder": "如：极限、导数",
+        "course": "所属课程",
+        "noCourse": "不关联课程",
+        "verified": "我已核对答案",
+        "verifiedHint": "未核验的题默认不进入试卷，组卷时可以选择包含。",
+        "draftHint": "没有答案的题会存为草稿，不能标为已核验。",
+        "save": "保存",
+        "saveDraft": "存为草稿"
+      },
+      "errors": {
+        "questionConflict": "这道题已在别处修改，已显示最新版本，请重新编辑。",
+        "questionLimit": "这个学科的题库已满（5000 题）。"
+      },
+      "bank": {
+        "counts": "共 {{all}} 题 · 可判分 {{gradable}} · 已核验 {{verified}} · 草稿 {{drafts}}",
+        "write": "录入题目",
+        "search": "搜索题目",
+        "allTypes": "全部题型",
+        "anyCheck": "全部核验状态",
+        "checked": "已核验",
+        "anyState": "全部状态",
+        "gradable": "可判分",
+        "drafts": "草稿",
+        "allConcepts": "全部知识点",
+        "noMatch": "没有符合筛选条件的题目。",
+        "empty": "还没有题目。可以导入 JSON 文件、手动录入，或从官方题库复制。",
+        "draftChip": "草稿",
+        "more": "显示更多（还有 {{left}} 题）",
+        "deleteTitle": "删除这道题？",
+        "deleteText": "题目会从题库删除；已经出过这道题的试卷会保留原样。"
+      },
+      "import": {
+        "open": "导入 JSON",
+        "title": "导入题目（JSON）",
+        "description": "添加前会逐题检查。目前只支持 JSON 文件，可下载示例查看格式。",
+        "choose": "选择文件",
+        "another": "换一个文件",
+        "sample": "下载示例",
+        "tooLarge": "文件太大（最多 1 MB、500 题）。",
+        "notJson": "不是有效的 JSON 文件。",
+        "fileError": {
+          "not_question_bank": "文件不是题目列表（请参考示例格式）。",
+          "empty": "文件里没有题目。",
+          "too_many_questions": "每次最多导入 500 题。"
+        },
+        "summary": "共 {{total}} 题：{{ready}} 题可导入，{{drafts}} 题缺答案（存为草稿），{{invalid}} 题有错误，{{duplicates}} 题已在题库中",
+        "noStem": "（无题干）",
+        "status": {
+          "ready": "可导入",
+          "draft": "草稿",
+          "invalid": "有错误",
+          "duplicate": "重复",
+          "skipped": "已跳过"
+        },
+        "edit": "修改这道题",
+        "editTitle": "修改第 {{n}} 题",
+        "skip": "跳过",
+        "include": "恢复导入",
+        "verifiedMode": "答案核验",
+        "verifiedFile": "按文件中的标记",
+        "verifiedAll": "我已核对全部答案",
+        "verifiedNone": "全部标为未核验",
+        "commit": "导入 {{count}} 题",
+        "done": "已导入 {{created}} 题（{{duplicates}} 题已在题库中）。"
+      },
+      "packs": {
+        "open": "官方题库",
+        "title": "官方题库",
+        "description": "只读题目，注明来源与许可。复制到自己的题库后可以编辑，也可以在组卷时直接选用。",
+        "empty": "暂无官方题库。",
+        "attribution": "{{attribution}} · 许可：{{license}}",
+        "choose": "选择题目",
+        "copy": "复制 {{count}} 题到我的题库",
+        "copied": "已复制 {{created}} 题（{{duplicates}} 题之前已复制）。"
+      },
+      "build": {
+        "countOf": "{{type}}数量",
+        "concepts": "知识点",
+        "noConcepts": "还没有知识点，可以在题库里给题目添加。",
+        "conceptsHint": "不选表示整个学科；选了多个时，会先让每个知识点都有题。",
+        "anyCourse": "不限课程",
+        "difficultyAny": "不限难度",
+        "difficultyEasier": "偏简单",
+        "difficultyHarder": "偏难",
+        "avoidSeen": "避开已交卷试卷里做过的题",
+        "includeUnverified": "包含未核验答案的题",
+        "usePack": "也使用官方题库《{{title}}》（{{count}} 题，排在自己的题之后）",
+        "title": "试卷名称",
+        "defaultTitle": "{{space}} · {{count}} 题练习",
+        "preview": "预览",
+        "reshuffle": "换一组",
+        "publish": "生成试卷并开始",
+        "ready": "共 {{count}} 题，{{points}} 分，可以开始。",
+        "gapsTitle": "题库不足以组成这份试卷",
+        "shortfall": "{{type}}：需要 {{wanted}} 题，可用 {{available}} 题。",
+        "excludedSeen": "另有 {{count}} 题因已做过被排除。",
+        "excludedUnverified": "另有 {{count}} 题未核验。",
+        "uncovered": "以下知识点没有可用题目：{{names}}",
+        "gapsHint": "可以减少题量、调整上面的条件，或往题库里补题。",
+        "changed": "预览之后题库有变化，请重新预览。"
+      },
+      "papers": {
+        "empty": "还没有试卷，可以在“组卷”里生成。",
+        "meta": "{{count}} 题 · {{points}} 分",
+        "score": "{{earned}}/{{total}} 分",
+        "continue": "继续作答",
+        "start": "开始作答",
+        "again": "再做一次",
+        "deleteTitle": "删除这份试卷？",
+        "deleteText": "《{{title}}》及其全部作答都会删除；已经生成的学习记录会保留，可在 Memory 中清除。"
+      },
+      "attempt": {
+        "back": "返回题库与测试",
+        "progress": "已答 {{answered}}/{{total}}",
+        "points": "{{points}} 分",
+        "saved": "已保存",
+        "saving": "保存中…",
+        "saveFailed": "未保存，点此重试",
+        "updatedElsewhere": "答案已在其他设备或标签页更新，已显示最新内容。",
+        "submittedElsewhere": "这份试卷已经交过，显示的是那次的结果。",
+        "conflictBeforeSubmit": "其他地方保存了更新的答案，已显示出来，请检查后再交卷。",
+        "submit": "交卷",
+        "confirmTitle": "确认交卷？",
+        "confirmUnanswered": "还有 {{count}} 题没答（第 {{numbers}} 题）。交卷后不能再修改。",
+        "confirmAll": "已全部作答。交卷后不能再修改。",
+        "keepAnswering": "继续作答"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} 分",
+        "summary": "答对 {{correct}}/{{count}} 题 · 未答 {{unanswered}} 题",
+        "ungradable": "{{count}} 题无法判分",
+        "gradedBy": "按试卷保存的标准答案在服务器判分，没有使用 AI 模型。",
+        "onlyMistakes": "只看错题和未答",
+        "showAll": "显示全部",
+        "noMistakes": "没有错题或未答题。",
+        "outcome": {
+          "correct": "正确",
+          "incorrect": "错误",
+          "unanswered": "未答",
+          "ungradable": "无法判分"
+        },
+        "yourChoice": "你的选择",
+        "key": "正确答案：{{answer}}"
       }
     }
   }

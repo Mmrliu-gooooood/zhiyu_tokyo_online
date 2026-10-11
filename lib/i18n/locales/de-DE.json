@@ -2462,7 +2462,7 @@
     "restore": "Wiederherstellen",
     "delete": "Löschen",
     "deleteTitle": "Diesen Fachbereich löschen?",
-    "deleteText": "„{{name}}“ und die Kurszuordnungen werden gelöscht. Die Kurse und dein Fortschritt bleiben erhalten.",
+    "deleteText": "„{{name}}“ wird mit Kursverknüpfungen, Fragensammlung und Tests gelöscht. Die Kurse und Ihr Fortschritt bleiben erhalten.",
     "myCourses": "Meine Kurse",
     "addExisting": "Vorhandene Kurse hinzufügen",
     "generateCourse": "Kurs erzeugen",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "Ansehen-Eintrag, kein Beherrschungsnachweis",
         "objectiveChecked": "Auswahlfragen {{correct}}/{{total}} richtig (auf dem Server mit dem Kurs abgeglichen)",
         "objectiveUnverified": "Auswahlpunkte nicht prüfbar (Kurs geändert oder Eintrag unvollständig); nicht gezählt",
-        "aiGraded": "Offene Fragen KI-bewertet {{earned}}/{{points}} (laut Unterricht)"
+        "aiGraded": "Offene Fragen KI-bewertet {{earned}}/{{points}} (laut Unterricht)",
+        "examGraded": "Test „{{paper}}“ in {{space}} abgegeben",
+        "examScore": "{{earned}}/{{total}} Punkte · {{correct}}/{{count}} richtig (auf dem Server bewertet)",
+        "unknownPaper": "einem gelöschten Test",
+        "exam_graded": "Einen Test abgegeben"
       },
       "source": {
         "study_progress": "Fortschritt",
@@ -3024,7 +3028,8 @@
         "objective": "Auswahlfragen {{correct}}/{{total}} richtig (serverseitig geprüft)",
         "unverified": "{{count}} nicht prüfbar",
         "companion": "{{count}} Fragen nach dem Unterricht ({{detail}})",
-        "empty": "Keine Lerneinträge in diesem Zeitraum."
+        "empty": "Keine Lerneinträge in diesem Zeitraum.",
+        "exams": "Fachtests: {{count}} abgegeben, insgesamt {{earned}}/{{total}} Punkte"
       },
       "clear": {
         "open": "Löschen…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Diese Vorliebe existiert nicht mehr.",
         "STUDY_SPACE_NOT_FOUND": "Dieses Fach existiert nicht mehr.",
         "STUDY_INVALID_INPUT": "Die Eingabe ist ungültig."
+      }
+    },
+    "practice": {
+      "open": "Fragen & Tests",
+      "title": "Fragensammlung & Tests",
+      "subtitle": "Eigene Fragen importieren, nach Regeln einen Test zusammenstellen und sich jederzeit selbst prüfen. Bewertet wird auf dem Server, ohne KI-Modell.",
+      "testCourse": "Selbsttest",
+      "separator": ", ",
+      "tabs": {
+        "bank": "Fragensammlung",
+        "build": "Test erstellen",
+        "papers": "Meine Tests"
+      },
+      "type": {
+        "single": "Einfachauswahl",
+        "multiple": "Mehrfachauswahl"
+      },
+      "origin": {
+        "user_import": "Importiert",
+        "manual": "Selbst geschrieben",
+        "official": "Offiziell",
+        "public_source": "Öffentliche Quelle",
+        "ai_generated": "KI-generiert",
+        "material_extracted": "Aus Materialien"
+      },
+      "verification": {
+        "unverified": "Ungeprüft",
+        "user_verified": "Von mir geprüft",
+        "official_verified": "Offiziell geprüft"
+      },
+      "difficulty": {
+        "unknown": "Nicht festgelegt",
+        "level1": "Sehr leicht",
+        "level2": "Leicht",
+        "level3": "Mittel",
+        "level4": "Schwer",
+        "level5": "Sehr schwer"
+      },
+      "issue": {
+        "located": "{{where}}: {{what}}",
+        "atOption": "Option {{n}}",
+        "field": {
+          "type": "Typ",
+          "stem": "Frage",
+          "options": "Optionen",
+          "answer": "Antwort",
+          "explanation": "Erklärung",
+          "concepts": "Wissensbausteine",
+          "difficulty": "Schwierigkeit",
+          "points": "Punkte",
+          "source": "Quelle",
+          "verified": "Prüfmarkierung"
+        },
+        "not_object": "Kein Fragenobjekt",
+        "type_unsupported": "Derzeit werden nur Einfach- und Mehrfachauswahl unterstützt",
+        "stem_missing": "Die Frage ist leer",
+        "stem_too_long": "Die Frage ist zu lang (höchstens 4.000 Zeichen)",
+        "options_invalid": "Optionen müssen eine Liste oder mit A–H beschlüsselt sein",
+        "options_too_few": "Mindestens 2 Optionen nötig",
+        "options_too_many": "Höchstens 8 Optionen",
+        "option_empty": "Die Option ist leer",
+        "option_too_long": "Die Option ist zu lang",
+        "option_duplicate": "Doppelte Option",
+        "answer_invalid": "Die Antwort muss aus Buchstaben bestehen, z. B. \"A\" oder [\"A\", \"C\"]",
+        "answer_not_in_options": "Die Antwort nennt eine Option, die es nicht gibt",
+        "answer_duplicate": "Die Antwort wiederholt eine Option",
+        "answer_single_needs_one": "Eine Einfachauswahl braucht genau eine Antwort",
+        "answer_missing": "Keine Antwort: wird als Entwurf gespeichert und nicht in automatisch bewerteten Tests verwendet",
+        "explanation_too_long": "Die Erklärung ist zu lang",
+        "concepts_invalid": "Höchstens 8 Wissensbausteine mit je bis zu 40 Zeichen",
+        "difficulty_invalid": "Die Schwierigkeit muss 1–5 sein",
+        "points_invalid": "Punkte müssen eine ganze Zahl von 1 bis 100 sein",
+        "source_invalid": "Ungültige Quelle (Links müssen mit http beginnen)",
+        "verified_invalid": "\"verified\" muss true oder false sein"
+      },
+      "editor": {
+        "description": "Klicken Sie auf einen Buchstaben, um die richtige Option zu markieren. Formeln in LaTeX zwischen $…$.",
+        "editTitle": "Frage bearbeiten",
+        "type": "Typ",
+        "difficulty": "Schwierigkeit",
+        "points": "Punkte",
+        "stem": "Frage",
+        "stemPlaceholder": "Frage eingeben…",
+        "options": "Optionen",
+        "pickOne": "Klicken Sie einen Buchstaben für die richtige Antwort an.",
+        "pickMany": "Klicken Sie alle richtigen Buchstaben an.",
+        "markCorrect": "{{letter}} als richtig markieren",
+        "optionPlaceholder": "Option {{letter}}",
+        "removeOption": "Option entfernen",
+        "addOption": "Option hinzufügen",
+        "explanation": "Erklärung (nach der Abgabe sichtbar)",
+        "concepts": "Wissensbausteine",
+        "conceptsPlaceholder": "z. B. Grenzwerte, Ableitungen",
+        "course": "Kurs",
+        "noCourse": "Kein Kurs",
+        "verified": "Ich habe die Antwort geprüft",
+        "verifiedHint": "Ungeprüfte Fragen kommen nur in Tests, wenn Sie sie einschließen.",
+        "draftHint": "Ohne Antwort bleibt die Frage ein Entwurf und kann nicht als geprüft markiert werden.",
+        "save": "Speichern",
+        "saveDraft": "Als Entwurf speichern"
+      },
+      "errors": {
+        "questionConflict": "Diese Frage wurde anderswo geändert; die neueste Fassung wird angezeigt. Bitte erneut bearbeiten.",
+        "questionLimit": "Die Fragensammlung dieses Fachs ist voll (5.000 Fragen)."
+      },
+      "bank": {
+        "counts": "{{all}} Fragen · {{gradable}} bewertbar · {{verified}} geprüft · {{drafts}} Entwürfe",
+        "write": "Frage schreiben",
+        "search": "Fragen durchsuchen",
+        "allTypes": "Alle Typen",
+        "anyCheck": "Jeder Prüfstatus",
+        "checked": "Geprüft",
+        "anyState": "Jeder Status",
+        "gradable": "Bewertbar",
+        "drafts": "Entwürfe",
+        "allConcepts": "Alle Wissensbausteine",
+        "noMatch": "Keine Frage passt zu diesen Filtern.",
+        "empty": "Noch keine Fragen. JSON-Datei importieren, selbst schreiben oder aus einer offiziellen Sammlung kopieren.",
+        "draftChip": "Entwurf",
+        "more": "Mehr anzeigen (noch {{left}})",
+        "deleteTitle": "Diese Frage löschen?",
+        "deleteText": "Sie wird aus der Sammlung entfernt. Tests, die sie bereits enthalten, behalten ihre Kopie."
+      },
+      "import": {
+        "open": "JSON importieren",
+        "title": "Fragen importieren (JSON)",
+        "description": "Jede Frage wird geprüft, bevor etwas hinzugefügt wird. Nur JSON-Dateien werden unterstützt; die Beispieldatei zeigt das Format.",
+        "choose": "Datei wählen",
+        "another": "Andere Datei wählen",
+        "sample": "Beispieldatei",
+        "tooLarge": "Die Datei ist zu groß (höchstens 1 MB und 500 Fragen).",
+        "notJson": "Keine gültige JSON-Datei.",
+        "fileError": {
+          "not_question_bank": "Die Datei ist keine Fragenliste (siehe Beispiel).",
+          "empty": "Die Datei enthält keine Fragen.",
+          "too_many_questions": "Höchstens 500 Fragen pro Import."
+        },
+        "summary": "{{total}} Fragen: {{ready}} bereit, {{drafts}} ohne Antwort (Entwürfe), {{invalid}} fehlerhaft, {{duplicates}} bereits vorhanden",
+        "noStem": "(kein Fragentext)",
+        "status": {
+          "ready": "Bereit",
+          "draft": "Entwurf",
+          "invalid": "Fehler",
+          "duplicate": "Doppelt",
+          "skipped": "Übersprungen"
+        },
+        "edit": "Diese Frage korrigieren",
+        "editTitle": "Frage {{n}} korrigieren",
+        "skip": "Überspringen",
+        "include": "Wieder aufnehmen",
+        "verifiedMode": "Antworten geprüft?",
+        "verifiedFile": "Wie in der Datei markiert",
+        "verifiedAll": "Ich habe alle Antworten geprüft",
+        "verifiedNone": "Alle als ungeprüft markieren",
+        "commit": "{{count}} Fragen hinzufügen",
+        "done": "{{created}} Fragen hinzugefügt ({{duplicates}} waren schon vorhanden)."
+      },
+      "packs": {
+        "open": "Offizielle Sammlungen",
+        "title": "Offizielle Fragensammlungen",
+        "description": "Schreibgeschützte Fragen mit angegebener Quelle und Lizenz. In die eigene Sammlung kopieren, um sie zu bearbeiten, oder direkt beim Erstellen eines Tests verwenden.",
+        "empty": "Noch keine offiziellen Sammlungen.",
+        "attribution": "{{attribution}} · Lizenz: {{license}}",
+        "choose": "Frage auswählen",
+        "copy": "{{count}} in meine Sammlung kopieren",
+        "copied": "{{created}} Fragen kopiert ({{duplicates}} waren schon kopiert)."
+      },
+      "build": {
+        "countOf": "Anzahl {{type}}",
+        "concepts": "Wissensbausteine",
+        "noConcepts": "Noch keine Wissensbausteine. Fügen Sie sie Fragen in der Sammlung hinzu.",
+        "conceptsHint": "Leer lassen für das ganze Fach. Bei mehreren erhält jeder eine Frage, bevor sich etwas wiederholt.",
+        "anyCourse": "Jeder Kurs",
+        "difficultyAny": "Jede Schwierigkeit",
+        "difficultyEasier": "Eher leichter",
+        "difficultyHarder": "Eher schwerer",
+        "avoidSeen": "Fragen aus abgegebenen Tests auslassen",
+        "includeUnverified": "Auch Fragen mit ungeprüfter Antwort verwenden",
+        "usePack": "Auch die offizielle Sammlung „{{title}}“ verwenden ({{count}} Fragen, nach meinen eigenen)",
+        "title": "Titel des Tests",
+        "defaultTitle": "{{space}} · {{count}} Fragen",
+        "preview": "Vorschau",
+        "reshuffle": "Neu auswählen",
+        "publish": "Test erstellen und starten",
+        "ready": "{{count}} Fragen, {{points}} Punkte. Bereit zum Start.",
+        "gapsTitle": "Nicht genug Fragen für diesen Test",
+        "shortfall": "{{type}}: {{available}} von {{wanted}} verfügbar.",
+        "excludedSeen": "{{count}} weitere wurden als bereits bearbeitet ausgelassen.",
+        "excludedUnverified": "{{count}} weitere sind ungeprüft.",
+        "uncovered": "Keine passende Frage für: {{names}}",
+        "gapsHint": "Weniger Fragen wählen, die Einstellungen oben ändern oder Fragen zur Sammlung hinzufügen.",
+        "changed": "Die Sammlung hat sich seit der Vorschau geändert. Bitte erneut Vorschau anzeigen."
+      },
+      "papers": {
+        "empty": "Noch keine Tests. Erstellen Sie einen unter „Test erstellen“.",
+        "meta": "{{count}} Fragen · {{points}} Punkte",
+        "score": "{{earned}}/{{total}} Punkte",
+        "continue": "Fortsetzen",
+        "start": "Starten",
+        "again": "Erneut machen",
+        "deleteTitle": "Diesen Test löschen?",
+        "deleteText": "„{{title}}“ und alle Versuche werden gelöscht. Bereits erstellte Lerneinträge bleiben, bis Sie sie in Memory löschen."
+      },
+      "attempt": {
+        "back": "Zurück zu Fragen & Tests",
+        "progress": "{{answered}}/{{total}} beantwortet",
+        "points": "{{points}} Pkt.",
+        "saved": "Gespeichert",
+        "saving": "Speichert…",
+        "saveFailed": "Nicht gespeichert — erneut versuchen",
+        "updatedElsewhere": "Die Antworten wurden auf einem anderen Gerät oder Tab geändert; die neuesten werden angezeigt.",
+        "submittedElsewhere": "Dieser Test wurde bereits abgegeben; dieses Ergebnis wird angezeigt.",
+        "conflictBeforeSubmit": "Anderswo wurden neuere Antworten gespeichert und werden jetzt angezeigt. Bitte prüfen und erneut abgeben.",
+        "submit": "Abgeben",
+        "confirmTitle": "Diesen Test abgeben?",
+        "confirmUnanswered": "{{count}} Fragen sind unbeantwortet (Nr. {{numbers}}). Nach der Abgabe sind keine Änderungen möglich.",
+        "confirmAll": "Alle Fragen sind beantwortet. Nach der Abgabe sind keine Änderungen möglich.",
+        "keepAnswering": "Weiter beantworten"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} Punkte",
+        "summary": "{{correct}} von {{count}} richtig · {{unanswered}} unbeantwortet",
+        "ungradable": "{{count}} konnten nicht bewertet werden",
+        "gradedBy": "Auf dem Server anhand der gespeicherten Antworten des Tests bewertet; kein KI-Modell verwendet.",
+        "onlyMistakes": "Nur falsche und unbeantwortete",
+        "showAll": "Alle anzeigen",
+        "noMistakes": "Keine falschen oder unbeantworteten Fragen.",
+        "outcome": {
+          "correct": "Richtig",
+          "incorrect": "Falsch",
+          "unanswered": "Unbeantwortet",
+          "ungradable": "Nicht bewertbar"
+        },
+        "yourChoice": "Ihre Antwort",
+        "key": "Richtige Antwort: {{answer}}"
       }
     }
   }

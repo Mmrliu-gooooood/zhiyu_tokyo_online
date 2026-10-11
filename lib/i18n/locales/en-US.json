@@ -2462,7 +2462,7 @@
     "restore": "Restore",
     "delete": "Delete",
     "deleteTitle": "Delete this subject space?",
-    "deleteText": "“{{name}}” and its course links will be deleted. The courses and your progress are kept.",
+    "deleteText": "“{{name}}” will be deleted with its course links, question bank and papers. The courses and your progress are kept.",
     "myCourses": "My courses",
     "addExisting": "Add existing courses",
     "generateCourse": "Generate a course",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "Viewing record, not mastery",
         "objectiveChecked": "Choice questions {{correct}}/{{total}} correct (checked on the server against the course)",
         "objectiveUnverified": "Choice score could not be checked (course changed or record incomplete); not counted",
-        "aiGraded": "Open questions AI-graded {{earned}}/{{points}} (as recorded in class)"
+        "aiGraded": "Open questions AI-graded {{earned}}/{{points}} (as recorded in class)",
+        "examGraded": "Submitted the paper “{{paper}}” in {{space}}",
+        "examScore": "{{earned}}/{{total}} points · {{correct}}/{{count}} correct (graded on the server)",
+        "unknownPaper": "a deleted paper",
+        "exam_graded": "Submitted a paper"
       },
       "source": {
         "study_progress": "Progress",
@@ -3024,7 +3028,8 @@
         "objective": "choice questions {{correct}}/{{total}} correct (server-checked)",
         "unverified": "{{count}} could not be checked",
         "companion": "{{count}} after-class questions ({{detail}})",
-        "empty": "No learning records in this period."
+        "empty": "No learning records in this period.",
+        "exams": "Subject tests: {{count}} submitted, {{earned}}/{{total}} points in total"
       },
       "clear": {
         "open": "Clear…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "This preference no longer exists.",
         "STUDY_SPACE_NOT_FOUND": "This subject no longer exists.",
         "STUDY_INVALID_INPUT": "The input is not valid."
+      }
+    },
+    "practice": {
+      "open": "Bank & tests",
+      "title": "Question bank & tests",
+      "subtitle": "Import your own questions, build a paper by rule and test yourself whenever you like. Papers are graded on the server; no AI model is used.",
+      "testCourse": "Test yourself",
+      "separator": ", ",
+      "tabs": {
+        "bank": "Question bank",
+        "build": "Build a paper",
+        "papers": "My papers"
+      },
+      "type": {
+        "single": "Single choice",
+        "multiple": "Multiple choice"
+      },
+      "origin": {
+        "user_import": "Imported",
+        "manual": "Written by me",
+        "official": "Official",
+        "public_source": "Public source",
+        "ai_generated": "AI-generated",
+        "material_extracted": "From materials"
+      },
+      "verification": {
+        "unverified": "Unchecked",
+        "user_verified": "Checked by me",
+        "official_verified": "Officially checked"
+      },
+      "difficulty": {
+        "unknown": "Not set",
+        "level1": "Very easy",
+        "level2": "Easy",
+        "level3": "Medium",
+        "level4": "Hard",
+        "level5": "Very hard"
+      },
+      "issue": {
+        "located": "{{where}}: {{what}}",
+        "atOption": "Option {{n}}",
+        "field": {
+          "type": "Type",
+          "stem": "Stem",
+          "options": "Options",
+          "answer": "Answer",
+          "explanation": "Explanation",
+          "concepts": "Knowledge points",
+          "difficulty": "Difficulty",
+          "points": "Points",
+          "source": "Source",
+          "verified": "Checked flag"
+        },
+        "not_object": "Not a question object",
+        "type_unsupported": "Only single and multiple choice are supported for now",
+        "stem_missing": "The stem is empty",
+        "stem_too_long": "The stem is too long (at most 4,000 characters)",
+        "options_invalid": "Options must be a list or keyed A–H",
+        "options_too_few": "At least 2 options are needed",
+        "options_too_many": "At most 8 options",
+        "option_empty": "The option is empty",
+        "option_too_long": "The option is too long",
+        "option_duplicate": "Duplicate option",
+        "answer_invalid": "The answer must be letters such as \"A\" or [\"A\", \"C\"]",
+        "answer_not_in_options": "The answer names an option that does not exist",
+        "answer_duplicate": "The answer repeats an option",
+        "answer_single_needs_one": "A single-choice question needs exactly one answer",
+        "answer_missing": "No answer: kept as a draft, not used in auto-graded papers",
+        "explanation_too_long": "The explanation is too long",
+        "concepts_invalid": "At most 8 knowledge points of up to 40 characters each",
+        "difficulty_invalid": "Difficulty must be 1–5",
+        "points_invalid": "Points must be a whole number from 1 to 100",
+        "source_invalid": "Invalid source (links must start with http)",
+        "verified_invalid": "\"verified\" must be true or false"
+      },
+      "editor": {
+        "description": "Click a letter to mark the correct option. Write formulas in LaTeX between $…$.",
+        "editTitle": "Edit question",
+        "type": "Type",
+        "difficulty": "Difficulty",
+        "points": "Points",
+        "stem": "Question",
+        "stemPlaceholder": "Write the question…",
+        "options": "Options",
+        "pickOne": "Click one letter to mark the correct answer.",
+        "pickMany": "Click every correct letter.",
+        "markCorrect": "Mark {{letter}} as correct",
+        "optionPlaceholder": "Option {{letter}}",
+        "removeOption": "Remove option",
+        "addOption": "Add option",
+        "explanation": "Explanation (shown after submitting)",
+        "concepts": "Knowledge points",
+        "conceptsPlaceholder": "e.g. Limits, Derivatives",
+        "course": "Course",
+        "noCourse": "No course",
+        "verified": "I have checked the answer",
+        "verifiedHint": "Unchecked questions stay out of papers unless you choose to include them.",
+        "draftHint": "Without an answer the question is kept as a draft and cannot be marked checked.",
+        "save": "Save",
+        "saveDraft": "Save as draft"
+      },
+      "errors": {
+        "questionConflict": "This question was changed elsewhere; the newest version is shown. Please edit it again.",
+        "questionLimit": "This subject's bank is full (5,000 questions)."
+      },
+      "bank": {
+        "counts": "{{all}} questions · {{gradable}} gradable · {{verified}} checked · {{drafts}} drafts",
+        "write": "Write a question",
+        "search": "Search questions",
+        "allTypes": "All types",
+        "anyCheck": "Any check",
+        "checked": "Checked",
+        "anyState": "Any state",
+        "gradable": "Gradable",
+        "drafts": "Drafts",
+        "allConcepts": "All knowledge points",
+        "noMatch": "No question matches these filters.",
+        "empty": "No questions yet. Import a JSON file, write one, or copy from an official pack.",
+        "draftChip": "Draft",
+        "more": "Show more ({{left}} left)",
+        "deleteTitle": "Delete this question?",
+        "deleteText": "It is removed from the bank. Papers that already contain it keep their own copy."
+      },
+      "import": {
+        "open": "Import JSON",
+        "title": "Import questions (JSON)",
+        "description": "Every question is checked before anything is added. Only JSON files are supported; download the sample to see the format.",
+        "choose": "Choose a file",
+        "another": "Choose another file",
+        "sample": "Sample file",
+        "tooLarge": "The file is too large (at most 1 MB and 500 questions).",
+        "notJson": "This is not a valid JSON file.",
+        "fileError": {
+          "not_question_bank": "The file is not a question list (see the sample).",
+          "empty": "The file has no questions.",
+          "too_many_questions": "At most 500 questions per import."
+        },
+        "summary": "{{total}} questions: {{ready}} ready, {{drafts}} without answers (drafts), {{invalid}} with errors, {{duplicates}} already in the bank",
+        "noStem": "(no question text)",
+        "status": {
+          "ready": "Ready",
+          "draft": "Draft",
+          "invalid": "Error",
+          "duplicate": "Duplicate",
+          "skipped": "Skipped"
+        },
+        "edit": "Fix this question",
+        "editTitle": "Fix question #{{n}}",
+        "skip": "Skip",
+        "include": "Include again",
+        "verifiedMode": "Answers checked?",
+        "verifiedFile": "As marked in the file",
+        "verifiedAll": "I checked all answers",
+        "verifiedNone": "Mark all as unchecked",
+        "commit": "Add {{count}} questions",
+        "done": "Added {{created}} questions ({{duplicates}} were already in the bank)."
+      },
+      "packs": {
+        "open": "Official packs",
+        "title": "Official question packs",
+        "description": "Read-only questions with a stated source and licence. Copy questions into your bank to edit them, or use a pack directly when building a paper.",
+        "empty": "No official packs yet.",
+        "attribution": "{{attribution}} · Licence: {{license}}",
+        "choose": "Choose question",
+        "copy": "Copy {{count}} to my bank",
+        "copied": "Copied {{created}} questions ({{duplicates}} were already copied)."
+      },
+      "build": {
+        "countOf": "{{type}} questions",
+        "concepts": "Knowledge points",
+        "noConcepts": "No knowledge points yet. Add them to questions in the bank.",
+        "conceptsHint": "Leave empty for the whole subject. With several chosen, each one gets a question before any repeats.",
+        "anyCourse": "Any course",
+        "difficultyAny": "Any difficulty",
+        "difficultyEasier": "Prefer easier",
+        "difficultyHarder": "Prefer harder",
+        "avoidSeen": "Skip questions from papers I have submitted",
+        "includeUnverified": "Include questions whose answer is unchecked",
+        "usePack": "Also use the official pack “{{title}}” ({{count}} questions, after my own)",
+        "title": "Paper title",
+        "defaultTitle": "{{space}} · {{count}} questions",
+        "preview": "Preview",
+        "reshuffle": "Pick again",
+        "publish": "Create paper and start",
+        "ready": "{{count}} questions, {{points}} points. Ready to start.",
+        "gapsTitle": "Not enough questions for this paper",
+        "shortfall": "{{type}}: {{available}} of {{wanted}} available.",
+        "excludedSeen": "{{count}} more were skipped as already done.",
+        "excludedUnverified": "{{count}} more are unchecked.",
+        "uncovered": "No usable question for: {{names}}",
+        "gapsHint": "Ask for fewer questions, change the choices above, or add questions to the bank.",
+        "changed": "The bank changed after the preview. Please preview again."
+      },
+      "papers": {
+        "empty": "No papers yet. Build one in “Build a paper”.",
+        "meta": "{{count}} questions · {{points}} points",
+        "score": "{{earned}}/{{total}} points",
+        "continue": "Continue",
+        "start": "Start",
+        "again": "Take again",
+        "deleteTitle": "Delete this paper?",
+        "deleteText": "“{{title}}” and all its attempts will be deleted. Learning records already made stay until you clear them in Memory."
+      },
+      "attempt": {
+        "back": "Back to bank & tests",
+        "progress": "Answered {{answered}}/{{total}}",
+        "points": "{{points}} pts",
+        "saved": "Saved",
+        "saving": "Saving…",
+        "saveFailed": "Not saved — retry",
+        "updatedElsewhere": "These answers were changed on another device or tab; the newest ones are shown.",
+        "submittedElsewhere": "This paper was already submitted; that result is shown.",
+        "conflictBeforeSubmit": "Newer answers were saved elsewhere and are now shown. Check them, then submit again.",
+        "submit": "Submit",
+        "confirmTitle": "Submit this paper?",
+        "confirmUnanswered": "{{count}} questions are unanswered (No. {{numbers}}). Answers cannot be changed after submitting.",
+        "confirmAll": "All questions are answered. Answers cannot be changed after submitting.",
+        "keepAnswering": "Keep answering"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} points",
+        "summary": "{{correct}} of {{count}} correct · {{unanswered}} unanswered",
+        "ungradable": "{{count}} could not be graded",
+        "gradedBy": "Graded on the server against the paper's saved answers; no AI model was used.",
+        "onlyMistakes": "Only wrong and unanswered",
+        "showAll": "Show all",
+        "noMistakes": "No wrong or unanswered questions.",
+        "outcome": {
+          "correct": "Correct",
+          "incorrect": "Wrong",
+          "unanswered": "Unanswered",
+          "ungradable": "Not gradable"
+        },
+        "yourChoice": "Your answer",
+        "key": "Correct answer: {{answer}}"
       }
     }
   }

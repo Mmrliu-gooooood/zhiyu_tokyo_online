@@ -2,25 +2,32 @@
  * Learning-event projection (learning plan B06): read facts the server has
  * already saved and record the events they imply. No model calls.
  *
- * - Sources: B01 course progress, classroom quiz attempts (RuntimeStore) and
- *   B05 after-class chat questions. Only the owner's live courses count.
+ * - Sources: B01 course progress, classroom quiz attempts (RuntimeStore),
+ *   B05 after-class chat questions and B07 submitted subject papers. Only the
+ *   owner's live courses count.
  * - Idempotent: source keys are unique per owner and suppressed keys are
  *   skipped, so any projection can simply be run again (replay after a
  *   failure, or the catch-up when the Memory page opens).
  * - Respects the switches: nothing is projected while Memory is off, and
  *   facts from an off period are not projected after it is turned back on.
  *
- * Inline callers (progress writes, chat messages) use the narrowed variants
+ * Inline callers (progress writes, chat messages, paper submissions) use the narrowed variants
  * and never fail their own request when projection fails.
  */
 import type { Queryable } from '@openmaic/storage/document/pg';
 
 import { createLogger } from '@/lib/logger';
-import { isStudyCompanionChatFlagOn, isStudyMemoryFlagOn } from '@/lib/server/study/flags';
+import {
+  isStudyCompanionChatFlagOn,
+  isStudyExamsFlagOn,
+  isStudyMemoryFlagOn,
+} from '@/lib/server/study/flags';
+import { submittedAttempts } from '@/lib/server/study/exams/repository';
 import type { LearningEventInput } from '@/lib/study/memory/contracts';
 import {
   companionEvents,
   eventAllowed,
+  examEvents,
   progressEvents,
   quizEvents,
   type QuizRecordSource,
@@ -225,6 +232,27 @@ async function companionSourceEvents(
   );
 }
 
+async function examSourceEvents(
+  db: Queryable,
+  ownerId: string,
+  attemptId?: string,
+): Promise<LearningEventInput[]> {
+  const rows = await submittedAttempts(db, ownerId, attemptId);
+  return examEvents(
+    rows.map((row) => ({
+      attemptId: row.attemptId,
+      paperId: row.paperId,
+      spaceId: row.spaceId,
+      submittedAt: row.submittedAt,
+      itemCount: row.itemCount,
+      correct: row.grading.correct,
+      unanswered: row.grading.unanswered,
+      earned: row.grading.earned,
+      totalPoints: row.grading.totalPoints,
+    })),
+  );
+}
+
 // ── entry points ────────────────────────────────────────────────────────────
 
 type MaybeTransactional = Queryable & {
@@ -270,6 +298,24 @@ export async function projectCompanionChat(
     );
   } catch (error) {
     log.warn('chat projection failed (replayed later)', {
+      code: (error as { code?: string }).code,
+    });
+  }
+}
+
+/** After a paper was submitted (best effort; the catch-up replays failures). */
+export async function projectExamAttempt(
+  db: MaybeTransactional,
+  ownerId: string,
+  attemptId: string,
+): Promise<void> {
+  if (!isStudyMemoryFlagOn()) return;
+  try {
+    await inTransaction(db, async (tx) =>
+      record(tx, ownerId, await examSourceEvents(tx, ownerId, attemptId)),
+    );
+  } catch (error) {
+    log.warn('paper projection failed (replayed later)', {
       code: (error as { code?: string }).code,
     });
   }
@@ -324,6 +370,9 @@ async function replaySources(db: MaybeTransactional, ownerId: string): Promise<S
     // Chats live in the agent-session tables, which exist only with the runtime.
     ...(isStudyCompanionChatFlagOn()
       ? [['companion_chat', (queryable) => companionSourceEvents(queryable, ownerId)] as Source]
+      : []),
+    ...(isStudyExamsFlagOn()
+      ? [['exam_attempt', (queryable) => examSourceEvents(queryable, ownerId)] as Source]
       : []),
   ];
   for (const [name, read] of sources) {

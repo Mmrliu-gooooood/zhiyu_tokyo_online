@@ -4,6 +4,8 @@
  * /study/[spaceId] — one subject space (learning plan B01): continue learning,
  * its courses with viewing progress, goal / exam date / exam scope, adding
  * existing courses, generating a new course into the space, archive and delete.
+ * With the question bank on (B07): the way to its bank and tests, and a
+ * voluntary "test yourself" next to each course watched to the end.
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -13,6 +15,7 @@ import {
   ArchiveRestore,
   CalendarClock,
   ChevronLeft,
+  ClipboardCheck,
   MessageSquareQuote,
   MoreHorizontal,
   Pencil,
@@ -75,6 +78,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
   const [loadKey, setLoadKey] = useState(0);
   const [materialsOn, setMaterialsOn] = useState(false);
   const [qaOn, setQaOn] = useState(false);
+  const [examsOn, setExamsOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +86,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
       if (cancelled) return;
       setMaterialsOn(capabilities.materials);
       setQaOn(capabilities.qa);
+      setExamsOn(capabilities.exams);
     });
     return () => {
       cancelled = true;
@@ -178,6 +183,14 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {examsOn ? (
+            <Button asChild variant="outline" data-testid="study-open-practice">
+              <Link href={`/study/${encodeURIComponent(space.id)}/practice`}>
+                <ClipboardCheck className="mr-1 size-4" />
+                {t('study.practice.open')}
+              </Link>
+            </Button>
+          ) : null}
           {qaOn ? (
             <Button asChild data-testid="study-open-ask">
               <Link href={`/study/${encodeURIComponent(space.id)}/ask`}>
@@ -325,6 +338,16 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
                   />
                 </div>
                 <div className="flex shrink-0 gap-2">
+                  {examsOn && courseViewStatus(course.progress) === 'reached-end' ? (
+                    <Button size="sm" variant="ghost" asChild data-testid="study-course-test">
+                      <Link
+                        href={`/study/${encodeURIComponent(space.id)}/practice?tab=build&course=${encodeURIComponent(course.stageId)}`}
+                      >
+                        <ClipboardCheck className="mr-1 size-4" />
+                        {t('study.practice.testCourse')}
+                      </Link>
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="outline"

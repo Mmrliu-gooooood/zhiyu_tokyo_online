@@ -534,6 +534,14 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM study_knowledge_indexes WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_citations WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_answers WHERE owner_id=$1', [ownerId]);
+      // Question bank and papers (v28): attempts and items under their
+      // papers, versions under their questions, all under the owner's spaces.
+      await client.query('DELETE FROM study_exam_attempts WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_exam_items WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_exam_papers WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_question_versions WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_questions WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_concepts WHERE owner_id=$1', [ownerId]);
       // Memory (v27): events reference courses and spaces; preferences, facts
       // and controls reference spaces; suppressions stand alone.
       await client.query('DELETE FROM study_learning_events WHERE owner_id=$1', [ownerId]);

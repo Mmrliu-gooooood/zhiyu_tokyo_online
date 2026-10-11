@@ -2462,7 +2462,7 @@
     "restore": "復元",
     "delete": "削除",
     "deleteTitle": "この科目スペースを削除しますか？",
-    "deleteText": "「{{name}}」とコースの関連付けを削除します。コース自体と学習進度は残ります。",
+    "deleteText": "「{{name}}」とそのコースのリンク、問題集、試験の記録が削除されます。コース自体と学習の進み具合は残ります。",
     "myCourses": "マイコース",
     "addExisting": "既存のコースを追加",
     "generateCourse": "コースを生成",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "視聴記録であり、習得の証明ではありません",
         "objectiveChecked": "選択問題 {{correct}}/{{total}} 正解（サーバーでコースの問題と照合済み）",
         "objectiveUnverified": "選択問題の得点を照合できません（コース変更または記録不足）。集計に含めません",
-        "aiGraded": "記述問題の AI 採点 {{earned}}/{{points}} 点（授業の記録より）"
+        "aiGraded": "記述問題の AI 採点 {{earned}}/{{points}} 点（授業の記録より）",
+        "examGraded": "「{{space}}」で試験「{{paper}}」を提出",
+        "examScore": "{{earned}}/{{total}} 点 · {{count}} 問中 {{correct}} 問正解（サーバー採点）",
+        "unknownPaper": "削除された試験",
+        "exam_graded": "試験を提出しました"
       },
       "source": {
         "study_progress": "学習進度",
@@ -3024,7 +3028,8 @@
         "objective": "選択問題 {{correct}}/{{total}} 正解（サーバー照合）",
         "unverified": "{{count}} 回は照合不可",
         "companion": "放課後の質問 {{count}} 回（{{detail}}）",
-        "empty": "この期間の学習記録はありません。"
+        "empty": "この期間の学習記録はありません。",
+        "exams": "科目テスト：提出 {{count}} 回、合計 {{earned}}/{{total}} 点"
       },
       "clear": {
         "open": "削除…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "この好みはもう存在しません。",
         "STUDY_SPACE_NOT_FOUND": "この科目はもう存在しません。",
         "STUDY_INVALID_INPUT": "入力内容が正しくありません。"
+      }
+    },
+    "practice": {
+      "open": "問題集とテスト",
+      "title": "問題集とテスト",
+      "subtitle": "自分の問題を取り込み、ルールで試験を組み、いつでも自己テストできます。採点はサーバーで行い、AI モデルは使いません。",
+      "testCourse": "腕試し",
+      "separator": "、",
+      "tabs": {
+        "bank": "問題集",
+        "build": "試験を作る",
+        "papers": "試験の記録"
+      },
+      "type": {
+        "single": "単一選択",
+        "multiple": "複数選択"
+      },
+      "origin": {
+        "user_import": "取り込み",
+        "manual": "自分で作成",
+        "official": "公式",
+        "public_source": "公開ソース",
+        "ai_generated": "AI 生成",
+        "material_extracted": "資料から抽出"
+      },
+      "verification": {
+        "unverified": "未確認",
+        "user_verified": "確認済み",
+        "official_verified": "公式確認済み"
+      },
+      "difficulty": {
+        "unknown": "未設定",
+        "level1": "とても易しい",
+        "level2": "易しい",
+        "level3": "普通",
+        "level4": "難しい",
+        "level5": "とても難しい"
+      },
+      "issue": {
+        "located": "{{where}}：{{what}}",
+        "atOption": "選択肢 {{n}}",
+        "field": {
+          "type": "形式",
+          "stem": "問題文",
+          "options": "選択肢",
+          "answer": "正解",
+          "explanation": "解説",
+          "concepts": "知識項目",
+          "difficulty": "難易度",
+          "points": "配点",
+          "source": "出典",
+          "verified": "確認フラグ"
+        },
+        "not_object": "問題オブジェクトではありません",
+        "type_unsupported": "現在は単一選択と複数選択のみ対応しています",
+        "stem_missing": "問題文が空です",
+        "stem_too_long": "問題文が長すぎます（最大 4000 文字）",
+        "options_invalid": "選択肢はリストか A–H のキーで指定してください",
+        "options_too_few": "選択肢は 2 つ以上必要です",
+        "options_too_many": "選択肢は最大 8 つです",
+        "option_empty": "選択肢が空です",
+        "option_too_long": "選択肢が長すぎます",
+        "option_duplicate": "選択肢が重複しています",
+        "answer_invalid": "正解は \"A\" や [\"A\",\"C\"] のような文字で指定してください",
+        "answer_not_in_options": "存在しない選択肢が正解に含まれています",
+        "answer_duplicate": "正解に同じ選択肢が重複しています",
+        "answer_single_needs_one": "単一選択の正解は 1 つだけです",
+        "answer_missing": "正解がありません：下書きとして保存され、自動採点の試験には使われません",
+        "explanation_too_long": "解説が長すぎます",
+        "concepts_invalid": "知識項目は最大 8 個、各 40 文字までです",
+        "difficulty_invalid": "難易度は 1–5 です",
+        "points_invalid": "配点は 1–100 の整数です",
+        "source_invalid": "出典が不正です（リンクは http で始めてください）",
+        "verified_invalid": "verified は true か false です"
+      },
+      "editor": {
+        "description": "文字をクリックして正解の選択肢を示します。数式は $…$ で囲んだ LaTeX で書けます。",
+        "editTitle": "問題を編集",
+        "type": "形式",
+        "difficulty": "難易度",
+        "points": "配点",
+        "stem": "問題文",
+        "stemPlaceholder": "問題を入力…",
+        "options": "選択肢",
+        "pickOne": "正解の文字を 1 つクリックしてください。",
+        "pickMany": "正解の文字をすべてクリックしてください。",
+        "markCorrect": "{{letter}} を正解にする",
+        "optionPlaceholder": "選択肢 {{letter}}",
+        "removeOption": "選択肢を削除",
+        "addOption": "選択肢を追加",
+        "explanation": "解説（提出後に表示）",
+        "concepts": "知識項目",
+        "conceptsPlaceholder": "例：極限、微分",
+        "course": "コース",
+        "noCourse": "コースなし",
+        "verified": "正解を確認しました",
+        "verifiedHint": "未確認の問題は、含めると選んだ場合を除き試験に入りません。",
+        "draftHint": "正解のない問題は下書きとなり、確認済みにはできません。",
+        "save": "保存",
+        "saveDraft": "下書き保存"
+      },
+      "errors": {
+        "questionConflict": "この問題は別の場所で変更されました。最新版を表示しています。もう一度編集してください。",
+        "questionLimit": "この科目の問題集はいっぱいです（5000 問）。"
+      },
+      "bank": {
+        "counts": "全 {{all}} 問 · 採点可 {{gradable}} · 確認済み {{verified}} · 下書き {{drafts}}",
+        "write": "問題を作成",
+        "search": "問題を検索",
+        "allTypes": "すべての形式",
+        "anyCheck": "確認状態すべて",
+        "checked": "確認済み",
+        "anyState": "すべての状態",
+        "gradable": "採点可",
+        "drafts": "下書き",
+        "allConcepts": "すべての知識項目",
+        "noMatch": "条件に合う問題はありません。",
+        "empty": "まだ問題がありません。JSON の取り込み、手入力、公式問題集からのコピーができます。",
+        "draftChip": "下書き",
+        "more": "さらに表示（残り {{left}} 問）",
+        "deleteTitle": "この問題を削除しますか？",
+        "deleteText": "問題集から削除されます。すでにこの問題を含む試験はそのまま残ります。"
+      },
+      "import": {
+        "open": "JSON を取り込む",
+        "title": "問題の取り込み（JSON）",
+        "description": "追加する前に 1 問ずつ確認します。対応は JSON ファイルのみです。形式はサンプルをご覧ください。",
+        "choose": "ファイルを選ぶ",
+        "another": "別のファイルを選ぶ",
+        "sample": "サンプル",
+        "tooLarge": "ファイルが大きすぎます（最大 1 MB、500 問）。",
+        "notJson": "有効な JSON ファイルではありません。",
+        "fileError": {
+          "not_question_bank": "問題のリストではありません（サンプルを参照）。",
+          "empty": "問題が含まれていません。",
+          "too_many_questions": "1 回に取り込めるのは 500 問までです。"
+        },
+        "summary": "全 {{total}} 問：取り込み可 {{ready}}、正解なし（下書き）{{drafts}}、エラー {{invalid}}、既存 {{duplicates}}",
+        "noStem": "（問題文なし）",
+        "status": {
+          "ready": "取り込み可",
+          "draft": "下書き",
+          "invalid": "エラー",
+          "duplicate": "重複",
+          "skipped": "スキップ"
+        },
+        "edit": "この問題を修正",
+        "editTitle": "{{n}} 問目を修正",
+        "skip": "スキップ",
+        "include": "取り込みに戻す",
+        "verifiedMode": "正解の確認",
+        "verifiedFile": "ファイルの記載どおり",
+        "verifiedAll": "すべて確認済み",
+        "verifiedNone": "すべて未確認にする",
+        "commit": "{{count}} 問を取り込む",
+        "done": "{{created}} 問を取り込みました（{{duplicates}} 問は既存）。"
+      },
+      "packs": {
+        "open": "公式問題集",
+        "title": "公式問題集",
+        "description": "出典とライセンスを明記した読み取り専用の問題です。自分の問題集にコピーすると編集でき、試験作成で直接使うこともできます。",
+        "empty": "公式問題集はまだありません。",
+        "attribution": "{{attribution}} · ライセンス：{{license}}",
+        "choose": "問題を選択",
+        "copy": "{{count}} 問を自分の問題集にコピー",
+        "copied": "{{created}} 問をコピーしました（{{duplicates}} 問はコピー済み）。"
+      },
+      "build": {
+        "countOf": "{{type}}の問題数",
+        "concepts": "知識項目",
+        "noConcepts": "知識項目はまだありません。問題集で問題に追加できます。",
+        "conceptsHint": "空欄なら科目全体。複数選ぶと、重複より先に各項目から 1 問ずつ選びます。",
+        "anyCourse": "コースを限定しない",
+        "difficultyAny": "難易度を問わない",
+        "difficultyEasier": "易しめ",
+        "difficultyHarder": "難しめ",
+        "avoidSeen": "提出済みの試験に出た問題を避ける",
+        "includeUnverified": "正解が未確認の問題も含める",
+        "usePack": "公式問題集「{{title}}」も使う（{{count}} 問、自分の問題の後）",
+        "title": "試験名",
+        "defaultTitle": "{{space}} · {{count}} 問",
+        "preview": "プレビュー",
+        "reshuffle": "選び直す",
+        "publish": "試験を作成して開始",
+        "ready": "全 {{count}} 問、{{points}} 点。開始できます。",
+        "gapsTitle": "この試験を作るには問題が足りません",
+        "shortfall": "{{type}}：{{wanted}} 問中 {{available}} 問のみ利用可能。",
+        "excludedSeen": "ほかに {{count}} 問が解答済みのため除外。",
+        "excludedUnverified": "ほかに {{count}} 問が未確認。",
+        "uncovered": "使える問題がない知識項目：{{names}}",
+        "gapsHint": "問題数を減らす、上の条件を変える、または問題集に問題を追加してください。",
+        "changed": "プレビュー後に問題集が変わりました。もう一度プレビューしてください。"
+      },
+      "papers": {
+        "empty": "まだ試験がありません。「試験を作る」から作成できます。",
+        "meta": "{{count}} 問 · {{points}} 点",
+        "score": "{{earned}}/{{total}} 点",
+        "continue": "続きから解く",
+        "start": "解き始める",
+        "again": "もう一度解く",
+        "deleteTitle": "この試験を削除しますか？",
+        "deleteText": "「{{title}}」とそのすべての解答が削除されます。作成済みの学習記録は Memory で消去するまで残ります。"
+      },
+      "attempt": {
+        "back": "問題集とテストに戻る",
+        "progress": "解答済み {{answered}}/{{total}}",
+        "points": "{{points}} 点",
+        "saved": "保存済み",
+        "saving": "保存中…",
+        "saveFailed": "未保存 — 再試行",
+        "updatedElsewhere": "別の端末またはタブで解答が更新されました。最新の内容を表示しています。",
+        "submittedElsewhere": "この試験は提出済みです。その結果を表示しています。",
+        "conflictBeforeSubmit": "別の場所で新しい解答が保存されたため表示しました。確認してから再度提出してください。",
+        "submit": "提出",
+        "confirmTitle": "この試験を提出しますか？",
+        "confirmUnanswered": "未解答が {{count}} 問あります（{{numbers}} 問目）。提出後は変更できません。",
+        "confirmAll": "すべて解答済みです。提出後は変更できません。",
+        "keepAnswering": "解答を続ける"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} 点",
+        "summary": "{{count}} 問中 {{correct}} 問正解 · 未解答 {{unanswered}} 問",
+        "ungradable": "{{count}} 問は採点できません",
+        "gradedBy": "試験に保存された正解でサーバーが採点しました。AI モデルは使っていません。",
+        "onlyMistakes": "誤答と未解答のみ",
+        "showAll": "すべて表示",
+        "noMistakes": "誤答・未解答はありません。",
+        "outcome": {
+          "correct": "正解",
+          "incorrect": "不正解",
+          "unanswered": "未解答",
+          "ungradable": "採点不可"
+        },
+        "yourChoice": "あなたの解答",
+        "key": "正解：{{answer}}"
       }
     }
   }

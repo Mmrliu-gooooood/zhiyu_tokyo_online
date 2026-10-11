@@ -44,3 +44,12 @@ export function isStudyMemoryFlagOn(env: NodeJS.ProcessEnv = process.env): boole
   const flag = env.ZHIYU_STUDY_MEMORY_ENABLED;
   return flag === '1' || flag === 'true';
 }
+
+/**
+ * ZHIYU_STUDY_EXAMS_ENABLED: question bank, rule-built papers and objective
+ * attempts (learning plan B07). Web only; no model is involved.
+ */
+export function isStudyExamsFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_EXAMS_ENABLED;
+  return flag === '1' || flag === 'true';
+}

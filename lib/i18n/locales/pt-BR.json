@@ -2462,7 +2462,7 @@
     "restore": "Restaurar",
     "delete": "Excluir",
     "deleteTitle": "Excluir este espaço de matéria?",
-    "deleteText": "“{{name}}” e os vínculos de cursos serão excluídos. Os cursos e seu progresso são mantidos.",
+    "deleteText": "“{{name}}” será excluída com os vínculos de cursos, o banco de questões e as provas. Os cursos e seu progresso são mantidos.",
     "myCourses": "Meus cursos",
     "addExisting": "Adicionar cursos existentes",
     "generateCourse": "Gerar um curso",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "Registro de visualização, não de domínio",
         "objectiveChecked": "Múltipla escolha {{correct}}/{{total}} corretas (conferido no servidor com o curso)",
         "objectiveUnverified": "Nota de múltipla escolha não conferível (curso alterado ou registro incompleto); não contada",
-        "aiGraded": "Questões abertas corrigidas por IA {{earned}}/{{points}} (conforme a aula)"
+        "aiGraded": "Questões abertas corrigidas por IA {{earned}}/{{points}} (conforme a aula)",
+        "examGraded": "Entregou a prova “{{paper}}” em {{space}}",
+        "examScore": "{{earned}}/{{total}} pontos · {{correct}}/{{count}} certas (corrigida no servidor)",
+        "unknownPaper": "uma prova excluída",
+        "exam_graded": "Entregou uma prova"
       },
       "source": {
         "study_progress": "Progresso",
@@ -3024,7 +3028,8 @@
         "objective": "múltipla escolha {{correct}}/{{total}} corretas (conferido)",
         "unverified": "{{count}} não conferíveis",
         "companion": "{{count}} perguntas depois da aula ({{detail}})",
-        "empty": "Nenhum registro neste período."
+        "empty": "Nenhum registro neste período.",
+        "exams": "Provas da matéria: {{count}} entregues, {{earned}}/{{total}} pontos no total"
       },
       "clear": {
         "open": "Apagar…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Esta preferência não existe mais.",
         "STUDY_SPACE_NOT_FOUND": "Esta matéria não existe mais.",
         "STUDY_INVALID_INPUT": "Entrada inválida."
+      }
+    },
+    "practice": {
+      "open": "Questões e testes",
+      "title": "Banco de questões e testes",
+      "subtitle": "Importe suas próprias questões, monte uma prova por regras e teste-se quando quiser. A correção é feita no servidor, sem modelo de IA.",
+      "testCourse": "Testar-me",
+      "separator": ", ",
+      "tabs": {
+        "bank": "Banco de questões",
+        "build": "Montar prova",
+        "papers": "Minhas provas"
+      },
+      "type": {
+        "single": "Escolha única",
+        "multiple": "Múltipla escolha"
+      },
+      "origin": {
+        "user_import": "Importada",
+        "manual": "Escrita por mim",
+        "official": "Oficial",
+        "public_source": "Fonte pública",
+        "ai_generated": "Gerada por IA",
+        "material_extracted": "Dos materiais"
+      },
+      "verification": {
+        "unverified": "Não conferida",
+        "user_verified": "Conferida por mim",
+        "official_verified": "Conferida oficialmente"
+      },
+      "difficulty": {
+        "unknown": "Não definida",
+        "level1": "Muito fácil",
+        "level2": "Fácil",
+        "level3": "Média",
+        "level4": "Difícil",
+        "level5": "Muito difícil"
+      },
+      "issue": {
+        "located": "{{where}}: {{what}}",
+        "atOption": "Opção {{n}}",
+        "field": {
+          "type": "Tipo",
+          "stem": "Enunciado",
+          "options": "Opções",
+          "answer": "Resposta",
+          "explanation": "Explicação",
+          "concepts": "Tópicos",
+          "difficulty": "Dificuldade",
+          "points": "Pontos",
+          "source": "Fonte",
+          "verified": "Marca de conferência"
+        },
+        "not_object": "Não é uma questão",
+        "type_unsupported": "Por enquanto só há suporte a escolha única e múltipla",
+        "stem_missing": "O enunciado está vazio",
+        "stem_too_long": "O enunciado é longo demais (no máximo 4.000 caracteres)",
+        "options_invalid": "As opções devem ser uma lista ou chaves A–H",
+        "options_too_few": "São necessárias pelo menos 2 opções",
+        "options_too_many": "No máximo 8 opções",
+        "option_empty": "A opção está vazia",
+        "option_too_long": "A opção é longa demais",
+        "option_duplicate": "Opção repetida",
+        "answer_invalid": "A resposta deve ser letras como \"A\" ou [\"A\", \"C\"]",
+        "answer_not_in_options": "A resposta cita uma opção que não existe",
+        "answer_duplicate": "A resposta repete uma opção",
+        "answer_single_needs_one": "Uma questão de escolha única tem exatamente uma resposta",
+        "answer_missing": "Sem resposta: fica como rascunho e não é usada em provas corrigidas automaticamente",
+        "explanation_too_long": "A explicação é longa demais",
+        "concepts_invalid": "No máximo 8 tópicos de até 40 caracteres cada",
+        "difficulty_invalid": "A dificuldade deve ser de 1 a 5",
+        "points_invalid": "Os pontos devem ser um inteiro de 1 a 100",
+        "source_invalid": "Fonte inválida (links devem começar com http)",
+        "verified_invalid": "\"verified\" deve ser true ou false"
+      },
+      "editor": {
+        "description": "Clique numa letra para marcar a opção correta. Escreva fórmulas em LaTeX entre $…$.",
+        "editTitle": "Editar questão",
+        "type": "Tipo",
+        "difficulty": "Dificuldade",
+        "points": "Pontos",
+        "stem": "Enunciado",
+        "stemPlaceholder": "Escreva a questão…",
+        "options": "Opções",
+        "pickOne": "Clique numa letra para marcar a resposta correta.",
+        "pickMany": "Clique em todas as letras corretas.",
+        "markCorrect": "Marcar {{letter}} como correta",
+        "optionPlaceholder": "Opção {{letter}}",
+        "removeOption": "Remover opção",
+        "addOption": "Adicionar opção",
+        "explanation": "Explicação (mostrada após a entrega)",
+        "concepts": "Tópicos",
+        "conceptsPlaceholder": "ex.: Limites, Derivadas",
+        "course": "Curso",
+        "noCourse": "Sem curso",
+        "verified": "Conferi a resposta",
+        "verifiedHint": "Questões não conferidas só entram em provas se você escolher incluí-las.",
+        "draftHint": "Sem resposta, a questão fica como rascunho e não pode ser marcada como conferida.",
+        "save": "Salvar",
+        "saveDraft": "Salvar como rascunho"
+      },
+      "errors": {
+        "questionConflict": "Esta questão foi alterada em outro lugar; a versão mais recente está sendo exibida. Edite novamente.",
+        "questionLimit": "O banco desta matéria está cheio (5.000 questões)."
+      },
+      "bank": {
+        "counts": "{{all}} questões · {{gradable}} corrigíveis · {{verified}} conferidas · {{drafts}} rascunhos",
+        "write": "Escrever questão",
+        "search": "Buscar questões",
+        "allTypes": "Todos os tipos",
+        "anyCheck": "Qualquer conferência",
+        "checked": "Conferidas",
+        "anyState": "Qualquer estado",
+        "gradable": "Corrigíveis",
+        "drafts": "Rascunhos",
+        "allConcepts": "Todos os tópicos",
+        "noMatch": "Nenhuma questão corresponde a estes filtros.",
+        "empty": "Ainda não há questões. Importe um arquivo JSON, escreva uma ou copie de um banco oficial.",
+        "draftChip": "Rascunho",
+        "more": "Mostrar mais (faltam {{left}})",
+        "deleteTitle": "Excluir esta questão?",
+        "deleteText": "Ela sai do banco. Provas que já a contêm mantêm sua cópia."
+      },
+      "import": {
+        "open": "Importar JSON",
+        "title": "Importar questões (JSON)",
+        "description": "Cada questão é verificada antes de qualquer inclusão. Só arquivos JSON são aceitos; baixe o exemplo para ver o formato.",
+        "choose": "Escolher arquivo",
+        "another": "Escolher outro arquivo",
+        "sample": "Arquivo de exemplo",
+        "tooLarge": "O arquivo é grande demais (no máximo 1 MB e 500 questões).",
+        "notJson": "Não é um arquivo JSON válido.",
+        "fileError": {
+          "not_question_bank": "O arquivo não é uma lista de questões (veja o exemplo).",
+          "empty": "O arquivo não tem questões.",
+          "too_many_questions": "No máximo 500 questões por importação."
+        },
+        "summary": "{{total}} questões: {{ready}} prontas, {{drafts}} sem resposta (rascunhos), {{invalid}} com erros, {{duplicates}} já no banco",
+        "noStem": "(sem enunciado)",
+        "status": {
+          "ready": "Pronta",
+          "draft": "Rascunho",
+          "invalid": "Erro",
+          "duplicate": "Repetida",
+          "skipped": "Ignorada"
+        },
+        "edit": "Corrigir esta questão",
+        "editTitle": "Corrigir a questão nº {{n}}",
+        "skip": "Ignorar",
+        "include": "Incluir de novo",
+        "verifiedMode": "Respostas conferidas?",
+        "verifiedFile": "Como marcado no arquivo",
+        "verifiedAll": "Conferi todas as respostas",
+        "verifiedNone": "Marcar todas como não conferidas",
+        "commit": "Adicionar {{count}} questões",
+        "done": "{{created}} questões adicionadas ({{duplicates}} já estavam no banco)."
+      },
+      "packs": {
+        "open": "Bancos oficiais",
+        "title": "Bancos de questões oficiais",
+        "description": "Questões somente leitura, com fonte e licença informadas. Copie para o seu banco para editar, ou use um banco diretamente ao montar uma prova.",
+        "empty": "Ainda não há bancos oficiais.",
+        "attribution": "{{attribution}} · Licença: {{license}}",
+        "choose": "Escolher questão",
+        "copy": "Copiar {{count}} para o meu banco",
+        "copied": "{{created}} questões copiadas ({{duplicates}} já tinham sido copiadas)."
+      },
+      "build": {
+        "countOf": "Questões de {{type}}",
+        "concepts": "Tópicos",
+        "noConcepts": "Ainda não há tópicos. Adicione-os às questões no banco.",
+        "conceptsHint": "Deixe vazio para a matéria inteira. Com vários, cada tópico recebe uma questão antes de repetir.",
+        "anyCourse": "Qualquer curso",
+        "difficultyAny": "Qualquer dificuldade",
+        "difficultyEasier": "Mais fáceis",
+        "difficultyHarder": "Mais difíceis",
+        "avoidSeen": "Evitar questões de provas que já entreguei",
+        "includeUnverified": "Incluir questões com resposta não conferida",
+        "usePack": "Usar também o banco oficial “{{title}}” ({{count}} questões, depois das minhas)",
+        "title": "Título da prova",
+        "defaultTitle": "{{space}} · {{count}} questões",
+        "preview": "Pré-visualizar",
+        "reshuffle": "Sortear de novo",
+        "publish": "Criar prova e começar",
+        "ready": "{{count}} questões, {{points}} pontos. Pronta para começar.",
+        "gapsTitle": "Não há questões suficientes para esta prova",
+        "shortfall": "{{type}}: {{available}} de {{wanted}} disponíveis.",
+        "excludedSeen": "Outras {{count}} foram puladas por já terem sido feitas.",
+        "excludedUnverified": "Outras {{count}} não foram conferidas.",
+        "uncovered": "Nenhuma questão utilizável para: {{names}}",
+        "gapsHint": "Peça menos questões, mude as opções acima ou adicione questões ao banco.",
+        "changed": "O banco mudou desde a pré-visualização. Pré-visualize de novo."
+      },
+      "papers": {
+        "empty": "Ainda não há provas. Monte uma em “Montar prova”.",
+        "meta": "{{count}} questões · {{points}} pontos",
+        "score": "{{earned}}/{{total}} pontos",
+        "continue": "Continuar",
+        "start": "Começar",
+        "again": "Fazer de novo",
+        "deleteTitle": "Excluir esta prova?",
+        "deleteText": "“{{title}}” e todas as suas tentativas serão excluídas. Os registros de aprendizagem já criados ficam até você apagá-los no Memory."
+      },
+      "attempt": {
+        "back": "Voltar a questões e testes",
+        "progress": "{{answered}}/{{total}} respondidas",
+        "points": "{{points}} pts",
+        "saved": "Salvo",
+        "saving": "Salvando…",
+        "saveFailed": "Não salvo — tentar de novo",
+        "updatedElsewhere": "As respostas mudaram em outro dispositivo ou aba; as mais recentes estão sendo exibidas.",
+        "submittedElsewhere": "Esta prova já foi entregue; esse resultado está sendo exibido.",
+        "conflictBeforeSubmit": "Respostas mais recentes foram salvas em outro lugar e já aparecem. Confira e entregue de novo.",
+        "submit": "Entregar",
+        "confirmTitle": "Entregar esta prova?",
+        "confirmUnanswered": "{{count}} questões sem resposta (nº {{numbers}}). Depois de entregar não é possível alterar.",
+        "confirmAll": "Todas as questões foram respondidas. Depois de entregar não é possível alterar.",
+        "keepAnswering": "Continuar respondendo"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} pontos",
+        "summary": "{{correct}} de {{count}} certas · {{unanswered}} sem resposta",
+        "ungradable": "{{count}} não puderam ser corrigidas",
+        "gradedBy": "Corrigida no servidor com as respostas salvas da prova; nenhum modelo de IA foi usado.",
+        "onlyMistakes": "Só erradas e sem resposta",
+        "showAll": "Mostrar todas",
+        "noMistakes": "Nenhuma questão errada ou sem resposta.",
+        "outcome": {
+          "correct": "Certa",
+          "incorrect": "Errada",
+          "unanswered": "Sem resposta",
+          "ungradable": "Não corrigível"
+        },
+        "yourChoice": "Sua resposta",
+        "key": "Resposta correta: {{answer}}"
       }
     }
   }

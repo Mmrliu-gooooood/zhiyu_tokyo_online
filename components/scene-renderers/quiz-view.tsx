@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   PieChart,
@@ -38,7 +38,7 @@ import {
   type QuizGradeProvenance,
   type QuizQuestionSnapshot,
 } from '@/lib/quiz/attempt-schema';
-import { renderQuizMathText } from '@/lib/quiz/math-text';
+import { QuizMathText } from '@/components/quiz/QuizMathText';
 import { writeDraftRecovery } from '@/lib/quiz/persistence';
 import {
   createQuizAttemptWriter,
@@ -77,43 +77,6 @@ interface QuizViewProps {
     prompt: string,
   ) => Promise<unknown> | unknown;
 }
-
-const QuizMathText = memo(function QuizMathText({
-  text,
-  className,
-  allowDisplayMode = false,
-}: {
-  text: string;
-  className?: string;
-  allowDisplayMode?: boolean;
-}) {
-  const segments = useMemo(() => renderQuizMathText(text), [text]);
-  if (segments.length === 1 && segments[0].type === 'text') {
-    return <span className={className}>{segments[0].value}</span>;
-  }
-
-  return (
-    <span className={className}>
-      {segments.map((segment, index) => {
-        if (segment.type === 'text') {
-          return <span key={index}>{segment.value}</span>;
-        }
-
-        return (
-          <span
-            key={index}
-            className={cn(
-              allowDisplayMode && segment.displayMode
-                ? 'block my-1 overflow-x-auto [&_.katex-display]:!my-0'
-                : 'inline-block align-baseline [&_.katex-display]:!my-0',
-            )}
-            dangerouslySetInnerHTML={{ __html: segment.html }}
-          />
-        );
-      })}
-    </span>
-  );
-});
 
 /** Call /api/quiz-grade for a single short-answer question. */
 class QuizGradeRequestError extends Error {

@@ -1,0 +1,64 @@
+{
+  "format": "zhiyu-question-bank",
+  "version": 1,
+  "source": {
+    "title": "我的线性代数练习册",
+    "license": "个人自用",
+    "attribution": "自己整理"
+  },
+  "questions": [
+    {
+      "id": "la-1",
+      "type": "single",
+      "stem": "矩阵 $A=\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$ 的行列式等于",
+      "options": ["$-2$", "$2$", "$10$", "$-10$"],
+      "answer": "A",
+      "explanation": "$1\\times4-2\\times3=-2$。",
+      "concepts": ["行列式"],
+      "difficulty": 1,
+      "points": 1,
+      "verified": true,
+      "source": { "title": "练习册第 1 章", "page": "12" }
+    },
+    {
+      "id": "la-2",
+      "type": "multiple",
+      "stem": "下列哪些矩阵一定可逆？",
+      "options": {
+        "A": "单位矩阵",
+        "B": "行列式不为 0 的方阵",
+        "C": "零矩阵",
+        "D": "有一行全为 0 的方阵"
+      },
+      "answer": "AB",
+      "explanation": "方阵可逆当且仅当行列式不为 0；零矩阵和有零行的方阵行列式为 0。",
+      "concepts": ["逆矩阵", "行列式"],
+      "difficulty": 2,
+      "points": 2,
+      "verified": true
+    },
+    {
+      "id": "la-3",
+      "type": "single",
+      "stem": "若 $A$ 是 $3\\times4$ 矩阵，$B$ 是 $4\\times2$ 矩阵，则 $AB$ 的形状是",
+      "options": [
+        { "value": "A", "label": "$3\\times2$" },
+        { "value": "B", "label": "$4\\times4$" },
+        { "value": "C", "label": "$2\\times3$" },
+        { "value": "D", "label": "无法相乘" }
+      ],
+      "answer": ["A"],
+      "concepts": ["矩阵乘法"],
+      "difficulty": 1,
+      "verified": true
+    },
+    {
+      "id": "la-4",
+      "type": "single",
+      "stem": "向量组 $(1,0),(0,1),(1,1)$ 的秩是",
+      "options": ["1", "2", "3", "0"],
+      "explanation": "答案缺失的题会作为草稿保存，补上答案后才能用于自动判分。",
+      "concepts": ["秩"]
+    }
+  ]
+}

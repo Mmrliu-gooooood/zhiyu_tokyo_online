@@ -133,8 +133,8 @@ const EVENT = `INSERT INTO study_learning_events
   VALUES ($1, 'course_started', 'study_progress', $2, $3, $2, now())`;
 
 describe('accounts v27 registration', () => {
-  it('is the newest accounts version with a stable checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(27);
+  it('is registered with a stable checksum', () => {
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(27);
     expect(accountsMigrationChecksum(27)).toMatch(/^[a-f0-9]{64}$/);
     expect(ACCOUNTS_MIGRATION_27).toContain('FORCE ROW LEVEL SECURITY');
   });

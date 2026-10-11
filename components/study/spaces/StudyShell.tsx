@@ -171,7 +171,14 @@ export function studyFailureState(error: unknown): Exclude<StudyLoadState, 'load
   const status = (error as { status?: number })?.status;
   const code = (error as { code?: string })?.code;
   if (code === 'STUDY_ACCOUNT_REQUIRED' || status === 401) return 'signed-out';
-  if (code === 'STUDY_SPACE_NOT_FOUND' || code === 'STUDY_MATERIAL_NOT_FOUND') return 'not-found';
+  if (
+    code === 'STUDY_SPACE_NOT_FOUND' ||
+    code === 'STUDY_MATERIAL_NOT_FOUND' ||
+    code === 'STUDY_PAPER_NOT_FOUND' ||
+    code === 'STUDY_ATTEMPT_NOT_FOUND'
+  ) {
+    return 'not-found';
+  }
   if (status === 404) return 'unavailable';
   return 'error';
 }

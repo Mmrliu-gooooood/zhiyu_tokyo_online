@@ -404,7 +404,7 @@ describe('rule-based recent state', () => {
       companionQuestions: 2,
       companionByClassmate: [{ classmateId: 'cm-a', count: 2 }],
       sourceWatermark: 8,
-      policyVersion: 'recent-state-rules-v1',
+      policyVersion: 'recent-state-rules-v2',
     });
     expect(Object.keys(all).join(',')).not.toMatch(/master/i);
     const spaceA = aggregateRecentState(records, 'space-a', now);

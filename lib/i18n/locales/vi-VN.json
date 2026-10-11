@@ -2462,7 +2462,7 @@
     "restore": "Khôi phục",
     "delete": "Xóa",
     "deleteTitle": "Xóa không gian môn học này?",
-    "deleteText": "“{{name}}” và liên kết khóa học sẽ bị xóa. Khóa học và tiến độ của bạn vẫn được giữ.",
+    "deleteText": "“{{name}}” sẽ bị xóa cùng liên kết khóa học, ngân hàng câu hỏi và các đề. Khóa học và tiến độ của bạn được giữ lại.",
     "myCourses": "Khóa học của tôi",
     "addExisting": "Thêm khóa học có sẵn",
     "generateCourse": "Tạo khóa học",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "Bản ghi xem bài, không có nghĩa là đã nắm vững",
         "objectiveChecked": "Trắc nghiệm đúng {{correct}}/{{total}} (đã đối chiếu với đề gốc trên máy chủ)",
         "objectiveUnverified": "Không thể đối chiếu điểm trắc nghiệm (khóa học đã đổi hoặc bản ghi thiếu); không tính",
-        "aiGraded": "Câu tự luận AI chấm {{earned}}/{{points}} điểm (theo bản ghi trong lớp)"
+        "aiGraded": "Câu tự luận AI chấm {{earned}}/{{points}} điểm (theo bản ghi trong lớp)",
+        "examGraded": "Đã nộp đề “{{paper}}” trong {{space}}",
+        "examScore": "{{earned}}/{{total}} điểm · đúng {{correct}}/{{count}} câu (chấm trên máy chủ)",
+        "unknownPaper": "một đề đã xóa",
+        "exam_graded": "Đã nộp một đề"
       },
       "source": {
         "study_progress": "Tiến độ",
@@ -3024,7 +3028,8 @@
         "objective": "trắc nghiệm đúng {{correct}}/{{total}} (đã đối chiếu)",
         "unverified": "{{count}} lần không đối chiếu được",
         "companion": "Hỏi sau giờ học {{count}} lần ({{detail}})",
-        "empty": "Không có bản ghi trong khoảng này."
+        "empty": "Không có bản ghi trong khoảng này.",
+        "exams": "Kiểm tra theo môn: nộp {{count}} lần, tổng {{earned}}/{{total}} điểm"
       },
       "clear": {
         "open": "Xóa…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Sở thích này không còn tồn tại.",
         "STUDY_SPACE_NOT_FOUND": "Môn học này không còn tồn tại.",
         "STUDY_INVALID_INPUT": "Dữ liệu nhập không hợp lệ."
+      }
+    },
+    "practice": {
+      "open": "Ngân hàng đề & kiểm tra",
+      "title": "Ngân hàng câu hỏi & kiểm tra",
+      "subtitle": "Nhập câu hỏi của bạn, tạo đề theo quy tắc và tự kiểm tra bất cứ lúc nào. Bài được chấm trên máy chủ, không dùng mô hình AI.",
+      "testCourse": "Tự kiểm tra",
+      "separator": ", ",
+      "tabs": {
+        "bank": "Ngân hàng câu hỏi",
+        "build": "Tạo đề",
+        "papers": "Đề của tôi"
+      },
+      "type": {
+        "single": "Một đáp án",
+        "multiple": "Nhiều đáp án"
+      },
+      "origin": {
+        "user_import": "Đã nhập",
+        "manual": "Tự viết",
+        "official": "Chính thức",
+        "public_source": "Nguồn công khai",
+        "ai_generated": "Do AI tạo",
+        "material_extracted": "Trích từ tài liệu"
+      },
+      "verification": {
+        "unverified": "Chưa kiểm tra",
+        "user_verified": "Tôi đã kiểm tra",
+        "official_verified": "Kiểm tra chính thức"
+      },
+      "difficulty": {
+        "unknown": "Chưa đặt",
+        "level1": "Rất dễ",
+        "level2": "Dễ",
+        "level3": "Trung bình",
+        "level4": "Khó",
+        "level5": "Rất khó"
+      },
+      "issue": {
+        "located": "{{where}}: {{what}}",
+        "atOption": "Lựa chọn {{n}}",
+        "field": {
+          "type": "Dạng",
+          "stem": "Đề bài",
+          "options": "Lựa chọn",
+          "answer": "Đáp án",
+          "explanation": "Lời giải",
+          "concepts": "Kiến thức",
+          "difficulty": "Độ khó",
+          "points": "Điểm",
+          "source": "Nguồn",
+          "verified": "Cờ kiểm tra"
+        },
+        "not_object": "Không phải đối tượng câu hỏi",
+        "type_unsupported": "Hiện chỉ hỗ trợ câu một đáp án và nhiều đáp án",
+        "stem_missing": "Đề bài trống",
+        "stem_too_long": "Đề bài quá dài (tối đa 4.000 ký tự)",
+        "options_invalid": "Lựa chọn phải là danh sách hoặc khóa A–H",
+        "options_too_few": "Cần ít nhất 2 lựa chọn",
+        "options_too_many": "Tối đa 8 lựa chọn",
+        "option_empty": "Lựa chọn trống",
+        "option_too_long": "Lựa chọn quá dài",
+        "option_duplicate": "Lựa chọn bị trùng",
+        "answer_invalid": "Đáp án phải là chữ cái như \"A\" hoặc [\"A\", \"C\"]",
+        "answer_not_in_options": "Đáp án có lựa chọn không tồn tại",
+        "answer_duplicate": "Đáp án lặp lại một lựa chọn",
+        "answer_single_needs_one": "Câu một đáp án chỉ có đúng một đáp án",
+        "answer_missing": "Không có đáp án: lưu dạng nháp, không dùng trong đề chấm tự động",
+        "explanation_too_long": "Lời giải quá dài",
+        "concepts_invalid": "Tối đa 8 mục kiến thức, mỗi mục tối đa 40 ký tự",
+        "difficulty_invalid": "Độ khó phải từ 1–5",
+        "points_invalid": "Điểm phải là số nguyên từ 1 đến 100",
+        "source_invalid": "Nguồn không hợp lệ (liên kết phải bắt đầu bằng http)",
+        "verified_invalid": "\"verified\" phải là true hoặc false"
+      },
+      "editor": {
+        "description": "Bấm vào chữ cái để đánh dấu đáp án đúng. Công thức viết bằng LaTeX trong $…$.",
+        "editTitle": "Sửa câu hỏi",
+        "type": "Dạng",
+        "difficulty": "Độ khó",
+        "points": "Điểm",
+        "stem": "Đề bài",
+        "stemPlaceholder": "Nhập câu hỏi…",
+        "options": "Lựa chọn",
+        "pickOne": "Bấm một chữ cái để đánh dấu đáp án đúng.",
+        "pickMany": "Bấm mọi chữ cái đúng.",
+        "markCorrect": "Đánh dấu {{letter}} là đúng",
+        "optionPlaceholder": "Lựa chọn {{letter}}",
+        "removeOption": "Xóa lựa chọn",
+        "addOption": "Thêm lựa chọn",
+        "explanation": "Lời giải (hiện sau khi nộp)",
+        "concepts": "Kiến thức",
+        "conceptsPlaceholder": "VD: Giới hạn, Đạo hàm",
+        "course": "Khóa học",
+        "noCourse": "Không gắn khóa học",
+        "verified": "Tôi đã kiểm tra đáp án",
+        "verifiedHint": "Câu chưa kiểm tra sẽ không vào đề trừ khi bạn chọn đưa vào.",
+        "draftHint": "Câu không có đáp án được lưu dạng nháp và không thể đánh dấu đã kiểm tra.",
+        "save": "Lưu",
+        "saveDraft": "Lưu nháp"
+      },
+      "errors": {
+        "questionConflict": "Câu hỏi này đã bị sửa ở nơi khác; đang hiện bản mới nhất. Vui lòng sửa lại.",
+        "questionLimit": "Ngân hàng câu hỏi của môn này đã đầy (5.000 câu)."
+      },
+      "bank": {
+        "counts": "{{all}} câu · chấm được {{gradable}} · đã kiểm tra {{verified}} · nháp {{drafts}}",
+        "write": "Viết câu hỏi",
+        "search": "Tìm câu hỏi",
+        "allTypes": "Mọi dạng",
+        "anyCheck": "Mọi trạng thái kiểm tra",
+        "checked": "Đã kiểm tra",
+        "anyState": "Mọi trạng thái",
+        "gradable": "Chấm được",
+        "drafts": "Nháp",
+        "allConcepts": "Mọi kiến thức",
+        "noMatch": "Không có câu hỏi phù hợp bộ lọc.",
+        "empty": "Chưa có câu hỏi. Hãy nhập tệp JSON, tự viết hoặc sao chép từ bộ đề chính thức.",
+        "draftChip": "Nháp",
+        "more": "Xem thêm (còn {{left}} câu)",
+        "deleteTitle": "Xóa câu hỏi này?",
+        "deleteText": "Câu hỏi bị xóa khỏi ngân hàng. Các đề đã có câu này vẫn giữ bản của mình."
+      },
+      "import": {
+        "open": "Nhập JSON",
+        "title": "Nhập câu hỏi (JSON)",
+        "description": "Mỗi câu được kiểm tra trước khi thêm. Chỉ hỗ trợ tệp JSON; tải tệp mẫu để xem định dạng.",
+        "choose": "Chọn tệp",
+        "another": "Chọn tệp khác",
+        "sample": "Tệp mẫu",
+        "tooLarge": "Tệp quá lớn (tối đa 1 MB và 500 câu).",
+        "notJson": "Đây không phải tệp JSON hợp lệ.",
+        "fileError": {
+          "not_question_bank": "Tệp không phải danh sách câu hỏi (xem tệp mẫu).",
+          "empty": "Tệp không có câu hỏi.",
+          "too_many_questions": "Mỗi lần nhập tối đa 500 câu."
+        },
+        "summary": "{{total}} câu: {{ready}} sẵn sàng, {{drafts}} thiếu đáp án (nháp), {{invalid}} có lỗi, {{duplicates}} đã có trong ngân hàng",
+        "noStem": "(không có đề bài)",
+        "status": {
+          "ready": "Sẵn sàng",
+          "draft": "Nháp",
+          "invalid": "Lỗi",
+          "duplicate": "Trùng",
+          "skipped": "Bỏ qua"
+        },
+        "edit": "Sửa câu này",
+        "editTitle": "Sửa câu #{{n}}",
+        "skip": "Bỏ qua",
+        "include": "Đưa vào lại",
+        "verifiedMode": "Đáp án đã kiểm tra?",
+        "verifiedFile": "Theo đánh dấu trong tệp",
+        "verifiedAll": "Tôi đã kiểm tra mọi đáp án",
+        "verifiedNone": "Đánh dấu tất cả chưa kiểm tra",
+        "commit": "Thêm {{count}} câu",
+        "done": "Đã thêm {{created}} câu ({{duplicates}} câu đã có sẵn)."
+      },
+      "packs": {
+        "open": "Bộ đề chính thức",
+        "title": "Bộ đề chính thức",
+        "description": "Câu hỏi chỉ đọc, ghi rõ nguồn và giấy phép. Sao chép vào ngân hàng của bạn để sửa, hoặc dùng trực tiếp khi tạo đề.",
+        "empty": "Chưa có bộ đề chính thức.",
+        "attribution": "{{attribution}} · Giấy phép: {{license}}",
+        "choose": "Chọn câu hỏi",
+        "copy": "Sao chép {{count}} câu vào ngân hàng của tôi",
+        "copied": "Đã sao chép {{created}} câu ({{duplicates}} câu đã sao chép trước đó)."
+      },
+      "build": {
+        "countOf": "Số câu {{type}}",
+        "concepts": "Kiến thức",
+        "noConcepts": "Chưa có mục kiến thức. Hãy thêm vào câu hỏi trong ngân hàng.",
+        "conceptsHint": "Để trống nghĩa là cả môn. Khi chọn nhiều mục, mỗi mục có câu trước khi lặp lại.",
+        "anyCourse": "Mọi khóa học",
+        "difficultyAny": "Mọi độ khó",
+        "difficultyEasier": "Ưu tiên dễ hơn",
+        "difficultyHarder": "Ưu tiên khó hơn",
+        "avoidSeen": "Bỏ các câu trong đề tôi đã nộp",
+        "includeUnverified": "Gồm cả câu chưa kiểm tra đáp án",
+        "usePack": "Dùng thêm bộ đề chính thức “{{title}}” ({{count}} câu, sau câu của tôi)",
+        "title": "Tên đề",
+        "defaultTitle": "{{space}} · {{count}} câu",
+        "preview": "Xem trước",
+        "reshuffle": "Chọn lại",
+        "publish": "Tạo đề và bắt đầu",
+        "ready": "{{count}} câu, {{points}} điểm. Có thể bắt đầu.",
+        "gapsTitle": "Không đủ câu hỏi cho đề này",
+        "shortfall": "{{type}}: có {{available}}/{{wanted}} câu.",
+        "excludedSeen": "Thêm {{count}} câu bị bỏ vì đã làm.",
+        "excludedUnverified": "Thêm {{count}} câu chưa kiểm tra.",
+        "uncovered": "Không có câu dùng được cho: {{names}}",
+        "gapsHint": "Hãy giảm số câu, đổi các lựa chọn ở trên hoặc thêm câu vào ngân hàng.",
+        "changed": "Ngân hàng đã thay đổi sau khi xem trước. Vui lòng xem trước lại."
+      },
+      "papers": {
+        "empty": "Chưa có đề nào. Hãy tạo ở mục “Tạo đề”.",
+        "meta": "{{count}} câu · {{points}} điểm",
+        "score": "{{earned}}/{{total}} điểm",
+        "continue": "Làm tiếp",
+        "start": "Bắt đầu",
+        "again": "Làm lại",
+        "deleteTitle": "Xóa đề này?",
+        "deleteText": "“{{title}}” và mọi lượt làm sẽ bị xóa. Các bản ghi học tập đã tạo vẫn còn cho đến khi bạn xóa trong Memory."
+      },
+      "attempt": {
+        "back": "Về ngân hàng đề & kiểm tra",
+        "progress": "Đã trả lời {{answered}}/{{total}}",
+        "points": "{{points}} điểm",
+        "saved": "Đã lưu",
+        "saving": "Đang lưu…",
+        "saveFailed": "Chưa lưu — thử lại",
+        "updatedElsewhere": "Câu trả lời đã được đổi trên thiết bị hoặc tab khác; đang hiện bản mới nhất.",
+        "submittedElsewhere": "Đề này đã được nộp; đang hiện kết quả đó.",
+        "conflictBeforeSubmit": "Có câu trả lời mới hơn được lưu ở nơi khác và đã hiện ra. Hãy kiểm tra rồi nộp lại.",
+        "submit": "Nộp bài",
+        "confirmTitle": "Nộp đề này?",
+        "confirmUnanswered": "Còn {{count}} câu chưa trả lời (câu {{numbers}}). Sau khi nộp không thể sửa.",
+        "confirmAll": "Đã trả lời tất cả. Sau khi nộp không thể sửa.",
+        "keepAnswering": "Tiếp tục làm"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} điểm",
+        "summary": "Đúng {{correct}}/{{count}} câu · {{unanswered}} câu chưa trả lời",
+        "ungradable": "{{count}} câu không chấm được",
+        "gradedBy": "Chấm trên máy chủ theo đáp án đã lưu của đề; không dùng mô hình AI.",
+        "onlyMistakes": "Chỉ câu sai và chưa làm",
+        "showAll": "Hiện tất cả",
+        "noMistakes": "Không có câu sai hoặc chưa làm.",
+        "outcome": {
+          "correct": "Đúng",
+          "incorrect": "Sai",
+          "unanswered": "Chưa làm",
+          "ungradable": "Không chấm được"
+        },
+        "yourChoice": "Bạn chọn",
+        "key": "Đáp án đúng: {{answer}}"
       }
     }
   }

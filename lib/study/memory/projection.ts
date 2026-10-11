@@ -308,6 +308,42 @@ export function companionEvents(sources: readonly CompanionMessageSource[]): Lea
   }));
 }
 
+// ── subject papers (B07) ────────────────────────────────────────────────────
+
+export interface ExamAttemptSource {
+  attemptId: string;
+  paperId: string;
+  spaceId: string;
+  submittedAt: string;
+  itemCount: number;
+  correct: number;
+  unanswered: number;
+  earned: number;
+  totalPoints: number;
+}
+
+/** One record per submitted attempt (its server grading; drafts are not recorded). */
+export function examEvents(sources: readonly ExamAttemptSource[]): LearningEventInput[] {
+  return sources.map((source) => ({
+    type: 'exam_graded',
+    payloadVersion: 1,
+    sourceType: 'exam_attempt',
+    sourceId: source.attemptId,
+    sourceKey: `exam:${source.attemptId}:graded`,
+    stageId: null,
+    spaceId: source.spaceId,
+    occurredAt: source.submittedAt,
+    payload: {
+      paperId: source.paperId,
+      itemCount: source.itemCount,
+      correct: source.correct,
+      unanswered: source.unanswered,
+      earned: source.earned,
+      totalPoints: source.totalPoints,
+    },
+  }));
+}
+
 // ── switches ────────────────────────────────────────────────────────────────
 
 export interface ProjectionControls {

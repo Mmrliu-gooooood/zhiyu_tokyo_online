@@ -2462,7 +2462,7 @@
     "restore": "恢復",
     "delete": "刪除",
     "deleteTitle": "刪除學科空間？",
-    "deleteText": "將刪除「{{name}}」及其課程關聯，課程本身和學習進度會保留。",
+    "deleteText": "將刪除「{{name}}」及其課程關聯、題庫與試卷紀錄；課程本身與學習進度會保留。",
     "myCourses": "我的課程",
     "addExisting": "加入已有課程",
     "generateCourse": "生成新課程",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "觀看紀錄，不代表已掌握",
         "objectiveChecked": "選擇題 {{correct}}/{{total}} 正確（已按課程原題在伺服器核對）",
         "objectiveUnverified": "選擇題成績無法核對（課程已修改或紀錄不完整），不計入統計",
-        "aiGraded": "主觀題 AI 評分 {{earned}}/{{points}} 分（來自課堂紀錄）"
+        "aiGraded": "主觀題 AI 評分 {{earned}}/{{points}} 分（來自課堂紀錄）",
+        "examGraded": "在「{{space}}」完成測驗《{{paper}}》",
+        "examScore": "{{earned}}/{{total}} 分 · 答對 {{correct}}/{{count}} 題（伺服器判分）",
+        "unknownPaper": "已刪除的試卷",
+        "exam_graded": "完成了一次測驗"
       },
       "source": {
         "study_progress": "學習進度",
@@ -3024,7 +3028,8 @@
         "objective": "選擇題 {{correct}}/{{total}} 正確（伺服器核對）",
         "unverified": "{{count}} 次無法核對",
         "companion": "課後答疑提問 {{count}} 次（{{detail}}）",
-        "empty": "這段時間沒有學習紀錄。"
+        "empty": "這段時間沒有學習紀錄。",
+        "exams": "學科測驗：交卷 {{count}} 次，共得 {{earned}}/{{total}} 分"
       },
       "clear": {
         "open": "清除…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "這項偏好已不存在。",
         "STUDY_SPACE_NOT_FOUND": "這個學科已不存在。",
         "STUDY_INVALID_INPUT": "內容格式不正確。"
+      }
+    },
+    "practice": {
+      "open": "題庫與測驗",
+      "title": "題庫與測驗",
+      "subtitle": "匯入自己的題目，依規則組卷，隨時自我測驗。試卷在伺服器判分，不呼叫 AI 模型。",
+      "testCourse": "測一測",
+      "separator": "、",
+      "tabs": {
+        "bank": "題庫",
+        "build": "組卷",
+        "papers": "試卷紀錄"
+      },
+      "type": {
+        "single": "單選題",
+        "multiple": "多選題"
+      },
+      "origin": {
+        "user_import": "匯入",
+        "manual": "自行輸入",
+        "official": "官方題庫",
+        "public_source": "公開來源",
+        "ai_generated": "AI 生成",
+        "material_extracted": "資料擷取"
+      },
+      "verification": {
+        "unverified": "未核對",
+        "user_verified": "已核對",
+        "official_verified": "官方核對"
+      },
+      "difficulty": {
+        "unknown": "未標註",
+        "level1": "很容易",
+        "level2": "較易",
+        "level3": "中等",
+        "level4": "較難",
+        "level5": "很難"
+      },
+      "issue": {
+        "located": "{{where}}：{{what}}",
+        "atOption": "第 {{n}} 個選項",
+        "field": {
+          "type": "題型",
+          "stem": "題幹",
+          "options": "選項",
+          "answer": "答案",
+          "explanation": "解析",
+          "concepts": "知識點",
+          "difficulty": "難度",
+          "points": "分值",
+          "source": "來源",
+          "verified": "核對標記"
+        },
+        "not_object": "不是題目物件",
+        "type_unsupported": "目前只支援單選題與多選題",
+        "stem_missing": "題幹為空",
+        "stem_too_long": "題幹太長（最多 4000 字）",
+        "options_invalid": "選項格式不對，應為清單或 A–H 鍵",
+        "options_too_few": "至少需要 2 個選項",
+        "options_too_many": "最多 8 個選項",
+        "option_empty": "選項內容為空",
+        "option_too_long": "選項太長",
+        "option_duplicate": "選項重複",
+        "answer_invalid": "答案格式不對，應為 \"A\" 或 [\"A\",\"C\"] 這樣的字母",
+        "answer_not_in_options": "答案中有不存在的選項",
+        "answer_duplicate": "答案中有重複的選項",
+        "answer_single_needs_one": "單選題只能有一個答案",
+        "answer_missing": "沒有答案：會存為草稿，不能用於自動判分的試卷",
+        "explanation_too_long": "解析太長",
+        "concepts_invalid": "知識點最多 8 個，每個不超過 40 字",
+        "difficulty_invalid": "難度應為 1–5",
+        "points_invalid": "分值應為 1–100 的整數",
+        "source_invalid": "來源資訊不對（連結需以 http 開頭）",
+        "verified_invalid": "verified 只能是 true 或 false"
+      },
+      "editor": {
+        "description": "點擊字母標出正確選項。公式可用 $…$ 包住的 LaTeX 書寫。",
+        "editTitle": "編輯題目",
+        "type": "題型",
+        "difficulty": "難度",
+        "points": "分值",
+        "stem": "題幹",
+        "stemPlaceholder": "輸入題目…",
+        "options": "選項",
+        "pickOne": "點擊一個字母標出正確答案。",
+        "pickMany": "點擊所有正確選項的字母。",
+        "markCorrect": "將 {{letter}} 標為正確答案",
+        "optionPlaceholder": "選項 {{letter}}",
+        "removeOption": "刪除選項",
+        "addOption": "新增選項",
+        "explanation": "解析（交卷後顯示）",
+        "concepts": "知識點",
+        "conceptsPlaceholder": "如：極限、導數",
+        "course": "所屬課程",
+        "noCourse": "不關聯課程",
+        "verified": "我已核對答案",
+        "verifiedHint": "未核對的題目預設不進入試卷，組卷時可選擇包含。",
+        "draftHint": "沒有答案的題目會存為草稿，不能標為已核對。",
+        "save": "儲存",
+        "saveDraft": "存為草稿"
+      },
+      "errors": {
+        "questionConflict": "這道題已在別處修改，已顯示最新版本，請重新編輯。",
+        "questionLimit": "這個學科的題庫已滿（5000 題）。"
+      },
+      "bank": {
+        "counts": "共 {{all}} 題 · 可判分 {{gradable}} · 已核對 {{verified}} · 草稿 {{drafts}}",
+        "write": "輸入題目",
+        "search": "搜尋題目",
+        "allTypes": "全部題型",
+        "anyCheck": "全部核對狀態",
+        "checked": "已核對",
+        "anyState": "全部狀態",
+        "gradable": "可判分",
+        "drafts": "草稿",
+        "allConcepts": "全部知識點",
+        "noMatch": "沒有符合篩選條件的題目。",
+        "empty": "還沒有題目。可以匯入 JSON 檔、手動輸入，或從官方題庫複製。",
+        "draftChip": "草稿",
+        "more": "顯示更多（還有 {{left}} 題）",
+        "deleteTitle": "刪除這道題？",
+        "deleteText": "題目會從題庫刪除；已出過這道題的試卷會保留原樣。"
+      },
+      "import": {
+        "open": "匯入 JSON",
+        "title": "匯入題目（JSON）",
+        "description": "加入前會逐題檢查。目前只支援 JSON 檔，可下載範例查看格式。",
+        "choose": "選擇檔案",
+        "another": "換一個檔案",
+        "sample": "下載範例",
+        "tooLarge": "檔案太大（最多 1 MB、500 題）。",
+        "notJson": "不是有效的 JSON 檔。",
+        "fileError": {
+          "not_question_bank": "檔案不是題目清單（請參考範例格式）。",
+          "empty": "檔案中沒有題目。",
+          "too_many_questions": "每次最多匯入 500 題。"
+        },
+        "summary": "共 {{total}} 題：{{ready}} 題可匯入，{{drafts}} 題缺答案（存為草稿），{{invalid}} 題有錯誤，{{duplicates}} 題已在題庫中",
+        "noStem": "（無題幹）",
+        "status": {
+          "ready": "可匯入",
+          "draft": "草稿",
+          "invalid": "有錯誤",
+          "duplicate": "重複",
+          "skipped": "已略過"
+        },
+        "edit": "修改這道題",
+        "editTitle": "修改第 {{n}} 題",
+        "skip": "略過",
+        "include": "恢復匯入",
+        "verifiedMode": "答案核對",
+        "verifiedFile": "依檔案中的標記",
+        "verifiedAll": "我已核對全部答案",
+        "verifiedNone": "全部標為未核對",
+        "commit": "匯入 {{count}} 題",
+        "done": "已匯入 {{created}} 題（{{duplicates}} 題已在題庫中）。"
+      },
+      "packs": {
+        "open": "官方題庫",
+        "title": "官方題庫",
+        "description": "唯讀題目，註明來源與授權。複製到自己的題庫後可編輯，也可在組卷時直接選用。",
+        "empty": "暫無官方題庫。",
+        "attribution": "{{attribution}} · 授權：{{license}}",
+        "choose": "選擇題目",
+        "copy": "複製 {{count}} 題到我的題庫",
+        "copied": "已複製 {{created}} 題（{{duplicates}} 題先前已複製）。"
+      },
+      "build": {
+        "countOf": "{{type}}數量",
+        "concepts": "知識點",
+        "noConcepts": "還沒有知識點，可在題庫中為題目加入。",
+        "conceptsHint": "不選表示整個學科；選了多個時，會先讓每個知識點都有題目。",
+        "anyCourse": "不限課程",
+        "difficultyAny": "不限難度",
+        "difficultyEasier": "偏簡單",
+        "difficultyHarder": "偏難",
+        "avoidSeen": "避開已交卷試卷中做過的題目",
+        "includeUnverified": "包含答案未核對的題目",
+        "usePack": "也使用官方題庫《{{title}}》（{{count}} 題，排在自己的題目之後）",
+        "title": "試卷名稱",
+        "defaultTitle": "{{space}} · {{count}} 題練習",
+        "preview": "預覽",
+        "reshuffle": "換一組",
+        "publish": "產生試卷並開始",
+        "ready": "共 {{count}} 題，{{points}} 分，可以開始。",
+        "gapsTitle": "題庫不足以組成這份試卷",
+        "shortfall": "{{type}}：需要 {{wanted}} 題，可用 {{available}} 題。",
+        "excludedSeen": "另有 {{count}} 題因已做過而排除。",
+        "excludedUnverified": "另有 {{count}} 題未核對。",
+        "uncovered": "以下知識點沒有可用題目：{{names}}",
+        "gapsHint": "可以減少題量、調整上面的條件，或往題庫補題。",
+        "changed": "預覽之後題庫有變動，請重新預覽。"
+      },
+      "papers": {
+        "empty": "還沒有試卷，可以在「組卷」中產生。",
+        "meta": "{{count}} 題 · {{points}} 分",
+        "score": "{{earned}}/{{total}} 分",
+        "continue": "繼續作答",
+        "start": "開始作答",
+        "again": "再做一次",
+        "deleteTitle": "刪除這份試卷？",
+        "deleteText": "《{{title}}》及其全部作答都會刪除；已產生的學習紀錄會保留，可在 Memory 中清除。"
+      },
+      "attempt": {
+        "back": "返回題庫與測驗",
+        "progress": "已答 {{answered}}/{{total}}",
+        "points": "{{points}} 分",
+        "saved": "已儲存",
+        "saving": "儲存中…",
+        "saveFailed": "未儲存，點此重試",
+        "updatedElsewhere": "答案已在其他裝置或分頁更新，已顯示最新內容。",
+        "submittedElsewhere": "這份試卷已經交過，顯示的是那次的結果。",
+        "conflictBeforeSubmit": "其他地方儲存了更新的答案，已顯示出來，請檢查後再交卷。",
+        "submit": "交卷",
+        "confirmTitle": "確認交卷？",
+        "confirmUnanswered": "還有 {{count}} 題沒答（第 {{numbers}} 題）。交卷後不能再修改。",
+        "confirmAll": "已全部作答。交卷後不能再修改。",
+        "keepAnswering": "繼續作答"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} 分",
+        "summary": "答對 {{correct}}/{{count}} 題 · 未答 {{unanswered}} 題",
+        "ungradable": "{{count}} 題無法判分",
+        "gradedBy": "依試卷儲存的標準答案在伺服器判分，沒有使用 AI 模型。",
+        "onlyMistakes": "只看錯題與未答",
+        "showAll": "顯示全部",
+        "noMistakes": "沒有錯題或未答題。",
+        "outcome": {
+          "correct": "正確",
+          "incorrect": "錯誤",
+          "unanswered": "未答",
+          "ungradable": "無法判分"
+        },
+        "yourChoice": "你的選擇",
+        "key": "正確答案：{{answer}}"
       }
     }
   }

@@ -2462,7 +2462,7 @@
     "restore": "Restaurer",
     "delete": "Supprimer",
     "deleteTitle": "Supprimer cet espace matière ?",
-    "deleteText": "« {{name}} » et ses liens de cours seront supprimés. Les cours et votre progression sont conservés.",
+    "deleteText": "« {{name}} » sera supprimé avec ses liens de cours, sa banque de questions et ses tests. Les cours et votre progression sont conservés.",
     "myCourses": "Mes cours",
     "addExisting": "Ajouter des cours existants",
     "generateCourse": "Générer un cours",
@@ -3007,7 +3007,11 @@
         "viewingOnly": "Trace de visionnage, pas une preuve de maîtrise",
         "objectiveChecked": "QCM {{correct}}/{{total}} justes (vérifié sur le serveur avec le cours)",
         "objectiveUnverified": "Score QCM invérifiable (cours modifié ou trace incomplète) ; non compté",
-        "aiGraded": "Questions ouvertes notées par l’IA {{earned}}/{{points}} (selon la classe)"
+        "aiGraded": "Questions ouvertes notées par l’IA {{earned}}/{{points}} (selon la classe)",
+        "examGraded": "Test « {{paper}} » remis dans {{space}}",
+        "examScore": "{{earned}}/{{total}} points · {{correct}}/{{count}} justes (corrigé sur le serveur)",
+        "unknownPaper": "un test supprimé",
+        "exam_graded": "A remis un test"
       },
       "source": {
         "study_progress": "Progression",
@@ -3024,7 +3028,8 @@
         "objective": "QCM {{correct}}/{{total}} justes (vérifié serveur)",
         "unverified": "{{count}} invérifiables",
         "companion": "{{count}} questions après le cours ({{detail}})",
-        "empty": "Aucune trace sur cette période."
+        "empty": "Aucune trace sur cette période.",
+        "exams": "Tests de matière : {{count}} remis, {{earned}}/{{total}} points au total"
       },
       "clear": {
         "open": "Effacer…",
@@ -3060,6 +3065,241 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Cette préférence n’existe plus.",
         "STUDY_SPACE_NOT_FOUND": "Cette matière n’existe plus.",
         "STUDY_INVALID_INPUT": "La saisie n’est pas valide."
+      }
+    },
+    "practice": {
+      "open": "Questions & tests",
+      "title": "Banque de questions & tests",
+      "subtitle": "Importez vos propres questions, composez un test selon des règles et testez-vous quand vous voulez. La correction se fait sur le serveur, sans modèle d’IA.",
+      "testCourse": "Me tester",
+      "separator": ", ",
+      "tabs": {
+        "bank": "Banque de questions",
+        "build": "Composer un test",
+        "papers": "Mes tests"
+      },
+      "type": {
+        "single": "Choix unique",
+        "multiple": "Choix multiple"
+      },
+      "origin": {
+        "user_import": "Importée",
+        "manual": "Écrite par moi",
+        "official": "Officielle",
+        "public_source": "Source publique",
+        "ai_generated": "Générée par IA",
+        "material_extracted": "Tirée des documents"
+      },
+      "verification": {
+        "unverified": "Non vérifiée",
+        "user_verified": "Vérifiée par moi",
+        "official_verified": "Vérifiée officiellement"
+      },
+      "difficulty": {
+        "unknown": "Non définie",
+        "level1": "Très facile",
+        "level2": "Facile",
+        "level3": "Moyenne",
+        "level4": "Difficile",
+        "level5": "Très difficile"
+      },
+      "issue": {
+        "located": "{{where}} : {{what}}",
+        "atOption": "Option {{n}}",
+        "field": {
+          "type": "Type",
+          "stem": "Énoncé",
+          "options": "Options",
+          "answer": "Réponse",
+          "explanation": "Explication",
+          "concepts": "Notions",
+          "difficulty": "Difficulté",
+          "points": "Points",
+          "source": "Source",
+          "verified": "Indicateur de vérification"
+        },
+        "not_object": "Ce n’est pas une question",
+        "type_unsupported": "Seuls les choix uniques et multiples sont pris en charge pour l’instant",
+        "stem_missing": "L’énoncé est vide",
+        "stem_too_long": "L’énoncé est trop long (4 000 caractères au plus)",
+        "options_invalid": "Les options doivent être une liste ou des clés A–H",
+        "options_too_few": "Il faut au moins 2 options",
+        "options_too_many": "8 options au plus",
+        "option_empty": "L’option est vide",
+        "option_too_long": "L’option est trop longue",
+        "option_duplicate": "Option en double",
+        "answer_invalid": "La réponse doit être des lettres comme \"A\" ou [\"A\", \"C\"]",
+        "answer_not_in_options": "La réponse cite une option qui n’existe pas",
+        "answer_duplicate": "La réponse répète une option",
+        "answer_single_needs_one": "Une question à choix unique n’a qu’une seule réponse",
+        "answer_missing": "Pas de réponse : gardée comme brouillon, non utilisée dans les tests corrigés automatiquement",
+        "explanation_too_long": "L’explication est trop longue",
+        "concepts_invalid": "8 notions au plus, de 40 caractères au plus chacune",
+        "difficulty_invalid": "La difficulté doit être entre 1 et 5",
+        "points_invalid": "Les points doivent être un entier de 1 à 100",
+        "source_invalid": "Source invalide (les liens doivent commencer par http)",
+        "verified_invalid": "\"verified\" doit valoir true ou false"
+      },
+      "editor": {
+        "description": "Cliquez sur une lettre pour marquer la bonne option. Écrivez les formules en LaTeX entre $…$.",
+        "editTitle": "Modifier la question",
+        "type": "Type",
+        "difficulty": "Difficulté",
+        "points": "Points",
+        "stem": "Énoncé",
+        "stemPlaceholder": "Écrivez la question…",
+        "options": "Options",
+        "pickOne": "Cliquez sur une lettre pour marquer la bonne réponse.",
+        "pickMany": "Cliquez sur toutes les bonnes lettres.",
+        "markCorrect": "Marquer {{letter}} comme correcte",
+        "optionPlaceholder": "Option {{letter}}",
+        "removeOption": "Retirer l’option",
+        "addOption": "Ajouter une option",
+        "explanation": "Explication (affichée après la remise)",
+        "concepts": "Notions",
+        "conceptsPlaceholder": "ex. Limites, Dérivées",
+        "course": "Cours",
+        "noCourse": "Aucun cours",
+        "verified": "J’ai vérifié la réponse",
+        "verifiedHint": "Les questions non vérifiées n’entrent dans un test que si vous les incluez.",
+        "draftHint": "Sans réponse, la question reste un brouillon et ne peut pas être marquée vérifiée.",
+        "save": "Enregistrer",
+        "saveDraft": "Enregistrer comme brouillon"
+      },
+      "errors": {
+        "questionConflict": "Cette question a été modifiée ailleurs ; la version la plus récente est affichée. Modifiez-la à nouveau.",
+        "questionLimit": "La banque de cette matière est pleine (5 000 questions)."
+      },
+      "bank": {
+        "counts": "{{all}} questions · {{gradable}} corrigeables · {{verified}} vérifiées · {{drafts}} brouillons",
+        "write": "Écrire une question",
+        "search": "Rechercher",
+        "allTypes": "Tous les types",
+        "anyCheck": "Toute vérification",
+        "checked": "Vérifiées",
+        "anyState": "Tout état",
+        "gradable": "Corrigeables",
+        "drafts": "Brouillons",
+        "allConcepts": "Toutes les notions",
+        "noMatch": "Aucune question ne correspond à ces filtres.",
+        "empty": "Pas encore de questions. Importez un fichier JSON, écrivez-en une ou copiez depuis une banque officielle.",
+        "draftChip": "Brouillon",
+        "more": "Afficher plus ({{left}} restantes)",
+        "deleteTitle": "Supprimer cette question ?",
+        "deleteText": "Elle est retirée de la banque. Les tests qui la contiennent déjà gardent leur copie."
+      },
+      "import": {
+        "open": "Importer du JSON",
+        "title": "Importer des questions (JSON)",
+        "description": "Chaque question est vérifiée avant tout ajout. Seuls les fichiers JSON sont pris en charge ; téléchargez l’exemple pour voir le format.",
+        "choose": "Choisir un fichier",
+        "another": "Choisir un autre fichier",
+        "sample": "Fichier exemple",
+        "tooLarge": "Le fichier est trop volumineux (1 Mo et 500 questions au plus).",
+        "notJson": "Ce n’est pas un fichier JSON valide.",
+        "fileError": {
+          "not_question_bank": "Le fichier n’est pas une liste de questions (voir l’exemple).",
+          "empty": "Le fichier ne contient aucune question.",
+          "too_many_questions": "500 questions au plus par import."
+        },
+        "summary": "{{total}} questions : {{ready}} prêtes, {{drafts}} sans réponse (brouillons), {{invalid}} en erreur, {{duplicates}} déjà dans la banque",
+        "noStem": "(pas d’énoncé)",
+        "status": {
+          "ready": "Prête",
+          "draft": "Brouillon",
+          "invalid": "Erreur",
+          "duplicate": "Doublon",
+          "skipped": "Ignorée"
+        },
+        "edit": "Corriger cette question",
+        "editTitle": "Corriger la question n° {{n}}",
+        "skip": "Ignorer",
+        "include": "Réintégrer",
+        "verifiedMode": "Réponses vérifiées ?",
+        "verifiedFile": "Comme indiqué dans le fichier",
+        "verifiedAll": "J’ai vérifié toutes les réponses",
+        "verifiedNone": "Tout marquer non vérifié",
+        "commit": "Ajouter {{count}} questions",
+        "done": "{{created}} questions ajoutées ({{duplicates}} étaient déjà dans la banque)."
+      },
+      "packs": {
+        "open": "Banques officielles",
+        "title": "Banques de questions officielles",
+        "description": "Questions en lecture seule, avec source et licence indiquées. Copiez-les dans votre banque pour les modifier, ou utilisez une banque directement pour composer un test.",
+        "empty": "Pas encore de banque officielle.",
+        "attribution": "{{attribution}} · Licence : {{license}}",
+        "choose": "Choisir la question",
+        "copy": "Copier {{count}} dans ma banque",
+        "copied": "{{created}} questions copiées ({{duplicates}} déjà copiées)."
+      },
+      "build": {
+        "countOf": "Nombre de questions : {{type}}",
+        "concepts": "Notions",
+        "noConcepts": "Pas encore de notions. Ajoutez-en aux questions dans la banque.",
+        "conceptsHint": "Laissez vide pour toute la matière. Avec plusieurs notions, chacune a une question avant toute répétition.",
+        "anyCourse": "Tout cours",
+        "difficultyAny": "Toute difficulté",
+        "difficultyEasier": "Plutôt facile",
+        "difficultyHarder": "Plutôt difficile",
+        "avoidSeen": "Éviter les questions des tests que j’ai remis",
+        "includeUnverified": "Inclure les questions à réponse non vérifiée",
+        "usePack": "Utiliser aussi la banque officielle « {{title}} » ({{count}} questions, après les miennes)",
+        "title": "Titre du test",
+        "defaultTitle": "{{space}} · {{count}} questions",
+        "preview": "Aperçu",
+        "reshuffle": "Tirer à nouveau",
+        "publish": "Créer le test et commencer",
+        "ready": "{{count}} questions, {{points}} points. Prêt à commencer.",
+        "gapsTitle": "Pas assez de questions pour ce test",
+        "shortfall": "{{type}} : {{available}} disponibles sur {{wanted}}.",
+        "excludedSeen": "{{count}} autres ont été écartées car déjà faites.",
+        "excludedUnverified": "{{count}} autres ne sont pas vérifiées.",
+        "uncovered": "Aucune question utilisable pour : {{names}}",
+        "gapsHint": "Demandez moins de questions, modifiez les choix ci-dessus ou ajoutez des questions à la banque.",
+        "changed": "La banque a changé depuis l’aperçu. Relancez l’aperçu."
+      },
+      "papers": {
+        "empty": "Pas encore de test. Composez-en un dans « Composer un test ».",
+        "meta": "{{count}} questions · {{points}} points",
+        "score": "{{earned}}/{{total}} points",
+        "continue": "Continuer",
+        "start": "Commencer",
+        "again": "Refaire",
+        "deleteTitle": "Supprimer ce test ?",
+        "deleteText": "« {{title}} » et toutes ses tentatives seront supprimés. Les traces d’apprentissage déjà créées restent jusqu’à ce que vous les effaciez dans Memory."
+      },
+      "attempt": {
+        "back": "Retour aux questions & tests",
+        "progress": "{{answered}}/{{total}} répondues",
+        "points": "{{points}} pts",
+        "saved": "Enregistré",
+        "saving": "Enregistrement…",
+        "saveFailed": "Non enregistré — réessayer",
+        "updatedElsewhere": "Les réponses ont été modifiées sur un autre appareil ou onglet ; les plus récentes sont affichées.",
+        "submittedElsewhere": "Ce test a déjà été remis ; ce résultat est affiché.",
+        "conflictBeforeSubmit": "Des réponses plus récentes ont été enregistrées ailleurs et sont affichées. Vérifiez-les, puis remettez à nouveau.",
+        "submit": "Remettre",
+        "confirmTitle": "Remettre ce test ?",
+        "confirmUnanswered": "{{count}} questions sans réponse (n° {{numbers}}). Les réponses ne pourront plus être modifiées.",
+        "confirmAll": "Toutes les questions ont une réponse. Les réponses ne pourront plus être modifiées.",
+        "keepAnswering": "Continuer à répondre"
+      },
+      "report": {
+        "score": "{{earned}} / {{total}} points",
+        "summary": "{{correct}} sur {{count}} justes · {{unanswered}} sans réponse",
+        "ungradable": "{{count}} n’ont pas pu être corrigées",
+        "gradedBy": "Corrigé sur le serveur selon les réponses enregistrées du test ; aucun modèle d’IA utilisé.",
+        "onlyMistakes": "Seulement fausses et sans réponse",
+        "showAll": "Tout afficher",
+        "noMistakes": "Aucune question fausse ou sans réponse.",
+        "outcome": {
+          "correct": "Juste",
+          "incorrect": "Faux",
+          "unanswered": "Sans réponse",
+          "ungradable": "Non corrigeable"
+        },
+        "yourChoice": "Votre réponse",
+        "key": "Bonne réponse : {{answer}}"
       }
     }
   }

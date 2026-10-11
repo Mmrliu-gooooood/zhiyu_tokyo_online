@@ -21,6 +21,7 @@ import { isAgentRuntimeConfigured } from '@/lib/config/feature-flags';
 import {
   isStudyClassmatesFlagOn,
   isStudyCompanionChatFlagOn,
+  isStudyExamsFlagOn,
   isStudyMaterialsFlagOn,
   isStudyMemoryFlagOn,
   isStudyQaFlagOn,
@@ -162,11 +163,35 @@ export function studyMemoryRoute(
   return studyRoute(req, handler);
 }
 
-/** A small JSON object body, or undefined when absent, oversized or malformed. */
-export async function readStudyBody(req: Request): Promise<Record<string, unknown> | undefined> {
-  if (Number(req.headers.get('content-length') ?? 0) > MAX_STUDY_BODY) return undefined;
+/** B07 question bank and papers: study spaces plus ZHIYU_STUDY_EXAMS_ENABLED. */
+export function isStudyExamsEnabled(): boolean {
+  return isStudyExamsFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the question-bank, paper and attempt APIs. */
+export function studyExamsRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyExamsEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/**
+ * A JSON object body, or undefined when absent, oversized or malformed.
+ * `limit` (bytes) is raised only for imports.
+ */
+export async function readStudyBody(
+  req: Request,
+  limit: number = MAX_STUDY_BODY,
+): Promise<Record<string, unknown> | undefined> {
+  if (Number(req.headers.get('content-length') ?? 0) > limit) return undefined;
   const raw = await req.text();
-  if (raw.length > MAX_STUDY_BODY) return undefined;
+  if (Buffer.byteLength(raw) > limit) return undefined;
   try {
     const value: unknown = raw ? JSON.parse(raw) : {};
     return value && typeof value === 'object' && !Array.isArray(value)
