@@ -38,6 +38,24 @@ const codes = (issues: { code: string; path: string }[]) =>
   issues.map((issue) => `${issue.path}:${issue.code}`);
 
 describe('import parsing', () => {
+  it('drops characters Postgres cannot store in jsonb', () => {
+    const parsed = parseQuestion({
+      type: 'single',
+      stem: '1\u0000+1\u0001=?\r\n\t第二行\uDC00',
+      options: ['1\u0000', '2'],
+      answer: 'B',
+      explanation: 'x\u0000',
+    });
+    expect(parsed.content).toMatchObject({
+      stem: '1+1 =?\n\t第二行�',
+      options: [
+        { value: 'A', label: '1' },
+        { value: 'B', label: '2' },
+      ],
+      explanation: 'x',
+    });
+  });
+
   it('accepts the documented spellings of options and answers', () => {
     const strings = parseQuestion({
       type: 'single',

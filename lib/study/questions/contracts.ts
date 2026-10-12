@@ -195,7 +195,19 @@ export const WARNING_CODES: ReadonlySet<QuestionIssue['code']> = new Set(['answe
  * (NFKC) is for comparison keys only.
  */
 export function normalizeText(value: string): string {
-  return value.replace(/\r\n?/g, '\n').trim();
+  return cleanText(value.replace(/\r\n?/g, '\n')).trim();
+}
+
+/**
+ * Text Postgres can store in jsonb: NUL is dropped (PDF text layers without a
+ * Unicode map produce it), other control characters become spaces, and lone
+ * surrogates become U+FFFD. Tabs and line breaks are kept.
+ */
+export function cleanText(value: string): string {
+  return value
+    .replace(/\u0000/g, '')
+    .replace(/[\u0001-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '�');
 }
 
 /** An option letter or answer as written ("ａ", "Ａ", "a" → "A"). */

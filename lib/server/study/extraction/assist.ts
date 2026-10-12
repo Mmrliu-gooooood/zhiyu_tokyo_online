@@ -30,7 +30,11 @@ import {
   type CandidateType,
   type ExtractionDetail,
 } from '@/lib/study/extraction/contracts';
-import { QUESTION_LIMITS, type QuestionOption } from '@/lib/study/questions/contracts';
+import {
+  normalizeText,
+  QUESTION_LIMITS,
+  type QuestionOption,
+} from '@/lib/study/questions/contracts';
 
 import {
   addExtractionUsage,
@@ -94,14 +98,14 @@ export function parseAssistOutput(
     if (!ids.has(id) || result.has(id)) continue;
     const type = item.type as CandidateType;
     if (type !== 'single' && type !== 'multiple' && type !== 'open') continue;
-    const stem = typeof item.stem === 'string' ? item.stem.trim() : '';
+    const stem = typeof item.stem === 'string' ? normalizeText(item.stem) : '';
     if (!stem || stem.length > QUESTION_LIMITS.stem) continue;
     let options: QuestionOption[] = [];
     if (type !== 'open') {
       if (!Array.isArray(item.options)) continue;
       options = item.options.flatMap((option, index) => {
         if (!option || typeof option !== 'object') return [];
-        const label = String((option as { label?: unknown }).label ?? '').trim();
+        const label = normalizeText(String((option as { label?: unknown }).label ?? ''));
         return label && label.length <= QUESTION_LIMITS.optionLabel
           ? [{ value: LETTERS[index] ?? '', label }]
           : [];
@@ -127,7 +131,7 @@ export function parseAssistOutput(
     const validAnswer =
       answer.every((value) => options.some((option) => option.value === value)) &&
       (type !== 'single' || answer.length <= 1);
-    const reason = typeof item.reason === 'string' ? item.reason.trim() : '';
+    const reason = typeof item.reason === 'string' ? normalizeText(item.reason) : '';
     result.set(id, {
       type,
       stem,

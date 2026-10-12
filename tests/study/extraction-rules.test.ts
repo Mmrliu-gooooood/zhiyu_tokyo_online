@@ -102,6 +102,18 @@ describe('parseBlock', () => {
 });
 
 describe('extractQuestions', () => {
+  it('drops characters Postgres cannot store (NUL from PDFs without a Unicode map)', () => {
+    const result = extractQuestions([
+      page(1, '1. 函数\u0000 f(x) 的\u0007导数是\uD800（ ）', 'A. 1\u0000 B. 2', '答案：B'),
+      { page: 2, text: '\u0000\u0000' },
+    ]);
+    expect(result.stats.skippedPages).toEqual([2]);
+    const [first] = result.candidates;
+    expect(first!.content.stem).toBe('函数 f(x) 的 导数是�（ ）');
+    expect(first!.content.options.map((o) => o.label)).toEqual(['1', '2']);
+    expect(JSON.stringify(result)).not.toMatch(/\\u0000|\\ud800/i);
+  });
+
   it('extracts numbered questions, follows page breaks and skips scanned pages', () => {
     const result = extractQuestions([
       page(

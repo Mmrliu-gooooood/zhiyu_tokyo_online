@@ -22,7 +22,7 @@
  * Questions without options are kept as `open` candidates (calculation,
  * proof, fill-in); they enter the bank once open questions are supported.
  */
-import { normalizeText, type QuestionOption } from '@/lib/study/questions/contracts';
+import { cleanText, normalizeText, type QuestionOption } from '@/lib/study/questions/contracts';
 
 import {
   EXTRACTION_LIMITS,
@@ -378,7 +378,7 @@ export function extractQuestions(
   const textPages: Array<{ page: number; lines: string[] }> = [];
   let textChars = 0;
   for (const page of pages) {
-    const text = page.text?.trim();
+    const text = page.text && cleanText(page.text).trim();
     if (!text) {
       skippedPages.push(page.page);
       continue;
