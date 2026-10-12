@@ -78,6 +78,18 @@ describe('parseBlock', () => {
     expect(block.content.referenceAnswer).toBe('1');
   });
 
+  it('reads "证明：…" opening a question as its stem', () => {
+    const block = parseBlock([
+      { page: 1, text: '7. 证明：当 x > 0 时，ln(1 + x) < x。' },
+      { page: 1, text: '证明：令 f(x) = x - ln(1 + x)。' },
+    ]);
+    expect(block.content).toMatchObject({
+      type: 'open',
+      stem: '证明：当 x > 0 时，ln(1 + x) < x。',
+      explanation: '令 f(x) = x - ln(1 + x)。',
+    });
+  });
+
   it('does not accept an answer letter that is not an option', () => {
     const block = parseBlock([
       { page: 1, text: '1. 选择 A. 甲 B. 乙' },
@@ -143,6 +155,40 @@ describe('extractQuestions', () => {
       ['乙题', 'A'],
       ['丙题', 'A'],
     ]);
+  });
+
+  it('keeps numbering across type headings inside one exercise set', () => {
+    const result = extractQuestions([
+      page(
+        1,
+        '第一章 函数与极限',
+        '习题 1.1',
+        '一、选择题',
+        '1. 甲 A. 1 B. 2',
+        '2. 乙 A. 1 B. 2',
+        '二、填空题',
+        '3. 函数 y=x³ 的导数是 ____。',
+        '三、解答题',
+        '4. 求极限 lim(x→0) sin x / x。',
+        '习题 1.2',
+        '1. 丙 A. 1 B. 2',
+      ),
+      page(2, '参考答案', '习题 1.1', '1~2 BA', '3. 3x²', '4. 1', '习题 1.2', '1. B'),
+    ]);
+    expect(
+      result.candidates.map((c) => [
+        c.label,
+        c.content.type,
+        c.content.answer.join('') || c.content.referenceAnswer,
+      ]),
+    ).toEqual([
+      ['1', 'single', 'B'],
+      ['2', 'single', 'A'],
+      ['3', 'open', '3x²'],
+      ['4', 'open', '1'],
+      ['1', 'single', 'B'],
+    ]);
+    expect(result.stats.unmatchedAnswers).toEqual([]);
   });
 
   it('reads compact answer ranges and leaves unmatched keys reported', () => {

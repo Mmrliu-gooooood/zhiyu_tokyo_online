@@ -88,6 +88,10 @@ const FIGURE_MENTION = /如图|图\s*[\d一二三四五六七八九十]|下图|�
 const MULTIPLE_HINT = /多选|多项选择|不定项|哪些|正确的有/;
 const CJK = /[⺀-鿿＀-￯　-〿]/;
 
+function sameLetters(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 function foldLetter(value: string): string {
   return value.normalize('NFKC').toUpperCase();
 }
@@ -207,7 +211,9 @@ export function parseBlock(lines: readonly SourceLine[], hint: KindHint = null):
   let mode: 'body' | 'answer' | 'explanation' = 'body';
   for (const line of texts) {
     const answer = INLINE_ANSWER.exec(line.text);
-    const explain = answer ? null : INLINE_EXPLANATION.exec(line.text);
+    // "证明：…" or "解：…" opening the question is its stem, not a solution.
+    const explain =
+      answer || (mode === 'body' && body.length === 0) ? null : INLINE_EXPLANATION.exec(line.text);
     if (answer) {
       mode = 'answer';
       const rest = line.text.slice(answer[0].length);
@@ -472,11 +478,18 @@ export function extractQuestions(
       section = cap(line.text, 120);
       const ownKey = sectionKeyOf(line.text);
       const ownHint = hintOf(line.text);
-      // "一、选择题" under "习题 1.2" keeps the exercise set's number.
-      if (ownKey || !ownHint) sectionKey = ownKey;
       hint = ownHint;
-      group += 1;
-      lastNumber = 0;
+      // A heading with its own number ("习题 1.2", "第二章") starts a new exercise
+      // set; "二、填空题" inside a set keeps its numbering (questions 5, 6, … follow).
+      if (ownKey) {
+        sectionKey = ownKey;
+        group += 1;
+        lastNumber = 0;
+      } else if (!ownHint) {
+        sectionKey = null;
+        group += 1;
+        lastNumber = 0;
+      }
       continue;
     }
     const start = questionStart(line.text);
@@ -538,7 +551,15 @@ export function extractQuestions(
       let answerRef = parsed.answerRef;
       const entry =
         block.number !== null ? byGroupNumber.get(`${block.group}:${block.number}`) : undefined;
-      if (entry && !answerRef) {
+      if (
+        entry &&
+        answerRef &&
+        entry.letters &&
+        sameLetters(entry.letters, parsed.content.answer)
+      ) {
+        // The key repeats the answer printed with the question.
+        used.add(entry);
+      } else if (entry && !answerRef) {
         const content = parsed.content;
         if (content.type !== 'open' && entry.letters) {
           const valid = entry.letters.every((value) =>
