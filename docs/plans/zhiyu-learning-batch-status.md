@@ -13,12 +13,117 @@
 | B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
+| B08 | 实现完成、本地验收通过（2026-10-12），**未合并、未上线** | `learn/b08-question-import`（`6b3bceb8`，未推送） | accounts v29 `cfd0433a…`（未在生产执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次） | 未启用（新开关 `ZHIYU_STUDY_EXTRACTION_ENABLED`） | 见 B08“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
 - 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
 - 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
+
+## B08 习题资料提取、核验与题源管理（2026-10-12）
+
+### 范围与起点
+
+- 分支 `learn/b08-question-import` 从 main `5caa0ef2`（= `tokyo/main`）创建；生产为 web release-20261011b、worker release-20261011、accounts v28。
+- 范围：方案 B08 第 1–7 条——从资料版本与页范围提取习题（只读 B02 解析文字，扫描页列出不提取、不做 OCR）；候选题保留页、原文行、题号、选项、配图；原文答案（题内或答案区）与模型建议、学生填写、缺答案分开记录；左右对照核验页（编辑、拆分、合并、丢弃、恢复、可选的模型整理）；批量入库为 `material_extracted` 题；重复提取与重复入库不重复；资料删除/移出学科后不能再入库；公开题源记录链接、获取日期、版本、许可与署名，许可不明标“许可待确认”；组卷可不用公开资源题。新开关 `ZHIYU_STUDY_EXTRACTION_ENABLED`。
+- 不包含：OCR/扫描版提取（见“全部批次完成后再做”）；主观题入库（B09，提取出的主观题保留为候选、不能入库）；B11 的 AI 出题；自动抓取网络题源。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 设计决策（实际实现）
+
+- **提取默认按规则、零模型调用**（`lib/study/extraction/rules.ts`，纯函数，策略 `rules-v1`）：读取解析结果中所选页的文字（unpdf 每页一个文字块）；去掉页码和每页重复的页眉页脚；按题号（`3．`、`第 3 题`、`例 2`）切题，题号必须递增（跳号最多 3，`1` 开始新的一组），所以题干里的 `2023.` 不会被当成新题；`习题 1.2`、`第二章` 这类带编号的标题开始新的一组，`二、填空题` 这类题型标题不打断编号；题目跨页时接着读，候选记录两页；选项支持同一行 `A. … B. …`、每行一个、`(A)`，并要求字母按 A、B、C 连续（`设 A、B 两点` 不会被当成选项）；题内答案 `【答案】`/`答案：`/`故选 B`，解析 `【解析】`/`解：`（但题干开头的 `证明：` 是题干）；答案区 `参考答案` 后的 `1. B 2. AC`、`1~4 CBAB`、`3. 3x²`（主观题参考答案）按“同一编号的习题组 + 题号”配对，配不上的条目列为“答案区未匹配”，从不猜测。没有选项的题记为 `open`（主观题）。页内的图交给提到“如图/图 1”的题，归不了的列出来，可在核验页手动加入。
+- **扫描页**：所选页里没有文字的页列为“第 N 页没有文字（可能是扫描页），未提取”，提示上传文字版或手动录入；只有扫描页时提取成功但 0 道候选。
+- **提取 = 一次同步请求**，不进学习任务队列：规则提取在毫秒级（验收的 5 页习题册 4 ms），一次最多 200 页、500 题。幂等键 = 资料版本 + 解析结果 + 页范围 + 策略，同一请求返回同一份提取（200）；每个学科最多 100 份提取记录。
+- **答案证据与核验分开**：候选题的 `answerBasis` ∈ `source`（原文印着，题内或答案区，附页码）/ `model`（采用了模型建议）/ `user`（学生自己填或改）/ `missing`。入库后题目 `source.answerBasis` 只保留 `source`/`model`，核验状态只由学生在候选上勾“我已核对答案”决定（`user_verified`），原文答案和模型建议都不算核验；缺答案的题入库为草稿（B07 规则：不可判分、不进试卷）。
+- **可选的模型整理**（`lib/server/study/extraction/assist.ts`）：只在学生点“模型整理”时，对所选的最多 6 道候选调用学生当前选择的模型（经模型网关、同步重任务租约 `study-extract`、每次最多 2 次调用、每份提取最多 60 次），把公式写成 `$…$` LaTeX、拆选项、给出建议答案和一两句理由。结果只存为“建议”，不改候选；学生点“采用建议”才生效。采用后答案与原文一致时证据仍是 `source`、且不带模型理由；答案来自模型时证据为 `model`、取消“已核对”勾选。用量记在提取上（调用次数、输入/输出 token、模型、完整度），并照常写 `usage_events`（source `study-extract`）。
+- **核验页**（`/study/[spaceId]/extractions/[extractionId]`）：左边是原页（PDF 用 B02 阅读器的 pdf.js 画布，其他类型显示解析文字）、本页图片（可加到/移出当前题）和当前题的原文行（剪刀图标从该行起拆成新题）；右边是候选题列表（待处理/可入库/已入库/已丢弃/全部），每题显示题型、答案来源、是否修改过、问题提示、模型建议；操作有编辑（沿用 B07 编辑器）、与下一题合并、恢复提取结果、丢弃/恢复、勾选已核对、单题入库；批量“选中全部可入库”“模型整理”“加入题库”。窄屏时原文可折叠。编辑带 revision 检查（409 返回最新的候选）。拆分/合并按原文行重新读题，原文答案跟着能对上选项的那一部分走。
+- **入库**：只有单选/多选能入库；`origin = material_extracted`，`source` 记资料标题与 `material = {资料、版本、版本号、解析结果、文件页、题号}`，题库、试卷与报告都显示“《资料》第 N 版 · 文件第 p 页 · 第 n 题 · 查看原文”（打开原版本的原页）。去重沿用 B07：指纹 `mat:<版本>/<原文行 hash>` 与内容 hash，重复入库返回“已在题库中”；配图不计入版本，同一本书重新上传后同样的题也是重复。资料必须仍在资料库且仍在本学科，否则 409 `STUDY_EXTRACTION_SOURCE_GONE`；新的提取同样被拒（404）。
+- **配图**：题目版本新增可选 `figures`（最多 4 个，指向资料版本解析出的图片），随试卷快照冻结，作答与报告页经资料图片接口读取。资料删除后图片显示“图片不可用（原资料可能已删除）”，题目本身保留。
+- **公开题源**：JSON 导入可勾“这些题来自公开资源”，填写资源名称、链接、获取日期、版本、许可、署名，并单独确认“许可允许这样使用”；不确认就是 `licenseStatus = unclear`，题目显示“许可待确认”，来源为 `public_source`。导入文件自己的 `source` 也可带 `retrievedAt`/`version`/`licenseStatus`。组卷新增“也使用来自公开资源的题（排在自己的题之后）”，默认开；顺序为自己的题 → 公开资源题 → 官方题包。
+- **开关**：`ZHIYU_STUDY_EXTRACTION_ENABLED`（只有 Web 读取），同时要求资料库与题库开关；`/api/study/capabilities` 增加 `extraction`；关闭时入口消失、接口 404，已入库的题照常使用。
+
+### 偏离方案之处
+
+- 提取不是学习任务（Worker），而是同步请求：规则提取极快，没有付费调用；模型整理与 B03 答疑一样在 Web 同步执行（BYOK 选择不必进任务快照）。“失败保留已完成候选”：每次模型整理只改它自己的几道候选，失败不影响其他候选。
+- 模型不参与切题，只在学生要求时整理所选题；不让模型声称“原文有答案”（原文答案只来自规则读到的文字）。
+- 方案“保留 bbox”：unpdf 的解析结果没有 bbox（只有每页文字和图片），因此定位到“文件页 + 原文行”；以后换用带版面的解析器时可补。
+- 题源管理没有单独的“官方维护白名单资源清单”：官方题包仍是代码里的 B07 题包；“用户提供链接”是导入时记录来源信息，不由服务器抓取链接（不建爬虫，也避免服务器替用户下载）。
+- 主观题候选（填空、计算、证明）保留在提取里、带原文参考答案，但不能入库，等 B09 开放主观题。
+- 入库时不选课程（B07 导入可选）；入库后可在题库编辑器里关联课程。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-extraction.ts`（v29）、`migrations.ts`、`sql-accounts.ts`（版本 29）、`lib/server/study/schema.ts`、`lib/server/accounts/deletion.ts`。
+- 纯逻辑：`lib/study/extraction/{contracts,rules,candidate,client}.ts`。
+- 服务端：`lib/server/study/extraction/{repository,service,assist}.ts`；`lib/server/study/{flags,route}.ts`（开关与 `studyExtractionRoute`）、`spaces/repository.ts`（9 个错误码）、`materials/service.ts`（导出 `loadArtifactDocument`）、`heavy-task-admission`（`study-extract`）。
+- B07 扩展：`lib/study/questions/contracts.ts`（`QuestionSource.material/answerBasis/retrievedAt/version/licenseStatus`、`QuestionFigure`、`parseSourceDetails`、去重键计入配图数量）、`blueprint.ts`（`includePublic`、公开资源层）、`lib/server/study/questions/{repository,service}.ts`（`figures` 列、导入 `publicSource`、编辑保留配图）、`lib/server/study/exams/service.ts` 与 `lib/study/assessments/contracts.ts`（快照与视图带配图和资料来源）。
+- 接口：`app/api/study/extractions/**`（列表/开始、详情/删除、`commit`、`assist`）、`app/api/study/extraction-candidates/[candidateId]/{route,actions}`；`question-bank/imports` 支持 `publicSource`；`capabilities` 加 `extraction`。
+- 界面：`components/study/extraction/{ExtractQuestionsDialog,ExtractionReviewPage}.tsx`、`app/study/[spaceId]/extractions/[extractionId]`；`components/study/exams/{exam-format,PublicSourceFields,ImportQuestionsDialog,QuestionBankPanel,PaperBuilderPanel,PracticePage,AttemptPage}.tsx`（题库“从资料提取”、来源行、配图、公开题源表单、组卷开关）；`MaterialReaderPage` 导出 `PdfPageView`；`StudyShell` 未找到错误码；12 个语言文件 `study.extraction.*` 与 `study.practice.{source,publicSource,figure*}`。
+- 配置：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`（新开关透传）。
+
+### 数据迁移
+
+- accounts **v29**，checksum `cfd0433a6dcf475d438c00d7a79a085f124911e56293bf01299dd704768cd10e`；v28 `d6e44cc5…` 未变。只新增：`study_question_extractions`、`study_question_candidates`（都 FORCE RLS，`app_web` 按 owner 增删改查，anon/authenticated/PUBLIC/`app_worker` 无授权），以及 `study_question_versions.figures`（可空，1–4 项，≤2 KB；旧版本全为空，B07 题目的去重 hash 不变）。提取引用学科与解析结果（`(owner_id, id)` 外键、级联删除），所以删除资料或学科时提取一起删除；已入库的题不受影响。旧式自迁移安装经 `ensureStudySchema` 应用同一文本（约束用 DO 块按需添加）。
+- 已执行：PGlite（单测）；一次性真实 PostgreSQL（`*_rls_proof`，127.0.0.1:55432，用后 `down -v`）；本地验收库全新 bootstrap 到 v29（两张新表 `relrowsecurity = relforcerowsecurity = true`）。**未在生产执行。**
+
+### 测试
+
+- 新增：`tests/study/extraction-rules.test.ts`（23：选项拆分与误判、题内答案/`故选`/错误字母、主观题参考答案、`证明：` 题干、跨页与页眉页码、答案区按习题组配对、`1~3 BAB`、题型标题不打断编号、编号回退/跳号、配图归属与未归属、只有扫描页、候选校验与配图限制、模型输出解析、配图不影响跨版本去重）；`tests/server/study-extraction-migration.test.ts`（PGlite 4 + PostgreSQL 4 + 登记 1：可重复执行、强制 RLS、只授权 `app_web`、只能引用本人的学科与解析结果、他人不可见不可改、入库状态约束、Worker 无权、级联、配图上限）；`tests/api/study-extraction-routes.test.ts`（5：开关；规则提取、跳过扫描页、重复请求同一份、页范围校验；改答案变“你填写的”、过期 revision 409、非本解析结果的图 422、恢复、拆分再合并、模型整理只给建议、采用后为 `model`、用量记录、入库结果与来源/版本/配图、主观题不能入库、重复入库 skipped、配图进入试卷与图片接口、移出学科后 409/404、删除资料后提取消失题目保留；他人 9 个接口 404 且数据不变；公开题源导入与组卷排除）。
+- 调整：`principal-mode`（版本列表加 29）、`study-exams-migration`（版本断言放宽为 ≥28）、`account-deletion-lifecycle`（两张新表只删本人）、三个 capabilities 断言（加 `extraction`）、`question-bank-logic`（blueprint 加 `includePublic`）。
+- 全量 Vitest（`--maxWorkers=4`）：**883 个文件通过、17 个跳过；9112 项通过、94 项跳过、1 项失败**——失败的是运行期间新加的“`证明：` 题干”用例（规则修复前已被加载），修复后与 API 测试单独重跑全部通过；验收修复后再跑 `tests/study` 与两个题库/提取接口测试 11 个文件 129 项全部通过。`tsc --noEmit`、改动文件 ESLint（0 问题）与 Prettier、`check:i18n-keys`（12 个语言文件）、`build:worker` 通过。
+- 真实 PostgreSQL（一次性 `*_rls_proof`）：v29 + v28 迁移测试 18 项、账号删除 16 项通过。
+
+### 浏览器验收（2026-10-12，本地托管模式）
+
+环境：一次性 PostgreSQL 17（`zhiyu-b08-acceptance-pg`，127.0.0.1:56433，全新 bootstrap 到 v29）、假 Supabase 登录、假 S3、Worker（只解析资料，无任何模型密钥，日志显示 0 个 LLM provider）、`next dev`；Web 以 `zhiyu_app_web` 登录（RLS 生效）。`.env.local` 其余变量全部置空，只有 DeepSeek 三项由 `next dev` 从 `.env.local` 读取（不写入任何文件），供“模型整理”使用。用后删除容器、临时 env、测试账号文件与假 S3 数据，进程按 PID 停止。
+
+资料：用黑体生成的 5 页《高数习题册》PDF（每页页眉“高等数学同步练习”与页码；习题 1.1 的选择、填空、解答、证明题；第 3 题跨第 1–2 页；第 4 题带三角形插图；第 3 页是只有图片的扫描页；习题 1.2 一道题内带【答案】【解析】的多选；第 5 页参考答案 `1~4 CBAB`、`5. 3x²`、`6. 1`、`7. 略`、习题 1.2 `1. AB`），以及改写了第 1 题的第 2 版。经 unpdf 解析：5 页、690 字、1 张图。
+
+1. 学科“高等数学”→“题库与测试”→“从资料提取”：选资料、第 1 版（非当前版本）、第 1–5 页 → 核验页“读取 5 页 · 找到 8 题（选择题 5，其他 3）· 8 题有原文答案 · 规则提取用时 4 毫秒 · 未调用模型”，提示“提取自旧版本（第 1 版）”与“第 3 页没有文字（可能是扫描页），未提取”。8 道候选的题号、答案全部正确：第 3 题“文件第 1–2 页”，第 4 题带插图，第 5–7 题为主观题并带参考答案，习题 1.2 第 1 题为多选 AB（题内答案，答案区重复的那条不算未匹配），答案区没有未匹配条目。
+2. 1400 px 宽左右对照：选中第 4 题，左侧跳到第 2 页 PDF 画面（含三角形）、本页图片显示“从本题移除”、原文行列出；第 1、2 题勾“我已核对答案”。
+3. 对第 4、6 题点“模型整理”（真实 DeepSeek，平台默认 `platform:zhiyu-default-text`）：1 次调用、18 秒、输入 325 / 输出 248 tokens，`usage_events` 一行 `study-extract`（platform 资金、ok）；第 4 题题干与选项改成 LaTeX、建议答案 B 并给出理由；第 6 题只整理格式。采用第 4 题建议后答案仍为 B、来源仍是“答案来自原文”，配图保留。
+4. 第 2 题从选项行拆开 → 9 道（前半是主观题“缺答案”，后半带原文答案 B）；再“与下一题合并” → 恢复 4 个选项、答案 B（原文）。在编辑器里给第 3 题加解析 → 答案来源不变。丢弃第 7 题。
+5. “选中全部可入库”→“加入题库（5）”→“已加入题库 5 题”；题库 5 题都是“资料提取”，第 1、2 题已核验，其余未核验；第 4 题展开显示插图、LaTeX 与“高数习题册 · 第 1 版 · 文件第 2 页 · 第 4 题 · 查看原文 · 答案来自原文”，“查看原文”打开第 1 版第 2 页。
+6. 组卷 4 单选 + 1 多选（含未核验）→ 作答页第 4 题显示插图，作答接口没有答案字段；交卷 5/5，报告每题来源行写明“第 1 版 · 文件第 x 页 · 第 n 题”。
+7. 同一请求再提取 → 同一份（200）；只提取第 3 页 → 0 道候选、列出第 3 页；对当前第 2 版提取 8 题并入库 → 只有改写的第 1 题新增，第 2、3 题和习题 1.2 第 1 题为“已在题库中”（第 4 题因当时去重键含版本而被新增，随后改为只计配图数量，见下）。
+8. 账号 B（127.0.0.1）：对 A 的提取、学科、资料、候选、图片共 12 个接口（读、列表、在 A 学科提取、用 A 的资料在 B 的学科提取、改/恢复/拆分/合并候选、入库、模型整理、删除、读 A 的图片）全部 404；直接打开 A 的核验页显示“找不到这个学科空间”；数据库核对 A 的候选状态与 revision 不变，B 没有任何提取。
+9. 把资料移出学科 → 核验页显示“原资料已删除或已从这个学科移除，不能再把候选题加入题库”，编辑与入库按钮消失；入库 409、新提取 404。重新关联后永久删除资料 → 三份提取随之删除，题库 7 题保留，配图位置显示“图片不可用（原资料可能已删除）”。
+10. 375 px：核验页（含展开的原文 PDF 画面）、题库页与提取对话框都没有横向滚动。服务器日志无错误；整个验收只有第 3 步那一次模型调用。
+
+### 验收中发现并修复的问题
+
+- `二、填空题` 这类题型标题会把编号清零，导致后面的第 5 题被并进第 4 题：只有带编号的标题（`习题 1.2`、`第二章`）才开始新的一组。
+- 题干以 `证明：` 开头时被当成解答，题干变空：只有题干之后的 `解：`/`证明：` 才算解答。
+- 答案区重复题内答案的条目被列为“未匹配”：一致时视为已匹配。
+- 题库里的配图用了 `loading="lazy"`，在部分窗口中不加载：改为直接加载（每题最多 4 张）。
+- 采用模型建议时，即使答案来自原文也会带上模型写的理由，题库里显示成没有标注的“解析”：只有采用了模型自己的答案（此时标“答案为模型建议”）才带上理由。
+- 主观题的模型建议显示“模型没有把握”：改为“主观题只整理格式，不给出答案”。
+- 去重键原来包含配图所在的资料版本，同一本书重新上传后带图的题会重复入库：改为只计配图数量。
+- 单页范围显示“第 3–3 页”：改为“第 3 页”。
+
+### 未验证
+
+- 深色模式未检查（用户 2026-10-11：之后会重做 UI）。
+- 只用了一份自制的规整习题册；真实教材排版（多栏、公式图片化、题号样式更多）下的规则命中率没有统计，遇到切错可用拆分/合并/编辑修正，或用“模型整理”。
+- 扫描版（OCR）提取按用户决定暂不做。
+- 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）；未构建生产镜像。
+
+### 回退
+
+- 运行时：Web 的 `ZHIYU_STUDY_EXTRACTION_ENABLED` 置空后 apply——入口消失、提取接口 404；已入库的题、试卷与公开题源导入照常（导入的 `publicSource` 字段不依赖该开关）。
+- 版本回退：回到 B07 镜像；v29 的表与 `figures` 列保留不用（旧代码不读，旧代码写入的题 `figures` 为空）。
+
+### 上线步骤（待用户指示，按 B07 流程；以下都尚未执行）
+
+1. 核对生产 `app_schema_migrations` v28 checksum = `d6e44cc5…`；Supabase `apply_migration` 只执行仓库 v29 SQL 原文，写入 `app_schema_migrations(29, cfd0433a…)`；核对两张新表 RLS 开启且强制、只授权 `app_web`、`figures` 约束存在。**绝不对生产运行 `pnpm accounts:migrate`。**
+2. 合并到 main 并推送 tokyo；构建 web/worker 镜像（Worker 无改动，可只换 web，但按惯例两者同版本）；备份 env 与 compose；compose 换成仓库版本（多一行透传）；env 加 `ZHIYU_STUDY_EXTRACTION_ENABLED=1`；apply；readiness 与 capabilities `extraction: true`。
+3. 用户登录后在生产上传一份文字版习题 PDF，提取、核验、入库并组卷验收；需要时验证一次“模型整理”。
+
+### 下一批前置条件
+
+- B09：提取出的主观题候选已有 `content.type = 'open'` 与 `referenceAnswer`，开放 `short_answer` 入库后可直接让这些候选可入库（`candidateQuestion`/`isCommittable` 处放开即可）。
+- B11：`study_exam_papers.mode` 已允许 `ai`/`mixed`；模型生成题的来源必须是 `ai_generated`，不能复用 `material_extracted`。
 
 ## B07 结构化题库、规则组卷与客观题测试（2026-10-11）
 
