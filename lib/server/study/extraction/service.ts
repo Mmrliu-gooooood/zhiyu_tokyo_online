@@ -407,6 +407,9 @@ export async function adoptSuggestion(
     const options = type === 'open' ? [] : (suggestion.options ?? current.options);
     const answer =
       type === 'open' ? [] : suggestion.answer.length ? suggestion.answer : current.answer;
+    // The model's reasoning comes along only with the model's own answer, which
+    // is then labelled as a model suggestion; it never explains a printed one.
+    const modelAnswer = answer.length > 0 && !sameAnswer(answer, current.answer);
     const parsed = parseCandidateContent(
       {
         ...current,
@@ -414,7 +417,7 @@ export async function adoptSuggestion(
         stem: suggestion.stem ?? current.stem,
         options,
         answer,
-        explanation: current.explanation ?? suggestion.explanation,
+        explanation: current.explanation ?? (modelAnswer ? suggestion.explanation : null),
       },
       new Set(current.figures),
     );

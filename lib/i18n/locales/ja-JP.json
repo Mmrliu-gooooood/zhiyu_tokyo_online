@@ -3436,7 +3436,8 @@
       "restore": "抽出結果に戻す",
       "discard": "破棄",
       "undiscard": "戻す",
-      "commitOne": "問題集に追加"
+      "commitOne": "問題集に追加",
+      "openSuggestion": "記述問題は書式のみ整え、解答は出しません。"
     }
   }
 }

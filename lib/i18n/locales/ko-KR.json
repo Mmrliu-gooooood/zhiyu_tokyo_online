@@ -3436,7 +3436,8 @@
       "restore": "추출 결과로 되돌리기",
       "discard": "버리기",
       "undiscard": "되돌리기",
-      "commitOne": "문제은행에 추가"
+      "commitOne": "문제은행에 추가",
+      "openSuggestion": "주관식은 서식만 정리하고 답은 내지 않습니다."
     }
   }
 }

@@ -3436,7 +3436,8 @@
       "restore": "Restaurer l’extrait",
       "discard": "Écarter",
       "undiscard": "Rétablir",
-      "commitOne": "Ajouter"
+      "commitOne": "Ajouter",
+      "openSuggestion": "Question ouverte : mise en forme seulement, sans réponse."
     }
   }
 }

@@ -563,10 +563,10 @@ export function canonicalQuestionText(content: QuestionContent): string {
     content.options.map((option) => [option.value, fold(option.label)]),
     [...content.answer].sort(),
   ];
-  // The same words with another figure are another question (absent: unchanged B07 hashes).
-  if (content.figures?.length) {
-    parts.push(content.figures.map((figure) => `${figure.versionId}/${figure.imageId}`));
-  }
+  // A question with figures differs from the same words without them. Which
+  // material version holds the image does not matter: the same exercise in a
+  // re-uploaded book is the same question. (No figures: unchanged B07 hashes.)
+  if (content.figures?.length) parts.push({ figures: content.figures.length });
   return JSON.stringify(parts);
 }
 

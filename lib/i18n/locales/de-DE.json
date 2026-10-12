@@ -3436,7 +3436,8 @@
       "restore": "Extrahiertes wiederherstellen",
       "discard": "Verwerfen",
       "undiscard": "Zurückholen",
-      "commitOne": "Übernehmen"
+      "commitOne": "Übernehmen",
+      "openSuggestion": "Offene Frage: nur Formatierung, keine Antwort."
     }
   }
 }

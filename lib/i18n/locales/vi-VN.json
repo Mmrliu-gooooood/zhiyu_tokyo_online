@@ -3436,7 +3436,8 @@
       "restore": "Khôi phục bản trích",
       "discard": "Bỏ",
       "undiscard": "Khôi phục",
-      "commitOne": "Thêm vào ngân hàng"
+      "commitOne": "Thêm vào ngân hàng",
+      "openSuggestion": "Câu tự luận: chỉ sắp xếp định dạng, không đưa đáp án."
     }
   }
 }

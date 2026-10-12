@@ -195,7 +195,6 @@ export function QuestionFigures({ figures }: { figures: readonly QuestionFigure[
               figure.artifactId,
             )}
             alt={t('study.practice.figureAlt')}
-            loading="lazy"
             className="max-h-56 max-w-full rounded-md border border-border bg-white object-contain"
             onError={() => setFailed((current) => new Set([...current, key]))}
           />

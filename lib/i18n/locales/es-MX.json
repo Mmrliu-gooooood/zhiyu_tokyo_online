@@ -3436,7 +3436,8 @@
       "restore": "Restaurar lo extraído",
       "discard": "Descartar",
       "undiscard": "Recuperar",
-      "commitOne": "Añadir al banco"
+      "commitOne": "Añadir al banco",
+      "openSuggestion": "Pregunta abierta: solo formato, sin respuesta."
     }
   }
 }

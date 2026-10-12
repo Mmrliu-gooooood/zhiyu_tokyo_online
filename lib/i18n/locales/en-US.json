@@ -3436,7 +3436,8 @@
       "restore": "Restore extracted",
       "discard": "Discard",
       "undiscard": "Restore",
-      "commitOne": "Add to bank"
+      "commitOne": "Add to bank",
+      "openSuggestion": "Open question: formatting only, no answer."
     }
   }
 }

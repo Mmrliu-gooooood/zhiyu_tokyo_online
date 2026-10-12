@@ -13,6 +13,7 @@ import {
   parseCandidateContent,
 } from '@/lib/study/extraction/candidate';
 import { parseAssistOutput } from '@/lib/server/study/extraction/assist';
+import { canonicalQuestionText } from '@/lib/study/questions/contracts';
 
 const page = (number: number, ...lines: string[]) => ({ page: number, text: lines.join('\n') });
 
@@ -372,5 +373,36 @@ describe('model help output', () => {
     );
     expect(parsed?.get('qc-aaaaaaaaaaaa')?.answer).toEqual([]);
     expect(parsed?.has('qc-bbbbbbbbbbbb')).toBe(false);
+  });
+});
+
+describe('duplicate key of questions with figures', () => {
+  it('ignores which version holds the figure but not whether there is one', () => {
+    const base = {
+      type: 'single' as const,
+      stem: '如图所示，∠B = ?',
+      options: [
+        { value: 'A', label: '40°' },
+        { value: 'B', label: '70°' },
+      ],
+      answer: ['B'],
+      explanation: null,
+      concepts: [],
+      difficulty: null,
+      points: 1,
+      source: null,
+    };
+    const figure = (versionId: string) => ({
+      materialId: 'smat-1',
+      versionId,
+      artifactId: `art-${versionId}`,
+      imageId: 'img_1',
+    });
+    expect(canonicalQuestionText({ ...base, figures: [figure('v1')] })).toBe(
+      canonicalQuestionText({ ...base, figures: [figure('v2')] }),
+    );
+    expect(canonicalQuestionText({ ...base, figures: [figure('v1')] })).not.toBe(
+      canonicalQuestionText(base),
+    );
   });
 });

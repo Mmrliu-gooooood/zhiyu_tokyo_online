@@ -507,6 +507,7 @@ describe('exercise extraction', () => {
         answer: ['A'],
         stem: '如图所示，三角形 $ABC$ 中 $AB=AC$，则（ ）',
         figures: ['img_1'],
+        explanation: '等腰三角形两底角相等。',
       },
     });
 

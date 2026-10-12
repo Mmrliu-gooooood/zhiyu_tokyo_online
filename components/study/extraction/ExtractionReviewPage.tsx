@@ -974,7 +974,9 @@ function CandidateCard(props: {
           <p className="text-foreground">
             {suggestion.answer.length
               ? t('study.extraction.suggestedAnswer', { answer: suggestion.answer.join('') })
-              : t('study.extraction.noSuggestedAnswer')}
+              : (suggestion.type ?? content.type) === 'open'
+                ? t('study.extraction.openSuggestion')
+                : t('study.extraction.noSuggestedAnswer')}
           </p>
           {suggestion.explanation ? (
             <p className="text-xs text-muted-foreground">

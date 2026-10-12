@@ -46,9 +46,11 @@ export function extractionTitle(
   return [
     extraction.materialTitle ?? t('study.extraction.materialGone'),
     extraction.versionNo ? t('study.practice.source.version', { n: extraction.versionNo }) : null,
-    extraction.pageFrom !== null
-      ? t('study.extraction.pageRange', { from: extraction.pageFrom, to: extraction.pageTo })
-      : t('study.extraction.wholeDocument'),
+    extraction.pageFrom === null
+      ? t('study.extraction.wholeDocument')
+      : extraction.pageFrom === extraction.pageTo
+        ? t('study.extraction.onPages', { pages: extraction.pageFrom })
+        : t('study.extraction.pageRange', { from: extraction.pageFrom, to: extraction.pageTo }),
   ]
     .filter(Boolean)
     .join(' · ');

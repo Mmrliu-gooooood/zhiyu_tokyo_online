@@ -3436,7 +3436,8 @@
       "restore": "恢復擷取結果",
       "discard": "丟棄",
       "undiscard": "恢復",
-      "commitOne": "加入題庫"
+      "commitOne": "加入題庫",
+      "openSuggestion": "主觀題只整理格式，不給出答案。"
     }
   }
 }

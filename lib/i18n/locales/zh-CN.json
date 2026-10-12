@@ -3436,7 +3436,8 @@
       "restore": "恢复提取结果",
       "discard": "丢弃",
       "undiscard": "恢复",
-      "commitOne": "加入题库"
+      "commitOne": "加入题库",
+      "openSuggestion": "主观题只整理格式，不给出答案。"
     }
   }
 }
