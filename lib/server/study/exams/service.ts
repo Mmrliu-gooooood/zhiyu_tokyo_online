@@ -99,7 +99,7 @@ async function candidates(
     bankFingerprints.add(row.fingerprint);
     list.push({
       ref: `bank:${row.id}@${row.version}`,
-      tier: 'bank',
+      tier: row.origin === 'public_source' ? 'public' : 'bank',
       type: row.type,
       conceptKeys: row.conceptKeys,
       stageId: row.stageId,
@@ -164,7 +164,7 @@ async function select(
   const { list, resolve } = await candidates(db, ownerId, blueprint);
   const result = selectQuestions(blueprint, list, conceptKeys);
   const bankRefs = result.picked
-    .filter((candidate) => candidate.tier === 'bank')
+    .filter((candidate) => candidate.tier !== 'pack')
     .map((candidate) => {
       const [id, version] = candidate.ref.slice('bank:'.length).split('@');
       return { id: id!, version: Number(version) };
@@ -235,6 +235,9 @@ function frozenItem(item: Resolved): FrozenItem {
     ...(source?.license ? { license: source.license } : {}),
     ...(source?.attribution ? { attribution: source.attribution } : {}),
     ...(item.packTitle ? { packTitle: item.packTitle } : {}),
+    ...(source?.licenseStatus ? { licenseStatus: source.licenseStatus } : {}),
+    ...(source?.answerBasis ? { answerBasis: source.answerBasis } : {}),
+    ...(source?.material ? { material: source.material } : {}),
   };
   return {
     questionId: item.questionId,
@@ -249,6 +252,7 @@ function frozenItem(item: Resolved): FrozenItem {
       concepts: item.content.concepts,
       difficulty: item.content.difficulty,
       source: itemSource,
+      ...(item.content.figures?.length ? { figures: item.content.figures } : {}),
     },
     key: { answer: item.content.answer, explanation: item.content.explanation },
   };

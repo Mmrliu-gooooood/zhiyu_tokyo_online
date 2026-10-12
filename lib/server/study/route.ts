@@ -22,6 +22,7 @@ import {
   isStudyClassmatesFlagOn,
   isStudyCompanionChatFlagOn,
   isStudyExamsFlagOn,
+  isStudyExtractionFlagOn,
   isStudyMaterialsFlagOn,
   isStudyMemoryFlagOn,
   isStudyQaFlagOn,
@@ -174,6 +175,24 @@ export function studyExamsRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyExamsEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B08 exercise extraction: materials and the question bank plus ZHIYU_STUDY_EXTRACTION_ENABLED. */
+export function isStudyExtractionEnabled(): boolean {
+  return isStudyExtractionFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the extraction APIs. */
+export function studyExtractionRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyExtractionEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

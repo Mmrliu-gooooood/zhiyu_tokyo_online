@@ -226,7 +226,8 @@ export async function purgeStudyMaterial(
 const ARTIFACT_CACHE_LIMIT = 16;
 const artifactCache = new Map<string, StoredArtifactDocument>();
 
-async function loadArtifactDocument(key: string): Promise<StoredArtifactDocument> {
+/** A stored parse result (cached by object key; artifacts never change once written). */
+export async function loadArtifactDocument(key: string): Promise<StoredArtifactDocument> {
   const cached = artifactCache.get(key);
   if (cached) {
     artifactCache.delete(key);

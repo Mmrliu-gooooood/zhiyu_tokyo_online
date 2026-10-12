@@ -203,7 +203,7 @@ const SUBMIT = `UPDATE study_exam_attempts
 
 describe('accounts v28 registration', () => {
   it('is the newest accounts version with a stable checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(28);
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(28);
     expect(accountsMigrationChecksum(28)).toMatch(/^[a-f0-9]{64}$/);
     expect(ACCOUNTS_MIGRATION_28).toContain('FORCE ROW LEVEL SECURITY');
   });

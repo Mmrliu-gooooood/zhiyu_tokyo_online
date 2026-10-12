@@ -42,7 +42,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { TypeChip, newRequestKey, MathText } from '@/components/study/exams/exam-format';
+import {
+  QuestionFigures,
+  SourceDetails,
+  TypeChip,
+  newRequestKey,
+  MathText,
+} from '@/components/study/exams/exam-format';
 import {
   StudyShell,
   StudyStatus,
@@ -342,6 +348,7 @@ function AnswerSheet({
                 </span>
                 <div className="min-w-0 flex-1 text-sm leading-6 text-foreground">
                   <MathText text={item.stem} allowDisplayMode />
+                  <QuestionFigures figures={item.figures} />
                 </div>
               </div>
               <div className="mb-3 flex flex-wrap items-center gap-1.5 pl-6">
@@ -571,14 +578,6 @@ function AttemptReport({ attempt, spaceId }: { attempt: AttemptView; spaceId: st
 function ReportCard({ item }: { item: ReportItem }) {
   const { t } = useI18n();
   const Icon = OUTCOME_ICON[item.outcome];
-  const sourceLine = [
-    item.source.packTitle ?? item.source.title,
-    item.source.page,
-    item.source.attribution,
-    item.source.license,
-  ]
-    .filter(Boolean)
-    .join(' · ');
   return (
     <li
       className="rounded-2xl border border-border bg-card p-4 md:p-5"
@@ -589,6 +588,7 @@ function ReportCard({ item }: { item: ReportItem }) {
         <span className="mt-0.5 text-sm font-semibold text-muted-foreground">{item.position}.</span>
         <div className="min-w-0 flex-1 text-sm leading-6 text-foreground">
           <MathText text={item.stem} allowDisplayMode />
+          <QuestionFigures figures={item.figures} />
         </div>
         <span
           className={cn(
@@ -641,7 +641,7 @@ function ReportCard({ item }: { item: ReportItem }) {
             <MathText text={item.explanation} allowDisplayMode />
           </div>
         ) : null}
-        {sourceLine ? <p className="text-xs text-muted-foreground">{sourceLine}</p> : null}
+        <SourceDetails source={item.source} />
       </div>
     </li>
   );

@@ -24,6 +24,7 @@ import {
   validateQuestionContent,
   type ConceptView,
   type QuestionContent,
+  type QuestionFigure,
   type QuestionListResult,
   type QuestionOrigin,
   type QuestionSource,
@@ -166,7 +167,7 @@ export async function conceptKeysOf(
 const QUESTION_COLUMNS = `
   q.id, q.space_id, q.origin, q.current_version, q.stage_id, q.created_at, q.updated_at,
   v.qtype, v.stem, v.options, v.answer, v.explanation, v.concept_ids, v.difficulty, v.points,
-  v.source, v.verification, v.gradable, v.content_hash,
+  v.source, v.verification, v.gradable, v.content_hash, v.figures,
   ARRAY(
     SELECT c.name FROM study_concepts c
      WHERE c.owner_id = q.owner_id AND c.id = ANY(v.concept_ids)
@@ -198,7 +199,13 @@ interface QuestionRow extends Record<string, unknown> {
   verification: VerificationState;
   gradable: boolean;
   content_hash: string;
+  figures: unknown;
   concept_names: string[];
+}
+
+function figuresOf(value: unknown): { figures?: QuestionFigure[] } {
+  const figures = json<QuestionFigure[]>(value);
+  return figures?.length ? { figures } : {};
 }
 
 function toView(row: QuestionRow): QuestionView {
@@ -219,6 +226,7 @@ function toView(row: QuestionRow): QuestionView {
     difficulty: row.difficulty === null ? null : Number(row.difficulty),
     points: Number(row.points),
     source: json<QuestionSource>(row.source),
+    ...figuresOf(row.figures),
     stageId: row.stage_id,
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
@@ -338,9 +346,9 @@ async function insertVersion(
   await tx.query(
     `INSERT INTO study_question_versions
        (owner_id, question_id, version, qtype, stem, options, answer, explanation, concept_ids,
-        difficulty, points, source, verification, gradable, content_hash)
+        difficulty, points, source, verification, gradable, content_hash, figures)
      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::text[], $10, $11, $12::jsonb,
-             $13, $14, $15)`,
+             $13, $14, $15, $16::jsonb)`,
     [
       ownerId,
       questionId,
@@ -357,6 +365,7 @@ async function insertVersion(
       verification,
       isGradable(content),
       hash,
+      content.figures?.length ? JSON.stringify(content.figures) : null,
     ],
   );
 }
@@ -529,6 +538,7 @@ export async function deleteQuestion(
 
 export interface BankCandidateRow {
   id: string;
+  origin: QuestionOrigin;
   fingerprint: string;
   version: number;
   type: QuestionType;
@@ -547,6 +557,7 @@ export async function loadBankCandidates(
 ): Promise<BankCandidateRow[]> {
   const result = await db.query<{
     id: string;
+    origin: QuestionOrigin;
     source_fingerprint: string;
     current_version: number;
     qtype: QuestionType;
@@ -556,7 +567,7 @@ export async function loadBankCandidates(
     content_hash: string;
     concept_keys: string[];
   }>(
-    `SELECT q.id, q.source_fingerprint, q.current_version, v.qtype, q.stage_id, v.difficulty, v.verification,
+    `SELECT q.id, q.origin, q.source_fingerprint, q.current_version, v.qtype, q.stage_id, v.difficulty, v.verification,
             v.content_hash,
             ARRAY(SELECT c.name_key FROM study_concepts c
                    WHERE c.owner_id = q.owner_id AND c.id = ANY(v.concept_ids)) AS concept_keys
@@ -568,6 +579,7 @@ export async function loadBankCandidates(
   );
   return result.rows.map((row) => ({
     id: row.id,
+    origin: row.origin,
     fingerprint: row.source_fingerprint,
     version: Number(row.current_version),
     type: row.qtype,
@@ -599,6 +611,7 @@ export async function loadQuestionVersions(
     `SELECT q.id, q.space_id, q.origin, v.version AS current_version, q.stage_id, q.created_at,
             q.updated_at, v.qtype, v.stem, v.options, v.answer, v.explanation, v.concept_ids,
             v.difficulty, v.points, v.source, v.verification, v.gradable, v.content_hash,
+            v.figures,
             ARRAY(
               SELECT c.name FROM study_concepts c
                WHERE c.owner_id = q.owner_id AND c.id = ANY(v.concept_ids)
@@ -630,6 +643,7 @@ export async function loadQuestionVersions(
             difficulty: view.difficulty,
             points: view.points,
             source: view.source,
+            ...(view.figures ? { figures: view.figures } : {}),
           },
           contentHash: row.content_hash,
         },

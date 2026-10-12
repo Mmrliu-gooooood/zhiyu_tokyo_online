@@ -30,6 +30,12 @@ import {
 } from '@/components/ui/select';
 import { useIssueText, MathText } from '@/components/study/exams/exam-format';
 import {
+  PublicSourceFields,
+  publicSourceDetails,
+  publicSourceValid,
+  type PublicSourceForm,
+} from '@/components/study/exams/PublicSourceFields';
+import {
   QuestionEditorDialog,
   type EditorCourse,
 } from '@/components/study/exams/QuestionEditorDialog';
@@ -83,6 +89,7 @@ export function ImportQuestionsDialog({
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [verifiedMode, setVerifiedMode] = useState<VerifiedMode>('file');
   const [stageId, setStageId] = useState(NONE);
+  const [publicSource, setPublicSource] = useState<PublicSourceForm | null>(null);
   const [editing, setEditing] = useState<ImportPreviewItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +169,7 @@ export function ImportQuestionsDialog({
           verified: verifiedMode === 'all' ? true : verifiedMode === 'none' ? false : item.verified,
         })),
         stageId === NONE ? null : stageId,
+        publicSource ? publicSourceDetails(publicSource) : null,
       );
       toast.success(
         t('study.practice.import.done', { created: result.created, duplicates: result.duplicates }),
@@ -349,6 +357,7 @@ export function ImportQuestionsDialog({
                   </Select>
                 </div>
               </div>
+              <PublicSourceFields value={publicSource} onChange={setPublicSource} />
             </div>
           ) : null}
 
@@ -363,7 +372,7 @@ export function ImportQuestionsDialog({
               {t('common.cancel')}
             </Button>
             <Button
-              disabled={busy || selected.length === 0}
+              disabled={busy || selected.length === 0 || !publicSourceValid(publicSource)}
               onClick={() => void commit()}
               data-testid="question-import-commit"
             >

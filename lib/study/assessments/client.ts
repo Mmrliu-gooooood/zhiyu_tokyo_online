@@ -13,6 +13,7 @@ import type {
   ImportPreview,
   QuestionContent,
   QuestionListResult,
+  QuestionSource,
   QuestionType,
   QuestionView,
 } from '@/lib/study/questions/contracts';
@@ -71,10 +72,21 @@ export const questionBankApi = {
       method: 'POST',
       json: { spaceId, document },
     }),
-  commitImport: (spaceId: string, questions: QuestionInput[], stageId: string | null) =>
+  commitImport: (
+    spaceId: string,
+    questions: QuestionInput[],
+    stageId: string | null,
+    publicSource: QuestionSource | null = null,
+  ) =>
     studyRequest<ImportCommitResult>('/api/study/question-bank/imports', {
       method: 'POST',
-      json: { spaceId, commit: true, questions, stageId },
+      json: {
+        spaceId,
+        commit: true,
+        questions,
+        stageId,
+        ...(publicSource ? { publicSource } : {}),
+      },
     }),
   packs: () =>
     studyRequest<{ packs: QuestionPackSummary[] }>('/api/study/question-bank/packs').then(

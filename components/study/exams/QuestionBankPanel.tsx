@@ -7,7 +7,16 @@
  * Editing saves a new version; papers already published keep their copy.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { BookCopy, FileUp, LoaderCircle, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  BookCopy,
+  FileUp,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  ScanText,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -31,11 +40,14 @@ import {
 } from '@/components/ui/select';
 import {
   OriginChip,
+  QuestionFigures,
+  SourceDetails,
   TypeChip,
   VerificationChip,
   MathText,
 } from '@/components/study/exams/exam-format';
 import { ImportQuestionsDialog } from '@/components/study/exams/ImportQuestionsDialog';
+import { ExtractQuestionsDialog } from '@/components/study/extraction/ExtractQuestionsDialog';
 import { OfficialPacksDialog } from '@/components/study/exams/OfficialPacksDialog';
 import {
   QuestionEditorDialog,
@@ -59,12 +71,15 @@ export function QuestionBankPanel({
   archived,
   courses,
   concepts,
+  canExtract = false,
   onBankChanged,
 }: {
   spaceId: string;
   archived: boolean;
   courses: EditorCourse[];
   concepts: ConceptView[];
+  /** Exercise extraction from materials is served (B08). */
+  canExtract?: boolean;
   /** The bank changed (counts, knowledge points). */
   onBankChanged: () => void;
 }) {
@@ -77,6 +92,7 @@ export function QuestionBankPanel({
   const [editing, setEditing] = useState<QuestionView | 'new' | null>(null);
   const [importing, setImporting] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [removing, setRemoving] = useState<QuestionView | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -154,6 +170,17 @@ export function QuestionBankPanel({
               <Plus className="mr-1 size-4" />
               {t('study.practice.bank.write')}
             </Button>
+            {canExtract ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setExtracting(true)}
+                data-testid="question-extract-open"
+              >
+                <ScanText className="mr-1 size-4" />
+                {t('study.extraction.open')}
+              </Button>
+            ) : null}
             <Button size="sm" onClick={() => setImporting(true)} data-testid="question-import-open">
               <FileUp className="mr-1 size-4" />
               {t('study.practice.import.open')}
@@ -329,6 +356,7 @@ export function QuestionBankPanel({
                 </div>
                 {open ? (
                   <div className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
+                    <QuestionFigures figures={question.figures} />
                     {question.options.map((option) => (
                       <p
                         key={option.value}
@@ -346,18 +374,7 @@ export function QuestionBankPanel({
                         <MathText text={question.explanation} allowDisplayMode />
                       </p>
                     ) : null}
-                    {question.source ? (
-                      <p className="text-xs text-muted-foreground">
-                        {[
-                          question.source.title,
-                          question.source.page,
-                          question.source.attribution,
-                          question.source.license,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
-                    ) : null}
+                    <SourceDetails source={question.source} />
                   </div>
                 ) : null}
               </li>
@@ -409,6 +426,9 @@ export function QuestionBankPanel({
           courses={courses}
           onImported={changed}
         />
+      ) : null}
+      {extracting ? (
+        <ExtractQuestionsDialog open onOpenChange={setExtracting} spaceId={spaceId} />
       ) : null}
       {browsing ? (
         <OfficialPacksDialog

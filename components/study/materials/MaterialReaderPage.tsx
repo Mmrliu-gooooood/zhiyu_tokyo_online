@@ -458,7 +458,7 @@ type PdfDocument = Awaited<ReturnType<(typeof import('unpdf'))['getDocumentProxy
  * ships). The document is fetched once per version and kept while the page
  * changes; rendering follows the container width and device pixel ratio.
  */
-function PdfPageView({ url, page }: { url: string; page: number }) {
+export function PdfPageView({ url, page }: { url: string; page: number }) {
   const { t } = useI18n();
   const container = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);

@@ -219,6 +219,7 @@ const blueprint = (overrides: Partial<ExamBlueprint> = {}): ExamBlueprint => ({
   difficulty: 'any',
   avoidSeen: false,
   includeUnverified: false,
+  includePublic: true,
   packIds: [],
   seed: 'seed-1',
   ...overrides,

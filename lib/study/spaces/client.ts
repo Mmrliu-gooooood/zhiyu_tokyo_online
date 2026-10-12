@@ -75,6 +75,8 @@ export interface StudyCapabilities {
   memory: boolean;
   /** B07 question bank, rule-built papers and objective attempts (needs spaces). */
   exams: boolean;
+  /** B08 exercise extraction from materials (needs materials and exams). */
+  extraction: boolean;
 }
 
 const CAPABILITY_KEYS = [
@@ -85,6 +87,7 @@ const CAPABILITY_KEYS = [
   'companionChat',
   'memory',
   'exams',
+  'extraction',
 ] as const satisfies ReadonlyArray<keyof StudyCapabilities>;
 
 function capabilitiesFrom(body: Record<string, unknown> | null): StudyCapabilities {

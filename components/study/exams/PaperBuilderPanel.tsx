@@ -54,6 +54,7 @@ interface Form {
   difficulty: DifficultyPreference;
   avoidSeen: boolean;
   includeUnverified: boolean;
+  includePublic: boolean;
   packIds: string[];
   title: string;
 }
@@ -94,6 +95,7 @@ export function PaperBuilderPanel({
     difficulty: 'any',
     avoidSeen: false,
     includeUnverified: false,
+    includePublic: true,
     packIds: [],
     title: '',
   });
@@ -139,6 +141,7 @@ export function PaperBuilderPanel({
       difficulty: form.difficulty,
       avoidSeen: form.avoidSeen,
       includeUnverified: form.includeUnverified,
+      includePublic: form.includePublic,
       packIds: form.packIds,
       ...(seed ? { seed } : {}),
     };
@@ -299,6 +302,13 @@ export function PaperBuilderPanel({
           />
           {t('study.practice.build.includeUnverified')}
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.includePublic}
+            onCheckedChange={(checked) => update('includePublic', checked === true)}
+          />
+          {t('study.practice.build.includePublic')}
+        </label>
         {packs.map((pack) => (
           <label key={pack.id} className="flex items-center gap-2 text-sm">
             <Checkbox
@@ -390,7 +400,7 @@ export function PaperBuilderPanel({
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <TypeChip type={item.type} />
                       <VerificationChip state={item.verification} />
-                      {item.tier === 'pack' ? <OriginChip origin={item.origin} /> : null}
+                      {item.tier !== 'bank' ? <OriginChip origin={item.origin} /> : null}
                       {item.concepts.map((name) => (
                         <span key={name} className="text-[11px] text-muted-foreground">
                           #{name}

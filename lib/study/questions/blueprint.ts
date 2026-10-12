@@ -24,6 +24,9 @@ export const BLUEPRINT_LIMITS = {
 
 export type DifficultyPreference = 'any' | 'easier' | 'harder';
 
+export type CandidateTier = 'bank' | 'public' | 'pack';
+const TIERS: readonly CandidateTier[] = ['bank', 'public', 'pack'];
+
 export interface BlueprintSection {
   type: QuestionType;
   count: number;
@@ -42,6 +45,11 @@ export interface ExamBlueprint {
   avoidSeen: boolean;
   /** Also use complete questions whose answer nobody checked. */
   includeUnverified: boolean;
+  /**
+   * Use bank questions taken from public resources (origin `public_source`,
+   * B08) after the student's own; on unless switched off.
+   */
+  includePublic: boolean;
   /** Official packs the student allowed, used after their own bank. */
   packIds: string[];
   seed: string;
@@ -51,7 +59,8 @@ export interface ExamBlueprint {
 export interface BlueprintCandidate {
   /** `bank:<questionId>` or a pack fingerprint. */
   ref: string;
-  tier: 'bank' | 'pack';
+  /** Own questions, then questions from public resources, then official packs. */
+  tier: CandidateTier;
   type: QuestionType;
   /** Knowledge-point comparison keys (see conceptKey). */
   conceptKeys: string[];
@@ -137,7 +146,7 @@ export function parseBlueprint(
   if (difficulty !== 'any' && difficulty !== 'easier' && difficulty !== 'harder') {
     return { ok: false, field: 'difficulty' };
   }
-  for (const flag of ['avoidSeen', 'includeUnverified'] as const) {
+  for (const flag of ['avoidSeen', 'includeUnverified', 'includePublic'] as const) {
     if (raw[flag] !== undefined && typeof raw[flag] !== 'boolean')
       return { ok: false, field: flag };
   }
@@ -155,6 +164,7 @@ export function parseBlueprint(
       difficulty,
       avoidSeen: raw.avoidSeen === true,
       includeUnverified: raw.includeUnverified === true,
+      includePublic: raw.includePublic !== false,
       packIds,
       seed: seed as string | null,
     },
@@ -196,7 +206,7 @@ const DIFFICULTY_TARGET: Record<DifficultyPreference, number | null> = {
 };
 
 /**
- * Candidates in pick order: own bank before official packs; within a tier a
+ * Candidates in pick order: own bank, then public resources, then official packs; within a tier a
  * seeded shuffle, then (stable) closest to the preferred difficulty first —
  * unknown difficulty counts as medium.
  */
@@ -208,7 +218,7 @@ function ordered(
   const target = DIFFICULTY_TARGET[difficulty];
   const rank = (candidate: BlueprintCandidate) =>
     target === null ? 0 : Math.abs((candidate.difficulty ?? 3) - target);
-  return (['bank', 'pack'] as const).flatMap((tier) =>
+  return TIERS.flatMap((tier) =>
     shuffled(
       candidates.filter((candidate) => candidate.tier === tier),
       random,
@@ -235,6 +245,7 @@ export function selectQuestions(
   const wanted = new Set(conceptKeys);
   const inScope = candidates.filter(
     (candidate) =>
+      (blueprint.includePublic || candidate.tier !== 'public') &&
       (blueprint.stageId === null || candidate.stageId === blueprint.stageId) &&
       (wanted.size === 0 || candidate.conceptKeys.some((key) => wanted.has(key))),
   );
@@ -310,7 +321,7 @@ export function selectQuestions(
 
 export interface PreviewItem {
   ref: string;
-  tier: 'bank' | 'pack';
+  tier: CandidateTier;
   type: QuestionType;
   stem: string;
   concepts: string[];

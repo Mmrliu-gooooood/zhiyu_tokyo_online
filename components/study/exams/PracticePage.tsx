@@ -41,14 +41,17 @@ export function PracticePage({ spaceId }: { spaceId: string }) {
   const [state, setState] = useState<StudyLoadState>('loading');
   const [space, setSpace] = useState<StudySpaceDetail | null>(null);
   const [concepts, setConcepts] = useState<ConceptView[]>([]);
+  const [canExtract, setCanExtract] = useState(false);
   const [loadKey, setLoadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     void loadStudyPage(async () => {
-      if (!(await fetchStudyCapabilities()).exams) {
+      const capabilities = await fetchStudyCapabilities();
+      if (!capabilities.exams) {
         throw Object.assign(new Error('unavailable'), { status: 404 });
       }
+      if (!cancelled) setCanExtract(capabilities.extraction);
       return studyApi.getSpace(spaceId);
     }).then((result) => {
       if (cancelled) return;
@@ -130,6 +133,7 @@ export function PracticePage({ spaceId }: { spaceId: string }) {
             archived={archived}
             courses={courses}
             concepts={concepts}
+            canExtract={canExtract}
             onBankChanged={loadConcepts}
           />
         </TabsContent>

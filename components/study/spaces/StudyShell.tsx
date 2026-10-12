@@ -175,7 +175,8 @@ export function studyFailureState(error: unknown): Exclude<StudyLoadState, 'load
     code === 'STUDY_SPACE_NOT_FOUND' ||
     code === 'STUDY_MATERIAL_NOT_FOUND' ||
     code === 'STUDY_PAPER_NOT_FOUND' ||
-    code === 'STUDY_ATTEMPT_NOT_FOUND'
+    code === 'STUDY_ATTEMPT_NOT_FOUND' ||
+    code === 'STUDY_EXTRACTION_NOT_FOUND'
   ) {
     return 'not-found';
   }

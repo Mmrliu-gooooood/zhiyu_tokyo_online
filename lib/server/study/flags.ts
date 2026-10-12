@@ -53,3 +53,16 @@ export function isStudyExamsFlagOn(env: NodeJS.ProcessEnv = process.env): boolea
   const flag = env.ZHIYU_STUDY_EXAMS_ENABLED;
   return flag === '1' || flag === 'true';
 }
+
+/**
+ * ZHIYU_STUDY_EXTRACTION_ENABLED: extracting exercises from parsed materials
+ * into the question bank (learning plan B08); needs the material library and
+ * the question bank. Web only (the rule extractor and the optional model help
+ * run in the request).
+ */
+export function isStudyExtractionFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_EXTRACTION_ENABLED;
+  return (
+    (flag === '1' || flag === 'true') && isStudyMaterialsFlagOn(env) && isStudyExamsFlagOn(env)
+  );
+}

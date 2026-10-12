@@ -33,8 +33,9 @@ export type QuestionOrigin = (typeof QUESTION_ORIGINS)[number];
  * Whether the answer was checked, independent of origin. `user_verified`:
  * the student confirmed it (in the import preview or the editor);
  * `official_verified`: checked by the maintainer of an official pack.
- * Later batches add evidence such as an answer found in the source (B08) or
- * an AI review (B11), which never counts as a human check.
+ * Evidence such as an answer printed in a material or suggested by a model
+ * (B08, `source.answerBasis`) or an AI review (B11) never counts as a human
+ * check.
  */
 export const VERIFICATION_STATES = ['unverified', 'user_verified', 'official_verified'] as const;
 export type VerificationState = (typeof VERIFICATION_STATES)[number];
@@ -74,8 +75,40 @@ export interface QuestionSource {
   page?: string;
   license?: string;
   attribution?: string;
+  /** Public sources (B08): when the student fetched it, and its own version or edition label. */
+  retrievedAt?: string;
+  version?: string;
+  /**
+   * Whether the student knows the licence lets them use the questions; a
+   * public source with `unclear` stays marked "licence to be confirmed".
+   */
+  licenseStatus?: 'clear' | 'unclear';
   /** Set when the question was copied from an official pack. */
   pack?: { id: string; version: number; questionId: string };
+  /** Set by the server when the question was extracted from a study material (B08). */
+  material?: MaterialSourceRef;
+  /** Where the answer key came from when it was not written by the student (B08). */
+  answerBasis?: 'source' | 'model';
+}
+
+/** The material version, file pages and printed number an extracted question came from. */
+export interface MaterialSourceRef {
+  materialId: string;
+  versionId: string;
+  versionNo: number;
+  artifactId: string;
+  /** File page numbers (1-based) the question was read from. */
+  pages: number[];
+  /** The question number as printed ("3", "例2"); null when there was none. */
+  label: string | null;
+}
+
+/** A figure of an extracted question: one image of a parsed material version. */
+export interface QuestionFigure {
+  materialId: string;
+  versionId: string;
+  artifactId: string;
+  imageId: string;
 }
 
 /** The editable content of one question version. */
@@ -92,6 +125,8 @@ export interface QuestionContent {
   difficulty: number | null;
   points: number;
   source: QuestionSource | null;
+  /** Figures shown with the stem (extracted questions only; set by the server). */
+  figures?: QuestionFigure[];
 }
 
 export interface ConceptView {
@@ -266,7 +301,41 @@ function readSource(raw: unknown, issues: QuestionIssue[]): QuestionSource | nul
       source.url = url;
     }
   }
+  if (raw.version !== undefined && raw.version !== null) {
+    const version = typeof raw.version === 'number' ? String(raw.version) : str(raw.version);
+    if (!version || version.length > QUESTION_LIMITS.sourceText) {
+      issues.push({ path: 'source.version', code: 'source_invalid' });
+    } else {
+      source.version = version;
+    }
+  }
+  if (raw.retrievedAt !== undefined && raw.retrievedAt !== null) {
+    const date = str(raw.retrievedAt);
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+      issues.push({ path: 'source.retrievedAt', code: 'source_invalid' });
+    } else {
+      source.retrievedAt = date;
+    }
+  }
+  if (raw.licenseStatus !== undefined && raw.licenseStatus !== null) {
+    if (raw.licenseStatus === 'clear' || raw.licenseStatus === 'unclear') {
+      source.licenseStatus = raw.licenseStatus;
+    } else {
+      issues.push({ path: 'source.licenseStatus', code: 'source_invalid' });
+    }
+  }
+  // `pack`, `material` and `answerBasis` are set by the server, never read from files.
   return Object.keys(source).length ? source : null;
+}
+
+/** Import-time source details the student enters for a whole file (B08 public sources). */
+export function parseSourceDetails(raw: unknown): {
+  source: QuestionSource | null;
+  issues: QuestionIssue[];
+} {
+  const issues: QuestionIssue[] = [];
+  const source = readSource(raw, issues);
+  return { source, issues };
 }
 
 /**
@@ -488,12 +557,17 @@ export function parseImportDocument(raw: unknown): ImportDocumentResult {
  */
 export function canonicalQuestionText(content: QuestionContent): string {
   const fold = (text: string) => text.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
-  return JSON.stringify([
+  const parts: unknown[] = [
     content.type,
     fold(content.stem),
     content.options.map((option) => [option.value, fold(option.label)]),
     [...content.answer].sort(),
-  ]);
+  ];
+  // The same words with another figure are another question (absent: unchanged B07 hashes).
+  if (content.figures?.length) {
+    parts.push(content.figures.map((figure) => `${figure.versionId}/${figure.imageId}`));
+  }
+  return JSON.stringify(parts);
 }
 
 /** Stable key of a question copied from an official pack. */

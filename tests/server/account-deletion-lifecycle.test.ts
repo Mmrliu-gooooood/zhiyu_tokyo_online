@@ -181,6 +181,9 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         foreign key(owner_id,paper_id) references study_exam_papers(owner_id,id));
       CREATE TABLE study_exam_attempts(owner_id text,id text,paper_id text,
         foreign key(owner_id,paper_id) references study_exam_papers(owner_id,id));
+      CREATE TABLE study_question_extractions(owner_id text,id text,primary key(owner_id,id));
+      CREATE TABLE study_question_candidates(owner_id text,extraction_id text,id text,
+        foreign key(owner_id,extraction_id) references study_question_extractions(owner_id,id));
       CREATE TABLE learning_tasks(id uuid primary key,owner_id text);
       CREATE TABLE learning_task_attempts(id uuid primary key,task_id uuid references learning_tasks(id),owner_id text,
         staged_object_keys jsonb not null default '[]');
@@ -248,6 +251,8 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO study_exam_papers VALUES('${OWNER}','paper-1'),('${OTHER}','paper-1');
       INSERT INTO study_exam_items VALUES('${OWNER}','paper-1',1),('${OTHER}','paper-1',1);
       INSERT INTO study_exam_attempts VALUES('${OWNER}','att-1','paper-1'),('${OTHER}','att-1','paper-1');
+      INSERT INTO study_question_extractions VALUES('${OWNER}','qx-1'),('${OTHER}','qx-1');
+      INSERT INTO study_question_candidates VALUES('${OWNER}','qx-1','qc-1'),('${OTHER}','qx-1','qc-1');
       INSERT INTO learning_tasks VALUES
         ('30000000-0000-4000-8000-000000000001','${OWNER}'),
         ('30000000-0000-4000-8000-000000000002','${OTHER}');
@@ -473,6 +478,8 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_exam_papers',
       'study_exam_items',
       'study_exam_attempts',
+      'study_question_extractions',
+      'study_question_candidates',
     ]) {
       expect((await db.query(`SELECT owner_id FROM ${table}`)).rows).toEqual([{ owner_id: OTHER }]);
     }

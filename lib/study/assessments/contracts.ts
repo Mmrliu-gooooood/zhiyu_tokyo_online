@@ -14,6 +14,8 @@
  */
 import { arraysEqual } from '@/lib/quiz/grading';
 import type {
+  MaterialSourceRef,
+  QuestionFigure,
   QuestionOption,
   QuestionOrigin,
   QuestionType,
@@ -39,6 +41,8 @@ export interface PaperItemView {
   points: number;
   concepts: string[];
   source: PaperItemSource;
+  /** Figures of an extracted question (material images, read through the material APIs). */
+  figures: QuestionFigure[];
 }
 
 /** Where a frozen item came from, for attribution (official packs carry their licence). */
@@ -51,6 +55,9 @@ export interface PaperItemSource {
   license?: string;
   attribution?: string;
   packTitle?: string;
+  licenseStatus?: 'clear' | 'unclear';
+  answerBasis?: 'source' | 'model';
+  material?: MaterialSourceRef;
 }
 
 /** The frozen key of one item; stored apart from the view. */
@@ -151,7 +158,50 @@ export function toItemView(position: number, snapshot: Record<string, unknown>):
       ...(text(source.license) ? { license: text(source.license) } : {}),
       ...(text(source.attribution) ? { attribution: text(source.attribution) } : {}),
       ...(text(source.packTitle) ? { packTitle: text(source.packTitle) } : {}),
+      ...(source.licenseStatus === 'clear' || source.licenseStatus === 'unclear'
+        ? { licenseStatus: source.licenseStatus }
+        : {}),
+      ...(source.answerBasis === 'source' || source.answerBasis === 'model'
+        ? { answerBasis: source.answerBasis }
+        : {}),
+      ...(materialRef(source.material) ? { material: materialRef(source.material)! } : {}),
     },
+    figures: Array.isArray(snapshot.figures)
+      ? (snapshot.figures as Array<Record<string, unknown>>).flatMap((figure) =>
+          [figure.materialId, figure.versionId, figure.artifactId, figure.imageId].every(
+            (part) => typeof part === 'string',
+          )
+            ? [
+                {
+                  materialId: String(figure.materialId),
+                  versionId: String(figure.versionId),
+                  artifactId: String(figure.artifactId),
+                  imageId: String(figure.imageId),
+                },
+              ]
+            : [],
+        )
+      : [],
+  };
+}
+
+function materialRef(value: unknown): MaterialSourceRef | null {
+  if (!value || typeof value !== 'object') return null;
+  const ref = value as Record<string, unknown>;
+  if (
+    typeof ref.materialId !== 'string' ||
+    typeof ref.versionId !== 'string' ||
+    typeof ref.artifactId !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    materialId: ref.materialId,
+    versionId: ref.versionId,
+    versionNo: Number(ref.versionNo ?? 0),
+    artifactId: ref.artifactId,
+    pages: Array.isArray(ref.pages) ? ref.pages.map(Number).filter(Number.isInteger) : [],
+    label: typeof ref.label === 'string' ? ref.label : null,
   };
 }
 

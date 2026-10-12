@@ -534,6 +534,10 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       await client.query('DELETE FROM study_knowledge_indexes WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_citations WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_qa_answers WHERE owner_id=$1', [ownerId]);
+      // Exercise extraction (v29): candidates under their extraction, which
+      // references a space and a parsed material version.
+      await client.query('DELETE FROM study_question_candidates WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_question_extractions WHERE owner_id=$1', [ownerId]);
       // Question bank and papers (v28): attempts and items under their
       // papers, versions under their questions, all under the owner's spaces.
       await client.query('DELETE FROM study_exam_attempts WHERE owner_id=$1', [ownerId]);

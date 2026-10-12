@@ -18,6 +18,7 @@ import {
   type ImportPreview,
   type ImportPreviewItem,
   type QuestionContent,
+  type QuestionSource,
   type QuestionView,
   type VerificationState,
 } from '@/lib/study/questions/contracts';
@@ -114,23 +115,43 @@ export async function previewImport(
 }
 
 /**
- * Add the valid questions of an import. `questions` are the (possibly edited)
- * preview items, each with the student's `verified` choice; invalid ones are
- * skipped and reported, duplicates are skipped. Safe to repeat.
+ * Fill the source of a question from a public resource with what the student
+ * entered for the whole file (the question's own fields win). The licence
+ * stays "to be confirmed" unless the student says it is clear.
+ */
+function withPublicSource(content: QuestionContent, details: QuestionSource): QuestionContent {
+  const source: QuestionSource = { ...details, ...(content.source ?? {}) };
+  if (!source.licenseStatus) source.licenseStatus = 'unclear';
+  return { ...content, source };
+}
+
+/**
+ * Add the valid questions of an import. `questions` are the (possibly
+ * edited) preview items, each with the student's `verified` choice; invalid ones are
+ * skipped and reported, duplicates are skipped. Safe to repeat. With
+ * `publicSource` the file comes from a public resource (B08): its link,
+ * retrieval date, version, licence and attribution go with every question,
+ * whose origin is then `public_source`.
  */
 export async function commitImport(
   db: StudyDb,
   ownerId: string,
   spaceId: string,
   questions: readonly unknown[],
-  stageId: string | null,
+  options: { stageId: string | null; publicSource?: QuestionSource | null },
 ): Promise<ImportCommitResult> {
+  const { stageId, publicSource = null } = options;
   await requireQuestionSpace(db, ownerId, spaceId, { writable: true });
   if (questions.length === 0 || questions.length > QUESTION_LIMITS.importItems) {
     throw new StudyError('STUDY_IMPORT_INVALID', { reason: 'too_many_questions' });
   }
   if (stageId) await assertSpaceCourse(db, ownerId, spaceId, stageId);
-  const parsed = questions.map((raw) => parseQuestion(raw));
+  const parsed = questions.map((raw) => {
+    const item = parseQuestion(raw);
+    return publicSource && item.content
+      ? { ...item, content: withPublicSource(item.content, publicSource) }
+      : item;
+  });
   const valid: Array<{ index: number; content: QuestionContent; verified: boolean }> = [];
   const outcomes: ImportCommitResult['outcomes'] = [];
   parsed.forEach((item, index) => {
@@ -148,7 +169,7 @@ export async function commitImport(
         valid.map((item) => ({
           content: item.content,
           verification: verificationFor(item.content, item.verified),
-          origin: 'user_import',
+          origin: publicSource ? 'public_source' : 'user_import',
           stageId,
         })),
       )
@@ -212,7 +233,12 @@ export async function editQuestion(
   const current = await getQuestion(db, ownerId, questionId);
   await requireQuestionSpace(db, ownerId, current.spaceId, { writable: true });
   const content = contentOrThrow(input.question);
-  const withSource: QuestionContent = { ...content, source: current.source };
+  // Source and figures are not editable here (they say where the question came from).
+  const withSource: QuestionContent = {
+    ...content,
+    source: current.source,
+    ...(current.figures ? { figures: current.figures } : {}),
+  };
   const sameContent = questionContentHash(withSource) === questionContentHash(current);
   const verification: VerificationState =
     input.verified && sameContent && current.verification === 'official_verified'
