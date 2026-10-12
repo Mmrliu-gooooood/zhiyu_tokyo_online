@@ -13,7 +13,7 @@
 | B05 | 已上线（2026-10-07，release-20261007d） | main `62ba7ede`（已推送 tokyo） | accounts v26 `354fbeed…`（生产已执行） | 本地托管模式验收通过（假模型 + 真实 DeepSeek）；生产登录验收通过（含 OpenRouter 独立模型） | 已启用（`ZHIYU_STUDY_COMPANION_CHAT_ENABLED=1`） | 见 B05“未验证” |
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
-| B08 | 实现完成、本地验收通过（2026-10-12），**未合并、未上线** | `learn/b08-question-import`（`6b3bceb8`，未推送） | accounts v29 `cfd0433a…`（未在生产执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次） | 未启用（新开关 `ZHIYU_STUDY_EXTRACTION_ENABLED`） | 见 B08“未验证” |
+| B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -65,7 +65,7 @@
 ### 数据迁移
 
 - accounts **v29**，checksum `cfd0433a6dcf475d438c00d7a79a085f124911e56293bf01299dd704768cd10e`；v28 `d6e44cc5…` 未变。只新增：`study_question_extractions`、`study_question_candidates`（都 FORCE RLS，`app_web` 按 owner 增删改查，anon/authenticated/PUBLIC/`app_worker` 无授权），以及 `study_question_versions.figures`（可空，1–4 项，≤2 KB；旧版本全为空，B07 题目的去重 hash 不变）。提取引用学科与解析结果（`(owner_id, id)` 外键、级联删除），所以删除资料或学科时提取一起删除；已入库的题不受影响。旧式自迁移安装经 `ensureStudySchema` 应用同一文本（约束用 DO 块按需添加）。
-- 已执行：PGlite（单测）；一次性真实 PostgreSQL（`*_rls_proof`，127.0.0.1:55432，用后 `down -v`）；本地验收库全新 bootstrap 到 v29（两张新表 `relrowsecurity = relforcerowsecurity = true`）。**未在生产执行。**
+- 已执行：PGlite（单测）；一次性真实 PostgreSQL（`*_rls_proof`，127.0.0.1:55432，用后 `down -v`）；本地验收库全新 bootstrap 到 v29（两张新表 `relrowsecurity = relforcerowsecurity = true`）。生产已执行（见“发布”）。
 
 ### 测试
 
@@ -107,7 +107,28 @@
 - 深色模式未检查（用户 2026-10-11：之后会重做 UI）。
 - 只用了一份自制的规整习题册；真实教材排版（多栏、公式图片化、题号样式更多）下的规则命中率没有统计，遇到切错可用拆分/合并/编辑修正，或用“模型整理”。
 - 扫描版（OCR）提取按用户决定暂不做。
-- 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）；未构建生产镜像。
+- 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）。
+
+### 发布（2026-10-12）
+
+- main 快进到 `0ce80ac0` 并推送 tokyo。生产 v28 checksum 与仓库一致 → Supabase `apply_migration` `accounts_v29_study_extraction` + `app_schema_migrations(29, cfd0433a…)`；核对两张新表 RLS 强制、只有 `app_web` 授权、各 4 条策略、`study_question_versions_figures` 约束存在。
+- 镜像 `release-20261012`（web `826e6e1c16c9`、worker `fa5fdb3d30cf`），两者 `smoke-pi-runtime` 通过，送到东京镜像 ID 一致。备份 `.env.hosted.local.bak-20261012-pre`、`docker-compose.supabase.yml.bak-20261012-pre`（→ web 20261011b、worker 20261011）；compose 换成仓库版本（只多新开关透传），env 换镜像并加 `ZHIYU_STUDY_EXTRACTION_ENABLED=1`，`apply` 后 readiness 正常（v29、2/2 Worker），`capabilities.extraction = true`，未登录访问提取接口 401。
+- **热修 `release-20261012b`（只有 Web）**：生产验收第一次提取返回 503，日志为 Postgres `22P05`——验收用 PDF 的字体子集没有 Unicode 映射，解析出的页文字带 5 个 U+0000，jsonb 不能保存。真实 PDF 也可能这样，所以 `lib/study/questions/contracts.ts` 新增 `cleanText`（去掉 NUL，其他控制字符变空格，孤立代理项变 U+FFFD），提取规则读页文字、题目导入/编辑（`normalizeText`）和模型整理输出都经过它；单测覆盖提取与导入两条路径（`cd8b9de9`）。失败的请求整体回滚，库里没有残留。Web 镜像 `7787cc3cd85f` 冒烟通过，备份 `*.bak-20261012b-pre`（→ web 20261012、worker 20261012），只改 `ZHIYU_WEB_IMAGE`；readiness 正常。磁盘 81%（7.4 GB 可用），未删除旧镜像。
+- Web 每次启动有一条 `AgentEventNotifyBus` “dedicated LISTEN connection lost; retrying (timeout expired)”，随后不再出现，两次启动都一样，不是本批引入。
+
+### 生产验收（2026-10-12，用户非管理员账号登录）
+
+1. 新建测试学科，上传 19.5 KB 测试 PDF（本地验收那份习题册去掉字体后的版本，页面内按字节校验 sha256 后上传）→ Worker 解析成功，5 页、690 字。
+2. 热修后“从资料提取”第 1–5 页 → “读取 5 页 · 找到 8 题（选择题 5，其他 3）· 8 题有原文答案 · 规则提取用时 49 毫秒”，第 3 页列为扫描页；第 3 题第 1–2 页、第 4 题带三角形配图、习题 1.2 第 1 题多选 AB。（第 1 题题干 `x + 2x` 少了 `²`：是这份测试 PDF 的字体子集丢了该字形的映射，不是提取问题。）
+3. 1400 px 左右对照：选第 4 题，左侧为第 2 页 PDF 画面、本页图片“从本题移除”、原文行。
+4. 第 4 题“模型整理”（真实 DeepSeek，平台默认）：1 次调用，输入 292 / 输出 194 tokens，`usage_events` 一行 `study-extract` ok；建议为 LaTeX 题干与选项、答案 B。采用后答案仍为 B、来源仍是原文、不带模型理由、配图保留。勾选第 1、2 题“已核对”。
+5. “选中全部可入库”→“加入题库（5）”：5 题 `material_extracted`，第 1、2 题已核验，其余未核验，来源带资料、版本、页、题号；第 4 题带 1 张配图。
+6. 组卷 4 单选 + 1 多选（含未核验）→ 作答页配图正常加载，作答接口不含答案；交卷 5/5，报告每题显示“B08验收习题 · 第 1 版 · 文件第 p 页 · 第 n 题 · 查看原文 · 答案来自原文”，“查看原文”链接到对应版本与页。同一请求再提取返回同一份（200，`created: false`）。
+7. 跨账号：用该账号访问管理员账号的学科/资料——列出其学科的提取、在其学科提取、用其资料在自己学科提取、两者都用，全部 404；不存在的提取 404。
+8. 375 px 核验页无横向滚动。
+9. 清理：永久删除测试资料（提取随之删除）和测试学科；数据库核对该账号学科、资料、题目、提取、候选均为 0。
+
+（浏览器面板用 1400 px 模拟宽度时，指针点击作答选项有时落空；恢复正常宽度后真实点击正常，是面板缩放问题，不是页面问题。）
 
 ### 回退
 
