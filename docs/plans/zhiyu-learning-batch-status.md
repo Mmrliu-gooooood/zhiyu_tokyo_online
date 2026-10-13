@@ -14,7 +14,7 @@
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
-| B09 | 已上线（2026-10-13，release-20261013） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产登录验收待用户 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
+| B09 | 已上线（2026-10-13，release-20261013） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -179,7 +179,25 @@
 3. `learn/b09-grading` 快进合并到 main（`f8b4fb4b`），推送 tokyo。镜像在该提交之后构建（之后只有台账改动），标为 `release-20261013`（web `f17d879e2a99`、worker `427631a8ba4b`），送到东京后磁盘 49%。在服务器上用新 Web 镜像跑 Compute Engine：Node v22.23.3，`0.5` 与 `\frac{1}{2}` 判为相等。
 4. 备份 `.env.hosted.local.bak-20261013-pre`、`docker-compose.supabase.yml.bak-20261013-pre`（指向 web 20261012b、worker 20261012）；compose 换成仓库版本；env 换两个镜像标签并加 `ZHIYU_STUDY_GRADING_ENABLED=1`（其余行不变）；`apply --tier 4 --mode background`。readiness：`ready`、accountsVersion 30、2/2 Worker；`/api/study/capabilities` 含 `grading: true`。
 5. LISTEN 新日志：首次连接一次成功，无 WARN/ERROR。`LISTEN connected`，总耗时 3138 ms，其中 DNS 查询（lookup）3079 ms，TCP、TLS、认证、LISTEN 合计约 60 ms。说明以前的首连超时卡在容器刚启动时的 DNS 查询，不在数据库或连接池；30 s 首连超时已足够，暂不另做处理。
-6. 生产登录验收：待用户登录后进行。
+6. 生产登录验收：见下节。
+
+### 生产验收（2026-10-13，用户非管理员账号登录，role = user）
+
+1. 新建学科“线性代数（B09 生产验收）”；题库页副标题为“主观题由 AI 按评分点辅助批改”。从生产站点读取示例 JSON（含 2 道计算题、1 道证明题），预览“共 7 题：6 题可导入，1 题缺答案（存为草稿）”，导入后题型标签为计算题/证明题。
+2. 手动录入简答题（4 分，参考答案 + 两个 2 分评分点，勾选已核对）→ 共 8 题，可判分 7。
+3. 组卷 2 单选 + 1 多选 + 4 主观（含未核验）→ 预览 7 题 17 分；作答页有主观题输入框、计算题“最终答案”栏和“AI 辅助批改、计算题先由程序判断”的说明。作答后刷新，答案都在。
+4. 交卷：选择题立即判分；报告显示“正在批改 2 道主观题…”并逐题完成，最终 15/17：
+   - 简答题只答一个条件：2/4，评分点 1 得 2 分、评分点 2 得 0 分，理由正确。
+   - 证明题：3/3。
+   - 特征值：4/4（最终答案“1, 3”交给模型）。
+   - 行列式最终答案 `-1`：2/2，程序判定（`compute-engine@0.128.13`），没有调用模型。
+5. 简答题“请 AI 重新批改”：新版本 2/4，原评分保留在“之前的评分（1）”。“自己评分”3 分加说明：单独显示“你的自评：3/4”，正式得分仍为 15/17，顶部另显示“按你的自评：16/17”。
+6. 数据库：评分记录 6 行（4 auto + 1 review + 1 self），都已成功、租约清空；模型批改的 `grader.model` 为 `deepseek:deepseek-flash`。`usage_events` 中 `study-grade` 4 行（输入 1966 / 输出 536 tokens），每次约 2–3 s。`exam_graded` 只有 1 条，在全部批改完成后写入（earned 15、openItems 4，不含自评）。Web 日志无 WARN/ERROR。试卷记录列表显示 15/17。
+
+小问题（不影响使用，未修）：
+- 程序判定的计算题，评分点说明与总评是同一句“最终答案与参考答案等价（程序判定）”，显示两遍。
+- 同一题的标题写“AI 辅助批改：2/2 分”，但这一题没有调用 AI（下方另有“最终答案由程序判定”）。
+- 自评分数输入框没有关联到“我认为应得”标签，读屏软件读不出名称。
 
 ### 下一批前置条件
 
