@@ -14,7 +14,7 @@
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
-| B09 | 实现完成，未上线（2026-10-13） | `learn/b09-grading`（未合并） | accounts v30 `c556442a…`（生产未执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次） | 未启用（`ZHIYU_STUDY_GRADING_ENABLED`） | 见 B09“未验证”；上线待用户指示 |
+| B09 | 已上线（2026-10-13，release-20261013） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产登录验收待用户 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -22,7 +22,8 @@
 - 已查明（2026-10-13）：Supavisor 日志里两次启动的第一次尝试都没有到达连接池（旧连接正常 Terminate，重试在报错后约 0.85 s 认证成功）；容器内平时连接 35–100 ms，连接池 3 个 IP 逐个 25–75 ms；新容器 DNS 10–20 ms；最大 server chunk 编译与 `warmApi` 预热只阻塞约 0.2–0.3 s。结论：卡在 Web 进程刚启动的十几秒里，不是网络/DNS/连接池；具体哪一步占住现有日志分辨不出。
 - 影响：无功能影响（SSE 有 5–30 s 轮询兜底），只在部署后十几秒。
 - 要做（随 B09）：① 首次连接失败记 WARN、文案改为“首次连接失败，正在重试”，并记录卡在哪个阶段（DNS/TCP/TLS/认证）与耗时；连续重试失败（如 3 次或 60 s）才记 ERROR。② 首次连接超时放宽到 30 s，或在启动工作完成后再连接。发布后看日志确认根因。
-- 已在 B09 分支实现（2026-10-13，见 B09“设计决策”最后一条）：①②都做了（首次 30 s），连上时另记一条带各步耗时的 INFO；单测覆盖。待随 B09 上线后看生产日志。
+- 已在 B09 分支实现（2026-10-13，见 B09“设计决策”最后一条）：①②都做了（首次 30 s），连上时另记一条带各步耗时的 INFO；单测覆盖。
+- 上线后结果（2026-10-13，release-20261013）：首次连接一次成功，3.1 s，其中 DNS 查询约 3.1 s、其余步骤合计约 60 ms。根因是容器刚启动时 DNS 查询慢（以前偶尔超过 10 s），30 s 首连超时已覆盖，不再报错。
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
@@ -159,7 +160,6 @@
 - 深色模式未检查（用户 2026-10-11：之后会重做 UI）。
 - 只用 DeepSeek（平台默认）批改了少量题目；不同模型的评分一致性和大量题目的成本没有统计。
 - 没有覆盖 Worker 与资料提取：提取后主观题可入库由接口测试覆盖，浏览器里未走一遍。
-- 生产的 LISTEN 首连原因要等发布后看新日志确认。
 - 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）。
 
 ### 回退
@@ -172,13 +172,14 @@
   - 选择题试卷与题库不受影响。
   - 因此优先用开关止损；必须回退版本时，先告知用户含主观题的试卷暂时不可用，再发新版本修复。
 
-### 上线步骤（待用户指示；以下都尚未执行）
+### 发布（2026-10-13，用户指示“上线 B09，不轮换数据库密码”）
 
-1. 只读核对生产：`app_schema_migrations` v29 checksum = `cfd0433a…`；服务器 compose 与上一版仓库一致；生成任务与学习任务为终态；磁盘余量。
-2. Supabase `apply_migration`（`accounts_v30_study_grading`）只执行仓库 v30 SQL 原文（导出文件 sha256 = `c556442a…`），写入 `app_schema_migrations(30, c556442a…)`。核对：评分表 RLS 开启且强制；只授权 `app_web`（查、插、改）；3 条策略；新约束存在。**绝不对生产运行 `pnpm accounts:migrate`。**
-3. 合并到 main 并推送 tokyo。构建 web/worker 镜像，冒烟（含 Compute Engine 在镜像内加载）后送到东京。备份 env 与 compose，compose 换成仓库版本（多一行开关透传），env 换镜像并加 `ZHIYU_STUDY_GRADING_ENABLED=1`，apply，然后看 readiness 与 `capabilities.grading = true`。
-4. 看 Web 启动日志里的 LISTEN 新日志，确认首连卡在哪一步。
-5. 用户登录后在生产验收：导入或录入主观题，组卷，交卷，批改，复核，自评。验收数据随后删除。
+1. 只读核对生产：v29 checksum = `cfd0433a…`（与仓库一致）；生产没有 `short_answer` 题、没有作答行（新约束不会被旧数据违反）；生成任务 0 个进行中，学习任务全部 `succeeded`；服务器 compose 与仓库只差新开关一行；`scripts/supabase-compose.sh` 与仓库相同；磁盘 38%。
+2. Supabase `apply_migration`（`accounts_v30_study_grading`）执行仓库 v30 SQL 原文（`sql-study-grading.ts` 只在 `40f9aeb2` 改过，导出文件 sha256 = `c556442a…`），写入 `app_schema_migrations(30, c556442a…)`。核对：`study_exam_gradings` 归 postgres、RLS 开启且强制、3 条策略、只授权 `app_web` SELECT/INSERT/UPDATE；`study_question_versions_open`、`study_exam_items_guide`、`study_exam_attempts_answers_size` 存在，`study_exam_attempts_answers_check` 已删除。
+3. `learn/b09-grading` 快进合并到 main（`f8b4fb4b`），推送 tokyo。镜像在该提交之后构建（之后只有台账改动），标为 `release-20261013`（web `f17d879e2a99`、worker `427631a8ba4b`），送到东京后磁盘 49%。在服务器上用新 Web 镜像跑 Compute Engine：Node v22.23.3，`0.5` 与 `\frac{1}{2}` 判为相等。
+4. 备份 `.env.hosted.local.bak-20261013-pre`、`docker-compose.supabase.yml.bak-20261013-pre`（指向 web 20261012b、worker 20261012）；compose 换成仓库版本；env 换两个镜像标签并加 `ZHIYU_STUDY_GRADING_ENABLED=1`（其余行不变）；`apply --tier 4 --mode background`。readiness：`ready`、accountsVersion 30、2/2 Worker；`/api/study/capabilities` 含 `grading: true`。
+5. LISTEN 新日志：首次连接一次成功，无 WARN/ERROR。`LISTEN connected`，总耗时 3138 ms，其中 DNS 查询（lookup）3079 ms，TCP、TLS、认证、LISTEN 合计约 60 ms。说明以前的首连超时卡在容器刚启动时的 DNS 查询，不在数据库或连接池；30 s 首连超时已足够，暂不另做处理。
+6. 生产登录验收：待用户登录后进行。
 
 ### 下一批前置条件
 
