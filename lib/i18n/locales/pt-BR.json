@@ -3071,6 +3071,7 @@
       "open": "Questões e testes",
       "title": "Banco de questões e testes",
       "subtitle": "Importe suas próprias questões, monte uma prova por regras e teste-se quando quiser. A correção é feita no servidor, sem modelo de IA.",
+      "subtitleGrading": "Importe suas questões, monte provas por regras e pratique quando quiser. As questões de escolha são corrigidas no servidor; as abertas, com ajuda de IA segundo seus critérios.",
       "testCourse": "Testar-me",
       "separator": ", ",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "Resposta correta: {{answer}}",
         "grading": "Corrigindo {{count}} questão(ões) aberta(s)…",
         "partial": "Não foi possível corrigir {{count}} questão(ões) aberta(s). Tente de novo abaixo de cada uma.",
+        "gradingOff": "A correção das questões abertas está pausada: {{count}} resposta(s) estão salvas e serão corrigidas quando voltar.",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "O modelo selecionado não está disponível. Verifique as configurações de modelo e tente de novo.",
           "STUDY_GRADING_LIMIT": "Não há mais novas correções disponíveis para esta questão.",

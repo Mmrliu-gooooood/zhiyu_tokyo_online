@@ -379,18 +379,30 @@ describe.each(engines)('accounts v30 open questions and gradings (%s)', (_name, 
       expect(await claimGrading(web, OWNER_A, attempt.id, null)).toBeNull();
       const retry = (await claimGrading(web, OWNER_A, attempt.id, 2))!;
       expect(retry).toMatchObject({ seq: 1, tries: 2 });
-      // A stale claim cannot finish it any more.
+      // While its lease runs nobody else takes it; once the request died and
+      // the lease ran out, the next request does.
+      expect(await claimGrading(web, OWNER_A, attempt.id, null)).toBeNull();
+      await db.query(
+        `UPDATE study_exam_gradings SET lease_until = now() - interval '1 second'
+          WHERE attempt_id = $1 AND position = 2`,
+        [attempt.id],
+      );
+      const takeover = (await claimGrading(web, OWNER_A, attempt.id, null))!;
+      expect(takeover).toMatchObject({ seq: 1, tries: 3 });
+      // Stale claims cannot finish it any more.
+      for (const stale of [claim, retry]) {
+        expect(
+          await finishGrading(web, OWNER_A, attempt.id, stale, {
+            status: 'succeeded',
+            earned: 4,
+            result,
+            grader: graderInfo,
+            usage,
+          }),
+        ).toBe(false);
+      }
       expect(
-        await finishGrading(web, OWNER_A, attempt.id, claim, {
-          status: 'succeeded',
-          earned: 4,
-          result,
-          grader: graderInfo,
-          usage,
-        }),
-      ).toBe(false);
-      expect(
-        await finishGrading(web, OWNER_A, attempt.id, retry, {
+        await finishGrading(web, OWNER_A, attempt.id, takeover, {
           status: 'succeeded',
           earned: 3,
           result,

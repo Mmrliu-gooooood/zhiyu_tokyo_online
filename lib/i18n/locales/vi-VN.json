@@ -3071,6 +3071,7 @@
       "open": "Ngân hàng đề & kiểm tra",
       "title": "Ngân hàng câu hỏi & kiểm tra",
       "subtitle": "Nhập câu hỏi của bạn, tạo đề theo quy tắc và tự kiểm tra bất cứ lúc nào. Bài được chấm trên máy chủ, không dùng mô hình AI.",
+      "subtitleGrading": "Nhập câu hỏi của bạn, tạo đề theo quy tắc và tự kiểm tra bất cứ lúc nào. Câu trắc nghiệm được chấm trên máy chủ; câu tự luận được AI hỗ trợ chấm theo tiêu chí.",
       "testCourse": "Tự kiểm tra",
       "separator": ", ",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "Đáp án đúng: {{answer}}",
         "grading": "Đang chấm {{count}} câu tự luận…",
         "partial": "Không chấm được {{count}} câu tự luận. Có thể thử lại bên dưới mỗi câu.",
+        "gradingOff": "Việc chấm câu tự luận đang tạm dừng: {{count}} câu trả lời đã được lưu và sẽ được chấm khi hoạt động trở lại.",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "Mô hình đang chọn không dùng được. Kiểm tra cài đặt mô hình rồi thử lại.",
           "STUDY_GRADING_LIMIT": "Câu này đã hết lượt chấm lại.",

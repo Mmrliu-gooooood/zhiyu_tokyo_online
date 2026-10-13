@@ -3071,6 +3071,7 @@
       "open": "Preguntas y pruebas",
       "title": "Banco de preguntas y pruebas",
       "subtitle": "Importa tus propias preguntas, arma una prueba con reglas y ponte a prueba cuando quieras. Se califica en el servidor, sin modelo de IA.",
+      "subtitleGrading": "Importa tus preguntas, arma exámenes por reglas y practica cuando quieras. Las preguntas de opción se califican en el servidor; las abiertas, con ayuda de IA según sus criterios.",
       "testCourse": "Ponerme a prueba",
       "separator": ", ",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "Respuesta correcta: {{answer}}",
         "grading": "Calificando {{count}} pregunta(s) abierta(s)…",
         "partial": "No se pudieron calificar {{count}} pregunta(s) abierta(s). Puedes reintentar debajo de cada una.",
+        "gradingOff": "La calificación de preguntas abiertas está en pausa: {{count}} respuesta(s) están guardadas y se calificarán al reanudarse.",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "El modelo seleccionado no está disponible. Revisa la configuración del modelo e inténtalo de nuevo.",
           "STUDY_GRADING_LIMIT": "Ya no hay más revisiones disponibles para esta pregunta.",

@@ -178,7 +178,11 @@ async function gradeClaimed(
       }
       throw error;
     }
-    modelString = binding.modelString;
+    // Record the model that actually graded (a platform default names its alias).
+    modelString =
+      binding.source === 'platform' && binding.providerId && binding.modelId
+        ? `${binding.providerId}:${binding.modelId}`
+        : binding.modelString;
     const prompt = buildOpenGradingPrompt(
       {
         stem: item.stem,

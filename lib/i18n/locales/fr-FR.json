@@ -3071,6 +3071,7 @@
       "open": "Questions & tests",
       "title": "Banque de questions & tests",
       "subtitle": "Importez vos propres questions, composez un test selon des règles et testez-vous quand vous voulez. La correction se fait sur le serveur, sans modèle d’IA.",
+      "subtitleGrading": "Importez vos questions, composez un test selon des règles et entraînez-vous quand vous voulez. Les QCM sont corrigés sur le serveur ; les questions ouvertes avec l’aide de l’IA selon leurs critères.",
       "testCourse": "Me tester",
       "separator": ", ",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "Bonne réponse : {{answer}}",
         "grading": "Correction de {{count}} question(s) ouverte(s)…",
         "partial": "{{count}} question(s) ouverte(s) n’ont pas pu être corrigées. Réessayez sous chacune.",
+        "gradingOff": "La correction des questions ouvertes est en pause : {{count}} réponse(s) sont enregistrées et seront corrigées à la reprise.",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "Le modèle choisi n’est pas disponible. Vérifiez vos réglages de modèle et réessayez.",
           "STUDY_GRADING_LIMIT": "Plus aucune nouvelle correction n’est possible pour cette question.",

@@ -108,7 +108,9 @@ export function PracticePage({ spaceId }: { spaceId: string }) {
         <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
           {t('study.practice.title')}
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">{t('study.practice.subtitle')}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {canGrade ? t('study.practice.subtitleGrading') : t('study.practice.subtitle')}
+        </p>
       </header>
 
       <Tabs

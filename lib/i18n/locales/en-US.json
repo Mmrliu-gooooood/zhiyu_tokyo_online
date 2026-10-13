@@ -3071,6 +3071,7 @@
       "open": "Bank & tests",
       "title": "Question bank & tests",
       "subtitle": "Import your own questions, build a paper by rule and test yourself whenever you like. Papers are graded on the server; no AI model is used.",
+      "subtitleGrading": "Import your own questions, build a paper by rule and test yourself whenever you like. Choice questions are graded on the server; open questions with AI assistance against their scoring points.",
       "testCourse": "Test yourself",
       "separator": ", ",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "Correct answer: {{answer}}",
         "grading": "Grading {{count}} open question(s)…",
         "partial": "{{count}} open question(s) could not be graded. You can retry below each one.",
+        "gradingOff": "Grading of open questions is paused: {{count}} answer(s) are saved and will be graded once it is back.",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "The selected model is not available. Check your model settings and try again.",
           "STUDY_GRADING_LIMIT": "No more reviews are available for this question.",

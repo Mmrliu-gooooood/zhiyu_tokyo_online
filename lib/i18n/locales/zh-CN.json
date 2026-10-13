@@ -3071,6 +3071,7 @@
       "open": "题库与测试",
       "title": "题库与测试",
       "subtitle": "导入自己的题目，按规则组卷，随时自测。试卷在服务器判分，不调用 AI 模型。",
+      "subtitleGrading": "导入自己的题目，按规则组卷，随时自测。选择题在服务器判分；主观题由 AI 按评分点辅助批改。",
       "testCourse": "测一测",
       "separator": "、",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "正确答案：{{answer}}",
         "grading": "正在批改 {{count}} 道主观题…",
         "partial": "{{count}} 道主观题批改失败，可以在题目下重试。",
+        "gradingOff": "主观题批改已暂停：{{count}} 道题的答案已保存，恢复后会继续批改。",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "当前选择的模型不可用，请检查模型设置后重试。",
           "STUDY_GRADING_LIMIT": "这道题的复核次数已用完。",

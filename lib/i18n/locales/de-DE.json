@@ -3071,6 +3071,7 @@
       "open": "Fragen & Tests",
       "title": "Fragensammlung & Tests",
       "subtitle": "Eigene Fragen importieren, nach Regeln einen Test zusammenstellen und sich jederzeit selbst prüfen. Bewertet wird auf dem Server, ohne KI-Modell.",
+      "subtitleGrading": "Eigene Aufgaben importieren, Tests nach Regeln zusammenstellen und sich jederzeit prüfen. Auswahlaufgaben werden auf dem Server bewertet, offene Aufgaben mit KI-Unterstützung nach ihren Kriterien.",
       "testCourse": "Selbsttest",
       "separator": ", ",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "Richtige Antwort: {{answer}}",
         "grading": "{{count}} offene Aufgabe(n) werden bewertet…",
         "partial": "{{count}} offene Aufgabe(n) konnten nicht bewertet werden. Unter der Aufgabe erneut versuchen.",
+        "gradingOff": "Die Bewertung offener Aufgaben ist pausiert: {{count}} Antwort(en) sind gespeichert und werden danach bewertet.",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "Das gewählte Modell ist nicht verfügbar. Modelleinstellungen prüfen und erneut versuchen.",
           "STUDY_GRADING_LIMIT": "Für diese Aufgabe sind keine weiteren Neubewertungen möglich.",

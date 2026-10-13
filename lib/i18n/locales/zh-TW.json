@@ -3071,6 +3071,7 @@
       "open": "題庫與測驗",
       "title": "題庫與測驗",
       "subtitle": "匯入自己的題目，依規則組卷，隨時自我測驗。試卷在伺服器判分，不呼叫 AI 模型。",
+      "subtitleGrading": "匯入自己的題目，按規則組卷，隨時自測。選擇題在伺服器判分；主觀題由 AI 按評分點輔助批改。",
       "testCourse": "測一測",
       "separator": "、",
       "tabs": {
@@ -3341,6 +3342,7 @@
         "key": "正確答案：{{answer}}",
         "grading": "正在批改 {{count}} 道主觀題…",
         "partial": "{{count}} 道主觀題批改失敗，可以在題目下重試。",
+        "gradingOff": "主觀題批改已暫停：{{count}} 道題的答案已儲存，恢復後會繼續批改。",
         "gradingError": {
           "STUDY_GRADING_MODEL_UNAVAILABLE": "目前選擇的模型無法使用，請檢查模型設定後重試。",
           "STUDY_GRADING_LIMIT": "這道題的複核次數已用完。",

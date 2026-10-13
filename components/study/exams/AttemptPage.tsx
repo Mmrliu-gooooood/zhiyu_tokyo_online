@@ -87,6 +87,7 @@ import {
   type PaperItemView,
   type ReportItem,
 } from '@/lib/study/assessments/contracts';
+import type { RubricCriterion } from '@/lib/study/questions/contracts';
 import { StudyApiError, fetchStudyCapabilities } from '@/lib/study/spaces/client';
 import { cn } from '@/lib/utils';
 
@@ -111,14 +112,17 @@ export function AttemptPage({ spaceId, attemptId }: { spaceId: string; attemptId
   const { t } = useI18n();
   const [state, setState] = useState<StudyLoadState>('loading');
   const [attempt, setAttempt] = useState<AttemptView | null>(null);
+  const [canGrade, setCanGrade] = useState(false);
   const [loadKey, setLoadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     void loadStudyPage(async () => {
-      if (!(await fetchStudyCapabilities()).exams) {
+      const capabilities = await fetchStudyCapabilities();
+      if (!capabilities.exams) {
         throw Object.assign(new Error('unavailable'), { status: 404 });
       }
+      if (!cancelled) setCanGrade(capabilities.grading);
       return examsApi.attempt(attemptId);
     }).then((result) => {
       if (cancelled) return;
@@ -155,7 +159,7 @@ export function AttemptPage({ spaceId, attemptId }: { spaceId: string; attemptId
         {t('study.practice.attempt.back')}
       </Link>
       {attempt.status === 'submitted' && attempt.report ? (
-        <AttemptReport attempt={attempt} spaceId={spaceId} />
+        <AttemptReport attempt={attempt} spaceId={spaceId} canGrade={canGrade} />
       ) : (
         <AnswerSheet key={attempt.id} initial={attempt} onSubmitted={setAttempt} />
       )}
@@ -614,12 +618,16 @@ const POLL_MS = 4000;
  * any is waiting; when another tab or device holds an item it polls instead.
  * Stops on unmount and on errors (shown with a retry).
  */
-function useOpenGrading(attempt: AttemptView, setAttempt: (attempt: AttemptView) => void) {
+function useOpenGrading(
+  attempt: AttemptView,
+  setAttempt: (attempt: AttemptView) => void,
+  enabled: boolean,
+) {
   const [error, setError] = useState<string | null>(null);
   const [round, setRound] = useState(0);
   const waiting = attempt.report?.summary.pending ?? 0;
   useEffect(() => {
-    if (waiting === 0 || error) return;
+    if (!enabled || waiting === 0 || error) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | null = null;
     const run = async () => {
@@ -650,17 +658,26 @@ function useOpenGrading(attempt: AttemptView, setAttempt: (attempt: AttemptView)
       if (timer) clearTimeout(timer);
     };
     // `attempt` changes with every result; the loop continues through it.
-  }, [attempt, waiting, error, round, setAttempt]);
+  }, [attempt, waiting, error, round, setAttempt, enabled]);
   return { error, retry: () => setError(null) };
 }
 
-function AttemptReport({ attempt: initial, spaceId }: { attempt: AttemptView; spaceId: string }) {
+function AttemptReport({
+  attempt: initial,
+  spaceId,
+  canGrade,
+}: {
+  attempt: AttemptView;
+  spaceId: string;
+  /** Assisted grading switched on (otherwise waiting items stay waiting). */
+  canGrade: boolean;
+}) {
   const { t } = useI18n();
   const router = useRouter();
   const [attempt, setAttempt] = useState(initial);
   const [onlyMistakes, setOnlyMistakes] = useState(false);
   const [starting, setStarting] = useState(false);
-  const grading = useOpenGrading(attempt, setAttempt);
+  const grading = useOpenGrading(attempt, setAttempt, canGrade);
   const report = attempt.report!;
   const shown = useMemo(
     () =>
@@ -708,7 +725,7 @@ function AttemptReport({ attempt: initial, spaceId }: { attempt: AttemptView; sp
             ? ` · ${t('study.practice.report.ungradable', { count: summary.ungradable })}`
             : ''}
         </p>
-        {summary.state === 'grading' ? (
+        {summary.state === 'grading' && canGrade ? (
           <p
             className="mt-2 inline-flex items-center gap-1.5 text-sm text-foreground"
             data-testid="attempt-grading-state"
@@ -717,7 +734,12 @@ function AttemptReport({ attempt: initial, spaceId }: { attempt: AttemptView; sp
             {t('study.practice.report.grading', { count: summary.pending })}
           </p>
         ) : null}
-        {summary.state === 'partial' ? (
+        {(summary.pending || summary.failed) && !canGrade ? (
+          <p className="mt-2 text-sm text-muted-foreground" data-testid="attempt-grading-off">
+            {t('study.practice.report.gradingOff', { count: summary.pending + summary.failed })}
+          </p>
+        ) : null}
+        {summary.state === 'partial' && canGrade ? (
           <p
             className="mt-2 text-sm text-amber-700 dark:text-amber-400"
             data-testid="attempt-grading-state"
@@ -775,6 +797,7 @@ function AttemptReport({ attempt: initial, spaceId }: { attempt: AttemptView; sp
                 key={item.position}
                 attemptId={attempt.id}
                 item={item}
+                canGrade={canGrade}
                 onAttempt={setAttempt}
               />
             ) : (
@@ -885,10 +908,12 @@ function ReportCard({ item }: { item: ReportItem }) {
 function OpenReportCard({
   attemptId,
   item,
+  canGrade,
   onAttempt,
 }: {
   attemptId: string;
   item: ReportItem;
+  canGrade: boolean;
   onAttempt: (attempt: AttemptView) => void;
 }) {
   const { t } = useI18n();
@@ -959,7 +984,7 @@ function OpenReportCard({
           )}
         </div>
 
-        {official && !scored && official.status !== 'failed' ? (
+        {official && !scored && official.status !== 'failed' && canGrade ? (
           <p
             className="inline-flex items-center gap-1.5 text-muted-foreground"
             data-testid="open-grading-wait"
@@ -971,16 +996,16 @@ function OpenReportCard({
           </p>
         ) : null}
 
-        {scored ? <GradingDetails grading={scored} /> : null}
+        {scored ? <GradingDetails grading={scored} rubric={item.guide?.rubric ?? []} /> : null}
 
-        {reviewing ? (
+        {reviewing && canGrade ? (
           <p className="inline-flex items-center gap-1.5 text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" />
             {t('study.practice.report.reviewing')}
           </p>
         ) : null}
 
-        {failed ? (
+        {failed && canGrade ? (
           <p
             className="flex flex-wrap items-center gap-2 text-destructive"
             data-testid="open-grading-failed"
@@ -1028,7 +1053,12 @@ function OpenReportCard({
             </summary>
             <div className="mt-2 space-y-3">
               {earlier.map((grading) => (
-                <GradingDetails key={grading.seq} grading={grading} compact />
+                <GradingDetails
+                  key={grading.seq}
+                  grading={grading}
+                  rubric={item.guide?.rubric ?? []}
+                  compact
+                />
               ))}
             </div>
           </details>
@@ -1044,7 +1074,7 @@ function OpenReportCard({
         </div>
         <SourceDetails source={item.source} />
 
-        {scored && item.openResponse ? (
+        {scored && item.openResponse && canGrade ? (
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
@@ -1097,13 +1127,18 @@ function failureKey(error: string | null): string {
 /** One grading: points per scoring point (and who decided them), feedback, shortcomings, grader. */
 function GradingDetails({
   grading,
+  rubric,
   compact = false,
 }: {
   grading: ItemGradingView;
+  /** The frozen scoring points, for their wording (results keep only ids). */
+  rubric: readonly RubricCriterion[];
   compact?: boolean;
 }) {
   const { t } = useI18n();
-  const label = useCriterionLabel();
+  const criterionLabel = useCriterionLabel();
+  const label = (criterion: { id: string }) =>
+    criterionLabel(rubric.find((entry) => entry.id === criterion.id) ?? criterion);
   const result = grading.result;
   if (!result) return null;
   return (
