@@ -15,6 +15,13 @@
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 
+## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
+
+- 现象：Web 每次启动有一条 `AgentEventNotifyBus` ERROR “dedicated LISTEN connection lost; retrying Error: timeout expired”（`lib/server/agent-runtime/event-notify-bus.ts`，node-pg `connectionTimeoutMillis` 10 s）。实际不是断线，而是 `instrumentation.ts` `register()` 启动后的第一次连接没在 10 s 内完成；100 ms 后的重试成功。Worker 启动没有这个问题。
+- 已查明（2026-10-13）：Supavisor 日志里两次启动的第一次尝试都没有到达连接池（旧连接正常 Terminate，重试在报错后约 0.85 s 认证成功）；容器内平时连接 35–100 ms，连接池 3 个 IP 逐个 25–75 ms；新容器 DNS 10–20 ms；最大 server chunk 编译与 `warmApi` 预热只阻塞约 0.2–0.3 s。结论：卡在 Web 进程刚启动的十几秒里，不是网络/DNS/连接池；具体哪一步占住现有日志分辨不出。
+- 影响：无功能影响（SSE 有 5–30 s 轮询兜底），只在部署后十几秒。
+- 要做（随 B09）：① 首次连接失败记 WARN、文案改为“首次连接失败，正在重试”，并记录卡在哪个阶段（DNS/TCP/TLS/认证）与耗时；连续重试失败（如 3 次或 60 s）才记 ERROR。② 首次连接超时放宽到 30 s，或在启动工作完成后再连接。发布后看日志确认根因。
+
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
@@ -113,7 +120,7 @@
 
 - main 快进到 `0ce80ac0` 并推送 tokyo。生产 v28 checksum 与仓库一致 → Supabase `apply_migration` `accounts_v29_study_extraction` + `app_schema_migrations(29, cfd0433a…)`；核对两张新表 RLS 强制、只有 `app_web` 授权、各 4 条策略、`study_question_versions_figures` 约束存在。
 - 镜像 `release-20261012`（web `826e6e1c16c9`、worker `fa5fdb3d30cf`），两者 `smoke-pi-runtime` 通过，送到东京镜像 ID 一致。备份 `.env.hosted.local.bak-20261012-pre`、`docker-compose.supabase.yml.bak-20261012-pre`（→ web 20261011b、worker 20261011）；compose 换成仓库版本（只多新开关透传），env 换镜像并加 `ZHIYU_STUDY_EXTRACTION_ENABLED=1`，`apply` 后 readiness 正常（v29、2/2 Worker），`capabilities.extraction = true`，未登录访问提取接口 401。
-- **热修 `release-20261012b`（只有 Web）**：生产验收第一次提取返回 503，日志为 Postgres `22P05`——验收用 PDF 的字体子集没有 Unicode 映射，解析出的页文字带 5 个 U+0000，jsonb 不能保存。真实 PDF 也可能这样，所以 `lib/study/questions/contracts.ts` 新增 `cleanText`（去掉 NUL，其他控制字符变空格，孤立代理项变 U+FFFD），提取规则读页文字、题目导入/编辑（`normalizeText`）和模型整理输出都经过它；单测覆盖提取与导入两条路径（`cd8b9de9`）。失败的请求整体回滚，库里没有残留。Web 镜像 `7787cc3cd85f` 冒烟通过，备份 `*.bak-20261012b-pre`（→ web 20261012、worker 20261012），只改 `ZHIYU_WEB_IMAGE`；readiness 正常。磁盘 81%（7.4 GB 可用），未删除旧镜像。
+- **热修 `release-20261012b`（只有 Web）**：生产验收第一次提取返回 503，日志为 Postgres `22P05`——验收用 PDF 的字体子集没有 Unicode 映射，解析出的页文字带 5 个 U+0000，jsonb 不能保存。真实 PDF 也可能这样，所以 `lib/study/questions/contracts.ts` 新增 `cleanText`（去掉 NUL，其他控制字符变空格，孤立代理项变 U+FFFD），提取规则读页文字、题目导入/编辑（`normalizeText`）和模型整理输出都经过它；单测覆盖提取与导入两条路径（`cd8b9de9`）。失败的请求整体回滚，库里没有残留。Web 镜像 `7787cc3cd85f` 冒烟通过，备份 `*.bak-20261012b-pre`（→ web 20261012、worker 20261012），只改 `ZHIYU_WEB_IMAGE`；readiness 正常。磁盘 81%（7.4 GB 可用）。2026-10-13 用户同意删除 web 20261011、web+worker 20261009c/20261009b/20261009/20261007d：磁盘 38%（24 GB 可用）；保留 web 20261012b/20261012/20261011b、worker 20261012/20261011（`*.bak-20261012b-pre`、`*.bak-20261012-pre` 仍可回滚，更早的备份指向已删除的镜像）。
 - Web 每次启动有一条 `AgentEventNotifyBus` “dedicated LISTEN connection lost; retrying (timeout expired)”，随后不再出现，两次启动都一样，不是本批引入。
 
 ### 生产验收（2026-10-12，用户非管理员账号登录）
