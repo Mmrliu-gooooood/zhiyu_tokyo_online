@@ -4,59 +4,72 @@
  *
  * A choice candidate is validated exactly like a bank question (same parser,
  * same issues); a missing answer is a warning, so it can still be committed
- * as a draft the program never grades. An `open` candidate (no options) is
- * kept and editable but cannot be committed until open questions exist (B09).
+ * as a draft the program never grades. An `open` candidate (no options)
+ * becomes an open question (B09): its printed answer is the reference
+ * answer; without one it is committed as a draft for self-checking.
  */
 import {
-  QUESTION_LIMITS,
   blockingIssues,
   conceptKey,
   normalizeText,
   parseQuestion,
   validateQuestionContent,
+  type OpenSubtype,
   type QuestionContent,
   type QuestionIssue,
 } from '@/lib/study/questions/contracts';
 
 import { EXTRACTION_LIMITS, type CandidateContent, type CandidateType } from './contracts';
 
-const OPEN_LIMITS = { referenceAnswer: 4000 } as const;
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** The bank content a choice candidate would become (source is added on commit). */
-export function candidateQuestion(content: CandidateContent): QuestionContent | null {
-  if (content.type === 'open') return null;
-  return {
-    type: content.type,
+/** A first guess at what kind of open question a stem asks for (the student can change it). */
+export function guessOpenSubtype(stem: string): OpenSubtype {
+  if (/证明|求证|prove|show that/i.test(stem)) return 'proof';
+  if (/计算|求|解方程|化简|多少|calculate|compute|evaluate|find|solve/i.test(stem)) {
+    return 'calculation';
+  }
+  return 'short';
+}
+
+/** The bank content a candidate would become (source is added on commit). */
+export function candidateQuestion(content: CandidateContent): QuestionContent {
+  const base = {
     stem: content.stem,
-    options: content.options,
-    answer: content.answer,
     explanation: content.explanation,
     concepts: content.concepts,
     difficulty: content.difficulty,
     points: content.points,
     source: null,
   };
-}
-
-/** Problems shown on the review page (the bank's issues for choice candidates). */
-export function candidateIssues(content: CandidateContent): QuestionIssue[] {
-  const question = candidateQuestion(content);
-  if (question) return validateQuestionContent(question);
-  const issues: QuestionIssue[] = [];
-  if (!content.stem) issues.push({ path: 'stem', code: 'stem_missing' });
-  else if (content.stem.length > QUESTION_LIMITS.stem) {
-    issues.push({ path: 'stem', code: 'stem_too_long' });
+  if (content.type === 'open') {
+    const subtype = content.subtype ?? guessOpenSubtype(content.stem);
+    return {
+      ...base,
+      type: 'short_answer',
+      subtype,
+      options: [],
+      answer: [],
+      guide: {
+        referenceAnswer: content.referenceAnswer,
+        finalAnswer: subtype === 'calculation' ? (content.finalAnswer ?? null) : null,
+        rubric: content.rubric ?? [],
+      },
+    };
   }
-  return issues;
+  return { ...base, type: content.type, options: content.options, answer: content.answer };
 }
 
-/** A complete or draft objective question with nothing blocking. */
+/** Problems shown on the review page (the bank's issues). */
+export function candidateIssues(content: CandidateContent): QuestionIssue[] {
+  return validateQuestionContent(candidateQuestion(content));
+}
+
+/** A complete question, or a draft (no answer or grading guide), with nothing blocking. */
 export function isCommittable(content: CandidateContent): boolean {
-  return content.type !== 'open' && blockingIssues(candidateIssues(content)).length === 0;
+  return blockingIssues(candidateIssues(content)).length === 0;
 }
 
 export interface ParsedCandidate {
@@ -87,18 +100,23 @@ export function parseCandidateContent(
   }
   const referenceText =
     typeof raw.referenceAnswer === 'string' ? normalizeText(raw.referenceAnswer) : '';
-  if (referenceText.length > OPEN_LIMITS.referenceAnswer) {
-    return { content: null, issues: [{ path: 'referenceAnswer', code: 'explanation_too_long' }] };
-  }
-  // Both kinds share the bank's parsing of stem, explanation, concepts, difficulty and points.
+  // Both kinds share the bank's parsing (open ones as open questions with their guide).
   const parsed = parseQuestion({
     ...raw,
-    type: type === 'open' ? 'single' : type,
-    options: type === 'open' ? ['-', '--'] : raw.options,
-    answer: type === 'open' ? [] : raw.answer,
+    type: type === 'open' ? 'short_answer' : type,
+    subtype:
+      type === 'open'
+        ? (raw.subtype ?? guessOpenSubtype(typeof raw.stem === 'string' ? raw.stem : ''))
+        : undefined,
+    options: type === 'open' ? [] : raw.options,
+    answer: type === 'open' ? undefined : raw.answer,
+    referenceAnswer: type === 'open' ? referenceText : undefined,
+    finalAnswer: type === 'open' ? raw.finalAnswer : undefined,
+    rubric: type === 'open' ? raw.rubric : undefined,
     source: null,
   });
   if (!parsed.content) return { content: null, issues: parsed.issues };
+  const guide = parsed.content.guide;
   const content: CandidateContent = {
     type,
     stem: parsed.content.stem,
@@ -109,23 +127,16 @@ export function parseCandidateContent(
     difficulty: parsed.content.difficulty,
     points: parsed.content.points,
     figures: figures as string[],
-    referenceAnswer: referenceText || null,
+    referenceAnswer: type === 'open' ? (guide?.referenceAnswer ?? null) : null,
+    ...(type === 'open'
+      ? {
+          subtype: parsed.content.subtype,
+          finalAnswer: guide?.finalAnswer ?? null,
+          rubric: guide?.rubric ?? [],
+        }
+      : {}),
   };
-  const issues =
-    type === 'open'
-      ? [
-          ...candidateIssues(content),
-          ...parsed.issues.filter((issue) =>
-            [
-              'explanation_too_long',
-              'concepts_invalid',
-              'difficulty_invalid',
-              'points_invalid',
-            ].includes(issue.code),
-          ),
-        ]
-      : parsed.issues;
-  return { content, issues };
+  return { content, issues: parsed.issues };
 }
 
 /** Whether two answer keys are the same (order-insensitive). */

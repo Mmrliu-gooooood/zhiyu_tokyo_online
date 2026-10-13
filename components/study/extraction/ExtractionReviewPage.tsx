@@ -53,16 +53,25 @@ import {
   type StudyLoadState,
 } from '@/components/study/spaces/StudyShell';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { candidateIssues, isCommittable } from '@/lib/study/extraction/candidate';
+import {
+  candidateIssues,
+  candidateQuestion,
+  isCommittable,
+} from '@/lib/study/extraction/candidate';
 import { extractionApi } from '@/lib/study/extraction/client';
 import {
   EXTRACTION_LIMITS,
+  type CandidateContent,
   type CandidateView,
   type ExtractionDetail,
 } from '@/lib/study/extraction/contracts';
 import { materialsApi } from '@/lib/study/materials/client';
 import type { ReaderPageView } from '@/lib/study/materials/contracts';
-import { blockingIssues, type QuestionContent } from '@/lib/study/questions/contracts';
+import {
+  blockingIssues,
+  hasAnswerKey,
+  type QuestionContent,
+} from '@/lib/study/questions/contracts';
 import { StudyApiError, fetchStudyCapabilities } from '@/lib/study/spaces/client';
 import { cn } from '@/lib/utils';
 
@@ -97,11 +106,12 @@ function recount(detail: ExtractionDetail): ExtractionDetail {
 
 function editorContent(candidate: CandidateView): QuestionContent {
   const content = candidate.content;
+  if (content.type === 'open') return candidateQuestion(content);
   return {
-    type: content.type === 'open' ? 'single' : content.type,
+    type: content.type,
     stem: content.stem,
     options:
-      content.type === 'open' || content.options.length === 0
+      content.options.length === 0
         ? ['A', 'B', 'C', 'D'].map((value) => ({ value, label: '' }))
         : content.options,
     answer: content.answer,
@@ -110,6 +120,37 @@ function editorContent(candidate: CandidateView): QuestionContent {
     difficulty: content.difficulty,
     points: content.points,
     source: null,
+  };
+}
+
+/** The editor's question back as candidate content (open questions keep their guide). */
+function fromEditor(current: CandidateContent, value: QuestionContent): CandidateContent {
+  const base = {
+    ...current,
+    stem: value.stem,
+    explanation: value.explanation,
+    concepts: value.concepts,
+    difficulty: value.difficulty,
+    points: value.points,
+  };
+  if (value.type === 'short_answer') {
+    return {
+      ...base,
+      type: 'open',
+      options: [],
+      answer: [],
+      subtype: value.subtype,
+      referenceAnswer: value.guide?.referenceAnswer ?? null,
+      finalAnswer: value.guide?.finalAnswer ?? null,
+      rubric: value.guide?.rubric ?? [],
+    };
+  }
+  return {
+    ...base,
+    type: value.type,
+    options: value.options,
+    answer: value.answer,
+    referenceAnswer: null,
   };
 }
 
@@ -706,17 +747,7 @@ export function ExtractionReviewPage({
             try {
               replace(
                 await extractionApi.update(editing, {
-                  content: {
-                    ...editing.content,
-                    type: value.content.type,
-                    stem: value.content.stem,
-                    options: value.content.options,
-                    answer: value.content.answer,
-                    explanation: value.content.explanation,
-                    concepts: value.content.concepts,
-                    difficulty: value.content.difficulty,
-                    points: value.content.points,
-                  },
+                  content: fromEditor(editing.content, value.content),
                   checked: value.verified,
                 }),
               );
@@ -918,9 +949,10 @@ function CandidateCard(props: {
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-7">
         {content.type === 'open' ? (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-            {t('study.extraction.openType')}
-          </span>
+          <TypeChip
+            type="short_answer"
+            subtype={content.subtype ?? candidateQuestion(content).subtype}
+          />
         ) : (
           <TypeChip type={content.type} />
         )}
@@ -940,7 +972,7 @@ function CandidateCard(props: {
         ) : null}
       </div>
 
-      {errors.length && draft && content.type !== 'open' ? (
+      {errors.length && draft ? (
         <ul className="mt-2 space-y-0.5 rounded-md bg-destructive/5 px-3 py-2 pl-7 text-xs text-destructive">
           {errors.map((issue) => (
             <li key={`${issue.path}-${issue.code}`}>{issueText(issue)}</li>
@@ -998,11 +1030,11 @@ function CandidateCard(props: {
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-2.5 pl-7">
-        {editable && content.type !== 'open' ? (
+        {editable ? (
           <label className="mr-2 flex items-center gap-1.5 text-xs text-foreground">
             <Checkbox
               checked={candidate.checked}
-              disabled={props.busy || content.answer.length === 0}
+              disabled={props.busy || !hasAnswerKey(candidateQuestion(content))}
               onCheckedChange={(value) => props.onCheck(value === true)}
               data-testid="candidate-checked"
             />

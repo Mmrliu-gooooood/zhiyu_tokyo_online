@@ -7,7 +7,13 @@
 import { getPaperSummary, listPapers } from '@/lib/server/study/exams/repository';
 import { publishPaper } from '@/lib/server/study/exams/service';
 import { requireQuestionSpace } from '@/lib/server/study/questions/repository';
-import { invalidInput, readStudyBody, studyExamsRoute, studyJson } from '@/lib/server/study/route';
+import {
+  invalidInput,
+  isStudyGradingEnabled,
+  readStudyBody,
+  studyExamsRoute,
+  studyJson,
+} from '@/lib/server/study/route';
 import { isRequestKey } from '@/lib/study/assessments/contracts';
 import { BLUEPRINT_LIMITS, parseBlueprint } from '@/lib/study/questions/blueprint';
 import { isContentId } from '@/lib/study/spaces/contracts';
@@ -27,7 +33,7 @@ export function POST(req: Request) {
   return studyExamsRoute(req, async (ownerId, db, headers) => {
     const body = await readStudyBody(req);
     if (!body) return invalidInput('body', headers);
-    const parsed = parseBlueprint(body.blueprint);
+    const parsed = parseBlueprint(body.blueprint, { allowOpen: isStudyGradingEnabled() });
     if (!parsed.ok) return invalidInput(parsed.field, headers);
     const title = typeof body.title === 'string' ? body.title.trim() : '';
     if (!title || title.length > BLUEPRINT_LIMITS.title) return invalidInput('title', headers);

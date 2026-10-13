@@ -23,6 +23,7 @@ import {
   isStudyCompanionChatFlagOn,
   isStudyExamsFlagOn,
   isStudyExtractionFlagOn,
+  isStudyGradingFlagOn,
   isStudyMaterialsFlagOn,
   isStudyMemoryFlagOn,
   isStudyQaFlagOn,
@@ -193,6 +194,24 @@ export function studyExtractionRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyExtractionEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B09 open questions and assisted grading: the question bank plus ZHIYU_STUDY_GRADING_ENABLED. */
+export function isStudyGradingEnabled(): boolean {
+  return isStudyGradingFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the grading APIs. */
+export function studyGradingRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyGradingEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

@@ -49,6 +49,8 @@ const ANY_COURSE = '__any__';
 interface Form {
   single: string;
   multiple: string;
+  /** Open questions (B09), only when assisted grading is on. */
+  short_answer: string;
   conceptIds: string[];
   stageId: string;
   difficulty: DifficultyPreference;
@@ -73,6 +75,7 @@ export function PaperBuilderPanel({
   courses,
   concepts,
   initialCourse,
+  allowOpen = false,
 }: {
   spaceId: string;
   spaceName: string;
@@ -80,6 +83,8 @@ export function PaperBuilderPanel({
   courses: EditorCourse[];
   concepts: ConceptView[];
   initialCourse: string | null;
+  /** Whether papers may contain open questions (assisted grading on). */
+  allowOpen?: boolean;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -87,6 +92,7 @@ export function PaperBuilderPanel({
   const [form, setForm] = useState<Form>({
     single: '8',
     multiple: '2',
+    short_answer: '0',
     conceptIds: [],
     stageId:
       initialCourse && courses.some((course) => course.stageId === initialCourse)
@@ -111,7 +117,10 @@ export function PaperBuilderPanel({
       .catch(() => setPacks([]));
   }, []);
 
-  const total = count(form.single) + count(form.multiple);
+  const types: QuestionType[] = allowOpen
+    ? ['single', 'multiple', 'short_answer']
+    : ['single', 'multiple'];
+  const total = types.reduce((sum, type) => sum + count(form[type]), 0);
   const defaultTitle = t('study.practice.build.defaultTitle', { space: spaceName, count: total });
   const usableConcepts = concepts.filter((concept) => concept.questionCount > 0);
   const conceptName = useMemo(
@@ -130,7 +139,7 @@ export function PaperBuilderPanel({
     );
 
   function blueprint(seed?: string): BlueprintRequest {
-    const sections = (['single', 'multiple'] as QuestionType[])
+    const sections = types
       .map((type) => ({ type, count: count(form[type]) }))
       .filter((section) => section.count > 0);
     return {
@@ -205,8 +214,8 @@ export function PaperBuilderPanel({
 
   return (
     <section className="space-y-6" data-testid="paper-builder">
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(['single', 'multiple'] as const).map((type) => (
+      <div className={cn('grid gap-4', allowOpen ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+        {types.map((type) => (
           <div key={type} className="space-y-1.5">
             <Label htmlFor={`build-${type}`}>
               {t('study.practice.build.countOf', { type: t(`study.practice.type.${type}`) })}
@@ -398,7 +407,7 @@ export function PaperBuilderPanel({
                       <MathText text={item.stem} />
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <TypeChip type={item.type} />
+                      <TypeChip type={item.type} subtype={item.subtype} />
                       <VerificationChip state={item.verification} />
                       {item.tier !== 'bank' ? <OriginChip origin={item.origin} /> : null}
                       {item.concepts.map((name) => (

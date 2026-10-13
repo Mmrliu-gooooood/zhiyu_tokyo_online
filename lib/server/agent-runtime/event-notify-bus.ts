@@ -14,7 +14,16 @@
  * deliberately only a LOSSY wakeup. A notification dropped by a proxy, a
  * parameter group, or a listener disconnect degrades only latency — every
  * SSE route and the runner keep their fallback polls and converge anyway.
+ *
+ * Connecting: the first attempt of a process gets a longer timeout (web
+ * starts it while the rest of the server is still starting up), and every
+ * attempt records how far it got (DNS/TCP, TLS, authentication, startup,
+ * LISTEN) and how long each step took. A failed attempt is a warning while
+ * retries may still succeed; only repeated failures (three in a row, or a
+ * minute without a connection) are logged as errors.
  */
+import type { EventEmitter } from 'node:events';
+
 import { Client, type Notification } from 'pg';
 
 import { appPostgresConnectionConfig } from '@/lib/db/app-pool';
@@ -69,6 +78,10 @@ interface BusState {
   subscribers: Map<string, Set<Subscriber>>;
   /** In-flight self-check probe, armed right after every successful (re)LISTEN. */
   pendingProbe: PendingProbe | null;
+  /** Failed connection attempts since the last successful LISTEN. */
+  failures: number;
+  /** When the current run of failures began (ms since epoch). */
+  failingSince: number | null;
 }
 
 export interface AgentEventNotifyBusHandle {
@@ -102,10 +115,73 @@ function createState(): BusState {
     generation: 0,
     subscribers: new Map(),
     pendingProbe: null,
+    failures: 0,
+    failingSince: null,
   };
 }
 
 const state = (globalWithBus[GLOBAL_KEY] ??= createState());
+// A bus created by an earlier module version lacks the failure counters.
+state.failures ??= 0;
+state.failingSince ??= null;
+
+/**
+ * The first connection of a process may wait longer: web opens it from
+ * instrumentation while the server is still compiling and warming up.
+ */
+const INITIAL_CONNECT_TIMEOUT_MS = 30_000;
+const RECONNECT_TIMEOUT_MS = 10_000;
+/** Failures are warnings until this many in a row, or this long without a connection. */
+const ESCALATE_AFTER_FAILURES = 3;
+const ESCALATE_AFTER_MS = 60_000;
+
+type ConnectPhase = 'dns_tcp' | 'tls' | 'auth' | 'startup' | 'listen' | 'ready';
+
+/** How far one connection attempt got, with the time each step was reached. */
+class ConnectTrace {
+  private readonly started = Date.now();
+  private readonly marks: Partial<
+    Record<'lookup' | 'tcp' | 'tls' | 'auth' | 'ready' | 'listen', number>
+  > = {};
+
+  constructor(
+    client: Client,
+    private readonly ssl: boolean,
+  ) {
+    // node-pg's connection emits a few lifecycle events before `connect()` resolves.
+    const connection = (
+      client as unknown as { connection?: EventEmitter & { stream?: EventEmitter } }
+    ).connection;
+    connection?.stream?.once?.('lookup', () => this.mark('lookup'));
+    connection?.once('connect', () => this.mark('tcp'));
+    connection?.once('sslconnect', () => this.mark('tls'));
+    connection?.once('authenticationOk', () => this.mark('auth'));
+    connection?.once('readyForQuery', () => this.mark('ready'));
+  }
+
+  mark(step: 'lookup' | 'tcp' | 'tls' | 'auth' | 'ready' | 'listen'): void {
+    this.marks[step] ??= Date.now() - this.started;
+  }
+
+  /** The step this attempt was in when it stopped. */
+  phase(): ConnectPhase {
+    if (this.marks.listen !== undefined) return 'ready';
+    if (this.marks.ready !== undefined) return 'listen';
+    if (this.marks.auth !== undefined) return 'startup';
+    if (this.marks.tls !== undefined || (!this.ssl && this.marks.tcp !== undefined)) return 'auth';
+    if (this.marks.tcp !== undefined) return 'tls';
+    return 'dns_tcp';
+  }
+
+  details(): Record<string, unknown> {
+    return {
+      phase: this.phase(),
+      elapsedMs: Date.now() - this.started,
+      // Milliseconds from the start of the attempt to each step it reached.
+      steps: { ...this.marks },
+    };
+  }
+}
 
 function routeKey(route: AgentEventWakeupRoute): string {
   switch (route.kind) {
@@ -231,12 +307,50 @@ function scheduleReconnect() {
   state.retryTimer.unref?.();
 }
 
-function disconnected(client: Client, generation: number, error?: unknown) {
+function errorSummary(error: unknown): Record<string, unknown> {
+  const failure = error as { message?: unknown; code?: unknown } | null;
+  return {
+    error: typeof failure?.message === 'string' ? failure.message : String(error),
+    ...(typeof failure?.code === 'string' ? { code: failure.code } : {}),
+  };
+}
+
+/**
+ * Log a failed attempt (or a lost connection): a warning while it may be
+ * transient, an error once it keeps failing.
+ */
+function recordFailure(error: unknown, trace: ConnectTrace | null) {
+  const now = Date.now();
+  state.failures += 1;
+  state.failingSince ??= now;
+  const escalated =
+    state.failures >= ESCALATE_AFTER_FAILURES || now - state.failingSince >= ESCALATE_AFTER_MS;
+  const message = !state.hasConnected
+    ? 'initial LISTEN connect failed; retrying'
+    : trace
+      ? 'LISTEN reconnect failed; retrying'
+      : 'dedicated LISTEN connection lost; reconnecting';
+  const details = {
+    attempt: state.failures,
+    failingForMs: now - state.failingSince,
+    ...(trace ? trace.details() : {}),
+    ...errorSummary(error),
+  };
+  if (escalated) log.error(message, details);
+  else log.warn(message, details);
+}
+
+function disconnected(
+  client: Client,
+  generation: number,
+  error?: unknown,
+  trace: ConnectTrace | null = null,
+) {
   if (generation !== state.generation || state.client !== client) return;
   state.client = null;
   state.connecting = null;
   cancelPendingProbe(client, generation);
-  if (error) log.error('dedicated LISTEN connection lost; retrying', error);
+  if (error) recordFailure(error, trace);
   scheduleReconnect();
 }
 
@@ -252,11 +366,14 @@ async function connect(generation: number): Promise<void> {
   // never come from getPool() and must never be created per SSE stream. The
   // process-wide state above gives one application instance exactly one live
   // LISTEN connection and fans notifications out in memory.
+  const config = appPostgresConnectionConfig(connectionString);
+  const firstAttempt = !state.hasConnected && state.failures === 0;
   const client = new Client({
-    ...appPostgresConnectionConfig(connectionString),
+    ...config,
     application_name: AGENT_EVENT_NOTIFY_APPLICATION_NAME,
-    connectionTimeoutMillis: 10_000,
+    connectionTimeoutMillis: firstAttempt ? INITIAL_CONNECT_TIMEOUT_MS : RECONNECT_TIMEOUT_MS,
   });
+  const trace = new ConnectTrace(client, Boolean((config as { ssl?: unknown }).ssl));
   state.client = client;
   client.on('notification', (notification) => {
     if (notification.channel === AGENT_EVENT_PROBE_CHANNEL) {
@@ -274,8 +391,14 @@ async function connect(generation: number): Promise<void> {
     const subscribers = state.subscribers.get(routeKey(route));
     if (subscribers) fanout(subscribers);
   });
-  client.on('error', (error) => disconnected(client, generation, error));
-  client.on('end', () => disconnected(client, generation));
+  // Before LISTEN succeeds, failures are reported by the catch below (with the trace).
+  let established = false;
+  client.on('error', (error) => {
+    if (established) disconnected(client, generation, error);
+  });
+  client.on('end', () => {
+    if (established) disconnected(client, generation);
+  });
 
   try {
     await client.connect();
@@ -302,6 +425,16 @@ async function connect(generation: number): Promise<void> {
       await client.end().catch(() => undefined);
       return;
     }
+    trace.mark('listen');
+    established = true;
+    if (state.failures > 0 || !state.hasConnected) {
+      log.info(state.failures > 0 ? 'LISTEN connected after failed attempts' : 'LISTEN connected', {
+        failedAttempts: state.failures,
+        ...trace.details(),
+      });
+    }
+    state.failures = 0;
+    state.failingSince = null;
     state.reconnectDelayMs = 100;
     const reconnected = state.hasConnected;
     state.hasConnected = true;
@@ -315,7 +448,12 @@ async function connect(generation: number): Promise<void> {
     // business wakeups are not delayed by the probe.
     if (probeChannelListened) await runProbe(client, generation);
   } catch (error) {
-    disconnected(client, generation, error);
+    if (established) {
+      // Only the self-check runs after LISTEN, and it never throws; keep the old path anyway.
+      disconnected(client, generation, error);
+    } else {
+      disconnected(client, generation, error ?? new Error('connection failed'), trace);
+    }
     await client.end().catch(() => undefined);
     throw error;
   }
@@ -363,6 +501,8 @@ export async function stopAgentEventNotifyBus(): Promise<void> {
   state.hasConnected = false;
   state.reconnectDelayMs = 100;
   state.connectionStringOverride = null;
+  state.failures = 0;
+  state.failingSince = null;
   // generation already advanced above, so cancel the probe directly.
   const pending = state.pendingProbe;
   if (pending) {

@@ -6,8 +6,9 @@
  * are corrected (revision-checked), split and merged, optionally tidied by a
  * model whose suggestion only counts when adopted (recorded as `model`), and
  * committed as `material_extracted` questions that point at the original
- * version and pages and carry their figures into papers; open questions and
- * repeated commits add nothing; an unlinked or deleted material allows no
+ * version and pages and carry their figures into papers; open questions
+ * enter as open questions with their printed answer (B09); repeated commits
+ * add nothing; an unlinked or deleted material allows no
  * new commits; another owner sees nothing; public-source imports keep their
  * licence status and can be left out of papers.
  */
@@ -511,22 +512,22 @@ describe('exercise extraction', () => {
       },
     });
 
-    // Commit: the open question cannot enter yet; the rest point at version 1.
+    // Commit: all four point at version 1; the open question (B09) keeps its printed answer.
     detail = await detailOf(extractionId);
     const ids = ['1', '2', '3', '4'].map((label) => byLabel(detail, label).id);
     const committed = await commitIds(extractionId, ids);
     expect(committed.outcomes.map((outcome) => outcome.status)).toEqual([
       'created',
       'created',
-      'invalid',
+      'created',
       'created',
     ]);
-    expect(committed.detail.extraction.counts).toMatchObject({ committed: 3, draft: 1 });
+    expect(committed.detail.extraction.counts).toMatchObject({ committed: 4, draft: 0 });
     const bank = await json<QuestionListResult>(
       await listBank(request('GET', '/api/study/question-bank?spaceId=space-a')),
       200,
     );
-    expect(bank.counts).toMatchObject({ all: 3, gradable: 3, verified: 1 });
+    expect(bank.counts).toMatchObject({ all: 4, gradable: 4, verified: 1 });
     const question = (label: string) =>
       bank.questions.find((entry) => entry.source?.material?.label === label)!;
     expect(question('2')).toMatchObject({
@@ -553,12 +554,22 @@ describe('exercise extraction', () => {
       source: { answerBasis: 'model' },
       figures: [{ materialId: MATERIAL, versionId: V1, artifactId: ART1, imageId: 'img_1' }],
     });
+    expect(question('3')).toMatchObject({
+      type: 'short_answer',
+      subtype: 'calculation',
+      options: [],
+      answer: [],
+      gradable: true,
+      verification: 'unverified',
+      guide: { referenceAnswer: '1', finalAnswer: null, rubric: [] },
+      source: { answerBasis: 'source', material: { pages: [2] } },
+    });
     // Repeating adds nothing.
     const repeated = await commitIds(extractionId, ids);
     expect(repeated.outcomes.map((outcome) => outcome.status)).toEqual([
       'skipped',
       'skipped',
-      'invalid',
+      'skipped',
       'skipped',
     ]);
 
@@ -626,7 +637,7 @@ describe('exercise extraction', () => {
       await listBank(request('GET', '/api/study/question-bank?spaceId=space-a')),
       200,
     );
-    expect(after.counts.all).toBe(3);
+    expect(after.counts.all).toBe(4);
     expect(gateway.complete).toHaveBeenCalledTimes(1);
   });
 

@@ -130,6 +130,9 @@ export function PapersPanel({ spaceId, archived }: { spaceId: string; archived: 
                               earned: attempt.earned ?? 0,
                               total: attempt.totalPoints ?? 0,
                             })}
+                            {attempt.ungraded
+                              ? ` · ${t('study.practice.papers.ungraded', { count: attempt.ungraded })}`
+                              : ''}
                           </Link>
                         </li>
                       ))}

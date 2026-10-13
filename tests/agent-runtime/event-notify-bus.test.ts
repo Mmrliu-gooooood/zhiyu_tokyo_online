@@ -12,7 +12,10 @@
  *     transaction handle (same-transaction lossy wakeup) and silently skips
  *     an over-limit payload instead of poisoning the transaction;
  *  4. subscription lifecycle: unsubscribe removes the route from the
- *     registry.
+ *     registry;
+ *  5. connecting: the first attempt waits longer than reconnects, failed
+ *     attempts are warnings with the step they stopped at until they keep
+ *     failing, and recovering is logged with the number of failures.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,6 +25,8 @@ const fake = vi.hoisted(() => {
   type Listener = (value?: unknown) => void;
   class FakeClient {
     static instances: FakeClient[] = [];
+    /** Test hook: how many of the next connects fail like a connection timeout. */
+    static failures = 0;
     queryCalls: Array<{ text: string; params: unknown[] }> = [];
     readonly config: unknown;
     private listeners = new Map<string, Set<Listener>>();
@@ -33,7 +38,10 @@ const fake = vi.hoisted(() => {
     }
 
     async connect(): Promise<void> {
-      // no-op
+      if (FakeClient.failures > 0) {
+        FakeClient.failures -= 1;
+        throw new Error('timeout expired');
+      }
     }
 
     async query(text: string, params: unknown[] = []): Promise<{ rows: unknown[] }> {
@@ -94,6 +102,7 @@ function txProbe() {
 describe('agent event notify bus', () => {
   beforeEach(() => {
     fake.FakeClient.instances = [];
+    fake.FakeClient.failures = 0;
     // The bus builds its dedicated LISTEN client from DATABASE_URL (the app
     // contract); the fake client never connects anywhere, the variable just
     // has to be present for the bus to construct it.
@@ -199,5 +208,47 @@ describe('agent event notify bus', () => {
       notifyDurableAgentEvent(big, { kind: 'session', sessionId: 'x'.repeat(8_001) }),
     ).resolves.toBeUndefined();
     expect(big.calls).toEqual([]);
+  });
+
+  it('warns about failed connects with their step, and only escalates when they keep failing', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const info = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      fake.FakeClient.failures = 3;
+      const handle = startAgentEventNotifyBus();
+      await handle.connecting;
+      const timeouts = () =>
+        fake.FakeClient.instances.map(
+          (client) =>
+            (client.config as { connectionTimeoutMillis?: number }).connectionTimeoutMillis,
+        );
+      expect(timeouts()).toEqual([30_000]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]![0])).toContain('initial LISTEN connect failed; retrying');
+      expect(String(warn.mock.calls[0]![0])).toContain('"phase":"dns_tcp"');
+      expect(String(warn.mock.calls[0]![0])).toContain('"error":"timeout expired"');
+      expect(error).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(error).not.toHaveBeenCalled();
+      // Third failure in a row: now an error.
+      await vi.advanceTimersByTimeAsync(200);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(String(error.mock.calls[0]![0])).toContain('"attempt":3');
+      // Recovers on the fourth attempt; reconnects use the shorter timeout.
+      await vi.advanceTimersByTimeAsync(400);
+      expect(timeouts()).toEqual([30_000, 10_000, 10_000, 10_000]);
+      const connected = info.mock.calls.map((call) => String(call[0]));
+      expect(
+        connected.some((line) => line.includes('LISTEN connected after failed attempts')),
+      ).toBe(true);
+      expect(connected.some((line) => line.includes('"failedAttempts":3'))).toBe(true);
+    } finally {
+      await stopAgentEventNotifyBus();
+      vi.useRealTimers();
+    }
   });
 });

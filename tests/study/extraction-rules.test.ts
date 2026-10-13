@@ -9,6 +9,8 @@ import {
 } from '@/lib/study/extraction/rules';
 import {
   candidateIssues,
+  candidateQuestion,
+  guessOpenSubtype,
   isCommittable,
   parseCandidateContent,
 } from '@/lib/study/extraction/candidate';
@@ -308,16 +310,61 @@ describe('candidate editing rules', () => {
     expect(isCommittable({ ...draft, answer: ['C'] })).toBe(false);
   });
 
-  it('keeps open candidates editable but never committable', () => {
+  it('commits open candidates as open questions; without an answer they are drafts (B09)', () => {
     const parsed = parseCandidateContent(
-      { ...base, type: 'open', options: [], answer: [], referenceAnswer: ' 2 ' },
+      {
+        ...base,
+        type: 'open',
+        stem: '求 1+1 的值。',
+        options: [],
+        answer: [],
+        referenceAnswer: ' 2 ',
+      },
       new Set(['img_1']),
     );
-    expect(parsed.content).toMatchObject({ type: 'open', options: [], referenceAnswer: '2' });
-    expect(isCommittable(parsed.content!)).toBe(false);
+    expect(parsed.content).toMatchObject({
+      type: 'open',
+      options: [],
+      referenceAnswer: '2',
+      subtype: 'calculation',
+      finalAnswer: null,
+      rubric: [],
+    });
+    expect(isCommittable(parsed.content!)).toBe(true);
+    expect(candidateQuestion(parsed.content!)).toMatchObject({
+      type: 'short_answer',
+      subtype: 'calculation',
+      options: [],
+      answer: [],
+      guide: { referenceAnswer: '2', finalAnswer: null, rubric: [] },
+    });
+    // No printed answer: still committable, as a draft for self-checking.
+    const draft = { ...parsed.content!, referenceAnswer: null };
+    expect(isCommittable(draft)).toBe(true);
+    expect(candidateIssues(draft)).toEqual([{ path: 'guide', code: 'guide_missing' }]);
     expect(candidateIssues({ ...parsed.content!, stem: '' })).toEqual([
       { path: 'stem', code: 'stem_missing' },
     ]);
+    // Scoring points must add up to the points.
+    const rubric = parseCandidateContent(
+      {
+        ...base,
+        type: 'open',
+        options: [],
+        answer: [],
+        points: 4,
+        subtype: 'proof',
+        referenceAnswer: '略',
+        rubric: [
+          { text: '构造函数', points: 2 },
+          { text: '得出结论', points: 1 },
+        ],
+      },
+      new Set(['img_1']),
+    );
+    expect(rubric.issues).toEqual([{ path: 'guide.rubric', code: 'rubric_points_mismatch' }]);
+    expect(guessOpenSubtype('证明：x > 0 时 ln(1+x) < x')).toBe('proof');
+    expect(guessOpenSubtype('简述极限的定义')).toBe('short');
   });
 });
 

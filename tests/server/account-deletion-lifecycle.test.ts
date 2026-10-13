@@ -179,8 +179,10 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       CREATE TABLE study_exam_papers(owner_id text,id text,primary key(owner_id,id));
       CREATE TABLE study_exam_items(owner_id text,paper_id text,position int,
         foreign key(owner_id,paper_id) references study_exam_papers(owner_id,id));
-      CREATE TABLE study_exam_attempts(owner_id text,id text,paper_id text,
+      CREATE TABLE study_exam_attempts(owner_id text,id text,paper_id text,primary key(owner_id,id),
         foreign key(owner_id,paper_id) references study_exam_papers(owner_id,id));
+      CREATE TABLE study_exam_gradings(owner_id text,attempt_id text,position int,seq int,
+        foreign key(owner_id,attempt_id) references study_exam_attempts(owner_id,id));
       CREATE TABLE study_question_extractions(owner_id text,id text,primary key(owner_id,id));
       CREATE TABLE study_question_candidates(owner_id text,extraction_id text,id text,
         foreign key(owner_id,extraction_id) references study_question_extractions(owner_id,id));
@@ -251,6 +253,7 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO study_exam_papers VALUES('${OWNER}','paper-1'),('${OTHER}','paper-1');
       INSERT INTO study_exam_items VALUES('${OWNER}','paper-1',1),('${OTHER}','paper-1',1);
       INSERT INTO study_exam_attempts VALUES('${OWNER}','att-1','paper-1'),('${OTHER}','att-1','paper-1');
+      INSERT INTO study_exam_gradings VALUES('${OWNER}','att-1',1,1),('${OTHER}','att-1',1,1);
       INSERT INTO study_question_extractions VALUES('${OWNER}','qx-1'),('${OTHER}','qx-1');
       INSERT INTO study_question_candidates VALUES('${OWNER}','qx-1','qc-1'),('${OTHER}','qx-1','qc-1');
       INSERT INTO learning_tasks VALUES
@@ -478,6 +481,7 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_exam_papers',
       'study_exam_items',
       'study_exam_attempts',
+      'study_exam_gradings',
       'study_question_extractions',
       'study_question_candidates',
     ]) {

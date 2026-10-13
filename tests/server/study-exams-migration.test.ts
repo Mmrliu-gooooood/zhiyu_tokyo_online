@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import { accountsMigrationChecksum } from '@/lib/server/accounts/migrations';
 import { ACCOUNTS_SCHEMA_VERSION } from '@/lib/server/accounts/sql-accounts';
 import { ACCOUNTS_MIGRATION_28, STUDY_EXAM_TABLES } from '@/lib/server/accounts/sql-study-exams';
+import { ACCOUNTS_MIGRATION_30 } from '@/lib/server/accounts/sql-study-grading';
 import {
   getAttemptView,
   openAttempt,
@@ -35,7 +36,7 @@ import type { Queryable } from '@openmaic/storage/document/pg';
 const OWNER_A = 'user:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OWNER_B = 'user:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-const DROP = `DROP TABLE IF EXISTS study_exam_attempts, study_exam_items, study_exam_papers,
+const DROP = `DROP TABLE IF EXISTS study_exam_gradings, study_exam_attempts, study_exam_items, study_exam_papers,
   study_question_versions, study_questions, study_concepts, study_spaces, document_stages CASCADE`;
 
 /** What v1–v27 leave behind that v28 relies on (minimal shapes). */
@@ -180,6 +181,8 @@ async function migrated(open: () => Db): Promise<Db> {
   const db = open();
   await applySql(db, BASELINE);
   await applySql(db, ACCOUNTS_MIGRATION_28);
+  // The repository reads the open-question columns and gradings of v30 (B09).
+  await applySql(db, ACCOUNTS_MIGRATION_30);
   return db;
 }
 

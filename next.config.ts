@@ -42,6 +42,9 @@ const nextConfig: NextConfig = {
     // egress cannot resolve their SDK in the shipped deployment.
     '@aws-sdk/client-s3',
     '@aws-sdk/s3-request-presigner',
+    // Large math engine used only when grading calculations (B09); loaded by
+    // Node from node_modules (traced into the standalone image), not bundled.
+    '@cortex-js/compute-engine',
   ],
   experimental: {
     proxyClientMaxBodySize: '200mb',

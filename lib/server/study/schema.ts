@@ -21,11 +21,12 @@ import { STUDY_TABLES_SQL_V26 } from '@/lib/server/accounts/sql-study-companion'
 import { STUDY_TABLES_SQL_V27 } from '@/lib/server/accounts/sql-study-memory';
 import { STUDY_TABLES_SQL_V28 } from '@/lib/server/accounts/sql-study-exams';
 import { STUDY_TABLES_SQL_V29 } from '@/lib/server/accounts/sql-study-extraction';
+import { STUDY_TABLES_SQL_V30 } from '@/lib/server/accounts/sql-study-grading';
 
 /** Needs the document schema and stage_meta first (foreign keys). */
 export async function ensureStudySchema(queryable: Queryable): Promise<void> {
   for (const statement of splitSqlStatements(
-    `${STUDY_TABLES_SQL_V22}\n${STUDY_TABLES_SQL_V23}\n${STUDY_TABLES_SQL_V24}\n${STUDY_KNOWLEDGE_STORAGE_LEGACY_SQL_V24}\n${STUDY_TABLES_SQL_V25}\n${STUDY_TABLES_SQL_V26}\n${STUDY_TABLES_SQL_V27}\n${STUDY_TABLES_SQL_V28}\n${STUDY_TABLES_SQL_V29}`,
+    `${STUDY_TABLES_SQL_V22}\n${STUDY_TABLES_SQL_V23}\n${STUDY_TABLES_SQL_V24}\n${STUDY_KNOWLEDGE_STORAGE_LEGACY_SQL_V24}\n${STUDY_TABLES_SQL_V25}\n${STUDY_TABLES_SQL_V26}\n${STUDY_TABLES_SQL_V27}\n${STUDY_TABLES_SQL_V28}\n${STUDY_TABLES_SQL_V29}\n${STUDY_TABLES_SQL_V30}`,
   )) {
     await queryable.query(statement);
   }

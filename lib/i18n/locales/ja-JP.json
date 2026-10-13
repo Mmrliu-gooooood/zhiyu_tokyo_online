@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "単一選択",
-        "multiple": "複数選択"
+        "multiple": "複数選択",
+        "short_answer": "記述問題"
       },
       "origin": {
         "user_import": "取り込み",
@@ -3118,10 +3119,12 @@
           "source": "出典",
           "verified": "確認フラグ",
           "figures": "図",
-          "referenceAnswer": "参考解答"
+          "referenceAnswer": "参考解答",
+          "guide": "採点基準",
+          "subtype": "問題形式"
         },
         "not_object": "問題オブジェクトではありません",
-        "type_unsupported": "現在は単一選択と複数選択のみ対応しています",
+        "type_unsupported": "対応していない問題形式です",
         "stem_missing": "問題文が空です",
         "stem_too_long": "問題文が長すぎます（最大 4000 文字）",
         "options_invalid": "選択肢はリストか A–H のキーで指定してください",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "難易度は 1–5 です",
         "points_invalid": "配点は 1–100 の整数です",
         "source_invalid": "出典が不正です（リンクは http で始めてください）",
-        "verified_invalid": "verified は true か false です"
+        "verified_invalid": "verified は true か false です",
+        "subtype_invalid": "形式は記述・計算・証明のいずれかにしてください",
+        "options_not_allowed": "記述問題には選択肢や選択式の正解を設定できません",
+        "reference_too_long": "模範解答が長すぎます（最大 4000 文字）",
+        "final_answer_invalid": "最終解答は計算問題のみ、200 文字以内です",
+        "rubric_invalid": "採点項目には内容と 1–100 の整数の配点が必要です（最大 10 項目）",
+        "rubric_points_mismatch": "採点項目の配点の合計を問題の配点と同じにしてください",
+        "guide_missing": "模範解答も採点項目もありません：下書きとして保存され、自己チェック専用で試験には使われません"
       },
       "editor": {
-        "description": "文字をクリックして正解の選択肢を示します。数式は $…$ で囲んだ LaTeX で書けます。",
+        "description": "選択問題は正解の記号をクリック、記述問題は模範解答と採点項目を入力します。数式は $…$ で囲んだ LaTeX で書けます。",
         "editTitle": "問題を編集",
         "type": "形式",
         "difficulty": "難易度",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "未確認の問題は、含めると選んだ場合を除き試験に入りません。",
         "draftHint": "正解のない問題は下書きとなり、確認済みにはできません。",
         "save": "保存",
-        "saveDraft": "下書き保存"
+        "saveDraft": "下書き保存",
+        "referenceAnswer": "模範解答",
+        "referencePlaceholder": "完全な解答または要点（採点の根拠になります）…",
+        "finalAnswer": "最終解答（任意）",
+        "finalPlaceholder": "例：1/2、x^2-1、\\frac{\\sqrt3}{2}",
+        "finalHint": "数値または式。採点時、学生の最終解答がこれと同値かをまずプログラムが判定します。",
+        "rubric": "採点項目（任意）",
+        "rubricHint": "配点の合計は問題の配点と同じにします。採点項目がない場合は模範解答と照らして全体で採点し、最終解答だけの計算問題は最終解答で採点します。",
+        "rubricPlaceholder": "採点項目 {{n}}：例「導関数の公式を正しく書く」",
+        "rubricPoints": "配点",
+        "removeRubric": "採点項目を削除",
+        "addRubric": "採点項目を追加",
+        "finalPoints": "最終解答が正しい場合の配点（プログラム判定）",
+        "openDraftHint": "模範解答も採点項目もない記述問題は下書きとして保存され、自己チェック専用で確認済みにできません。",
+        "openVerifiedHint": "模範解答と採点項目を確認したらチェックします。未確認の問題は既定で試験に入りません。"
       },
       "errors": {
         "questionConflict": "この問題は別の場所で変更されました。最新版を表示しています。もう一度編集してください。",
@@ -3269,7 +3293,8 @@
         "start": "解き始める",
         "again": "もう一度解く",
         "deleteTitle": "この試験を削除しますか？",
-        "deleteText": "「{{title}}」とそのすべての解答が削除されます。作成済みの学習記録は Memory で消去するまで残ります。"
+        "deleteText": "「{{title}}」とそのすべての解答が削除されます。作成済みの学習記録は Memory で消去するまで残ります。",
+        "ungraded": "採点待ち {{count}} 問"
       },
       "attempt": {
         "back": "問題集とテストに戻る",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "この試験を提出しますか？",
         "confirmUnanswered": "未解答が {{count}} 問あります（{{numbers}} 問目）。提出後は変更できません。",
         "confirmAll": "すべて解答済みです。提出後は変更できません。",
-        "keepAnswering": "解答を続ける"
+        "keepAnswering": "解答を続ける",
+        "openNotice": "記述問題は提出後に AI が採点項目に沿って採点を補助します。計算問題の最終解答はまずプログラムが判定します。結果は参考です。",
+        "openPlaceholder": {
+          "short": "解答を書いてください…",
+          "calculation": "計算の過程を書いてください…",
+          "proof": "証明を書いてください…"
+        },
+        "finalLabel": "最終解答",
+        "finalPlaceholder": "例：1/2 または x^2-1",
+        "tooLong": "解答が長すぎて保存できません。短くしてください。"
       },
       "report": {
         "score": "{{earned}} / {{total}} 点",
@@ -3299,10 +3333,55 @@
           "correct": "正解",
           "incorrect": "不正解",
           "unanswered": "未解答",
-          "ungradable": "採点不可"
+          "ungradable": "採点不可",
+          "partial": "部分点",
+          "pending": "採点待ち"
         },
         "yourChoice": "あなたの解答",
-        "key": "正解：{{answer}}"
+        "key": "正解：{{answer}}",
+        "grading": "記述問題 {{count}} 問を採点中…",
+        "partial": "記述問題 {{count}} 問の採点に失敗しました。各問題の下で再試行できます。",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "選択中のモデルを利用できません。モデル設定を確認して再試行してください。",
+          "STUDY_GRADING_LIMIT": "この問題の再採点回数の上限に達しました。",
+          "STUDY_GRADING_BUSY": "この問題はまだ採点中です。しばらくしてから再試行してください。",
+          "capacity": "現在採点が混み合っています。しばらくしてから再試行してください。",
+          "generic": "現在採点を続けられません。"
+        },
+        "retryGrading": "採点を続ける",
+        "selfTotal": "自己採点を反映：{{earned}} / {{total}} 点",
+        "gradedByMixed": "選択問題はサーバーで正解と照合して採点し、記述問題は AI が採点項目に沿って補助採点しました（計算問題の最終解答はまずプログラムが判定）。参考としてご利用ください。",
+        "yourAnswer": "あなたの解答",
+        "yourFinal": "最終解答：",
+        "gradingRunning": "採点中…",
+        "gradingWaiting": "採点待ち…",
+        "reviewing": "再採点中です。以前の結果は下に残ります…",
+        "reviewFailed": "再採点に失敗しました（{{reason}}）。以前の結果は有効です。",
+        "gradingFailed": "採点に失敗しました（{{reason}}）。点数は付いていません。",
+        "failure": {
+          "timeout": "モデルがタイムアウト",
+          "invalid_output": "モデルの出力が不正",
+          "model_unavailable": "モデルを利用できない",
+          "model_error": "モデル呼び出しエラー",
+          "lease_lost": "採点が中断された",
+          "other": "エラーが発生"
+        },
+        "retryItem": "再試行",
+        "selfShown": "自己採点：{{earned}}/{{points}} 点",
+        "earlier": "以前の採点（{{count}}）",
+        "review": "AI にもう一度採点してもらう",
+        "selfGrade": "採点が違う？自分で採点",
+        "reviewResult": "再採点：{{earned}}/{{points}} 点",
+        "gradingResult": "AI 補助採点：{{earned}}/{{points}} 点",
+        "byProgram": "プログラム判定",
+        "byModel": "AI 採点",
+        "shortcomings": "不足している点",
+        "graderModel": "モデル {{model}}",
+        "graderProgram": "最終解答はプログラム判定",
+        "selfHint": "自己採点は別に表示され、採点結果を置き換えません。",
+        "selfLabel": "妥当だと思う点数（0–{{points}} 点）",
+        "selfNote": "メモ（任意）：どこが誤って採点されましたか？",
+        "selfSave": "自己採点を保存"
       },
       "figureAlt": "問題の図",
       "figureMissing": "図を表示できません（元の資料が削除された可能性があります）",
@@ -3330,6 +3409,20 @@
         "attribution": "クレジット表記",
         "licenseClear": "ライセンス上この使い方が許されることを確認した",
         "licenseHint": "チェックしない場合は「ライセンス要確認」となり、自分の練習用になります。"
+      },
+      "subtype": {
+        "short": "記述",
+        "calculation": "計算",
+        "proof": "証明"
+      },
+      "guide": {
+        "none": "模範解答も採点項目もありません。",
+        "reference": "模範解答",
+        "final": "最終解答：",
+        "rubric": "採点項目（計 {{points}} 点）",
+        "criterionPoints": "（{{points}} 点）",
+        "finalCriterion": "最終解答が正しい",
+        "overallCriterion": "模範解答と照らして全体で採点"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "{{pages}} ページ",
       "referenceAnswer": "参考解答：",
       "openType": "記述問題",
-      "openHint": "記述問題（計算・証明・穴埋め）はまだ追加できません（次の版で対応）。選択問題なら編集して選択肢を加えてください。",
+      "openHint": "記述問題は原文の解答を模範解答として登録されます。解答がないものは下書きとして保存されます。編集で形式・最終解答・採点項目を設定できます。",
       "edited": "編集済み",
       "status": {
         "committed": "追加済み",

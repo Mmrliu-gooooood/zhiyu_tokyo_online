@@ -53,7 +53,11 @@ import {
   type PageImage,
   type PageText,
 } from '@/lib/study/extraction/rules';
-import type { QuestionFigure, QuestionSource } from '@/lib/study/questions/contracts';
+import {
+  hasAnswerKey,
+  type QuestionFigure,
+  type QuestionSource,
+} from '@/lib/study/questions/contracts';
 
 import {
   candidateView,
@@ -612,7 +616,7 @@ export async function commitCandidates(
       continue;
     }
     const question = candidateQuestion(candidate.content);
-    if (candidate.status !== 'draft' || !question || !isCommittable(candidate.content)) {
+    if (candidate.status !== 'draft' || !isCommittable(candidate.content)) {
       outcomes.set(id, { candidateId: id, status: 'invalid', questionId: null });
       continue;
     }
@@ -641,8 +645,7 @@ export async function commitCandidates(
       candidate,
       question: {
         content: { ...question, source, ...(figures.length ? { figures } : {}) },
-        verification:
-          candidate.checked && question.answer.length > 0 ? 'user_verified' : 'unverified',
+        verification: candidate.checked && hasAnswerKey(question) ? 'user_verified' : 'unverified',
         origin: 'material_extracted',
         fingerprint: linesFingerprint(extraction.versionId, candidate.lines),
         stageId: input.stageId,

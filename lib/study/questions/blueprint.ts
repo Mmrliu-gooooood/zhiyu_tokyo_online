@@ -8,6 +8,7 @@
  */
 import {
   QUESTION_TYPES,
+  type OpenSubtype,
   type QuestionOrigin,
   type QuestionType,
   type VerificationState,
@@ -106,9 +107,13 @@ function idList(value: unknown, max: number): string[] | null {
   return ids.length === value.length ? [...new Set(ids)] : null;
 }
 
-/** Validate a blueprint from a request; the seed may be omitted (the server draws one). */
+/**
+ * Validate a blueprint from a request; the seed may be omitted (the server
+ * draws one). Open-question sections need `allowOpen` (assisted grading on).
+ */
 export function parseBlueprint(
   raw: unknown,
+  options: { allowOpen: boolean } = { allowOpen: true },
 ):
   | { ok: true; blueprint: Omit<ExamBlueprint, 'seed'> & { seed: string | null } }
   | { ok: false; field: string } {
@@ -122,6 +127,7 @@ export function parseBlueprint(
     if (
       !isRecord(entry) ||
       !(QUESTION_TYPES as readonly unknown[]).includes(entry.type) ||
+      (entry.type === 'short_answer' && !options.allowOpen) ||
       !Number.isInteger(entry.count) ||
       (entry.count as number) < 1 ||
       (entry.count as number) > BLUEPRINT_LIMITS.maxPerSection ||
@@ -323,6 +329,7 @@ export interface PreviewItem {
   ref: string;
   tier: CandidateTier;
   type: QuestionType;
+  subtype?: OpenSubtype;
   stem: string;
   concepts: string[];
   difficulty: number | null;

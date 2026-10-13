@@ -122,7 +122,7 @@ describe('import parsing', () => {
         'source.url:source_invalid',
       ]),
     );
-    expect(codes(parseQuestion({ type: 'short_answer', stem: 'x' }).issues)).toContain(
+    expect(codes(parseQuestion({ type: 'essay_long', stem: 'x' }).issues)).toContain(
       'type:type_unsupported',
     );
     expect(parseQuestion('nope').issues).toEqual([{ path: '', code: 'not_object' }]);
@@ -172,13 +172,39 @@ describe('import parsing', () => {
 });
 
 describe('the public sample file', () => {
-  it('parses: three ready questions in every spelling and one draft without an answer', () => {
+  it('parses: three ready questions in every spelling, one draft without an answer, three open ones', () => {
     const file = parseImportDocument(
       JSON.parse(readFileSync('public/examples/zhiyu-question-bank-sample.json', 'utf8')),
     );
     expect(file.fileError).toBeNull();
-    expect(file.items.map((item) => blockingIssues(item.issues))).toEqual([[], [], [], []]);
-    expect(file.items.map((item) => item.content?.answer)).toEqual([['A'], ['A', 'B'], ['A'], []]);
+    expect(file.items.map((item) => item.issues)).toEqual([
+      [],
+      [],
+      [],
+      [{ path: 'answer', code: 'answer_missing' }],
+      [],
+      [],
+      [],
+    ]);
+    expect(file.items.map((item) => item.content?.answer)).toEqual([
+      ['A'],
+      ['A', 'B'],
+      ['A'],
+      [],
+      [],
+      [],
+      [],
+    ]);
+    expect(file.items.slice(4).map((item) => [item.content?.type, item.content?.subtype])).toEqual([
+      ['short_answer', 'calculation'],
+      ['short_answer', 'calculation'],
+      ['short_answer', 'proof'],
+    ]);
+    expect(file.items[5]!.content!.guide).toEqual({
+      referenceAnswer: null,
+      finalAnswer: '-1',
+      rubric: [],
+    });
     expect(file.items[0]!.content!.source).toEqual({ title: '练习册第 1 章', page: '12' });
     expect(file.items[1]!.content!.source).toMatchObject({ title: '我的线性代数练习册' });
   });
@@ -361,9 +387,16 @@ describe('paper building', () => {
         ],
       }),
     ).toEqual({ ok: false, field: 'sections' });
+    // Open-question sections only while assisted grading is on (B09).
+    expect(
+      parseBlueprint(
+        { spaceId: 's', sections: [{ type: 'short_answer', count: 1 }] },
+        { allowOpen: false },
+      ),
+    ).toEqual({ ok: false, field: 'sections' });
     expect(
       parseBlueprint({ spaceId: 's', sections: [{ type: 'short_answer', count: 1 }] }),
-    ).toEqual({ ok: false, field: 'sections' });
+    ).toMatchObject({ ok: true });
     expect(
       parseBlueprint({ spaceId: 's', sections: [{ type: 'single', count: 1 }], seed: 'a b' }),
     ).toEqual({ ok: false, field: 'seed' });

@@ -16,7 +16,12 @@
  * entered or changed it), `missing`. None of these makes a question
  * "checked"; only the student's tick at commit time does.
  */
-import type { QuestionOption, QuestionType } from '@/lib/study/questions/contracts';
+import type {
+  ObjectiveType,
+  OpenSubtype,
+  QuestionOption,
+  RubricCriterion,
+} from '@/lib/study/questions/contracts';
 
 export const EXTRACTION_STRATEGY = 'rules-v1';
 
@@ -38,8 +43,8 @@ export const EXTRACTION_LIMITS = {
   commitBatch: 200,
 } as const;
 
-/** `open`: no options (computation, proof, fill-in) — kept, but committed only once open questions are supported (B09). */
-export type CandidateType = QuestionType | 'open';
+/** `open`: no options (computation, proof, fill-in); committed as an open question (B09). */
+export type CandidateType = ObjectiveType | 'open';
 
 export type AnswerBasis = 'missing' | 'source' | 'model' | 'user';
 
@@ -63,8 +68,12 @@ export interface CandidateContent {
   points: number;
   /** Image ids of the extraction's artifact shown with the question. */
   figures: string[];
-  /** Printed answer text of an open question (kept for B09; never graded here). */
+  /** Printed answer text of an open question (its reference answer once committed). */
   referenceAnswer: string | null;
+  /** Open questions, set in the editor (B09); a missing subtype is guessed from the stem. */
+  subtype?: OpenSubtype;
+  finalAnswer?: string | null;
+  rubric?: RubricCriterion[];
 }
 
 /** Where a printed answer was found. */

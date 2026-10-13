@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "Một đáp án",
-        "multiple": "Nhiều đáp án"
+        "multiple": "Nhiều đáp án",
+        "short_answer": "Câu tự luận"
       },
       "origin": {
         "user_import": "Đã nhập",
@@ -3118,10 +3119,12 @@
           "source": "Nguồn",
           "verified": "Cờ kiểm tra",
           "figures": "Hình",
-          "referenceAnswer": "Đáp án tham khảo"
+          "referenceAnswer": "Đáp án tham khảo",
+          "guide": "Căn cứ chấm",
+          "subtype": "Loại câu hỏi"
         },
         "not_object": "Không phải đối tượng câu hỏi",
-        "type_unsupported": "Hiện chỉ hỗ trợ câu một đáp án và nhiều đáp án",
+        "type_unsupported": "Loại câu hỏi không được hỗ trợ",
         "stem_missing": "Đề bài trống",
         "stem_too_long": "Đề bài quá dài (tối đa 4.000 ký tự)",
         "options_invalid": "Lựa chọn phải là danh sách hoặc khóa A–H",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "Độ khó phải từ 1–5",
         "points_invalid": "Điểm phải là số nguyên từ 1 đến 100",
         "source_invalid": "Nguồn không hợp lệ (liên kết phải bắt đầu bằng http)",
-        "verified_invalid": "\"verified\" phải là true hoặc false"
+        "verified_invalid": "\"verified\" phải là true hoặc false",
+        "subtype_invalid": "Loại phải là trả lời ngắn, tính toán hoặc chứng minh",
+        "options_not_allowed": "Câu tự luận không được có lựa chọn hay đáp án trắc nghiệm",
+        "reference_too_long": "Đáp án mẫu quá dài (tối đa 4000 ký tự)",
+        "final_answer_invalid": "Kết quả cuối chỉ dùng cho câu tính toán, tối đa 200 ký tự",
+        "rubric_invalid": "Mỗi tiêu chí cần nội dung và điểm nguyên từ 1–100 (tối đa 10 tiêu chí)",
+        "rubric_points_mismatch": "Tổng điểm các tiêu chí phải bằng điểm của câu",
+        "guide_missing": "Không có đáp án mẫu hay tiêu chí: lưu thành bản nháp để tự kiểm tra, không dùng trong đề"
       },
       "editor": {
-        "description": "Bấm vào chữ cái để đánh dấu đáp án đúng. Công thức viết bằng LaTeX trong $…$.",
+        "description": "Với câu trắc nghiệm, bấm chữ cái của lựa chọn đúng; với câu tự luận, nhập đáp án mẫu và tiêu chí chấm. Viết công thức bằng LaTeX trong $…$.",
         "editTitle": "Sửa câu hỏi",
         "type": "Dạng",
         "difficulty": "Độ khó",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "Câu chưa kiểm tra sẽ không vào đề trừ khi bạn chọn đưa vào.",
         "draftHint": "Câu không có đáp án được lưu dạng nháp và không thể đánh dấu đã kiểm tra.",
         "save": "Lưu",
-        "saveDraft": "Lưu nháp"
+        "saveDraft": "Lưu nháp",
+        "referenceAnswer": "Đáp án mẫu",
+        "referencePlaceholder": "Lời giải đầy đủ hoặc các ý chính, dùng làm căn cứ chấm…",
+        "finalAnswer": "Kết quả cuối (tùy chọn)",
+        "finalPlaceholder": "vd. 1/2, x^2-1, \\frac{\\sqrt3}{2}",
+        "finalHint": "Một số hoặc biểu thức. Khi chấm, chương trình kiểm tra trước kết quả cuối của học sinh có tương đương không.",
+        "rubric": "Tiêu chí chấm (tùy chọn)",
+        "rubricHint": "Tổng điểm phải bằng điểm của câu. Không có tiêu chí thì chấm tổng thể theo đáp án mẫu; câu tính toán chỉ có kết quả cuối thì chấm theo kết quả đó.",
+        "rubricPlaceholder": "Tiêu chí {{n}}: vd. “viết đúng công thức đạo hàm”",
+        "rubricPoints": "Điểm",
+        "removeRubric": "Xóa tiêu chí",
+        "addRubric": "Thêm tiêu chí",
+        "finalPoints": "Điểm cho kết quả cuối đúng (chương trình kiểm tra)",
+        "openDraftHint": "Câu tự luận không có đáp án mẫu hay tiêu chí được lưu thành bản nháp để tự kiểm tra và không thể đánh dấu đã kiểm tra.",
+        "openVerifiedHint": "Đánh dấu khi bạn đã kiểm tra đáp án mẫu và tiêu chí. Câu chưa kiểm tra mặc định không vào đề."
       },
       "errors": {
         "questionConflict": "Câu hỏi này đã bị sửa ở nơi khác; đang hiện bản mới nhất. Vui lòng sửa lại.",
@@ -3269,7 +3293,8 @@
         "start": "Bắt đầu",
         "again": "Làm lại",
         "deleteTitle": "Xóa đề này?",
-        "deleteText": "“{{title}}” và mọi lượt làm sẽ bị xóa. Các bản ghi học tập đã tạo vẫn còn cho đến khi bạn xóa trong Memory."
+        "deleteText": "“{{title}}” và mọi lượt làm sẽ bị xóa. Các bản ghi học tập đã tạo vẫn còn cho đến khi bạn xóa trong Memory.",
+        "ungraded": "{{count}} câu chờ chấm"
       },
       "attempt": {
         "back": "Về ngân hàng đề & kiểm tra",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "Nộp đề này?",
         "confirmUnanswered": "Còn {{count}} câu chưa trả lời (câu {{numbers}}). Sau khi nộp không thể sửa.",
         "confirmAll": "Đã trả lời tất cả. Sau khi nộp không thể sửa.",
-        "keepAnswering": "Tiếp tục làm"
+        "keepAnswering": "Tiếp tục làm",
+        "openNotice": "Sau khi nộp, câu tự luận được AI hỗ trợ chấm theo tiêu chí; kết quả cuối của câu tính toán được chương trình kiểm tra trước. Kết quả chỉ để tham khảo.",
+        "openPlaceholder": {
+          "short": "Viết câu trả lời của bạn…",
+          "calculation": "Trình bày cách tính…",
+          "proof": "Viết phần chứng minh…"
+        },
+        "finalLabel": "Kết quả cuối",
+        "finalPlaceholder": "vd. 1/2 hoặc x^2-1",
+        "tooLong": "Câu trả lời quá dài nên không lưu được. Hãy rút ngắn."
       },
       "report": {
         "score": "{{earned}} / {{total}} điểm",
@@ -3299,10 +3333,55 @@
           "correct": "Đúng",
           "incorrect": "Sai",
           "unanswered": "Chưa làm",
-          "ungradable": "Không chấm được"
+          "ungradable": "Không chấm được",
+          "partial": "Đúng một phần",
+          "pending": "Chờ chấm"
         },
         "yourChoice": "Bạn chọn",
-        "key": "Đáp án đúng: {{answer}}"
+        "key": "Đáp án đúng: {{answer}}",
+        "grading": "Đang chấm {{count}} câu tự luận…",
+        "partial": "Không chấm được {{count}} câu tự luận. Có thể thử lại bên dưới mỗi câu.",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "Mô hình đang chọn không dùng được. Kiểm tra cài đặt mô hình rồi thử lại.",
+          "STUDY_GRADING_LIMIT": "Câu này đã hết lượt chấm lại.",
+          "STUDY_GRADING_BUSY": "Câu này vẫn đang được chấm. Hãy thử lại sau ít phút.",
+          "capacity": "Hiện có nhiều lượt chấm. Hãy thử lại sau ít phút.",
+          "generic": "Hiện không thể tiếp tục chấm."
+        },
+        "retryGrading": "Tiếp tục chấm",
+        "selfTotal": "Theo điểm tự chấm: {{earned}} / {{total}}",
+        "gradedByMixed": "Câu trắc nghiệm được chấm trên máy chủ theo đáp án đã lưu; câu tự luận được AI hỗ trợ chấm theo tiêu chí (kết quả cuối của câu tính toán do chương trình kiểm tra trước). Chỉ để tham khảo.",
+        "yourAnswer": "Câu trả lời của bạn",
+        "yourFinal": "Kết quả cuối:",
+        "gradingRunning": "Đang chấm…",
+        "gradingWaiting": "Đang chờ chấm…",
+        "reviewing": "Đang chấm lại; kết quả cũ vẫn ở bên dưới…",
+        "reviewFailed": "Chấm lại thất bại ({{reason}}); kết quả cũ vẫn có hiệu lực.",
+        "gradingFailed": "Chấm thất bại ({{reason}}); chưa cho điểm.",
+        "failure": {
+          "timeout": "mô hình quá thời gian",
+          "invalid_output": "đầu ra của mô hình không hợp lệ",
+          "model_unavailable": "mô hình không dùng được",
+          "model_error": "gọi mô hình bị lỗi",
+          "lease_lost": "việc chấm bị gián đoạn",
+          "other": "đã xảy ra lỗi"
+        },
+        "retryItem": "Thử lại",
+        "selfShown": "Điểm tự chấm: {{earned}}/{{points}}",
+        "earlier": "Các lần chấm trước ({{count}})",
+        "review": "Nhờ AI chấm lại",
+        "selfGrade": "Chấm chưa đúng? Tự chấm",
+        "reviewResult": "Chấm lại: {{earned}}/{{points}}",
+        "gradingResult": "AI hỗ trợ chấm: {{earned}}/{{points}}",
+        "byProgram": "chương trình kiểm tra",
+        "byModel": "AI",
+        "shortcomings": "Còn thiếu",
+        "graderModel": "Mô hình {{model}}",
+        "graderProgram": "kết quả cuối do chương trình kiểm tra",
+        "selfHint": "Điểm tự chấm được hiển thị riêng và không bao giờ thay điểm đã chấm.",
+        "selfLabel": "Tôi nghĩ đáng được (0–{{points}})",
+        "selfNote": "Ghi chú (tùy chọn): chấm sai ở đâu?",
+        "selfSave": "Lưu điểm tự chấm"
       },
       "figureAlt": "Hình của câu hỏi",
       "figureMissing": "Không hiển thị được hình (tài liệu có thể đã bị xóa)",
@@ -3330,6 +3409,20 @@
         "attribution": "Ghi công",
         "licenseClear": "Tôi đã kiểm tra giấy phép cho phép dùng như vậy",
         "licenseHint": "Nếu không chọn, câu hỏi được ghi “giấy phép cần xác nhận” và chỉ dùng để tự luyện."
+      },
+      "subtype": {
+        "short": "Trả lời ngắn",
+        "calculation": "Tính toán",
+        "proof": "Chứng minh"
+      },
+      "guide": {
+        "none": "Không có đáp án mẫu hay tiêu chí.",
+        "reference": "Đáp án mẫu",
+        "final": "Kết quả cuối:",
+        "rubric": "Tiêu chí chấm (tổng {{points}} điểm)",
+        "criterionPoints": "({{points}} điểm)",
+        "finalCriterion": "Kết quả cuối đúng",
+        "overallCriterion": "Chấm tổng thể theo đáp án mẫu"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "trang {{pages}}",
       "referenceAnswer": "Đáp án tham khảo: ",
       "openType": "Câu tự luận",
-      "openHint": "Câu tự luận (tính toán, chứng minh, điền khuyết) sẽ hỗ trợ sau. Nếu thực ra là trắc nghiệm, hãy sửa và thêm lựa chọn.",
+      "openHint": "Câu tự luận được đưa vào ngân hàng với đáp án in sẵn làm đáp án mẫu; câu không có đáp án được lưu thành bản nháp. Có thể chỉnh loại câu, kết quả cuối và tiêu chí.",
       "edited": "đã sửa",
       "status": {
         "committed": "Đã thêm",

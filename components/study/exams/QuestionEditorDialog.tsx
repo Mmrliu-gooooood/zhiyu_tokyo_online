@@ -1,13 +1,17 @@
 'use client';
 
 /**
- * Write or correct one objective question (learning plan B07): stem, 2–8
- * options, the answer key, explanation, knowledge points, difficulty, points,
- * the course it belongs to and whether the student checked the answer. The
- * same validation as the server runs as the student types; a question without
- * an answer can be saved as a draft but is never marked checked.
+ * Write or correct one question (learning plan B07): stem, 2–8 options, the
+ * answer key, explanation, knowledge points, difficulty, points, the course
+ * it belongs to and whether the student checked the answer. The same
+ * validation as the server runs as the student types; a question without an
+ * answer can be saved as a draft but is never marked checked.
+ *
+ * Open questions (B09) — short answer, calculation, proof — take a reference
+ * answer, a calculation's final answer and optional scoring points instead
+ * of options; without any of them the question is a draft for self-checking.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { LoaderCircle, Plus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -35,9 +39,10 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import {
   QUESTION_LIMITS,
   blockingIssues,
+  hasAnswerKey,
   parseQuestion,
+  type OpenSubtype,
   type QuestionContent,
-  type QuestionType,
 } from '@/lib/study/questions/contracts';
 import { cn } from '@/lib/utils';
 
@@ -55,11 +60,30 @@ export interface EditorValue {
   stageId: string | null;
 }
 
+/** The type menu: the two choice types and the three kinds of open question. */
+type FormType = 'single' | 'multiple' | OpenSubtype;
+
+const OPEN_FORM_TYPES: readonly FormType[] = ['short', 'calculation', 'proof'];
+
+function isOpenForm(type: FormType): type is OpenSubtype {
+  return OPEN_FORM_TYPES.includes(type);
+}
+
+interface RubricRow {
+  text: string;
+  points: string;
+}
+
 interface FormState {
-  type: QuestionType;
+  type: FormType;
   stem: string;
   options: string[];
   answer: Set<number>;
+  referenceAnswer: string;
+  finalAnswer: string;
+  /** Points of the final answer when there are also written scoring points. */
+  finalPoints: string;
+  rubric: RubricRow[];
   explanation: string;
   concepts: string;
   difficulty: string;
@@ -70,10 +94,25 @@ interface FormState {
 
 function toForm(value: EditorValue | null): FormState {
   const content = value?.content;
+  const open = content?.type === 'short_answer';
+  const guide = content?.guide;
+  const finalCriterion = guide?.rubric.find((criterion) => criterion.final);
   return {
-    type: content?.type ?? 'single',
+    type: open ? (content?.subtype ?? 'short') : ((content?.type ?? 'single') as FormType),
     stem: content?.stem ?? '',
-    options: content?.options.map((option) => option.label) ?? ['', '', '', ''],
+    options:
+      open || !content
+        ? ['', '', '', '']
+        : content.options.length
+          ? content.options.map((option) => option.label)
+          : ['', '', '', ''],
+    referenceAnswer: guide?.referenceAnswer ?? '',
+    finalAnswer: guide?.finalAnswer ?? '',
+    finalPoints: finalCriterion ? String(finalCriterion.points) : '',
+    rubric:
+      guide?.rubric
+        .filter((criterion) => !criterion.final)
+        .map((criterion) => ({ text: criterion.text, points: String(criterion.points) })) ?? [],
     answer: new Set(
       (content?.answer ?? []).flatMap((key) => {
         const index = content?.options.findIndex((option) => option.value === key) ?? -1;
@@ -89,12 +128,34 @@ function toForm(value: EditorValue | null): FormState {
   };
 }
 
+function openGuide(form: FormState) {
+  const finalAnswer = form.type === 'calculation' ? form.finalAnswer.trim() : '';
+  const rows = form.rubric.filter((row) => row.text.trim() || row.points.trim());
+  const rubric: Array<Record<string, unknown>> = rows.map((row, index) => ({
+    id: `c${index + 1}`,
+    text: row.text,
+    points: row.points.trim() === '' ? Number.NaN : Number(row.points),
+  }));
+  // With written points, the final answer is one more point of its own.
+  if (finalAnswer && rubric.length) {
+    rubric.push({
+      id: 'final',
+      text: '',
+      points: form.finalPoints.trim() === '' ? Number.NaN : Number(form.finalPoints),
+      final: true,
+    });
+  }
+  return { referenceAnswer: form.referenceAnswer, finalAnswer: finalAnswer || null, rubric };
+}
+
 function toContent(form: FormState, source: QuestionContent['source']) {
+  const openType = isOpenForm(form.type);
   return parseQuestion({
-    type: form.type,
+    type: openType ? 'short_answer' : form.type,
+    ...(openType ? { subtype: form.type, guide: openGuide(form) } : {}),
     stem: form.stem,
-    options: form.options.map((label, index) => ({ value: LETTERS[index], label })),
-    answer: [...form.answer].sort((a, b) => a - b).map((index) => LETTERS[index]),
+    options: openType ? [] : form.options.map((label, index) => ({ value: LETTERS[index], label })),
+    answer: openType ? [] : [...form.answer].sort((a, b) => a - b).map((index) => LETTERS[index]),
     explanation: form.explanation,
     concepts: form.concepts
       .split(/[,，、;；\n]/)
@@ -130,7 +191,8 @@ export function QuestionEditorDialog({
   const [error, setError] = useState<string | null>(null);
   const parsed = useMemo(() => toContent(form, initial?.content.source ?? null), [form, initial]);
   const errors = blockingIssues(parsed.issues);
-  const draft = errors.length === 0 && parsed.content?.answer.length === 0;
+  const draft = errors.length === 0 && !!parsed.content && !hasAnswerKey(parsed.content);
+  const openType = isOpenForm(form.type);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -196,7 +258,7 @@ export function QuestionEditorDialog({
                 onValueChange={(value) =>
                   setForm((current) => ({
                     ...current,
-                    type: value as QuestionType,
+                    type: value as FormType,
                     answer:
                       value === 'single'
                         ? new Set([...current.answer].slice(0, 1))
@@ -210,6 +272,11 @@ export function QuestionEditorDialog({
                 <SelectContent>
                   <SelectItem value="single">{t('study.practice.type.single')}</SelectItem>
                   <SelectItem value="multiple">{t('study.practice.type.multiple')}</SelectItem>
+                  {OPEN_FORM_TYPES.map((subtype) => (
+                    <SelectItem key={subtype} value={subtype}>
+                      {t(`study.practice.subtype.${subtype}`)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -260,70 +327,74 @@ export function QuestionEditorDialog({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('study.practice.editor.options')}</Label>
-            <p className="text-xs text-muted-foreground">
-              {form.type === 'single'
-                ? t('study.practice.editor.pickOne')
-                : t('study.practice.editor.pickMany')}
-            </p>
-            {form.options.map((label, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-pressed={form.answer.has(index)}
-                  aria-label={t('study.practice.editor.markCorrect', { letter: LETTERS[index] })}
-                  data-testid={`question-answer-${LETTERS[index]}`}
-                  onClick={() => toggleAnswer(index)}
-                  className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors',
-                    form.answer.has(index)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border text-muted-foreground hover:border-primary/60',
-                  )}
-                >
-                  {LETTERS[index]}
-                </button>
-                <Input
-                  value={label}
-                  maxLength={QUESTION_LIMITS.optionLabel}
-                  data-testid={`question-option-${LETTERS[index]}`}
-                  placeholder={t('study.practice.editor.optionPlaceholder', {
-                    letter: LETTERS[index],
-                  })}
-                  onChange={(event) =>
-                    set(
-                      'options',
-                      form.options.map((value, position) =>
-                        position === index ? event.target.value : value,
-                      ),
-                    )
-                  }
-                />
+          {openType ? (
+            <OpenFields form={form} setForm={setForm} />
+          ) : (
+            <div className="space-y-2">
+              <Label>{t('study.practice.editor.options')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {form.type === 'single'
+                  ? t('study.practice.editor.pickOne')
+                  : t('study.practice.editor.pickMany')}
+              </p>
+              {form.options.map((label, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={form.answer.has(index)}
+                    aria-label={t('study.practice.editor.markCorrect', { letter: LETTERS[index] })}
+                    data-testid={`question-answer-${LETTERS[index]}`}
+                    onClick={() => toggleAnswer(index)}
+                    className={cn(
+                      'flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors',
+                      form.answer.has(index)
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border text-muted-foreground hover:border-primary/60',
+                    )}
+                  >
+                    {LETTERS[index]}
+                  </button>
+                  <Input
+                    value={label}
+                    maxLength={QUESTION_LIMITS.optionLabel}
+                    data-testid={`question-option-${LETTERS[index]}`}
+                    placeholder={t('study.practice.editor.optionPlaceholder', {
+                      letter: LETTERS[index],
+                    })}
+                    onChange={(event) =>
+                      set(
+                        'options',
+                        form.options.map((value, position) =>
+                          position === index ? event.target.value : value,
+                        ),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={form.options.length <= QUESTION_LIMITS.minOptions}
+                    aria-label={t('study.practice.editor.removeOption')}
+                    onClick={() => removeOption(index)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              {form.options.length < QUESTION_LIMITS.maxOptions ? (
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={form.options.length <= QUESTION_LIMITS.minOptions}
-                  aria-label={t('study.practice.editor.removeOption')}
-                  onClick={() => removeOption(index)}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => set('options', [...form.options, ''])}
                 >
-                  <X className="size-4" />
+                  <Plus className="mr-1 size-4" />
+                  {t('study.practice.editor.addOption')}
                 </Button>
-              </div>
-            ))}
-            {form.options.length < QUESTION_LIMITS.maxOptions ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => set('options', [...form.options, ''])}
-              >
-                <Plus className="mr-1 size-4" />
-                {t('study.practice.editor.addOption')}
-              </Button>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="question-explanation">{t('study.practice.editor.explanation')}</Label>
@@ -377,8 +448,12 @@ export function QuestionEditorDialog({
               {t('study.practice.editor.verified')}
               <span className="block text-xs text-muted-foreground">
                 {draft
-                  ? t('study.practice.editor.draftHint')
-                  : t('study.practice.editor.verifiedHint')}
+                  ? openType
+                    ? t('study.practice.editor.openDraftHint')
+                    : t('study.practice.editor.draftHint')
+                  : openType
+                    ? t('study.practice.editor.openVerifiedHint')
+                    : t('study.practice.editor.verifiedHint')}
               </span>
             </span>
           </label>
@@ -412,5 +487,130 @@ export function QuestionEditorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Reference answer, a calculation's final answer and the scoring points of an open question. */
+function OpenFields({
+  form,
+  setForm,
+}: {
+  form: FormState;
+  setForm: Dispatch<SetStateAction<FormState>>;
+}) {
+  const { t } = useI18n();
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const setRow = (index: number, row: Partial<RubricRow>) =>
+    setForm((current) => ({
+      ...current,
+      rubric: current.rubric.map((entry, position) =>
+        position === index ? { ...entry, ...row } : entry,
+      ),
+    }));
+  const calculation = form.type === 'calculation';
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-3">
+      <div className="space-y-1.5">
+        <Label htmlFor="question-reference">{t('study.practice.editor.referenceAnswer')}</Label>
+        <Textarea
+          id="question-reference"
+          data-testid="question-reference"
+          rows={4}
+          maxLength={QUESTION_LIMITS.referenceAnswer}
+          value={form.referenceAnswer}
+          placeholder={t('study.practice.editor.referencePlaceholder')}
+          onChange={(event) => set('referenceAnswer', event.target.value)}
+        />
+        {form.referenceAnswer.includes('$') ? (
+          <p className="rounded-md bg-muted/60 px-3 py-2 text-sm">
+            <MathText text={form.referenceAnswer} allowDisplayMode />
+          </p>
+        ) : null}
+      </div>
+      {calculation ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="question-final">{t('study.practice.editor.finalAnswer')}</Label>
+          <Input
+            id="question-final"
+            data-testid="question-final"
+            maxLength={QUESTION_LIMITS.finalAnswer}
+            value={form.finalAnswer}
+            placeholder={t('study.practice.editor.finalPlaceholder')}
+            onChange={(event) => set('finalAnswer', event.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{t('study.practice.editor.finalHint')}</p>
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        <Label>{t('study.practice.editor.rubric')}</Label>
+        <p className="text-xs text-muted-foreground">{t('study.practice.editor.rubricHint')}</p>
+        {form.rubric.map((row, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <Input
+              value={row.text}
+              maxLength={QUESTION_LIMITS.criterionText}
+              data-testid={`question-rubric-text-${index}`}
+              placeholder={t('study.practice.editor.rubricPlaceholder', { n: index + 1 })}
+              onChange={(event) => setRow(index, { text: event.target.value })}
+            />
+            <Input
+              type="number"
+              className="w-20"
+              min={1}
+              max={QUESTION_LIMITS.maxPoints}
+              value={row.points}
+              data-testid={`question-rubric-points-${index}`}
+              aria-label={t('study.practice.editor.rubricPoints')}
+              onChange={(event) => setRow(index, { points: event.target.value })}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t('study.practice.editor.removeRubric')}
+              onClick={() =>
+                set(
+                  'rubric',
+                  form.rubric.filter((_, position) => position !== index),
+                )
+              }
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        ))}
+        {calculation && form.finalAnswer.trim() && form.rubric.length ? (
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-sm text-foreground">
+              {t('study.practice.editor.finalPoints')}
+            </span>
+            <Input
+              type="number"
+              className="w-20"
+              min={1}
+              max={QUESTION_LIMITS.maxPoints}
+              value={form.finalPoints}
+              data-testid="question-final-points"
+              aria-label={t('study.practice.editor.rubricPoints')}
+              onChange={(event) => set('finalPoints', event.target.value)}
+            />
+            <span className="w-9" />
+          </div>
+        ) : null}
+        {form.rubric.length < QUESTION_LIMITS.rubricCriteria ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="question-rubric-add"
+            onClick={() => set('rubric', [...form.rubric, { text: '', points: '1' }])}
+          >
+            <Plus className="mr-1 size-4" />
+            {t('study.practice.editor.addRubric')}
+          </Button>
+        ) : null}
+      </div>
+    </div>
   );
 }

@@ -238,18 +238,24 @@ async function examSourceEvents(
   attemptId?: string,
 ): Promise<LearningEventInput[]> {
   const rows = await submittedAttempts(db, ownerId, attemptId);
+  // A paper with open items is recorded once all of them have a score
+  // (B09); its totals then include them. Ungraded attempts are picked up by
+  // a later projection.
   return examEvents(
-    rows.map((row) => ({
-      attemptId: row.attemptId,
-      paperId: row.paperId,
-      spaceId: row.spaceId,
-      submittedAt: row.submittedAt,
-      itemCount: row.itemCount,
-      correct: row.grading.correct,
-      unanswered: row.grading.unanswered,
-      earned: row.grading.earned,
-      totalPoints: row.grading.totalPoints,
-    })),
+    rows
+      .filter((row) => row.open.ungraded === 0)
+      .map((row) => ({
+        attemptId: row.attemptId,
+        paperId: row.paperId,
+        spaceId: row.spaceId,
+        submittedAt: row.submittedAt,
+        itemCount: row.itemCount,
+        correct: row.grading.correct + row.open.correct,
+        unanswered: row.grading.unanswered,
+        earned: row.grading.earned + row.open.earned,
+        totalPoints: row.grading.totalPoints,
+        openItems: row.grading.pending ?? 0,
+      })),
   );
 }
 

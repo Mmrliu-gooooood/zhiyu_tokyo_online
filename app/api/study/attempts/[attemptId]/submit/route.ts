@@ -23,7 +23,7 @@ export function POST(req: Request, context: Context) {
   return studyExamsRoute(req, async (ownerId, db, headers) => {
     const { attemptId } = await context.params;
     if (!isAttemptId(attemptId)) throw new StudyError('STUDY_ATTEMPT_NOT_FOUND');
-    const body = await readStudyBody(req, ATTEMPT_LIMITS.answersBytes);
+    const body = await readStudyBody(req, ATTEMPT_LIMITS.answersRequestBytes);
     if (!body) return invalidInput('body', headers);
     if (!isRequestKey(body.submitKey)) return invalidInput('submitKey', headers);
     const answers = body.answers ?? null;

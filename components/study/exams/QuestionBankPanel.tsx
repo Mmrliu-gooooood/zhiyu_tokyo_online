@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  GuideDetails,
   OriginChip,
   QuestionFigures,
   SourceDetails,
@@ -218,6 +219,7 @@ export function QuestionBankPanel({
             <SelectItem value={ALL}>{t('study.practice.bank.allTypes')}</SelectItem>
             <SelectItem value="single">{t('study.practice.type.single')}</SelectItem>
             <SelectItem value="multiple">{t('study.practice.type.multiple')}</SelectItem>
+            <SelectItem value="short_answer">{t('study.practice.type.short_answer')}</SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -330,7 +332,7 @@ export function QuestionBankPanel({
                   ) : null}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <TypeChip type={question.type} />
+                  <TypeChip type={question.type} subtype={question.subtype} />
                   <VerificationChip state={question.verification} />
                   <OriginChip origin={question.origin} />
                   {!question.gradable ? (
@@ -369,6 +371,9 @@ export function QuestionBankPanel({
                         {option.value}. <MathText text={option.label} />
                       </p>
                     ))}
+                    {question.type === 'short_answer' ? (
+                      <GuideDetails guide={question.guide} points={question.points} />
+                    ) : null}
                     {question.explanation ? (
                       <p className="pt-1 text-muted-foreground">
                         <MathText text={question.explanation} allowDisplayMode />

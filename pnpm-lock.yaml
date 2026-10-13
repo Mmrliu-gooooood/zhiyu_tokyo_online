@@ -47,6 +47,9 @@ importers:
       '@copilotkit/runtime':
         specifier: ^1.51.2
         version: 1.53.0(@ag-ui/encoder@0.0.47)(@cfworker/json-schema@4.1.1)(@copilotkitnext/shared@1.53.0)(@langchain/core@1.1.31(@opentelemetry/api@1.9.0)(openai@4.104.0(ws@8.21.3)(zod@4.3.6)))(@langchain/langgraph-sdk@1.7.1(@langchain/core@1.1.31(@opentelemetry/api@1.9.0)(openai@4.104.0(ws@8.21.3)(zod@4.3.6))))(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(ws@8.21.3)
+      '@cortex-js/compute-engine':
+        specifier: 0.128.13
+        version: 0.128.13
       '@earendil-works/pi-agent-core':
         specifier: 0.78.0
         version: 0.78.0(@modelcontextprotocol/sdk@1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
@@ -1143,6 +1146,9 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@arnog/colors@0.7.3':
+    resolution: {integrity: sha512-D7h3f498cu68+pI54eNl1UIm5xbs1uX5ggBTuFpLs3YQ17lqlWAmJ6d+tuvyLvJEzciN2YYR6D+9K8NfBGJGkQ==}
 
   '@asamuzakjp/css-color@5.1.11':
     resolution: {integrity: sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg==}
@@ -2362,6 +2368,11 @@ packages:
     resolution: {integrity: sha512-RdhudJUq79RM0zLLzIJDAg//aLc0vW2WocaJmsQzz/awZEbcbo13Ag6jL+oZOOlq++Lu9xWd7SQ83jhoZwCJXg==}
     engines: {node: '>=18'}
     deprecated: Use @copilotkit/shared instead.
+
+  '@cortex-js/compute-engine@0.128.13':
+    resolution: {integrity: sha512-YoyV84RezzqTP0LA7N3HbaNnzut3RQnsrjIi2Sav2dp+rDTAqq69EusWgWvPi2d1SMOzzw4vhv30q3ZRoQqukQ==}
+    engines: {node: '>=22.3.0', npm: '>=10.5.0'}
+    hasBin: true
 
   '@csstools/color-helpers@6.1.0':
     resolution: {integrity: sha512-064IFJdjTfUqnjpCVpMOdbr8FLQBhinbZj6yRv2An2E41O/pLEXqfFRWqGq/SxlE5PEUYTlvWsG2r8MswAVvkg==}
@@ -6876,6 +6887,10 @@ packages:
 
   compare-versions@6.1.1:
     resolution: {integrity: sha512-4hm4VPpIecmlg59CHXnRDnqGplJFrbLG4aFEl5vl6cK1u76ws3LLvX7ikFnTDl5vo39sjWD6AaDPYodJp/NNHg==}
+
+  complex-esm@2.1.1-esm1:
+    resolution: {integrity: sha512-IShBEWHILB9s7MnfyevqNGxV0A1cfcSnewL/4uPFiSxkcQL4Mm3FxJ0pXMtCXuWLjYz3lRRyk6OfkeDZcjD6nw==}
+    engines: {node: '>=16.14.2', npm: '>=8.5.0'}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -13765,6 +13780,8 @@ snapshots:
     optionalDependencies:
       zod: 4.3.6
 
+  '@arnog/colors@0.7.3': {}
+
   '@asamuzakjp/css-color@5.1.11':
     dependencies:
       '@asamuzakjp/generational-cache': 1.0.1
@@ -15785,6 +15802,11 @@ snapshots:
       '@ag-ui/client': 0.0.47
       partial-json: 0.1.7
       uuid: 11.1.1
+
+  '@cortex-js/compute-engine@0.128.13':
+    dependencies:
+      '@arnog/colors': 0.7.3
+      complex-esm: 2.1.1-esm1
 
   '@csstools/color-helpers@6.1.0': {}
 
@@ -20246,6 +20268,8 @@ snapshots:
   commondir@1.0.1: {}
 
   compare-versions@6.1.1: {}
+
+  complex-esm@2.1.1-esm1: {}
 
   concat-map@0.0.1: {}
 

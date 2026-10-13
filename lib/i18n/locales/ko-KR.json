@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "단일 선택",
-        "multiple": "복수 선택"
+        "multiple": "복수 선택",
+        "short_answer": "서술형"
       },
       "origin": {
         "user_import": "가져옴",
@@ -3118,10 +3119,12 @@
           "source": "출처",
           "verified": "확인 표시",
           "figures": "그림",
-          "referenceAnswer": "참고 답안"
+          "referenceAnswer": "참고 답안",
+          "guide": "채점 기준",
+          "subtype": "문제 유형"
         },
         "not_object": "문제 객체가 아닙니다",
-        "type_unsupported": "현재는 단일 선택과 복수 선택만 지원합니다",
+        "type_unsupported": "지원하지 않는 문제 유형입니다",
         "stem_missing": "문제가 비어 있습니다",
         "stem_too_long": "문제가 너무 깁니다(최대 4,000자)",
         "options_invalid": "보기는 목록 또는 A–H 키여야 합니다",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "난이도는 1–5입니다",
         "points_invalid": "배점은 1–100 사이의 정수입니다",
         "source_invalid": "출처가 올바르지 않습니다(링크는 http로 시작)",
-        "verified_invalid": "verified는 true 또는 false여야 합니다"
+        "verified_invalid": "verified는 true 또는 false여야 합니다",
+        "subtype_invalid": "유형은 서술, 계산, 증명 중 하나여야 합니다",
+        "options_not_allowed": "서술형 문제에는 선택지나 객관식 정답을 둘 수 없습니다",
+        "reference_too_long": "모범 답안이 너무 깁니다(최대 4000자)",
+        "final_answer_invalid": "최종 답은 계산 문제에만 쓰며 200자 이내여야 합니다",
+        "rubric_invalid": "채점 항목에는 내용과 1–100 사이 정수 배점이 필요합니다(최대 10개)",
+        "rubric_points_mismatch": "채점 항목 배점의 합이 문제 배점과 같아야 합니다",
+        "guide_missing": "모범 답안이나 채점 항목이 없습니다: 초안으로 저장되며 자가 점검용으로만 쓰이고 시험에는 들어가지 않습니다"
       },
       "editor": {
-        "description": "글자를 눌러 정답 보기를 표시하세요. 수식은 $…$ 안에 LaTeX로 쓸 수 있습니다.",
+        "description": "객관식은 정답 기호를 클릭하고, 서술형은 모범 답안과 채점 항목을 입력하세요. 수식은 $…$로 감싼 LaTeX로 쓸 수 있습니다.",
         "editTitle": "문제 편집",
         "type": "유형",
         "difficulty": "난이도",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "미확인 문제는 포함하도록 선택하지 않으면 시험지에 들어가지 않습니다.",
         "draftHint": "정답이 없는 문제는 초안으로 저장되며 확인 표시를 할 수 없습니다.",
         "save": "저장",
-        "saveDraft": "초안으로 저장"
+        "saveDraft": "초안으로 저장",
+        "referenceAnswer": "모범 답안",
+        "referencePlaceholder": "채점 근거가 될 전체 풀이나 핵심 내용…",
+        "finalAnswer": "최종 답(선택)",
+        "finalPlaceholder": "예: 1/2, x^2-1, \\frac{\\sqrt3}{2}",
+        "finalHint": "수 또는 식. 채점할 때 학생의 최종 답이 이와 같은지 프로그램이 먼저 판단합니다.",
+        "rubric": "채점 항목(선택)",
+        "rubricHint": "배점 합은 문제 배점과 같아야 합니다. 채점 항목이 없으면 모범 답안과 비교해 전체로 채점하고, 최종 답만 있는 계산 문제는 최종 답으로 채점합니다.",
+        "rubricPlaceholder": "채점 항목 {{n}}: 예 “도함수 공식을 바르게 씀”",
+        "rubricPoints": "배점",
+        "removeRubric": "채점 항목 삭제",
+        "addRubric": "채점 항목 추가",
+        "finalPoints": "최종 답이 맞을 때 배점(프로그램 판정)",
+        "openDraftHint": "모범 답안이나 채점 항목이 없는 서술형 문제는 초안으로 저장되어 자가 점검용으로만 쓰이며 확인됨으로 표시할 수 없습니다.",
+        "openVerifiedHint": "모범 답안과 채점 항목을 확인했으면 체크하세요. 확인하지 않은 문제는 기본적으로 시험에 들어가지 않습니다."
       },
       "errors": {
         "questionConflict": "이 문제가 다른 곳에서 바뀌어 최신 버전을 표시했습니다. 다시 편집해 주세요.",
@@ -3269,7 +3293,8 @@
         "start": "풀기 시작",
         "again": "다시 풀기",
         "deleteTitle": "이 시험지를 삭제할까요?",
-        "deleteText": "“{{title}}”과 모든 응시 기록이 삭제됩니다. 이미 만들어진 학습 기록은 Memory에서 지울 때까지 남습니다."
+        "deleteText": "“{{title}}”과 모든 응시 기록이 삭제됩니다. 이미 만들어진 학습 기록은 Memory에서 지울 때까지 남습니다.",
+        "ungraded": "채점 대기 {{count}}문제"
       },
       "attempt": {
         "back": "문제은행과 시험으로",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "이 시험지를 제출할까요?",
         "confirmUnanswered": "{{count}}문제에 답하지 않았습니다({{numbers}}번). 제출 후에는 바꿀 수 없습니다.",
         "confirmAll": "모든 문제에 답했습니다. 제출 후에는 바꿀 수 없습니다.",
-        "keepAnswering": "계속 풀기"
+        "keepAnswering": "계속 풀기",
+        "openNotice": "서술형 문제는 제출 후 AI가 채점 항목에 따라 채점을 돕습니다. 계산 문제의 최종 답은 프로그램이 먼저 판단합니다. 결과는 참고용입니다.",
+        "openPlaceholder": {
+          "short": "답을 작성하세요…",
+          "calculation": "풀이 과정을 작성하세요…",
+          "proof": "증명을 작성하세요…"
+        },
+        "finalLabel": "최종 답",
+        "finalPlaceholder": "예: 1/2 또는 x^2-1",
+        "tooLong": "답이 너무 길어 저장할 수 없습니다. 조금 줄여 주세요."
       },
       "report": {
         "score": "{{earned}} / {{total}}점",
@@ -3299,10 +3333,55 @@
           "correct": "정답",
           "incorrect": "오답",
           "unanswered": "미응답",
-          "ungradable": "채점 불가"
+          "ungradable": "채점 불가",
+          "partial": "부분 점수",
+          "pending": "채점 대기"
         },
         "yourChoice": "내 답",
-        "key": "정답: {{answer}}"
+        "key": "정답: {{answer}}",
+        "grading": "서술형 {{count}}문제 채점 중…",
+        "partial": "서술형 {{count}}문제 채점에 실패했습니다. 각 문제 아래에서 다시 시도할 수 있습니다.",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "선택한 모델을 사용할 수 없습니다. 모델 설정을 확인한 뒤 다시 시도하세요.",
+          "STUDY_GRADING_LIMIT": "이 문제의 재채점 횟수를 모두 사용했습니다.",
+          "STUDY_GRADING_BUSY": "이 문제는 아직 채점 중입니다. 잠시 후 다시 시도하세요.",
+          "capacity": "지금은 채점 요청이 많습니다. 잠시 후 다시 시도하세요.",
+          "generic": "지금은 채점을 계속할 수 없습니다."
+        },
+        "retryGrading": "채점 계속",
+        "selfTotal": "자가 채점 반영: {{earned}} / {{total}}점",
+        "gradedByMixed": "객관식은 저장된 정답으로 서버에서 채점했고, 서술형은 AI가 채점 항목에 따라 채점을 도왔습니다(계산 문제의 최종 답은 프로그램이 먼저 판단). 참고용입니다.",
+        "yourAnswer": "내 답",
+        "yourFinal": "최종 답:",
+        "gradingRunning": "채점 중…",
+        "gradingWaiting": "채점 대기 중…",
+        "reviewing": "다시 채점하는 중입니다. 이전 결과는 아래에 남아 있습니다…",
+        "reviewFailed": "재채점에 실패했습니다({{reason}}). 이전 결과가 유효합니다.",
+        "gradingFailed": "채점에 실패했습니다({{reason}}). 점수가 매겨지지 않았습니다.",
+        "failure": {
+          "timeout": "모델 시간 초과",
+          "invalid_output": "모델 출력이 올바르지 않음",
+          "model_unavailable": "모델을 사용할 수 없음",
+          "model_error": "모델 호출 오류",
+          "lease_lost": "채점이 중단됨",
+          "other": "오류 발생"
+        },
+        "retryItem": "다시 시도",
+        "selfShown": "내 자가 채점: {{earned}}/{{points}}점",
+        "earlier": "이전 채점({{count}})",
+        "review": "AI에게 다시 채점 요청",
+        "selfGrade": "채점이 틀린 것 같나요? 직접 채점",
+        "reviewResult": "재채점: {{earned}}/{{points}}점",
+        "gradingResult": "AI 보조 채점: {{earned}}/{{points}}점",
+        "byProgram": "프로그램 판정",
+        "byModel": "AI 채점",
+        "shortcomings": "부족한 점",
+        "graderModel": "모델 {{model}}",
+        "graderProgram": "최종 답은 프로그램 판정",
+        "selfHint": "자가 채점은 따로 표시되며 채점 점수를 대체하지 않습니다.",
+        "selfLabel": "받아야 한다고 생각하는 점수(0–{{points}}점)",
+        "selfNote": "메모(선택): 어디가 잘못 채점되었나요?",
+        "selfSave": "자가 채점 저장"
       },
       "figureAlt": "문제 그림",
       "figureMissing": "그림을 표시할 수 없습니다 (원본 자료가 삭제되었을 수 있음)",
@@ -3330,6 +3409,20 @@
         "attribution": "출처 표기",
         "licenseClear": "라이선스가 이 사용을 허용함을 확인했습니다",
         "licenseHint": "체크하지 않으면 \"라이선스 확인 필요\"로 표시되고 개인 연습용으로만 쓰입니다."
+      },
+      "subtype": {
+        "short": "단답·서술",
+        "calculation": "계산",
+        "proof": "증명"
+      },
+      "guide": {
+        "none": "모범 답안이나 채점 항목이 없습니다.",
+        "reference": "모범 답안",
+        "final": "최종 답:",
+        "rubric": "채점 항목(총 {{points}}점)",
+        "criterionPoints": "({{points}}점)",
+        "finalCriterion": "최종 답이 맞음",
+        "overallCriterion": "모범 답안과 비교해 전체 채점"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "{{pages}}쪽",
       "referenceAnswer": "참고 답안: ",
       "openType": "주관식",
-      "openHint": "주관식(계산, 증명, 빈칸)은 아직 추가할 수 없으며 다음에 지원됩니다. 객관식이라면 수정해 보기를 넣으세요.",
+      "openHint": "서술형 문제는 원문의 답을 모범 답안으로 하여 문제은행에 들어갑니다. 답이 없는 문제는 초안으로 저장됩니다. 편집에서 유형, 최종 답, 채점 항목을 설정할 수 있습니다.",
       "edited": "수정됨",
       "status": {
         "committed": "추가됨",

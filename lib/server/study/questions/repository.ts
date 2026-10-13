@@ -24,6 +24,8 @@ import {
   validateQuestionContent,
   type ConceptView,
   type QuestionContent,
+  type GradingGuide,
+  type OpenSubtype,
   type QuestionFigure,
   type QuestionListResult,
   type QuestionOrigin,
@@ -167,7 +169,7 @@ export async function conceptKeysOf(
 const QUESTION_COLUMNS = `
   q.id, q.space_id, q.origin, q.current_version, q.stage_id, q.created_at, q.updated_at,
   v.qtype, v.stem, v.options, v.answer, v.explanation, v.concept_ids, v.difficulty, v.points,
-  v.source, v.verification, v.gradable, v.content_hash, v.figures,
+  v.source, v.verification, v.gradable, v.content_hash, v.figures, v.subtype, v.guide,
   ARRAY(
     SELECT c.name FROM study_concepts c
      WHERE c.owner_id = q.owner_id AND c.id = ANY(v.concept_ids)
@@ -200,12 +202,26 @@ interface QuestionRow extends Record<string, unknown> {
   gradable: boolean;
   content_hash: string;
   figures: unknown;
+  subtype: OpenSubtype | null;
+  guide: unknown;
   concept_names: string[];
 }
 
 function figuresOf(value: unknown): { figures?: QuestionFigure[] } {
   const figures = json<QuestionFigure[]>(value);
   return figures?.length ? { figures } : {};
+}
+
+function openFields(row: QuestionRow): { subtype?: OpenSubtype; guide?: GradingGuide } {
+  if (row.qtype !== 'short_answer') return {};
+  return {
+    subtype: row.subtype ?? 'short',
+    guide: json<GradingGuide>(row.guide) ?? {
+      referenceAnswer: null,
+      finalAnswer: null,
+      rubric: [],
+    },
+  };
 }
 
 function toView(row: QuestionRow): QuestionView {
@@ -217,6 +233,7 @@ function toView(row: QuestionRow): QuestionView {
     verification: row.verification,
     gradable: row.gradable,
     type: row.qtype,
+    ...openFields(row),
     stem: row.stem,
     options: json(row.options) ?? [],
     answer: json(row.answer) ?? [],
@@ -346,9 +363,9 @@ async function insertVersion(
   await tx.query(
     `INSERT INTO study_question_versions
        (owner_id, question_id, version, qtype, stem, options, answer, explanation, concept_ids,
-        difficulty, points, source, verification, gradable, content_hash, figures)
+        difficulty, points, source, verification, gradable, content_hash, figures, subtype, guide)
      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::text[], $10, $11, $12::jsonb,
-             $13, $14, $15, $16::jsonb)`,
+             $13, $14, $15, $16::jsonb, $17, $18::jsonb)`,
     [
       ownerId,
       questionId,
@@ -366,6 +383,8 @@ async function insertVersion(
       isGradable(content),
       hash,
       content.figures?.length ? JSON.stringify(content.figures) : null,
+      content.type === 'short_answer' ? (content.subtype ?? 'short') : null,
+      content.type === 'short_answer' && content.guide ? JSON.stringify(content.guide) : null,
     ],
   );
 }
@@ -471,9 +490,11 @@ export async function updateQuestion(
       difficulty: number | null;
       points: number;
       source: unknown;
+      subtype: string | null;
+      guide: unknown;
     }>(
       `SELECT q.space_id, q.current_version, q.stage_id, v.content_hash, v.verification,
-              v.explanation, v.concept_ids, v.difficulty, v.points, v.source
+              v.explanation, v.concept_ids, v.difficulty, v.points, v.source, v.subtype, v.guide
          ${QUESTION_FROM}
         WHERE q.owner_id = $1 AND q.id = $2
         FOR UPDATE OF q`,
@@ -498,7 +519,12 @@ export async function updateQuestion(
       JSON.stringify(conceptIds) === JSON.stringify(row.concept_ids ?? []) &&
       input.content.difficulty === (row.difficulty === null ? null : Number(row.difficulty)) &&
       input.content.points === Number(row.points) &&
-      JSON.stringify(input.content.source) === JSON.stringify(json(row.source));
+      JSON.stringify(input.content.source) === JSON.stringify(json(row.source)) &&
+      (input.content.type === 'short_answer' ? (input.content.subtype ?? 'short') : null) ===
+        row.subtype &&
+      JSON.stringify(
+        input.content.type === 'short_answer' ? (input.content.guide ?? null) : null,
+      ) === JSON.stringify(json(row.guide));
     if (unchanged) return;
     const version = Number(row.current_version) + 1;
     await insertVersion(
@@ -611,7 +637,7 @@ export async function loadQuestionVersions(
     `SELECT q.id, q.space_id, q.origin, v.version AS current_version, q.stage_id, q.created_at,
             q.updated_at, v.qtype, v.stem, v.options, v.answer, v.explanation, v.concept_ids,
             v.difficulty, v.points, v.source, v.verification, v.gradable, v.content_hash,
-            v.figures,
+            v.figures, v.subtype, v.guide,
             ARRAY(
               SELECT c.name FROM study_concepts c
                WHERE c.owner_id = q.owner_id AND c.id = ANY(v.concept_ids)
@@ -635,6 +661,7 @@ export async function loadQuestionVersions(
           verification: view.verification,
           content: {
             type: view.type,
+            ...(view.subtype ? { subtype: view.subtype, guide: view.guide } : {}),
             stem: view.stem,
             options: view.options,
             answer: view.answer,

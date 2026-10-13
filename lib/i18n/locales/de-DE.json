@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "Einfachauswahl",
-        "multiple": "Mehrfachauswahl"
+        "multiple": "Mehrfachauswahl",
+        "short_answer": "Offene Aufgabe"
       },
       "origin": {
         "user_import": "Importiert",
@@ -3118,10 +3119,12 @@
           "source": "Quelle",
           "verified": "Prüfmarkierung",
           "figures": "Abbildungen",
-          "referenceAnswer": "Musterlösung"
+          "referenceAnswer": "Musterlösung",
+          "guide": "Bewertungsgrundlage",
+          "subtype": "Aufgabentyp"
         },
         "not_object": "Kein Fragenobjekt",
-        "type_unsupported": "Derzeit werden nur Einfach- und Mehrfachauswahl unterstützt",
+        "type_unsupported": "Nicht unterstützter Aufgabentyp",
         "stem_missing": "Die Frage ist leer",
         "stem_too_long": "Die Frage ist zu lang (höchstens 4.000 Zeichen)",
         "options_invalid": "Optionen müssen eine Liste oder mit A–H beschlüsselt sein",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "Die Schwierigkeit muss 1–5 sein",
         "points_invalid": "Punkte müssen eine ganze Zahl von 1 bis 100 sein",
         "source_invalid": "Ungültige Quelle (Links müssen mit http beginnen)",
-        "verified_invalid": "\"verified\" muss true oder false sein"
+        "verified_invalid": "\"verified\" muss true oder false sein",
+        "subtype_invalid": "Der Typ muss Kurzantwort, Rechenaufgabe oder Beweis sein",
+        "options_not_allowed": "Offene Aufgaben dürfen keine Optionen oder Auswahlantwort haben",
+        "reference_too_long": "Musterlösung ist zu lang (max. 4000 Zeichen)",
+        "final_answer_invalid": "Ein Endergebnis gibt es nur bei Rechenaufgaben, höchstens 200 Zeichen",
+        "rubric_invalid": "Jedes Bewertungskriterium braucht eine Beschreibung und 1–100 ganze Punkte (höchstens 10 Kriterien)",
+        "rubric_points_mismatch": "Die Punkte der Kriterien müssen die Punktzahl der Aufgabe ergeben",
+        "guide_missing": "Keine Musterlösung und keine Kriterien: wird als Entwurf zur Selbstkontrolle gespeichert, nie in Tests verwendet"
       },
       "editor": {
-        "description": "Klicken Sie auf einen Buchstaben, um die richtige Option zu markieren. Formeln in LaTeX zwischen $…$.",
+        "description": "Bei Auswahlaufgaben die Buchstaben der richtigen Optionen anklicken; bei offenen Aufgaben Musterlösung und Bewertungskriterien angeben. Formeln als LaTeX zwischen $…$ schreiben.",
         "editTitle": "Frage bearbeiten",
         "type": "Typ",
         "difficulty": "Schwierigkeit",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "Ungeprüfte Fragen kommen nur in Tests, wenn Sie sie einschließen.",
         "draftHint": "Ohne Antwort bleibt die Frage ein Entwurf und kann nicht als geprüft markiert werden.",
         "save": "Speichern",
-        "saveDraft": "Als Entwurf speichern"
+        "saveDraft": "Als Entwurf speichern",
+        "referenceAnswer": "Musterlösung",
+        "referencePlaceholder": "Vollständige Lösung oder Kernpunkte, Grundlage der Bewertung…",
+        "finalAnswer": "Endergebnis (optional)",
+        "finalPlaceholder": "z. B. 1/2, x^2-1, \\frac{\\sqrt3}{2}",
+        "finalHint": "Eine Zahl oder ein Ausdruck. Beim Bewerten prüft zuerst das Programm, ob das Endergebnis gleichwertig ist.",
+        "rubric": "Bewertungskriterien (optional)",
+        "rubricHint": "Sie müssen die Punktzahl der Aufgabe ergeben. Ohne Kriterien wird die Antwort insgesamt mit der Musterlösung verglichen; eine Rechenaufgabe nur mit Endergebnis wird nach diesem bewertet.",
+        "rubricPlaceholder": "Kriterium {{n}}: z. B. „nennt die Ableitungsregel richtig“",
+        "rubricPoints": "Punkte",
+        "removeRubric": "Kriterium entfernen",
+        "addRubric": "Kriterium hinzufügen",
+        "finalPoints": "Punkte für ein richtiges Endergebnis (vom Programm geprüft)",
+        "openDraftHint": "Eine offene Aufgabe ohne Musterlösung oder Kriterien wird als Entwurf zur Selbstkontrolle gespeichert und kann nicht als geprüft markiert werden.",
+        "openVerifiedHint": "Ankreuzen, wenn Sie Musterlösung und Kriterien geprüft haben. Ungeprüfte Aufgaben kommen standardmäßig nicht in Tests."
       },
       "errors": {
         "questionConflict": "Diese Frage wurde anderswo geändert; die neueste Fassung wird angezeigt. Bitte erneut bearbeiten.",
@@ -3269,7 +3293,8 @@
         "start": "Starten",
         "again": "Erneut machen",
         "deleteTitle": "Diesen Test löschen?",
-        "deleteText": "„{{title}}“ und alle Versuche werden gelöscht. Bereits erstellte Lerneinträge bleiben, bis Sie sie in Memory löschen."
+        "deleteText": "„{{title}}“ und alle Versuche werden gelöscht. Bereits erstellte Lerneinträge bleiben, bis Sie sie in Memory löschen.",
+        "ungraded": "{{count}} noch zu bewerten"
       },
       "attempt": {
         "back": "Zurück zu Fragen & Tests",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "Diesen Test abgeben?",
         "confirmUnanswered": "{{count}} Fragen sind unbeantwortet (Nr. {{numbers}}). Nach der Abgabe sind keine Änderungen möglich.",
         "confirmAll": "Alle Fragen sind beantwortet. Nach der Abgabe sind keine Änderungen möglich.",
-        "keepAnswering": "Weiter beantworten"
+        "keepAnswering": "Weiter beantworten",
+        "openNotice": "Offene Aufgaben werden nach der Abgabe mit KI-Unterstützung nach ihren Kriterien bewertet; das Endergebnis einer Rechenaufgabe prüft zuerst das Programm. Die Ergebnisse dienen zur Orientierung.",
+        "openPlaceholder": {
+          "short": "Schreiben Sie Ihre Antwort…",
+          "calculation": "Schreiben Sie Ihren Rechenweg…",
+          "proof": "Schreiben Sie Ihren Beweis…"
+        },
+        "finalLabel": "Endergebnis",
+        "finalPlaceholder": "z. B. 1/2 oder x^2-1",
+        "tooLong": "Die Antworten sind zu lang zum Speichern. Bitte kürzen."
       },
       "report": {
         "score": "{{earned}} / {{total}} Punkte",
@@ -3299,10 +3333,55 @@
           "correct": "Richtig",
           "incorrect": "Falsch",
           "unanswered": "Unbeantwortet",
-          "ungradable": "Nicht bewertbar"
+          "ungradable": "Nicht bewertbar",
+          "partial": "Teilweise richtig",
+          "pending": "Wartet auf Bewertung"
         },
         "yourChoice": "Ihre Antwort",
-        "key": "Richtige Antwort: {{answer}}"
+        "key": "Richtige Antwort: {{answer}}",
+        "grading": "{{count}} offene Aufgabe(n) werden bewertet…",
+        "partial": "{{count}} offene Aufgabe(n) konnten nicht bewertet werden. Unter der Aufgabe erneut versuchen.",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "Das gewählte Modell ist nicht verfügbar. Modelleinstellungen prüfen und erneut versuchen.",
+          "STUDY_GRADING_LIMIT": "Für diese Aufgabe sind keine weiteren Neubewertungen möglich.",
+          "STUDY_GRADING_BUSY": "Diese Aufgabe wird noch bewertet. Bitte gleich erneut versuchen.",
+          "capacity": "Die Bewertung ist gerade ausgelastet. Bitte gleich erneut versuchen.",
+          "generic": "Die Bewertung kann gerade nicht fortgesetzt werden."
+        },
+        "retryGrading": "Bewertung fortsetzen",
+        "selfTotal": "Mit Ihrer Selbstbewertung: {{earned}} / {{total}}",
+        "gradedByMixed": "Auswahlaufgaben wurden auf dem Server mit den gespeicherten Lösungen bewertet; offene Aufgaben mit KI-Unterstützung nach ihren Kriterien (das Endergebnis von Rechenaufgaben prüft zuerst das Programm). Nur zur Orientierung.",
+        "yourAnswer": "Ihre Antwort",
+        "yourFinal": "Endergebnis:",
+        "gradingRunning": "Wird bewertet…",
+        "gradingWaiting": "Wartet auf Bewertung…",
+        "reviewing": "Wird neu bewertet; das frühere Ergebnis bleibt unten…",
+        "reviewFailed": "Die Neubewertung ist fehlgeschlagen ({{reason}}); das frühere Ergebnis gilt weiter.",
+        "gradingFailed": "Bewertung fehlgeschlagen ({{reason}}); keine Punkte vergeben.",
+        "failure": {
+          "timeout": "Zeitüberschreitung des Modells",
+          "invalid_output": "ungültige Modellausgabe",
+          "model_unavailable": "Modell nicht verfügbar",
+          "model_error": "Modellaufruf fehlgeschlagen",
+          "lease_lost": "Bewertung unterbrochen",
+          "other": "ein Fehler ist aufgetreten"
+        },
+        "retryItem": "Erneut versuchen",
+        "selfShown": "Ihre Selbstbewertung: {{earned}}/{{points}}",
+        "earlier": "Frühere Bewertungen ({{count}})",
+        "review": "Von der KI neu bewerten lassen",
+        "selfGrade": "Bewertung falsch? Selbst bewerten",
+        "reviewResult": "Neu bewertet: {{earned}}/{{points}}",
+        "gradingResult": "KI-gestützte Bewertung: {{earned}}/{{points}}",
+        "byProgram": "vom Programm geprüft",
+        "byModel": "KI",
+        "shortcomings": "Was fehlte",
+        "graderModel": "Modell {{model}}",
+        "graderProgram": "Endergebnis vom Programm geprüft",
+        "selfHint": "Ihre Selbstbewertung wird getrennt angezeigt und ersetzt nie die Bewertung.",
+        "selfLabel": "Meiner Meinung nach verdient (0–{{points}})",
+        "selfNote": "Notiz (optional): Was wurde falsch bewertet?",
+        "selfSave": "Selbstbewertung speichern"
       },
       "figureAlt": "Abbildung zur Frage",
       "figureMissing": "Abbildung nicht verfügbar (das Material wurde evtl. gelöscht)",
@@ -3330,6 +3409,20 @@
         "attribution": "Namensnennung",
         "licenseClear": "Ich habe geprüft, dass die Lizenz diese Nutzung erlaubt",
         "licenseHint": "Ohne Häkchen gelten die Fragen als „Lizenz ungeklärt“ und dienen nur dem eigenen Üben."
+      },
+      "subtype": {
+        "short": "Kurzantwort",
+        "calculation": "Rechenaufgabe",
+        "proof": "Beweis"
+      },
+      "guide": {
+        "none": "Keine Musterlösung und keine Kriterien.",
+        "reference": "Musterlösung",
+        "final": "Endergebnis:",
+        "rubric": "Bewertungskriterien ({{points}} insgesamt)",
+        "criterionPoints": "({{points}} P.)",
+        "finalCriterion": "Richtiges Endergebnis",
+        "overallCriterion": "Insgesamt, verglichen mit der Musterlösung"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "S. {{pages}}",
       "referenceAnswer": "Musterlösung: ",
       "openType": "Offene Frage",
-      "openHint": "Offene Fragen (Rechnung, Beweis, Lückentext) folgen später. Ist es eine Auswahlfrage, bearbeiten und Optionen ergänzen.",
+      "openHint": "Offene Aufgaben kommen mit der gedruckten Lösung als Musterlösung in die Fragensammlung; solche ohne Lösung werden als Entwurf gespeichert. Typ, Endergebnis und Kriterien lassen sich bearbeiten.",
       "edited": "bearbeitet",
       "status": {
         "committed": "Übernommen",

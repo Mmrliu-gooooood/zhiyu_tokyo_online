@@ -11,13 +11,30 @@
  * Two things stay separate: where a question came from (`origin`) and whether
  * its answer was checked (`verification`). A question without an answer can
  * be kept as a draft but never enters a paper that is graded automatically.
+ *
+ * Open questions (B09, `short_answer` with a short/calculation/proof
+ * subtype) carry a grading guide instead of options and an answer key: a
+ * reference answer, a final answer for calculations, and scoring points. One
+ * without any of them is a draft for self-checking — nothing makes up a key.
  */
 
 // ── vocabulary ──────────────────────────────────────────────────────────────
 
-/** Objective types graded by the program. Open questions arrive with B09. */
-export const QUESTION_TYPES = ['single', 'multiple'] as const;
+/** Choice types graded by the program alone. */
+export const OBJECTIVE_TYPES = ['single', 'multiple'] as const;
+export type ObjectiveType = (typeof OBJECTIVE_TYPES)[number];
+
+/** Every bank type: the choice types plus open questions graded with assistance (B09). */
+export const QUESTION_TYPES = [...OBJECTIVE_TYPES, 'short_answer'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
+
+/** Kinds of open question; calculations may also have a final answer the program can compare. */
+export const OPEN_SUBTYPES = ['short', 'calculation', 'proof'] as const;
+export type OpenSubtype = (typeof OPEN_SUBTYPES)[number];
+
+export function isObjectiveType(type: QuestionType): type is ObjectiveType {
+  return type === 'single' || type === 'multiple';
+}
 
 export const QUESTION_ORIGINS = [
   'user_import',
@@ -59,6 +76,10 @@ export const QUESTION_LIMITS = {
   editBytes: 64_000,
   questionsPerSpace: 5000,
   listPage: 50,
+  referenceAnswer: 4000,
+  finalAnswer: 200,
+  rubricCriteria: 10,
+  criterionText: 300,
 } as const;
 
 export interface QuestionOption {
@@ -111,13 +132,39 @@ export interface QuestionFigure {
   imageId: string;
 }
 
+/**
+ * One scoring point of an open question. `final` marks the point earned by
+ * the final answer of a calculation, which the program compares when it can.
+ * Server-made points (see effectiveRubric) have empty text.
+ */
+export interface RubricCriterion {
+  id: string;
+  text: string;
+  points: number;
+  final?: boolean;
+}
+
+/** What an open question is graded against (never shown before submission). */
+export interface GradingGuide {
+  referenceAnswer: string | null;
+  /** Calculations only: the result as a number or expression (`1/2`, `x^2-1`, `\frac{\sqrt3}{2}`). */
+  finalAnswer: string | null;
+  /** Empty: graded as a whole against the reference or final answer. */
+  rubric: RubricCriterion[];
+}
+
 /** The editable content of one question version. */
 export interface QuestionContent {
   type: QuestionType;
+  /** Open questions only. */
+  subtype?: OpenSubtype;
   stem: string;
+  /** Choice questions only (open questions have none). */
   options: QuestionOption[];
-  /** Option values; empty when the source has no answer (a draft). */
+  /** Option values; empty when the source has no answer (a draft) and for open questions. */
   answer: string[];
+  /** Open questions only. */
+  guide?: GradingGuide;
   explanation: string | null;
   /** Flat knowledge-point names within the study space. */
   concepts: string[];
@@ -183,11 +230,25 @@ export interface QuestionIssue {
     | 'difficulty_invalid'
     | 'points_invalid'
     | 'source_invalid'
-    | 'verified_invalid';
+    | 'verified_invalid'
+    | 'subtype_invalid'
+    | 'options_not_allowed'
+    | 'reference_too_long'
+    | 'final_answer_invalid'
+    | 'rubric_invalid'
+    | 'rubric_points_mismatch'
+    | 'guide_missing';
 }
 
-/** Warnings never block saving; `answer_missing` makes the question a draft. */
-export const WARNING_CODES: ReadonlySet<QuestionIssue['code']> = new Set(['answer_missing']);
+/**
+ * Warnings never block saving; `answer_missing` (choice) and `guide_missing`
+ * (open question without reference answer, final answer or scoring points)
+ * make the question a draft.
+ */
+export const WARNING_CODES: ReadonlySet<QuestionIssue['code']> = new Set([
+  'answer_missing',
+  'guide_missing',
+]);
 
 /**
  * Stored text keeps what the student wrote (full-width Chinese punctuation
@@ -340,6 +401,76 @@ function readSource(raw: unknown, issues: QuestionIssue[]): QuestionSource | nul
   return Object.keys(source).length ? source : null;
 }
 
+/** Type (or subtype) names an import file may use for open questions. */
+const OPEN_TYPE_NAMES: Record<string, OpenSubtype | undefined> = {
+  short_answer: 'short',
+  short: 'short',
+  open: 'short',
+  essay: 'short',
+  subjective: 'short',
+  简答: 'short',
+  简答题: 'short',
+  calculation: 'calculation',
+  计算: 'calculation',
+  计算题: 'calculation',
+  proof: 'proof',
+  证明: 'proof',
+  证明题: 'proof',
+};
+
+/**
+ * The grading guide of an open question as written in a file or sent by the
+ * editor: `referenceAnswer` (or a text `answer`), `finalAnswer` and
+ * `rubric: [{ text|description, points|score, final? }]`.
+ */
+function readGuide(raw: Record<string, unknown>, issues: QuestionIssue[]): GradingGuide {
+  const guideRaw = isRecord(raw.guide) ? raw.guide : raw;
+  const referenceRaw =
+    guideRaw.referenceAnswer ??
+    (typeof raw.answer === 'string' || typeof raw.answer === 'number' ? raw.answer : undefined);
+  const referenceAnswer =
+    (typeof referenceRaw === 'number' ? String(referenceRaw) : str(referenceRaw)) || null;
+  if (
+    referenceRaw !== undefined &&
+    referenceRaw !== null &&
+    typeof referenceRaw !== 'string' &&
+    typeof referenceRaw !== 'number'
+  ) {
+    issues.push({ path: 'guide.referenceAnswer', code: 'answer_invalid' });
+  }
+  const finalRaw = guideRaw.finalAnswer;
+  const finalAnswer =
+    typeof finalRaw === 'number' ? String(finalRaw) : str(finalRaw)?.replace(/\s+/g, ' ') || null;
+  const rubric: RubricCriterion[] = [];
+  const rubricRaw = guideRaw.rubric;
+  if (rubricRaw !== undefined && rubricRaw !== null) {
+    if (!Array.isArray(rubricRaw)) {
+      issues.push({ path: 'guide.rubric', code: 'rubric_invalid' });
+    } else {
+      rubricRaw.forEach((entry, index) => {
+        if (!isRecord(entry)) {
+          issues.push({ path: `guide.rubric[${index}]`, code: 'rubric_invalid' });
+          return;
+        }
+        const final = entry.final === true;
+        const points = entry.points ?? entry.score;
+        rubric.push({
+          id:
+            typeof entry.id === 'string' && /^[a-z0-9_-]{1,16}$/.test(entry.id)
+              ? entry.id
+              : final
+                ? 'final'
+                : `c${index + 1}`,
+          text: str(entry.text ?? entry.description ?? entry.criterion) ?? '',
+          points: typeof points === 'number' ? points : Number.NaN,
+          ...(final ? { final: true } : {}),
+        });
+      });
+    }
+  }
+  return { referenceAnswer, finalAnswer, rubric };
+}
+
 /** Import-time source details the student enters for a whole file (B08 public sources). */
 export function parseSourceDetails(raw: unknown): {
   source: QuestionSource | null;
@@ -363,6 +494,13 @@ export function validateQuestionContent(content: QuestionContent): QuestionIssue
   else if (content.stem.length > QUESTION_LIMITS.stem) {
     issues.push({ path: 'stem', code: 'stem_too_long' });
   }
+  if (content.type === 'short_answer') validateOpen(content, issues);
+  else validateChoice(content, issues);
+  validateMetadata(content, issues);
+  return issues;
+}
+
+function validateChoice(content: QuestionContent, issues: QuestionIssue[]): void {
   if (content.options.length < QUESTION_LIMITS.minOptions) {
     issues.push({ path: 'options', code: 'options_too_few' });
   } else if (content.options.length > QUESTION_LIMITS.maxOptions) {
@@ -398,6 +536,70 @@ export function validateQuestionContent(content: QuestionContent): QuestionIssue
       issues.push({ path: 'answer', code: 'answer_single_needs_one' });
     }
   }
+  if (content.subtype !== undefined || content.guide !== undefined) {
+    issues.push({ path: 'subtype', code: 'subtype_invalid' });
+  }
+}
+
+/** Open questions: no options or key; the guide must be consistent, and its points add up. */
+function validateOpen(content: QuestionContent, issues: QuestionIssue[]): void {
+  if (!content.subtype || !(OPEN_SUBTYPES as readonly string[]).includes(content.subtype)) {
+    issues.push({ path: 'subtype', code: 'subtype_invalid' });
+  }
+  if (content.options.length) issues.push({ path: 'options', code: 'options_not_allowed' });
+  if (content.answer.length) issues.push({ path: 'answer', code: 'options_not_allowed' });
+  const guide = content.guide ?? { referenceAnswer: null, finalAnswer: null, rubric: [] };
+  if (guide.referenceAnswer && guide.referenceAnswer.length > QUESTION_LIMITS.referenceAnswer) {
+    issues.push({ path: 'guide.referenceAnswer', code: 'reference_too_long' });
+  }
+  if (
+    guide.finalAnswer !== null &&
+    (!guide.finalAnswer ||
+      guide.finalAnswer.length > QUESTION_LIMITS.finalAnswer ||
+      content.subtype !== 'calculation')
+  ) {
+    issues.push({ path: 'guide.finalAnswer', code: 'final_answer_invalid' });
+  }
+  const rubric = guide.rubric;
+  if (rubric.length > QUESTION_LIMITS.rubricCriteria) {
+    issues.push({ path: 'guide.rubric', code: 'rubric_invalid' });
+  }
+  const ids = new Set<string>();
+  let finals = 0;
+  rubric.forEach((criterion, index) => {
+    const path = `guide.rubric[${index}]`;
+    if (!/^[a-z0-9_-]{1,16}$/.test(criterion.id) || ids.has(criterion.id)) {
+      issues.push({ path, code: 'rubric_invalid' });
+    }
+    ids.add(criterion.id);
+    if (criterion.final) finals += 1;
+    else if (!criterion.text) issues.push({ path: `${path}.text`, code: 'rubric_invalid' });
+    if (criterion.text.length > QUESTION_LIMITS.criterionText) {
+      issues.push({ path: `${path}.text`, code: 'rubric_invalid' });
+    }
+    if (
+      !Number.isInteger(criterion.points) ||
+      criterion.points < 1 ||
+      criterion.points > QUESTION_LIMITS.maxPoints
+    ) {
+      issues.push({ path: `${path}.points`, code: 'rubric_invalid' });
+    }
+  });
+  if (finals > 1 || (finals === 1 && !guide.finalAnswer)) {
+    issues.push({ path: 'guide.rubric', code: 'rubric_invalid' });
+  }
+  if (
+    rubric.length &&
+    rubric.reduce((sum, criterion) => sum + criterion.points, 0) !== content.points
+  ) {
+    issues.push({ path: 'guide.rubric', code: 'rubric_points_mismatch' });
+  }
+  if (!guide.referenceAnswer && !guide.finalAnswer && rubric.length === 0) {
+    issues.push({ path: 'guide', code: 'guide_missing' });
+  }
+}
+
+function validateMetadata(content: QuestionContent, issues: QuestionIssue[]): void {
   if (content.explanation && content.explanation.length > QUESTION_LIMITS.explanation) {
     issues.push({ path: 'explanation', code: 'explanation_too_long' });
   }
@@ -420,16 +622,39 @@ export function validateQuestionContent(content: QuestionContent): QuestionIssue
   ) {
     issues.push({ path: 'points', code: 'points_invalid' });
   }
-  return issues;
 }
 
 export function blockingIssues(issues: readonly QuestionIssue[]): QuestionIssue[] {
   return issues.filter((issue) => !WARNING_CODES.has(issue.code));
 }
 
-/** Complete and consistent, so the program can grade it. */
+/**
+ * Complete and consistent, so it can be graded: by the program alone (choice)
+ * or with assistance against its guide (open questions).
+ */
 export function isGradable(content: QuestionContent): boolean {
   return validateQuestionContent(content).length === 0;
+}
+
+/** Whether there is anything to check: an answer key, or for open questions a grading guide. */
+export function hasAnswerKey(content: QuestionContent): boolean {
+  if (content.type !== 'short_answer') return content.answer.length > 0;
+  const guide = content.guide;
+  return Boolean(guide && (guide.referenceAnswer || guide.finalAnswer || guide.rubric.length));
+}
+
+/**
+ * The scoring points an open question is graded by. Without written points:
+ * a calculation with a final answer is scored on that answer, anything else
+ * as a whole against the reference answer. Server-made points have no text.
+ */
+export function effectiveRubric(
+  content: Pick<QuestionContent, 'points' | 'guide'>,
+): RubricCriterion[] {
+  const guide = content.guide;
+  if (guide?.rubric.length) return guide.rubric;
+  if (guide?.finalAnswer) return [{ id: 'final', text: '', points: content.points, final: true }];
+  return [{ id: 'overall', text: '', points: content.points }];
 }
 
 export interface ParsedQuestion {
@@ -457,15 +682,35 @@ export function parseQuestion(
     };
   }
   const typeText = str(raw.type)?.toLowerCase();
+  const openSubtype = typeText ? OPEN_TYPE_NAMES[typeText] : undefined;
   const type = (
-    typeText === 'single_choice' ? 'single' : typeText === 'multiple_choice' ? 'multiple' : typeText
+    openSubtype
+      ? 'short_answer'
+      : typeText === 'single_choice'
+        ? 'single'
+        : typeText === 'multiple_choice'
+          ? 'multiple'
+          : typeText
   ) as QuestionType;
   if (!(QUESTION_TYPES as readonly string[]).includes(type)) {
     issues.push({ path: 'type', code: 'type_unsupported' });
   }
   const stem = str(raw.stem ?? raw.question) ?? '';
-  const options = readOptions(raw.options, issues);
-  const answer = readAnswer(raw.answer, issues);
+  const open = type === 'short_answer';
+  const options = open
+    ? raw.options === undefined || raw.options === null
+      ? []
+      : readOptions(raw.options, issues)
+    : readOptions(raw.options, issues);
+  const answer = open ? [] : readAnswer(raw.answer, issues);
+  let subtype: OpenSubtype | undefined;
+  let guide: GradingGuide | undefined;
+  if (open) {
+    const named = str(raw.subtype)?.toLowerCase();
+    subtype = named ? OPEN_TYPE_NAMES[named] : openSubtype;
+    if (named && !subtype) issues.push({ path: 'subtype', code: 'subtype_invalid' });
+    guide = readGuide(raw, issues);
+  }
   const explanationText = str(raw.explanation ?? raw.analysis);
   let concepts: string[] = [];
   const rawConcepts = raw.concepts ?? raw.knowledgePoints;
@@ -502,9 +747,11 @@ export function parseQuestion(
     typeof raw.id === 'string' || typeof raw.id === 'number' ? String(raw.id).slice(0, 80) : null;
   const content: QuestionContent = {
     type,
+    ...(open ? { subtype: subtype ?? 'short' } : {}),
     stem,
     options,
     answer,
+    ...(open ? { guide } : {}),
     explanation: explanationText ? explanationText : null,
     concepts,
     difficulty,
@@ -575,6 +822,14 @@ export function canonicalQuestionText(content: QuestionContent): string {
     content.options.map((option) => [option.value, fold(option.label)]),
     [...content.answer].sort(),
   ];
+  // An open question's key is its reference and final answer; the subtype and
+  // scoring points are metadata, like points. (Choice questions: unchanged.)
+  if (content.type === 'short_answer') {
+    parts.push({
+      reference: fold(content.guide?.referenceAnswer ?? ''),
+      final: fold(content.guide?.finalAnswer ?? ''),
+    });
+  }
   // A question with figures differs from the same words without them. Which
   // material version holds the image does not matter: the same exercise in a
   // re-uploaded book is the same question. (No figures: unchanged B07 hashes.)

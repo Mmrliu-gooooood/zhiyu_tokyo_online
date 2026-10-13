@@ -3,8 +3,11 @@
 /**
  * Browser client for the question bank, paper and attempt APIs (learning
  * plan B07). Errors surface as StudyApiError with the server's fixed code.
+ * Grading open items (B09) sends the user's model selection like the other
+ * model features.
  */
 import { studyRequest } from '@/lib/study/spaces/client';
+import { getCurrentModelConfig, modelRequestHeaders } from '@/lib/utils/model-config';
 import type { AttemptAnswers, AttemptView, PaperSummary } from '@/lib/study/assessments/contracts';
 import type { ExamBlueprint, PaperPreview } from '@/lib/study/questions/blueprint';
 import type {
@@ -20,6 +23,23 @@ import type {
 import type { QuestionPack, QuestionPackSummary } from '@/lib/study/questions/packs';
 
 const enc = encodeURIComponent;
+
+function modelSelection(): { headers: Record<string, string>; thinking: unknown } {
+  try {
+    const config = getCurrentModelConfig();
+    return { headers: modelRequestHeaders(config), thinking: config.thinkingConfig };
+  } catch {
+    return { headers: {}, thinking: undefined };
+  }
+}
+
+export interface GradeResult {
+  /** The item graded by this request; null when nothing was waiting (or another request had it). */
+  graded: { position: number; status: 'succeeded' | 'failed'; error: string | null } | null;
+  /** Items still waiting or being graded. */
+  waiting: number;
+  attempt: AttemptView;
+}
 
 export interface BankFilter {
   type?: QuestionType;
@@ -138,4 +158,27 @@ export const examsApi = {
       `/api/study/attempts/${enc(attemptId)}/submit`,
       { method: 'POST', json: { submitKey, answers, baseRevision } },
     ),
+  /** Grade the next waiting open item, or retry the named one. */
+  grade: (attemptId: string, position: number | null = null, signal?: AbortSignal) => {
+    const { headers, thinking } = modelSelection();
+    return studyRequest<GradeResult>(`/api/study/attempts/${enc(attemptId)}/grading`, {
+      method: 'POST',
+      headers,
+      json: {
+        ...(position !== null ? { position } : {}),
+        ...(thinking ? { thinkingConfig: thinking } : {}),
+      },
+      signal,
+    });
+  },
+  regrade: (attemptId: string, position: number) =>
+    studyRequest<{ attempt: AttemptView }>(`/api/study/attempts/${enc(attemptId)}/regrade`, {
+      method: 'POST',
+      json: { position },
+    }).then((body) => body.attempt),
+  selfGrade: (attemptId: string, position: number, earned: number, note: string | null) =>
+    studyRequest<{ attempt: AttemptView }>(`/api/study/attempts/${enc(attemptId)}/self-grades`, {
+      method: 'POST',
+      json: { position, earned, ...(note ? { note } : {}) },
+    }).then((body) => body.attempt),
 };

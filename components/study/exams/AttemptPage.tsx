@@ -14,6 +14,12 @@
  * - Until submitted, the page never receives keys or explanations. The report
  *   shows every item with the correct answer, the student's answer and the
  *   explanation, so wrong answers can be reviewed right away.
+ * - Open items (B09) are answered in text (calculations also take a final
+ *   answer). After submission choice items are scored at once; the report
+ *   then asks the server to grade the open items one at a time, shows each
+ *   result as it arrives (points per scoring point, feedback, what was
+ *   missing), lets a failed one be retried, and lets the student ask for
+ *   another review or record their own score — earlier results stay visible.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -21,12 +27,16 @@ import { useRouter } from 'next/navigation';
 import {
   CheckCircle2,
   ChevronLeft,
+  CircleDot,
   CircleSlash,
   CloudCheck,
   CloudOff,
+  Hourglass,
   LoaderCircle,
   RotateCcw,
   Send,
+  Sparkles,
+  UserPen,
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -42,12 +52,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
+  GuideDetails,
   QuestionFigures,
   SourceDetails,
   TypeChip,
   newRequestKey,
   MathText,
+  useCriterionLabel,
 } from '@/components/study/exams/exam-format';
 import {
   StudyShell,
@@ -57,11 +71,21 @@ import {
 } from '@/components/study/spaces/StudyShell';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { examsApi } from '@/lib/study/assessments/client';
-import type {
-  AttemptAnswers,
-  AttemptView,
-  PaperItemView,
-  ReportItem,
+import {
+  ATTEMPT_LIMITS,
+  answersByteLength,
+  hasAnswer,
+  isOpenAnswer,
+  latestSelfGrading,
+  officialGrading,
+  scoredGrading,
+  type AttemptAnswers,
+  type AttemptView,
+  type ItemGradingView,
+  type ItemOutcome,
+  type OpenAnswer,
+  type PaperItemView,
+  type ReportItem,
 } from '@/lib/study/assessments/contracts';
 import { StudyApiError, fetchStudyCapabilities } from '@/lib/study/spaces/client';
 import { cn } from '@/lib/utils';
@@ -226,10 +250,39 @@ function AnswerSheet({
     await inFlight.current;
   }, [adoptServer, initial.id, reloadSubmitted, t]);
 
+  /** Store a changed answer set and save it after a short pause. */
+  function change(next: AttemptAnswers) {
+    setAnswers(next);
+    if (answersByteLength(next) > ATTEMPT_LIMITS.answersBytes) {
+      setSaveState('error');
+      toast.error(t('study.practice.attempt.tooLong'));
+      return;
+    }
+    pending.current = next;
+    setSaveState('pending');
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => void flush(), SAVE_DELAY_MS);
+  }
+
+  function writeOpen(item: PaperItemView, patch: Partial<OpenAnswer>) {
+    const current = answersRef.current;
+    const key = String(item.position);
+    const previous = current[key];
+    const merged: OpenAnswer = { text: '', ...(isOpenAnswer(previous) ? previous : {}), ...patch };
+    const next = { ...current };
+    if (merged.text || merged.final) {
+      next[key] = merged.final ? merged : { text: merged.text };
+    } else {
+      delete next[key];
+    }
+    change(next);
+  }
+
   function choose(item: PaperItemView, value: string) {
     const current = answersRef.current;
     const key = String(item.position);
-    const selected = current[key] ?? [];
+    const stored = current[key];
+    const selected = Array.isArray(stored) ? stored : [];
     const nextValues =
       item.type === 'single'
         ? selected[0] === value
@@ -241,11 +294,7 @@ function AnswerSheet({
     const next = { ...current };
     if (nextValues.length) next[key] = nextValues;
     else delete next[key];
-    setAnswers(next);
-    pending.current = next;
-    setSaveState('pending');
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void flush(), SAVE_DELAY_MS);
+    change(next);
   }
 
   // Leaving the page: send what is pending; coming back: pick up answers saved elsewhere.
@@ -317,7 +366,8 @@ function AnswerSheet({
     }
   }
 
-  const answered = items.filter((item) => answers[String(item.position)]?.length).length;
+  const answered = items.filter((item) => hasAnswer(answers[String(item.position)])).length;
+  const hasOpen = items.some((item) => item.type === 'short_answer');
 
   return (
     <div data-testid="attempt-sheet">
@@ -332,10 +382,16 @@ function AnswerSheet({
         </div>
         <SaveIndicator state={saveState} onRetry={() => void flush()} />
       </header>
+      {hasOpen ? (
+        <p className="mb-4 rounded-xl bg-muted/50 px-4 py-2.5 text-sm text-muted-foreground">
+          {t('study.practice.attempt.openNotice')}
+        </p>
+      ) : null}
 
       <ol className="space-y-4">
         {items.map((item) => {
-          const selected = answers[String(item.position)] ?? [];
+          const stored = answers[String(item.position)];
+          const selected = Array.isArray(stored) ? stored : [];
           return (
             <li
               key={item.position}
@@ -352,48 +408,56 @@ function AnswerSheet({
                 </div>
               </div>
               <div className="mb-3 flex flex-wrap items-center gap-1.5 pl-6">
-                <TypeChip type={item.type} />
+                <TypeChip type={item.type} subtype={item.subtype} />
                 <span className="text-[11px] text-muted-foreground">
                   {t('study.practice.attempt.points', { points: item.points })}
                 </span>
               </div>
-              <div className="grid gap-2 pl-6">
-                {item.options.map((option) => {
-                  const on = selected.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role={item.type === 'single' ? 'radio' : 'checkbox'}
-                      aria-checked={on}
-                      data-testid="attempt-option"
-                      data-value={option.value}
-                      onClick={() => choose(item, option.value)}
-                      className={cn(
-                        'flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-colors',
-                        on
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                          : 'border-border hover:border-primary/40 hover:bg-muted/40',
-                      )}
-                    >
-                      <span
+              {item.type === 'short_answer' ? (
+                <OpenAnswerInput
+                  item={item}
+                  value={isOpenAnswer(stored) ? stored : null}
+                  onChange={(patch) => writeOpen(item, patch)}
+                />
+              ) : (
+                <div className="grid gap-2 pl-6">
+                  {item.options.map((option) => {
+                    const on = selected.includes(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role={item.type === 'single' ? 'radio' : 'checkbox'}
+                        aria-checked={on}
+                        data-testid="attempt-option"
+                        data-value={option.value}
+                        onClick={() => choose(item, option.value)}
                         className={cn(
-                          'flex size-7 shrink-0 items-center justify-center text-xs font-semibold',
-                          item.type === 'single' ? 'rounded-full' : 'rounded-md',
+                          'flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-colors',
                           on
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground',
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                            : 'border-border hover:border-primary/40 hover:bg-muted/40',
                         )}
                       >
-                        {option.value}
-                      </span>
-                      <span className="flex-1">
-                        <MathText text={option.label} />
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                        <span
+                          className={cn(
+                            'flex size-7 shrink-0 items-center justify-center text-xs font-semibold',
+                            item.type === 'single' ? 'rounded-full' : 'rounded-md',
+                            on
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground',
+                          )}
+                        >
+                          {option.value}
+                        </span>
+                        <span className="flex-1">
+                          <MathText text={option.label} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </li>
           );
         })}
@@ -426,7 +490,7 @@ function AnswerSheet({
                 ? t('study.practice.attempt.confirmUnanswered', {
                     count: items.length - answered,
                     numbers: items
-                      .filter((item) => !answers[String(item.position)]?.length)
+                      .filter((item) => !hasAnswer(answers[String(item.position)]))
                       .map((item) => item.position)
                       .join(t('study.practice.separator')),
                   })
@@ -447,6 +511,55 @@ function AnswerSheet({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+/** Working (and a calculation's final answer) for one open item. */
+function OpenAnswerInput({
+  item,
+  value,
+  onChange,
+}: {
+  item: PaperItemView;
+  value: OpenAnswer | null;
+  onChange: (patch: Partial<OpenAnswer>) => void;
+}) {
+  const { t } = useI18n();
+  const text = value?.text ?? '';
+  return (
+    <div className="space-y-2 pl-6">
+      <Textarea
+        rows={6}
+        maxLength={ATTEMPT_LIMITS.openText}
+        value={text}
+        data-testid="attempt-open-text"
+        placeholder={t(`study.practice.attempt.openPlaceholder.${item.subtype ?? 'short'}`)}
+        onChange={(event) => onChange({ text: event.target.value })}
+      />
+      {text.includes('$') ? (
+        <div className="whitespace-pre-wrap rounded-md bg-muted/50 px-3 py-2 text-sm">
+          <MathText text={text} allowDisplayMode />
+        </div>
+      ) : null}
+      {item.subtype === 'calculation' ? (
+        <label className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="shrink-0 text-muted-foreground">
+            {t('study.practice.attempt.finalLabel')}
+          </span>
+          <Input
+            className="max-w-xs flex-1"
+            maxLength={ATTEMPT_LIMITS.finalText}
+            value={value?.final ?? ''}
+            data-testid="attempt-open-final"
+            placeholder={t('study.practice.attempt.finalPlaceholder')}
+            onChange={(event) => onChange({ final: event.target.value })}
+          />
+        </label>
+      ) : null}
+      <p className="text-right text-[11px] text-muted-foreground">
+        {text.length}/{ATTEMPT_LIMITS.openText}
+      </p>
     </div>
   );
 }
@@ -485,24 +598,78 @@ function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry: () => vo
 
 // ── report ──────────────────────────────────────────────────────────────────
 
-const OUTCOME_ICON = {
+const OUTCOME_ICON: Record<ItemOutcome, typeof CheckCircle2> = {
   correct: CheckCircle2,
   incorrect: XCircle,
+  partial: CircleDot,
   unanswered: CircleSlash,
   ungradable: CircleSlash,
-} as const;
+  pending: Hourglass,
+};
 
-function AttemptReport({ attempt, spaceId }: { attempt: AttemptView; spaceId: string }) {
+const POLL_MS = 4000;
+
+/**
+ * Grades the open items of a submitted attempt one request at a time while
+ * any is waiting; when another tab or device holds an item it polls instead.
+ * Stops on unmount and on errors (shown with a retry).
+ */
+function useOpenGrading(attempt: AttemptView, setAttempt: (attempt: AttemptView) => void) {
+  const [error, setError] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
+  const waiting = attempt.report?.summary.pending ?? 0;
+  useEffect(() => {
+    if (waiting === 0 || error) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const run = async () => {
+      try {
+        const result = await examsApi.grade(attempt.id, null, controller.signal);
+        if (controller.signal.aborted) return;
+        setAttempt(result.attempt);
+        if (!result.graded && result.waiting > 0) {
+          // Another request holds the waiting item: check back shortly.
+          timer = setTimeout(() => {
+            void examsApi
+              .attempt(attempt.id)
+              .then((latest) => {
+                if (!controller.signal.aborted) setAttempt(latest);
+              })
+              .catch(() => undefined)
+              .finally(() => setRound((value) => value + 1));
+          }, POLL_MS);
+        }
+      } catch (failure) {
+        if (controller.signal.aborted) return;
+        setError(failure instanceof StudyApiError ? failure.code : 'generic');
+      }
+    };
+    void run();
+    return () => {
+      controller.abort();
+      if (timer) clearTimeout(timer);
+    };
+    // `attempt` changes with every result; the loop continues through it.
+  }, [attempt, waiting, error, round, setAttempt]);
+  return { error, retry: () => setError(null) };
+}
+
+function AttemptReport({ attempt: initial, spaceId }: { attempt: AttemptView; spaceId: string }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [attempt, setAttempt] = useState(initial);
   const [onlyMistakes, setOnlyMistakes] = useState(false);
   const [starting, setStarting] = useState(false);
+  const grading = useOpenGrading(attempt, setAttempt);
   const report = attempt.report!;
   const shown = useMemo(
     () =>
       onlyMistakes
         ? report.items.filter(
-            (item) => item.outcome === 'incorrect' || item.outcome === 'unanswered',
+            (item) =>
+              item.outcome === 'incorrect' ||
+              item.outcome === 'partial' ||
+              item.outcome === 'unanswered',
           )
         : report.items,
     [onlyMistakes, report.items],
@@ -519,28 +686,64 @@ function AttemptReport({ attempt, spaceId }: { attempt: AttemptView; spaceId: st
     }
   }
 
-  const grading = report.grading;
+  const summary = report.summary;
+  const mixed = report.items.some((item) => item.type === 'short_answer');
   return (
-    <div data-testid="attempt-report">
+    <div data-testid="attempt-report" data-state={summary.state}>
       <header className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-5">
         <h1 className="text-xl font-semibold text-foreground">{attempt.title}</h1>
         <p className="mt-3 text-3xl font-semibold text-primary" data-testid="attempt-score">
           {t('study.practice.report.score', {
-            earned: grading.earned,
-            total: grading.totalPoints,
+            earned: summary.earned,
+            total: summary.totalPoints,
           })}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('study.practice.report.summary', {
-            correct: grading.correct,
+            correct: summary.correct,
             count: report.items.length,
-            unanswered: grading.unanswered,
+            unanswered: summary.unanswered,
           })}
-          {grading.ungradable
-            ? ` · ${t('study.practice.report.ungradable', { count: grading.ungradable })}`
+          {summary.ungradable
+            ? ` · ${t('study.practice.report.ungradable', { count: summary.ungradable })}`
             : ''}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{t('study.practice.report.gradedBy')}</p>
+        {summary.state === 'grading' ? (
+          <p
+            className="mt-2 inline-flex items-center gap-1.5 text-sm text-foreground"
+            data-testid="attempt-grading-state"
+          >
+            <LoaderCircle className="size-4 animate-spin" />
+            {t('study.practice.report.grading', { count: summary.pending })}
+          </p>
+        ) : null}
+        {summary.state === 'partial' ? (
+          <p
+            className="mt-2 text-sm text-amber-700 dark:text-amber-400"
+            data-testid="attempt-grading-state"
+          >
+            {t('study.practice.report.partial', { count: summary.failed })}
+          </p>
+        ) : null}
+        {grading.error ? (
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-destructive">
+            {t(`study.practice.report.gradingError.${errorKey(grading.error)}`)}
+            <Button size="sm" variant="outline" onClick={grading.retry}>
+              {t('study.practice.report.retryGrading')}
+            </Button>
+          </p>
+        ) : null}
+        {summary.selfEarned !== null ? (
+          <p className="mt-1 text-sm text-muted-foreground" data-testid="attempt-self-total">
+            {t('study.practice.report.selfTotal', {
+              earned: summary.selfEarned,
+              total: summary.totalPoints,
+            })}
+          </p>
+        ) : null}
+        <p className="mt-1 text-xs text-muted-foreground">
+          {mixed ? t('study.practice.report.gradedByMixed') : t('study.practice.report.gradedBy')}
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" disabled={starting} onClick={() => void again()}>
             <RotateCcw className="mr-1 size-4" />
@@ -566,18 +769,62 @@ function AttemptReport({ attempt, spaceId }: { attempt: AttemptView; spaceId: st
         </p>
       ) : (
         <ol className="space-y-4">
-          {shown.map((item) => (
-            <ReportCard key={item.position} item={item} />
-          ))}
+          {shown.map((item) =>
+            item.type === 'short_answer' ? (
+              <OpenReportCard
+                key={item.position}
+                attemptId={attempt.id}
+                item={item}
+                onAttempt={setAttempt}
+              />
+            ) : (
+              <ReportCard key={item.position} item={item} />
+            ),
+          )}
         </ol>
       )}
     </div>
   );
 }
 
-function ReportCard({ item }: { item: ReportItem }) {
+function OutcomeChip({ item }: { item: ReportItem }) {
   const { t } = useI18n();
   const Icon = OUTCOME_ICON[item.outcome];
+  return (
+    <span
+      data-testid="report-outcome"
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs',
+        item.outcome === 'correct' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+        item.outcome === 'incorrect' && 'bg-red-500/10 text-red-600 dark:text-red-400',
+        item.outcome === 'partial' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+        (item.outcome === 'unanswered' ||
+          item.outcome === 'ungradable' ||
+          item.outcome === 'pending') &&
+          'bg-muted text-muted-foreground',
+      )}
+    >
+      <Icon className="size-3.5" />
+      {t(`study.practice.report.outcome.${item.outcome}`)}
+      {item.outcome !== 'ungradable' && item.outcome !== 'pending'
+        ? ` · ${item.earned}/${item.points}`
+        : ''}
+    </span>
+  );
+}
+
+/** Known error codes get their own text; anything else is generic. */
+function errorKey(code: string): string {
+  if (code === 'personal_limit' || code === 'site_limit') return 'capacity';
+  return ['STUDY_GRADING_MODEL_UNAVAILABLE', 'STUDY_GRADING_LIMIT', 'STUDY_GRADING_BUSY'].includes(
+    code,
+  )
+    ? code
+    : 'generic';
+}
+
+function ReportCard({ item }: { item: ReportItem }) {
+  const { t } = useI18n();
   return (
     <li
       className="rounded-2xl border border-border bg-card p-4 md:p-5"
@@ -590,20 +837,7 @@ function ReportCard({ item }: { item: ReportItem }) {
           <MathText text={item.stem} allowDisplayMode />
           <QuestionFigures figures={item.figures} />
         </div>
-        <span
-          className={cn(
-            'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs',
-            item.outcome === 'correct' &&
-              'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-            item.outcome === 'incorrect' && 'bg-red-500/10 text-red-600 dark:text-red-400',
-            (item.outcome === 'unanswered' || item.outcome === 'ungradable') &&
-              'bg-muted text-muted-foreground',
-          )}
-        >
-          <Icon className="size-3.5" />
-          {t(`study.practice.report.outcome.${item.outcome}`)}
-          {item.outcome !== 'ungradable' ? ` · ${item.earned}/${item.points}` : ''}
-        </span>
+        <OutcomeChip item={item} />
       </div>
       <div className="grid gap-2 pl-6">
         {item.options.map((option) => {
@@ -644,5 +878,356 @@ function ReportCard({ item }: { item: ReportItem }) {
         <SourceDetails source={item.source} />
       </div>
     </li>
+  );
+}
+
+/** An open item of the report: the answer, its grading(s), the guide, and what the student can do. */
+function OpenReportCard({
+  attemptId,
+  item,
+  onAttempt,
+}: {
+  attemptId: string;
+  item: ReportItem;
+  onAttempt: (attempt: AttemptView) => void;
+}) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const [selfOpen, setSelfOpen] = useState(false);
+  const official = officialGrading(item.gradings);
+  const scored = scoredGrading(item.gradings);
+  const self = latestSelfGrading(item.gradings);
+  const earlier = item.gradings.filter(
+    (grading) => grading.kind !== 'self' && grading.status === 'succeeded' && grading !== scored,
+  );
+  const reviewing = official && official !== scored && official.status !== 'failed';
+  const failed = official?.status === 'failed' ? official : null;
+
+  async function act(run: () => Promise<AttemptView>) {
+    setBusy(true);
+    try {
+      onAttempt(await run());
+    } catch (error) {
+      toast.error(
+        t(
+          `study.practice.report.gradingError.${errorKey(
+            error instanceof StudyApiError ? error.code : 'generic',
+          )}`,
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li
+      className="rounded-2xl border border-border bg-card p-4 md:p-5"
+      data-testid="report-item"
+      data-outcome={item.outcome}
+      data-type="open"
+    >
+      <div className="mb-3 flex items-start gap-2">
+        <span className="mt-0.5 text-sm font-semibold text-muted-foreground">{item.position}.</span>
+        <div className="min-w-0 flex-1 text-sm leading-6 text-foreground">
+          <MathText text={item.stem} allowDisplayMode />
+          <QuestionFigures figures={item.figures} />
+        </div>
+        <OutcomeChip item={item} />
+      </div>
+      <div className="space-y-3 pl-6 text-sm">
+        <div className="rounded-xl border border-border px-3 py-2">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            {t('study.practice.report.yourAnswer')}
+          </p>
+          {item.openResponse ? (
+            <>
+              <div className="whitespace-pre-wrap text-foreground">
+                <MathText text={item.openResponse.text || '—'} allowDisplayMode />
+              </div>
+              {item.openResponse.final ? (
+                <p className="mt-1 text-foreground">
+                  <span className="text-xs text-muted-foreground">
+                    {t('study.practice.report.yourFinal')}
+                  </span>{' '}
+                  {item.openResponse.final}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-muted-foreground">{t('study.practice.report.outcome.unanswered')}</p>
+          )}
+        </div>
+
+        {official && !scored && official.status !== 'failed' ? (
+          <p
+            className="inline-flex items-center gap-1.5 text-muted-foreground"
+            data-testid="open-grading-wait"
+          >
+            <LoaderCircle className="size-4 animate-spin" />
+            {official.status === 'running'
+              ? t('study.practice.report.gradingRunning')
+              : t('study.practice.report.gradingWaiting')}
+          </p>
+        ) : null}
+
+        {scored ? <GradingDetails grading={scored} /> : null}
+
+        {reviewing ? (
+          <p className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" />
+            {t('study.practice.report.reviewing')}
+          </p>
+        ) : null}
+
+        {failed ? (
+          <p
+            className="flex flex-wrap items-center gap-2 text-destructive"
+            data-testid="open-grading-failed"
+          >
+            {scored
+              ? t('study.practice.report.reviewFailed', {
+                  reason: t(`study.practice.report.failure.${failureKey(failed.error)}`),
+                })
+              : t('study.practice.report.gradingFailed', {
+                  reason: t(`study.practice.report.failure.${failureKey(failed.error)}`),
+                })}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              data-testid="open-grading-retry"
+              onClick={() =>
+                void act(async () => (await examsApi.grade(attemptId, item.position)).attempt)
+              }
+            >
+              {busy ? <LoaderCircle className="mr-1 size-3.5 animate-spin" /> : null}
+              {t('study.practice.report.retryItem')}
+            </Button>
+          </p>
+        ) : null}
+
+        {self ? (
+          <p
+            className="rounded-xl bg-sky-500/5 px-3 py-2 text-foreground"
+            data-testid="open-self-grade"
+          >
+            <UserPen className="mr-1 inline size-3.5 text-sky-600" />
+            {t('study.practice.report.selfShown', {
+              earned: self.earned ?? 0,
+              points: item.points,
+            })}
+            {self.note ? <span className="text-muted-foreground"> · {self.note}</span> : null}
+          </p>
+        ) : null}
+
+        {earlier.length ? (
+          <details className="rounded-xl border border-dashed border-border px-3 py-2">
+            <summary className="cursor-pointer text-xs text-muted-foreground">
+              {t('study.practice.report.earlier', { count: earlier.length })}
+            </summary>
+            <div className="mt-2 space-y-3">
+              {earlier.map((grading) => (
+                <GradingDetails key={grading.seq} grading={grading} compact />
+              ))}
+            </div>
+          </details>
+        ) : null}
+
+        <div className="rounded-xl bg-muted/40 px-3 py-2">
+          <GuideDetails guide={item.guide} points={item.points} />
+          {item.explanation ? (
+            <div className="mt-2 text-foreground">
+              <MathText text={item.explanation} allowDisplayMode />
+            </div>
+          ) : null}
+        </div>
+        <SourceDetails source={item.source} />
+
+        {scored && item.openResponse ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || Boolean(reviewing)}
+              data-testid="open-review"
+              onClick={() => void act(() => examsApi.regrade(attemptId, item.position))}
+            >
+              <Sparkles className="mr-1 size-3.5" />
+              {t('study.practice.report.review')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              data-testid="open-self-open"
+              onClick={() => setSelfOpen((value) => !value)}
+            >
+              <UserPen className="mr-1 size-3.5" />
+              {t('study.practice.report.selfGrade')}
+            </Button>
+          </div>
+        ) : null}
+        {selfOpen ? (
+          <SelfGradeForm
+            points={item.points}
+            busy={busy}
+            onSave={(earned, note) =>
+              void act(async () => {
+                const next = await examsApi.selfGrade(attemptId, item.position, earned, note);
+                setSelfOpen(false);
+                return next;
+              })
+            }
+          />
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function failureKey(error: string | null): string {
+  return ['timeout', 'invalid_output', 'model_unavailable', 'model_error', 'lease_lost'].includes(
+    error ?? '',
+  )
+    ? (error as string)
+    : 'other';
+}
+
+/** One grading: points per scoring point (and who decided them), feedback, shortcomings, grader. */
+function GradingDetails({
+  grading,
+  compact = false,
+}: {
+  grading: ItemGradingView;
+  compact?: boolean;
+}) {
+  const { t } = useI18n();
+  const label = useCriterionLabel();
+  const result = grading.result;
+  if (!result) return null;
+  return (
+    <div
+      className={cn(
+        'space-y-2',
+        !compact && 'rounded-xl border border-primary/20 bg-primary/5 px-3 py-2',
+      )}
+      data-testid="open-grading-result"
+    >
+      <p className="text-xs font-medium text-muted-foreground">
+        {grading.kind === 'review'
+          ? t('study.practice.report.reviewResult', {
+              earned: grading.earned ?? 0,
+              points: grading.points,
+            })
+          : t('study.practice.report.gradingResult', {
+              earned: grading.earned ?? 0,
+              points: grading.points,
+            })}
+      </p>
+      <ul className="space-y-1">
+        {result.criteria.map((criterion) => (
+          <li key={criterion.id} className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-medium text-foreground">
+              {criterion.awarded}/{criterion.points}
+            </span>
+            <span className="text-foreground">{label(criterion)}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {criterion.by === 'program'
+                ? t('study.practice.report.byProgram')
+                : t('study.practice.report.byModel')}
+            </span>
+            {criterion.comment ? (
+              <span className="basis-full text-xs text-muted-foreground">
+                <MathText text={criterion.comment} />
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {result.feedback && !compact ? (
+        <div className="text-foreground">
+          <MathText text={result.feedback} />
+        </div>
+      ) : null}
+      {result.shortcomings.length && !compact ? (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            {t('study.practice.report.shortcomings')}
+          </p>
+          <ul className="list-disc pl-5 text-foreground">
+            {result.shortcomings.map((entry) => (
+              <li key={entry}>
+                <MathText text={entry} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {grading.grader ? (
+        <p className="text-[11px] text-muted-foreground">
+          {[
+            grading.grader.model
+              ? t('study.practice.report.graderModel', { model: grading.grader.model })
+              : null,
+            grading.grader.program ? t('study.practice.report.graderProgram') : null,
+            grading.grader.version,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function SelfGradeForm({
+  points,
+  busy,
+  onSave,
+}: {
+  points: number;
+  busy: boolean;
+  onSave: (earned: number, note: string | null) => void;
+}) {
+  const { t } = useI18n();
+  const [earned, setEarned] = useState('');
+  const [note, setNote] = useState('');
+  const value = Number(earned);
+  const valid = earned.trim() !== '' && Number.isInteger(value) && value >= 0 && value <= points;
+  return (
+    <div
+      className="space-y-2 rounded-xl border border-border px-3 py-2"
+      data-testid="open-self-form"
+    >
+      <p className="text-xs text-muted-foreground">{t('study.practice.report.selfHint')}</p>
+      <label className="flex items-center gap-2">
+        <span className="text-sm">{t('study.practice.report.selfLabel', { points })}</span>
+        <Input
+          type="number"
+          className="w-24"
+          min={0}
+          max={points}
+          value={earned}
+          data-testid="open-self-earned"
+          onChange={(event) => setEarned(event.target.value)}
+        />
+      </label>
+      <Textarea
+        rows={2}
+        maxLength={500}
+        value={note}
+        placeholder={t('study.practice.report.selfNote')}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <Button
+        size="sm"
+        disabled={!valid || busy}
+        data-testid="open-self-save"
+        onClick={() => onSave(value, note.trim() || null)}
+      >
+        {t('study.practice.report.selfSave')}
+      </Button>
+    </div>
   );
 }

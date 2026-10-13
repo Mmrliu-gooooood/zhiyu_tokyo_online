@@ -142,7 +142,7 @@ const CANDIDATE = `INSERT INTO study_question_candidates
 
 describe('accounts v29 registration', () => {
   it('is the newest accounts version with a stable checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(29);
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(29);
     expect(accountsMigrationChecksum(29)).toMatch(/^[a-f0-9]{64}$/);
     expect(ACCOUNTS_MIGRATION_29).toContain('FORCE ROW LEVEL SECURITY');
   });

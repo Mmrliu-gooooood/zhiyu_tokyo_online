@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "Choix unique",
-        "multiple": "Choix multiple"
+        "multiple": "Choix multiple",
+        "short_answer": "Question ouverte"
       },
       "origin": {
         "user_import": "Importée",
@@ -3118,10 +3119,12 @@
           "source": "Source",
           "verified": "Indicateur de vérification",
           "figures": "Figures",
-          "referenceAnswer": "Réponse de référence"
+          "referenceAnswer": "Réponse de référence",
+          "guide": "Base de correction",
+          "subtype": "Type de question"
         },
         "not_object": "Ce n’est pas une question",
-        "type_unsupported": "Seuls les choix uniques et multiples sont pris en charge pour l’instant",
+        "type_unsupported": "Type de question non pris en charge",
         "stem_missing": "L’énoncé est vide",
         "stem_too_long": "L’énoncé est trop long (4 000 caractères au plus)",
         "options_invalid": "Les options doivent être une liste ou des clés A–H",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "La difficulté doit être entre 1 et 5",
         "points_invalid": "Les points doivent être un entier de 1 à 100",
         "source_invalid": "Source invalide (les liens doivent commencer par http)",
-        "verified_invalid": "\"verified\" doit valoir true ou false"
+        "verified_invalid": "\"verified\" doit valoir true ou false",
+        "subtype_invalid": "Le type doit être réponse courte, calcul ou démonstration",
+        "options_not_allowed": "Une question ouverte ne peut pas avoir d’options ni de réponse à choix",
+        "reference_too_long": "Corrigé trop long (4000 caractères max.)",
+        "final_answer_invalid": "Le résultat final est réservé aux calculs, 200 caractères max.",
+        "rubric_invalid": "Chaque critère doit avoir une description et 1 à 100 points entiers (10 critères max.)",
+        "rubric_points_mismatch": "La somme des critères doit égaler les points de la question",
+        "guide_missing": "Ni corrigé ni critères : enregistrée comme brouillon pour l’auto-vérification, jamais utilisée dans un test"
       },
       "editor": {
-        "description": "Cliquez sur une lettre pour marquer la bonne option. Écrivez les formules en LaTeX entre $…$.",
+        "description": "Pour les QCM, cliquez sur les lettres des bonnes options ; pour les questions ouvertes, donnez un corrigé et des critères. Écrivez les formules en LaTeX entre $…$.",
         "editTitle": "Modifier la question",
         "type": "Type",
         "difficulty": "Difficulté",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "Les questions non vérifiées n’entrent dans un test que si vous les incluez.",
         "draftHint": "Sans réponse, la question reste un brouillon et ne peut pas être marquée vérifiée.",
         "save": "Enregistrer",
-        "saveDraft": "Enregistrer comme brouillon"
+        "saveDraft": "Enregistrer comme brouillon",
+        "referenceAnswer": "Corrigé",
+        "referencePlaceholder": "Solution complète ou points clés, utilisés pour corriger…",
+        "finalAnswer": "Résultat final (facultatif)",
+        "finalPlaceholder": "ex. 1/2, x^2-1, \\frac{\\sqrt3}{2}",
+        "finalHint": "Un nombre ou une expression. À la correction, le programme vérifie d’abord si le résultat de l’élève est équivalent.",
+        "rubric": "Critères de notation (facultatif)",
+        "rubricHint": "Leur somme doit égaler les points de la question. Sans critères, la réponse est notée globalement par rapport au corrigé ; un calcul avec seulement un résultat final est noté sur ce résultat.",
+        "rubricPlaceholder": "Critère {{n}} : ex. « énonce correctement la règle de dérivation »",
+        "rubricPoints": "Points",
+        "removeRubric": "Supprimer le critère",
+        "addRubric": "Ajouter un critère",
+        "finalPoints": "Points pour un résultat final correct (vérifié par le programme)",
+        "openDraftHint": "Une question ouverte sans corrigé ni critères est enregistrée comme brouillon pour l’auto-vérification et ne peut pas être marquée vérifiée.",
+        "openVerifiedHint": "Cochez après avoir vérifié le corrigé et les critères. Les questions non vérifiées sont exclues des tests par défaut."
       },
       "errors": {
         "questionConflict": "Cette question a été modifiée ailleurs ; la version la plus récente est affichée. Modifiez-la à nouveau.",
@@ -3269,7 +3293,8 @@
         "start": "Commencer",
         "again": "Refaire",
         "deleteTitle": "Supprimer ce test ?",
-        "deleteText": "« {{title}} » et toutes ses tentatives seront supprimés. Les traces d’apprentissage déjà créées restent jusqu’à ce que vous les effaciez dans Memory."
+        "deleteText": "« {{title}} » et toutes ses tentatives seront supprimés. Les traces d’apprentissage déjà créées restent jusqu’à ce que vous les effaciez dans Memory.",
+        "ungraded": "{{count}} à corriger"
       },
       "attempt": {
         "back": "Retour aux questions & tests",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "Remettre ce test ?",
         "confirmUnanswered": "{{count}} questions sans réponse (n° {{numbers}}). Les réponses ne pourront plus être modifiées.",
         "confirmAll": "Toutes les questions ont une réponse. Les réponses ne pourront plus être modifiées.",
-        "keepAnswering": "Continuer à répondre"
+        "keepAnswering": "Continuer à répondre",
+        "openNotice": "Après l’envoi, les questions ouvertes sont corrigées avec l’aide de l’IA selon leurs critères ; le résultat final d’un calcul est d’abord vérifié par le programme. Résultats donnés à titre indicatif.",
+        "openPlaceholder": {
+          "short": "Rédigez votre réponse…",
+          "calculation": "Détaillez votre calcul…",
+          "proof": "Rédigez votre démonstration…"
+        },
+        "finalLabel": "Résultat final",
+        "finalPlaceholder": "ex. 1/2 ou x^2-1",
+        "tooLong": "Les réponses sont trop longues pour être enregistrées. Raccourcissez-les."
       },
       "report": {
         "score": "{{earned}} / {{total}} points",
@@ -3299,10 +3333,55 @@
           "correct": "Juste",
           "incorrect": "Faux",
           "unanswered": "Sans réponse",
-          "ungradable": "Non corrigeable"
+          "ungradable": "Non corrigeable",
+          "partial": "En partie juste",
+          "pending": "En attente de correction"
         },
         "yourChoice": "Votre réponse",
-        "key": "Bonne réponse : {{answer}}"
+        "key": "Bonne réponse : {{answer}}",
+        "grading": "Correction de {{count}} question(s) ouverte(s)…",
+        "partial": "{{count}} question(s) ouverte(s) n’ont pas pu être corrigées. Réessayez sous chacune.",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "Le modèle choisi n’est pas disponible. Vérifiez vos réglages de modèle et réessayez.",
+          "STUDY_GRADING_LIMIT": "Plus aucune nouvelle correction n’est possible pour cette question.",
+          "STUDY_GRADING_BUSY": "Cette question est encore en cours de correction. Réessayez dans un instant.",
+          "capacity": "La correction est saturée pour le moment. Réessayez dans un instant.",
+          "generic": "La correction ne peut pas continuer pour le moment."
+        },
+        "retryGrading": "Continuer la correction",
+        "selfTotal": "Avec votre auto-évaluation : {{earned}} / {{total}}",
+        "gradedByMixed": "Les QCM ont été corrigés sur le serveur avec les réponses enregistrées ; les questions ouvertes avec l’aide de l’IA selon leurs critères (le résultat final des calculs est d’abord vérifié par le programme). À titre indicatif.",
+        "yourAnswer": "Votre réponse",
+        "yourFinal": "Résultat final :",
+        "gradingRunning": "Correction…",
+        "gradingWaiting": "En attente de correction…",
+        "reviewing": "Nouvelle correction en cours ; l’ancien résultat reste ci-dessous…",
+        "reviewFailed": "La nouvelle correction a échoué ({{reason}}) ; l’ancien résultat reste valable.",
+        "gradingFailed": "Correction échouée ({{reason}}) ; aucune note attribuée.",
+        "failure": {
+          "timeout": "délai du modèle dépassé",
+          "invalid_output": "sortie du modèle invalide",
+          "model_unavailable": "modèle indisponible",
+          "model_error": "échec de l’appel au modèle",
+          "lease_lost": "correction interrompue",
+          "other": "une erreur est survenue"
+        },
+        "retryItem": "Réessayer",
+        "selfShown": "Votre auto-évaluation : {{earned}}/{{points}}",
+        "earlier": "Corrections précédentes ({{count}})",
+        "review": "Demander une nouvelle correction à l’IA",
+        "selfGrade": "Correction erronée ? Notez vous-même",
+        "reviewResult": "Nouvelle correction : {{earned}}/{{points}}",
+        "gradingResult": "Correction assistée par IA : {{earned}}/{{points}}",
+        "byProgram": "vérifié par le programme",
+        "byModel": "IA",
+        "shortcomings": "Ce qui manquait",
+        "graderModel": "Modèle {{model}}",
+        "graderProgram": "résultat final vérifié par le programme",
+        "selfHint": "Votre auto-évaluation est affichée à part et ne remplace jamais la note.",
+        "selfLabel": "Selon moi, elle mérite (0–{{points}})",
+        "selfNote": "Remarque (facultatif) : qu’est-ce qui a été mal corrigé ?",
+        "selfSave": "Enregistrer mon évaluation"
       },
       "figureAlt": "Figure de la question",
       "figureMissing": "Figure indisponible (le document a peut-être été supprimé)",
@@ -3330,6 +3409,20 @@
         "attribution": "Attribution",
         "licenseClear": "J’ai vérifié que la licence autorise cet usage",
         "licenseHint": "Sans coche, les questions sont marquées « licence à confirmer » et restent pour votre entraînement."
+      },
+      "subtype": {
+        "short": "Réponse courte",
+        "calculation": "Calcul",
+        "proof": "Démonstration"
+      },
+      "guide": {
+        "none": "Ni corrigé ni critères.",
+        "reference": "Corrigé",
+        "final": "Résultat final :",
+        "rubric": "Critères ({{points}} au total)",
+        "criterionPoints": "({{points}} pts)",
+        "finalCriterion": "Résultat final correct",
+        "overallCriterion": "Globalement, par rapport au corrigé"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "p. {{pages}}",
       "referenceAnswer": "Réponse de référence : ",
       "openType": "Question ouverte",
-      "openHint": "Les questions ouvertes (calcul, preuve, à trous) arrivent bientôt. Si c’est un QCM, modifiez-la et ajoutez les options.",
+      "openHint": "Les questions ouvertes entrent dans la banque avec la réponse imprimée comme corrigé ; celles sans réponse sont enregistrées comme brouillons. Modifiez pour choisir le type, le résultat final et les critères.",
       "edited": "modifiée",
       "status": {
         "committed": "Ajoutée",

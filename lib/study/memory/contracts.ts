@@ -73,7 +73,9 @@ export interface LearningEventPayloads {
   companion_question: { sessionId: string; classmateId: string; preview: string };
   /**
    * A submitted subject paper, graded on the server against its frozen key
-   * (objective items only in B07). The paper title is joined at read time.
+   * (objective items only in B07). With open items (B09) it is recorded once
+   * each has been graded, and the totals include them (`openItems` of them
+   * were graded with assistance). The paper title is joined at read time.
    */
   exam_graded: {
     paperId: string;
@@ -82,6 +84,7 @@ export interface LearningEventPayloads {
     unanswered: number;
     earned: number;
     totalPoints: number;
+    openItems?: number;
   };
 }
 

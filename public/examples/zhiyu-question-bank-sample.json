@@ -59,6 +59,39 @@
       "options": ["1", "2", "3", "0"],
       "explanation": "答案缺失的题会作为草稿保存，补上答案后才能用于自动判分。",
       "concepts": ["秩"]
+    },
+    {
+      "id": "la-5",
+      "type": "calculation",
+      "stem": "求矩阵 $\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ 的全部特征值。",
+      "referenceAnswer": "特征多项式 $(2-\\lambda)^2-1=0$，即 $\\lambda^2-4\\lambda+3=0$，所以 $\\lambda_1=1,\\ \\lambda_2=3$。",
+      "points": 4,
+      "rubric": [
+        { "text": "正确写出特征多项式", "points": 2 },
+        { "text": "解出两个特征值 1 和 3", "points": 2 }
+      ],
+      "concepts": ["特征值"],
+      "difficulty": 2,
+      "verified": true
+    },
+    {
+      "id": "la-6",
+      "type": "calculation",
+      "stem": "计算行列式 $\\begin{vmatrix}1&2\\\\3&5\\end{vmatrix}$。",
+      "finalAnswer": "-1",
+      "points": 2,
+      "concepts": ["行列式"],
+      "difficulty": 1,
+      "verified": true
+    },
+    {
+      "id": "la-7",
+      "type": "proof",
+      "stem": "证明：若 $A$ 可逆，则 $A^{-1}$ 唯一。",
+      "referenceAnswer": "设 $B$、$C$ 都是 $A$ 的逆，则 $B=BI=B(AC)=(BA)C=IC=C$。",
+      "points": 3,
+      "concepts": ["逆矩阵"],
+      "difficulty": 2
     }
   ]
 }

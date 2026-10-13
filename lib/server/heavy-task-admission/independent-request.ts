@@ -56,7 +56,10 @@ interface IndependentLease {
  */
 export async function runIndependentHeavyTaskRequest(
   request: Request,
-  kind: Extract<HeavyTaskKind, 'document-extraction' | 'media' | 'study-qa' | 'study-extract'>,
+  kind: Extract<
+    HeavyTaskKind,
+    'document-extraction' | 'media' | 'study-qa' | 'study-extract' | 'study-grade'
+  >,
   body: (signal: AbortSignal) => Promise<Response>,
 ): Promise<Response> {
   // Worker deployments reject browser media routes at their existing guard;
@@ -169,7 +172,10 @@ async function acquireIndependentLease(
   pool: ReturnType<typeof getGenerationRequestPool>,
   ownerId: string,
   rootTaskId: string,
-  kind: Extract<HeavyTaskKind, 'document-extraction' | 'media' | 'study-qa' | 'study-extract'>,
+  kind: Extract<
+    HeavyTaskKind,
+    'document-extraction' | 'media' | 'study-qa' | 'study-extract' | 'study-grade'
+  >,
   holder: string,
 ): Promise<IndependentLease | null> {
   return transaction(pool, ownerId, async (client) => {

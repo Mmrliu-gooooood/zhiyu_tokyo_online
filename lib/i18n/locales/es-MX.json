@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "Opción única",
-        "multiple": "Opción múltiple"
+        "multiple": "Opción múltiple",
+        "short_answer": "Pregunta abierta"
       },
       "origin": {
         "user_import": "Importada",
@@ -3118,10 +3119,12 @@
           "source": "Fuente",
           "verified": "Marca de revisión",
           "figures": "Figuras",
-          "referenceAnswer": "Respuesta de referencia"
+          "referenceAnswer": "Respuesta de referencia",
+          "guide": "Criterio de calificación",
+          "subtype": "Tipo de pregunta"
         },
         "not_object": "No es una pregunta",
-        "type_unsupported": "Por ahora solo se admiten opción única y múltiple",
+        "type_unsupported": "Tipo de pregunta no compatible",
         "stem_missing": "El enunciado está vacío",
         "stem_too_long": "El enunciado es demasiado largo (máximo 4,000 caracteres)",
         "options_invalid": "Las opciones deben ser una lista o claves A–H",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "La dificultad debe ser de 1 a 5",
         "points_invalid": "Los puntos deben ser un entero de 1 a 100",
         "source_invalid": "Fuente no válida (los enlaces deben empezar con http)",
-        "verified_invalid": "\"verified\" debe ser true o false"
+        "verified_invalid": "\"verified\" debe ser true o false",
+        "subtype_invalid": "El tipo debe ser respuesta corta, cálculo o demostración",
+        "options_not_allowed": "Una pregunta abierta no puede tener opciones ni respuesta de opción",
+        "reference_too_long": "La respuesta de referencia es demasiado larga (máx. 4000 caracteres)",
+        "final_answer_invalid": "El resultado final solo aplica a cálculos, máx. 200 caracteres",
+        "rubric_invalid": "Cada criterio necesita descripción y de 1 a 100 puntos enteros (máx. 10 criterios)",
+        "rubric_points_mismatch": "La suma de los criterios debe igualar los puntos de la pregunta",
+        "guide_missing": "Sin respuesta de referencia ni criterios: se guarda como borrador para autorrevisión y nunca se usa en exámenes"
       },
       "editor": {
-        "description": "Haz clic en una letra para marcar la opción correcta. Escribe fórmulas en LaTeX entre $…$.",
+        "description": "En preguntas de opción, haz clic en las letras correctas; en preguntas abiertas, escribe una respuesta de referencia y criterios. Escribe fórmulas en LaTeX entre $…$.",
         "editTitle": "Editar pregunta",
         "type": "Tipo",
         "difficulty": "Dificultad",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "Las preguntas sin revisar no entran en las pruebas salvo que elijas incluirlas.",
         "draftHint": "Sin respuesta, la pregunta queda como borrador y no puede marcarse como revisada.",
         "save": "Guardar",
-        "saveDraft": "Guardar como borrador"
+        "saveDraft": "Guardar como borrador",
+        "referenceAnswer": "Respuesta de referencia",
+        "referencePlaceholder": "Solución completa o puntos clave, usados al calificar…",
+        "finalAnswer": "Resultado final (opcional)",
+        "finalPlaceholder": "p. ej. 1/2, x^2-1, \\frac{\\sqrt3}{2}",
+        "finalHint": "Un número o expresión. Al calificar, el programa comprueba primero si el resultado del estudiante es equivalente.",
+        "rubric": "Criterios de calificación (opcional)",
+        "rubricHint": "Deben sumar los puntos de la pregunta. Sin criterios, la respuesta se califica en conjunto frente a la referencia; un cálculo con solo resultado final se califica por ese resultado.",
+        "rubricPlaceholder": "Criterio {{n}}: p. ej. “escribe bien la regla de derivación”",
+        "rubricPoints": "Puntos",
+        "removeRubric": "Quitar criterio",
+        "addRubric": "Agregar criterio",
+        "finalPoints": "Puntos por un resultado final correcto (lo comprueba el programa)",
+        "openDraftHint": "Una pregunta abierta sin referencia ni criterios se guarda como borrador para autorrevisión y no se puede marcar como revisada.",
+        "openVerifiedHint": "Marca esto cuando hayas revisado la referencia y los criterios. Las preguntas sin revisar quedan fuera de los exámenes por defecto."
       },
       "errors": {
         "questionConflict": "Esta pregunta se cambió en otro lugar; se muestra la versión más reciente. Edítala de nuevo.",
@@ -3269,7 +3293,8 @@
         "start": "Empezar",
         "again": "Hacer de nuevo",
         "deleteTitle": "¿Eliminar esta prueba?",
-        "deleteText": "Se eliminarán «{{title}}» y todos sus intentos. Los registros de aprendizaje ya creados se conservan hasta que los borres en Memory."
+        "deleteText": "Se eliminarán «{{title}}» y todos sus intentos. Los registros de aprendizaje ya creados se conservan hasta que los borres en Memory.",
+        "ungraded": "{{count}} por calificar"
       },
       "attempt": {
         "back": "Volver a preguntas y pruebas",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "¿Entregar esta prueba?",
         "confirmUnanswered": "Hay {{count}} preguntas sin responder (n.º {{numbers}}). No podrás cambiar las respuestas después de entregar.",
         "confirmAll": "Respondiste todas. No podrás cambiar las respuestas después de entregar.",
-        "keepAnswering": "Seguir respondiendo"
+        "keepAnswering": "Seguir respondiendo",
+        "openNotice": "Tras enviar, las preguntas abiertas se califican con ayuda de IA según sus criterios; el resultado final de un cálculo lo comprueba primero el programa. Los resultados son orientativos.",
+        "openPlaceholder": {
+          "short": "Escribe tu respuesta…",
+          "calculation": "Muestra tu procedimiento…",
+          "proof": "Escribe tu demostración…"
+        },
+        "finalLabel": "Resultado final",
+        "finalPlaceholder": "p. ej. 1/2 o x^2-1",
+        "tooLong": "Las respuestas son demasiado largas para guardarse. Acórtalas."
       },
       "report": {
         "score": "{{earned}} / {{total}} puntos",
@@ -3299,10 +3333,55 @@
           "correct": "Correcta",
           "incorrect": "Incorrecta",
           "unanswered": "Sin responder",
-          "ungradable": "No calificable"
+          "ungradable": "No calificable",
+          "partial": "Parcialmente correcta",
+          "pending": "Esperando calificación"
         },
         "yourChoice": "Tu respuesta",
-        "key": "Respuesta correcta: {{answer}}"
+        "key": "Respuesta correcta: {{answer}}",
+        "grading": "Calificando {{count}} pregunta(s) abierta(s)…",
+        "partial": "No se pudieron calificar {{count}} pregunta(s) abierta(s). Puedes reintentar debajo de cada una.",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "El modelo seleccionado no está disponible. Revisa la configuración del modelo e inténtalo de nuevo.",
+          "STUDY_GRADING_LIMIT": "Ya no hay más revisiones disponibles para esta pregunta.",
+          "STUDY_GRADING_BUSY": "Esta pregunta aún se está calificando. Inténtalo en un momento.",
+          "capacity": "La calificación está ocupada ahora. Inténtalo en un momento.",
+          "generic": "La calificación no puede continuar ahora."
+        },
+        "retryGrading": "Continuar calificando",
+        "selfTotal": "Con tu autoevaluación: {{earned}} / {{total}}",
+        "gradedByMixed": "Las preguntas de opción se calificaron en el servidor con las respuestas guardadas; las abiertas, con ayuda de IA según sus criterios (el resultado final de los cálculos lo comprueba primero el programa). Solo orientativo.",
+        "yourAnswer": "Tu respuesta",
+        "yourFinal": "Resultado final:",
+        "gradingRunning": "Calificando…",
+        "gradingWaiting": "Esperando calificación…",
+        "reviewing": "Calificando de nuevo; el resultado anterior se conserva abajo…",
+        "reviewFailed": "La nueva calificación falló ({{reason}}); el resultado anterior sigue vigente.",
+        "gradingFailed": "La calificación falló ({{reason}}); no se asignó puntaje.",
+        "failure": {
+          "timeout": "el modelo excedió el tiempo",
+          "invalid_output": "la salida del modelo no es válida",
+          "model_unavailable": "el modelo no está disponible",
+          "model_error": "falló la llamada al modelo",
+          "lease_lost": "la calificación se interrumpió",
+          "other": "ocurrió un error"
+        },
+        "retryItem": "Reintentar",
+        "selfShown": "Tu autoevaluación: {{earned}}/{{points}}",
+        "earlier": "Calificaciones anteriores ({{count}})",
+        "review": "Pedir a la IA que califique de nuevo",
+        "selfGrade": "¿Calificación incorrecta? Califícate tú",
+        "reviewResult": "Calificada de nuevo: {{earned}}/{{points}}",
+        "gradingResult": "Calificación asistida por IA: {{earned}}/{{points}}",
+        "byProgram": "comprobado por el programa",
+        "byModel": "IA",
+        "shortcomings": "Lo que faltó",
+        "graderModel": "Modelo {{model}}",
+        "graderProgram": "resultado final comprobado por el programa",
+        "selfHint": "Tu autoevaluación se muestra aparte y nunca reemplaza la calificación.",
+        "selfLabel": "Creo que merece (0–{{points}})",
+        "selfNote": "Nota (opcional): ¿qué se calificó mal?",
+        "selfSave": "Guardar mi puntaje"
       },
       "figureAlt": "Figura de la pregunta",
       "figureMissing": "Figura no disponible (el material pudo haberse eliminado)",
@@ -3330,6 +3409,20 @@
         "attribution": "Atribución",
         "licenseClear": "He comprobado que la licencia permite este uso",
         "licenseHint": "Sin marcar, las preguntas quedan como “licencia por confirmar” y solo para tu práctica."
+      },
+      "subtype": {
+        "short": "Respuesta corta",
+        "calculation": "Cálculo",
+        "proof": "Demostración"
+      },
+      "guide": {
+        "none": "Sin respuesta de referencia ni criterios.",
+        "reference": "Respuesta de referencia",
+        "final": "Resultado final:",
+        "rubric": "Criterios ({{points}} en total)",
+        "criterionPoints": "({{points}} pts)",
+        "finalCriterion": "Resultado final correcto",
+        "overallCriterion": "En conjunto, frente a la referencia"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "p. {{pages}}",
       "referenceAnswer": "Respuesta de referencia: ",
       "openType": "Pregunta abierta",
-      "openHint": "Las preguntas abiertas (cálculo, demostración, completar) llegarán después. Si es de opción, edítala y añade las opciones.",
+      "openHint": "Las preguntas abiertas entran al banco con la respuesta impresa como referencia; las que no la tienen se guardan como borrador. Edítalas para fijar el tipo, el resultado final y los criterios.",
       "edited": "editada",
       "status": {
         "committed": "En el banco",

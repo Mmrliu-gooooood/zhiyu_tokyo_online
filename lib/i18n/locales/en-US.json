@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "Single choice",
-        "multiple": "Multiple choice"
+        "multiple": "Multiple choice",
+        "short_answer": "Open question"
       },
       "origin": {
         "user_import": "Imported",
@@ -3118,10 +3119,12 @@
           "source": "Source",
           "verified": "Checked flag",
           "figures": "Figures",
-          "referenceAnswer": "Reference answer"
+          "referenceAnswer": "Reference answer",
+          "guide": "Grading guide",
+          "subtype": "Question type"
         },
         "not_object": "Not a question object",
-        "type_unsupported": "Only single and multiple choice are supported for now",
+        "type_unsupported": "Unsupported question type",
         "stem_missing": "The stem is empty",
         "stem_too_long": "The stem is too long (at most 4,000 characters)",
         "options_invalid": "Options must be a list or keyed A–H",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "Difficulty must be 1–5",
         "points_invalid": "Points must be a whole number from 1 to 100",
         "source_invalid": "Invalid source (links must start with http)",
-        "verified_invalid": "\"verified\" must be true or false"
+        "verified_invalid": "\"verified\" must be true or false",
+        "subtype_invalid": "The type must be short answer, calculation or proof",
+        "options_not_allowed": "Open questions cannot have options or a choice answer",
+        "reference_too_long": "Reference answer is too long (max 4000 characters)",
+        "final_answer_invalid": "A final answer is only for calculations, up to 200 characters",
+        "rubric_invalid": "Each scoring point needs a description and 1–100 whole points (at most 10 points)",
+        "rubric_points_mismatch": "The scoring points must add up to the question’s points",
+        "guide_missing": "No reference answer or scoring points: saved as a draft for self-checking, never used in papers"
       },
       "editor": {
-        "description": "Click a letter to mark the correct option. Write formulas in LaTeX between $…$.",
+        "description": "For choice questions, click the letters of the correct options; for open questions, give a reference answer and scoring points. Write formulas as LaTeX between $…$.",
         "editTitle": "Edit question",
         "type": "Type",
         "difficulty": "Difficulty",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "Unchecked questions stay out of papers unless you choose to include them.",
         "draftHint": "Without an answer the question is kept as a draft and cannot be marked checked.",
         "save": "Save",
-        "saveDraft": "Save as draft"
+        "saveDraft": "Save as draft",
+        "referenceAnswer": "Reference answer",
+        "referencePlaceholder": "A full solution or the key points, used when grading…",
+        "finalAnswer": "Final answer (optional)",
+        "finalPlaceholder": "e.g. 1/2, x^2-1, \\frac{\\sqrt3}{2}",
+        "finalHint": "A number or expression. When grading, the program first checks whether the student’s final answer is equivalent to it.",
+        "rubric": "Scoring points (optional)",
+        "rubricHint": "They must add up to the question’s points. Without them the answer is graded as a whole against the reference answer; a calculation with only a final answer is scored on that answer.",
+        "rubricPlaceholder": "Point {{n}}: e.g. “states the derivative rule correctly”",
+        "rubricPoints": "Points",
+        "removeRubric": "Remove scoring point",
+        "addRubric": "Add scoring point",
+        "finalPoints": "Points for a correct final answer (checked by the program)",
+        "openDraftHint": "An open question without a reference answer or scoring points is saved as a draft for self-checking and cannot be marked as checked.",
+        "openVerifiedHint": "Tick this when you have checked the reference answer and scoring points. Unchecked questions stay out of papers by default."
       },
       "errors": {
         "questionConflict": "This question was changed elsewhere; the newest version is shown. Please edit it again.",
@@ -3269,7 +3293,8 @@
         "start": "Start",
         "again": "Take again",
         "deleteTitle": "Delete this paper?",
-        "deleteText": "“{{title}}” and all its attempts will be deleted. Learning records already made stay until you clear them in Memory."
+        "deleteText": "“{{title}}” and all its attempts will be deleted. Learning records already made stay until you clear them in Memory.",
+        "ungraded": "{{count}} to grade"
       },
       "attempt": {
         "back": "Back to bank & tests",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "Submit this paper?",
         "confirmUnanswered": "{{count}} questions are unanswered (No. {{numbers}}). Answers cannot be changed after submitting.",
         "confirmAll": "All questions are answered. Answers cannot be changed after submitting.",
-        "keepAnswering": "Keep answering"
+        "keepAnswering": "Keep answering",
+        "openNotice": "Open questions are graded by AI against their scoring points after you submit; a calculation’s final answer is checked by the program first. Results are for reference.",
+        "openPlaceholder": {
+          "short": "Write your answer…",
+          "calculation": "Show your working…",
+          "proof": "Write your proof…"
+        },
+        "finalLabel": "Final answer",
+        "finalPlaceholder": "e.g. 1/2 or x^2-1",
+        "tooLong": "The answers are too long to save. Please shorten them."
       },
       "report": {
         "score": "{{earned}} / {{total}} points",
@@ -3299,10 +3333,55 @@
           "correct": "Correct",
           "incorrect": "Wrong",
           "unanswered": "Unanswered",
-          "ungradable": "Not gradable"
+          "ungradable": "Not gradable",
+          "partial": "Partly right",
+          "pending": "Waiting for grading"
         },
         "yourChoice": "Your answer",
-        "key": "Correct answer: {{answer}}"
+        "key": "Correct answer: {{answer}}",
+        "grading": "Grading {{count}} open question(s)…",
+        "partial": "{{count}} open question(s) could not be graded. You can retry below each one.",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "The selected model is not available. Check your model settings and try again.",
+          "STUDY_GRADING_LIMIT": "No more reviews are available for this question.",
+          "STUDY_GRADING_BUSY": "This question is still being graded. Try again shortly.",
+          "capacity": "Grading is busy right now. Please try again shortly.",
+          "generic": "Grading cannot continue right now."
+        },
+        "retryGrading": "Continue grading",
+        "selfTotal": "With your own scores: {{earned}} / {{total}}",
+        "gradedByMixed": "Choice questions were graded on the server against the stored answers; open questions were graded with AI assistance against their scoring points (a calculation’s final answer is checked by the program first). For reference only.",
+        "yourAnswer": "Your answer",
+        "yourFinal": "Final answer:",
+        "gradingRunning": "Grading…",
+        "gradingWaiting": "Waiting to be graded…",
+        "reviewing": "Grading again; the earlier result stays below…",
+        "reviewFailed": "The new grading failed ({{reason}}); the earlier result still stands.",
+        "gradingFailed": "Grading failed ({{reason}}); no score was given.",
+        "failure": {
+          "timeout": "the model timed out",
+          "invalid_output": "the model’s output was not valid",
+          "model_unavailable": "the model is not available",
+          "model_error": "the model call failed",
+          "lease_lost": "grading was interrupted",
+          "other": "an error occurred"
+        },
+        "retryItem": "Retry",
+        "selfShown": "Your own score: {{earned}}/{{points}}",
+        "earlier": "Earlier gradings ({{count}})",
+        "review": "Ask AI to grade again",
+        "selfGrade": "Grading looks wrong? Score it yourself",
+        "reviewResult": "Graded again: {{earned}}/{{points}}",
+        "gradingResult": "AI-assisted grading: {{earned}}/{{points}}",
+        "byProgram": "checked by program",
+        "byModel": "AI",
+        "shortcomings": "What was missing",
+        "graderModel": "Model {{model}}",
+        "graderProgram": "final answer checked by program",
+        "selfHint": "Your own score is shown separately and never replaces the graded score.",
+        "selfLabel": "I think it deserves (0–{{points}})",
+        "selfNote": "Note (optional): what was graded wrong?",
+        "selfSave": "Save my score"
       },
       "figureAlt": "Question figure",
       "figureMissing": "Figure unavailable (the material may have been deleted)",
@@ -3330,6 +3409,20 @@
         "attribution": "Attribution",
         "licenseClear": "I have checked the licence allows this use",
         "licenseHint": "Unticked, the questions are marked “licence to be confirmed” and stay for your own practice."
+      },
+      "subtype": {
+        "short": "Short answer",
+        "calculation": "Calculation",
+        "proof": "Proof"
+      },
+      "guide": {
+        "none": "No reference answer or scoring points.",
+        "reference": "Reference answer",
+        "final": "Final answer:",
+        "rubric": "Scoring points ({{points}} in total)",
+        "criterionPoints": "({{points}} pts)",
+        "finalCriterion": "Correct final answer",
+        "overallCriterion": "Overall, against the reference answer"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "page {{pages}}",
       "referenceAnswer": "Reference answer: ",
       "openType": "Open question",
-      "openHint": "Open questions (calculation, proof, fill-in) cannot be added yet; support comes next. If it is a choice question, edit it and add the options.",
+      "openHint": "Open questions go into the bank with their printed answer as the reference answer; those without one are saved as drafts. Edit to set the type, final answer and scoring points.",
       "edited": "edited",
       "status": {
         "committed": "In the bank",

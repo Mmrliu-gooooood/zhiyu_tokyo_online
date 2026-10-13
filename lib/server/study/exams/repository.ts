@@ -11,14 +11,24 @@
  * - Draft saves compare the attempt's revision; submitting is a single
  *   conditional update of an open attempt, so concurrent submits produce one
  *   result and the others read it back.
+ * - Open items (B09): the paper freezes their grading guide next to the key;
+ *   submitting also creates one pending grading row per answered open item
+ *   (accounts v30), and reports and summaries add the gradings made so far.
  */
 import { randomBytes } from 'node:crypto';
 
 import type { Queryable } from '@openmaic/storage/document/pg';
 
+import {
+  insertSubmissionGradings,
+  listAttemptGradings,
+  openItemTotals,
+} from '@/lib/server/study/grading/repository';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import {
   ATTEMPT_LIMITS,
+  isOpenAnswer,
+  summarizeReport,
   toItemView,
   type AttemptAnswers,
   type AttemptGrading,
@@ -30,6 +40,7 @@ import {
   type ReportItem,
 } from '@/lib/study/assessments/contracts';
 import type { ExamBlueprint } from '@/lib/study/questions/blueprint';
+import type { GradingGuide } from '@/lib/study/questions/contracts';
 
 function iso(value: string | Date): string {
   return (value instanceof Date ? value : new Date(value)).toISOString();
@@ -109,12 +120,12 @@ export async function insertPaper(
   await tx.query(
     `INSERT INTO study_exam_items
        (owner_id, paper_id, position, question_id, question_version, pack_question, content_hash,
-        snapshot, answer_key, explanation)
+        snapshot, answer_key, explanation, guide)
      SELECT $1, $2, i.position, i.question_id, i.question_version, i.pack_question, i.content_hash,
-            i.snapshot, i.answer_key, i.explanation
+            i.snapshot, i.answer_key, i.explanation, i.guide
        FROM jsonb_to_recordset($3::jsonb) AS i(
          position int, question_id text, question_version int, pack_question text,
-         content_hash text, snapshot jsonb, answer_key jsonb, explanation text)`,
+         content_hash text, snapshot jsonb, answer_key jsonb, explanation text, guide jsonb)`,
     [
       ownerId,
       paper.id,
@@ -128,6 +139,7 @@ export async function insertPaper(
           snapshot: item.snapshot,
           answer_key: item.key.answer,
           explanation: item.key.explanation,
+          guide: item.key.guide,
         })),
       ),
     ],
@@ -144,15 +156,22 @@ interface PaperRow extends Record<string, unknown> {
   created_at: string | Date;
 }
 
-function attemptSummary(row: Record<string, unknown>): AttemptSummary {
+function attemptSummary(
+  row: Record<string, unknown>,
+  open: { earned: number; ungraded: number } | undefined,
+): AttemptSummary {
   return {
     id: String(row.id),
     status: row.status === 'submitted' ? 'submitted' : 'in_progress',
     startedAt: iso(row.started_at as string),
     submittedAt: row.submitted_at ? iso(row.submitted_at as string) : null,
-    earned: row.earned === null || row.earned === undefined ? null : Number(row.earned),
+    earned:
+      row.earned === null || row.earned === undefined
+        ? null
+        : Number(row.earned) + (open?.earned ?? 0),
     totalPoints:
       row.total_points === null || row.total_points === undefined ? null : Number(row.total_points),
+    ungraded: open?.ungraded ?? 0,
   };
 }
 
@@ -164,15 +183,28 @@ async function attemptsOf(
   const map = new Map<string, AttemptSummary[]>();
   if (paperIds.length === 0) return map;
   const result = await db.query(
-    `SELECT id, paper_id, status, started_at, submitted_at, earned, total_points
+    `SELECT id, paper_id, status, started_at, submitted_at, earned, total_points, grading
        FROM study_exam_attempts
       WHERE owner_id = $1 AND paper_id = ANY($2::text[])
       ORDER BY started_at DESC`,
     [ownerId, [...paperIds]],
   );
+  const totals = await openItemTotals(
+    db,
+    ownerId,
+    result.rows
+      .filter((row) => row.status === 'submitted')
+      .map((row) => ({
+        attemptId: String(row.id),
+        grading: json<AttemptGrading>(row.grading),
+      })),
+  );
   for (const row of result.rows) {
     const paperId = String(row.paper_id);
-    map.set(paperId, [...(map.get(paperId) ?? []), attemptSummary(row)]);
+    map.set(paperId, [
+      ...(map.get(paperId) ?? []),
+      attemptSummary(row, totals.get(String(row.id))),
+    ]);
   }
   return map;
 }
@@ -254,27 +286,48 @@ export async function paperItemViews(
   );
 }
 
+/** One item with its key (grading of a single open item). */
+export async function paperItemWithKey(
+  db: Queryable,
+  ownerId: string,
+  paperId: string,
+  position: number,
+): Promise<(PaperItemView & PaperItemKey) | null> {
+  const items = await paperItemsWithKeys(db, ownerId, paperId, position);
+  return items[0] ?? null;
+}
+
 /** Items with their keys, for grading and the submitted report only. */
 export async function paperItemsWithKeys(
   db: Queryable,
   ownerId: string,
   paperId: string,
+  position?: number,
 ): Promise<Array<PaperItemView & PaperItemKey>> {
   const result = await db.query<{
     position: number;
     snapshot: unknown;
     answer_key: unknown;
     explanation: string | null;
+    guide: unknown;
   }>(
-    `SELECT position, snapshot, answer_key, explanation FROM study_exam_items
-      WHERE owner_id = $1 AND paper_id = $2 ORDER BY position`,
-    [ownerId, paperId],
+    `SELECT position, snapshot, answer_key, explanation, guide FROM study_exam_items
+      WHERE owner_id = $1 AND paper_id = $2 AND ($3::int IS NULL OR position = $3)
+      ORDER BY position`,
+    [ownerId, paperId, position ?? null],
   );
-  return result.rows.map((row) => ({
-    ...toItemView(Number(row.position), json<Record<string, unknown>>(row.snapshot) ?? {}),
-    answer: json<string[]>(row.answer_key) ?? [],
-    explanation: row.explanation,
-  }));
+  return result.rows.map((row) => {
+    const view = toItemView(
+      Number(row.position),
+      json<Record<string, unknown>>(row.snapshot) ?? {},
+    );
+    return {
+      ...view,
+      answer: json<string[]>(row.answer_key) ?? [],
+      explanation: row.explanation,
+      guide: view.type === 'short_answer' ? json<GradingGuide>(row.guide) : null,
+    };
+  });
 }
 
 /** What this subject's submitted papers already asked (for "avoid questions I've done"). */
@@ -431,18 +484,27 @@ export async function getAttemptView(
     return { ...base, items: await paperItemViews(db, ownerId, row.paper_id), report: null };
   }
   const grading = json<AttemptGrading>(row.grading)!;
-  const results = new Map(grading.items.map((item) => [item.position, item]));
+  const gradings = await listAttemptGradings(db, ownerId, attemptId);
+  const { summary, items: current } = summarizeReport(grading, gradings);
+  const results = new Map(current.map((item) => [item.position, item]));
   const items = await paperItemsWithKeys(db, ownerId, row.paper_id);
-  const report: ReportItem[] = items.map((item) => ({
-    ...item,
-    response: answers[String(item.position)] ?? [],
-    outcome: results.get(item.position)?.outcome ?? 'ungradable',
-    earned: results.get(item.position)?.earned ?? 0,
-  }));
+  const report: ReportItem[] = items.map((item) => {
+    const answer = answers[String(item.position)];
+    return {
+      ...item,
+      response: Array.isArray(answer) ? answer : [],
+      openResponse: isOpenAnswer(answer) ? answer : null,
+      outcome: results.get(item.position)?.outcome ?? 'ungradable',
+      earned: results.get(item.position)?.earned ?? 0,
+      gradings: gradings.get(item.position) ?? [],
+    };
+  });
   return {
     ...base,
-    items: items.map(({ answer: _answer, explanation: _explanation, ...view }) => view),
-    report: { grading, items: report },
+    items: items.map(
+      ({ answer: _answer, explanation: _explanation, guide: _guide, ...view }) => view,
+    ),
+    report: { grading, summary, items: report },
   };
 }
 
@@ -541,6 +603,7 @@ export async function submitAttempt(
       ],
     );
     if (updated.rows.length === 0) return { kind: 'already', sameKey: false };
+    await insertSubmissionGradings(tx, ownerId, attemptId, graded.grading);
     return { kind: 'submitted' };
   });
 }
@@ -554,6 +617,8 @@ export interface SubmittedAttemptRow {
   submittedAt: string;
   itemCount: number;
   grading: AttemptGrading;
+  /** Open items (B09): their points so far, how many fully right, and how many have no score yet. */
+  open: { earned: number; correct: number; ungraded: number };
 }
 
 export async function submittedAttempts(
@@ -577,12 +642,17 @@ export async function submittedAttempts(
       ORDER BY a.submitted_at DESC LIMIT 500`,
     [ownerId, attemptId ?? null],
   );
-  return result.rows.map((row) => ({
+  const rows = result.rows.map((row) => ({
     attemptId: row.id,
     paperId: row.paper_id,
     spaceId: row.space_id,
     submittedAt: iso(row.submitted_at),
     itemCount: Number(row.item_count),
     grading: json<AttemptGrading>(row.grading)!,
+  }));
+  const totals = await openItemTotals(db, ownerId, rows);
+  return rows.map((row) => ({
+    ...row,
+    open: totals.get(row.attemptId) ?? { earned: 0, correct: 0, ungraded: 0 },
   }));
 }

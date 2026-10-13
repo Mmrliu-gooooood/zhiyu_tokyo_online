@@ -23,6 +23,8 @@ import {
   requireQuestionSpace,
 } from '@/lib/server/study/questions/repository';
 import {
+  ATTEMPT_LIMITS,
+  answersByteLength,
   canonicalAnswers,
   gradeAttempt,
   parseAnswers,
@@ -39,6 +41,7 @@ import {
 } from '@/lib/study/questions/blueprint';
 import {
   conceptKey,
+  effectiveRubric,
   packFingerprint,
   type QuestionContent,
   type QuestionOrigin,
@@ -209,6 +212,7 @@ export async function previewPaper(
       ref: result.picked[index]!.ref,
       tier: result.picked[index]!.tier,
       type: item.content.type,
+      ...(item.content.subtype ? { subtype: item.content.subtype } : {}),
       stem: item.content.stem,
       concepts: item.content.concepts,
       difficulty: item.content.difficulty,
@@ -246,6 +250,7 @@ function frozenItem(item: Resolved): FrozenItem {
     contentHash: item.contentHash,
     snapshot: {
       type: item.content.type,
+      ...(item.content.type === 'short_answer' ? { subtype: item.content.subtype ?? 'short' } : {}),
       stem: item.content.stem,
       options: item.content.options,
       points: item.content.points,
@@ -254,7 +259,19 @@ function frozenItem(item: Resolved): FrozenItem {
       source: itemSource,
       ...(item.content.figures?.length ? { figures: item.content.figures } : {}),
     },
-    key: { answer: item.content.answer, explanation: item.content.explanation },
+    key: {
+      answer: item.content.answer,
+      explanation: item.content.explanation,
+      // Open items freeze their guide with the scoring points made explicit.
+      guide:
+        item.content.type === 'short_answer'
+          ? {
+              referenceAnswer: item.content.guide?.referenceAnswer ?? null,
+              finalAnswer: item.content.guide?.finalAnswer ?? null,
+              rubric: effectiveRubric(item.content),
+            }
+          : null,
+    },
   };
 }
 
@@ -320,7 +337,7 @@ export async function saveAttemptDraft(
 ): Promise<{ revision: number; updatedAt: string } | null> {
   const paperId = await attemptPaperId(db, ownerId, attemptId);
   const answers = parseAnswers(raw, await paperItemViews(db, ownerId, paperId));
-  if (!answers) return null;
+  if (!answers || answersByteLength(answers) > ATTEMPT_LIMITS.answersBytes) return null;
   return saveDraftAnswers(db, ownerId, attemptId, answers, baseRevision);
 }
 
@@ -333,7 +350,7 @@ export async function submitPaperAttempt(
 ): Promise<{ attempt: AttemptView; alreadySubmitted: boolean }> {
   const outcome = await submitAttempt(db, ownerId, attemptId, input, (items, answers) => {
     const valid = parseAnswers(answers, items);
-    if (!valid) return null;
+    if (!valid || answersByteLength(valid) > ATTEMPT_LIMITS.answersBytes) return null;
     const grading = gradeAttempt(
       items.map((item) => ({ ...item, key: item.answer })),
       valid,

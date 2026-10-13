@@ -66,3 +66,14 @@ export function isStudyExtractionFlagOn(env: NodeJS.ProcessEnv = process.env): b
     (flag === '1' || flag === 'true') && isStudyMaterialsFlagOn(env) && isStudyExamsFlagOn(env)
   );
 }
+
+/**
+ * ZHIYU_STUDY_GRADING_ENABLED: open questions in new papers and their
+ * assisted grading (learning plan B09); needs the question bank. Web only
+ * (grading runs in the request). Off: no new open items in papers and no new
+ * gradings; answers, finished gradings and waiting items stay readable.
+ */
+export function isStudyGradingFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_GRADING_ENABLED;
+  return (flag === '1' || flag === 'true') && isStudyExamsFlagOn(env);
+}

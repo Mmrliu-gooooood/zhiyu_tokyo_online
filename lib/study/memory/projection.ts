@@ -320,6 +320,8 @@ export interface ExamAttemptSource {
   unanswered: number;
   earned: number;
   totalPoints: number;
+  /** Answered open items, graded with assistance (B09); 0 for choice-only papers. */
+  openItems: number;
 }
 
 /** One record per submitted attempt (its server grading; drafts are not recorded). */
@@ -340,6 +342,7 @@ export function examEvents(sources: readonly ExamAttemptSource[]): LearningEvent
       unanswered: source.unanswered,
       earned: source.earned,
       totalPoints: source.totalPoints,
+      ...(source.openItems ? { openItems: source.openItems } : {}),
     },
   }));
 }

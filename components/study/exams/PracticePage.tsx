@@ -42,6 +42,7 @@ export function PracticePage({ spaceId }: { spaceId: string }) {
   const [space, setSpace] = useState<StudySpaceDetail | null>(null);
   const [concepts, setConcepts] = useState<ConceptView[]>([]);
   const [canExtract, setCanExtract] = useState(false);
+  const [canGrade, setCanGrade] = useState(false);
   const [loadKey, setLoadKey] = useState(0);
 
   useEffect(() => {
@@ -51,7 +52,10 @@ export function PracticePage({ spaceId }: { spaceId: string }) {
       if (!capabilities.exams) {
         throw Object.assign(new Error('unavailable'), { status: 404 });
       }
-      if (!cancelled) setCanExtract(capabilities.extraction);
+      if (!cancelled) {
+        setCanExtract(capabilities.extraction);
+        setCanGrade(capabilities.grading);
+      }
       return studyApi.getSpace(spaceId);
     }).then((result) => {
       if (cancelled) return;
@@ -145,6 +149,7 @@ export function PracticePage({ spaceId }: { spaceId: string }) {
             courses={courses}
             concepts={concepts}
             initialCourse={search.get('course')}
+            allowOpen={canGrade}
           />
         </TabsContent>
         <TabsContent value="papers">

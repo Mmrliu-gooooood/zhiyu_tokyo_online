@@ -10,6 +10,7 @@ import type { Queryable } from '@openmaic/storage/document/pg';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import {
   blockingIssues,
+  hasAnswerKey,
   packFingerprint,
   parseImportDocument,
   parseQuestion,
@@ -34,9 +35,9 @@ import {
   type InsertOutcome,
 } from './repository';
 
-/** For validated content: a draft (no answer key) is never recorded as checked. */
+/** For validated content: a draft (no answer key or grading guide) is never recorded as checked. */
 function verificationFor(content: QuestionContent, verified: boolean): VerificationState {
-  return verified && content.answer.length > 0 ? 'user_verified' : 'unverified';
+  return verified && hasAnswerKey(content) ? 'user_verified' : 'unverified';
 }
 
 async function existingByHash(

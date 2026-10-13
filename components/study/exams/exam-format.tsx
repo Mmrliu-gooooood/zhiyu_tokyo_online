@@ -14,7 +14,9 @@ import { QuizMathText } from '@/components/quiz/QuizMathText';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { materialsApi, readerHref } from '@/lib/study/materials/client';
 import type {
+  GradingGuide,
   MaterialSourceRef,
+  OpenSubtype,
   QuestionFigure,
   QuestionIssue,
   QuestionOrigin,
@@ -33,11 +35,14 @@ export function MathText(props: Omit<ComponentProps<typeof QuizMathText>, 'trust
 
 const CHIP = 'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px]';
 
-export function TypeChip({ type }: { type: QuestionType }) {
+/** The question type; open questions show their kind (short answer, calculation, proof). */
+export function TypeChip({ type, subtype }: { type: QuestionType; subtype?: OpenSubtype }) {
   const { t } = useI18n();
   return (
     <span className={cn(CHIP, 'bg-muted text-muted-foreground')}>
-      {t(`study.practice.type.${type}`)}
+      {type === 'short_answer'
+        ? t(`study.practice.subtype.${subtype ?? 'short'}`)
+        : t(`study.practice.type.${type}`)}
     </span>
   );
 }
@@ -166,6 +171,72 @@ export function SourceDetails({ source }: { source: SourceDetailsValue | null | 
         </span>
       ))}
     </p>
+  );
+}
+
+/** A scoring point's label: its text, or what the server-made points stand for. */
+export function useCriterionLabel() {
+  const { t } = useI18n();
+  return (criterion: { id: string; text?: string; final?: boolean }): string =>
+    criterion.text ||
+    (criterion.final || criterion.id === 'final'
+      ? t('study.practice.guide.finalCriterion')
+      : t('study.practice.guide.overallCriterion'));
+}
+
+/** What an open question is graded against: reference answer, final answer, scoring points. */
+export function GuideDetails({
+  guide,
+  points,
+}: {
+  guide: GradingGuide | null | undefined;
+  points: number;
+}) {
+  const { t } = useI18n();
+  const label = useCriterionLabel();
+  if (!guide) return null;
+  const empty = !guide.referenceAnswer && !guide.finalAnswer && guide.rubric.length === 0;
+  return (
+    <div className="space-y-1.5 text-sm" data-testid="guide-details">
+      {empty ? <p className="text-muted-foreground">{t('study.practice.guide.none')}</p> : null}
+      {guide.referenceAnswer ? (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            {t('study.practice.guide.reference')}
+          </p>
+          <div className="whitespace-pre-wrap text-foreground">
+            <MathText text={guide.referenceAnswer} allowDisplayMode />
+          </div>
+        </div>
+      ) : null}
+      {guide.finalAnswer ? (
+        <p className="text-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
+            {t('study.practice.guide.final')}
+          </span>{' '}
+          <MathText
+            text={guide.finalAnswer.includes('$') ? guide.finalAnswer : `$${guide.finalAnswer}$`}
+          />
+        </p>
+      ) : null}
+      {guide.rubric.length ? (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            {t('study.practice.guide.rubric', { points })}
+          </p>
+          <ul className="list-disc space-y-0.5 pl-5 text-foreground">
+            {guide.rubric.map((criterion) => (
+              <li key={criterion.id}>
+                {label(criterion)}
+                <span className="ml-1 text-xs text-muted-foreground">
+                  {t('study.practice.guide.criterionPoints', { points: criterion.points })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

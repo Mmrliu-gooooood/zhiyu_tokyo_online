@@ -3080,7 +3080,8 @@
       },
       "type": {
         "single": "單選題",
-        "multiple": "多選題"
+        "multiple": "多選題",
+        "short_answer": "主觀題"
       },
       "origin": {
         "user_import": "匯入",
@@ -3118,10 +3119,12 @@
           "source": "來源",
           "verified": "核對標記",
           "figures": "配圖",
-          "referenceAnswer": "參考答案"
+          "referenceAnswer": "參考答案",
+          "guide": "評分依據",
+          "subtype": "題型"
         },
         "not_object": "不是題目物件",
-        "type_unsupported": "目前只支援單選題與多選題",
+        "type_unsupported": "不支援的題型",
         "stem_missing": "題幹為空",
         "stem_too_long": "題幹太長（最多 4000 字）",
         "options_invalid": "選項格式不對，應為清單或 A–H 鍵",
@@ -3140,10 +3143,17 @@
         "difficulty_invalid": "難度應為 1–5",
         "points_invalid": "分值應為 1–100 的整數",
         "source_invalid": "來源資訊不對（連結需以 http 開頭）",
-        "verified_invalid": "verified 只能是 true 或 false"
+        "verified_invalid": "verified 只能是 true 或 false",
+        "subtype_invalid": "題型應為簡答、計算或證明",
+        "options_not_allowed": "主觀題不能有選項或選擇答案",
+        "reference_too_long": "參考答案太長（最多 4000 字）",
+        "final_answer_invalid": "最終答案只用於計算題，且不超過 200 字",
+        "rubric_invalid": "評分點需要寫明內容，分值為 1–100 的整數，最多 10 個",
+        "rubric_points_mismatch": "評分點的分值總和要等於本題分值",
+        "guide_missing": "沒有參考答案或評分點：會存為草稿，只能自查，不能進入試卷"
       },
       "editor": {
-        "description": "點擊字母標出正確選項。公式可用 $…$ 包住的 LaTeX 書寫。",
+        "description": "選擇題點擊字母標出正確選項；主觀題填寫參考答案和評分點。公式可以用 $…$ 包住的 LaTeX 書寫。",
         "editTitle": "編輯題目",
         "type": "題型",
         "difficulty": "難度",
@@ -3166,7 +3176,21 @@
         "verifiedHint": "未核對的題目預設不進入試卷，組卷時可選擇包含。",
         "draftHint": "沒有答案的題目會存為草稿，不能標為已核對。",
         "save": "儲存",
-        "saveDraft": "存為草稿"
+        "saveDraft": "存為草稿",
+        "referenceAnswer": "參考答案",
+        "referencePlaceholder": "寫出完整的解答或要點，批改時作為依據…",
+        "finalAnswer": "最終答案（可選）",
+        "finalPlaceholder": "如 1/2、x^2-1、\\frac{\\sqrt3}{2}",
+        "finalHint": "數值或運算式。批改時先由程式判斷學生的最終答案是否與它等價。",
+        "rubric": "評分點（可選）",
+        "rubricHint": "分值總和要等於本題分值。不寫評分點時，對照參考答案整體評分；計算題只填最終答案時，按最終答案給分。",
+        "rubricPlaceholder": "評分點 {{n}}：如「正確寫出導數公式」",
+        "rubricPoints": "分值",
+        "removeRubric": "刪除評分點",
+        "addRubric": "新增評分點",
+        "finalPoints": "最終答案正確（程式判定）的分值",
+        "openDraftHint": "沒有參考答案或評分點的主觀題會存為草稿，只能自查，不能標為已核驗。",
+        "openVerifiedHint": "勾選表示你核對過參考答案和評分點。未核驗的題預設不進入試卷。"
       },
       "errors": {
         "questionConflict": "這道題已在別處修改，已顯示最新版本，請重新編輯。",
@@ -3269,7 +3293,8 @@
         "start": "開始作答",
         "again": "再做一次",
         "deleteTitle": "刪除這份試卷？",
-        "deleteText": "《{{title}}》及其全部作答都會刪除；已產生的學習紀錄會保留，可在 Memory 中清除。"
+        "deleteText": "《{{title}}》及其全部作答都會刪除；已產生的學習紀錄會保留，可在 Memory 中清除。",
+        "ungraded": "{{count}} 題待批改"
       },
       "attempt": {
         "back": "返回題庫與測驗",
@@ -3285,7 +3310,16 @@
         "confirmTitle": "確認交卷？",
         "confirmUnanswered": "還有 {{count}} 題沒答（第 {{numbers}} 題）。交卷後不能再修改。",
         "confirmAll": "已全部作答。交卷後不能再修改。",
-        "keepAnswering": "繼續作答"
+        "keepAnswering": "繼續作答",
+        "openNotice": "主觀題交卷後由 AI 按評分點輔助批改；計算題的最終答案先由程式判斷。批改結果僅供參考。",
+        "openPlaceholder": {
+          "short": "寫下你的回答…",
+          "calculation": "寫出計算過程…",
+          "proof": "寫出證明過程…"
+        },
+        "finalLabel": "最終答案",
+        "finalPlaceholder": "如 1/2 或 x^2-1",
+        "tooLong": "答案太長，無法儲存。請縮短一些。"
       },
       "report": {
         "score": "{{earned}} / {{total}} 分",
@@ -3299,10 +3333,55 @@
           "correct": "正確",
           "incorrect": "錯誤",
           "unanswered": "未答",
-          "ungradable": "無法判分"
+          "ungradable": "無法判分",
+          "partial": "部分得分",
+          "pending": "待批改"
         },
         "yourChoice": "你的選擇",
-        "key": "正確答案：{{answer}}"
+        "key": "正確答案：{{answer}}",
+        "grading": "正在批改 {{count}} 道主觀題…",
+        "partial": "{{count}} 道主觀題批改失敗，可以在題目下重試。",
+        "gradingError": {
+          "STUDY_GRADING_MODEL_UNAVAILABLE": "目前選擇的模型無法使用，請檢查模型設定後重試。",
+          "STUDY_GRADING_LIMIT": "這道題的複核次數已用完。",
+          "STUDY_GRADING_BUSY": "這道題還在批改中，請稍後再試。",
+          "capacity": "目前批改任務較多，請稍後重試。",
+          "generic": "批改暫時無法繼續。"
+        },
+        "retryGrading": "繼續批改",
+        "selfTotal": "按你的自評：{{earned}} / {{total}} 分",
+        "gradedByMixed": "選擇題按標準答案在伺服器判分；主觀題由 AI 按評分點輔助批改（計算題的最終答案先由程式判斷），僅供參考。",
+        "yourAnswer": "你的作答",
+        "yourFinal": "最終答案：",
+        "gradingRunning": "正在批改…",
+        "gradingWaiting": "等待批改…",
+        "reviewing": "正在重新批改，原評分保留在下方…",
+        "reviewFailed": "重新批改失敗（{{reason}}），原評分仍然有效。",
+        "gradingFailed": "批改失敗（{{reason}}），沒有給出成績。",
+        "failure": {
+          "timeout": "模型逾時",
+          "invalid_output": "模型輸出不符合要求",
+          "model_unavailable": "模型無法使用",
+          "model_error": "模型呼叫出錯",
+          "lease_lost": "批改被中斷",
+          "other": "發生錯誤"
+        },
+        "retryItem": "重試",
+        "selfShown": "你的自評：{{earned}}/{{points}} 分",
+        "earlier": "之前的評分（{{count}}）",
+        "review": "請 AI 重新批改",
+        "selfGrade": "覺得批改不準？自己評分",
+        "reviewResult": "重新批改：{{earned}}/{{points}} 分",
+        "gradingResult": "AI 輔助批改：{{earned}}/{{points}} 分",
+        "byProgram": "程式判定",
+        "byModel": "AI 評分",
+        "shortcomings": "不足之處",
+        "graderModel": "模型 {{model}}",
+        "graderProgram": "最終答案由程式判定",
+        "selfHint": "你的自評單獨顯示，不會取代批改得分。",
+        "selfLabel": "我認為應得（0–{{points}} 分）",
+        "selfNote": "說明（可選）：哪裡批改得不對？",
+        "selfSave": "儲存自評"
       },
       "figureAlt": "題目配圖",
       "figureMissing": "圖片無法使用（原資料可能已刪除）",
@@ -3330,6 +3409,20 @@
         "attribution": "署名要求",
         "licenseClear": "我確認授權允許我這樣使用",
         "licenseHint": "不勾選時這些題會標為「授權待確認」，只供自己練習。"
+      },
+      "subtype": {
+        "short": "簡答題",
+        "calculation": "計算題",
+        "proof": "證明題"
+      },
+      "guide": {
+        "none": "沒有參考答案或評分點。",
+        "reference": "參考答案",
+        "final": "最終答案：",
+        "rubric": "評分點（共 {{points}} 分）",
+        "criterionPoints": "（{{points}} 分）",
+        "finalCriterion": "最終答案正確",
+        "overallCriterion": "對照參考答案整體評分"
       }
     },
     "extraction": {
@@ -3420,7 +3513,7 @@
       "onPages": "第 {{pages}} 頁",
       "referenceAnswer": "參考答案：",
       "openType": "主觀題",
-      "openHint": "主觀題（計算、證明、填空）暫不能入庫，將在下一批支援；如果它其實是選擇題，可以編輯補上選項。",
+      "openHint": "主觀題會連同參考答案入庫；沒有參考答案的會存為草稿。可以編輯補充題型、最終答案和評分點。",
       "edited": "已修改",
       "status": {
         "committed": "已入庫",
