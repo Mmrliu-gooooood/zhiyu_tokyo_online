@@ -15,7 +15,7 @@
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
-| B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产登录验收待做 | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
+| B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -159,7 +159,24 @@
 4. 构建并标为 `release-20261018`（web `72b2947d619e`、worker `01d2777e9765`；镜像内已核对含错题本接口、新学习检测提示和 Worker 的错题提示），送到东京后磁盘 61%。
 5. 切换前生成任务、学习任务、待批改评分、运行中的学伴会话都为 0。备份 `.env.hosted.local.bak-20261018-pre`、`docker-compose.supabase.yml.bak-20261018-pre`（指向 web 20261017、worker 20261013）；compose 换成仓库版本；env 换两个镜像标签并加 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1`；`apply --tier 4 --mode background`。
 6. readiness：`ready`、accountsVersion 31、2/2 Worker；`/api/study/capabilities` 含 `wrongbook: true`；未登录访问错题本列表、详情、同步均 401。Web 启动 LISTEN 首次连接一次成功（11.9 s，其中 DNS 约 11.5 s，30 s 首连超时内），无 WARN/ERROR。
-7. 生产登录验收：待用户登录后进行。
+7. 生产登录验收：见下节。
+
+### 生产验收（2026-10-18，用户非管理员账号登录，role = user）
+
+账号是新账号（没有课程、学科、学伴）。为不调用 TTS（用户选择），测试课程经应用自己的保存接口（`PUT /api/persistence/documents/<id>`，与浏览器保存课程相同）写入：“导数入门（B10 生产验收）”，两页讲解 + 一页 2 题随堂小测；学科“微积分（B10 生产验收）”链接该课程。
+
+1. **学习检测（本次修复）**：真实课堂“学习反馈 → 检查这次理解”一次生成成功（DeepSeek 生成 + 审题各 1 次），4 题（3 选择 + 1 简答），引用正确页面；作答后 3/6：一道选择错、简答题 1/3（AI 评分，理由为“只求出斜率，未写切线方程”）。
+2. **课堂小测**：真实课堂作答，第 1 题错、第 2 题对，存为 v2 已提交作答。
+3. **学科试卷**：导入示例题库 7 题，组卷 2 单选 + 1 多选 + 2 计算题，交卷（单选 1 错、多选错）。此时从学科页“错题本”入口打开：5 道（试卷 2、小测 1、检测 2），待批改的计算题不出现。
+4. 打开报告批改：特征值 3/4（DeepSeek 1 次）、行列式最终答案程序判 0/2。错题本刷新后 7 道（试卷 4、小测 1、检测 2）。
+5. 详情：特征值题逐点评分、反馈与“打开试卷报告”；小测题“课堂记录，已与课程核对”与“打开「随堂小测」”；检测题出题依据 2 段，两页各一个“打开”链接（内容未变）。
+6. 课堂链接：从“随堂小测”打开 `?scene=…-p1` 到“什么是导数”，反过来打开 `?scene=…-quiz` 到“随堂小测”；参数用后清除。
+7. 问学伴：新建学伴“小林”，从特征值题打开对话——横幅渲染公式、学科固定、预填问题标点正常；数据库中对话 `origin.wrongItem`（588 字符）含出处“学科试卷《线代小测（B10 生产验收）》第 4 题”和学生作答；小林指出漏了 λ=1 的根，给出因式分解和迹/行列式检验；标题行显示“来自错题本”。
+8. 标记待复习、归档：计数 待处理 6 / 待复习 1 / 已归档 1，“待复习”页 1 道。
+9. 数据库：本学科 7 道错题、7 条作答记录（与界面一致），其他学科 0；近 1 小时该账号用量 learning-check-generation 1、learning-check-review 1、quiz-grade 1（检测简答批改）、study-grade 1、study-companion 2。Web 与两个 Worker 40 分钟内无 WARN/ERROR。
+10. 清理：待用户删除测试学科、测试课程与学伴（Claude 不做永久删除）。
+
+小问题（未修）：学习检测题的评分在错题本里显示模型为别名 `platform:zhiyu-default-text`（课堂保存的 `generation.model` 本来就是别名，B09 的批改记录已改为实际模型）。
 
 ### 下一批前置条件
 
