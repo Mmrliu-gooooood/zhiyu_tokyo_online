@@ -181,6 +181,23 @@ export function normalizeLearningCheckCandidate(value: unknown): unknown {
           typeof question.correctAnswer === 'string' ||
           Array.isArray(question.correctAnswer)
         ) {
+          // The reference answer some models put here is what grading needs:
+          // keep it in the scoring guide (when it fits) instead of dropping it.
+          const reference = (
+            Array.isArray(question.correctAnswer)
+              ? question.correctAnswer.filter((part) => typeof part === 'string')
+              : [question.correctAnswer]
+          )
+            .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+            .join('; ')
+            .trim();
+          const guide = typeof question.scoringGuide === 'string' ? question.scoringGuide : '';
+          if (reference && guide && !guide.includes(reference)) {
+            const merged = `${guide}\nReference answer: ${reference}`;
+            if (merged.length <= LEARNING_CHECK_LIMITS.explanationCharacters) {
+              normalized.scoringGuide = merged;
+            }
+          }
           delete normalized.correctAnswer;
         }
       } else if (

@@ -457,6 +457,35 @@ describe('normalizeLearningCheckCandidate', () => {
     expect(normalized.questions[2]).toHaveProperty('options');
   });
 
+  it('keeps a short answer reference answer in the scoring guide instead of dropping it', () => {
+    const normalized = normalizeLearningCheckCandidate({
+      questions: [
+        {
+          id: 'q1',
+          type: 'short_answer',
+          scoringGuide: 'Award 2 points.',
+          correctAnswer: 'y=2x-1',
+        },
+        { id: 'q2', type: 'short_answer', scoringGuide: 'Answer y=2x-1.', correctAnswer: 'y=2x-1' },
+        { id: 'q3', type: 'short_answer', scoringGuide: 'x'.repeat(1990), correctAnswer: 'y=2x-1' },
+        { id: 'q4', type: 'short_answer', scoringGuide: 'Guide.', correctAnswer: ['a', 'b'] },
+      ],
+    }) as { questions: Record<string, unknown>[] };
+    expect(normalized.questions[0]).toEqual({
+      id: 'q1',
+      type: 'short_answer',
+      scoringGuide: 'Award 2 points.\nReference answer: y=2x-1',
+    });
+    expect(normalized.questions[1]!.scoringGuide).toBe('Answer y=2x-1.');
+    // Too long to merge: the guide stays as it was.
+    expect(normalized.questions[2]!.scoringGuide).toBe('x'.repeat(1990));
+    expect(normalized.questions[3]).toEqual({
+      id: 'q4',
+      type: 'short_answer',
+      scoringGuide: 'Guide.\nReference answer: a; b',
+    });
+  });
+
   it('leaves values it cannot map unambiguously for strict validation to reject', () => {
     const normalized = normalizeLearningCheckCandidate({
       questions: [
