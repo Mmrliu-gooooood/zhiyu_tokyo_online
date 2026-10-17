@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "Saisie invalide.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "Cette question n’est plus disponible."
       },
-      "fromWrongItem": "Une question de votre carnet d’erreurs : « {{stem}} »",
+      "fromWrongItem": "Une question de votre carnet d’erreurs :",
       "wrongItemGone": "Cette question n’est plus disponible.",
       "openedFromWrongItem": "Ouvert depuis le carnet d’erreurs : {{where}}"
     },

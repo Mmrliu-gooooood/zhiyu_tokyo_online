@@ -986,8 +986,10 @@ function AskClassmate({
       </p>
     );
   }
+  // The question's start, without its own closing punctuation (the sentence adds its own).
+  const opening = Array.from(stem.replace(/\s+/gu, ' ').trim()).slice(0, 60).join('');
   const question = t('study.wrongbook.ask.prompt', {
-    stem: Array.from(stem.replace(/\s+/gu, ' ').trim()).slice(0, 60).join(''),
+    stem: opening.replace(/[\s。．.？?！!；;：:]+$/u, ''),
   });
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="wrongbook-ask">

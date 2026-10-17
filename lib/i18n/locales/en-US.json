@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "Invalid input. Please check and try again.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "This wrong question is no longer available."
       },
-      "fromWrongItem": "A question from your wrong-answer book: “{{stem}}”",
+      "fromWrongItem": "A question from your wrong-answer book:",
       "wrongItemGone": "This wrong question is no longer available.",
       "openedFromWrongItem": "Opened from the wrong-answer book: {{where}}"
     },

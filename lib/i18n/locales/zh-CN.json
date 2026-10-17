@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "内容无效，请检查后再试。",
         "STUDY_WRONG_ITEM_NOT_FOUND": "这道错题已不可用。"
       },
-      "fromWrongItem": "来自错题本的一道题：“{{stem}}”",
+      "fromWrongItem": "来自错题本的一道题：",
       "wrongItemGone": "这道错题已不可用。",
       "openedFromWrongItem": "来自错题本：{{where}}"
     },

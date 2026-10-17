@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "Неверный ввод.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "Этот вопрос больше недоступен."
       },
-      "fromWrongItem": "Вопрос из тетради ошибок: «{{stem}}»",
+      "fromWrongItem": "Вопрос из тетради ошибок:",
       "wrongItemGone": "Этот вопрос больше недоступен.",
       "openedFromWrongItem": "Открыто из тетради ошибок: {{where}}"
     },

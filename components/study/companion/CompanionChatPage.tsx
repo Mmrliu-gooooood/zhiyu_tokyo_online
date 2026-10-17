@@ -38,6 +38,7 @@ import {
   MemoryTurnNote,
   useMemorySuggestions,
 } from '@/components/study/memory/CompanionMemory';
+import { QuizMathText } from '@/components/quiz/QuizMathText';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { roleVoiceBinding } from '@/lib/audio/platform-tts-selection';
@@ -652,11 +653,19 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                     className="rounded-lg bg-muted/60 px-3 py-2 text-xs"
                     data-testid="companion-origin"
                   >
-                    {data.wrongItem
-                      ? t('study.companion.fromWrongItem', {
-                          stem: Array.from(data.wrongItem.question.stem).slice(0, 80).join(''),
-                        })
-                      : t('study.companion.wrongItemGone')}
+                    {data.wrongItem ? (
+                      <>
+                        {t('study.companion.fromWrongItem')}
+                        <span className="mt-1 line-clamp-3 block text-foreground">
+                          <QuizMathText
+                            text={data.wrongItem.question.stem}
+                            trustDelimiters={data.wrongItem.sourceType === 'exam_attempt'}
+                          />
+                        </span>
+                      </>
+                    ) : (
+                      t('study.companion.wrongItemGone')
+                    )}
                   </p>
                 ) : origin ? (
                   <p

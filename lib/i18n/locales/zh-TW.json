@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "內容無效，請檢查後再試。",
         "STUDY_WRONG_ITEM_NOT_FOUND": "這道錯題已無法使用。"
       },
-      "fromWrongItem": "來自錯題本的一道題：「{{stem}}」",
+      "fromWrongItem": "來自錯題本的一道題：",
       "wrongItemGone": "這道錯題已無法使用。",
       "openedFromWrongItem": "來自錯題本：{{where}}"
     },

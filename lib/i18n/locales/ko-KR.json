@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "입력이 올바르지 않습니다.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "이 오답 문제를 더 이상 사용할 수 없습니다."
       },
-      "fromWrongItem": "오답 노트의 문제: “{{stem}}”",
+      "fromWrongItem": "오답 노트의 문제:",
       "wrongItemGone": "이 오답 문제를 더 이상 사용할 수 없습니다.",
       "openedFromWrongItem": "오답 노트에서 열림: {{where}}"
     },

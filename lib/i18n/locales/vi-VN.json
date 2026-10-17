@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "Dữ liệu không hợp lệ.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "Câu sai này không còn khả dụng."
       },
-      "fromWrongItem": "Một câu trong sổ lỗi sai: “{{stem}}”",
+      "fromWrongItem": "Một câu trong sổ lỗi sai:",
       "wrongItemGone": "Câu sai này không còn khả dụng.",
       "openedFromWrongItem": "Mở từ sổ lỗi sai: {{where}}"
     },

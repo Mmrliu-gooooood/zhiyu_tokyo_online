@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "Ungültige Eingabe.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "Diese Frage ist nicht mehr verfügbar."
       },
-      "fromWrongItem": "Eine Frage aus deinem Fehlerheft: „{{stem}}“",
+      "fromWrongItem": "Eine Frage aus deinem Fehlerheft:",
       "wrongItemGone": "Diese Frage ist nicht mehr verfügbar.",
       "openedFromWrongItem": "Aus dem Fehlerheft geöffnet: {{where}}"
     },

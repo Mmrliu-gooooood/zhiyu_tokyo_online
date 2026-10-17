@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "入力が無効です。確認してください。",
         "STUDY_WRONG_ITEM_NOT_FOUND": "この問題は利用できなくなりました。"
       },
-      "fromWrongItem": "間違いノートの問題：「{{stem}}」",
+      "fromWrongItem": "間違いノートの問題：",
       "wrongItemGone": "この問題は利用できなくなりました。",
       "openedFromWrongItem": "間違いノートから：{{where}}"
     },

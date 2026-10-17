@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "إدخال غير صالح.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "هذا السؤال لم يعد متاحًا."
       },
-      "fromWrongItem": "سؤال من دفتر أخطائك: «{{stem}}»",
+      "fromWrongItem": "سؤال من دفتر أخطائك:",
       "wrongItemGone": "هذا السؤال لم يعد متاحًا.",
       "openedFromWrongItem": "فُتح من دفتر الأخطاء: {{where}}"
     },

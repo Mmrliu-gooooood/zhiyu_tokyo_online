@@ -8,6 +8,8 @@
  * - Opened any other way: the classroom opens at this device's position at
  *   once; a newer position from another device is then offered, not forced.
  */
+import { saveCurrentScene } from '@/lib/document-store/current-scene';
+import { saveCursor } from '@/lib/playback/cursor';
 import { flushPendingStudyLinks } from '@/lib/study/spaces/pending-links';
 import {
   applyStudyResume,
@@ -97,19 +99,42 @@ export async function settleStudyResume(
 /** `?scene=<id>`: open the classroom at one page (the wrong-answer book's "look back", B10). */
 export const STUDY_SCENE_PARAM = 'scene';
 
-/** Before the classroom loads: read `?scene=` and drop it from the URL. */
-export function takeStudySceneFromUrl(): string | null {
+/** The requested page until a finished load has opened it. */
+let pendingScene: { stageId: string; sceneId: string } | null = null;
+
+/**
+ * Before the classroom loads: read `?scene=` (and drop it from the URL) and
+ * make it this device's position, like a server-newer resume, so the
+ * classroom opens there instead of at the page last viewed.
+ */
+export async function prepareStudySceneFromUrl(stageId: string): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   const url = new URL(window.location.href);
-  const sceneId = url.searchParams.get(STUDY_SCENE_PARAM);
-  if (!sceneId) return null;
+  const raw = url.searchParams.get(STUDY_SCENE_PARAM);
+  if (!raw) {
+    // A load that started again (e.g. an effect run twice) still owes the page.
+    return pendingScene?.stageId === stageId ? pendingScene.sceneId : null;
+  }
   url.searchParams.delete(STUDY_SCENE_PARAM);
   window.history.replaceState(window.history.state, '', url.toString());
-  return /^[A-Za-z0-9_-]{1,200}$/.test(sceneId) ? sceneId : null;
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(raw)) return null;
+  pendingScene = { stageId, sceneId: raw };
+  try {
+    await saveCurrentScene(stageId, raw);
+    await saveCursor(stageId, {
+      sceneId: raw,
+      actionIndex: 0,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch {
+    // The page is still requested after loading.
+  }
+  return raw;
 }
 
 /** After the classroom loaded: go to the requested page instead of resuming; false when it is gone. */
 export function openStudyScene(stageId: string, sceneId: string, ui: StudyResumeUi): boolean {
+  if (pendingScene?.stageId === stageId) pendingScene = null;
   void flushPendingStudyLinks(stageId);
   if (!ui.pageOf(sceneId)) return false;
   ui.jumpTo(sceneId);

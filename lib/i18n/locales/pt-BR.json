@@ -2923,7 +2923,7 @@
         "STUDY_INVALID_INPUT": "Entrada inválida.",
         "STUDY_WRONG_ITEM_NOT_FOUND": "Esta questão não está mais disponível."
       },
-      "fromWrongItem": "Uma questão do seu caderno de erros: “{{stem}}”",
+      "fromWrongItem": "Uma questão do seu caderno de erros:",
       "wrongItemGone": "Esta questão não está mais disponível.",
       "openedFromWrongItem": "Aberto pelo caderno de erros: {{where}}"
     },

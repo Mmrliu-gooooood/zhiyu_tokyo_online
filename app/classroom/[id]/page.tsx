@@ -37,7 +37,7 @@ import {
   openStudyScene,
   prepareStudyResumeFromUrl,
   settleStudyResume,
-  takeStudySceneFromUrl,
+  prepareStudySceneFromUrl,
   type StudyResumeUi,
 } from '@/lib/study/progress/classroom-resume';
 
@@ -84,7 +84,7 @@ export default function ClassroomDetailPage() {
       // across devices (server progress), before the device position is read.
       const studyResume = await prepareStudyResumeFromUrl(classroomId);
       // Opened at one page from the wrong-answer book (B10): that page wins over resuming.
-      const targetScene = takeStudySceneFromUrl();
+      const targetScene = await prepareStudySceneFromUrl(classroomId);
       if (!isCurrent()) return;
 
       await runClassroomLoad({
