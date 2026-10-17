@@ -185,13 +185,16 @@ export function parseOpenGradingOutput(
   return { criteria, feedback, shortcomings };
 }
 
-/** Program and model points in rubric order, the total added up by the program. */
+/**
+ * Program and model points in rubric order, the total added up by the program.
+ * Overall feedback comes only from the model: program decisions already explain
+ * themselves on their scoring point.
+ */
 export function combineOpenGrading(
   rubric: readonly RubricCriterion[],
   program: readonly ProgramDecision[],
   model: ModelGrading | null,
   finalCheck: GradingResult['finalCheck'],
-  programFeedback: string,
 ): { earned: number; result: GradingResult } | null {
   const criteria: CriterionResult[] = [];
   for (const criterion of rubric) {
@@ -223,7 +226,7 @@ export function combineOpenGrading(
     earned,
     result: {
       criteria,
-      feedback: model?.feedback || programFeedback,
+      feedback: model?.feedback ?? '',
       shortcomings: model?.shortcomings ?? [],
       finalCheck,
     },

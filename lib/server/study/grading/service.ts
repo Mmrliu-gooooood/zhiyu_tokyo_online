@@ -269,13 +269,7 @@ async function gradeClaimed(
       };
     }
   }
-  const combined = combineOpenGrading(
-    rubric,
-    program,
-    model,
-    finalCheck,
-    program.map((decision) => decision.note).join(' '),
-  );
+  const combined = combineOpenGrading(rubric, program, model, finalCheck);
   if (!combined) {
     return {
       status: 'failed',

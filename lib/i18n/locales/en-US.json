@@ -3375,6 +3375,7 @@
         "selfGrade": "Grading looks wrong? Score it yourself",
         "reviewResult": "Graded again: {{earned}}/{{points}}",
         "gradingResult": "AI-assisted grading: {{earned}}/{{points}}",
+        "programResult": "Checked by the program: {{earned}}/{{points}}",
         "byProgram": "checked by program",
         "byModel": "AI",
         "shortcomings": "What was missing",

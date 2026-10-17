@@ -3375,6 +3375,7 @@
         "selfGrade": "채점이 틀린 것 같나요? 직접 채점",
         "reviewResult": "재채점: {{earned}}/{{points}}점",
         "gradingResult": "AI 보조 채점: {{earned}}/{{points}}점",
+        "programResult": "프로그램 판정: {{earned}}/{{points}}점",
         "byProgram": "프로그램 판정",
         "byModel": "AI 채점",
         "shortcomings": "부족한 점",

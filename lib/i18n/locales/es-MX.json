@@ -3375,6 +3375,7 @@
         "selfGrade": "¿Calificación incorrecta? Califícate tú",
         "reviewResult": "Calificada de nuevo: {{earned}}/{{points}}",
         "gradingResult": "Calificación asistida por IA: {{earned}}/{{points}}",
+        "programResult": "Calificado por el programa: {{earned}}/{{points}}",
         "byProgram": "comprobado por el programa",
         "byModel": "IA",
         "shortcomings": "Lo que faltó",

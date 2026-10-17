@@ -3375,6 +3375,7 @@
         "selfGrade": "Оценка неверна? Оцените сами",
         "reviewResult": "Повторная проверка: {{earned}}/{{points}}",
         "gradingResult": "Проверка с помощью ИИ: {{earned}}/{{points}}",
+        "programResult": "Проверено программой: {{earned}}/{{points}}",
         "byProgram": "проверено программой",
         "byModel": "ИИ",
         "shortcomings": "Чего не хватило",

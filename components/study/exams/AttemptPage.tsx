@@ -21,7 +21,7 @@
  *   missing), lets a failed one be retried, and lets the student ask for
  *   another review or record their own score — earlier results stay visible.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -1141,6 +1141,10 @@ function GradingDetails({
     criterionLabel(rubric.find((entry) => entry.id === criterion.id) ?? criterion);
   const result = grading.result;
   if (!result) return null;
+  const counts = { earned: grading.earned ?? 0, points: grading.points };
+  // A grading the program decided alone (calculation final answer) used no model.
+  const programOnly =
+    result.criteria.length > 0 && result.criteria.every((criterion) => criterion.by === 'program');
   return (
     <div
       className={cn(
@@ -1151,14 +1155,10 @@ function GradingDetails({
     >
       <p className="text-xs font-medium text-muted-foreground">
         {grading.kind === 'review'
-          ? t('study.practice.report.reviewResult', {
-              earned: grading.earned ?? 0,
-              points: grading.points,
-            })
-          : t('study.practice.report.gradingResult', {
-              earned: grading.earned ?? 0,
-              points: grading.points,
-            })}
+          ? t('study.practice.report.reviewResult', counts)
+          : programOnly
+            ? t('study.practice.report.programResult', counts)
+            : t('study.practice.report.gradingResult', counts)}
       </p>
       <ul className="space-y-1">
         {result.criteria.map((criterion) => (
@@ -1226,6 +1226,7 @@ function SelfGradeForm({
   onSave: (earned: number, note: string | null) => void;
 }) {
   const { t } = useI18n();
+  const earnedId = useId();
   const [earned, setEarned] = useState('');
   const [note, setNote] = useState('');
   const value = Number(earned);
@@ -1236,9 +1237,12 @@ function SelfGradeForm({
       data-testid="open-self-form"
     >
       <p className="text-xs text-muted-foreground">{t('study.practice.report.selfHint')}</p>
-      <label className="flex items-center gap-2">
-        <span className="text-sm">{t('study.practice.report.selfLabel', { points })}</span>
+      <div className="flex items-center gap-2">
+        <label htmlFor={earnedId} className="text-sm">
+          {t('study.practice.report.selfLabel', { points })}
+        </label>
         <Input
+          id={earnedId}
           type="number"
           className="w-24"
           min={0}
@@ -1247,11 +1251,12 @@ function SelfGradeForm({
           data-testid="open-self-earned"
           onChange={(event) => setEarned(event.target.value)}
         />
-      </label>
+      </div>
       <Textarea
         rows={2}
         maxLength={500}
         value={note}
+        aria-label={t('study.practice.report.selfNote')}
         placeholder={t('study.practice.report.selfNote')}
         onChange={(event) => setNote(event.target.value)}
       />

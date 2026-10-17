@@ -3375,6 +3375,7 @@
         "selfGrade": "Bewertung falsch? Selbst bewerten",
         "reviewResult": "Neu bewertet: {{earned}}/{{points}}",
         "gradingResult": "KI-gestützte Bewertung: {{earned}}/{{points}}",
+        "programResult": "Vom Programm bewertet: {{earned}}/{{points}}",
         "byProgram": "vom Programm geprüft",
         "byModel": "KI",
         "shortcomings": "Was fehlte",

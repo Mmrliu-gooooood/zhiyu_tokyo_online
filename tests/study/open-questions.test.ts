@@ -427,7 +427,6 @@ describe('model grading output', () => {
       [{ id: 'final', awarded: 2, note: '最终答案与参考答案等价（程序判定）。' }],
       { criteria: [{ id: 'c1', awarded: 1, comment: 'c' }], feedback: 'f', shortcomings: ['s'] },
       'equal',
-      '',
     );
     expect(combined).toEqual({
       earned: 3,
@@ -448,16 +447,18 @@ describe('model grading output', () => {
       },
     });
     // A point nobody decided is never filled in.
-    expect(combineOpenGrading(rubric, [], null, null, '')).toBeNull();
-    // Program-only grading needs no model.
+    expect(combineOpenGrading(rubric, [], null, null)).toBeNull();
+    // Program-only grading needs no model; its note stays on the scoring point, not repeated as feedback.
     expect(
-      combineOpenGrading(
-        [rubric[1]!],
-        [{ id: 'final', awarded: 0, note: 'n' }],
-        null,
-        'not_equal',
-        'n',
-      ),
-    ).toMatchObject({ earned: 0, result: { feedback: 'n' } });
+      combineOpenGrading([rubric[1]!], [{ id: 'final', awarded: 0, note: 'n' }], null, 'not_equal'),
+    ).toEqual({
+      earned: 0,
+      result: {
+        criteria: [{ id: 'final', awarded: 0, points: 2, by: 'program', comment: 'n' }],
+        feedback: '',
+        shortcomings: [],
+        finalCheck: 'not_equal',
+      },
+    });
   });
 });

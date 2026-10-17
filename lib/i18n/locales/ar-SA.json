@@ -3375,6 +3375,7 @@
         "selfGrade": "التصحيح غير دقيق؟ قيّم بنفسك",
         "reviewResult": "إعادة التصحيح: {{earned}}/{{points}}",
         "gradingResult": "تصحيح بمساعدة الذكاء الاصطناعي: {{earned}}/{{points}}",
+        "programResult": "تصحيح آلي بالبرنامج: {{earned}}/{{points}}",
         "byProgram": "تحقق منه البرنامج",
         "byModel": "الذكاء الاصطناعي",
         "shortcomings": "ما الذي نقص",

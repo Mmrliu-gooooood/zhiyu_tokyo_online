@@ -3375,6 +3375,7 @@
         "selfGrade": "Chấm chưa đúng? Tự chấm",
         "reviewResult": "Chấm lại: {{earned}}/{{points}}",
         "gradingResult": "AI hỗ trợ chấm: {{earned}}/{{points}}",
+        "programResult": "Chương trình chấm: {{earned}}/{{points}}",
         "byProgram": "chương trình kiểm tra",
         "byModel": "AI",
         "shortcomings": "Còn thiếu",

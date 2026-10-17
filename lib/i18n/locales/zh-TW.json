@@ -3375,6 +3375,7 @@
         "selfGrade": "覺得批改不準？自己評分",
         "reviewResult": "重新批改：{{earned}}/{{points}} 分",
         "gradingResult": "AI 輔助批改：{{earned}}/{{points}} 分",
+        "programResult": "程式判定：{{earned}}/{{points}} 分",
         "byProgram": "程式判定",
         "byModel": "AI 評分",
         "shortcomings": "不足之處",

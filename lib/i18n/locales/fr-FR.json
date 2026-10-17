@@ -3375,6 +3375,7 @@
         "selfGrade": "Correction erronée ? Notez vous-même",
         "reviewResult": "Nouvelle correction : {{earned}}/{{points}}",
         "gradingResult": "Correction assistée par IA : {{earned}}/{{points}}",
+        "programResult": "Corrigé par le programme : {{earned}}/{{points}}",
         "byProgram": "vérifié par le programme",
         "byModel": "IA",
         "shortcomings": "Ce qui manquait",

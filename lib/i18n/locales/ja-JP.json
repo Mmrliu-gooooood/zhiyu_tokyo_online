@@ -3375,6 +3375,7 @@
         "selfGrade": "採点が違う？自分で採点",
         "reviewResult": "再採点：{{earned}}/{{points}} 点",
         "gradingResult": "AI 補助採点：{{earned}}/{{points}} 点",
+        "programResult": "プログラム判定：{{earned}}/{{points}} 点",
         "byProgram": "プログラム判定",
         "byModel": "AI 採点",
         "shortcomings": "不足している点",
