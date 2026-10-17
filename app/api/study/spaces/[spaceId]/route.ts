@@ -1,16 +1,12 @@
 /**
  * GET: one space with its courses and progress. PATCH: edit fields or
  * archive/restore, guarded by `revision`. DELETE: remove the space and its
- * course links; the courses stay.
+ * course links (the courses stay) and retire its after-class chats.
  */
 import { isStudyId, parseStudySpacePatch } from '@/lib/study/spaces/contracts';
 import { invalidInput, readStudyBody, studyJson, studyRoute } from '@/lib/server/study/route';
-import {
-  StudyError,
-  deleteStudySpace,
-  getStudySpace,
-  updateStudySpace,
-} from '@/lib/server/study/spaces/repository';
+import { deleteStudySpaceWithChats } from '@/lib/server/study/companion/service';
+import { StudyError, getStudySpace, updateStudySpace } from '@/lib/server/study/spaces/repository';
 
 export const runtime = 'nodejs';
 
@@ -45,7 +41,7 @@ export function DELETE(req: Request, context: Context) {
   return studyRoute(req, async (ownerId, db, headers) => {
     const { spaceId } = await context.params;
     if (!isStudyId(spaceId)) throw new StudyError('STUDY_SPACE_NOT_FOUND');
-    await deleteStudySpace(db, ownerId, spaceId);
+    await deleteStudySpaceWithChats(db, ownerId, spaceId);
     return studyJson({ deleted: true }, 200, headers);
   });
 }

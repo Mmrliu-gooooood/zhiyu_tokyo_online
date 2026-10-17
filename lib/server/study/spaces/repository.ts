@@ -590,17 +590,33 @@ export async function updateStudySpace(
   return getStudySpace(db, ownerId, spaceId);
 }
 
-/** Delete a space and its course links. The courses themselves stay. */
+/**
+ * Delete a space and its course links. The courses themselves stay.
+ *
+ * The space's after-class chat bindings cascade with it, so their session ids
+ * are returned for the caller to retire the agent sessions (a session without
+ * its binding would read as an ordinary Pro session). The space row is locked
+ * first, so no chat can be bound to it in between: the binding's foreign key
+ * waits on the lock.
+ */
 export async function deleteStudySpace(
   db: StudyDb,
   ownerId: string,
   spaceId: string,
-): Promise<void> {
-  const deleted = await db.query<{ id: string }>(
-    'DELETE FROM study_spaces WHERE owner_id = $1 AND id = $2 RETURNING id',
-    [ownerId, spaceId],
-  );
-  if (deleted.rows.length === 0) throw new StudyError('STUDY_SPACE_NOT_FOUND');
+): Promise<{ chatSessionIds: string[] }> {
+  return db.withTransaction(async (tx) => {
+    const space = await tx.query<{ id: string }>(
+      'SELECT id FROM study_spaces WHERE owner_id = $1 AND id = $2 FOR UPDATE',
+      [ownerId, spaceId],
+    );
+    if (space.rows.length === 0) throw new StudyError('STUDY_SPACE_NOT_FOUND');
+    const chats = await tx.query<{ session_id: string }>(
+      'SELECT session_id FROM study_companion_chats WHERE owner_id = $1 AND space_id = $2',
+      [ownerId, spaceId],
+    );
+    await tx.query('DELETE FROM study_spaces WHERE owner_id = $1 AND id = $2', [ownerId, spaceId]);
+    return { chatSessionIds: chats.rows.map((row) => row.session_id) };
+  });
 }
 
 // ── course links ───────────────────────────────────────────────────────────

@@ -4,7 +4,8 @@
  * binds it to the classmate and space before the opening message queues it;
  * a foreign or archived classmate / space / course is refused; later
  * messages go through the study API (the generic one refuses chats); chats
- * stay out of the Pro session list; the hourly cap holds.
+ * stay out of the Pro session list, also after their space is deleted; the
+ * hourly cap holds.
  */
 import { PGlite } from '@electric-sql/pglite';
 import { NextRequest } from 'next/server';
@@ -56,6 +57,7 @@ import { GET as chatHeader } from '@/app/api/study/companion-chats/[sessionId]/r
 import { POST as postMessage } from '@/app/api/study/companion-chats/[sessionId]/messages/route';
 import { POST as genericMessage } from '@/app/api/agent/sessions/[id]/messages/route';
 import { GET as listSessions } from '@/app/api/agent/sessions/route';
+import { DELETE as deleteSpace } from '@/app/api/study/spaces/[spaceId]/route';
 
 const OWNER = 'user:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER = 'user:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -288,5 +290,46 @@ describe('after-class chat routes', () => {
     expect((await refused.json()).error).toBe('STUDY_CLASSMATE_ARCHIVED');
     const header = await chatHeader(new Request('https://zhiyu.test/x'), params({ sessionId }));
     expect(header.status).toBe(200);
+  });
+
+  it('retires the chats of a deleted space instead of leaving them in the Pro list', async () => {
+    const { sessionId } = await (await open({ spaceId: 'space-a', question: '特征值' })).json();
+    const store = database.store as PgAgentSessionStore;
+    const pro = await store.createSession({ ownerId: OWNER, prompt: '普通会话' });
+
+    const deleted = await deleteSpace(
+      new Request('https://zhiyu.test/x', { method: 'DELETE' }),
+      params({ spaceId: 'space-a' }),
+    );
+    expect(deleted.status).toBe(200);
+
+    const pg = database.pg as PGlite;
+    expect((await pg.query('SELECT count(*)::int AS n FROM study_companion_chats')).rows).toEqual([
+      { n: 0 },
+    ]);
+    const session = await pg.query<{ deleted: boolean }>(
+      'SELECT deleted_at IS NOT NULL AS deleted FROM agent_sessions WHERE id = $1',
+      [sessionId],
+    );
+    expect(session.rows).toEqual([{ deleted: true }]);
+    const listed = await (await listSessions(new NextRequest('https://zhiyu.test/x'))).json();
+    expect(listed.map((item: { id: string }) => item.id)).toEqual([pro.id]);
+  });
+
+  it('still deletes the space when its chats cannot be retired', async () => {
+    const { sessionId } = await (await open({ spaceId: 'space-a', question: '特征值' })).json();
+    const store = database.store as PgAgentSessionStore;
+    vi.spyOn(store, 'softDeleteSession').mockRejectedValue(new Error('agent store down'));
+
+    const deleted = await deleteSpace(
+      new Request('https://zhiyu.test/x', { method: 'DELETE' }),
+      params({ spaceId: 'space-a' }),
+    );
+    expect(deleted.status).toBe(200);
+    expect(store.softDeleteSession).toHaveBeenCalledWith(sessionId, OWNER);
+    expect(
+      (await (database.pg as PGlite).query("SELECT id FROM study_spaces WHERE id = 'space-a'"))
+        .rows,
+    ).toEqual([]);
   });
 });

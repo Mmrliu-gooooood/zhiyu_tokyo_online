@@ -23,7 +23,7 @@ import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
 import { getOwnerBoundStageAccessDb } from '@/lib/server/stage-access';
 import { getClassmate } from '@/lib/server/study/classmates/repository';
 import { isStudyWrongbookFlagOn } from '@/lib/server/study/flags';
-import { StudyError } from '@/lib/server/study/spaces/repository';
+import { StudyError, deleteStudySpace, type StudyDb } from '@/lib/server/study/spaces/repository';
 import { wrongItemChatContext } from '@/lib/server/study/wrongbook/service';
 import { parseClassmateStageAgentId } from '@/lib/study/classmates/contracts';
 import {
@@ -120,6 +120,40 @@ export async function withoutCompanionSessions<T extends { id: string }>(
     );
   });
   return chats.size ? sessions.filter((session) => !chats.has(session.id)) : sessions;
+}
+
+/**
+ * Delete a space and retire its after-class chats. Their bindings cascade
+ * with the space, and nothing would then keep the sessions out of Pro lists,
+ * so each one is soft-deleted (as a failed open does). The space is deleted
+ * first; an agent store failure is logged and does not undo or fail it.
+ */
+export async function deleteStudySpaceWithChats(
+  db: StudyDb,
+  ownerId: string,
+  spaceId: string,
+): Promise<void> {
+  const { chatSessionIds } = await deleteStudySpace(db, ownerId, spaceId);
+  if (chatSessionIds.length === 0) return;
+  let failed = 0;
+  try {
+    const store = await getAgentSessionStore(ownerId);
+    for (const sessionId of chatSessionIds) {
+      await store.softDeleteSession(sessionId, ownerId).catch(() => {
+        failed += 1;
+        return false;
+      });
+    }
+  } catch {
+    failed = chatSessionIds.length;
+  }
+  if (failed > 0) {
+    log.warn('deleted space left after-class chat sessions behind', {
+      spaceId,
+      failed,
+      sessionIds: chatSessionIds,
+    });
+  }
 }
 
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu;
