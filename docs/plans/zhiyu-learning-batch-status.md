@@ -15,7 +15,7 @@
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
-| B10 | 实现完成，本地验收通过（2026-10-17），待发布 | `learn/b10-wrongbook`（未合并） | accounts v31 `790cdb51…`（生产未执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次） | 未启用（新开关 `ZHIYU_STUDY_WRONGBOOK_ENABLED`） | 见 B10“未验证”；学习检测生成另有问题（见 B10“验收中发现”） |
+| B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产登录验收待做 | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -144,6 +144,22 @@
 - 运行时：Web 的 `ZHIYU_STUDY_WRONGBOOK_ENABLED` 置空后 apply。错题本入口消失、接口 404，不能再从错题开对话；试卷、课堂、报告、已开的对话都不受影响；两张表保留，重新打开后照常同步。
 - 版本回退：回到 B09 镜像，v31 的表保留不用；旧代码不认识对话 origin 里的 `wrongItem`，已开的错题对话照常继续（只是系统提示里不再带这道题）。
 - 投影可重建：两张表可以清空，下一次打开错题本按来源重新生成（学生设的待复习和归档会丢失）。
+
+### 随 B10 一起发布：课堂学习检测生成修复（2026-10-18）
+
+- 问题见上节“验收中发现”。修复在单独会话完成（`00b35f95`，本分支 `36dda3a5`）：生成与审题两个提示都写明完整 JSON 格式（`type` 只能是 `single` / `multiple` / `short_answer`，`correctAnswer` 是选项值数组、简答题不带，`maxScore` 为正整数等）；校验前把明确等价的写法归一（`single_choice` → `single`、`multiple_choice` → `multiple`，恰好等于某个选项值的字符串答案包成数组，简答题多余的答案键和空选项去掉），允许整段回复包在一个 ```json 代码块里；证据与答案键校验不变。
+- 复核后补充（`936860f0`）：DeepSeek 把简答题的参考答案写在 `correctAnswer` 里，归一时直接删掉会让批改拿不到参考答案；现在在不超过长度上限时并入 `scoringGuide`（“Reference answer: …”）后再删。
+- 验证：路由测试（DeepSeek 写法被接受、仍须拒绝的写法被拒）；用新提示直接调用 DeepSeek Flash 2 次，两次都直接输出合规格式（4 题，题型与数组答案正确），归一后校验通过，审题均 `passed`。生产上未做登录后的实际生成。
+
+### 发布（2026-10-18，用户指示“修复那个不属于 B10 的问题，然后上线 B10”）
+
+1. 只读核对生产：v30 checksum = `c556442a…`（与仓库一致）；服务器 compose 与仓库只差新开关一行；`scripts/supabase-compose.sh` 与仓库相同；磁盘 50%。
+2. Supabase `apply_migration`（`accounts_v31_study_wrongbook`）执行仓库 v31 SQL 原文（导出文件 sha256 = `790cdb51…`），写入 `app_schema_migrations(31, 790cdb51…)`。核对：两张表归 postgres、RLS 开启且强制、各 1 条 owner 策略、`app_web` 有查/插/改/删（另有 Supabase 默认的 `service_role`，与 v30 等既有表一致），anon/authenticated 无授权。
+3. 学习检测修复挑到 B10 分支，全量 Vitest 892 个文件、9200 项通过；`learn/b10-wrongbook` 快进合并到 main（`936860f0`），推送 tokyo。
+4. 构建并标为 `release-20261018`（web `72b2947d619e`、worker `01d2777e9765`；镜像内已核对含错题本接口、新学习检测提示和 Worker 的错题提示），送到东京后磁盘 61%。
+5. 切换前生成任务、学习任务、待批改评分、运行中的学伴会话都为 0。备份 `.env.hosted.local.bak-20261018-pre`、`docker-compose.supabase.yml.bak-20261018-pre`（指向 web 20261017、worker 20261013）；compose 换成仓库版本；env 换两个镜像标签并加 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1`；`apply --tier 4 --mode background`。
+6. readiness：`ready`、accountsVersion 31、2/2 Worker；`/api/study/capabilities` 含 `wrongbook: true`；未登录访问错题本列表、详情、同步均 401。Web 启动 LISTEN 首次连接一次成功（11.9 s，其中 DNS 约 11.5 s，30 s 首连超时内），无 WARN/ERROR。
+7. 生产登录验收：待用户登录后进行。
 
 ### 下一批前置条件
 
