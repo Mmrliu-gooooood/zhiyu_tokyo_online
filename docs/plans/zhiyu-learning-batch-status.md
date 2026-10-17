@@ -15,6 +15,7 @@
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
+| B10 | 实现完成，本地验收通过（2026-10-17），待发布 | `learn/b10-wrongbook`（未合并） | accounts v31 `790cdb51…`（生产未执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次） | 未启用（新开关 `ZHIYU_STUDY_WRONGBOOK_ENABLED`） | 见 B10“未验证”；学习检测生成另有问题（见 B10“验收中发现”） |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -30,6 +31,124 @@
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
 - 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
 - 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
+
+## B10 跨课堂错题本与答疑回看（2026-10-17）
+
+### 范围与起点
+
+- 分支 `learn/b10-wrongbook` 从 main `f193a080`（= `tokyo/main`）创建；生产为 web release-20261017、worker release-20261013、accounts v30。
+- 范围：方案 B10 第 1–7 条——从学科试卷（B07/B09）、课堂小测（quizAttempt v2）和课堂学习检测汇总错题，来源键唯一、重放不重复；错题保留当时的题目、作答、评分版本、知识点、来源和课堂位置；批改中、批改失败、不可判分的题不算错；`/study/[spaceId]/wrongbook` 可按状态、来源、知识点、时间筛选；同一道题多次作答保留历史；可回看试卷报告、资料原文、课堂原页（只在内容没变时），可向学伴追问（对话带这道题）；手动“待复习”和归档。新开关 `ZHIYU_STUDY_WRONGBOOK_ENABLED`。
+- 不包含：自动复习排序与掌握判断（B12）；变式题与再测（B11）；补救检测的生成（沿用课堂里已有的入口，错题本不新增）。
+- 开始时已有的未提交改动（ADR 0019、模型网关计划各 1 行，`docs/competition/`、两份 2026-09-27 规划文档）保留、未纳入本批提交。
+
+### 设计决策（实际实现）
+
+- **两张表**（accounts v31）：
+  - `study_wrong_items`：一个学科里的一道错题，键是 `question_key`——题库题 `bank:<题目 id>`（同一题的不同版本、不同试卷合成一条）、官方题包 `pack:<…>`、其他 `exam:<内容 hash>`、课堂小测 `quiz:<课程>:<页>:<题>`、学习检测 `check:<作答>:<题>`。只存学生自己设的“待复习”、归档、修订号和用于筛选的知识点。同一门课在两个学科里各有各的错题。
+  - `study_wrong_occurrences`：每一次被评分的作答，键是来源（`exam:<作答>:<题号>`、`quiz:<会话>:<题>`、`check:<作答>:<题>`），存当时的题目、作答、评分（方式、版本、模型、评分点、反馈、不足）和出处；内容 hash 用于跳过没变的行。一道题已经有错题后，之后答对的记录也保留（显示“之后答对过”）；第一次答错之前的答对不记。
+  - 试卷作答删除时其记录级联删除；课程删除时课堂错题级联删除；学科删除时全部删除。
+- **同步按需**（`POST /api/study/wrongbook/sync`，打开页面时调用一次，“刷新”强制）：每个学科每个进程 10 秒内只跑一次；三个来源各自一个事务，一个失败不影响另外两个，下次再读。每次最多读最近 100 份已交试卷、该学科在用课程的最近 300 次课堂作答；每个学科最多 3000 道错题、每题最多 50 条作答记录。没有模型调用。
+  - 试卷：按报告的当前结果（选择题交卷时判定；主观题取最近一次成功的正式批改，复核进行中保留旧分，自评不算）。`pending` / 失败 / 不可判分不进错题本。复核把主观题改成满分时，这条记录变为“答对”。
+  - 课堂小测：只读 v2 作答（有题目快照）。每次重做是新的会话（`…:retry:N`），所以历史不覆盖。选择题按服务器上的课程核对：题目文字和答案键都没变时标“已与课程核对”，否则标“课堂记录”。v1 旧作答没有保存题目，只统计条数并在页面上说明（“有 N 次较早的课堂小测没有保存题目”），不伪造快照。
+  - 学习检测：读最后一条记录，已提交且已评分的题；保留出题依据的课堂段落（最多 3 段、每段 1200 字，当时的版本）。
+- **可见范围**：课堂错题只在课程仍链接到该学科且课程未删除时显示；取消链接后隐藏（不删除），重新链接后恢复。
+- **列表**（`GET /api/study/wrongbook`）：服务器读出每道可见错题的一行汇总（错几次、最近一次答错时间、来源、状态、知识点），在 `listWrongItems`（纯函数）里筛选、排序（最近答错在前）、分页（每页 30）并统计各筛选项的数量；再只为本页读最新作答和题干。
+- **详情**（`GET /api/study/wrongbook/[itemId]`）：全部作答记录（新到旧）和“回看”目标，回看在打开时由服务器检查：
+  - 试卷：原试卷报告；提取题的资料原文（资料已删除时显示“已不可用”）；题库题在题库里关联且仍在本学科的课程。
+  - 课堂小测：课程现在这一页上同 id 的题与当时的题逐字段相同（题干、选项、答案、解析）才给“打开课堂这一页”，否则显示“已更新，上面的才是当时的题目”或“这一页已不在课中”。不比较整页的修订号：JSONB 会改变键的顺序，浏览器算出的修订号在服务器上算不出来。
+  - 学习检测：对每段依据，用同一算法重算该页现在的段落摘要，相同才给链接。
+  - 课堂链接 `/classroom/<课程>?scene=<页>`：加载前写入本设备的当前位置（与“从学科继续”的服务器位置相同的做法），加载后跳到该页；该页不存在时提示“这一页已不在这门课中”。
+- **标记**（`PATCH …/[itemId] { revision, reviewState?, archived? }`）：修订号不一致返回 409 和当前状态。不做自动排序（B12）。
+- **问学伴**：错题详情里选一个学伴，打开 `/study/classmates/<id>/chat?space=…&wrong=<错题>&q=…`（问题预填“这道题我做错了……我错在哪里？”，学科固定为错题所在学科）。客户端只发 `origin.wrongItemId`；服务器确认错题属于本人、可见、在同一学科后，把最近一次答错的题目、选项、学生作答、参考答案、解析、评分和出处截成不超过 3000 字，写进对话的 `origin.wrongItem`（客户端传来的 `wrongItem` 一律丢弃），有课堂页时同时写入 stage/scene 以便 `read_course_page`。Worker 每轮把它作为 `<wrong_item_json>`（声明是数据、不是指令）放进系统提示，并说明先找出错在哪一步、引导学生自己改正。Worker 不读错题表（无授权）。
+- **开关**：`ZHIYU_STUDY_WRONGBOOK_ENABLED`（只有 Web 读取），需要学科空间；`capabilities.wrongbook`。关闭后入口消失、接口 404、不能再从错题打开对话；试卷、课堂和已开的对话不受影响。
+- **其他**：B06“清除原始课堂测验”时同时删除错题本里来自课堂小测的记录；删除账号时删除两张表。
+
+### 偏离方案之处
+
+- 同步不是写入时触发，而是打开错题本时按需执行（有上限、可重放）。代价：试卷批改完成后，要等学生打开错题本才出现。
+- 方案写“source 唯一键”：实现为每个错题内的来源键唯一（同一门课在两个学科里各有一份）。
+- 补救检测（`remediation_check`）的题当作独立的题记录（显示“补充检测”），不挂到原题上。
+- 详情显示最近一次答错；更早的作答在“全部作答”里点开查看。
+
+### 实际改动模块
+
+- 迁移：`lib/server/accounts/sql-study-wrongbook.ts`（v31）、`migrations.ts`、`sql-accounts.ts`（版本 31）、`lib/server/study/schema.ts`、`lib/server/accounts/deletion.ts`。
+- 纯逻辑：`lib/study/wrongbook/{contracts,projection,listing,client}.ts`。
+- 服务端：`lib/server/study/wrongbook/{repository,service}.ts`；`lib/server/study/grading/repository.ts`（批量读评分记录）；`lib/server/study/{flags,route}.ts`；`spaces/repository.ts`（`STUDY_WRONG_ITEM_NOT_FOUND`）；`memory/repository.ts`（清除课堂测验时一并删除）；学伴：`lib/server/study/companion/{service,context}.ts`、`lib/study/companion/contracts.ts`（`origin.wrongItemId` / `wrongItem`，`stageId` 改为可选）。
+- 接口：`app/api/study/wrongbook/{route,sync/route,[itemId]/route}.ts`；`capabilities` 加 `wrongbook`。
+- 界面：`components/study/wrongbook/WrongbookPage.tsx`、`app/study/[spaceId]/wrongbook/page.tsx`；学科页入口；学伴对话页（错题来源横幅与对话标题行的“来自错题本”）；课堂页 `?scene=`（`lib/study/progress/classroom-resume.ts`、`app/classroom/[id]/page.tsx`）；12 个语言文件 `study.wrongbook.*`、`study.companion.{fromWrongItem,wrongItemGone,openedFromWrongItem,errors.STUDY_WRONG_ITEM_NOT_FOUND}`，`study.memory.clear.rawHint` 补一句。
+- 配置：`.env.example`、`.env.hosted.example`、`docker-compose.supabase.yml`（新开关透传）。
+
+### 数据迁移
+
+- accounts **v31**，checksum `790cdb5178a3a0d36756d7d770eae070831f9905729434e7c1ca9db30807c84d`；v30 `c556442a…` 未变。只新增两张表与索引：
+  - 两张表 FORCE RLS；`app_web` 按 owner 可查、插、改、删；anon、authenticated、PUBLIC、`app_worker` 都无授权。
+  - 约束：试卷错题没有课程、课堂错题必须有课程；结果只能是 incorrect / partial / unanswered / correct；得分不超过满分；题目、作答、评分、出处的 JSON 大小有上限。
+- 旧式自迁移安装经 `ensureStudySchema` 应用同一建表文本。
+- 已执行：PGlite（单测）；一次性真实 PostgreSQL（`*_rls_proof`，127.0.0.1:55432，用后 `down -v`）；本地验收库全新 bootstrap 到 v31（两张表 `relrowsecurity = relforcerowsecurity = true`）。生产**尚未执行**。导出 SQL：`.scratch/b10-acceptance/v31.sql`。
+
+### 测试
+
+- **新增**
+  - `tests/study/wrongbook-logic.test.ts`（12 项）：试卷结果到错题（待批改、失败、不可判分不进；复核满分变答对、复核进行中保留旧分、自评不算）；题目键；课堂小测（待批改不进、按课程核对、课程改过后不再标核对、v1 计为旧记录、草稿不算）；学习检测（依据段落、草稿与无效记录不算）；筛选、分面与分页；筛选参数校验；学伴对话只接受错题 id、系统提示把题目当数据。
+  - `tests/api/study-wrongbook-routes.test.ts`（6 项，PGlite 全流程）：开关；三种来源各产生错题，待批改的主观题批改后才出现，重放不写；第二次作答同一题保留历史（之后答对过 / 错 2 次）；筛选；标记与归档（409、计数）；课堂页内容改动后回看降级为“已更新”、页删除为“不在课中”，取消链接后隐藏且 404；删除试卷与清除课堂测验后对应记录消失；对话上下文由服务器生成、换学科或换账号 404。
+  - `tests/server/study-wrongbook-migration.test.ts`（PGlite 3 + 真实 PostgreSQL 3 + 登记 1）：可重复执行、强制 RLS、只授权 `app_web`、Worker 无权；结构约束；在 RLS 下运行仓储（重放不写、首次答错前的答对不记、他人看不到也改不了、伪造 owner 插入被拒）；随作答、课程、学科级联删除。
+  - `tests/study/classroom-scene-link.test.ts`（2 项）：`?scene=` 只取一次、加载前写入位置、重复加载仍生效、打开后清除、不存在的页返回 false、非法 id 忽略。
+- **调整**：三个 capabilities 断言加 `wrongbook`；`principal-mode` 版本列表加 31；`account-deletion-lifecycle` 加两张表；`study-grading-migration` 不再断言 v30 是最新版本。
+- **结果**
+  - 全量 Vitest（`--maxWorkers=4`，含验收修复）：**892 个文件通过、17 个跳过；9179 项通过、94 项跳过、0 失败**。
+  - `tsc --noEmit`、改动文件 ESLint 与 Prettier、`check:i18n-keys`（12 个语言文件）通过。
+  - 真实 PostgreSQL（一次性 `*_rls_proof`）：v31 + v30 迁移测试 14 项通过。
+
+### 浏览器验收（2026-10-17，本地托管模式，真实 DeepSeek）
+
+环境：一次性 PostgreSQL 17（`zhiyu-b10-acceptance-pg`，127.0.0.1:56433，全新 bootstrap 到 v31）、假 Supabase 登录、`next dev`（`zhiyu_app_web`，RLS 生效）、生成 Worker（`zhiyu_app_worker`，新构建的 `dist-worker`，负责学伴回答）。只有 DeepSeek 三项从 `.env.local` 读取（不写入文件）。种子：学生 A 的两门课（“导数入门”含两页讲解和一页 2 题小测、“函数极限”），学生 B 一门课。用后删除容器、临时 env、Worker 进程与测试账号文件。
+
+1. 新建学科“微积分（B10 验收）”，链接两门课；导入示例题库 7 题，组卷 2 单选 + 1 多选 + 2 计算题（10 分），交卷：单选 1 错、多选错、两道计算题待批改。
+2. 此时打开错题本：只有 2 道选择题，待批改的计算题没有出现；公式正常渲染。
+3. 打开报告让主观题批改（真实 DeepSeek 1 次）：特征值题 3/4（漏一个根），行列式题最终答案程序判为不相等 0/2（未调模型）。
+4. 在真实课堂页做随堂小测：第 1 题选错、第 2 题选对 → 运行时记录为 v2 已提交作答。
+5. 学习检测：课堂“检查这次理解”连续 3 次生成失败（见下“验收中发现”），改为用课程现有页面算出依据快照、插入一条已提交并已评分的学习检测（与课堂保存的结构相同、经 `isLearningCheckPayloadV1` 校验）。
+6. 刷新错题本：共 7 道——试卷 4（多选、单选、两道计算题）、课堂小测 1（“未关联”知识点）、学习检测 2；来源、知识点计数正确。
+7. 详情：特征值题显示作答、参考答案、两个评分点（2/2、1/2 及理由）、反馈与不足、“打开试卷《线代小测 1》的报告”；小测题显示选项（选错的、正确答案）、“按标准答案判分 · 课堂记录，已与课程核对”，回看“打开课堂《导数入门》的「小测验」”；学习检测题显示出题依据段落，回看“「几何意义」”。
+8. 课堂链接：从“什么是导数”页的设备位置打开 `?scene=…-quiz` 直接到“小测验”；`?scene=…-p2` 到“几何意义”；不存在的页提示“这一页已不在这门课中”并停在第一页；URL 参数用后清除。
+9. 问学伴：在特征值题选学伴“小林”→ 对话页显示“来自错题本的一道题”和题目（公式渲染）、学科固定、问题预填；发送后数据库里对话 `origin.wrongItem` 含题目、学生作答“λ=3”、参考答案和逐点评分；小林的回答（真实 DeepSeek 1 次）指出漏了 λ=1、给出 (λ−1)(λ−3)=0 和迹/行列式检验；对话标题行显示“来自错题本：学科试卷《线代小测 1》第 4 题”并可回到错题本。
+10. 标记待复习、归档：计数变为 待处理 6 / 待复习 1 / 已归档 1，各标签页、来源、知识点（含“未关联”）、时间筛选结果正确。
+11. 再做一次同一试卷（多选答对、两道计算题留空）后刷新：多选题“错过 1 次 · 之后答对过”，全部作答 2 条（答对 2/2、答错 0/2）；特征值题“错过 2 次”。数据库：试卷 4 道错题 8 条记录（其中 1 条答对），小测 1/1，检测 2/2。
+12. 账号 B（127.0.0.1，另一套 cookie）对 A 的学科与错题调用同步、列表、详情、修改、带错题开对话，共 5 个接口全部 404。
+13. 375 px：错题本（展开详情、公式、历史、操作）没有横向滚动。
+14. 关闭开关：`capabilities.wrongbook=false`，列表和同步 404，带错题开对话 404，试卷报告照常可读。
+15. 用量：`study-grade` 1 次、`study-companion` 1 次，另有学习检测生成 3 次（均被校验拒绝）。
+
+### 验收中发现并修复的问题
+
+- 课堂 `?scene=`：最初在加载后跳页，会被设备上次位置覆盖；现在加载前写入位置。开发模式下效果运行两次时参数第一次就被清掉，现在保留到成功打开。
+- 学伴对话页的错题横幅显示 LaTeX 原文：改为渲染公式。
+- 预填问题“……特征值。”。”标点重复：去掉题干末尾标点。
+- 课堂小测“回看”最初比较整页修订号，JSONB 改变键顺序后永远不相等：改为逐字段比较这道题。
+
+### 验收中发现（不属于 B10，另行处理）
+
+- **课堂学习检测生成失败**：`/api/learning/check` 对平台模型 DeepSeek Flash 连续返回 502“invalid question set”。单独调用同样的提示确认：模型把 `type` 写成 `single_choice`、`correctAnswer` 写成字符串，而校验只接受 `single` / `multiple` / `short_answer` 和数组；提示里没写这些具体格式。生产开着学习检测、也用同一模型，很可能同样失败。已另开任务（修提示、可选的等价写法归一、测试），未改生产。
+
+### 未验证
+
+- 深色模式未检查（用户 2026-10-11：之后会重做 UI）。
+- 学习检测来源用插入的作答验证（生成功能本身目前失败，见上）。
+- 补救检测、资料提取题的“资料原文”回看、题库题关联课程的回看、B06“清除原始课堂测验”只有自动测试覆盖，浏览器里未走。
+- 大量数据（上百份试卷、几千条课堂作答）下的同步耗时没有实测；上限见设计。
+- 没有新增 Playwright 用例（与前几批一样做人工浏览器验收）。
+
+### 回退
+
+- 运行时：Web 的 `ZHIYU_STUDY_WRONGBOOK_ENABLED` 置空后 apply。错题本入口消失、接口 404，不能再从错题开对话；试卷、课堂、报告、已开的对话都不受影响；两张表保留，重新打开后照常同步。
+- 版本回退：回到 B09 镜像，v31 的表保留不用；旧代码不认识对话 origin 里的 `wrongItem`，已开的错题对话照常继续（只是系统提示里不再带这道题）。
+- 投影可重建：两张表可以清空，下一次打开错题本按来源重新生成（学生设的待复习和归档会丢失）。
+
+### 下一批前置条件
+
+- B11：变式与再测可以从错题出发（`study_wrong_items.question_key` 与最近一次答错的题目快照）；再测结果作为新的作答进入错题本（同一题键）。
+- B12：复习排序可读错题的作答历史（`study_wrong_occurrences`，含 `outcome` 与时间）和学生的“待复习”标记；课堂小测选择题的 `grading.checked` 区分了课堂记录与已核对。
 
 ## B09 主观题评分与可恢复报告（2026-10-13）
 
