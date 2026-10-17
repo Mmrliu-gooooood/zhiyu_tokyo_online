@@ -15,7 +15,7 @@
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
-| B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
+| B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -178,6 +178,13 @@
     - 另发现（B05 起就有，不属于 B10，已另开任务）：删除学科会级联删掉学伴对话的绑定行，但对话本身的 agent 会话保留，于是这次的错题对话出现在该账号的 Pro 工作台会话列表里；需用户在工作台删除，修复后删除学科时一并软删除这些会话。
 
 小问题（未修）：学习检测题的评分在错题本里显示模型为别名 `platform:zhiyu-default-text`（课堂保存的 `generation.model` 本来就是别名，B09 的批改记录已改为实际模型）。
+
+### 发布后修复（2026-10-18，release-20261018b，只换 Web）
+
+- 问题：删除学科时 `study_companion_chats` 绑定随学科级联删除，但学伴对话的 agent 会话保留；Pro 列表只靠绑定把学伴对话排除，于是旧对话出现在 Pro 工作台会话列表里（B05 起就有，生产验收清理时发现）。
+- 修复（单独会话完成，`dea42bcd`，main `bff90059`）：`deleteStudySpace` 在一个事务里锁住学科行（`FOR UPDATE`，`study_spaces` 的 owner 策略是 FOR ALL，RLS 下可锁）、取出该学科的对话 id、删除学科；接口随后经 agent 会话存储逐个软删除这些会话，存储失败只记 WARN、不影响删除学科。新增路由测试。全量 Vitest 892 个文件、9202 项通过。
+- 生产上那条遗留会话（`0cc9bd73…`）由用户在修复会话里确认后软删除（修复只作用于以后的删除，不会回头处理它）。
+- 发布：Worker 不含这段代码（本地构建的 Worker 包中没有），只换 Web：镜像 `2d4c9a24c0f5` 标为 `release-20261018b`；切换前无进行中的任务；备份 `*.bak-20261018b-pre`（指向 web/worker 20261018）；env 只改 `ZHIYU_WEB_IMAGE`。readiness 正常（v31、2/2 Worker），capabilities 不变；LISTEN 首连一次成功（2.9 s），无 WARN/ERROR；磁盘 62%。
 
 ### 下一批前置条件
 
