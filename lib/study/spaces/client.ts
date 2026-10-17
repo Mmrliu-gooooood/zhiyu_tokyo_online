@@ -79,6 +79,8 @@ export interface StudyCapabilities {
   extraction: boolean;
   /** B09 open questions in papers and their assisted grading (needs exams). */
   grading: boolean;
+  /** B10 wrong-answer book (needs spaces). */
+  wrongbook: boolean;
 }
 
 const CAPABILITY_KEYS = [
@@ -91,6 +93,7 @@ const CAPABILITY_KEYS = [
   'exams',
   'extraction',
   'grading',
+  'wrongbook',
 ] as const satisfies ReadonlyArray<keyof StudyCapabilities>;
 
 function capabilitiesFrom(body: Record<string, unknown> | null): StudyCapabilities {

@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "취소되었습니다.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "진행 중인 작업이 너무 많습니다. 잠시 후 다시 시도하세요.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "서비스가 바쁩니다. 잠시 후 다시 시도하세요.",
-        "STUDY_INVALID_INPUT": "입력이 올바르지 않습니다."
-      }
+        "STUDY_INVALID_INPUT": "입력이 올바르지 않습니다.",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "이 오답 문제를 더 이상 사용할 수 없습니다."
+      },
+      "fromWrongItem": "오답 노트의 문제: “{{stem}}”",
+      "wrongItemGone": "이 오답 문제를 더 이상 사용할 수 없습니다.",
+      "openedFromWrongItem": "오답 노트에서 열림: {{where}}"
     },
     "memory": {
       "nav": "학습 메모리",
@@ -3039,7 +3043,7 @@
         "facts": "알려 준 사실(수정 포함)",
         "records": "학습 기록",
         "rawQuizAttempts": "원본 수업 퀴즈 답안과 점수도 삭제",
-        "rawHint": "기본적으로 유지됩니다. 선택하면 수업 퀴즈가 미응답 상태로 돌아가며 되돌릴 수 없습니다.",
+        "rawHint": "기본적으로 유지됩니다. 선택하면 수업 퀴즈가 미응답 상태로 돌아가며 되돌릴 수 없습니다. 오답 노트에 남아 있던 해당 문제도 함께 삭제됩니다.",
         "confirm": "지우기",
         "done": "지웠습니다"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "되돌리기",
       "commitOne": "문제은행에 추가",
       "openSuggestion": "주관식은 서식만 정리하고 답은 내지 않습니다."
+    },
+    "wrongbook": {
+      "open": "오답 노트",
+      "title": "오답 노트",
+      "subtitle": "과목 시험지, 수업 퀴즈, 학습 점검에서 틀린 문제를 한곳에 모았습니다. 아직 채점 중인 문제는 여기에 나타나지 않습니다.",
+      "refresh": "새로고침",
+      "stateLabel": "보기",
+      "state": {
+        "active": "미처리",
+        "to_review": "복습 예정",
+        "archived": "보관됨"
+      },
+      "filter": {
+        "source": "출처",
+        "allSources": "모든 출처",
+        "concept": "지식 포인트",
+        "allConcepts": "모든 지식 포인트",
+        "unlinked": "연결 안 됨",
+        "since": "기간"
+      },
+      "source": {
+        "exam_attempt": "과목 시험지",
+        "quiz_attempt": "수업 퀴즈",
+        "learning_check": "학습 점검"
+      },
+      "since": {
+        "all": "전체 기간",
+        "30d": "최근 30일",
+        "7d": "최근 7일"
+      },
+      "empty": "아직 틀린 문제가 없습니다. 제출한 시험지, 수업 퀴즈, 학습 점검에서 틀린 문제가 여기에 표시됩니다.",
+      "emptyFiltered": "조건에 맞는 문제가 없습니다.",
+      "total": "{{count}}문제",
+      "more": "더 보기",
+      "sync": {
+        "failed": "이번에는 {{sources}}을(를) 읽지 못했습니다. 다음에 다시 읽습니다.",
+        "legacy": "이전 수업 퀴즈 {{count}}회는 문제가 저장되지 않아 표시할 수 없습니다.",
+        "full": "이 과목의 오답이 최대 개수에 도달해 새 오답은 추가되지 않습니다."
+      },
+      "outcome": {
+        "incorrect": "오답",
+        "partial": "부분 점수",
+        "unanswered": "미응답",
+        "correct": "정답"
+      },
+      "where": {
+        "paper": "시험지 「{{title}}」",
+        "quiz": "수업 「{{course}}」 퀴즈",
+        "check": "수업 「{{course}}」 학습 점검",
+        "remediation": "수업 「{{course}}」 보충 점검"
+      },
+      "archived": "보관했습니다",
+      "restored": "미처리로 되돌렸습니다",
+      "marked": "복습 예정으로 표시했습니다",
+      "unmarked": "복습 예정 표시를 해제했습니다",
+      "mark": "복습 예정으로 표시",
+      "unmark": "복습 예정 해제",
+      "archive": "보관",
+      "restore": "복원",
+      "collapse": "접기",
+      "expand": "자세히 보기",
+      "wrongTimes": "{{count}}회 틀림",
+      "lastWrong": "마지막으로 틀린 때",
+      "laterCorrect": "이후 맞힘",
+      "history": "모든 답안 ({{count}})",
+      "noAnswer": "답하지 않음",
+      "yourAnswer": "내 답안",
+      "finalAnswer": "최종 답: ",
+      "reference": "모범 답안 / 채점 기준",
+      "explanation": "해설",
+      "evidence": "문제의 근거가 된 수업 내용 ({{count}}개, 당시 버전)",
+      "grading": {
+        "answer_key": "정답 기준으로 채점",
+        "rubric": "채점 기준별로 채점",
+        "model": "AI 보조 채점",
+        "blank": "미응답, 0점",
+        "checked": "수업 기록, 강의와 대조함",
+        "classroom": "수업 기록",
+        "reviewed": "요청한 재채점 결과"
+      },
+      "lookBack": {
+        "title": "다시 보기",
+        "paper": "시험지 「{{title}}」 보고서 열기",
+        "material": "「{{title}}」 원문 열기",
+        "materialGone": "자료 「{{title}}」을(를) 더 이상 사용할 수 없습니다.",
+        "scene": "수업 「{{course}}」의 「{{page}}」 열기",
+        "sceneChanged": "수업 「{{course}}」의 「{{page}}」이(가) 이후 변경되었습니다. 위의 문제가 당시 원본입니다.",
+        "openCourse": "수업 열기",
+        "sceneMissing": "이 페이지는 수업 「{{course}}」에 더 이상 없습니다. 위의 문제가 당시 원본입니다.",
+        "course": "이 문제와 연결된 수업: 「{{course}}」",
+        "courseGone": "원래 수업을 더 이상 사용할 수 없습니다.",
+        "sceneGone": "이 페이지는 이 수업에 더 이상 없습니다."
+      },
+      "ask": {
+        "none": "학습 메이트를 만들면 이 문제를 물어볼 수 있습니다.",
+        "create": "학습 메이트",
+        "prompt": "이 문제를 틀렸어요: “{{stem}}”. 어디가 틀렸나요?",
+        "pick": "학습 메이트",
+        "open": "학습 메이트에게 묻기"
+      }
     }
   }
 }

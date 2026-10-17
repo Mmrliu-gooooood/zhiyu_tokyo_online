@@ -34,8 +34,10 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { ZhiyuClassroomState } from '@/components/classroom/ZhiyuClassroomState';
 import { toast } from 'sonner';
 import {
+  openStudyScene,
   prepareStudyResumeFromUrl,
   settleStudyResume,
+  takeStudySceneFromUrl,
   type StudyResumeUi,
 } from '@/lib/study/progress/classroom-resume';
 
@@ -81,6 +83,8 @@ export default function ClassroomDetailPage() {
       // Opened from a study space's "continue": open at the newest position
       // across devices (server progress), before the device position is read.
       const studyResume = await prepareStudyResumeFromUrl(classroomId);
+      // Opened at one page from the wrong-answer book (B10): that page wins over resuming.
+      const targetScene = takeStudySceneFromUrl();
       if (!isCurrent()) return;
 
       await runClassroomLoad({
@@ -112,7 +116,13 @@ export default function ClassroomDetailPage() {
       });
 
       if (isEffectCurrent()) {
-        void settleStudyResume(classroomId, studyResume, studyResumeUi(isEffectCurrent));
+        if (targetScene) {
+          if (!openStudyScene(classroomId, targetScene, studyResumeUi(isEffectCurrent))) {
+            toast.info(t('study.wrongbook.lookBack.sceneGone'));
+          }
+        } else {
+          void settleStudyResume(classroomId, studyResume, studyResumeUi(isEffectCurrent));
+        }
       }
 
       // The stage-meta sidecar resolves the viewer-facing ownership facts the

@@ -89,6 +89,31 @@ export async function listAttemptGradings(
   return map;
 }
 
+/** listAttemptGradings for several attempts at once (the wrong-answer book's projection, B10). */
+export async function listGradingsOfAttempts(
+  db: Queryable,
+  ownerId: string,
+  attemptIds: readonly string[],
+): Promise<Map<string, Map<number, ItemGradingView[]>>> {
+  const byAttempt = new Map<string, Map<number, ItemGradingView[]>>();
+  if (attemptIds.length === 0) return byAttempt;
+  const result = await db.query<GradingRow & { attempt_id: string }>(
+    `SELECT attempt_id, position, seq, kind, status, points, earned, result, grader, note, error,
+            created_at, completed_at
+       FROM study_exam_gradings
+      WHERE owner_id = $1 AND attempt_id = ANY($2::text[])
+      ORDER BY attempt_id, position, seq`,
+    [ownerId, [...attemptIds]],
+  );
+  for (const row of result.rows) {
+    const map = byAttempt.get(row.attempt_id) ?? new Map<number, ItemGradingView[]>();
+    const position = Number(row.position);
+    map.set(position, [...(map.get(position) ?? []), toView(row)]);
+    byAttempt.set(row.attempt_id, map);
+  }
+  return byAttempt;
+}
+
 /** One pending `auto` row per answered open item (inside the submitting transaction). */
 export async function insertSubmissionGradings(
   tx: Queryable,

@@ -230,8 +230,8 @@ const result = {
 const graderInfo = { version: 'rubric-v1', model: 'test:model', program: null };
 
 describe('accounts v30 registration', () => {
-  it('is the newest accounts version with a stable checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(30);
+  it('is registered with a stable checksum', () => {
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(30);
     expect(accountsMigrationChecksum(30)).toMatch(/^[a-f0-9]{64}$/);
     expect(ACCOUNTS_MIGRATION_30).toContain('FORCE ROW LEVEL SECURITY');
   });

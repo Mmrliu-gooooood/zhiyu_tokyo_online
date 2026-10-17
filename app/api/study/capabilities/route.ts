@@ -1,4 +1,4 @@
-/** Which study features this deployment serves (learning plan B01–B09). No identity needed. */
+/** Which study features this deployment serves (learning plan B01–B10). No identity needed. */
 import {
   isStudyClassmatesEnabled,
   isStudyCompanionChatEnabled,
@@ -9,6 +9,7 @@ import {
   isStudyMemoryEnabled,
   isStudyQaEnabled,
   isStudySpacesEnabled,
+  isStudyWrongbookEnabled,
 } from '@/lib/server/study/route';
 
 export const runtime = 'nodejs';
@@ -25,6 +26,7 @@ export function GET() {
       exams: isStudyExamsEnabled(),
       extraction: isStudyExtractionEnabled(),
       grading: isStudyGradingEnabled(),
+      wrongbook: isStudyWrongbookEnabled(),
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

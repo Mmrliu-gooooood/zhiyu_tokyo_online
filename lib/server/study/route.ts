@@ -27,6 +27,7 @@ import {
   isStudyMaterialsFlagOn,
   isStudyMemoryFlagOn,
   isStudyQaFlagOn,
+  isStudyWrongbookFlagOn,
 } from '@/lib/server/study/flags';
 
 const log = createLogger('StudyRoute');
@@ -212,6 +213,24 @@ export function studyGradingRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyGradingEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B10 wrong-answer book: study spaces plus ZHIYU_STUDY_WRONGBOOK_ENABLED. */
+export function isStudyWrongbookEnabled(): boolean {
+  return isStudyWrongbookFlagOn() && isStudySpacesEnabled();
+}
+
+/** studyRoute for the wrong-answer book APIs. */
+export function studyWrongbookRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyWrongbookEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

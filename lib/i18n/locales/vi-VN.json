@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "Đã hủy.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Bạn có quá nhiều tác vụ đang chạy. Thử lại sau.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Dịch vụ đang bận. Thử lại sau.",
-        "STUDY_INVALID_INPUT": "Dữ liệu không hợp lệ."
-      }
+        "STUDY_INVALID_INPUT": "Dữ liệu không hợp lệ.",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "Câu sai này không còn khả dụng."
+      },
+      "fromWrongItem": "Một câu trong sổ lỗi sai: “{{stem}}”",
+      "wrongItemGone": "Câu sai này không còn khả dụng.",
+      "openedFromWrongItem": "Mở từ sổ lỗi sai: {{where}}"
     },
     "memory": {
       "nav": "Bộ nhớ",
@@ -3039,7 +3043,7 @@
         "facts": "Thông tin bạn cho biết (gồm cả phần sửa)",
         "records": "Bản ghi học tập",
         "rawQuizAttempts": "Xóa luôn bài làm và điểm gốc của bài kiểm tra trong lớp",
-        "rawHint": "Mặc định được giữ. Nếu chọn, bài kiểm tra trong lớp sẽ trở về chưa làm và không thể hoàn tác.",
+        "rawHint": "Mặc định được giữ. Nếu chọn, bài kiểm tra trong lớp sẽ trở về chưa làm và không thể hoàn tác. Những câu sổ lỗi sai đã lưu từ chúng cũng bị xóa.",
         "confirm": "Xóa",
         "done": "Đã xóa"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "Khôi phục",
       "commitOne": "Thêm vào ngân hàng",
       "openSuggestion": "Câu tự luận: chỉ sắp xếp định dạng, không đưa đáp án."
+    },
+    "wrongbook": {
+      "open": "Sổ lỗi sai",
+      "title": "Sổ lỗi sai",
+      "subtitle": "Gom các câu làm sai từ đề kiểm tra môn học, câu đố trên lớp và bài kiểm tra hiểu bài vào một chỗ. Câu đang được chấm sẽ không hiện ở đây.",
+      "refresh": "Làm mới",
+      "stateLabel": "Hiển thị",
+      "state": {
+        "active": "Chưa xử lý",
+        "to_review": "Cần ôn lại",
+        "archived": "Đã lưu trữ"
+      },
+      "filter": {
+        "source": "Nguồn",
+        "allSources": "Tất cả nguồn",
+        "concept": "Điểm kiến thức",
+        "allConcepts": "Tất cả điểm kiến thức",
+        "unlinked": "Chưa liên kết",
+        "since": "Thời gian"
+      },
+      "source": {
+        "exam_attempt": "Đề kiểm tra môn học",
+        "quiz_attempt": "Câu đố trên lớp",
+        "learning_check": "Kiểm tra hiểu bài"
+      },
+      "since": {
+        "all": "Mọi thời gian",
+        "30d": "30 ngày qua",
+        "7d": "7 ngày qua"
+      },
+      "empty": "Chưa có câu sai nào. Câu trả lời sai từ đề đã nộp, câu đố trên lớp và bài kiểm tra hiểu bài sẽ hiện ở đây.",
+      "emptyFiltered": "Không có câu nào khớp với bộ lọc.",
+      "total": "{{count}} câu",
+      "more": "Xem thêm",
+      "sync": {
+        "failed": "Lần này không đọc được {{sources}}; lần sau sẽ đọc lại.",
+        "legacy": "{{count}} lần làm câu đố trên lớp trước đây không lưu câu hỏi nên không thể hiển thị.",
+        "full": "Môn này đã đạt số câu sai tối đa nên câu sai mới sẽ không được thêm."
+      },
+      "outcome": {
+        "incorrect": "Sai",
+        "partial": "Đúng một phần",
+        "unanswered": "Chưa trả lời",
+        "correct": "Đúng"
+      },
+      "where": {
+        "paper": "Đề “{{title}}”",
+        "quiz": "Câu đố trong “{{course}}”",
+        "check": "Kiểm tra hiểu bài trong “{{course}}”",
+        "remediation": "Kiểm tra bổ sung trong “{{course}}”"
+      },
+      "archived": "Đã lưu trữ",
+      "restored": "Đã chuyển về chưa xử lý",
+      "marked": "Đã đánh dấu cần ôn lại",
+      "unmarked": "Đã bỏ đánh dấu",
+      "mark": "Đánh dấu cần ôn lại",
+      "unmark": "Bỏ đánh dấu",
+      "archive": "Lưu trữ",
+      "restore": "Khôi phục",
+      "collapse": "Thu gọn",
+      "expand": "Xem chi tiết",
+      "wrongTimes": "Sai {{count}} lần",
+      "lastWrong": "Lần sai gần nhất",
+      "laterCorrect": "Sau đó đã làm đúng",
+      "history": "Tất cả lần trả lời ({{count}})",
+      "noAnswer": "Chưa trả lời",
+      "yourAnswer": "Câu trả lời của bạn",
+      "finalAnswer": "Đáp số: ",
+      "reference": "Đáp án tham khảo",
+      "explanation": "Lời giải",
+      "evidence": "Nội dung bài học làm căn cứ ra đề ({{count}} đoạn, phiên bản lúc đó)",
+      "grading": {
+        "answer_key": "Chấm theo đáp án",
+        "rubric": "Chấm theo tiêu chí",
+        "model": "Chấm có hỗ trợ AI",
+        "blank": "Chưa trả lời, 0 điểm",
+        "checked": "bản ghi trên lớp, đã đối chiếu với khóa học",
+        "classroom": "bản ghi trên lớp",
+        "reviewed": "sau lần chấm lại bạn yêu cầu"
+      },
+      "lookBack": {
+        "title": "Xem lại",
+        "paper": "Mở báo cáo của “{{title}}”",
+        "material": "Mở trang gốc trong “{{title}}”",
+        "materialGone": "Tài liệu “{{title}}” không còn khả dụng.",
+        "scene": "Mở “{{page}}” trong “{{course}}”",
+        "sceneChanged": "Trang “{{page}}” trong “{{course}}” đã thay đổi; câu hỏi ở trên là bản gốc.",
+        "openCourse": "Mở khóa học",
+        "sceneMissing": "Trang này không còn trong “{{course}}”; câu hỏi ở trên là bản gốc.",
+        "course": "Khóa học của câu này: “{{course}}”",
+        "courseGone": "Khóa học không còn khả dụng.",
+        "sceneGone": "Trang này không còn trong khóa học."
+      },
+      "ask": {
+        "none": "Hãy tạo một bạn học để hỏi về câu này.",
+        "create": "Bạn học",
+        "prompt": "Mình làm sai câu này: “{{stem}}”. Mình sai ở đâu?",
+        "pick": "Bạn học",
+        "open": "Hỏi bạn học"
+      }
     }
   }
 }

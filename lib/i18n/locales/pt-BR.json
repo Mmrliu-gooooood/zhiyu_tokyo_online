@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "Cancelado.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Você tem tarefas demais em andamento. Tente mais tarde.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "O serviço está ocupado. Tente mais tarde.",
-        "STUDY_INVALID_INPUT": "Entrada inválida."
-      }
+        "STUDY_INVALID_INPUT": "Entrada inválida.",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "Esta questão não está mais disponível."
+      },
+      "fromWrongItem": "Uma questão do seu caderno de erros: “{{stem}}”",
+      "wrongItemGone": "Esta questão não está mais disponível.",
+      "openedFromWrongItem": "Aberto pelo caderno de erros: {{where}}"
     },
     "memory": {
       "nav": "Memória",
@@ -3039,7 +3043,7 @@
         "facts": "Fatos que você contou (com correções)",
         "records": "Registros de estudo",
         "rawQuizAttempts": "Apagar também as respostas e notas originais dos quizzes de aula",
-        "rawHint": "Mantidas por padrão. Se marcado, os quizzes da aula voltam a ficar sem resposta. Não dá para desfazer.",
+        "rawHint": "Mantidas por padrão. Se marcado, os quizzes da aula voltam a ficar sem resposta. Não dá para desfazer. O que o caderno de erros guardou deles também é removido.",
         "confirm": "Apagar",
         "done": "Apagado"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "Recuperar",
       "commitOne": "Adicionar ao banco",
       "openSuggestion": "Questão aberta: só formatação, sem resposta."
+    },
+    "wrongbook": {
+      "open": "Caderno de erros",
+      "title": "Caderno de erros",
+      "subtitle": "Os erros das suas provas, quizzes de aula e verificações de aprendizagem em um só lugar. Questões que ainda estão sendo corrigidas não aparecem aqui.",
+      "refresh": "Atualizar",
+      "stateLabel": "Mostrar",
+      "state": {
+        "active": "Pendentes",
+        "to_review": "Para revisar",
+        "archived": "Arquivadas"
+      },
+      "filter": {
+        "source": "Origem",
+        "allSources": "Todas as origens",
+        "concept": "Tópico",
+        "allConcepts": "Todos os tópicos",
+        "unlinked": "Sem vínculo",
+        "since": "Período"
+      },
+      "source": {
+        "exam_attempt": "Provas",
+        "quiz_attempt": "Quizzes de aula",
+        "learning_check": "Verificações de aprendizagem"
+      },
+      "since": {
+        "all": "Qualquer data",
+        "30d": "Últimos 30 dias",
+        "7d": "Últimos 7 dias"
+      },
+      "empty": "Ainda não há erros. Respostas erradas de provas entregues, quizzes de aula e verificações aparecerão aqui.",
+      "emptyFiltered": "Nenhuma questão corresponde a esses filtros.",
+      "total": "{{count}} questões",
+      "more": "Mostrar mais",
+      "sync": {
+        "failed": "Desta vez não foi possível ler {{sources}}; será tentado de novo na próxima vez.",
+        "legacy": "{{count}} quizzes de aula antigos foram salvos sem as questões e não podem ser mostrados aqui.",
+        "full": "Esta matéria já tem o número máximo de questões erradas; novas não são adicionadas."
+      },
+      "outcome": {
+        "incorrect": "Errada",
+        "partial": "Parcialmente certa",
+        "unanswered": "Sem resposta",
+        "correct": "Certa"
+      },
+      "where": {
+        "paper": "Prova “{{title}}”",
+        "quiz": "Quiz de “{{course}}”",
+        "check": "Verificação de “{{course}}”",
+        "remediation": "Verificação de reforço de “{{course}}”"
+      },
+      "archived": "Arquivada",
+      "restored": "Voltou para pendentes",
+      "marked": "Marcada para revisar",
+      "unmarked": "Marcação removida",
+      "mark": "Marcar para revisar",
+      "unmark": "Remover marcação",
+      "archive": "Arquivar",
+      "restore": "Restaurar",
+      "collapse": "Recolher",
+      "expand": "Ver detalhes",
+      "wrongTimes": "Errada {{count}} vezes",
+      "lastWrong": "Último erro",
+      "laterCorrect": "Acertada depois",
+      "history": "Todas as respostas ({{count}})",
+      "noAnswer": "Sem resposta",
+      "yourAnswer": "Sua resposta",
+      "finalAnswer": "Resultado final: ",
+      "reference": "Resposta de referência",
+      "explanation": "Explicação",
+      "evidence": "Trechos da aula em que a questão se baseou ({{count}}, como eram na época)",
+      "grading": {
+        "answer_key": "Corrigida pelo gabarito",
+        "rubric": "Corrigida por critérios",
+        "model": "Corrigida com IA",
+        "blank": "Sem resposta, 0 ponto",
+        "checked": "registro da aula, conferido com o curso",
+        "classroom": "registro da aula",
+        "reviewed": "após a revisão que você pediu"
+      },
+      "lookBack": {
+        "title": "Rever",
+        "paper": "Abrir o relatório de “{{title}}”",
+        "material": "Abrir a página original de “{{title}}”",
+        "materialGone": "O material “{{title}}” não está mais disponível.",
+        "scene": "Abrir “{{page}}” de “{{course}}”",
+        "sceneChanged": "A página “{{page}}” de “{{course}}” mudou desde então; a questão acima é a original.",
+        "openCourse": "Abrir o curso",
+        "sceneMissing": "A página não está mais em “{{course}}”; a questão acima é a original.",
+        "course": "Curso desta questão: “{{course}}”",
+        "courseGone": "O curso não está mais disponível.",
+        "sceneGone": "Essa página não está mais neste curso."
+      },
+      "ask": {
+        "none": "Crie um colega de estudo para perguntar sobre esta questão.",
+        "create": "Colegas",
+        "prompt": "Errei esta questão: “{{stem}}”. Onde eu errei?",
+        "pick": "Colega",
+        "open": "Perguntar a um colega"
+      }
     }
   }
 }

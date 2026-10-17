@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "已取消。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "你同时进行的任务太多，请稍后再试。",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "服务繁忙，请稍后再试。",
-        "STUDY_INVALID_INPUT": "内容无效，请检查后再试。"
-      }
+        "STUDY_INVALID_INPUT": "内容无效，请检查后再试。",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "这道错题已不可用。"
+      },
+      "fromWrongItem": "来自错题本的一道题：“{{stem}}”",
+      "wrongItemGone": "这道错题已不可用。",
+      "openedFromWrongItem": "来自错题本：{{where}}"
     },
     "memory": {
       "nav": "学习记忆",
@@ -3039,7 +3043,7 @@
         "facts": "你告诉我们的事实（含更正）",
         "records": "学习记录",
         "rawQuizAttempts": "同时删除原始课堂测验的作答与成绩",
-        "rawHint": "默认保留。勾选后课堂里的测验会恢复为未作答，无法撤销。",
+        "rawHint": "默认保留。勾选后课堂里的测验会恢复为未作答，无法撤销。错题本中由它们产生的错题也会一并删除。",
         "confirm": "清除",
         "done": "已清除"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "恢复",
       "commitOne": "加入题库",
       "openSuggestion": "主观题只整理格式，不给出答案。"
+    },
+    "wrongbook": {
+      "open": "错题本",
+      "title": "错题本",
+      "subtitle": "汇总学科试卷、课堂小测和学习检测里做错的题。还在批改中的题不会出现在这里。",
+      "refresh": "刷新",
+      "stateLabel": "显示",
+      "state": {
+        "active": "待处理",
+        "to_review": "待复习",
+        "archived": "已归档"
+      },
+      "filter": {
+        "source": "来源",
+        "allSources": "全部来源",
+        "concept": "知识点",
+        "allConcepts": "全部知识点",
+        "unlinked": "未关联",
+        "since": "时间"
+      },
+      "source": {
+        "exam_attempt": "学科试卷",
+        "quiz_attempt": "课堂小测",
+        "learning_check": "学习检测"
+      },
+      "since": {
+        "all": "全部时间",
+        "30d": "近 30 天",
+        "7d": "近 7 天"
+      },
+      "empty": "还没有错题。交卷后的学科试卷、课堂小测和学习检测里做错的题会出现在这里。",
+      "emptyFiltered": "没有符合筛选条件的错题。",
+      "total": "共 {{count}} 道题",
+      "more": "加载更多",
+      "sync": {
+        "failed": "这次没能读取{{sources}}，下次会重新读取。",
+        "legacy": "有 {{count}} 次较早的课堂小测没有保存题目，无法显示在错题本中。",
+        "full": "本学科的错题已达到上限，新的错题暂不加入。"
+      },
+      "outcome": {
+        "incorrect": "答错",
+        "partial": "部分得分",
+        "unanswered": "未作答",
+        "correct": "答对"
+      },
+      "where": {
+        "paper": "试卷《{{title}}》",
+        "quiz": "课堂《{{course}}》小测",
+        "check": "课堂《{{course}}》学习检测",
+        "remediation": "课堂《{{course}}》补充检测"
+      },
+      "archived": "已归档",
+      "restored": "已移回待处理",
+      "marked": "已标记为待复习",
+      "unmarked": "已取消待复习",
+      "mark": "标记为待复习",
+      "unmark": "取消待复习",
+      "archive": "归档",
+      "restore": "恢复",
+      "collapse": "收起",
+      "expand": "查看详情",
+      "wrongTimes": "错过 {{count}} 次",
+      "lastWrong": "最近一次答错",
+      "laterCorrect": "之后答对过",
+      "history": "全部作答（{{count}}）",
+      "noAnswer": "未作答",
+      "yourAnswer": "你的作答",
+      "finalAnswer": "最终答案：",
+      "reference": "参考答案 / 评分依据",
+      "explanation": "解析",
+      "evidence": "出题依据的课堂内容（{{count}} 段，当时的版本）",
+      "grading": {
+        "answer_key": "按标准答案判分",
+        "rubric": "按评分点批改",
+        "model": "AI 辅助批改",
+        "blank": "未作答，0 分",
+        "checked": "课堂记录，已与课程核对",
+        "classroom": "课堂记录",
+        "reviewed": "按你要求复核后的结果"
+      },
+      "lookBack": {
+        "title": "回看",
+        "paper": "打开试卷《{{title}}》的报告",
+        "material": "打开《{{title}}》原文",
+        "materialGone": "资料《{{title}}》已不可用。",
+        "scene": "打开课堂《{{course}}》的「{{page}}」",
+        "sceneChanged": "课堂《{{course}}》的「{{page}}」已更新，上面显示的才是当时的题目。",
+        "openCourse": "打开课堂",
+        "sceneMissing": "这一页已不在课堂《{{course}}》中，上面显示的是当时的题目。",
+        "course": "本题关联的课堂：《{{course}}》",
+        "courseGone": "原课堂已不可用。",
+        "sceneGone": "这一页已不在这门课中。"
+      },
+      "ask": {
+        "none": "先创建一个学伴，就可以问这道题。",
+        "create": "学伴",
+        "prompt": "这道题我做错了：“{{stem}}”。我错在哪里？",
+        "pick": "学伴",
+        "open": "问学伴"
+      }
     }
   }
 }

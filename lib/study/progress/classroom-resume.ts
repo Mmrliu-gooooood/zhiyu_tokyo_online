@@ -93,3 +93,25 @@ export async function settleStudyResume(
     },
   });
 }
+
+/** `?scene=<id>`: open the classroom at one page (the wrong-answer book's "look back", B10). */
+export const STUDY_SCENE_PARAM = 'scene';
+
+/** Before the classroom loads: read `?scene=` and drop it from the URL. */
+export function takeStudySceneFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const url = new URL(window.location.href);
+  const sceneId = url.searchParams.get(STUDY_SCENE_PARAM);
+  if (!sceneId) return null;
+  url.searchParams.delete(STUDY_SCENE_PARAM);
+  window.history.replaceState(window.history.state, '', url.toString());
+  return /^[A-Za-z0-9_-]{1,200}$/.test(sceneId) ? sceneId : null;
+}
+
+/** After the classroom loaded: go to the requested page instead of resuming; false when it is gone. */
+export function openStudyScene(stageId: string, sceneId: string, ui: StudyResumeUi): boolean {
+  void flushPendingStudyLinks(stageId);
+  if (!ui.pageOf(sceneId)) return false;
+  ui.jumpTo(sceneId);
+  return true;
+}

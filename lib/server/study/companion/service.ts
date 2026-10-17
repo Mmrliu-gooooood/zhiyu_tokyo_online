@@ -22,13 +22,16 @@ import { safeModelError } from '@/lib/server/agent-runtime/model-errors';
 import { getAgentSessionStore } from '@/lib/server/agent-runtime/store';
 import { getOwnerBoundStageAccessDb } from '@/lib/server/stage-access';
 import { getClassmate } from '@/lib/server/study/classmates/repository';
+import { isStudyWrongbookFlagOn } from '@/lib/server/study/flags';
 import { StudyError } from '@/lib/server/study/spaces/repository';
+import { wrongItemChatContext } from '@/lib/server/study/wrongbook/service';
 import { parseClassmateStageAgentId } from '@/lib/study/classmates/contracts';
 import {
   COMPANION_LIMITS,
   encodeCompanionMessage,
   type CompanionOrigin,
 } from '@/lib/study/companion/contracts';
+import { isWrongItemId } from '@/lib/study/wrongbook/contracts';
 import type { ProModelRef } from '@/types/pro-model';
 
 import {
@@ -139,11 +142,22 @@ export function parseDiscuss(value: unknown): string[] | null {
   return [...ids];
 }
 
+/**
+ * The origin the client may send: a classroom position (stage, optional
+ * scene / agent / excerpt) and/or a wrong item id (B10). A `wrongItem`
+ * copy is never accepted from the client; the server builds it.
+ */
 export function parseOrigin(value: unknown): CompanionOrigin | null | undefined {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'object' || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
   const id = /^[A-Za-z0-9_-]{1,128}$/;
+  if (record.wrongItemId !== undefined && !isWrongItemId(record.wrongItemId)) return undefined;
+  const wrongItemId = record.wrongItemId as string | undefined;
+  if (record.stageId === undefined) {
+    // A wrong-item origin needs no classroom position; anything else does.
+    return wrongItemId ? { wrongItemId } : undefined;
+  }
   if (typeof record.stageId !== 'string' || !id.test(record.stageId)) return undefined;
   if (
     record.sceneId !== undefined &&
@@ -164,6 +178,34 @@ export function parseOrigin(value: unknown): CompanionOrigin | null | undefined 
     ...(record.sceneId ? { sceneId: record.sceneId as string } : {}),
     ...(record.agentId ? { agentId: record.agentId as string } : {}),
     ...(excerpt ? { excerpt } : {}),
+    ...(wrongItemId ? { wrongItemId } : {}),
+  };
+}
+
+/**
+ * A wrong-item origin (B10): the item must be the owner's, visible, and in
+ * the chat's space. Its newest wrong answer is copied into the origin, with
+ * its course page when it has one; a classroom position the client sent
+ * along is replaced.
+ */
+async function resolveWrongItemOrigin(
+  db: Queryable,
+  ownerId: string,
+  spaceId: string,
+  wrongItemId: string,
+): Promise<CompanionOrigin> {
+  if (!isStudyWrongbookFlagOn()) throw new StudyError('STUDY_WRONG_ITEM_NOT_FOUND');
+  const { context, stageId, sceneId } = await wrongItemChatContext(
+    db,
+    ownerId,
+    spaceId,
+    wrongItemId,
+  );
+  const access = stageId ? await probeStageAccess(ownerId, stageId, db).catch(() => null) : null;
+  return {
+    ...(stageId && access?.kind === 'owned' ? { stageId, ...(sceneId ? { sceneId } : {}) } : {}),
+    wrongItemId,
+    wrongItem: context,
   };
 }
 
@@ -196,7 +238,10 @@ export async function openCompanionChat(
   input: OpenChatInput,
 ): Promise<{ sessionId: string }> {
   await assertChatOpen(db, ownerId, input.classmateId, input.spaceId);
-  if (input.origin) {
+  let origin = input.origin;
+  if (input.origin?.wrongItemId) {
+    origin = await resolveWrongItemOrigin(db, ownerId, input.spaceId, input.origin.wrongItemId);
+  } else if (input.origin?.stageId) {
     const access = await probeStageAccess(ownerId, input.origin.stageId, db).catch(() => null);
     if (access?.kind !== 'owned') throw new StudyError('STUDY_COURSE_NOT_FOUND');
     const agent = input.origin.agentId ? parseClassmateStageAgentId(input.origin.agentId) : null;
@@ -221,7 +266,7 @@ export async function openCompanionChat(
       ownerId,
       spaceId: input.spaceId,
       classmateId: input.classmateId,
-      origin: input.origin,
+      origin,
     });
     await store.postUserMessage(
       meta.id,

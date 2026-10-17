@@ -77,3 +77,13 @@ export function isStudyGradingFlagOn(env: NodeJS.ProcessEnv = process.env): bool
   const flag = env.ZHIYU_STUDY_GRADING_ENABLED;
   return (flag === '1' || flag === 'true') && isStudyExamsFlagOn(env);
 }
+
+/**
+ * ZHIYU_STUDY_WRONGBOOK_ENABLED: the wrong-answer book (learning plan B10).
+ * Web only; no model is involved. Off: the page and APIs are gone, the
+ * papers, classroom attempts and their reports stay as they are.
+ */
+export function isStudyWrongbookFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_WRONGBOOK_ENABLED;
+  return flag === '1' || flag === 'true';
+}

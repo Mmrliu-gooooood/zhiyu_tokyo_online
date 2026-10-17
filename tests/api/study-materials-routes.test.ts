@@ -81,6 +81,7 @@ describe('study material routes', () => {
       exams: false,
       extraction: false,
       grading: false,
+      wrongbook: false,
     });
     vi.stubEnv('ZHIYU_STUDY_MATERIALS_ENABLED', '');
     expect(await (await capabilities()).json()).toEqual({
@@ -94,6 +95,7 @@ describe('study material routes', () => {
       exams: false,
       extraction: false,
       grading: false,
+      wrongbook: false,
     });
     expect((await listMaterials(request())).status).toBe(404);
     expect((await getTask(request(), params({ taskId: 'x' }))).status).toBe(404);

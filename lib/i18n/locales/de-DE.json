@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "Abgebrochen.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Zu viele laufende Aufgaben. Später erneut versuchen.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "Der Dienst ist ausgelastet. Später erneut versuchen.",
-        "STUDY_INVALID_INPUT": "Ungültige Eingabe."
-      }
+        "STUDY_INVALID_INPUT": "Ungültige Eingabe.",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "Diese Frage ist nicht mehr verfügbar."
+      },
+      "fromWrongItem": "Eine Frage aus deinem Fehlerheft: „{{stem}}“",
+      "wrongItemGone": "Diese Frage ist nicht mehr verfügbar.",
+      "openedFromWrongItem": "Aus dem Fehlerheft geöffnet: {{where}}"
     },
     "memory": {
       "nav": "Memory",
@@ -3039,7 +3043,7 @@
         "facts": "Von dir erzählte Fakten (inkl. Korrekturen)",
         "records": "Lerneinträge",
         "rawQuizAttempts": "Auch die ursprünglichen Antworten und Punkte der Unterrichtsquiz löschen",
-        "rawHint": "Standardmäßig behalten. Wenn angekreuzt, sind die Quiz im Unterricht wieder unbeantwortet. Nicht rückgängig zu machen.",
+        "rawHint": "Standardmäßig behalten. Wenn angekreuzt, sind die Quiz im Unterricht wieder unbeantwortet. Nicht rückgängig zu machen. Was das Fehlerheft daraus übernommen hat, wird ebenfalls entfernt.",
         "confirm": "Löschen",
         "done": "Gelöscht"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "Zurückholen",
       "commitOne": "Übernehmen",
       "openSuggestion": "Offene Frage: nur Formatierung, keine Antwort."
+    },
+    "wrongbook": {
+      "open": "Fehlerheft",
+      "title": "Fehlerheft",
+      "subtitle": "Fehler aus Fachtests, Unterrichtsquizzen und Lernchecks an einem Ort. Fragen, die noch bewertet werden, erscheinen hier nicht.",
+      "refresh": "Aktualisieren",
+      "stateLabel": "Anzeigen",
+      "state": {
+        "active": "Offen",
+        "to_review": "Zum Wiederholen",
+        "archived": "Archiviert"
+      },
+      "filter": {
+        "source": "Quelle",
+        "allSources": "Alle Quellen",
+        "concept": "Wissenspunkt",
+        "allConcepts": "Alle Wissenspunkte",
+        "unlinked": "Nicht zugeordnet",
+        "since": "Zeitraum"
+      },
+      "source": {
+        "exam_attempt": "Fachtests",
+        "quiz_attempt": "Unterrichtsquizze",
+        "learning_check": "Lernchecks"
+      },
+      "since": {
+        "all": "Gesamter Zeitraum",
+        "30d": "Letzte 30 Tage",
+        "7d": "Letzte 7 Tage"
+      },
+      "empty": "Noch keine Fehler. Falsche Antworten aus abgegebenen Tests, Unterrichtsquizzen und Lernchecks erscheinen hier.",
+      "emptyFiltered": "Keine Fragen passen zu diesen Filtern.",
+      "total": "{{count}} Fragen",
+      "more": "Mehr anzeigen",
+      "sync": {
+        "failed": "{{sources}} konnten diesmal nicht gelesen werden; beim nächsten Mal wird es erneut versucht.",
+        "legacy": "{{count}} ältere Unterrichtsquizze wurden ohne ihre Fragen gespeichert und können hier nicht angezeigt werden.",
+        "full": "Dieses Fach enthält bereits die maximale Anzahl falscher Fragen; neue werden nicht hinzugefügt."
+      },
+      "outcome": {
+        "incorrect": "Falsch",
+        "partial": "Teilweise richtig",
+        "unanswered": "Unbeantwortet",
+        "correct": "Richtig"
+      },
+      "where": {
+        "paper": "Test „{{title}}“",
+        "quiz": "Quiz in „{{course}}“",
+        "check": "Lerncheck in „{{course}}“",
+        "remediation": "Nachcheck in „{{course}}“"
+      },
+      "archived": "Archiviert",
+      "restored": "Wieder geöffnet",
+      "marked": "Zum Wiederholen markiert",
+      "unmarked": "Markierung entfernt",
+      "mark": "Zum Wiederholen markieren",
+      "unmark": "Markierung entfernen",
+      "archive": "Archivieren",
+      "restore": "Wiederherstellen",
+      "collapse": "Einklappen",
+      "expand": "Details anzeigen",
+      "wrongTimes": "{{count}}-mal falsch",
+      "lastWrong": "Zuletzt falsch",
+      "laterCorrect": "Seitdem richtig beantwortet",
+      "history": "Alle Antworten ({{count}})",
+      "noAnswer": "Keine Antwort",
+      "yourAnswer": "Deine Antwort",
+      "finalAnswer": "Endergebnis: ",
+      "reference": "Musterlösung",
+      "explanation": "Erklärung",
+      "evidence": "Kursabschnitte, aus denen die Frage stammt ({{count}}, Stand damals)",
+      "grading": {
+        "answer_key": "Nach Lösungsschlüssel bewertet",
+        "rubric": "Nach Bewertungspunkten bewertet",
+        "model": "Mit KI bewertet",
+        "blank": "Keine Antwort, 0 Punkte",
+        "checked": "Unterrichtsaufzeichnung, mit dem Kurs abgeglichen",
+        "classroom": "Unterrichtsaufzeichnung",
+        "reviewed": "nach der von dir angeforderten Prüfung"
+      },
+      "lookBack": {
+        "title": "Nachschlagen",
+        "paper": "Bericht zu „{{title}}“ öffnen",
+        "material": "Originalseite in „{{title}}“ öffnen",
+        "materialGone": "Das Material „{{title}}“ ist nicht mehr verfügbar.",
+        "scene": "„{{page}}“ in „{{course}}“ öffnen",
+        "sceneChanged": "Die Seite „{{page}}“ in „{{course}}“ wurde inzwischen geändert; die Frage oben ist das Original.",
+        "openCourse": "Kurs öffnen",
+        "sceneMissing": "Die Seite ist nicht mehr in „{{course}}“; die Frage oben ist das Original.",
+        "course": "Kurs zu dieser Frage: „{{course}}“",
+        "courseGone": "Der Kurs ist nicht mehr verfügbar.",
+        "sceneGone": "Diese Seite ist nicht mehr in diesem Kurs."
+      },
+      "ask": {
+        "none": "Erstelle einen Lernpartner, um zu dieser Frage nachzufragen.",
+        "create": "Lernpartner",
+        "prompt": "Diese Frage habe ich falsch beantwortet: „{{stem}}“. Wo lag mein Fehler?",
+        "pick": "Lernpartner",
+        "open": "Lernpartner fragen"
+      }
     }
   }
 }

@@ -62,7 +62,10 @@ import {
 } from '@/lib/study/companion/fold';
 import { StudyApiError, fetchStudyCapabilities, studyApi } from '@/lib/study/spaces/client';
 import type { StudySpaceSummary } from '@/lib/study/spaces/contracts';
+import { cn } from '@/lib/utils';
 import { whilePageVisible } from '@/lib/workbench/page-visible-lifecycle';
+import { wrongbookApi } from '@/lib/study/wrongbook/client';
+import type { WrongItemDetail } from '@/lib/study/wrongbook/contracts';
 import { CompanionAnswer } from './CompanionAnswer';
 
 interface PageData {
@@ -73,6 +76,8 @@ interface PageData {
   originSpaces: string[];
   /** B06 Memory is served (preference confirm prompts, turn notes). */
   memory: boolean;
+  /** B10: the wrong item a new chat is opened from (its space is fixed). */
+  wrongItem: WrongItemDetail | null;
 }
 
 const FALLBACK_AVATAR = CLASSMATE_PRESET_AVATARS[0];
@@ -165,6 +170,9 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
   const params = useSearchParams();
   const sessionId = params.get('session');
   const origin = useMemo<CompanionOrigin | null>(() => {
+    // From the wrong-answer book (B10): only the item id; the server adds the question.
+    const wrongItemId = params.get('wrong');
+    if (wrongItemId) return { wrongItemId };
     const stageId = params.get('stage');
     if (!stageId) return null;
     const sceneId = params.get('scene') ?? undefined;
@@ -214,11 +222,16 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
         classmateApi.list('active'),
         studyApi.listSpaces(),
         companionApi.list(classmateId),
-        origin ? studyApi.listCourses().catch(() => []) : Promise.resolve([]),
+        origin?.stageId ? studyApi.listCourses().catch(() => []) : Promise.resolve([]),
       ]);
-      const originSpaces = origin
-        ? (courses.find((course) => course.stageId === origin.stageId)?.spaceIds ?? [])
-        : [];
+      const wrongItem = origin?.wrongItemId
+        ? await wrongbookApi.get(origin.wrongItemId).catch(() => null)
+        : null;
+      const originSpaces = wrongItem
+        ? [wrongItem.spaceId]
+        : origin?.stageId
+          ? (courses.find((course) => course.stageId === origin.stageId)?.spaceIds ?? [])
+          : [];
       return {
         classmate,
         others: all.filter((item) => item.id !== classmateId),
@@ -226,6 +239,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
         chats,
         originSpaces,
         memory: capabilities.memory,
+        wrongItem,
       };
     }).then((result) => {
       if (cancelled) return;
@@ -633,7 +647,18 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
             {!sessionId ? (
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>{t('study.companion.intro', { name: classmate.name })}</p>
-                {origin ? (
+                {origin?.wrongItemId ? (
+                  <p
+                    className="rounded-lg bg-muted/60 px-3 py-2 text-xs"
+                    data-testid="companion-origin"
+                  >
+                    {data.wrongItem
+                      ? t('study.companion.fromWrongItem', {
+                          stem: Array.from(data.wrongItem.question.stem).slice(0, 80).join(''),
+                        })
+                      : t('study.companion.wrongItemGone')}
+                  </p>
+                ) : origin ? (
                   <p
                     className="rounded-lg bg-muted/60 px-3 py-2 text-xs"
                     data-testid="companion-origin"
@@ -642,7 +667,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                     {origin.excerpt ? `：“${origin.excerpt}”` : ''}
                   </p>
                 ) : null}
-                <label className="block text-xs">
+                <label className={cn('block text-xs', data.wrongItem && 'hidden')}>
                   {t('study.companion.space')}
                   <select
                     className="mt-1 block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -663,7 +688,23 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                 </label>
               </div>
             ) : null}
-            {header?.originCourse && header.chat.origin ? (
+            {header?.chat.origin?.wrongItem ? (
+              <p
+                className="text-center text-[11px] text-muted-foreground"
+                data-testid="companion-wrong-origin"
+              >
+                {t('study.companion.openedFromWrongItem', {
+                  where: header.chat.origin.wrongItem.where,
+                })}{' '}
+                <Link
+                  href={`/study/${encodeURIComponent(header.chat.spaceId)}/wrongbook`}
+                  className="text-primary hover:underline"
+                >
+                  {t('study.wrongbook.open')}
+                </Link>
+              </p>
+            ) : null}
+            {header?.originCourse && header.chat.origin && !header.chat.origin.wrongItem ? (
               <p className="text-center text-[11px] text-muted-foreground">
                 {t('study.companion.openedFrom', { course: header.originCourse.title })}
               </p>

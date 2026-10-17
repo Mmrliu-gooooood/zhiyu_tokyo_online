@@ -9,6 +9,7 @@
  */
 
 import type { MemoryTurnInfo } from '@/lib/study/memory/contracts';
+import type { WrongItemChatContext } from '@/lib/study/wrongbook/contracts';
 
 export const COMPANION_PURPOSES = ['after_class_qa'] as const;
 export type CompanionPurpose = (typeof COMPANION_PURPOSES)[number];
@@ -32,14 +33,23 @@ export const COMPANION_LIMITS = {
   historyTurns: 8,
 } as const;
 
-/** Where a chat was opened from ("继续问这个学伴" in a classroom). */
+/**
+ * Where a chat was opened from: "继续问这个学伴" in a classroom, or "问学伴"
+ * on a wrong item (B10). A wrong-item chat carries the server-made copy of
+ * the question (`wrongItem`); its course page, when it has one, is kept as
+ * stage/scene so read_course_page works.
+ */
 export interface CompanionOrigin {
-  stageId: string;
+  stageId?: string;
   sceneId?: string;
   /** The classroom agent id (`<classmateId>-r<revision>`) the student clicked. */
   agentId?: string;
   /** The classroom question or remark the chat continues (bounded). */
   excerpt?: string;
+  /** B10: the wrong item the chat was opened from (the client sends only this id). */
+  wrongItemId?: string;
+  /** B10: set by the server from stored rows when the chat opens. */
+  wrongItem?: WrongItemChatContext;
 }
 
 export interface CompanionChatView {

@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "Cancelled.",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "Too many of your tasks are running. Try again later.",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "The service is busy. Try again later.",
-        "STUDY_INVALID_INPUT": "Invalid input. Please check and try again."
-      }
+        "STUDY_INVALID_INPUT": "Invalid input. Please check and try again.",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "This wrong question is no longer available."
+      },
+      "fromWrongItem": "A question from your wrong-answer book: “{{stem}}”",
+      "wrongItemGone": "This wrong question is no longer available.",
+      "openedFromWrongItem": "Opened from the wrong-answer book: {{where}}"
     },
     "memory": {
       "nav": "Memory",
@@ -3039,7 +3043,7 @@
         "facts": "Facts you told us (including corrections)",
         "records": "Learning records",
         "rawQuizAttempts": "Also delete the original classroom quiz answers and scores",
-        "rawHint": "Kept by default. If ticked, classroom quizzes return to unanswered. This cannot be undone.",
+        "rawHint": "Kept by default. If ticked, classroom quizzes return to unanswered. This cannot be undone. What the wrong-answer book kept of them is removed too.",
         "confirm": "Clear",
         "done": "Cleared"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "Restore",
       "commitOne": "Add to bank",
       "openSuggestion": "Open question: formatting only, no answer."
+    },
+    "wrongbook": {
+      "open": "Wrong-answer book",
+      "title": "Wrong-answer book",
+      "subtitle": "Mistakes from your subject papers, classroom quizzes and learning checks in one place. Questions still being graded don't appear here.",
+      "refresh": "Refresh",
+      "stateLabel": "Show",
+      "state": {
+        "active": "Open",
+        "to_review": "To review",
+        "archived": "Archived"
+      },
+      "filter": {
+        "source": "Source",
+        "allSources": "All sources",
+        "concept": "Knowledge point",
+        "allConcepts": "All knowledge points",
+        "unlinked": "Not linked",
+        "since": "Time"
+      },
+      "source": {
+        "exam_attempt": "Subject papers",
+        "quiz_attempt": "Classroom quizzes",
+        "learning_check": "Learning checks"
+      },
+      "since": {
+        "all": "Any time",
+        "30d": "Last 30 days",
+        "7d": "Last 7 days"
+      },
+      "empty": "No mistakes yet. Wrong answers from submitted papers, classroom quizzes and learning checks will show up here.",
+      "emptyFiltered": "Nothing matches these filters.",
+      "total": "{{count}} questions",
+      "more": "Show more",
+      "sync": {
+        "failed": "Couldn't read {{sources}} this time; they will be read again next time.",
+        "legacy": "{{count}} older classroom quiz attempts were saved without their questions, so they can't be shown here.",
+        "full": "This subject already holds the maximum number of wrong questions, so new ones are not added."
+      },
+      "outcome": {
+        "incorrect": "Wrong",
+        "partial": "Partly right",
+        "unanswered": "Unanswered",
+        "correct": "Right"
+      },
+      "where": {
+        "paper": "Paper “{{title}}”",
+        "quiz": "Quiz in “{{course}}”",
+        "check": "Learning check in “{{course}}”",
+        "remediation": "Follow-up check in “{{course}}”"
+      },
+      "archived": "Archived",
+      "restored": "Moved back to open",
+      "marked": "Marked for review",
+      "unmarked": "Review mark removed",
+      "mark": "Mark for review",
+      "unmark": "Remove review mark",
+      "archive": "Archive",
+      "restore": "Restore",
+      "collapse": "Collapse",
+      "expand": "Show details",
+      "wrongTimes": "Wrong {{count}} times",
+      "lastWrong": "Last wrong",
+      "laterCorrect": "Answered right since",
+      "history": "All answers ({{count}})",
+      "noAnswer": "No answer given",
+      "yourAnswer": "Your answer",
+      "finalAnswer": "Final answer: ",
+      "reference": "Reference answer",
+      "explanation": "Explanation",
+      "evidence": "Course passages the question was written from ({{count}}, as they were then)",
+      "grading": {
+        "answer_key": "Graded against the answer key",
+        "rubric": "Graded by scoring points",
+        "model": "Graded with AI",
+        "blank": "No answer, 0 points",
+        "checked": "classroom record, checked against the course",
+        "classroom": "classroom record",
+        "reviewed": "after the review you asked for"
+      },
+      "lookBack": {
+        "title": "Look back",
+        "paper": "Open the report of “{{title}}”",
+        "material": "Open the original page in “{{title}}”",
+        "materialGone": "The material “{{title}}” is no longer available.",
+        "scene": "Open “{{page}}” in “{{course}}”",
+        "sceneChanged": "The page “{{page}}” in “{{course}}” has changed since; the question above is the original.",
+        "openCourse": "Open the course",
+        "sceneMissing": "The page is no longer in “{{course}}”; the question above is the original.",
+        "course": "Course for this question: “{{course}}”",
+        "courseGone": "The course is no longer available.",
+        "sceneGone": "That page is no longer in this course."
+      },
+      "ask": {
+        "none": "Create a classmate to ask about this question.",
+        "create": "Classmates",
+        "prompt": "I got this question wrong: “{{stem}}”. Where did I go wrong?",
+        "pick": "Classmate",
+        "open": "Ask a classmate"
+      }
     }
   }
 }

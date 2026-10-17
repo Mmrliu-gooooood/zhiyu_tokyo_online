@@ -5,7 +5,8 @@
  * its courses with viewing progress, goal / exam date / exam scope, adding
  * existing courses, generating a new course into the space, archive and delete.
  * With the question bank on (B07): the way to its bank and tests, and a
- * voluntary "test yourself" next to each course watched to the end.
+ * voluntary "test yourself" next to each course watched to the end. With the
+ * wrong-answer book on (B10): the way to it.
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -15,6 +16,7 @@ import {
   ArchiveRestore,
   CalendarClock,
   ChevronLeft,
+  BookX,
   ClipboardCheck,
   MessageSquareQuote,
   MoreHorizontal,
@@ -79,6 +81,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
   const [materialsOn, setMaterialsOn] = useState(false);
   const [qaOn, setQaOn] = useState(false);
   const [examsOn, setExamsOn] = useState(false);
+  const [wrongbookOn, setWrongbookOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +90,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
       setMaterialsOn(capabilities.materials);
       setQaOn(capabilities.qa);
       setExamsOn(capabilities.exams);
+      setWrongbookOn(capabilities.wrongbook);
     });
     return () => {
       cancelled = true;
@@ -188,6 +192,14 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
               <Link href={`/study/${encodeURIComponent(space.id)}/practice`}>
                 <ClipboardCheck className="mr-1 size-4" />
                 {t('study.practice.open')}
+              </Link>
+            </Button>
+          ) : null}
+          {wrongbookOn ? (
+            <Button asChild variant="outline" data-testid="study-open-wrongbook">
+              <Link href={`/study/${encodeURIComponent(space.id)}/wrongbook`}>
+                <BookX className="mr-1 size-4" />
+                {t('study.wrongbook.open')}
               </Link>
             </Button>
           ) : null}

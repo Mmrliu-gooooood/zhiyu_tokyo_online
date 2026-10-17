@@ -13,6 +13,7 @@ import { randomBytes } from 'node:crypto';
 import type { Queryable } from '@openmaic/storage/document/pg';
 
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
+import { deleteQuizOccurrences } from '@/lib/server/study/wrongbook/repository';
 import {
   MEMORY_LIMITS,
   preferenceSuppressionKey,
@@ -671,6 +672,8 @@ export async function clearMemory(
         [ownerId],
       );
       outcome.rawQuizAttempts = deleted.rows.length;
+      // What the wrong-answer book (B10) kept of them goes too.
+      await deleteQuizOccurrences(tx, ownerId);
     }
     return outcome;
   });

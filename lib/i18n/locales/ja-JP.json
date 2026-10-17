@@ -2920,8 +2920,12 @@
         "PRO_MODEL_CANCELLED": "キャンセルしました。",
         "HEAVY_TASK_PERSONAL_CAPACITY_LIMIT": "同時に実行中のタスクが多すぎます。後で再試行してください。",
         "HEAVY_TASK_SITE_CAPACITY_LIMIT": "サービスが混雑しています。後で再試行してください。",
-        "STUDY_INVALID_INPUT": "入力が無効です。確認してください。"
-      }
+        "STUDY_INVALID_INPUT": "入力が無効です。確認してください。",
+        "STUDY_WRONG_ITEM_NOT_FOUND": "この問題は利用できなくなりました。"
+      },
+      "fromWrongItem": "間違いノートの問題：「{{stem}}」",
+      "wrongItemGone": "この問題は利用できなくなりました。",
+      "openedFromWrongItem": "間違いノートから：{{where}}"
     },
     "memory": {
       "nav": "学習メモリー",
@@ -3039,7 +3043,7 @@
         "facts": "教えてくれた事実（訂正を含む）",
         "records": "学習記録",
         "rawQuizAttempts": "元の授業内テストの解答と得点も削除する",
-        "rawHint": "既定では残します。チェックすると授業内テストは未回答に戻り、元に戻せません。",
+        "rawHint": "既定では残します。チェックすると授業内テストは未回答に戻り、元に戻せません。間違いノートに残っていたそれらの問題も削除されます。",
         "confirm": "削除",
         "done": "削除しました"
       },
@@ -3534,6 +3538,106 @@
       "undiscard": "戻す",
       "commitOne": "問題集に追加",
       "openSuggestion": "記述問題は書式のみ整え、解答は出しません。"
+    },
+    "wrongbook": {
+      "open": "間違いノート",
+      "title": "間違いノート",
+      "subtitle": "科目テスト、授業の小テスト、理解度チェックで間違えた問題をまとめて表示します。採点中の問題はここには表示されません。",
+      "refresh": "更新",
+      "stateLabel": "表示",
+      "state": {
+        "active": "未対応",
+        "to_review": "復習予定",
+        "archived": "アーカイブ"
+      },
+      "filter": {
+        "source": "出題元",
+        "allSources": "すべての出題元",
+        "concept": "知識ポイント",
+        "allConcepts": "すべての知識ポイント",
+        "unlinked": "未関連付け",
+        "since": "期間"
+      },
+      "source": {
+        "exam_attempt": "科目テスト",
+        "quiz_attempt": "授業の小テスト",
+        "learning_check": "理解度チェック"
+      },
+      "since": {
+        "all": "すべての期間",
+        "30d": "過去 30 日",
+        "7d": "過去 7 日"
+      },
+      "empty": "まだ間違えた問題はありません。提出した科目テスト、授業の小テスト、理解度チェックで間違えた問題がここに表示されます。",
+      "emptyFiltered": "条件に合う問題はありません。",
+      "total": "{{count}} 問",
+      "more": "さらに表示",
+      "sync": {
+        "failed": "今回は{{sources}}を読み込めませんでした。次回もう一度読み込みます。",
+        "legacy": "以前の授業の小テスト {{count}} 回分は問題が保存されていないため、表示できません。",
+        "full": "この科目の間違えた問題は上限に達しているため、新しい問題は追加されません。"
+      },
+      "outcome": {
+        "incorrect": "不正解",
+        "partial": "部分点",
+        "unanswered": "未回答",
+        "correct": "正解"
+      },
+      "where": {
+        "paper": "テスト「{{title}}」",
+        "quiz": "授業「{{course}}」の小テスト",
+        "check": "授業「{{course}}」の理解度チェック",
+        "remediation": "授業「{{course}}」の追加チェック"
+      },
+      "archived": "アーカイブしました",
+      "restored": "未対応に戻しました",
+      "marked": "復習予定にしました",
+      "unmarked": "復習予定を解除しました",
+      "mark": "復習予定にする",
+      "unmark": "復習予定を解除",
+      "archive": "アーカイブ",
+      "restore": "元に戻す",
+      "collapse": "閉じる",
+      "expand": "詳細を見る",
+      "wrongTimes": "{{count}} 回間違えた",
+      "lastWrong": "最後に間違えた日時",
+      "laterCorrect": "その後正解",
+      "history": "すべての回答（{{count}}）",
+      "noAnswer": "未回答",
+      "yourAnswer": "あなたの回答",
+      "finalAnswer": "最終解答：",
+      "reference": "模範解答 / 採点基準",
+      "explanation": "解説",
+      "evidence": "出題のもとになった授業内容（{{count}} 件、当時のもの）",
+      "grading": {
+        "answer_key": "正解キーで採点",
+        "rubric": "採点ポイントで採点",
+        "model": "AI 補助採点",
+        "blank": "未回答のため 0 点",
+        "checked": "授業の記録、コースと照合済み",
+        "classroom": "授業の記録",
+        "reviewed": "再採点を依頼した結果"
+      },
+      "lookBack": {
+        "title": "振り返る",
+        "paper": "テスト「{{title}}」のレポートを開く",
+        "material": "「{{title}}」の原文を開く",
+        "materialGone": "資料「{{title}}」は利用できなくなりました。",
+        "scene": "授業「{{course}}」の「{{page}}」を開く",
+        "sceneChanged": "授業「{{course}}」の「{{page}}」はその後更新されました。上の問題が当時のものです。",
+        "openCourse": "授業を開く",
+        "sceneMissing": "このページは授業「{{course}}」にもうありません。上の問題が当時のものです。",
+        "course": "この問題に関連する授業：「{{course}}」",
+        "courseGone": "元の授業は利用できなくなりました。",
+        "sceneGone": "このページはこの授業にもうありません。"
+      },
+      "ask": {
+        "none": "学習仲間を作成すると、この問題について質問できます。",
+        "create": "学習仲間",
+        "prompt": "この問題を間違えました：「{{stem}}」。どこが間違っていましたか？",
+        "pick": "学習仲間",
+        "open": "学習仲間に聞く"
+      }
     }
   }
 }
