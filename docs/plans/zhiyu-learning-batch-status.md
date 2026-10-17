@@ -14,7 +14,7 @@
 | B06 | 已上线（2026-10-09，release-20261009） | `learn/b06-memory` → main `bb6684a1`（快进，已推送 tokyo） | accounts v27 `62c3e9d2…`（生产已执行） | 本地托管模式两轮验收通过（假模型 + 真实 DeepSeek，含课堂偏好）；生产登录验收通过（2026-10-09）；网关修复随后上线为 release-20261009b（main `e1ab2823`） | 已启用 `ZHIYU_STUDY_MEMORY_ENABLED=1` | 见 B06“未验证” |
 | B07 | 已上线（2026-10-11，release-20261011；同日 20261011b 修公式渲染） | `learn/b07-bank-exams` → main（快进，已推送 tokyo） | accounts v28 `d6e44cc5…`（生产已执行） | 本地托管模式两轮验收通过（不配置任何模型，真实 RLS，双账号）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXAMS_ENABLED=1` | 见 B07“未验证” |
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
-| B09 | 已上线（2026-10-13，release-20261013） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
+| B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -194,10 +194,22 @@
 5. 简答题“请 AI 重新批改”：新版本 2/4，原评分保留在“之前的评分（1）”。“自己评分”3 分加说明：单独显示“你的自评：3/4”，正式得分仍为 15/17，顶部另显示“按你的自评：16/17”。
 6. 数据库：评分记录 6 行（4 auto + 1 review + 1 self），都已成功、租约清空；模型批改的 `grader.model` 为 `deepseek:deepseek-flash`。`usage_events` 中 `study-grade` 4 行（输入 1966 / 输出 536 tokens），每次约 2–3 s。`exam_graded` 只有 1 条，在全部批改完成后写入（earned 15、openItems 4，不含自评）。Web 日志无 WARN/ERROR。试卷记录列表显示 15/17。
 
-小问题（不影响使用，未修）：
+7. 清理：用户自己删除了测试学科（2026-10-17）；数据库核对该账号学科、题目、作答、评分记录均为 0。
+
+验收中发现的小问题（已在 release-20261017 修复，见下节）：
 - 程序判定的计算题，评分点说明与总评是同一句“最终答案与参考答案等价（程序判定）”，显示两遍。
 - 同一题的标题写“AI 辅助批改：2/2 分”，但这一题没有调用 AI（下方另有“最终答案由程序判定”）。
 - 自评分数输入框没有关联到“我认为应得”标签，读屏软件读不出名称。
+
+### 发布后修复（2026-10-17，release-20261017，只换 Web）
+
+- 改动（main `8b4f9196`）：
+  - 全部评分点都由程序判定时，标题为“程序判定：x/y 分”（新文案 `programResult`，12 种语言）。
+  - `combineOpenGrading` 的总评只来自模型，程序判定的说明只留在评分点上，不再复制成总评。
+  - 自评分数框用 `id`/`htmlFor` 关联标签，说明框加 `aria-label`。
+- 测试：相关单测更新（纯程序判定的结果总评为空）；tsc、ESLint、i18n 检查、全量 Vitest（888 个文件、9155 个用例）通过。
+- 本地验收（一次性 PG v30 + 假登录 + `next dev`，真实 DeepSeek 2 次）：3 道主观题卷 9/9；行列式题显示“程序判定：2/2 分”且说明只出现一次，AI 批改的题仍是“AI 辅助批改”；自评框的无障碍名称为“我认为应得（0–2 分）”，点标签会聚焦输入框，保存后显示“按你的自评：8 / 9 分”；控制台无错误。用后删除容器、临时 env 与测试账号文件。
+- 发布：第一次构建时 npm 下载超时，重试成功。Web 镜像 `502a812aeff0` 标为 `release-20261017` 送到东京；Worker 仍为 `release-20261013`（这次没有 Worker 改动）。备份 `*.bak-20261017-pre`（指向 web/worker 20261013）；env 只改 `ZHIYU_WEB_IMAGE`，compose 与仓库一致。发布前生成任务、学习任务与进行中的批改都为 0。readiness 正常（v30、2/2 Worker），`grading: true`，站点返回的 BUILD_ID 与新镜像一致；LISTEN 首连一次成功（2.9 s，DNS 约 2.8 s），无 WARN/ERROR。
 
 ### 下一批前置条件
 
