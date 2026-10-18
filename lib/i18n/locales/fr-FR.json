@@ -3015,7 +3015,10 @@
         "examGraded": "Test « {{paper}} » remis dans {{space}}",
         "examScore": "{{earned}}/{{total}} points · {{correct}}/{{count}} justes (corrigé sur le serveur)",
         "unknownPaper": "un test supprimé",
-        "exam_graded": "A remis un test"
+        "exam_graded": "A remis un test",
+        "hintUsed": "Indice de la question {{position}} vu en entraînement dans « {{space}} »",
+        "solutionSeen": "Réponse de la question {{position}} vue en entraînement dans « {{space}} »",
+        "examPractice": "{{independent}} nouvelles questions réussies seul · aide vue pour {{helped}}"
       },
       "source": {
         "study_progress": "Progression",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "({{points}} pts)",
         "finalCriterion": "Résultat final correct",
         "overallCriterion": "Globalement, par rapport au corrigé"
+      },
+      "ai": {
+        "mode": {
+          "label": "Construction",
+          "bank": "Banque uniquement",
+          "mixed": "Banque d’abord, l’IA comble les manques",
+          "ai": "Tout rédigé par l’IA"
+        },
+        "modeHint": {
+          "bank": "Les questions sont tirées de la banque selon les règles. Aucun modèle n’est utilisé.",
+          "mixed": "La banque est utilisée d’abord ; l’IA rédige seulement ce qui manque, à partir des ressources de cette matière.",
+          "ai": "L’IA rédige toutes les questions ci-dessus, par type et nombre, à partir des ressources de cette matière."
+        },
+        "typeCount": "{{count}} × {{type}}",
+        "planTitle": "Plan de questions IA",
+        "planNew": "{{count}} nouvelles questions : {{types}}",
+        "bankKept": "Plus {{count}} questions de la banque (comme dans l’aperçu)",
+        "planConcepts": "Notions : {{names}}",
+        "planCalls": "Au plus {{count}} appels au modèle (rédaction et relecture séparées), avec le modèle choisi",
+        "planMedia": "Questions texte uniquement ; ni images ni audio",
+        "planMaterials": "Ressources utilisées (versions actuelles)",
+        "planNote": "Les nouvelles questions rejoignent la banque comme « générée par IA · non vérifiée » : relues par l’IA, pas vérifiées par une personne. Vous pouvez les modifier ou les vérifier dans la banque.",
+        "consent": "J’accepte que l’IA rédige ces {{count}} questions",
+        "start": "Rédiger {{count}} questions",
+        "blocked": {
+          "nothing_to_generate": "La banque suffit déjà ; l’IA n’a rien à ajouter.",
+          "no_materials": "Cette matière n’a pas encore de ressources consultables. Ajoutez des ressources (par ex. un PDF texte) sur la page de la matière pour que l’IA puisse s’appuyer dessus.",
+          "too_many": "L’IA peut rédiger au plus {{max}} questions à la fois. Demandez-en moins.",
+          "retrieval_unavailable": "La recherche dans les ressources n’est pas disponible ici ; l’IA ne peut pas rédiger de questions fondées."
+        },
+        "nothingButUncovered": "Il y a assez de questions, mais aucune sur « {{names}} ». Demandez-en davantage et l’IA couvrira ces notions.",
+        "gapsHintMixed": "Le plan IA ci-dessous peut rédiger les questions manquantes.",
+        "progress": "{{done}}/{{total}} rédigées · {{calls}}/{{cap}} appels au modèle",
+        "running": "Rédaction et relecture… restez sur cette page.",
+        "cancel": "Annuler",
+        "cancelled": "Annulé. Les questions déjà rédigées restent dans la banque (non vérifiées).",
+        "completed": "Les {{total}} questions sont rédigées et ont passé la relecture IA.",
+        "stopped": {
+          "budget": "Limite d’appels atteinte, {{done}}/{{total}} rédigées.",
+          "timeout": "Le modèle a expiré, {{done}}/{{total}} rédigées.",
+          "model_error": "L’appel au modèle a échoué, {{done}}/{{total}} rédigées.",
+          "lease_lost": "Cette étape a été interrompue, {{done}}/{{total}} rédigées.",
+          "interrupted": "Interrompu quand vous avez quitté la page, {{done}}/{{total}} rédigées.",
+          "internal": "Un problème est survenu, {{done}}/{{total}} rédigées."
+        },
+        "uncoveredLeft": "Notions encore sans question : {{names}}",
+        "reviewed": "Relue par l’IA",
+        "similar": "Similarité avec une question de la banque {{score}}",
+        "similarOriginal": "Similarité avec la question d’origine {{score}}",
+        "basedOn": "D’après :",
+        "originalQuestion": "la question d’origine",
+        "material": "Ressource",
+        "page": "p. {{page}}",
+        "rejectedSummary": "{{count}} non retenues (voir pourquoi)",
+        "stage": {
+          "output": "Format de sortie",
+          "program": "Contrôle du programme",
+          "review": "Relecture IA"
+        },
+        "reason": {
+          "not_json": "Sortie au mauvais format",
+          "too_many": "Plus de questions que demandé ; lot entier écarté",
+          "type_unrequested": "Mauvais type de question",
+          "type_excess": "Assez de questions de ce type",
+          "invalid": "Incomplète ou incohérente",
+          "no_answer_key": "Pas de réponse ni de corrigé",
+          "concept_missing": "Hors des notions choisies",
+          "bad_refs": "Cite une ressource non fournie",
+          "duplicate": "Répète une question existante",
+          "near_duplicate": "Presque identique à une question existante",
+          "review_rejected": "Refusée à la relecture IA",
+          "review_missing": "Non relue",
+          "review_invalid": "Résultat de relecture invalide"
+        },
+        "publish": "Commencer le test",
+        "publishShort": "Commencer avec les {{count}} questions disponibles",
+        "continue": "Continuer (jusqu’à {{count}} appels de plus)",
+        "retry": "Réessayer",
+        "published": "Épreuve créée — voir « Épreuves »",
+        "bankChanged": "La banque a changé pendant la rédaction ; sa partie ne correspond plus au plan. Refaites un aperçu puis réessayez (les nouvelles questions restent dans la banque).",
+        "modelUnavailable": "Le modèle choisi n’est pas disponible. Vérifiez les réglages du modèle.",
+        "limit": "Vous avez utilisé la rédaction IA du jour. Réessayez demain.",
+        "noEvidence": "Aucun passage de ressource utilisable trouvé ; aucune question ne peut être rédigée.",
+        "aiReviewedNotChecked": "Relue par l’IA, non vérifiée par une personne",
+        "startPractice": "Commencer l’entraînement"
+      },
+      "help": {
+        "notice": "C’est une épreuve d’entraînement : vous pouvez voir un indice ou la réponse, et c’est enregistré. Une bonne réponse après avoir vu la réponse ne compte pas comme réussie seul.",
+        "hint": "Indice",
+        "solution": "Voir la réponse",
+        "hintLabel": "Indice",
+        "solutionLabel": "Réponse et explication",
+        "solutionTitle": "Voir la réponse maintenant ?",
+        "solutionConfirm": "Après avoir vu la réponse, cette question ne comptera pas comme réussie seul, même juste (elle reste enregistrée comme entraînement).",
+        "keepTrying": "Encore réfléchir",
+        "recorded": "Enregistré : la réponse a été vue pour cette question.",
+        "chip": {
+          "variant": "Variante",
+          "independent": "Nouvelle question réussie seul",
+          "hinted": "Indice vu",
+          "solution_seen": "Réponse vue",
+          "seen": "Déjà vue"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "J’ai raté cette question : « {{stem}} ». Où me suis-je trompé ?",
         "pick": "Camarade",
         "open": "Demander à un camarade"
+      },
+      "variant": {
+        "open": "S’entraîner sur des variantes",
+        "title": "Retravailler avec de nouvelles questions semblables",
+        "count": "Questions",
+        "intro": "L’IA rédige, à partir de la question d’origine (et des passages liés des ressources de la matière), de nouvelles questions sur la même notion et la même méthode mais au contenu différent — jamais une copie.",
+        "help": "Dans les épreuves d’entraînement, indices et réponses sont visibles et enregistrés ; les résultats rejoignent l’historique de cette erreur."
       }
     }
   }

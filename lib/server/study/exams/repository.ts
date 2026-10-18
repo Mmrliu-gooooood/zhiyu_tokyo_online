@@ -39,6 +39,12 @@ import {
   type PaperSummary,
   type ReportItem,
 } from '@/lib/study/assessments/contracts';
+import {
+  assistanceLevel,
+  type AttemptAssistanceRecord,
+  type AttemptAssistanceView,
+  type ItemAssistanceRecord,
+} from '@/lib/study/practice/contracts';
 import type { ExamBlueprint } from '@/lib/study/questions/blueprint';
 import type { GradingGuide } from '@/lib/study/questions/contracts';
 
@@ -71,6 +77,8 @@ export interface NewPaper {
   id: string;
   spaceId: string;
   title: string;
+  /** `bank` (B07), `mixed` (bank first, AI for the gap) or `ai` (B11). */
+  mode?: 'bank' | 'mixed' | 'ai';
   blueprint: ExamBlueprint;
   items: FrozenItem[];
   idempotencyKey: string;
@@ -101,7 +109,7 @@ export async function insertPaper(
     `INSERT INTO study_exam_papers
        (owner_id, id, space_id, title, mode, blueprint, item_count, total_points,
         idempotency_key, request_hash)
-     VALUES ($1, $2, $3, $4, 'bank', $5::jsonb, $6, $7, $8, $9)
+     VALUES ($1, $2, $3, $4, $10, $5::jsonb, $6, $7, $8, $9)
      ON CONFLICT (owner_id, idempotency_key) DO NOTHING
      RETURNING id`,
     [
@@ -114,6 +122,7 @@ export async function insertPaper(
       totalPoints,
       paper.idempotencyKey,
       paper.requestHash,
+      paper.mode ?? 'bank',
     ],
   );
   if (inserted.rows.length === 0) return false;
@@ -380,6 +389,39 @@ export async function attemptPaperId(
   return paperId;
 }
 
+/**
+ * Whether each item was new to the student when an attempt opens (B11): an
+ * item they answered in an earlier submitted paper of the subject — the
+ * same bank question, pack question or content — is a repeat.
+ */
+async function itemNovelty(
+  tx: Queryable,
+  ownerId: string,
+  paperId: string,
+  spaceId: string,
+): Promise<AttemptAssistanceRecord> {
+  const items = await tx.query<{
+    position: number;
+    question_id: string | null;
+    pack_question: string | null;
+    content_hash: string;
+  }>(
+    `SELECT position, question_id, pack_question, content_hash FROM study_exam_items
+      WHERE owner_id = $1 AND paper_id = $2`,
+    [ownerId, paperId],
+  );
+  const seen = await seenInSpace(tx, ownerId, spaceId);
+  const records: Record<string, ItemAssistanceRecord> = {};
+  for (const item of items.rows) {
+    const repeat =
+      (item.question_id !== null && seen.questionIds.has(item.question_id)) ||
+      (item.pack_question !== null && seen.packQuestions.has(item.pack_question)) ||
+      seen.hashes.has(item.content_hash);
+    records[String(item.position)] = { novelty: repeat ? 'seen' : 'new' };
+  }
+  return { items: records };
+}
+
 /** The open attempt of a paper, or a new one (one open attempt per paper). */
 export async function openAttempt(
   db: StudyDb,
@@ -387,17 +429,18 @@ export async function openAttempt(
   paperId: string,
 ): Promise<{ id: string; created: boolean }> {
   return db.withTransaction(async (tx) => {
-    const paper = await tx.query(
-      `SELECT 1 FROM study_exam_papers WHERE owner_id = $1 AND id = $2`,
+    const paper = await tx.query<{ space_id: string }>(
+      `SELECT space_id FROM study_exam_papers WHERE owner_id = $1 AND id = $2`,
       [ownerId, paperId],
     );
     if (paper.rows.length === 0) throw new StudyError('STUDY_PAPER_NOT_FOUND');
+    const assistance = await itemNovelty(tx, ownerId, paperId, paper.rows[0]!.space_id);
     const inserted = await tx.query<{ id: string }>(
-      `INSERT INTO study_exam_attempts (owner_id, id, paper_id)
-       VALUES ($1, $2, $3)
+      `INSERT INTO study_exam_attempts (owner_id, id, paper_id, assistance)
+       VALUES ($1, $2, $3, $4::jsonb)
        ON CONFLICT (owner_id, paper_id) WHERE status = 'in_progress' DO NOTHING
        RETURNING id`,
-      [ownerId, `att-${randomBytes(9).toString('base64url')}`, paperId],
+      [ownerId, `att-${randomBytes(9).toString('base64url')}`, paperId, JSON.stringify(assistance)],
     );
     if (inserted.rows[0]) return { id: inserted.rows[0].id, created: true };
     const open = await tx.query<{ id: string }>(
@@ -420,6 +463,8 @@ interface AttemptRow extends Record<string, unknown> {
   submitted_at: string | Date | null;
   submit_key: string | null;
   grading: unknown;
+  assistance: unknown;
+  practice: boolean;
   space_id: string;
   title: string;
 }
@@ -427,7 +472,8 @@ interface AttemptRow extends Record<string, unknown> {
 async function attemptRow(db: Queryable, ownerId: string, attemptId: string): Promise<AttemptRow> {
   const result = await db.query<AttemptRow>(
     `SELECT a.id, a.paper_id, a.status, a.answers, a.revision, a.started_at, a.updated_at,
-            a.submitted_at, a.submit_key, a.grading, p.space_id, p.title
+            a.submitted_at, a.submit_key, a.grading, a.assistance,
+            (p.blueprint ? 'practice') AS practice, p.space_id, p.title
        FROM study_exam_attempts a
        JOIN study_exam_papers p ON p.owner_id = a.owner_id AND p.id = a.paper_id
       WHERE a.owner_id = $1 AND a.id = $2`,
@@ -460,6 +506,62 @@ async function lockOpenAttempt(
   return { answers: json<AttemptAnswers>(row.answers) ?? {}, revision: Number(row.revision) };
 }
 
+/**
+ * Novelty, hints and solutions per item (B11). Hints and solutions are
+ * offered only in practice papers; their text is returned once the student
+ * asked for it (recorded with the attempt), never before.
+ */
+async function assistanceView(
+  db: Queryable,
+  ownerId: string,
+  row: AttemptRow,
+): Promise<AttemptAssistanceView> {
+  const record = json<AttemptAssistanceRecord>(row.assistance) ?? {};
+  const stored = record.items ?? {};
+  const practice = row.practice === true;
+  const hints = new Map<number, string>();
+  if (practice) {
+    const result = await db.query<{ position: number; hint: string | null }>(
+      `SELECT position, snapshot->>'hint' AS hint FROM study_exam_items
+        WHERE owner_id = $1 AND paper_id = $2`,
+      [ownerId, row.paper_id],
+    );
+    for (const hint of result.rows) {
+      if (hint.hint) hints.set(Number(hint.position), hint.hint);
+    }
+  }
+  const solved = Object.entries(stored)
+    .filter(([, item]) => practice && item.solutionAt)
+    .map(([position]) => Number(position));
+  const keys = new Map<number, PaperItemView & PaperItemKey>();
+  if (solved.length && row.status === 'in_progress') {
+    for (const item of await paperItemsWithKeys(db, ownerId, row.paper_id)) {
+      if (solved.includes(item.position)) keys.set(item.position, item);
+    }
+  }
+  const positions = new Set([...Object.keys(stored).map(Number), ...hints.keys()]);
+  const items: AttemptAssistanceView['items'] = {};
+  for (const position of positions) {
+    const item = stored[String(position)];
+    const key = keys.get(position);
+    items[String(position)] = {
+      novelty: item?.novelty ?? null,
+      level: assistanceLevel(item),
+      hintAvailable: hints.has(position),
+      hint: item?.hintAt ? (hints.get(position) ?? null) : null,
+      solution: key
+        ? {
+            answer: key.answer,
+            explanation: key.explanation,
+            referenceAnswer: key.guide?.referenceAnswer ?? null,
+            finalAnswer: key.guide?.finalAnswer ?? null,
+          }
+        : null,
+    };
+  }
+  return { practice, items };
+}
+
 /** An attempt as the student sees it: items without keys while open, the report once submitted. */
 export async function getAttemptView(
   db: Queryable,
@@ -480,8 +582,14 @@ export async function getAttemptView(
     updatedAt: iso(row.updated_at),
     submittedAt: row.submitted_at ? iso(row.submitted_at) : null,
   };
+  const assistance = await assistanceView(db, ownerId, row);
   if (row.status !== 'submitted') {
-    return { ...base, items: await paperItemViews(db, ownerId, row.paper_id), report: null };
+    return {
+      ...base,
+      items: await paperItemViews(db, ownerId, row.paper_id),
+      report: null,
+      assistance,
+    };
   }
   const grading = json<AttemptGrading>(row.grading)!;
   const gradings = await listAttemptGradings(db, ownerId, attemptId);
@@ -505,7 +613,55 @@ export async function getAttemptView(
       ({ answer: _answer, explanation: _explanation, guide: _guide, ...view }) => view,
     ),
     report: { grading, summary, items: report },
+    assistance,
   };
+}
+
+/**
+ * Show a practice item's hint or its solution while the attempt is open,
+ * recording when (the first time). The answer may still be changed, but the
+ * item no longer counts as answered without help.
+ */
+export async function recordAssistance(
+  db: StudyDb,
+  ownerId: string,
+  attemptId: string,
+  position: number,
+  level: 'hint' | 'solution',
+): Promise<void> {
+  await db.withTransaction(async (tx) => {
+    const row = await attemptRow(tx, ownerId, attemptId);
+    if (row.status !== 'in_progress') throw new StudyError('STUDY_ATTEMPT_SUBMITTED');
+    if (row.practice !== true) throw new StudyError('STUDY_PRACTICE_ASSIST_UNAVAILABLE');
+    const locked = await tx.query<{ assistance: unknown }>(
+      `SELECT assistance FROM study_exam_attempts
+        WHERE owner_id = $1 AND id = $2 AND status = 'in_progress'
+        FOR UPDATE`,
+      [ownerId, attemptId],
+    );
+    if (!locked.rows[0]) throw new StudyError('STUDY_ATTEMPT_SUBMITTED');
+    const item = await tx.query<{ hint: string | null }>(
+      `SELECT snapshot->>'hint' AS hint FROM study_exam_items
+        WHERE owner_id = $1 AND paper_id = $2 AND position = $3`,
+      [ownerId, row.paper_id, position],
+    );
+    if (!item.rows[0]) throw new StudyError('STUDY_ANSWERS_INVALID');
+    if (level === 'hint' && !item.rows[0].hint) {
+      throw new StudyError('STUDY_PRACTICE_ASSIST_UNAVAILABLE');
+    }
+    const record = json<AttemptAssistanceRecord>(locked.rows[0].assistance) ?? {};
+    const items = { ...(record.items ?? {}) };
+    const current = { ...(items[String(position)] ?? {}) };
+    const field = level === 'hint' ? 'hintAt' : 'solutionAt';
+    if (current[field]) return;
+    current[field] = new Date().toISOString();
+    items[String(position)] = current;
+    await tx.query(
+      `UPDATE study_exam_attempts SET assistance = $3::jsonb, updated_at = clock_timestamp()
+        WHERE owner_id = $1 AND id = $2 AND status = 'in_progress'`,
+      [ownerId, attemptId, JSON.stringify({ ...record, items })],
+    );
+  });
 }
 
 /** Save a draft; a stale revision gets 409 with the stored answers. */
@@ -619,6 +775,8 @@ export interface SubmittedAttemptRow {
   grading: AttemptGrading;
   /** Open items (B09): their points so far, how many fully right, and how many have no score yet. */
   open: { earned: number; correct: number; ungraded: number };
+  /** Novelty and help shown per item (B11 attempts; empty before). */
+  assistance: AttemptAssistanceRecord;
 }
 
 export async function submittedAttempts(
@@ -633,8 +791,9 @@ export async function submittedAttempts(
     submitted_at: string | Date;
     item_count: number;
     grading: unknown;
+    assistance: unknown;
   }>(
-    `SELECT a.id, a.paper_id, p.space_id, a.submitted_at, p.item_count, a.grading
+    `SELECT a.id, a.paper_id, p.space_id, a.submitted_at, p.item_count, a.grading, a.assistance
        FROM study_exam_attempts a
        JOIN study_exam_papers p ON p.owner_id = a.owner_id AND p.id = a.paper_id
       WHERE a.owner_id = $1 AND a.status = 'submitted'
@@ -649,6 +808,7 @@ export async function submittedAttempts(
     submittedAt: iso(row.submitted_at),
     itemCount: Number(row.item_count),
     grading: json<AttemptGrading>(row.grading)!,
+    assistance: json<AttemptAssistanceRecord>(row.assistance) ?? {},
   }));
   const totals = await openItemTotals(db, ownerId, rows);
   return rows.map((row) => ({

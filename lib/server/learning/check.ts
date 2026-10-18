@@ -399,7 +399,11 @@ export async function generateLearningCheck(
   const generation: LearningCheckResponse['generation'] = {
     promptVersion: 'learning-check-prompt-v1',
     schemaVersion: 'learning-check-schema-v1',
-    model: binding.modelString,
+    // The model that actually wrote the questions (a platform default names its alias).
+    model:
+      binding.source === 'platform' && binding.providerId && binding.modelId
+        ? `${binding.providerId}:${binding.modelId}`
+        : binding.modelString,
     calls: 2,
     usage: usageFrom([generationResult, reviewResult]),
     review: { status: 'passed', notes: review.notes as string[] },

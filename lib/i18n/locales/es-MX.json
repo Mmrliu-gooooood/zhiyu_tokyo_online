@@ -3015,7 +3015,10 @@
         "examGraded": "Entregó la prueba «{{paper}}» en {{space}}",
         "examScore": "{{earned}}/{{total}} puntos · {{correct}}/{{count}} correctas (calificado en el servidor)",
         "unknownPaper": "una prueba eliminada",
-        "exam_graded": "Entregó una prueba"
+        "exam_graded": "Entregó una prueba",
+        "hintUsed": "Vio la pista de la pregunta {{position}} al practicar en «{{space}}»",
+        "solutionSeen": "Vio la respuesta de la pregunta {{position}} al practicar en «{{space}}»",
+        "examPractice": "{{independent}} preguntas nuevas resueltas solo · ayuda vista en {{helped}}"
       },
       "source": {
         "study_progress": "Progreso",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "({{points}} pts)",
         "finalCriterion": "Resultado final correcto",
         "overallCriterion": "En conjunto, frente a la referencia"
+      },
+      "ai": {
+        "mode": {
+          "label": "Cómo armarlo",
+          "bank": "Solo banco",
+          "mixed": "Banco primero, la IA completa",
+          "ai": "Todo escrito por la IA"
+        },
+        "modeHint": {
+          "bank": "Las preguntas se eligen del banco por reglas. No se usa ningún modelo.",
+          "mixed": "Primero se elige del banco; la IA escribe solo lo que falta, a partir de los materiales de esta materia.",
+          "ai": "La IA escribe todas las preguntas indicadas, por tipo y cantidad, a partir de los materiales de esta materia."
+        },
+        "typeCount": "{{count}} de {{type}}",
+        "planTitle": "Plan de preguntas con IA",
+        "planNew": "{{count}} preguntas nuevas: {{types}}",
+        "bankKept": "Más {{count}} preguntas del banco (como en la vista previa)",
+        "planConcepts": "Temas: {{names}}",
+        "planCalls": "Máximo {{count}} llamadas al modelo (redacción y revisión por separado), con el modelo que elegiste",
+        "planMedia": "Solo preguntas de texto; sin imágenes ni audio",
+        "planMaterials": "Materiales usados (versiones actuales)",
+        "planNote": "Las preguntas nuevas se agregan al banco como «generada por IA · sin verificar»: revisadas por IA, no por una persona. Puedes editarlas o verificarlas en el banco.",
+        "consent": "Acepto que la IA escriba estas {{count}} preguntas",
+        "start": "Escribir {{count}} preguntas",
+        "blocked": {
+          "nothing_to_generate": "El banco ya alcanza; la IA no necesita completar nada.",
+          "no_materials": "Esta materia aún no tiene materiales consultables. Agrega materiales (p. ej., un PDF con texto) en la página de la materia para que la IA tenga en qué basarse.",
+          "too_many": "La IA puede escribir como máximo {{max}} preguntas a la vez. Pide menos.",
+          "retrieval_unavailable": "La búsqueda en materiales no está disponible aquí, así que la IA no puede escribir preguntas fundamentadas."
+        },
+        "nothingButUncovered": "Hay suficientes preguntas, pero ninguna sobre «{{names}}». Pide más preguntas y la IA cubrirá esos temas.",
+        "gapsHintMixed": "El plan de IA de abajo puede escribir las preguntas que faltan.",
+        "progress": "{{done}}/{{total}} escritas · {{calls}}/{{cap}} llamadas al modelo",
+        "running": "Escribiendo y revisando… quédate en esta página.",
+        "cancel": "Cancelar",
+        "cancelled": "Cancelado. Las preguntas ya escritas quedan en el banco (sin verificar).",
+        "completed": "Las {{total}} preguntas están escritas y pasaron la revisión de IA.",
+        "stopped": {
+          "budget": "Se alcanzó el límite de llamadas con {{done}}/{{total}} escritas.",
+          "timeout": "El modelo tardó demasiado; {{done}}/{{total}} escritas.",
+          "model_error": "Falló la llamada al modelo; {{done}}/{{total}} escritas.",
+          "lease_lost": "Este paso se interrumpió; {{done}}/{{total}} escritas.",
+          "interrupted": "Se detuvo al salir de la página; {{done}}/{{total}} escritas.",
+          "internal": "Algo salió mal; {{done}}/{{total}} escritas."
+        },
+        "uncoveredLeft": "Temas todavía sin pregunta: {{names}}",
+        "reviewed": "Revisada por IA",
+        "similar": "Similitud con una pregunta del banco {{score}}",
+        "similarOriginal": "Similitud con la pregunta original {{score}}",
+        "basedOn": "Basada en:",
+        "originalQuestion": "la pregunta original",
+        "material": "Material",
+        "page": "p. {{page}}",
+        "rejectedSummary": "{{count}} no usadas (ver por qué)",
+        "stage": {
+          "output": "Formato de salida",
+          "program": "Revisión del programa",
+          "review": "Revisión de IA"
+        },
+        "reason": {
+          "not_json": "La salida no tenía el formato pedido",
+          "too_many": "Más preguntas de las pedidas; se descartó todo el lote",
+          "type_unrequested": "Tipo de pregunta incorrecto",
+          "type_excess": "Ya hay suficientes de este tipo",
+          "invalid": "Incompleta o inconsistente",
+          "no_answer_key": "Sin respuesta ni respuesta modelo",
+          "concept_missing": "No corresponde a los temas elegidos",
+          "bad_refs": "Cita material que no se proporcionó",
+          "duplicate": "Repite una pregunta existente",
+          "near_duplicate": "Casi igual a una pregunta existente",
+          "review_rejected": "No pasó la revisión de IA",
+          "review_missing": "No se revisó",
+          "review_invalid": "Resultado de revisión no válido"
+        },
+        "publish": "Empezar examen",
+        "publishShort": "Empezar con las {{count}} preguntas que hay",
+        "continue": "Seguir escribiendo (hasta {{count}} llamadas más)",
+        "retry": "Reintentar",
+        "published": "Examen creado — míralo en «Exámenes»",
+        "bankChanged": "El banco cambió mientras se escribían las preguntas y su parte ya no coincide con el plan. Vuelve a ver la vista previa e inténtalo (las preguntas nuevas quedan en el banco).",
+        "modelUnavailable": "El modelo que elegiste no está disponible. Revisa la configuración del modelo.",
+        "limit": "Ya usaste las preguntas con IA de hoy. Inténtalo mañana.",
+        "noEvidence": "No se encontraron fragmentos de material útiles, así que no se pueden escribir preguntas.",
+        "aiReviewedNotChecked": "Revisada por IA, no verificada por una persona",
+        "startPractice": "Empezar práctica"
+      },
+      "help": {
+        "notice": "Este es un examen de práctica: puedes ver una pista o la respuesta, y queda registrado. Acertar después de ver la respuesta no cuenta como resuelto por tu cuenta.",
+        "hint": "Pista",
+        "solution": "Ver respuesta",
+        "hintLabel": "Pista",
+        "solutionLabel": "Respuesta y explicación",
+        "solutionTitle": "¿Ver la respuesta ahora?",
+        "solutionConfirm": "Después de ver la respuesta, esta pregunta no contará como resuelta por tu cuenta aunque aciertes (queda registrada como práctica).",
+        "keepTrying": "Seguir pensando",
+        "recorded": "Registrado: se vio la respuesta de esta pregunta.",
+        "chip": {
+          "variant": "Variante",
+          "independent": "Pregunta nueva resuelta solo",
+          "hinted": "Vio la pista",
+          "solution_seen": "Vio la respuesta",
+          "seen": "Ya la había hecho"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "Fallé esta pregunta: «{{stem}}». ¿En qué me equivoqué?",
         "pick": "Compañero",
         "open": "Preguntar a un compañero"
+      },
+      "variant": {
+        "open": "Practicar con variantes",
+        "title": "Practicar de nuevo con preguntas nuevas parecidas",
+        "count": "Preguntas",
+        "intro": "La IA escribe, a partir de la pregunta original (y fragmentos relacionados de los materiales de la materia), preguntas nuevas del mismo tema y método pero con otro contenido; nunca una copia.",
+        "help": "En los exámenes de práctica puedes ver pistas o respuestas, y queda registrado; los resultados aparecen en el historial de esta pregunta."
       }
     }
   }

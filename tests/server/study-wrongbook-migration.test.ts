@@ -197,8 +197,8 @@ function quizEntry(
 
 describe('accounts v31 wrong-answer book', () => {
   it('is registered with a checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(31);
-    expect(ACCOUNT_MIGRATIONS.at(-1)?.version).toBe(31);
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(31);
+    expect(ACCOUNT_MIGRATIONS.some((migration) => migration.version === 31)).toBe(true);
     expect(accountsMigrationChecksum(31)).toMatch(/^[0-9a-f]{64}$/);
   });
 

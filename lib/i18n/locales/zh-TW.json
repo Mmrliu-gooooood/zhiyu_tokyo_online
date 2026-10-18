@@ -3015,7 +3015,10 @@
         "examGraded": "在「{{space}}」完成測驗《{{paper}}》",
         "examScore": "{{earned}}/{{total}} 分 · 答對 {{correct}}/{{count}} 題（伺服器判分）",
         "unknownPaper": "已刪除的試卷",
-        "exam_graded": "完成了一次測驗"
+        "exam_graded": "完成了一次測驗",
+        "hintUsed": "在「{{space}}」的練習中看了第 {{position}} 題的提示",
+        "solutionSeen": "在「{{space}}」的練習中看了第 {{position}} 題的答案",
+        "examPractice": "獨立完成新題 {{independent}} 題 · 看過提示或答案 {{helped}} 題"
       },
       "source": {
         "study_progress": "學習進度",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "（{{points}} 分）",
         "finalCriterion": "最終答案正確",
         "overallCriterion": "對照參考答案整體評分"
+      },
+      "ai": {
+        "mode": {
+          "label": "出題方式",
+          "bank": "只用題庫",
+          "mixed": "題庫優先，AI 補缺",
+          "ai": "全部由 AI 出題"
+        },
+        "modeHint": {
+          "bank": "依規則從題庫抽題，不呼叫模型。",
+          "mixed": "先依規則從題庫抽題，只有不夠的部分才由 AI 根據本學科資料補出。",
+          "ai": "依上面的題型和數量，全部由 AI 根據本學科資料出新題。"
+        },
+        "typeCount": "{{type}} {{count}} 題",
+        "planTitle": "AI 出題計畫",
+        "planNew": "將新寫 {{count}} 題：{{types}}",
+        "bankKept": "另有題庫中的 {{count}} 題（同預覽）",
+        "planConcepts": "涵蓋知識點：{{names}}",
+        "planCalls": "最多呼叫模型 {{count}} 次（出題和複核分開呼叫），使用你目前選擇的模型",
+        "planMedia": "只出文字題，不產生圖片或語音",
+        "planMaterials": "依據的資料（目前版本）",
+        "planNote": "新題會加入題庫，標為「AI 生成 · 未核驗」：經過 AI 複核，但沒有經過人工核驗，你可以在題庫中修改或核驗。",
+        "consent": "我同意用 AI 寫這 {{count}} 題",
+        "start": "產生 {{count}} 題",
+        "blocked": {
+          "nothing_to_generate": "題庫已經足夠，不需要 AI 補題。",
+          "no_materials": "這個學科還沒有可檢索的資料。請先在學科頁加入資料（如文字版 PDF），AI 才能有依據地出題。",
+          "too_many": "一次最多讓 AI 出 {{max}} 題，請減少題量。",
+          "retrieval_unavailable": "目前的部署沒有資料檢索，無法有依據地出題。"
+        },
+        "nothingButUncovered": "題量已夠，但所選知識點「{{names}}」在題庫裡沒有題。增加題量後，AI 會補這些知識點。",
+        "gapsHintMixed": "缺少的題可以由下面的 AI 出題計畫補上。",
+        "progress": "已寫好 {{done}}/{{total}} 題 · 已呼叫模型 {{calls}}/{{cap}} 次",
+        "running": "正在出題並複核……請留在本頁。",
+        "cancel": "取消",
+        "cancelled": "已取消。已寫好的題保留在題庫中（未核驗）。",
+        "completed": "{{total}} 題都已寫好並通過 AI 複核。",
+        "stopped": {
+          "budget": "已用完呼叫上限，寫好了 {{done}}/{{total}} 題。",
+          "timeout": "模型回應逾時，寫好了 {{done}}/{{total}} 題。",
+          "model_error": "模型呼叫出錯，寫好了 {{done}}/{{total}} 題。",
+          "lease_lost": "這一步被中斷，寫好了 {{done}}/{{total}} 題。",
+          "interrupted": "離開頁面時中斷了，寫好了 {{done}}/{{total}} 題。",
+          "internal": "出了點問題，寫好了 {{done}}/{{total}} 題。"
+        },
+        "uncoveredLeft": "還沒有題的知識點：{{names}}",
+        "reviewed": "AI 已複核",
+        "similar": "與題庫中的題相似度 {{score}}",
+        "similarOriginal": "與原題相似度 {{score}}",
+        "basedOn": "依據：",
+        "originalQuestion": "原題",
+        "material": "資料",
+        "page": "第 {{page}} 頁",
+        "rejectedSummary": "未採用 {{count}} 題（查看原因）",
+        "stage": {
+          "output": "輸出格式",
+          "program": "程式檢查",
+          "review": "AI 複核"
+        },
+        "reason": {
+          "not_json": "輸出不是要求的格式",
+          "too_many": "題數多於要求，整批不用",
+          "type_unrequested": "題型不符合要求",
+          "type_excess": "這種題型已經夠了",
+          "invalid": "內容不完整或前後不一致",
+          "no_answer_key": "缺少答案或參考答案",
+          "concept_missing": "不屬於所選知識點",
+          "bad_refs": "引用了不存在的資料",
+          "duplicate": "與已有的題重複",
+          "near_duplicate": "與已有的題幾乎相同",
+          "review_rejected": "AI 複核未通過",
+          "review_missing": "沒有得到複核",
+          "review_invalid": "複核結果無效"
+        },
+        "publish": "開始測驗",
+        "publishShort": "用現有的 {{count}} 題開始",
+        "continue": "繼續產生（最多再呼叫 {{count}} 次）",
+        "retry": "重試",
+        "published": "已組卷，可在「試卷」中查看",
+        "bankChanged": "題庫在產生期間有變化，題庫部分與計畫不一致。請重新預覽後再試（已寫好的題保留在題庫中）。",
+        "modelUnavailable": "目前選擇的模型無法使用，請檢查模型設定。",
+        "limit": "今天的 AI 出題次數已用完，請明天再試。",
+        "noEvidence": "沒有找到可用的資料段落，無法出題。",
+        "aiReviewedNotChecked": "AI 已複核，未經人工核驗",
+        "startPractice": "開始練習"
+      },
+      "help": {
+        "notice": "這是練習卷：可以看提示或答案，系統會如實記錄；看過答案再答對，不算獨立完成。",
+        "hint": "提示",
+        "solution": "看答案",
+        "hintLabel": "提示",
+        "solutionLabel": "答案與解析",
+        "solutionTitle": "現在看答案？",
+        "solutionConfirm": "看過答案後，這題即使答對也不算獨立完成（仍會記為練習）。",
+        "keepTrying": "再想想",
+        "recorded": "已記錄：這題看過答案。",
+        "chip": {
+          "variant": "變式題",
+          "independent": "獨立完成新題",
+          "hinted": "看過提示",
+          "solution_seen": "看過答案",
+          "seen": "做過的題"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "這道題我做錯了：「{{stem}}」。我錯在哪裡？",
         "pick": "學伴",
         "open": "問學伴"
+      },
+      "variant": {
+        "open": "變式練習",
+        "title": "用同類新題再練一次",
+        "count": "題數",
+        "intro": "AI 依據原題（以及本學科資料中相關的段落）寫同知識點、同類思路但內容不同的新題，不會照抄原題。",
+        "help": "練習卷裡可以看提示或答案，會被記錄；練習的結果會出現在這道錯題的作答記錄裡。"
       }
     }
   }

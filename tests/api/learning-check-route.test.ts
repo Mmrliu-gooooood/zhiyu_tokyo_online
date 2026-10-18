@@ -276,6 +276,25 @@ describe('POST /api/learning/check', () => {
     expect(mocks.complete).toHaveBeenCalledTimes(1);
   });
 
+  it('records the model a platform default resolved to, not its alias', async () => {
+    mocks.resolveRequestBinding.mockResolvedValueOnce({
+      model: 'test-model',
+      modelString: 'platform:zhiyu-default-text',
+      source: 'platform',
+      providerId: 'deepseek',
+      modelId: 'deepseek-flash',
+      thinkingConfig: undefined,
+    });
+    mocks.complete
+      .mockResolvedValueOnce({ text: candidate() })
+      .mockResolvedValueOnce({ text: '{"status":"passed","notes":[]}' });
+    const response = await POST(
+      request({ requestId: 'request-1', scope: 'course', snapshot: snapshot() }),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).generation.model).toBe('deepseek:deepseek-flash');
+  });
+
   it('states the exact output schema in the generation and review prompts', async () => {
     mocks.complete
       .mockResolvedValueOnce({ text: candidate() })

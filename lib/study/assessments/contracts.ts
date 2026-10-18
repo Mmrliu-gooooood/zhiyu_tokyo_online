@@ -17,15 +17,18 @@
  *   scored at once and open items join the report as they are graded.
  */
 import { arraysEqual } from '@/lib/quiz/grading';
-import type {
-  GradingGuide,
-  MaterialSourceRef,
-  OpenSubtype,
-  QuestionFigure,
-  QuestionOption,
-  QuestionOrigin,
-  QuestionType,
-  VerificationState,
+import type { AttemptAssistanceView } from '@/lib/study/practice/contracts';
+import {
+  readGenerationRef,
+  type GenerationSourceRef,
+  type GradingGuide,
+  type MaterialSourceRef,
+  type OpenSubtype,
+  type QuestionFigure,
+  type QuestionOption,
+  type QuestionOrigin,
+  type QuestionType,
+  type VerificationState,
 } from '@/lib/study/questions/contracts';
 
 export const ATTEMPT_LIMITS = {
@@ -73,6 +76,8 @@ export interface PaperItemSource {
   licenseStatus?: 'clear' | 'unclear';
   answerBasis?: 'source' | 'model';
   material?: MaterialSourceRef;
+  /** Written by AI practice (B11): reviewed by AI, not checked by a person. */
+  generation?: GenerationSourceRef;
 }
 
 /** The frozen key of one item; stored apart from the view. */
@@ -243,6 +248,8 @@ export interface AttemptView {
   items: PaperItemView[];
   /** After submission only. */
   report: { grading: AttemptGrading; summary: ReportSummary; items: ReportItem[] } | null;
+  /** Novelty per item, and hints/solutions of practice papers (B11). */
+  assistance?: AttemptAssistanceView;
 }
 
 // ── views (allowlists) ──────────────────────────────────────────────────────
@@ -293,6 +300,9 @@ export function toItemView(position: number, snapshot: Record<string, unknown>):
         ? { answerBasis: source.answerBasis }
         : {}),
       ...(materialRef(source.material) ? { material: materialRef(source.material)! } : {}),
+      ...(readGenerationRef(source.generation)
+        ? { generation: readGenerationRef(source.generation)! }
+        : {}),
     },
     figures: Array.isArray(snapshot.figures)
       ? (snapshot.figures as Array<Record<string, unknown>>).flatMap((figure) =>

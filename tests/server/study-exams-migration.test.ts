@@ -17,6 +17,7 @@ import { accountsMigrationChecksum } from '@/lib/server/accounts/migrations';
 import { ACCOUNTS_SCHEMA_VERSION } from '@/lib/server/accounts/sql-accounts';
 import { ACCOUNTS_MIGRATION_28, STUDY_EXAM_TABLES } from '@/lib/server/accounts/sql-study-exams';
 import { ACCOUNTS_MIGRATION_30 } from '@/lib/server/accounts/sql-study-grading';
+import { ACCOUNTS_MIGRATION_32 } from '@/lib/server/accounts/sql-study-practice';
 import {
   getAttemptView,
   openAttempt,
@@ -181,8 +182,10 @@ async function migrated(open: () => Db): Promise<Db> {
   const db = open();
   await applySql(db, BASELINE);
   await applySql(db, ACCOUNTS_MIGRATION_28);
-  // The repository reads the open-question columns and gradings of v30 (B09).
+  // The repository reads the open-question columns and gradings of v30 (B09)
+  // and the attempts' novelty and help of v32 (B11).
   await applySql(db, ACCOUNTS_MIGRATION_30);
+  await applySql(db, ACCOUNTS_MIGRATION_32);
   return db;
 }
 

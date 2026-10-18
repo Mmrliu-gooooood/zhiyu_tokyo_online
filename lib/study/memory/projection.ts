@@ -322,29 +322,60 @@ export interface ExamAttemptSource {
   totalPoints: number;
   /** Answered open items, graded with assistance (B09); 0 for choice-only papers. */
   openItems: number;
+  /** B11 attempts: independent checks, items with help shown, repeats. */
+  independence?: { independent: number; helped: number; repeated: number };
+  /** B11 practice papers: hints (level 1) and solutions (level 2) shown, per item. */
+  help?: Array<{ position: number; level: 1 | 2; at: string }>;
 }
 
-/** One record per submitted attempt (its server grading; drafts are not recorded). */
+/**
+ * One record per submitted attempt (its server grading; drafts are not
+ * recorded), plus one `hint_used` per hint or solution shown in a practice
+ * paper (B11), at the time it was shown.
+ */
 export function examEvents(sources: readonly ExamAttemptSource[]): LearningEventInput[] {
-  return sources.map((source) => ({
-    type: 'exam_graded',
-    payloadVersion: 1,
-    sourceType: 'exam_attempt',
-    sourceId: source.attemptId,
-    sourceKey: `exam:${source.attemptId}:graded`,
-    stageId: null,
-    spaceId: source.spaceId,
-    occurredAt: source.submittedAt,
-    payload: {
-      paperId: source.paperId,
-      itemCount: source.itemCount,
-      correct: source.correct,
-      unanswered: source.unanswered,
-      earned: source.earned,
-      totalPoints: source.totalPoints,
-      ...(source.openItems ? { openItems: source.openItems } : {}),
-    },
-  }));
+  const help = sources.flatMap((source) =>
+    (source.help ?? []).map(
+      (entry): LearningEventInput<'hint_used'> => ({
+        type: 'hint_used',
+        payloadVersion: 1,
+        sourceType: 'exam_attempt',
+        sourceId: source.attemptId,
+        sourceKey: `exam:${source.attemptId}:help:${entry.position}:${entry.level}`,
+        stageId: null,
+        spaceId: source.spaceId,
+        occurredAt: entry.at,
+        payload: {
+          contextKind: 'exam_item',
+          contextId: `${source.attemptId}:${entry.position}`,
+          level: entry.level,
+        },
+      }),
+    ),
+  );
+  const graded = sources.map(
+    (source): LearningEventInput => ({
+      type: 'exam_graded',
+      payloadVersion: 1,
+      sourceType: 'exam_attempt',
+      sourceId: source.attemptId,
+      sourceKey: `exam:${source.attemptId}:graded`,
+      stageId: null,
+      spaceId: source.spaceId,
+      occurredAt: source.submittedAt,
+      payload: {
+        paperId: source.paperId,
+        itemCount: source.itemCount,
+        correct: source.correct,
+        unanswered: source.unanswered,
+        earned: source.earned,
+        totalPoints: source.totalPoints,
+        ...(source.openItems ? { openItems: source.openItems } : {}),
+        ...(source.independence ? { independence: source.independence } : {}),
+      },
+    }),
+  );
+  return [...graded, ...help];
 }
 
 // ── switches ────────────────────────────────────────────────────────────────

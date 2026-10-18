@@ -206,6 +206,19 @@ export function MemoryPage() {
           paper: record.paper?.title ?? t('study.memory.record.unknownPaper'),
           space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
         });
+      case 'hint_used':
+        return t(
+          Number(payload.level) === 2
+            ? 'study.memory.record.solutionSeen'
+            : 'study.memory.record.hintUsed',
+          {
+            position:
+              String(payload.contextId ?? '')
+                .split(':')
+                .pop() ?? '',
+            space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
+          },
+        );
       case 'companion_question':
         return t('study.memory.record.companionQuestion', {
           space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
@@ -221,12 +234,21 @@ export function MemoryPage() {
     const payload = record.payload as Record<string, unknown>;
     if (record.type.startsWith('course_')) return t('study.memory.record.viewingOnly');
     if (record.type === 'exam_graded') {
-      return t('study.memory.record.examScore', {
+      const score = t('study.memory.record.examScore', {
         earned: Number(payload.earned ?? 0),
         total: Number(payload.totalPoints ?? 0),
         correct: Number(payload.correct ?? 0),
         count: Number(payload.itemCount ?? 0),
       });
+      const independence = payload.independence as
+        | { independent?: number; helped?: number; repeated?: number }
+        | undefined;
+      return independence
+        ? `${score} · ${t('study.memory.record.examPractice', {
+            independent: independence.independent ?? 0,
+            helped: independence.helped ?? 0,
+          })}`
+        : score;
     }
     if (record.type !== 'quiz_graded') return null;
     const parts: string[] = [];

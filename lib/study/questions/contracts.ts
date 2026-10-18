@@ -110,6 +110,68 @@ export interface QuestionSource {
   material?: MaterialSourceRef;
   /** Where the answer key came from when it was not written by the student (B08). */
   answerBasis?: 'source' | 'model';
+  /** Set by the server when AI practice wrote the question (B11). */
+  generation?: GenerationSourceRef;
+}
+
+/**
+ * How AI practice wrote a question (B11): the job and model, the review it
+ * passed (a second model call — never a human check) and the material
+ * passages it was written from. A variant names the wrong-answer-book
+ * question it varies, so its answers join that question's history.
+ */
+export interface GenerationSourceRef {
+  jobId: string;
+  model: string | null;
+  review: 'ai_reviewed';
+  refs: Array<{
+    materialId: string;
+    versionId: string;
+    versionNo: number;
+    artifactId: string;
+    page: number | null;
+    title?: string;
+  }>;
+  family?: { questionKey: string; wrongItemId: string };
+}
+
+/** A stored generation reference (frozen JSON) checked field by field; null when malformed. */
+export function readGenerationRef(value: unknown): GenerationSourceRef | null {
+  if (!isRecord(value) || typeof value.jobId !== 'string' || value.review !== 'ai_reviewed') {
+    return null;
+  }
+  const refs = Array.isArray(value.refs)
+    ? value.refs.flatMap((ref) =>
+        isRecord(ref) &&
+        typeof ref.materialId === 'string' &&
+        typeof ref.versionId === 'string' &&
+        typeof ref.artifactId === 'string'
+          ? [
+              {
+                materialId: ref.materialId,
+                versionId: ref.versionId,
+                versionNo: Number(ref.versionNo ?? 0),
+                artifactId: ref.artifactId,
+                page: typeof ref.page === 'number' && ref.page > 0 ? ref.page : null,
+                ...(typeof ref.title === 'string' ? { title: ref.title } : {}),
+              },
+            ]
+          : [],
+      )
+    : [];
+  const family =
+    isRecord(value.family) &&
+    typeof value.family.questionKey === 'string' &&
+    typeof value.family.wrongItemId === 'string'
+      ? { questionKey: value.family.questionKey, wrongItemId: value.family.wrongItemId }
+      : null;
+  return {
+    jobId: value.jobId,
+    model: typeof value.model === 'string' ? value.model : null,
+    review: 'ai_reviewed',
+    refs,
+    ...(family ? { family } : {}),
+  };
 }
 
 /** The material version, file pages and printed number an extracted question came from. */

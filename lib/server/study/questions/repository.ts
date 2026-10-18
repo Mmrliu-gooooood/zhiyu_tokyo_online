@@ -401,69 +401,78 @@ export async function insertQuestions(
   items: readonly NewQuestion[],
 ): Promise<InsertOutcome[]> {
   for (const item of items) assertValid(item.content);
-  return db.withTransaction(async (tx) => {
-    const hashes = items.map((item) => questionContentHash(item.content));
-    const fingerprints = items.map((item, index) => item.fingerprint ?? hashes[index]!);
-    const existing = await tx.query<{
-      id: string;
-      source_fingerprint: string;
-      content_hash: string;
-    }>(
-      `SELECT q.id, q.source_fingerprint, v.content_hash ${QUESTION_FROM}
-        WHERE q.owner_id = $1 AND q.space_id = $2
-          AND (q.source_fingerprint = ANY($3::text[]) OR v.content_hash = ANY($4::text[]))`,
-      [ownerId, spaceId, fingerprints, hashes],
-    );
-    const known = new Map<string, string>();
-    for (const row of existing.rows) {
-      known.set(row.source_fingerprint, row.id);
-      known.set(row.content_hash, row.id);
+  return db.withTransaction((tx) => insertQuestionsTx(tx, ownerId, spaceId, items));
+}
+
+/** insertQuestions inside the caller's transaction (B11 adds AI questions with its job update). */
+export async function insertQuestionsTx(
+  tx: Queryable,
+  ownerId: string,
+  spaceId: string,
+  items: readonly NewQuestion[],
+): Promise<InsertOutcome[]> {
+  for (const item of items) assertValid(item.content);
+  const hashes = items.map((item) => questionContentHash(item.content));
+  const fingerprints = items.map((item, index) => item.fingerprint ?? hashes[index]!);
+  const existing = await tx.query<{
+    id: string;
+    source_fingerprint: string;
+    content_hash: string;
+  }>(
+    `SELECT q.id, q.source_fingerprint, v.content_hash ${QUESTION_FROM}
+      WHERE q.owner_id = $1 AND q.space_id = $2
+        AND (q.source_fingerprint = ANY($3::text[]) OR v.content_hash = ANY($4::text[]))`,
+    [ownerId, spaceId, fingerprints, hashes],
+  );
+  const known = new Map<string, string>();
+  for (const row of existing.rows) {
+    known.set(row.source_fingerprint, row.id);
+    known.set(row.content_hash, row.id);
+  }
+  const count = await tx.query<{ n: string | number }>(
+    `SELECT count(*) AS n FROM study_questions WHERE owner_id = $1 AND space_id = $2`,
+    [ownerId, spaceId],
+  );
+  const fresh = items.filter(
+    (_item, index) => !known.has(fingerprints[index]!) && !known.has(hashes[index]!),
+  ).length;
+  if (Number(count.rows[0]?.n ?? 0) + fresh > QUESTION_LIMITS.questionsPerSpace) {
+    throw new StudyError('STUDY_QUESTION_LIMIT');
+  }
+  const concepts = await ensureConcepts(
+    tx,
+    ownerId,
+    spaceId,
+    items.flatMap((item) => item.content.concepts),
+  );
+  const outcomes: InsertOutcome[] = [];
+  for (const [index, item] of items.entries()) {
+    const hash = hashes[index]!;
+    const fingerprint = fingerprints[index]!;
+    const duplicateOf = known.get(fingerprint) ?? known.get(hash);
+    if (duplicateOf !== undefined) {
+      outcomes.push({ status: 'duplicate', id: duplicateOf });
+      continue;
     }
-    const count = await tx.query<{ n: string | number }>(
-      `SELECT count(*) AS n FROM study_questions WHERE owner_id = $1 AND space_id = $2`,
-      [ownerId, spaceId],
+    const id = newId('q');
+    const inserted = await tx.query<{ id: string }>(
+      `INSERT INTO study_questions (owner_id, id, space_id, origin, source_fingerprint, stage_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (owner_id, space_id, source_fingerprint) DO NOTHING
+       RETURNING id`,
+      [ownerId, id, spaceId, item.origin, fingerprint, item.stageId ?? null],
     );
-    const fresh = items.filter(
-      (_item, index) => !known.has(fingerprints[index]!) && !known.has(hashes[index]!),
-    ).length;
-    if (Number(count.rows[0]?.n ?? 0) + fresh > QUESTION_LIMITS.questionsPerSpace) {
-      throw new StudyError('STUDY_QUESTION_LIMIT');
+    if (inserted.rows.length === 0) {
+      outcomes.push({ status: 'duplicate', id: null });
+      continue;
     }
-    const concepts = await ensureConcepts(
-      tx,
-      ownerId,
-      spaceId,
-      items.flatMap((item) => item.content.concepts),
-    );
-    const outcomes: InsertOutcome[] = [];
-    for (const [index, item] of items.entries()) {
-      const hash = hashes[index]!;
-      const fingerprint = fingerprints[index]!;
-      const duplicateOf = known.get(fingerprint) ?? known.get(hash);
-      if (duplicateOf !== undefined) {
-        outcomes.push({ status: 'duplicate', id: duplicateOf });
-        continue;
-      }
-      const id = newId('q');
-      const inserted = await tx.query<{ id: string }>(
-        `INSERT INTO study_questions (owner_id, id, space_id, origin, source_fingerprint, stage_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (owner_id, space_id, source_fingerprint) DO NOTHING
-         RETURNING id`,
-        [ownerId, id, spaceId, item.origin, fingerprint, item.stageId ?? null],
-      );
-      if (inserted.rows.length === 0) {
-        outcomes.push({ status: 'duplicate', id: null });
-        continue;
-      }
-      const conceptIds = item.content.concepts.map((name) => concepts.get(conceptKey(name))!);
-      await insertVersion(tx, ownerId, id, 1, item.content, item.verification, conceptIds, hash);
-      known.set(fingerprint, id);
-      known.set(hash, id);
-      outcomes.push({ status: 'created', id });
-    }
-    return outcomes;
-  });
+    const conceptIds = item.content.concepts.map((name) => concepts.get(conceptKey(name))!);
+    await insertVersion(tx, ownerId, id, 1, item.content, item.verification, conceptIds, hash);
+    known.set(fingerprint, id);
+    known.set(hash, id);
+    outcomes.push({ status: 'created', id });
+  }
+  return outcomes;
 }
 
 /**

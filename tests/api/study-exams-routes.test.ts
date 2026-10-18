@@ -539,6 +539,8 @@ describe('question bank and papers', () => {
       unanswered: 2,
       earned: 8,
       totalPoints: 10,
+      // Every question was new and no help exists in a bank paper (B11).
+      independence: { independent: 8, helped: 0, repeated: 0 },
     });
 
     // Starting again opens a new, independent attempt.

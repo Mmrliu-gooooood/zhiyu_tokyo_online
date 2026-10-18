@@ -3015,7 +3015,10 @@
         "examGraded": "Submitted the paper “{{paper}}” in {{space}}",
         "examScore": "{{earned}}/{{total}} points · {{correct}}/{{count}} correct (graded on the server)",
         "unknownPaper": "a deleted paper",
-        "exam_graded": "Submitted a paper"
+        "exam_graded": "Submitted a paper",
+        "hintUsed": "Saw the hint for question {{position}} in practice in “{{space}}”",
+        "solutionSeen": "Saw the answer to question {{position}} in practice in “{{space}}”",
+        "examPractice": "{{independent}} new questions done on own · help seen on {{helped}}"
       },
       "source": {
         "study_progress": "Progress",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "({{points}} pts)",
         "finalCriterion": "Correct final answer",
         "overallCriterion": "Overall, against the reference answer"
+      },
+      "ai": {
+        "mode": {
+          "label": "How to build",
+          "bank": "Bank only",
+          "mixed": "Bank first, AI fills gaps",
+          "ai": "All written by AI"
+        },
+        "modeHint": {
+          "bank": "Questions are picked from the bank by rule. No model is used.",
+          "mixed": "Questions are picked from the bank first; AI writes only what is missing, from this subject's materials.",
+          "ai": "AI writes every question above, by type and count, from this subject's materials."
+        },
+        "typeCount": "{{count}} {{type}}",
+        "planTitle": "AI question plan",
+        "planNew": "{{count}} new questions: {{types}}",
+        "bankKept": "Plus {{count}} questions from the bank (as previewed)",
+        "planConcepts": "Knowledge points: {{names}}",
+        "planCalls": "At most {{count}} model calls (writing and review are separate), using your selected model",
+        "planMedia": "Text questions only; no images or audio",
+        "planMaterials": "Materials used (current versions)",
+        "planNote": "New questions join the bank as \"AI generated · unchecked\": reviewed by AI, not checked by a person. You can edit or check them in the bank.",
+        "consent": "I agree to let AI write these {{count}} questions",
+        "start": "Write {{count}} questions",
+        "blocked": {
+          "nothing_to_generate": "The bank already has enough questions; nothing needs AI.",
+          "no_materials": "This subject has no searchable materials yet. Add materials (e.g. a text PDF) on the subject page so AI has something to write from.",
+          "too_many": "AI can write at most {{max}} questions at a time. Please ask for fewer.",
+          "retrieval_unavailable": "Material search is not available here, so AI cannot write grounded questions."
+        },
+        "nothingButUncovered": "There are enough questions, but the bank has none on \"{{names}}\". Ask for more questions and AI will cover these points.",
+        "gapsHintMixed": "The AI plan below can write the missing questions.",
+        "progress": "{{done}}/{{total}} written · {{calls}}/{{cap}} model calls",
+        "running": "Writing and reviewing… please stay on this page.",
+        "cancel": "Cancel",
+        "cancelled": "Cancelled. Questions already written stay in the bank (unchecked).",
+        "completed": "All {{total}} questions are written and passed the AI review.",
+        "stopped": {
+          "budget": "The call limit was reached with {{done}}/{{total}} written.",
+          "timeout": "The model timed out with {{done}}/{{total}} written.",
+          "model_error": "The model call failed with {{done}}/{{total}} written.",
+          "lease_lost": "This step was interrupted with {{done}}/{{total}} written.",
+          "interrupted": "Stopped when you left the page, with {{done}}/{{total}} written.",
+          "internal": "Something went wrong with {{done}}/{{total}} written."
+        },
+        "uncoveredLeft": "Knowledge points still without a question: {{names}}",
+        "reviewed": "AI reviewed",
+        "similar": "Similarity to a bank question {{score}}",
+        "similarOriginal": "Similarity to the original {{score}}",
+        "basedOn": "Based on:",
+        "originalQuestion": "the original question",
+        "material": "Material",
+        "page": "p. {{page}}",
+        "rejectedSummary": "{{count}} not used (see why)",
+        "stage": {
+          "output": "Output format",
+          "program": "Program check",
+          "review": "AI review"
+        },
+        "reason": {
+          "not_json": "Output was not in the required format",
+          "too_many": "More questions than asked; the whole batch was dropped",
+          "type_unrequested": "Wrong question type",
+          "type_excess": "Enough questions of this type already",
+          "invalid": "Incomplete or inconsistent",
+          "no_answer_key": "No answer or reference answer",
+          "concept_missing": "Not on the chosen knowledge points",
+          "bad_refs": "Cited material that was not given",
+          "duplicate": "Repeats an existing question",
+          "near_duplicate": "Almost the same as an existing question",
+          "review_rejected": "Did not pass the AI review",
+          "review_missing": "Not reviewed",
+          "review_invalid": "Invalid review result"
+        },
+        "publish": "Start test",
+        "publishShort": "Start with the {{count}} questions there are",
+        "continue": "Keep writing (up to {{count}} more calls)",
+        "retry": "Retry",
+        "published": "Paper created — see Papers",
+        "bankChanged": "The bank changed while the questions were written, so its part no longer matches the plan. Preview again and retry (the new questions stay in the bank).",
+        "modelUnavailable": "Your selected model is not available. Please check the model settings.",
+        "limit": "You've used today's AI question writing. Please try again tomorrow.",
+        "noEvidence": "No usable material passages were found, so no questions can be written.",
+        "aiReviewedNotChecked": "AI reviewed, not checked by a person",
+        "startPractice": "Start practice"
+      },
+      "help": {
+        "notice": "This is a practice paper: you can see a hint or the answer, and that is recorded. A right answer after seeing the answer doesn't count as done on your own.",
+        "hint": "Hint",
+        "solution": "Show answer",
+        "hintLabel": "Hint",
+        "solutionLabel": "Answer and explanation",
+        "solutionTitle": "Show the answer now?",
+        "solutionConfirm": "After seeing the answer, this question won't count as done on your own even if you answer it right (it is still recorded as practice).",
+        "keepTrying": "Keep trying",
+        "recorded": "Recorded: the answer was shown for this question.",
+        "chip": {
+          "variant": "Variant",
+          "independent": "New question, done on own",
+          "hinted": "Hint seen",
+          "solution_seen": "Answer seen",
+          "seen": "Seen before"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "I got this question wrong: “{{stem}}”. Where did I go wrong?",
         "pick": "Classmate",
         "open": "Ask a classmate"
+      },
+      "variant": {
+        "open": "Practise variants",
+        "title": "Practise again with similar new questions",
+        "count": "Questions",
+        "intro": "AI writes new questions on the same knowledge point and method from the original (and related passages of this subject's materials), never a copy of it.",
+        "help": "Practice papers let you see hints or answers, which is recorded; the results join this question's history."
       }
     }
   }

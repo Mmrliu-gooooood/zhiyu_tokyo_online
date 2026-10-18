@@ -15,10 +15,10 @@
 // ── learning events ─────────────────────────────────────────────────────────
 
 /**
- * Event types. `hint_used` and `review_done` have no producer yet (hints
- * arrive with practice in B10/B11, reviews with B12): the types and payload
- * shapes are fixed now so those batches only add a producer; no history is
- * invented for them. `exam_graded` comes from B07 subject papers.
+ * Event types. `review_done` has no producer yet (reviews arrive with B12):
+ * its payload shape is fixed now so that batch only adds a producer; no
+ * history is invented for it. `exam_graded` comes from B07 subject papers,
+ * `hint_used` from hints and solutions shown in B11 practice papers.
  */
 export const LEARNING_EVENT_TYPES = [
   'course_started',
@@ -85,6 +85,13 @@ export interface LearningEventPayloads {
     earned: number;
     totalPoints: number;
     openItems?: number;
+    /**
+     * Attempts that recorded novelty and help (opened since B11): items
+     * answered right that were new and needed no hint or solution
+     * (independent checks), items where help was shown (practice papers),
+     * and items the student had met before.
+     */
+    independence?: { independent: number; helped: number; repeated: number };
   };
 }
 

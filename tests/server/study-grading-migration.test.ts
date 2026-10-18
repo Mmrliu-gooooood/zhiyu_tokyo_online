@@ -23,6 +23,7 @@ import {
   ACCOUNTS_MIGRATION_30,
   STUDY_GRADING_TABLES,
 } from '@/lib/server/accounts/sql-study-grading';
+import { ACCOUNTS_MIGRATION_32 } from '@/lib/server/accounts/sql-study-practice';
 import { getAttemptView, openAttempt, submitAttempt } from '@/lib/server/study/exams/repository';
 import {
   addReview,
@@ -176,6 +177,8 @@ async function migrated(open: () => Db): Promise<Db> {
   await applySql(db, BASELINE);
   await applySql(db, ACCOUNTS_MIGRATION_28);
   await applySql(db, ACCOUNTS_MIGRATION_30);
+  // Attempts carry novelty and help since v32 (B11).
+  await applySql(db, ACCOUNTS_MIGRATION_32);
   return db;
 }
 

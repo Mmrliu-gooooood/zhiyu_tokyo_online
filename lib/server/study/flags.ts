@@ -87,3 +87,15 @@ export function isStudyWrongbookFlagOn(env: NodeJS.ProcessEnv = process.env): bo
   const flag = env.ZHIYU_STUDY_WRONGBOOK_ENABLED;
   return flag === '1' || flag === 'true';
 }
+
+/**
+ * ZHIYU_STUDY_PRACTICE_ENABLED: AI top-ups for papers, AI papers, variants
+ * of wrong questions and practice hints (learning plan B11). Needs papers
+ * (B07); variants also need the wrong-answer book (B10). Web only; each
+ * generation uses the student's model after they confirmed the plan. Off:
+ * bank papers work as before, earlier AI papers stay readable.
+ */
+export function isStudyPracticeFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_PRACTICE_ENABLED;
+  return (flag === '1' || flag === 'true') && isStudyExamsFlagOn(env);
+}

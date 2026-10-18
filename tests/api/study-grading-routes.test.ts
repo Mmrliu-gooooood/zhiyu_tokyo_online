@@ -514,6 +514,7 @@ describe('open questions and assisted grading', () => {
       earned: 12,
       totalPoints: 17,
       openItems: 3,
+      independence: { independent: 2, helped: 0, repeated: 0 },
     });
     const papers = await json<{ papers: PaperSummary[] }>(
       await listPapers(request('GET', '/api/study/papers?spaceId=space-a')),

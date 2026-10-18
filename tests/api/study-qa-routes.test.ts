@@ -84,6 +84,7 @@ describe('study QA routes', () => {
       extraction: false,
       grading: false,
       wrongbook: false,
+      practice: false,
     });
     vi.stubEnv('ZHIYU_STUDY_QA_ENABLED', '');
     expect((await (await capabilities()).json()).qa).toBe(false);

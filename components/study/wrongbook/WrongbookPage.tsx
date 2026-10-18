@@ -32,6 +32,7 @@ import {
   LoaderCircle,
   MessageCircleQuestion,
   RefreshCw,
+  Shuffle,
   Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -71,6 +72,11 @@ import type {
   WrongbookSyncResult,
 } from '@/lib/study/wrongbook/contracts';
 import { cn } from '@/lib/utils';
+import { GenerationPanel } from '@/components/study/practice/GenerationPanel';
+import { PracticeChips } from '@/components/study/practice/PracticeHelp';
+import { newRequestKey } from '@/components/study/exams/exam-format';
+import { practiceApi } from '@/lib/study/practice/client';
+import { PRACTICE_LIMITS, callCapFor } from '@/lib/study/practice/contracts';
 
 const CHIP = 'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px]';
 const SELECT = 'h-8 rounded-md border border-border bg-background px-2 text-sm';
@@ -103,6 +109,7 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
   const [state, setState] = useState<StudyLoadState>('loading');
   const [spaceName, setSpaceName] = useState('');
   const [chatOn, setChatOn] = useState(false);
+  const [practiceOn, setPracticeOn] = useState(false);
   const [filter, setFilter] = useState<WrongbookFilter>(DEFAULT_FILTER);
   const [data, setData] = useState<WrongbookPageData | null>(null);
   const [listing, setListing] = useState(false);
@@ -114,7 +121,10 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
   useEffect(() => {
     let cancelled = false;
     void fetchStudyCapabilities().then((capabilities) => {
-      if (!cancelled) setChatOn(capabilities.companionChat);
+      if (!cancelled) {
+        setChatOn(capabilities.companionChat);
+        setPracticeOn(capabilities.practice);
+      }
     });
     void loadStudyPage(async () => {
       const capabilities = await fetchStudyCapabilities();
@@ -365,6 +375,7 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
                 spaceId={spaceId}
                 open={openId === item.id}
                 chatOn={chatOn}
+                practiceOn={practiceOn}
                 onToggle={() => setOpenId((current) => (current === item.id ? null : item.id))}
                 onState={applyState}
               />
@@ -466,6 +477,7 @@ function WrongItemCard({
   spaceId,
   open,
   chatOn,
+  practiceOn,
   onToggle,
   onState,
 }: {
@@ -473,6 +485,7 @@ function WrongItemCard({
   spaceId: string;
   open: boolean;
   chatOn: boolean;
+  practiceOn: boolean;
   onToggle: () => void;
   onState: (item: WrongItemSummary) => void;
 }) {
@@ -596,7 +609,9 @@ function WrongItemCard({
           </Button>
         </div>
       </div>
-      {open ? <WrongItemBody itemId={item.id} spaceId={spaceId} chatOn={chatOn} /> : null}
+      {open ? (
+        <WrongItemBody itemId={item.id} spaceId={spaceId} chatOn={chatOn} practiceOn={practiceOn} />
+      ) : null}
     </li>
   );
 }
@@ -605,10 +620,12 @@ function WrongItemBody({
   itemId,
   spaceId,
   chatOn,
+  practiceOn,
 }: {
   itemId: string;
   spaceId: string;
   chatOn: boolean;
+  practiceOn: boolean;
 }) {
   const { t } = useI18n();
   const [detail, setDetail] = useState<WrongItemDetail | null>(null);
@@ -656,6 +673,9 @@ function WrongItemBody({
       {chatOn ? (
         <AskClassmate spaceId={spaceId} itemId={itemId} stem={shown.question.stem} />
       ) : null}
+      {practiceOn && newestWrong ? (
+        <VariantPractice spaceId={spaceId} itemId={itemId} question={newestWrong.question} />
+      ) : null}
       {detail.occurrences.length > 1 ? (
         <section data-testid="wrongbook-history">
           <h3 className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -678,6 +698,9 @@ function WrongItemBody({
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">
                     {sourceLabel(t, occurrence.sourceType, occurrence.origin)}
                   </span>
+                  {occurrence.origin.practice ? (
+                    <OccurrencePractice occurrence={occurrence} />
+                  ) : null}
                   <OutcomeChip
                     outcome={occurrence.outcome}
                     earned={occurrence.earned}
@@ -714,6 +737,7 @@ function OccurrenceView({ occurrence }: { occurrence: WrongOccurrenceView }) {
         <span>{sourceLabel(t, occurrence.sourceType, occurrence.origin)}</span>
         <span aria-hidden>·</span>
         <RelativeTime iso={occurrence.occurredAt} />
+        {occurrence.origin.practice ? <OccurrencePractice occurrence={occurrence} /> : null}
       </div>
       <div className="text-sm leading-6 text-foreground">
         <QText text={question.stem} trusted={trusted} block />
@@ -807,7 +831,8 @@ function OccurrenceView({ occurrence }: { occurrence: WrongOccurrenceView }) {
             {grading.criteria.map((criterion) => (
               <li key={criterion.id} className="text-foreground">
                 <span className="font-medium">
-                  {criterionLabel(criterion)}：{criterion.awarded}/{criterion.points}
+                  <QText text={criterionLabel(criterion)} trusted={trusted} />：{criterion.awarded}/
+                  {criterion.points}
                 </span>
                 <span className="ml-1 text-[11px] text-muted-foreground">
                   {criterion.by === 'program'
@@ -1015,5 +1040,97 @@ function AskClassmate({
         </Link>
       </Button>
     </div>
+  );
+}
+
+/** Whether a paper answer was new, helped, a variant — and so an independent check (B11). */
+function OccurrencePractice({ occurrence }: { occurrence: WrongOccurrenceView }) {
+  const practice = occurrence.origin.practice!;
+  return (
+    <PracticeChips
+      novelty={practice.novelty}
+      level={practice.assistance}
+      correct={occurrence.outcome === 'correct'}
+      variant={practice.variant}
+    />
+  );
+}
+
+/**
+ * Variants of a wrong question (B11): AI writes 1–3 new questions on the same
+ * knowledge point and method from the original (and the subject's
+ * materials), after the student agreed to the plan; the practice paper's
+ * answers then join this item's history.
+ */
+function VariantPractice({
+  spaceId,
+  itemId,
+  question,
+}: {
+  spaceId: string;
+  itemId: string;
+  question: WrongOccurrenceView['question'];
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [count, setCount] = useState(2);
+  const [jobKey, setJobKey] = useState(newRequestKey);
+  if (!open) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        data-testid="wrongbook-variant-open"
+      >
+        <Shuffle className="mr-1 size-4" />
+        {t('study.wrongbook.variant.open')}
+      </Button>
+    );
+  }
+  return (
+    <section className="space-y-2" data-testid="wrongbook-variant">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-medium text-foreground">{t('study.wrongbook.variant.title')}</span>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {t('study.wrongbook.variant.count')}
+          <select
+            value={count}
+            onChange={(event) => {
+              setCount(Number(event.target.value));
+              setJobKey(newRequestKey());
+            }}
+            className={SELECT}
+            data-testid="wrongbook-variant-count"
+          >
+            {Array.from({ length: PRACTICE_LIMITS.variantMax }, (_, index) => index + 1).map(
+              (value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+      </div>
+      <GenerationPanel
+        key={jobKey}
+        plan={{
+          mode: 'ai',
+          targets: [{ type: question.type, count }],
+          total: count,
+          concepts: question.concepts,
+          materials: [],
+          maxCalls: callCapFor(count),
+          blocked: null,
+        }}
+        selectableMaterials={false}
+        note={t('study.wrongbook.variant.intro')}
+        createJob={() => practiceApi.createVariantJob(itemId, count, jobKey)}
+        paperTitle={null}
+        spaceId={spaceId}
+      />
+      <p className="text-xs text-muted-foreground">{t('study.wrongbook.variant.help')}</p>
+    </section>
   );
 }

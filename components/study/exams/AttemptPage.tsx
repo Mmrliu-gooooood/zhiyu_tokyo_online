@@ -56,9 +56,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   GuideDetails,
+  OriginChip,
   QuestionFigures,
   SourceDetails,
   TypeChip,
+  VerificationChip,
   newRequestKey,
   MathText,
   useCriterionLabel,
@@ -88,6 +90,8 @@ import {
   type ReportItem,
 } from '@/lib/study/assessments/contracts';
 import type { RubricCriterion } from '@/lib/study/questions/contracts';
+import { PracticeChips, PracticeHelp } from '@/components/study/practice/PracticeHelp';
+import type { ItemAssistanceView } from '@/lib/study/practice/contracts';
 import { StudyApiError, fetchStudyCapabilities } from '@/lib/study/spaces/client';
 import { cn } from '@/lib/utils';
 
@@ -189,6 +193,8 @@ function AnswerSheet({
   /** Set when a save found newer answers from elsewhere (submitting then stops for review). */
   const replaced = useRef(false);
   const items = initial.items;
+  /** Practice papers (B11): hints and solutions shown so far, recorded on the server. */
+  const [assistance, setAssistance] = useState(initial.assistance ?? null);
 
   const setAnswers = useCallback((next: AttemptAnswers) => {
     answersRef.current = next;
@@ -391,6 +397,14 @@ function AnswerSheet({
           {t('study.practice.attempt.openNotice')}
         </p>
       ) : null}
+      {assistance?.practice ? (
+        <p
+          className="mb-4 rounded-xl bg-primary/5 px-4 py-2.5 text-sm text-muted-foreground"
+          data-testid="practice-notice"
+        >
+          {t('study.practice.help.notice')}
+        </p>
+      ) : null}
 
       <ol className="space-y-4">
         {items.map((item) => {
@@ -413,6 +427,12 @@ function AnswerSheet({
               </div>
               <div className="mb-3 flex flex-wrap items-center gap-1.5 pl-6">
                 <TypeChip type={item.type} subtype={item.subtype} />
+                {item.source.origin === 'ai_generated' ? (
+                  <>
+                    <OriginChip origin={item.source.origin} />
+                    <VerificationChip state={item.source.verification} />
+                  </>
+                ) : null}
                 <span className="text-[11px] text-muted-foreground">
                   {t('study.practice.attempt.points', { points: item.points })}
                 </span>
@@ -462,6 +482,14 @@ function AnswerSheet({
                   })}
                 </div>
               )}
+              {assistance?.practice ? (
+                <PracticeHelp
+                  attemptId={initial.id}
+                  position={item.position}
+                  view={assistance.items[String(item.position)]}
+                  onAttempt={(next) => setAssistance(next.assistance ?? null)}
+                />
+              ) : null}
             </li>
           );
         })}
@@ -679,6 +707,8 @@ function AttemptReport({
   const [starting, setStarting] = useState(false);
   const grading = useOpenGrading(attempt, setAttempt, canGrade);
   const report = attempt.report!;
+  // Novelty and help are shown for practice papers (ordinary papers offer no help).
+  const practiceItems = attempt.assistance?.practice ? attempt.assistance.items : null;
   const shown = useMemo(
     () =>
       onlyMistakes
@@ -799,9 +829,14 @@ function AttemptReport({
                 item={item}
                 canGrade={canGrade}
                 onAttempt={setAttempt}
+                assistance={practiceItems?.[String(item.position)]}
               />
             ) : (
-              <ReportCard key={item.position} item={item} />
+              <ReportCard
+                key={item.position}
+                item={item}
+                assistance={practiceItems?.[String(item.position)]}
+              />
             ),
           )}
         </ol>
@@ -846,7 +881,29 @@ function errorKey(code: string): string {
     : 'generic';
 }
 
-function ReportCard({ item }: { item: ReportItem }) {
+/** Novelty and help of a report item (B11 attempts); nothing for earlier papers. */
+function ItemPracticeChips({
+  item,
+  assistance,
+}: {
+  item: ReportItem;
+  assistance: ItemAssistanceView | undefined;
+}) {
+  const variant = Boolean(item.source.generation?.family);
+  if (!assistance && !variant) return null;
+  return (
+    <div className="mb-2 pl-6">
+      <PracticeChips
+        novelty={assistance?.novelty ?? null}
+        level={assistance?.level ?? 'unassisted'}
+        correct={item.outcome === 'correct'}
+        variant={variant}
+      />
+    </div>
+  );
+}
+
+function ReportCard({ item, assistance }: { item: ReportItem; assistance?: ItemAssistanceView }) {
   const { t } = useI18n();
   return (
     <li
@@ -862,6 +919,7 @@ function ReportCard({ item }: { item: ReportItem }) {
         </div>
         <OutcomeChip item={item} />
       </div>
+      <ItemPracticeChips item={item} assistance={assistance} />
       <div className="grid gap-2 pl-6">
         {item.options.map((option) => {
           const isKey = item.answer.includes(option.value);
@@ -910,11 +968,13 @@ function OpenReportCard({
   item,
   canGrade,
   onAttempt,
+  assistance,
 }: {
   attemptId: string;
   item: ReportItem;
   canGrade: boolean;
   onAttempt: (attempt: AttemptView) => void;
+  assistance?: ItemAssistanceView;
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -960,6 +1020,7 @@ function OpenReportCard({
         </div>
         <OutcomeChip item={item} />
       </div>
+      <ItemPracticeChips item={item} assistance={assistance} />
       <div className="space-y-3 pl-6 text-sm">
         <div className="rounded-xl border border-border px-3 py-2">
           <p className="mb-1 text-xs font-medium text-muted-foreground">
@@ -1166,7 +1227,9 @@ function GradingDetails({
             <span className="font-medium text-foreground">
               {criterion.awarded}/{criterion.points}
             </span>
-            <span className="text-foreground">{label(criterion)}</span>
+            <span className="text-foreground">
+              <MathText text={label(criterion)} />
+            </span>
             <span className="text-[11px] text-muted-foreground">
               {criterion.by === 'program'
                 ? t('study.practice.report.byProgram')

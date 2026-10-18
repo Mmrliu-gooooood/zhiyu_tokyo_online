@@ -3015,7 +3015,10 @@
         "examGraded": "Test „{{paper}}“ in {{space}} abgegeben",
         "examScore": "{{earned}}/{{total}} Punkte · {{correct}}/{{count}} richtig (auf dem Server bewertet)",
         "unknownPaper": "einem gelöschten Test",
-        "exam_graded": "Einen Test abgegeben"
+        "exam_graded": "Einen Test abgegeben",
+        "hintUsed": "Hinweis zu Frage {{position}} beim Üben in „{{space}}“ angesehen",
+        "solutionSeen": "Lösung zu Frage {{position}} beim Üben in „{{space}}“ angesehen",
+        "examPractice": "{{independent}} neue Fragen selbst gelöst · Hilfe bei {{helped}} gesehen"
       },
       "source": {
         "study_progress": "Fortschritt",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "({{points}} P.)",
         "finalCriterion": "Richtiges Endergebnis",
         "overallCriterion": "Insgesamt, verglichen mit der Musterlösung"
+      },
+      "ai": {
+        "mode": {
+          "label": "Aufbau",
+          "bank": "Nur Fragenpool",
+          "mixed": "Erst Fragenpool, KI füllt Lücken",
+          "ai": "Alles von der KI"
+        },
+        "modeHint": {
+          "bank": "Fragen werden nach Regeln aus dem Fragenpool gewählt. Kein Modell wird genutzt.",
+          "mixed": "Zuerst wird aus dem Fragenpool gewählt; nur was fehlt, schreibt die KI aus den Materialien dieses Fachs.",
+          "ai": "Die KI schreibt alle oben angegebenen Fragen nach Typ und Anzahl aus den Materialien dieses Fachs."
+        },
+        "typeCount": "{{count}} × {{type}}",
+        "planTitle": "KI-Aufgabenplan",
+        "planNew": "{{count}} neue Fragen: {{types}}",
+        "bankKept": "Dazu {{count}} Fragen aus dem Fragenpool (wie in der Vorschau)",
+        "planConcepts": "Wissenspunkte: {{names}}",
+        "planCalls": "Höchstens {{count}} Modellaufrufe (Schreiben und Prüfen getrennt), mit deinem gewählten Modell",
+        "planMedia": "Nur Textfragen, keine Bilder oder Audio",
+        "planMaterials": "Verwendete Materialien (aktuelle Versionen)",
+        "planNote": "Neue Fragen kommen als „KI-generiert · ungeprüft“ in den Fragenpool: von der KI geprüft, nicht von einem Menschen. Du kannst sie im Fragenpool bearbeiten oder prüfen.",
+        "consent": "Ich bin einverstanden, dass die KI diese {{count}} Fragen schreibt",
+        "start": "{{count}} Fragen schreiben",
+        "blocked": {
+          "nothing_to_generate": "Der Fragenpool reicht schon; die KI muss nichts ergänzen.",
+          "no_materials": "Dieses Fach hat noch keine durchsuchbaren Materialien. Füge auf der Fachseite Materialien hinzu (z. B. ein Text-PDF), damit die KI eine Grundlage hat.",
+          "too_many": "Die KI kann höchstens {{max}} Fragen auf einmal schreiben. Bitte weniger anfordern.",
+          "retrieval_unavailable": "Materialsuche ist hier nicht verfügbar, daher kann die KI keine belegten Fragen schreiben."
+        },
+        "nothingButUncovered": "Es gibt genug Fragen, aber keine zu „{{names}}“. Erhöhe die Anzahl, dann ergänzt die KI diese Punkte.",
+        "gapsHintMixed": "Der KI-Plan unten kann die fehlenden Fragen schreiben.",
+        "progress": "{{done}}/{{total}} geschrieben · {{calls}}/{{cap}} Modellaufrufe",
+        "running": "Fragen werden geschrieben und geprüft … bitte auf dieser Seite bleiben.",
+        "cancel": "Abbrechen",
+        "cancelled": "Abgebrochen. Bereits geschriebene Fragen bleiben im Fragenpool (ungeprüft).",
+        "completed": "Alle {{total}} Fragen sind geschrieben und haben die KI-Prüfung bestanden.",
+        "stopped": {
+          "budget": "Aufruflimit erreicht, {{done}}/{{total}} geschrieben.",
+          "timeout": "Zeitüberschreitung des Modells, {{done}}/{{total}} geschrieben.",
+          "model_error": "Modellaufruf fehlgeschlagen, {{done}}/{{total}} geschrieben.",
+          "lease_lost": "Dieser Schritt wurde unterbrochen, {{done}}/{{total}} geschrieben.",
+          "interrupted": "Beim Verlassen der Seite unterbrochen, {{done}}/{{total}} geschrieben.",
+          "internal": "Etwas ist schiefgelaufen, {{done}}/{{total}} geschrieben."
+        },
+        "uncoveredLeft": "Wissenspunkte noch ohne Frage: {{names}}",
+        "reviewed": "KI-geprüft",
+        "similar": "Ähnlichkeit zu einer Poolfrage {{score}}",
+        "similarOriginal": "Ähnlichkeit zur Originalfrage {{score}}",
+        "basedOn": "Grundlage:",
+        "originalQuestion": "Originalfrage",
+        "material": "Material",
+        "page": "S. {{page}}",
+        "rejectedSummary": "{{count}} nicht verwendet (Gründe ansehen)",
+        "stage": {
+          "output": "Ausgabeformat",
+          "program": "Programmprüfung",
+          "review": "KI-Prüfung"
+        },
+        "reason": {
+          "not_json": "Ausgabe nicht im geforderten Format",
+          "too_many": "Mehr Fragen als angefordert; ganzer Satz verworfen",
+          "type_unrequested": "Falscher Fragetyp",
+          "type_excess": "Von diesem Typ gibt es schon genug",
+          "invalid": "Unvollständig oder widersprüchlich",
+          "no_answer_key": "Keine Lösung oder Musterlösung",
+          "concept_missing": "Passt nicht zu den gewählten Wissenspunkten",
+          "bad_refs": "Zitiert nicht vorhandenes Material",
+          "duplicate": "Wiederholt eine vorhandene Frage",
+          "near_duplicate": "Fast gleich wie eine vorhandene Frage",
+          "review_rejected": "KI-Prüfung nicht bestanden",
+          "review_missing": "Nicht geprüft",
+          "review_invalid": "Ungültiges Prüfergebnis"
+        },
+        "publish": "Test starten",
+        "publishShort": "Mit den vorhandenen {{count}} Fragen starten",
+        "continue": "Weiter schreiben (bis zu {{count}} weitere Aufrufe)",
+        "retry": "Erneut versuchen",
+        "published": "Test erstellt – siehe „Tests“",
+        "bankChanged": "Der Fragenpool hat sich während des Schreibens geändert, sein Teil passt nicht mehr zum Plan. Bitte erneut voransehen (die neuen Fragen bleiben im Pool).",
+        "modelUnavailable": "Dein gewähltes Modell ist nicht verfügbar. Bitte prüfe die Modelleinstellungen.",
+        "limit": "Die KI-Aufgaben für heute sind aufgebraucht. Bitte morgen erneut versuchen.",
+        "noEvidence": "Keine verwendbaren Materialabschnitte gefunden, daher keine Fragen.",
+        "aiReviewedNotChecked": "KI-geprüft, nicht von einem Menschen geprüft",
+        "startPractice": "Übung starten"
+      },
+      "help": {
+        "notice": "Das ist ein Übungstest: Du kannst einen Hinweis oder die Lösung sehen, das wird festgehalten. Eine richtige Antwort nach Ansehen der Lösung zählt nicht als selbstständig gelöst.",
+        "hint": "Hinweis",
+        "solution": "Lösung zeigen",
+        "hintLabel": "Hinweis",
+        "solutionLabel": "Lösung und Erklärung",
+        "solutionTitle": "Lösung jetzt zeigen?",
+        "solutionConfirm": "Nach Ansehen der Lösung zählt diese Frage nicht als selbstständig gelöst, auch wenn du sie richtig beantwortest (sie wird als Übung festgehalten).",
+        "keepTrying": "Weiter überlegen",
+        "recorded": "Festgehalten: Für diese Frage wurde die Lösung gezeigt.",
+        "chip": {
+          "variant": "Variante",
+          "independent": "Neue Frage selbst gelöst",
+          "hinted": "Hinweis gesehen",
+          "solution_seen": "Lösung gesehen",
+          "seen": "Schon bearbeitet"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "Diese Frage habe ich falsch beantwortet: „{{stem}}“. Wo lag mein Fehler?",
         "pick": "Lernpartner",
         "open": "Lernpartner fragen"
+      },
+      "variant": {
+        "open": "Mit Varianten üben",
+        "title": "Mit ähnlichen neuen Fragen erneut üben",
+        "count": "Fragen",
+        "intro": "Die KI schreibt aus der Originalfrage (und passenden Abschnitten der Fachmaterialien) neue Fragen zum selben Wissenspunkt und Lösungsweg, aber mit anderem Inhalt – nie eine Kopie.",
+        "help": "In Übungstests kannst du Hinweise oder Lösungen sehen, das wird festgehalten; die Ergebnisse erscheinen im Verlauf dieser Fehlerfrage."
       }
     }
   }

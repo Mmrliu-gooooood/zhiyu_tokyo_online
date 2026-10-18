@@ -48,6 +48,8 @@ import {
   type VerificationState,
 } from '@/lib/study/questions/contracts';
 import { findPack, packQuestionContent } from '@/lib/study/questions/packs';
+import { getPracticeJob, markJobPublished } from '@/lib/server/study/practice/repository';
+import { remainingTargets, type ProducedQuestion } from '@/lib/study/practice/contracts';
 
 import {
   attemptPaperId,
@@ -90,8 +92,11 @@ async function candidates(
   db: Queryable,
   ownerId: string,
   blueprint: BlueprintInput,
+  exclude: ReadonlySet<string>,
 ): Promise<{ list: BlueprintCandidate[]; resolve: (ref: string) => Resolved | 'bank' }> {
-  const bank = await loadBankCandidates(db, ownerId, blueprint.spaceId);
+  const bank = (await loadBankCandidates(db, ownerId, blueprint.spaceId)).filter(
+    (row) => !exclude.has(row.id),
+  );
   const seen = await seenInSpace(db, ownerId, blueprint.spaceId);
   const list: BlueprintCandidate[] = [];
   const bankHashes = new Set<string>();
@@ -145,11 +150,17 @@ async function candidates(
   return { list, resolve: (ref) => packs.get(ref) ?? 'bank' };
 }
 
-async function select(
+/**
+ * The deterministic selection of a blueprint (preview, publish and the bank
+ * part of an AI-topped-up paper). `exclude` leaves out bank questions — a
+ * practice job's own new questions, so re-picking its bank part on publish
+ * sees the bank as it was when the job was planned.
+ */
+export async function selectBlueprint(
   db: Queryable,
   ownerId: string,
   input: BlueprintInput,
-  options: { writable: boolean },
+  options: { writable: boolean; exclude?: ReadonlySet<string> },
 ): Promise<{
   blueprint: ExamBlueprint;
   result: BlueprintResult;
@@ -164,7 +175,7 @@ async function select(
   }
   const blueprint: ExamBlueprint = { ...input, seed: input.seed ?? drawSeed() };
   const conceptKeys = input.conceptIds.map((id) => keys.get(id)!);
-  const { list, resolve } = await candidates(db, ownerId, blueprint);
+  const { list, resolve } = await candidates(db, ownerId, blueprint, options.exclude ?? new Set());
   const result = selectQuestions(blueprint, list, conceptKeys);
   const bankRefs = result.picked
     .filter((candidate) => candidate.tier !== 'pack')
@@ -203,9 +214,14 @@ export async function previewPaper(
   ownerId: string,
   input: BlueprintInput,
 ): Promise<PaperPreview> {
-  const { blueprint, result, picked, uncoveredConceptIds } = await select(db, ownerId, input, {
-    writable: false,
-  });
+  const { blueprint, result, picked, uncoveredConceptIds } = await selectBlueprint(
+    db,
+    ownerId,
+    input,
+    {
+      writable: false,
+    },
+  );
   return {
     seed: blueprint.seed,
     items: picked.map((item, index) => ({
@@ -228,7 +244,7 @@ export async function previewPaper(
   };
 }
 
-function frozenItem(item: Resolved): FrozenItem {
+function frozenItem(item: Resolved, extra: { hint?: string | null } = {}): FrozenItem {
   const source = item.content.source;
   const itemSource: PaperItemSource = {
     origin: item.origin,
@@ -242,6 +258,7 @@ function frozenItem(item: Resolved): FrozenItem {
     ...(source?.licenseStatus ? { licenseStatus: source.licenseStatus } : {}),
     ...(source?.answerBasis ? { answerBasis: source.answerBasis } : {}),
     ...(source?.material ? { material: source.material } : {}),
+    ...(source?.generation ? { generation: source.generation } : {}),
   };
   return {
     questionId: item.questionId,
@@ -258,6 +275,8 @@ function frozenItem(item: Resolved): FrozenItem {
       difficulty: item.content.difficulty,
       source: itemSource,
       ...(item.content.figures?.length ? { figures: item.content.figures } : {}),
+      // A practice question's hint (B11): never part of the item view, shown only when asked for.
+      ...(extra.hint ? { hint: extra.hint } : {}),
     },
     key: {
       answer: item.content.answer,
@@ -296,7 +315,7 @@ export async function publishPaper(
   const earlier = await replay();
   if (earlier) return earlier;
   const outcome = await db.withTransaction(async (tx) => {
-    const { blueprint, result, picked, uncoveredConceptIds } = await select(
+    const { blueprint, result, picked, uncoveredConceptIds } = await selectBlueprint(
       tx,
       ownerId,
       input.blueprint,
@@ -314,7 +333,7 @@ export async function publishPaper(
       spaceId: blueprint.spaceId,
       title: input.title,
       blueprint,
-      items: picked.map(frozenItem),
+      items: picked.map((item) => frozenItem(item)),
       idempotencyKey: input.idempotencyKey,
       requestHash,
     });
@@ -367,4 +386,164 @@ export async function submitPaperAttempt(
     attempt: await getAttemptView(db, ownerId, attemptId),
     alreadySubmitted: outcome.kind === 'already',
   };
+}
+
+// ── papers fed by an AI practice job (B11) ──────────────────────────────────
+
+function resolvedVersion(frozen: {
+  content: QuestionContent;
+  origin: QuestionOrigin;
+  verification: VerificationState;
+  contentHash: string;
+  id: string;
+  version: number;
+}): Resolved {
+  return {
+    content: frozen.content,
+    origin: frozen.origin,
+    verification: frozen.verification,
+    contentHash: frozen.contentHash,
+    questionId: frozen.id,
+    questionVersion: frozen.version,
+    packQuestion: null,
+    packTitle: null,
+  };
+}
+
+/**
+ * Freeze the paper of a finished (or stopped) practice job: for a mixed
+ * paper the bank part re-picked from the job's blueprint and seed (it must be
+ * exactly what the job was planned with), then the job's new questions in
+ * section order; for variants just the new questions. A job feeds one paper:
+ * publishing again — with any key — returns it. Fewer questions than planned
+ * need `acceptShort`.
+ */
+export async function publishJobPaper(
+  db: StudyDb,
+  ownerId: string,
+  jobId: string,
+  input: { title: string; idempotencyKey: string; acceptShort: boolean },
+): Promise<{ paperId: string; created: boolean }> {
+  const requestHash = createHash('sha256')
+    .update(JSON.stringify(['practice-job', jobId, input.title, input.acceptShort]))
+    .digest('hex');
+  const existing = await findPaperByKey(db, ownerId, input.idempotencyKey);
+  if (existing) {
+    if (existing.requestHash !== requestHash) throw new StudyError('STUDY_IDEMPOTENCY_CONFLICT');
+    return { paperId: existing.id, created: false };
+  }
+  const outcome = await db.withTransaction(async (tx) => {
+    const job = await getPracticeJob(tx, ownerId, jobId, { forUpdate: true });
+    if (job.paperId) return { paperId: job.paperId, created: false };
+    if (job.status === 'pending' || job.status === 'cancelled') {
+      throw new StudyError('STUDY_PRACTICE_JOB_STATE', { status: job.status });
+    }
+    await requireQuestionSpace(tx, ownerId, job.spaceId, { writable: true });
+    const versions = await loadQuestionVersions(
+      tx,
+      ownerId,
+      job.produced.map((question) => ({ id: question.questionId, version: question.version })),
+    );
+    const generated: Array<{ produced: ProducedQuestion; item: Resolved }> = job.produced.flatMap(
+      (produced) => {
+        const frozen = versions.get(`${produced.questionId}@${produced.version}`);
+        return frozen ? [{ produced, item: resolvedVersion(frozen) }] : [];
+      },
+    );
+    const request = job.request;
+    const short =
+      remainingTargets(
+        request.targets,
+        generated.map((entry) => entry.produced),
+      ).length > 0;
+    if (short && !input.acceptShort) {
+      throw new StudyError('STUDY_PRACTICE_INCOMPLETE', {
+        produced: generated.length,
+        total: request.targets.reduce((sum, target) => sum + target.count, 0),
+      });
+    }
+    const hints = new Map(generated.map((entry) => [entry.item.questionId, entry.produced.hint]));
+    let ordered: Resolved[];
+    let blueprint: ExamBlueprint;
+    let mode: 'mixed' | 'ai';
+    if (request.kind === 'paper') {
+      let bank: Resolved[] = [];
+      if (request.mode === 'mixed') {
+        const selection = await selectBlueprint(tx, ownerId, request.blueprint, {
+          writable: true,
+          exclude: new Set(job.produced.map((question) => question.questionId)),
+        });
+        const refs = selection.result.picked.map((candidate) => candidate.ref);
+        if (
+          refs.length !== request.bankRefs.length ||
+          refs.some((ref, index) => ref !== request.bankRefs[index])
+        ) {
+          throw new StudyError('STUDY_PRACTICE_BANK_CHANGED');
+        }
+        bank = selection.picked;
+      }
+      ordered = request.blueprint.sections.flatMap((section) => [
+        ...bank.filter((item) => item.content.type === section.type),
+        ...generated
+          .filter((entry) => entry.item.content.type === section.type)
+          .map((entry) => entry.item),
+      ]);
+      blueprint = {
+        ...request.blueprint,
+        sections: request.blueprint.sections
+          .map((section) => ({
+            type: section.type,
+            count: ordered.filter((item) => item.content.type === section.type).length,
+          }))
+          .filter((section) => section.count > 0),
+        jobId,
+      };
+      mode = request.mode;
+    } else {
+      ordered = generated.map((entry) => entry.item);
+      blueprint = {
+        spaceId: job.spaceId,
+        sections: request.targets.map((target) => ({ type: target.type, count: ordered.length })),
+        conceptIds: [],
+        stageId: null,
+        difficulty: 'any',
+        avoidSeen: false,
+        includeUnverified: true,
+        includePublic: true,
+        packIds: [],
+        seed: 'variant',
+        jobId,
+        practice: {
+          kind: 'variant',
+          wrongItemId: request.wrongItemId,
+          questionKey: request.questionKey,
+        },
+      };
+      mode = 'ai';
+    }
+    if (ordered.length === 0) {
+      throw new StudyError('STUDY_PRACTICE_INCOMPLETE', { produced: 0 });
+    }
+    const paperId = createPaperId();
+    const inserted = await insertPaper(tx, ownerId, {
+      id: paperId,
+      spaceId: job.spaceId,
+      title: input.title,
+      mode,
+      blueprint,
+      items: ordered.map((item) => frozenItem(item, { hint: hints.get(item.questionId) ?? null })),
+      idempotencyKey: input.idempotencyKey,
+      requestHash,
+    });
+    if (!inserted) return null;
+    if (!(await markJobPublished(tx, ownerId, jobId, paperId))) {
+      throw new StudyError('STUDY_PRACTICE_JOB_STATE', { status: 'published' });
+    }
+    return { paperId, created: true };
+  });
+  if (outcome) return outcome;
+  const raced = await findPaperByKey(db, ownerId, input.idempotencyKey);
+  if (!raced || raced.requestHash !== requestHash)
+    throw new StudyError('STUDY_IDEMPOTENCY_CONFLICT');
+  return { paperId: raced.id, created: false };
 }

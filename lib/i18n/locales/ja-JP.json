@@ -3015,7 +3015,10 @@
         "examGraded": "「{{space}}」で試験「{{paper}}」を提出",
         "examScore": "{{earned}}/{{total}} 点 · {{count}} 問中 {{correct}} 問正解（サーバー採点）",
         "unknownPaper": "削除された試験",
-        "exam_graded": "試験を提出しました"
+        "exam_graded": "試験を提出しました",
+        "hintUsed": "「{{space}}」の練習で第 {{position}} 問のヒントを見た",
+        "solutionSeen": "「{{space}}」の練習で第 {{position}} 問の答えを見た",
+        "examPractice": "新しい問題を自力で正解 {{independent}} 問 · ヒントか答えを見た {{helped}} 問"
       },
       "source": {
         "study_progress": "学習進度",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "（{{points}} 点）",
         "finalCriterion": "最終解答が正しい",
         "overallCriterion": "模範解答と照らして全体で採点"
+      },
+      "ai": {
+        "mode": {
+          "label": "作り方",
+          "bank": "問題集のみ",
+          "mixed": "問題集を優先し不足分を AI で補う",
+          "ai": "すべて AI が作成"
+        },
+        "modeHint": {
+          "bank": "ルールに従って問題集から選びます。モデルは使いません。",
+          "mixed": "まず問題集から選び、足りない分だけ AI がこの科目の資料から作ります。",
+          "ai": "上の形式と問題数どおりに、すべて AI がこの科目の資料から新しい問題を作ります。"
+        },
+        "typeCount": "{{type}} {{count}} 問",
+        "planTitle": "AI 作問プラン",
+        "planNew": "新しく {{count}} 問を作成：{{types}}",
+        "bankKept": "ほかに問題集から {{count}} 問（プレビューどおり）",
+        "planConcepts": "対象の知識ポイント：{{names}}",
+        "planCalls": "モデル呼び出しは最大 {{count}} 回（作問と確認は別々）、選択中のモデルを使用",
+        "planMedia": "文字の問題のみ。画像や音声は作りません",
+        "planMaterials": "使用する資料（現在のバージョン）",
+        "planNote": "新しい問題は「AI 生成・未確認」として問題集に追加されます。AI のレビュー済みですが人による確認はされていません。問題集で編集・確認できます。",
+        "consent": "AI がこの {{count}} 問を作成することに同意します",
+        "start": "{{count}} 問を作成",
+        "blocked": {
+          "nothing_to_generate": "問題集だけで足りています。AI で補う必要はありません。",
+          "no_materials": "この科目には検索できる資料がまだありません。科目ページで資料（テキスト PDF など）を追加すると、AI が根拠をもって作問できます。",
+          "too_many": "一度に AI が作れるのは最大 {{max}} 問です。問題数を減らしてください。",
+          "retrieval_unavailable": "この環境では資料検索が使えないため、根拠のある作問ができません。"
+        },
+        "nothingButUncovered": "問題数は足りていますが、選んだ知識ポイント「{{names}}」の問題が問題集にありません。問題数を増やすと AI がこれらを補います。",
+        "gapsHintMixed": "足りない問題は下の AI 作問プランで補えます。",
+        "progress": "{{done}}/{{total}} 問作成 · モデル呼び出し {{calls}}/{{cap}} 回",
+        "running": "作問と確認をしています…このページを開いたままにしてください。",
+        "cancel": "キャンセル",
+        "cancelled": "キャンセルしました。作成済みの問題は問題集に残ります（未確認）。",
+        "completed": "{{total}} 問すべて作成し、AI のレビューを通過しました。",
+        "stopped": {
+          "budget": "呼び出し上限に達しました（{{done}}/{{total}} 問作成）。",
+          "timeout": "モデルが時間切れになりました（{{done}}/{{total}} 問作成）。",
+          "model_error": "モデル呼び出しでエラーが出ました（{{done}}/{{total}} 問作成）。",
+          "lease_lost": "この処理は中断されました（{{done}}/{{total}} 問作成）。",
+          "interrupted": "ページを離れたため中断しました（{{done}}/{{total}} 問作成）。",
+          "internal": "問題が発生しました（{{done}}/{{total}} 問作成）。"
+        },
+        "uncoveredLeft": "まだ問題のない知識ポイント：{{names}}",
+        "reviewed": "AI レビュー済み",
+        "similar": "問題集の問題との類似度 {{score}}",
+        "similarOriginal": "元の問題との類似度 {{score}}",
+        "basedOn": "根拠：",
+        "originalQuestion": "元の問題",
+        "material": "資料",
+        "page": "{{page}} ページ",
+        "rejectedSummary": "不採用 {{count}} 問（理由を見る）",
+        "stage": {
+          "output": "出力形式",
+          "program": "プログラム確認",
+          "review": "AI レビュー"
+        },
+        "reason": {
+          "not_json": "指定の形式で出力されなかった",
+          "too_many": "依頼より多く作ったため一括で不採用",
+          "type_unrequested": "問題の形式が違う",
+          "type_excess": "この形式はもう足りている",
+          "invalid": "内容が不完全または矛盾している",
+          "no_answer_key": "答えまたは模範解答がない",
+          "concept_missing": "選んだ知識ポイントに当てはまらない",
+          "bad_refs": "渡していない資料を引用した",
+          "duplicate": "既存の問題と重複",
+          "near_duplicate": "既存の問題とほぼ同じ",
+          "review_rejected": "AI レビューで不合格",
+          "review_missing": "レビューされなかった",
+          "review_invalid": "レビュー結果が無効"
+        },
+        "publish": "テストを始める",
+        "publishShort": "今ある {{count}} 問で始める",
+        "continue": "続けて作成（あと最大 {{count}} 回の呼び出し）",
+        "retry": "再試行",
+        "published": "テストを作成しました（「テスト」で確認できます）",
+        "bankChanged": "作成中に問題集が変わり、問題集の部分がプランと一致しなくなりました。もう一度プレビューしてから試してください（作成済みの問題は問題集に残ります）。",
+        "modelUnavailable": "選択中のモデルが使えません。モデル設定を確認してください。",
+        "limit": "今日の AI 作問の回数を使い切りました。明日もう一度お試しください。",
+        "noEvidence": "使える資料の文章が見つからず、作問できません。",
+        "aiReviewedNotChecked": "AI レビュー済み・人による確認なし",
+        "startPractice": "練習を始める"
+      },
+      "help": {
+        "notice": "これは練習用のテストです。ヒントや答えを見られますが、記録されます。答えを見てから正解しても、自力での正解にはなりません。",
+        "hint": "ヒント",
+        "solution": "答えを見る",
+        "hintLabel": "ヒント",
+        "solutionLabel": "答えと解説",
+        "solutionTitle": "今答えを見ますか？",
+        "solutionConfirm": "答えを見ると、この問題は正解しても自力での正解にはなりません（練習として記録されます）。",
+        "keepTrying": "もう少し考える",
+        "recorded": "記録済み：この問題は答えを見ました。",
+        "chip": {
+          "variant": "類題",
+          "independent": "新しい問題を自力で正解",
+          "hinted": "ヒントを見た",
+          "solution_seen": "答えを見た",
+          "seen": "解いたことがある"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "この問題を間違えました：「{{stem}}」。どこが間違っていましたか？",
         "pick": "学習仲間",
         "open": "学習仲間に聞く"
+      },
+      "variant": {
+        "open": "類題で練習",
+        "title": "似た新しい問題でもう一度練習",
+        "count": "問題数",
+        "intro": "AI が元の問題（とこの科目の資料の関連部分）をもとに、同じ知識ポイント・同じ考え方で内容の違う新しい問題を作ります。元の問題をそのまま写すことはありません。",
+        "help": "練習用のテストではヒントや答えを見られ、それは記録されます。結果はこの誤答の履歴に表示されます。"
       }
     }
   }

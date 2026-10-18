@@ -5,8 +5,11 @@
  * knowledge points and course, difficulty, skipping questions already done,
  * unchecked questions and official packs. The preview shows the exact
  * questions and every shortfall; publishing freezes that preview (same seed)
- * and opens the first attempt. No model is used; there is no "fill the gap
- * with AI" option until that exists (B11).
+ * and opens the first attempt. No model is used for a bank paper.
+ *
+ * With AI practice (B11) the student may instead choose "bank first, AI for
+ * the gap" or "all by AI": the preview then carries the generation plan,
+ * which the student confirms before any model call (GenerationPanel).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -41,10 +44,16 @@ import {
 } from '@/lib/study/questions/blueprint';
 import type { ConceptView, QuestionType } from '@/lib/study/questions/contracts';
 import type { QuestionPackSummary } from '@/lib/study/questions/packs';
+import { GenerationPanel } from '@/components/study/practice/GenerationPanel';
+import { practiceApi, type PracticePreview } from '@/lib/study/practice/client';
+import type { PracticeMode } from '@/lib/study/practice/contracts';
 import { StudyApiError } from '@/lib/study/spaces/client';
 import { cn } from '@/lib/utils';
 
 const ANY_COURSE = '__any__';
+
+type BuildMode = 'bank' | PracticeMode;
+const MODES: readonly BuildMode[] = ['bank', 'mixed', 'ai'];
 
 interface Form {
   single: string;
@@ -76,6 +85,7 @@ export function PaperBuilderPanel({
   concepts,
   initialCourse,
   allowOpen = false,
+  allowPractice = false,
 }: {
   spaceId: string;
   spaceName: string;
@@ -85,6 +95,8 @@ export function PaperBuilderPanel({
   initialCourse: string | null;
   /** Whether papers may contain open questions (assisted grading on). */
   allowOpen?: boolean;
+  /** Whether AI top-ups and AI papers are offered (B11). */
+  allowPractice?: boolean;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -105,7 +117,10 @@ export function PaperBuilderPanel({
     packIds: [],
     title: '',
   });
-  const [preview, setPreview] = useState<PaperPreview | null>(null);
+  const [mode, setMode] = useState<BuildMode>('bank');
+  const [preview, setPreview] = useState<PaperPreview | PracticePreview | null>(null);
+  /** One key per preview for the AI job (a retried start never creates a second job). */
+  const [jobKey, setJobKey] = useState(newRequestKey);
   /** One key per shown preview: retrying a publish never creates a second paper. */
   const [publishKey, setPublishKey] = useState(newRequestKey);
   const [busy, setBusy] = useState(false);
@@ -160,8 +175,13 @@ export function PaperBuilderPanel({
     if (total === 0) return;
     setBusy(true);
     try {
-      setPreview(await examsApi.preview(blueprint()));
+      setPreview(
+        mode === 'bank'
+          ? await examsApi.preview(blueprint())
+          : await practiceApi.preview(blueprint(), mode),
+      );
       setPublishKey(newRequestKey());
+      setJobKey(newRequestKey());
     } catch {
       toast.error(t('study.errors.generic'));
     } finally {
@@ -212,8 +232,42 @@ export function PaperBuilderPanel({
     return parts.join(' ');
   };
 
+  const generation = preview && 'generation' in preview ? preview.generation : null;
+  // A mixed paper whose bank already fills every section publishes like a bank paper.
+  const needsAi = Boolean(generation && generation.blocked !== 'nothing_to_generate');
+  const aiOnly = mode === 'ai';
+
   return (
     <section className="space-y-6" data-testid="paper-builder">
+      {allowPractice ? (
+        <div className="space-y-2">
+          <Label>{t('study.practice.ai.mode.label')}</Label>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup">
+            {MODES.map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={mode === value}
+                data-testid={`build-mode-${value}`}
+                onClick={() => {
+                  setMode(value);
+                  setPreview(null);
+                }}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs transition-colors',
+                  mode === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:border-primary/50',
+                )}
+              >
+                {t(`study.practice.ai.mode.${value}`)}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{t(`study.practice.ai.modeHint.${mode}`)}</p>
+        </div>
+      ) : null}
       <div className={cn('grid gap-4', allowOpen ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
         {types.map((type) => (
           <div key={type} className="space-y-1.5">
@@ -357,17 +411,52 @@ export function PaperBuilderPanel({
           )}
           {preview ? t('study.practice.build.reshuffle') : t('study.practice.build.preview')}
         </Button>
-        <Button
-          disabled={busy || archived || !preview?.complete}
-          onClick={() => void publish()}
-          data-testid="build-publish"
-        >
-          <Play className="mr-1 size-4" />
-          {t('study.practice.build.publish')}
-        </Button>
+        {!needsAi && !aiOnly ? (
+          <Button
+            disabled={busy || archived || !preview?.complete}
+            onClick={() => void publish()}
+            data-testid="build-publish"
+          >
+            <Play className="mr-1 size-4" />
+            {t('study.practice.build.publish')}
+          </Button>
+        ) : null}
       </div>
 
-      {preview ? (
+      {preview && generation && (needsAi || aiOnly) ? (
+        <GenerationPanel
+          key={`${preview.seed}:${jobKey}`}
+          plan={generation}
+          selectableMaterials
+          note={
+            mode === 'mixed' && preview.items.length
+              ? t('study.practice.ai.bankKept', { count: preview.items.length })
+              : null
+          }
+          createJob={(materialVersionIds) =>
+            practiceApi.createPaperJob({
+              blueprint: { ...blueprint(), seed: preview.seed },
+              mode: mode as PracticeMode,
+              materialVersionIds,
+              idempotencyKey: jobKey,
+            })
+          }
+          paperTitle={form.title.trim() || defaultTitle}
+          spaceId={spaceId}
+          archived={archived}
+        />
+      ) : null}
+      {generation?.blocked === 'nothing_to_generate' && preview?.uncoveredConceptIds.length ? (
+        <p className="text-xs text-muted-foreground">
+          {t('study.practice.ai.nothingButUncovered', {
+            names: preview.uncoveredConceptIds
+              .map((id) => conceptName.get(id) ?? id)
+              .join(t('study.practice.separator')),
+          })}
+        </p>
+      ) : null}
+
+      {preview && !aiOnly ? (
         <div className="space-y-3" data-testid="build-result">
           {preview.complete ? (
             <p className="text-sm text-primary">
@@ -394,7 +483,11 @@ export function PaperBuilderPanel({
                   })}
                 </p>
               ) : null}
-              <p className="text-xs opacity-80">{t('study.practice.build.gapsHint')}</p>
+              <p className="text-xs opacity-80">
+                {mode === 'mixed'
+                  ? t('study.practice.ai.gapsHintMixed')
+                  : t('study.practice.build.gapsHint')}
+              </p>
             </div>
           )}
           <ol className="space-y-2">

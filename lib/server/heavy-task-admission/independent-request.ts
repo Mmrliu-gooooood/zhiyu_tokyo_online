@@ -58,7 +58,12 @@ export async function runIndependentHeavyTaskRequest(
   request: Request,
   kind: Extract<
     HeavyTaskKind,
-    'document-extraction' | 'media' | 'study-qa' | 'study-extract' | 'study-grade'
+    | 'document-extraction'
+    | 'media'
+    | 'study-qa'
+    | 'study-extract'
+    | 'study-grade'
+    | 'study-practice'
   >,
   body: (signal: AbortSignal) => Promise<Response>,
 ): Promise<Response> {
@@ -174,7 +179,12 @@ async function acquireIndependentLease(
   rootTaskId: string,
   kind: Extract<
     HeavyTaskKind,
-    'document-extraction' | 'media' | 'study-qa' | 'study-extract' | 'study-grade'
+    | 'document-extraction'
+    | 'media'
+    | 'study-qa'
+    | 'study-extract'
+    | 'study-grade'
+    | 'study-practice'
   >,
   holder: string,
 ): Promise<IndependentLease | null> {

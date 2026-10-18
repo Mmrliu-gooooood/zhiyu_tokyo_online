@@ -24,6 +24,11 @@ import {
 } from '@/lib/study/assessments/contracts';
 import { isLearningCheckPayloadV1, type LearningCheckPayloadV1 } from '@/lib/learning/contracts';
 import type { ServerQuizQuestion } from '@/lib/study/memory/projection';
+import {
+  assistanceLevel,
+  isIndependentPass,
+  type AttemptAssistanceRecord,
+} from '@/lib/study/practice/contracts';
 import { effectiveRubric } from '@/lib/study/questions/contracts';
 
 import {
@@ -83,12 +88,19 @@ export interface ExamAttemptSource {
   grading: AttemptGrading;
   gradings: ReadonlyMap<number, readonly ItemGradingView[]>;
   items: readonly ExamItemSource[];
+  /** Novelty and help shown per item (B11 attempts; empty before). */
+  assistance?: AttemptAssistanceRecord;
 }
 
 /** Same bank question in later papers (any version) → same item. */
 export function examQuestionKey(
-  item: Pick<ExamItemSource, 'questionId' | 'packQuestion' | 'contentHash'>,
+  item: Pick<ExamItemSource, 'questionId' | 'packQuestion' | 'contentHash'> & {
+    source?: Pick<ExamItemSource['source'], 'generation'>;
+  },
 ) {
+  // A variant (B11) answers join the history of the question it varies.
+  const family = item.source?.generation?.family;
+  if (family) return family.questionKey;
   if (item.questionId) return `bank:${item.questionId}`;
   if (item.packQuestion) return `pack:${item.packQuestion}`;
   return `exam:${item.contentHash}`;
@@ -149,6 +161,25 @@ export function examEntries(source: ExamAttemptSource): WrongEntry[] {
       source: item.source,
       ...(item.figures.length ? { figures: item.figures } : {}),
     };
+    const outcome: WrongOutcome =
+      result.outcome === 'unanswered'
+        ? 'unanswered'
+        : outcomeOf(result.earned, result.points, response !== null);
+    // B11: whether the question was new, whether help was shown, whether it is a variant.
+    // Only attempts that recorded it (or variants) carry this, so earlier entries stay as they were.
+    const record = source.assistance?.items?.[String(item.position)];
+    const variant = Boolean(item.source.generation?.family);
+    const practice =
+      record || variant
+        ? {
+            practice: {
+              novelty: record?.novelty ?? ('unknown' as const),
+              assistance: assistanceLevel(record),
+              variant,
+              independent: isIndependentPass(outcome, record),
+            },
+          }
+        : {};
     entries.push({
       questionKey: examQuestionKey(item),
       sourceType: 'exam_attempt',
@@ -156,10 +187,7 @@ export function examEntries(source: ExamAttemptSource): WrongEntry[] {
       stageId: null,
       attemptId: source.attemptId,
       occurredAt: source.submittedAt,
-      outcome:
-        result.outcome === 'unanswered'
-          ? 'unanswered'
-          : outcomeOf(result.earned, result.points, response !== null),
+      outcome,
       earned: result.earned,
       points: result.points,
       question,
@@ -170,6 +198,7 @@ export function examEntries(source: ExamAttemptSource): WrongEntry[] {
         paperTitle: source.paperTitle,
         attemptId: source.attemptId,
         position: item.position,
+        ...practice,
       },
     });
   }
@@ -400,7 +429,8 @@ export function checkEntries(source: CheckSessionSource): WrongEntry[] {
         by: 'classroom',
         method: grade.basis === 'deterministic' ? 'answer_key' : 'model',
         version: payload.questionSet.scoringVersion,
-        ...(grade.basis === 'model' ? { model: payload.generation.model } : {}),
+        // The classroom records no grader model for a check answer
+        // (generation.model is the model that wrote the questions), so none is shown.
         feedback: grade.comment,
       },
       origin: {

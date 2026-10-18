@@ -486,7 +486,6 @@ describe('learning-check entries', () => {
       grading: {
         by: 'classroom',
         method: 'model',
-        model: 'deepseek:deepseek-flash',
         feedback: '只说了一半',
       },
       origin: {

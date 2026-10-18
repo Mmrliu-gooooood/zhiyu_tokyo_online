@@ -23,6 +23,7 @@ import {
   type AttemptGrading,
 } from '@/lib/study/assessments/contracts';
 import type { ServerQuizQuestion } from '@/lib/study/memory/projection';
+import type { AttemptAssistanceRecord } from '@/lib/study/practice/contracts';
 import type { GradingGuide } from '@/lib/study/questions/contracts';
 import {
   WRONGBOOK_LIMITS,
@@ -83,8 +84,9 @@ export async function readExamSources(
     submitted_at: string | Date;
     answers: unknown;
     grading: unknown;
+    assistance: unknown;
   }>(
-    `SELECT a.id, a.paper_id, p.title, a.submitted_at, a.answers, a.grading
+    `SELECT a.id, a.paper_id, p.title, a.submitted_at, a.answers, a.grading, a.assistance
        FROM study_exam_attempts a
        JOIN study_exam_papers p ON p.owner_id = a.owner_id AND p.id = a.paper_id
       WHERE a.owner_id = $1 AND p.space_id = $2 AND a.status = 'submitted'
@@ -144,6 +146,7 @@ export async function readExamSources(
     grading: json<AttemptGrading>(row.grading)!,
     gradings: gradings.get(row.id) ?? new Map(),
     items: byPaper.get(row.paper_id) ?? [],
+    assistance: json<AttemptAssistanceRecord>(row.assistance) ?? {},
   }));
 }
 
@@ -553,7 +556,10 @@ export async function readItemSummaries(
        JOIN LATERAL (
          SELECT o.question FROM study_wrong_occurrences o
           WHERE o.owner_id = i.owner_id AND o.item_id = i.id AND o.outcome <> 'correct'
-          ORDER BY o.occurred_at DESC, o.source_key DESC LIMIT 1
+          -- The item's own question, not a variant (B11) answered wrongly later.
+          ORDER BY COALESCE((o.origin->'practice'->>'variant')::boolean, false),
+                   o.occurred_at DESC, o.source_key DESC
+          LIMIT 1
        ) wrong ON true
       WHERE i.owner_id = $1 AND i.space_id = $2 AND i.id = ANY($3::text[])`,
     [ownerId, spaceId, rows.map((row) => row.id)],

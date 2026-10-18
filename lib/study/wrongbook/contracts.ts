@@ -105,6 +105,18 @@ export interface WrongOrigin {
   /** The quiz snapshot revision or the learning-check course revision. */
   contentRevision?: string;
   checkKind?: 'course_check' | 'remediation_check';
+  /**
+   * Subject papers answered after B11: whether the question was new to the
+   * student, whether a hint or the solution was shown first, whether it was
+   * a variant of this item's question, and so whether it was an independent
+   * check (new, right, no help).
+   */
+  practice?: {
+    novelty: 'new' | 'seen' | 'unknown';
+    assistance: 'unassisted' | 'hinted' | 'solution_seen';
+    variant: boolean;
+    independent: boolean;
+  };
 }
 
 /** One graded answer, as a projection produces it. */

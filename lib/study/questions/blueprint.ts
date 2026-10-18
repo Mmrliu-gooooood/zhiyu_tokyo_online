@@ -4,7 +4,8 @@
  * enabled, and report every shortfall instead of padding the paper. Pure and
  * deterministic: the same blueprint (with its seed) over the same candidates
  * always yields the same paper, so a preview can be published as shown.
- * No model is involved; AI top-ups arrive with B11.
+ * No model is involved here; AI top-ups (B11) fill only the shortfalls this
+ * reports.
  */
 import {
   QUESTION_TYPES,
@@ -54,6 +55,13 @@ export interface ExamBlueprint {
   /** Official packs the student allowed, used after their own bank. */
   packIds: string[];
   seed: string;
+  /**
+   * Set by the server on papers fed by an AI practice job (B11), never read
+   * from a request: the job, and for variant practice the wrong question it
+   * varies (such papers offer hints and solutions, recorded per item).
+   */
+  jobId?: string;
+  practice?: { kind: 'variant'; wrongItemId: string; questionKey: string };
 }
 
 /** A question the builder may pick (already restricted to complete, gradable ones). */

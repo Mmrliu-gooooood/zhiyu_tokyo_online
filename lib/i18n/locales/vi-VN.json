@@ -3015,7 +3015,10 @@
         "examGraded": "Đã nộp đề “{{paper}}” trong {{space}}",
         "examScore": "{{earned}}/{{total}} điểm · đúng {{correct}}/{{count}} câu (chấm trên máy chủ)",
         "unknownPaper": "một đề đã xóa",
-        "exam_graded": "Đã nộp một đề"
+        "exam_graded": "Đã nộp một đề",
+        "hintUsed": "Đã xem gợi ý câu {{position}} khi luyện tập trong \"{{space}}\"",
+        "solutionSeen": "Đã xem đáp án câu {{position}} khi luyện tập trong \"{{space}}\"",
+        "examPractice": "Tự làm đúng {{independent}} câu mới · có trợ giúp {{helped}} câu"
       },
       "source": {
         "study_progress": "Tiến độ",
@@ -3430,6 +3433,109 @@
         "criterionPoints": "({{points}} điểm)",
         "finalCriterion": "Kết quả cuối đúng",
         "overallCriterion": "Chấm tổng thể theo đáp án mẫu"
+      },
+      "ai": {
+        "mode": {
+          "label": "Cách tạo đề",
+          "bank": "Chỉ dùng ngân hàng",
+          "mixed": "Ưu tiên ngân hàng, AI bù chỗ thiếu",
+          "ai": "Toàn bộ do AI viết"
+        },
+        "modeHint": {
+          "bank": "Chọn câu hỏi từ ngân hàng theo quy tắc. Không dùng mô hình.",
+          "mixed": "Chọn từ ngân hàng trước; AI chỉ viết phần còn thiếu, dựa trên tài liệu của môn này.",
+          "ai": "AI viết toàn bộ câu hỏi ở trên theo dạng và số lượng, dựa trên tài liệu của môn này."
+        },
+        "typeCount": "{{count}} câu {{type}}",
+        "planTitle": "Kế hoạch ra đề bằng AI",
+        "planNew": "Sẽ viết {{count}} câu mới: {{types}}",
+        "bankKept": "Thêm {{count}} câu từ ngân hàng (như bản xem trước)",
+        "planConcepts": "Điểm kiến thức: {{names}}",
+        "planCalls": "Tối đa {{count}} lần gọi mô hình (viết và duyệt riêng), dùng mô hình bạn đang chọn",
+        "planMedia": "Chỉ câu hỏi dạng chữ; không tạo hình ảnh hay âm thanh",
+        "planMaterials": "Tài liệu dùng (phiên bản hiện tại)",
+        "planNote": "Câu hỏi mới được thêm vào ngân hàng với nhãn \"AI tạo · chưa kiểm tra\": đã được AI duyệt nhưng chưa được người kiểm tra. Bạn có thể sửa hoặc kiểm tra trong ngân hàng.",
+        "consent": "Tôi đồng ý để AI viết {{count}} câu hỏi này",
+        "start": "Viết {{count}} câu",
+        "blocked": {
+          "nothing_to_generate": "Ngân hàng đã đủ; không cần AI bù.",
+          "no_materials": "Môn này chưa có tài liệu có thể tìm kiếm. Hãy thêm tài liệu (ví dụ PDF dạng chữ) ở trang môn học để AI có căn cứ ra đề.",
+          "too_many": "Mỗi lần AI chỉ viết tối đa {{max}} câu. Hãy giảm số câu.",
+          "retrieval_unavailable": "Nơi này không có tìm kiếm tài liệu nên AI không thể ra đề có căn cứ."
+        },
+        "nothingButUncovered": "Đã đủ số câu, nhưng ngân hàng không có câu nào về \"{{names}}\". Tăng số câu thì AI sẽ bù các điểm này.",
+        "gapsHintMixed": "Kế hoạch AI bên dưới có thể viết các câu còn thiếu.",
+        "progress": "Đã viết {{done}}/{{total}} · đã gọi mô hình {{calls}}/{{cap}} lần",
+        "running": "Đang viết và duyệt câu hỏi… vui lòng ở lại trang này.",
+        "cancel": "Hủy",
+        "cancelled": "Đã hủy. Các câu đã viết vẫn ở trong ngân hàng (chưa kiểm tra).",
+        "completed": "Đã viết xong {{total}} câu và đều qua bước duyệt của AI.",
+        "stopped": {
+          "budget": "Đã hết giới hạn lần gọi, viết được {{done}}/{{total}} câu.",
+          "timeout": "Mô hình phản hồi quá lâu, viết được {{done}}/{{total}} câu.",
+          "model_error": "Gọi mô hình bị lỗi, viết được {{done}}/{{total}} câu.",
+          "lease_lost": "Bước này bị gián đoạn, viết được {{done}}/{{total}} câu.",
+          "interrupted": "Dừng khi bạn rời trang, viết được {{done}}/{{total}} câu.",
+          "internal": "Đã xảy ra sự cố, viết được {{done}}/{{total}} câu."
+        },
+        "uncoveredLeft": "Điểm kiến thức chưa có câu hỏi: {{names}}",
+        "reviewed": "AI đã duyệt",
+        "similar": "Độ giống với một câu trong ngân hàng {{score}}",
+        "similarOriginal": "Độ giống với câu gốc {{score}}",
+        "basedOn": "Căn cứ:",
+        "originalQuestion": "câu gốc",
+        "material": "Tài liệu",
+        "page": "tr. {{page}}",
+        "rejectedSummary": "Không dùng {{count}} câu (xem lý do)",
+        "stage": {
+          "output": "Định dạng đầu ra",
+          "program": "Kiểm tra bằng chương trình",
+          "review": "AI duyệt"
+        },
+        "reason": {
+          "not_json": "Đầu ra không đúng định dạng yêu cầu",
+          "too_many": "Nhiều câu hơn yêu cầu; bỏ cả lô",
+          "type_unrequested": "Sai dạng câu hỏi",
+          "type_excess": "Dạng này đã đủ",
+          "invalid": "Thiếu hoặc mâu thuẫn",
+          "no_answer_key": "Không có đáp án hoặc đáp án mẫu",
+          "concept_missing": "Không thuộc điểm kiến thức đã chọn",
+          "bad_refs": "Trích dẫn tài liệu không được cung cấp",
+          "duplicate": "Trùng với câu đã có",
+          "near_duplicate": "Gần như giống câu đã có",
+          "review_rejected": "Không qua bước AI duyệt",
+          "review_missing": "Chưa được duyệt",
+          "review_invalid": "Kết quả duyệt không hợp lệ"
+        },
+        "publish": "Bắt đầu làm bài",
+        "publishShort": "Bắt đầu với {{count}} câu hiện có",
+        "continue": "Tiếp tục viết (thêm tối đa {{count}} lần gọi)",
+        "retry": "Thử lại",
+        "published": "Đã tạo đề — xem ở mục \"Đề thi\"",
+        "bankChanged": "Ngân hàng đã thay đổi trong lúc viết, phần ngân hàng không còn khớp kế hoạch. Hãy xem trước lại rồi thử (các câu mới vẫn ở trong ngân hàng).",
+        "modelUnavailable": "Mô hình bạn chọn hiện không dùng được. Hãy kiểm tra cài đặt mô hình.",
+        "limit": "Bạn đã dùng hết lượt ra đề bằng AI hôm nay. Hãy thử lại vào ngày mai.",
+        "noEvidence": "Không tìm thấy đoạn tài liệu dùng được nên không thể ra đề.",
+        "aiReviewedNotChecked": "AI đã duyệt, chưa được người kiểm tra",
+        "startPractice": "Bắt đầu luyện tập"
+      },
+      "help": {
+        "notice": "Đây là đề luyện tập: bạn có thể xem gợi ý hoặc đáp án, và việc đó được ghi lại. Làm đúng sau khi xem đáp án không được tính là tự làm.",
+        "hint": "Gợi ý",
+        "solution": "Xem đáp án",
+        "hintLabel": "Gợi ý",
+        "solutionLabel": "Đáp án và lời giải",
+        "solutionTitle": "Xem đáp án ngay?",
+        "solutionConfirm": "Sau khi xem đáp án, câu này dù làm đúng cũng không được tính là tự làm (vẫn được ghi là luyện tập).",
+        "keepTrying": "Suy nghĩ thêm",
+        "recorded": "Đã ghi lại: câu này đã xem đáp án.",
+        "chip": {
+          "variant": "Câu biến thể",
+          "independent": "Tự làm đúng câu mới",
+          "hinted": "Đã xem gợi ý",
+          "solution_seen": "Đã xem đáp án",
+          "seen": "Đã làm trước đây"
+        }
       }
     },
     "extraction": {
@@ -3637,6 +3743,13 @@
         "prompt": "Mình làm sai câu này: “{{stem}}”. Mình sai ở đâu?",
         "pick": "Bạn học",
         "open": "Hỏi bạn học"
+      },
+      "variant": {
+        "open": "Luyện câu biến thể",
+        "title": "Luyện lại bằng câu hỏi mới tương tự",
+        "count": "Số câu",
+        "intro": "AI dựa vào câu gốc (và các đoạn liên quan trong tài liệu của môn) để viết câu hỏi mới cùng điểm kiến thức, cùng cách làm nhưng khác nội dung — không chép lại câu gốc.",
+        "help": "Trong đề luyện tập có thể xem gợi ý hoặc đáp án và việc đó được ghi lại; kết quả sẽ hiện trong lịch sử của câu sai này."
       }
     }
   }

@@ -22,8 +22,11 @@ import {
   isStudyExamsFlagOn,
   isStudyMemoryFlagOn,
 } from '@/lib/server/study/flags';
-import { submittedAttempts } from '@/lib/server/study/exams/repository';
+import { submittedAttempts, type SubmittedAttemptRow } from '@/lib/server/study/exams/repository';
+import { listGradingsOfAttempts } from '@/lib/server/study/grading/repository';
+import { summarizeReport } from '@/lib/study/assessments/contracts';
 import type { LearningEventInput } from '@/lib/study/memory/contracts';
+import { assistanceLevel, isIndependentPass } from '@/lib/study/practice/contracts';
 import {
   companionEvents,
   eventAllowed,
@@ -237,26 +240,79 @@ async function examSourceEvents(
   ownerId: string,
   attemptId?: string,
 ): Promise<LearningEventInput[]> {
-  const rows = await submittedAttempts(db, ownerId, attemptId);
-  // A paper with open items is recorded once all of them have a score
-  // (B09); its totals then include them. Ungraded attempts are picked up by
-  // a later projection.
-  return examEvents(
-    rows
-      .filter((row) => row.open.ungraded === 0)
-      .map((row) => ({
-        attemptId: row.attemptId,
-        paperId: row.paperId,
-        spaceId: row.spaceId,
-        submittedAt: row.submittedAt,
-        itemCount: row.itemCount,
-        correct: row.grading.correct + row.open.correct,
-        unanswered: row.grading.unanswered,
-        earned: row.grading.earned + row.open.earned,
-        totalPoints: row.grading.totalPoints,
-        openItems: row.grading.pending ?? 0,
-      })),
+  const rows = (await submittedAttempts(db, ownerId, attemptId)).filter(
+    // A paper with open items is recorded once all of them have a score
+    // (B09); its totals then include them. Ungraded attempts are picked up by
+    // a later projection.
+    (row) => row.open.ungraded === 0,
   );
+  const independence = await independenceCounts(db, ownerId, rows);
+  return examEvents(
+    rows.map((row) => ({
+      attemptId: row.attemptId,
+      paperId: row.paperId,
+      spaceId: row.spaceId,
+      submittedAt: row.submittedAt,
+      itemCount: row.itemCount,
+      correct: row.grading.correct + row.open.correct,
+      unanswered: row.grading.unanswered,
+      earned: row.grading.earned + row.open.earned,
+      totalPoints: row.grading.totalPoints,
+      openItems: row.grading.pending ?? 0,
+      ...(independence.get(row.attemptId) ?? {}),
+    })),
+  );
+}
+
+/**
+ * B11 attempts (they recorded novelty and help): independent checks, items
+ * answered after help, repeats — and each hint or solution shown.
+ */
+async function independenceCounts(
+  db: Queryable,
+  ownerId: string,
+  rows: readonly SubmittedAttemptRow[],
+): Promise<
+  Map<
+    string,
+    {
+      independence: { independent: number; helped: number; repeated: number };
+      help: Array<{ position: number; level: 1 | 2; at: string }>;
+    }
+  >
+> {
+  const recorded = rows.filter((row) => Object.keys(row.assistance.items ?? {}).length > 0);
+  const counts = new Map<
+    string,
+    {
+      independence: { independent: number; helped: number; repeated: number };
+      help: Array<{ position: number; level: 1 | 2; at: string }>;
+    }
+  >();
+  if (recorded.length === 0) return counts;
+  const gradings = await listGradingsOfAttempts(
+    db,
+    ownerId,
+    recorded.map((row) => row.attemptId),
+  );
+  for (const row of recorded) {
+    const { items } = summarizeReport(row.grading, gradings.get(row.attemptId) ?? new Map());
+    const records = row.assistance.items ?? {};
+    const independence = { independent: 0, helped: 0, repeated: 0 };
+    const help: Array<{ position: number; level: 1 | 2; at: string }> = [];
+    for (const item of items) {
+      const record = records[String(item.position)];
+      if (isIndependentPass(item.outcome, record)) independence.independent += 1;
+      if (assistanceLevel(record) !== 'unassisted') independence.helped += 1;
+      if (record?.novelty === 'seen') independence.repeated += 1;
+      if (record?.hintAt) help.push({ position: item.position, level: 1, at: record.hintAt });
+      if (record?.solutionAt) {
+        help.push({ position: item.position, level: 2, at: record.solutionAt });
+      }
+    }
+    counts.set(row.attemptId, { independence, help });
+  }
+  return counts;
 }
 
 // ── entry points ────────────────────────────────────────────────────────────

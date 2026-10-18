@@ -14,6 +14,7 @@ import { QuizMathText } from '@/components/quiz/QuizMathText';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { materialsApi, readerHref } from '@/lib/study/materials/client';
 import type {
+  GenerationSourceRef,
   GradingGuide,
   MaterialSourceRef,
   OpenSubtype,
@@ -109,6 +110,8 @@ export interface SourceDetailsValue {
   licenseStatus?: 'clear' | 'unclear';
   answerBasis?: 'source' | 'model';
   material?: MaterialSourceRef;
+  /** Written by AI practice (B11). */
+  generation?: GenerationSourceRef;
 }
 
 /**
@@ -141,7 +144,9 @@ export function SourceDetails({ source }: { source: SourceDetailsValue | null | 
   const chips = [
     source.answerBasis ? t(`study.practice.source.answerBasis.${source.answerBasis}`) : null,
     source.licenseStatus === 'unclear' ? t('study.practice.source.licenseUnclear') : null,
+    source.generation ? t('study.practice.ai.aiReviewedNotChecked') : null,
   ].filter(Boolean);
+  const refs = source.generation?.refs ?? [];
   if (!text && chips.length === 0 && !source.url) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -165,6 +170,17 @@ export function SourceDetails({ source }: { source: SourceDetailsValue | null | 
           {source.url}
         </a>
       ) : null}
+      {refs.map((ref) => (
+        <Link
+          key={`${ref.versionId}:${ref.page ?? ''}`}
+          href={readerHref(ref.materialId, ref.versionId, ref.page)}
+          className="inline-flex items-center gap-0.5 text-primary hover:underline"
+        >
+          <FileText className="size-3" />
+          {ref.title ?? t('study.practice.ai.material')}
+          {ref.page ? ` · ${t('study.practice.ai.page', { page: ref.page })}` : ''}
+        </Link>
+      ))}
       {chips.map((chip) => (
         <span key={chip} className={cn(CHIP, 'bg-amber-500/10 text-amber-700 dark:text-amber-400')}>
           {chip}
@@ -227,7 +243,7 @@ export function GuideDetails({
           <ul className="list-disc space-y-0.5 pl-5 text-foreground">
             {guide.rubric.map((criterion) => (
               <li key={criterion.id}>
-                {label(criterion)}
+                <MathText text={label(criterion)} />
                 <span className="ml-1 text-xs text-muted-foreground">
                   {t('study.practice.guide.criterionPoints', { points: criterion.points })}
                 </span>
