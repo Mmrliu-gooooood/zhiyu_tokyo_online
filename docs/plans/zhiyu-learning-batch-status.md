@@ -16,7 +16,7 @@
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
 | B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
-| B11 | 实现完成，本地验收通过（2026-10-18），未上线 | `learn/b11-ai-practice` `29f11faf`（未合并） | accounts v32 `358fd15b…`（生产未执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次） | 未启用（新开关 `ZHIYU_STUDY_PRACTICE_ENABLED`） | 见 B11“未验证” |
+| B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产登录验收待做 | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -96,19 +96,22 @@
 - 深色模式未检查（用户 2026-10-11：之后会重做 UI）。
 - 多批（超过 5 题）、“继续生成”、离开页面中断在真实模型下只有路由测试覆盖。
 - 第二个账号和开关关闭只在路由与迁移测试中验证，浏览器里未走。
-- 生产未发布、未验收。
+- 生产登录验收未做。
 
 ### 回退
 
 - 运行时：Web 的 `ZHIYU_STUDY_PRACTICE_ENABLED` 置空后 apply。组卷只剩“只用题库”，生成/提示接口 404，错题本没有“变式练习”；已有 AI 卷、作答、报告照常可读可做（练习卷不再能看提示或答案），题库中的 AI 题保留。
 - 版本回退：回到 B10 镜像，v32 的表和列保留不用；旧代码不读 `assistance`，旧报告不显示新颖性与帮助标记。
 
-### 发布步骤（待用户同意）
+### 发布（2026-10-18，用户指示“上线 B11 吧”）
 
-1. 只读核对生产 v31 checksum = `790cdb51…`；Supabase `apply_migration`（`accounts_v32_study_practice`）执行仓库 v32 SQL 原文（导出文件 sha256 = `358fd15b025b7189de95246d7f47a92f6fb9358deb18c0de7f850828402fe507`），写入 `app_schema_migrations(32, 358fd15b…)`，核对表的 RLS、策略与授权。
-2. 快进合并到 main，推送 tokyo。
-3. 只换 Web（Worker 不运行 B11 代码，构建后在 Worker 包里核对没有 `study_practice_jobs`）；对比服务器 compose，env 加 `ZHIYU_STUDY_PRACTICE_ENABLED=1`；备份、apply、readiness。
-4. 生产登录验收（用户登录）。
+1. 只读核对生产：v31 checksum = `790cdb51…`（与仓库一致）；服务器 compose 与仓库只差新开关一行（忽略 CRLF）；`scripts/supabase-compose.sh` 与仓库相同；磁盘 62%。
+2. Supabase `apply_migration`（`accounts_v32_study_practice`）执行仓库 v32 SQL 原文（导出文件 sha256 = `358fd15b025b7189de95246d7f47a92f6fb9358deb18c0de7f850828402fe507`），写入 `app_schema_migrations(32, 358fd15b…)`。核对：`study_practice_jobs` 归 postgres、RLS 开启且强制、1 条 app_web owner 策略（FOR ALL）、app_web 查/插/改/删（另有 Supabase 默认的 `service_role`，与既有表一致）、anon/authenticated 无授权；`study_exam_attempts.assistance` 默认 `'{}'`，约束已加。
+3. `learn/b11-ai-practice` 快进合并到 main（`0a6f1a55`），推送 tokyo。
+4. 构建 Web 与 Worker；镜像内核对：Web 含 `/api/study/practice/jobs` 等路由；Worker 包只含 v32 建表 SQL 文本（自建库用的 `ensureStudySchema`），没有 B11 逻辑与账号删除代码，所以只换 Web：`e98af69e5796` 标为 `release-20261018c`，送到东京后磁盘 63%。
+5. 切换前生成任务、学习任务、待批改评分、运行中的 agent 会话都为 0。备份 `.env.hosted.local.bak-20261018c-pre`、`docker-compose.supabase.yml.bak-20261018c-pre`（指向 web 20261018b、worker 20261018）；compose 换成仓库版本；env 改 `ZHIYU_WEB_IMAGE` 并加 `ZHIYU_STUDY_PRACTICE_ENABLED=1`；`apply --tier 4 --mode background`（env 变化使两个 Worker 用同一镜像重建）。
+6. readiness：`ready`、accountsVersion 32、2/2 Worker；`/api/study/capabilities` 含 `practice: true`；未登录访问任务接口 401（不带 Origin 的 POST 403）。Web 启动 LISTEN 首次连接一次成功（2.8 s），Web 与 Worker 无 WARN/ERROR。
+7. 生产登录验收：待用户登录。
 
 ## B10 跨课堂错题本与答疑回看（2026-10-17）
 
