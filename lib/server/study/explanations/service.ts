@@ -528,7 +528,7 @@ async function produce(
   const call = async (
     system: string,
     user: string,
-    kind: keyof typeof EXPLANATION_LIMITS.outputTokens,
+    kind: keyof typeof EXPLANATION_LIMITS.timeoutMs,
   ): Promise<string> => {
     if (usage.calls >= row.callCap) throw new BudgetSpent();
     usage.calls += 1;
@@ -537,7 +537,7 @@ async function produce(
       {
         system,
         messages: [userText(user)],
-        maxOutputTokens: EXPLANATION_LIMITS.outputTokens[kind],
+        maxOutputTokens: kind === 'page' ? 'model-default' : EXPLANATION_LIMITS.outputTokens[kind],
         temperature: kind === 'page' ? 0.5 : 0.4,
       },
       {

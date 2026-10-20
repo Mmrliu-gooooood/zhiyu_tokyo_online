@@ -3965,7 +3965,8 @@
           "succeeded": "Hoàn tất.",
           "failed": "Tạo thất bại.",
           "cancelled": "Đã hủy; bạn có thể tạo lại."
-        }
+        },
+        "cancelJob": "Dừng tạo"
       }
     }
   }

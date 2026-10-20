@@ -3965,7 +3965,8 @@
           "succeeded": "已完成。",
           "failed": "生成失败。",
           "cancelled": "已取消，可以重新生成。"
-        }
+        },
+        "cancelJob": "停止生成"
       }
     }
   }

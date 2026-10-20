@@ -3965,7 +3965,8 @@
           "succeeded": "Concluído.",
           "failed": "A geração falhou.",
           "cancelled": "Cancelado; você pode gerar de novo."
-        }
+        },
+        "cancelJob": "Parar a geração"
       }
     }
   }

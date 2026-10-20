@@ -3965,7 +3965,8 @@
           "succeeded": "Fertig.",
           "failed": "Erzeugung fehlgeschlagen.",
           "cancelled": "Abgebrochen; du kannst ihn erneut erzeugen."
-        }
+        },
+        "cancelJob": "Erzeugung stoppen"
       }
     }
   }

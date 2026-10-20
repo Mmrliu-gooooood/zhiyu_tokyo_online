@@ -74,12 +74,51 @@ function box(raw: Record<string, unknown>, defaults: { w: number; h: number }) {
   return { left: tidy(x), top: tidy(y), width: tidy(w), height: tidy(h) };
 }
 
+const SUPERSCRIPTS: Record<string, string> = {
+  '0': '⁰',
+  '1': '¹',
+  '2': '²',
+  '3': '³',
+  '4': '⁴',
+  '5': '⁵',
+  '6': '⁶',
+  '7': '⁷',
+  '8': '⁸',
+  '9': '⁹',
+  '+': '⁺',
+  '-': '⁻',
+  '−': '⁻',
+  '(': '⁽',
+  ')': '⁾',
+  n: 'ⁿ',
+  i: 'ⁱ',
+};
+
+/**
+ * Plain-text powers a model writes in text (`x^2`, `x^{n-1}`) as superscripts
+ * (x², xⁿ⁻¹), when every character has one; anything else is left as written.
+ */
+export function plainPowers(text: string): string {
+  const lift = (body: string, whole: string) =>
+    Array.from(body).every((char) => SUPERSCRIPTS[char])
+      ? Array.from(body)
+          .map((char) => SUPERSCRIPTS[char])
+          .join('')
+      : whole;
+  return text
+    .replace(/\^\{([^{}]{1,8})\}/gu, (whole, body: string) =>
+      lift(body.replace(/\s+/gu, ''), whole),
+    )
+    .replace(/\^([0-9]+|n)(?![A-Za-z0-9{])/gu, (whole, body: string) => lift(body, whole));
+}
+
 function textElement(id: string, raw: Record<string, unknown>): PPTElement | null {
   if (typeof raw.text !== 'string' || !raw.text.trim()) return null;
-  const text = clip(raw.text, BOARD.textChars);
+  const written = clip(raw.text, BOARD.textChars);
   // A whole formula written as text is drawn as a formula.
-  const delimited = /^\$\$?([\s\S]+?)\$?\$$/u.exec(text);
+  const delimited = /^\$\$?([\s\S]+?)\$?\$$/u.exec(written);
   if (delimited) return latexElement(id, { ...raw, latex: delimited[1] });
+  const text = plainPowers(written);
   const size = clamp(num(raw.size) ?? 20, 14, 36);
   const lines = text.split(/\r\n|\r|\n/u).length;
   const element: PPTTextElement = {

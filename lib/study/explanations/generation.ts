@@ -60,7 +60,7 @@ export function whiteboardSystemPrompt(request: Pick<ExplanationRequest, 'langua
     ...COMMON_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     `${COMMON_RULES.length + 1}. 白板宽 ${limits.width}、高 ${Math.floor(limits.height)}，原点在左上角，x 向右、y 向下。白板不会清空：先规划好位置，内容从上到下排，互不重叠，全部在白板内。`,
     `${COMMON_RULES.length + 2}. ${limits.minSteps}–${limits.maxSteps} 步，每步画 1–${limits.maxDrawsPerStep} 样，总共不超过 ${limits.maxDraws} 样。第一步写出题目要点和学生的错误，最后一步写出正确答案或结论。每段 say 不超过 120 字，像边写边讲。`,
-    `${COMMON_RULES.length + 3}. draw 只能是：{"type":"text","x":0,"y":0,"w":420,"h":40,"text":"文字（不含 LaTeX）","size":20}；{"type":"latex","x":0,"y":0,"w":360,"h":70,"latex":"不带 $ 的 LaTeX"}；{"type":"line","x1":0,"y1":0,"x2":100,"y2":0,"arrow":true}；{"type":"rect","x":0,"y":0,"w":200,"h":80}（浅色框，圈出重点）；{"type":"circle",…同 rect}。公式用 latex 画。`,
+    `${COMMON_RULES.length + 3}. draw 只能是：{"type":"text","x":0,"y":0,"w":420,"h":40,"text":"文字（不含 LaTeX）","size":20}；{"type":"latex","x":0,"y":0,"w":360,"h":70,"latex":"不带 $ 的 LaTeX"}；{"type":"line","x1":0,"y1":0,"x2":100,"y2":0,"arrow":true}；{"type":"rect","x":0,"y":0,"w":200,"h":80}（浅色框，圈出重点）；{"type":"circle",…同 rect}。text 里不写数学式（也不写 x^2 这类写法），数学式一律单独用 latex 画，可以和文字左右排开。`,
     `${COMMON_RULES.length + 4}. ${languageRule(request)}`,
     '只输出一个 JSON 对象，不要 Markdown 代码块，不要其他文字：',
     '{"title":"不超过 30 字","steps":[{"say":"…","draw":[{"type":"text","x":40,"y":30,"w":600,"h":40,"text":"…","size":22}]}],"takeaway":"…","refs":["M1"]}',

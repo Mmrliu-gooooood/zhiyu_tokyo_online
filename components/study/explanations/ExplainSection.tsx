@@ -189,11 +189,12 @@ function ExplainDialog({
         toast.info(t(course ? 'study.explain.courseReused' : 'study.explain.reused'));
       onOpenChange(false);
       setKey(newRequestKey());
-      router.push(
-        course && !explanation.stageId && !explanation.jobId
-          ? courseGenerationHref(spaceId, explanation.id)
-          : explanationHref(spaceId, explanation.id),
-      );
+      if (course && !explanation.stageId && !explanation.jobId) {
+        // A full load: Home reads its study target from the address once, when it mounts.
+        window.location.assign(courseGenerationHref(spaceId, explanation.id));
+      } else {
+        router.push(explanationHref(spaceId, explanation.id));
+      }
     } catch (error) {
       setKey(newRequestKey());
       toast.error(

@@ -48,7 +48,8 @@ export const EXPLANATION_LIMITS = {
   /** Material passages frozen with a request. */
   evidencePassages: 4,
   passageChars: 700,
-  outputTokens: { text: 2200, whiteboard: 3200, plan: 1000, page: 8000 },
+  /** The interactive page uses the model's own limit, like classroom interactive scenes. */
+  outputTokens: { text: 2200, whiteboard: 3200, plan: 1000 },
   timeoutMs: { text: 100_000, whiteboard: 120_000, plan: 60_000, page: 240_000 },
   text: { minSteps: 2, maxSteps: 6, stepChars: 700, fieldChars: 400 },
   whiteboard: {

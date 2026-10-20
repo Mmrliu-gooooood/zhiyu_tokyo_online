@@ -28,7 +28,7 @@ import {
   FORMAT_ICONS,
   useExplanationStatusLabel,
 } from '@/components/study/explanations/ExplainSection';
-import { newRequestKey } from '@/components/study/exams/exam-format';
+import { MathText, newRequestKey } from '@/components/study/exams/exam-format';
 import {
   StudyShell,
   StudyStatus,
@@ -199,7 +199,8 @@ export function ExplanationPage({
         setDetail(await explanationApi.cancel(detail.id));
       } else if (action === 'retry') {
         const next = await explanationApi.retry(detail.id);
-        if (next.format === 'course') router.push(courseGenerationHref(spaceId, next.id));
+        if (next.format === 'course')
+          window.location.assign(courseGenerationHref(spaceId, next.id));
         else setDetail(next);
       } else {
         const result = await explanationApi.create({
@@ -290,7 +291,7 @@ export function ExplanationPage({
           {detail.title ?? t(`study.explain.format.${detail.format}`)}
         </h1>
         <p className="line-clamp-2 text-sm text-muted-foreground">
-          {t('study.explain.forQuestion')} {detail.stem}
+          {t('study.explain.forQuestion')} <MathText text={detail.stem} />
         </p>
         {light && detail.calls > 0 ? (
           <p className="text-[11px] text-muted-foreground" data-testid="explanation-usage">
@@ -613,7 +614,9 @@ function InteractiveView({ content }: { content: InteractiveExplanation }) {
   const html = useMemo(() => patchHtmlForIframe(content.html), [content.html]);
   return (
     <article className="space-y-3" data-testid="explanation-interactive">
-      <p className="rounded-2xl bg-muted/50 px-4 py-3 text-sm text-foreground">{content.intro}</p>
+      <p className="rounded-2xl bg-muted/50 px-4 py-3 text-sm text-foreground">
+        <MathText text={content.intro} />
+      </p>
       <div className="overflow-hidden rounded-2xl border border-border bg-white">
         {/* Generated page: scripts run, but without same-origin access (like classroom interactive scenes). */}
         <iframe
@@ -694,6 +697,20 @@ function CourseStatus({
     }
   }
 
+  /** Stop the course generation; without a course yet the explanation is cancelled too. */
+  async function cancelJob() {
+    if (!detail.jobId) return;
+    setBusy(true);
+    try {
+      setJob(await cancelGenerationJob(detail.jobId));
+      if (!detail.stageId) onChange(await explanationApi.cancel(detail.id));
+    } catch {
+      toast.error(t('study.errors.generic'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const media = detail.media;
   const mediaText = media
     ? (['image', 'tts', 'video'] as const)
@@ -723,9 +740,8 @@ function CourseStatus({
         </Button>
       ) : detail.status === 'pending' && (!detail.jobId || job?.status === 'cancelled') ? (
         <Button asChild size="sm" data-testid="explanation-course-start">
-          <Link href={courseGenerationHref(spaceId, detail.id)}>
-            {t('study.explain.course.start')}
-          </Link>
+          {/* A full load: Home reads its study target from the address once, when it mounts. */}
+          <a href={courseGenerationHref(spaceId, detail.id)}>{t('study.explain.course.start')}</a>
         </Button>
       ) : null}
       {job && !detail.stageId ? (
@@ -753,6 +769,18 @@ function CourseStatus({
             total: job.totalScenes,
           })}
         </p>
+      ) : null}
+      {job && !JOB_DONE.has(job.status) && detail.status !== 'cancelled' ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          onClick={() => void cancelJob()}
+          data-testid="explanation-course-cancel"
+        >
+          <X className="mr-1 size-4" />
+          {t('study.explain.course.cancelJob')}
+        </Button>
       ) : null}
       <p className="text-[11px] text-muted-foreground">{t('study.explain.course.once')}</p>
     </section>

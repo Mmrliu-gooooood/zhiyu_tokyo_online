@@ -23,7 +23,7 @@ import {
   textSystemPrompt,
   whiteboardSystemPrompt,
 } from '@/lib/study/explanations/generation';
-import { drawToElement } from '@/lib/study/explanations/whiteboard';
+import { drawToElement, plainPowers } from '@/lib/study/explanations/whiteboard';
 
 const known = new Set(['M1', 'M2']);
 
@@ -130,6 +130,12 @@ describe('whiteboard', () => {
       type: 'shape',
       left: 0,
     });
+  });
+
+  it('writes plain-text powers as superscripts when it can', () => {
+    expect(plainPowers('B. x^2 和 x^{n-1}')).toBe('B. x² 和 xⁿ⁻¹');
+    expect(plainPowers('3x^2+1')).toBe('3x²+1');
+    expect(plainPowers('e^{ax} 和 2^k')).toBe('e^{ax} 和 2^k');
   });
 
   it('needs two steps and two elements, within the caps', () => {
