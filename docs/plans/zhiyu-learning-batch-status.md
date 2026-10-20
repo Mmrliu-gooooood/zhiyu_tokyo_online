@@ -111,7 +111,23 @@
 4. 构建 Web 与 Worker；镜像内核对：Web 含 `/api/study/practice/jobs` 等路由；Worker 包只含 v32 建表 SQL 文本（自建库用的 `ensureStudySchema`），没有 B11 逻辑与账号删除代码，所以只换 Web：`e98af69e5796` 标为 `release-20261018c`，送到东京后磁盘 63%。
 5. 切换前生成任务、学习任务、待批改评分、运行中的 agent 会话都为 0。备份 `.env.hosted.local.bak-20261018c-pre`、`docker-compose.supabase.yml.bak-20261018c-pre`（指向 web 20261018b、worker 20261018）；compose 换成仓库版本；env 改 `ZHIYU_WEB_IMAGE` 并加 `ZHIYU_STUDY_PRACTICE_ENABLED=1`；`apply --tier 4 --mode background`（env 变化使两个 Worker 用同一镜像重建）。
 6. readiness：`ready`、accountsVersion 32、2/2 Worker；`/api/study/capabilities` 含 `practice: true`；未登录访问任务接口 401（不带 Origin 的 POST 403）。Web 启动 LISTEN 首次连接一次成功（2.8 s），Web 与 Worker 无 WARN/ERROR。
-7. 生产登录验收：待用户登录。
+7. 生产登录验收：见下节。
+
+### 生产验收（2026-10-20，用户非管理员账号登录，role = user）
+
+账号没有学科。测试学科“微积分（B11 生产验收）”；资料用 Markdown 版“导数讲义”（与本地验收 PDF 内容相同；页面无法从本机取 PDF，PDF 解析已在 B02/B08 生产验收过），解析后建关键词索引（2 段）；导入 8 道已核验单选题。全程真实 DeepSeek。
+
+1. **混合卷**：默认 8 单选 + 2 多选，选“题库优先，AI 补缺”。预览：题库 8 题、“将新写 2 道题：多选题 2 道”、最多 3 次调用、依据“导数讲义 第 1 版”；未勾选同意时“生成”不可用。勾选后写好 2 题（2 次调用，均通过复核）。开始测试 10 题，AI 题标“AI 生成 · 未核验”。第 9 题故意答错，9/10，报告中 AI 题来源“AI 出题 · 导数讲义 · AI 已复核，未经人工核验”。
+2. **变式练习**：错题本打开第 9 题 → “变式练习”2 题（计划显示知识点、最多 3 次调用），约 8 秒写好（2 次调用，依据讲义和原题）。练习卷显示说明；第 1 题看提示（只引导不给答案），第 2 题看答案（先确认，之后显示“已记录：这道题看过答案”）；2/2，报告标“变式题 · 看过提示 / 看过答案”。
+3. **错题本**：这道题标题仍是原题，“之后答对过”，作答记录 3 条（原卷答错，两道变式答对并带标记）。
+4. **AI 卷**：1 单选 + 2 主观、知识点“导数的应用”、“全部由 AI 出题”，写好 1 单选 + 2 计算题（2 次调用）。作答后 B09 批改（DeepSeek 2 次）：切线方程 4/4，单调区间与极值只写了导数 1/6（逐点说明缺的部分）；共 6/11。
+5. **再做一次** AI 卷：作答记录三题都为 `novelty = seen`。
+6. **取消**：新建变式任务后立即取消，运行返回 `ran: false`，组卷 409 `STUDY_PRACTICE_JOB_STATE`，调用 0 次。
+7. **数据库**：4 个任务（3 完成、1 取消），调用 2/3、2/3、2/3、0/3，租约全部清除，模型 `deepseek:deepseek-flash`，证据为讲义当前版本（变式另有 `Q0`）；题库 8 道导入题 + 7 道 `ai_generated` / 未核验 / `ai_reviewed`（变式 2 道带 `family`）；试卷 `mixed` 1、`ai` 2；学习记录 `exam_graded.independence` 依次 `{independent 9}`、`{helped 2}`、`{independent 2}`，`hint_used` level 1、2 各一条；用量 `study-practice` 6 次、`study-grade` 2 次，全部 ok。Worker 1 小时内无 WARN/ERROR；Web 只有一条外部扫描请求的 “Failed to find Server Action”。
+
+验收中发现（B09 起就有，未修）：主观题第一次批改进行中时，“等待批改…”下面同时显示“正在重新批改，原评分保留在下方…”（`AttemptPage.tsx` 的 `reviewing` 没有要求已有成绩）；批改完成后消失，只影响显示。
+
+清理：由用户删除测试学科（级联删除题库、试卷、作答、任务、错题）和资料库中的“导数讲义”。
 
 ## B10 跨课堂错题本与答疑回看（2026-10-17）
 
