@@ -17,7 +17,7 @@
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
 | B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 | B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变；2026-10-20 生产验收通过，修复见 release-20261020） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产非管理员账号登录验收通过（2026-10-20） | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
-| B12 | 实现与本地验收完成（2026-10-20），未合并、未上线 | `learn/b12-review-memory`（feat `9a2f7a2d`，验收修复 `f85f8729`） | accounts v33 `562f6394…`（未在生产执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：摘要 5 次、变式 2 次、学伴回答 2 次） | 新开关 `ZHIYU_STUDY_REVIEW_ENABLED`（Web 与 Worker） | 见 B12“未验证” |
+| B12 | 已上线（2026-10-20，Web + Worker release-20261020b；同版含学习区顶栏手机宽度修复） | `learn/b12-review-memory` → main `51fda587`（快进，已推送 tokyo） | accounts v33 `562f6394…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：摘要 5 次、变式 2 次、学伴回答 2 次） | 已启用 `ZHIYU_STUDY_REVIEW_ENABLED=1`（Web 与 Worker） | 见 B12“未验证”；生产登录验收待做 |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -96,10 +96,16 @@
 - 运行时：Web 与 Worker 的 `ZHIYU_STUDY_REVIEW_ENABLED` 置空后 apply：复习页与接口 404，不再生成、也不再注入摘要；错题本、试卷、Memory 照常。
 - 版本回退：回到 B11/B12 前的镜像，v33 的表保留不用。
 
-### 上线步骤（待用户指示）
+### 发布（2026-10-20，用户指示“合并，然后上线 B12”）
 
-1. 生产 v32 checksum 核对 `358fd15b…` 后，`apply_migration` 执行 `.scratch/b12-acceptance/v33.sql`（sha256 `562f6394b4c0265f2d3abddec0feae5d2696d5c6333a357e66542dab8a6b58be`）并写 `app_schema_migrations(33, …)`；核对三张表强制 RLS、app_web owner 策略、app_worker 只读摘要。
-2. 快进合并到 main，推送 tokyo；构建 Web 与 **Worker**（Worker 读摘要注入答疑）；compose 换成仓库版本（新开关在共享环境块里，Web 与 Worker 都拿到），env 加 `ZHIYU_STUDY_REVIEW_ENABLED=1`。
+1. 同批合入：另一会话修复的学习区顶栏手机宽度溢出（`fbc2e424`，cherry-pick 为 `51fda587`；375px 下链接在导航内横向滚动，账号菜单固定在外）。相关测试 282 项通过。
+2. 只读核对生产：v32 checksum = `358fd15b…`（与仓库一致）；v33 表不存在；服务器 compose 与 main（发布前）完全相同，与本批只差新开关三行；`scripts/supabase-compose.sh` 相同；磁盘 29%。
+3. Supabase `apply_migration`（`accounts_v33_study_review`）执行仓库 v33 SQL 原文（导出文件 sha256 = `562f6394b4c0265f2d3abddec0feae5d2696d5c6333a357e66542dab8a6b58be`），写入 `app_schema_migrations(33, 562f6394…)`。核对：三张表归 postgres、RLS 开启且强制；各有一条 app_web owner 策略（FOR ALL）与 app_web 查/插/改/删；`study_memory_summaries` 另有 app_worker 只读策略与 SELECT 授权；anon/authenticated 无授权。
+4. `learn/b12-review-memory` 快进合并到 main（`51fda587`），推送 tokyo。
+5. 构建 Web 与 Worker；镜像内核对：Web 含 `/api/study/review-tasks`、`/api/study/memory/summaries`；Worker 包含开关与读摘要的查询。Web `61c5950169c1`、Worker `11540b74025d` 都标为 `release-20261020b` 送到东京，磁盘 40%。
+6. 切换前学习任务、批改、AI 出题租约、生成任务、运行中的 agent 会话都为 0。备份 `.env.hosted.local.bak-20261020b-pre`、`docker-compose.supabase.yml.bak-20261020b-pre`（指向 web 20261020、worker 20261018）；compose 换成仓库版本；env 改两个镜像并加 `ZHIYU_STUDY_REVIEW_ENABLED=1`；`apply --tier 4 --mode background`，Web 与两个 Worker 重建。
+7. readiness `ready`、accountsVersion 33、2/2 Worker；capabilities 含 `review: true`；Worker 环境里开关为 1；未登录访问复习与摘要接口 401；三个容器 LISTEN 首连一次成功（Web 3.0 s），无 WARN/ERROR。登录状态下 /study 正常，顶栏为新的可滚动导航。
+8. 生产登录验收：待做。
 
 ## B11 AI/混合组卷、变式与再次验证（2026-10-18）
 
