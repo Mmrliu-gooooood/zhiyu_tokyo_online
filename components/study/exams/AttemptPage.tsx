@@ -80,6 +80,7 @@ import {
   isOpenAnswer,
   latestSelfGrading,
   officialGrading,
+  reviewInProgress,
   scoredGrading,
   type AttemptAnswers,
   type AttemptView,
@@ -985,7 +986,7 @@ function OpenReportCard({
   const earlier = item.gradings.filter(
     (grading) => grading.kind !== 'self' && grading.status === 'succeeded' && grading !== scored,
   );
-  const reviewing = official && official !== scored && official.status !== 'failed';
+  const reviewing = reviewInProgress(item.gradings);
   const failed = official?.status === 'failed' ? official : null;
 
   async function act(run: () => Promise<AttemptView>) {

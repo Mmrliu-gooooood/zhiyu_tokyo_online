@@ -508,6 +508,17 @@ export function scoredGrading(gradings: readonly ItemGradingView[]): ItemGrading
   return null;
 }
 
+/**
+ * The official grading under way while an earlier score stands (a review), or
+ * null. A first grading in progress is not a review: there is no score yet.
+ */
+export function reviewInProgress(gradings: readonly ItemGradingView[]): ItemGradingView | null {
+  const official = officialGrading(gradings);
+  const scored = scoredGrading(gradings);
+  if (!official || !scored || official === scored || official.status === 'failed') return null;
+  return official;
+}
+
 export function latestSelfGrading(gradings: readonly ItemGradingView[]): ItemGradingView | null {
   for (let index = gradings.length - 1; index >= 0; index -= 1) {
     if (gradings[index]!.kind === 'self') return gradings[index]!;

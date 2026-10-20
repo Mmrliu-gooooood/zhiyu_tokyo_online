@@ -11,6 +11,7 @@ import {
   canonicalAnswers,
   gradeAttempt,
   parseAnswers,
+  reviewInProgress,
   summarizeReport,
   toItemView,
   type ItemGradingView,
@@ -354,6 +355,42 @@ describe('open answers and submission', () => {
       ]),
     );
     expect(report.summary).toMatchObject({ earned: 8, state: 'complete', selfEarned: null });
+  });
+
+  it('calls only a grading after an earlier score a review', () => {
+    const view = (overrides: Partial<ItemGradingView>): ItemGradingView => ({
+      seq: 1,
+      kind: 'auto',
+      status: 'pending',
+      earned: null,
+      points: 4,
+      result: null,
+      grader: null,
+      error: null,
+      note: null,
+      createdAt: '2026-10-13T00:00:00.000Z',
+      completedAt: null,
+      ...overrides,
+    });
+    // First grading waiting or running: nothing to review yet.
+    expect(reviewInProgress([view({})])).toBeNull();
+    expect(reviewInProgress([view({ status: 'running' })])).toBeNull();
+    expect(reviewInProgress([view({ status: 'succeeded', earned: 3 })])).toBeNull();
+    const running = view({ seq: 2, kind: 'review', status: 'running' });
+    expect(reviewInProgress([view({ status: 'succeeded', earned: 3 }), running])).toBe(running);
+    // A failed review is reported apart; a self score is not a review.
+    expect(
+      reviewInProgress([
+        view({ status: 'succeeded', earned: 3 }),
+        view({ seq: 2, kind: 'review', status: 'failed', error: 'timeout' }),
+      ]),
+    ).toBeNull();
+    expect(
+      reviewInProgress([
+        view({ status: 'succeeded', earned: 3 }),
+        view({ seq: 2, kind: 'self', status: 'succeeded', earned: 4 }),
+      ]),
+    ).toBeNull();
   });
 });
 
