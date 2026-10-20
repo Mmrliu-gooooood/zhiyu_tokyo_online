@@ -80,6 +80,7 @@ interface Flags {
   chatOn: boolean;
   practiceOn: boolean;
   memoryOn: boolean;
+  explainOn: boolean;
 }
 
 export function ReviewPage({ spaceId }: { spaceId: string }) {
@@ -87,7 +88,12 @@ export function ReviewPage({ spaceId }: { spaceId: string }) {
   const [state, setState] = useState<StudyLoadState>('loading');
   const [spaceName, setSpaceName] = useState('');
   const [overview, setOverview] = useState<ReviewOverview | null>(null);
-  const [flags, setFlags] = useState<Flags>({ chatOn: false, practiceOn: false, memoryOn: false });
+  const [flags, setFlags] = useState<Flags>({
+    chatOn: false,
+    practiceOn: false,
+    memoryOn: false,
+    explainOn: false,
+  });
   const [summary, setSummary] = useState<SummaryView | null>(null);
   const [summaryState, setSummaryState] = useState<'idle' | 'working' | 'off'>('idle');
   const [loadKey, setLoadKey] = useState(0);
@@ -111,6 +117,7 @@ export function ReviewPage({ spaceId }: { spaceId: string }) {
           chatOn: capabilities.companionChat,
           practiceOn: capabilities.practice,
           memoryOn: capabilities.memory,
+          explainOn: capabilities.explanations,
         });
       }
       setState(result.state);
@@ -793,6 +800,7 @@ function TaskCard({
           spaceId={spaceId}
           chatOn={flags.chatOn}
           practiceOn={flags.practiceOn}
+          explainOn={flags.explainOn}
         />
       ) : null}
     </li>

@@ -3849,6 +3849,124 @@
         "scope": "考试范围",
         "inScope": "在范围内"
       }
+    },
+    "explain": {
+      "title": "专项讲解",
+      "intro": "解析、回看和问学伴都不够时，可以为这道题生成一份讲解。不会自动生成。",
+      "open": "生成专项讲解",
+      "fromChat": "生成专项讲解",
+      "dialogTitle": "为这道题生成讲解",
+      "dialogIntro": "选一种形式。讲解只用这道题、你的作答和评分、本学科资料，以及你在 Memory 里设置的讲解偏好。",
+      "format": {
+        "text": "文字讲解",
+        "whiteboard": "白板讲解",
+        "interactive": "互动讲解",
+        "course": "完整课程"
+      },
+      "formatHint": {
+        "text": "一步步写清楚错在哪里、怎么做对，最快。最多调用模型 {{count}} 次。",
+        "whiteboard": "像老师在白板上边写边讲，一步步展示。最多调用模型 {{count}} 次。",
+        "interactive": "一个可以动手操作的小网页（滑块或逐步展开的图），需要一两分钟。最多调用模型 {{count}} 次。",
+        "course": "到首页确认后，用课程生成做一节完整的课并加入本学科，耗时较长。"
+      },
+      "media": {
+        "title": "这节课还要生成（默认都不生成）：",
+        "image": "图片",
+        "tts": "语音",
+        "video": "视频",
+        "none": "不生成图片、语音或视频",
+        "unavailable": "（未在设置中启用）",
+        "note": "只生成勾选的项目，不沿用设置里已经打开的开关。"
+      },
+      "consent": "将使用你当前选择的模型，不会生成图片、语音或视频。同样的题目和作答再次生成时，会直接打开已保存的讲解。",
+      "consentCourse": "确认后打开首页，课程需求已经填好，可以修改后再开始生成。一道题同时只会加入一节课程。",
+      "confirm": "生成讲解",
+      "confirmCourse": "去生成课程",
+      "cancel": "取消",
+      "reused": "这道题已有同样的讲解，已为你打开。",
+      "courseReused": "这道题已有一节课程（或正在生成），已为你打开。",
+      "limit": "今天已生成 {{count}} 份讲解，明天再试。",
+      "status": {
+        "pending": "生成中",
+        "ready": "已完成",
+        "failed": "未成功",
+        "cancelled": "已取消",
+        "courseWaiting": "等待开始生成课程",
+        "courseRunning": "课程生成中"
+      },
+      "pageTitle": "专项讲解",
+      "pageSubtitle": "为做错的题生成的讲解都保存在这里，可以随时回看。",
+      "thisQuestion": "这道错题",
+      "all": "本学科的讲解（{{count}}）",
+      "empty": "还没有讲解。在错题本里展开一道题，就可以生成专项讲解。",
+      "backToItem": "回到这道错题",
+      "forQuestion": "题目：",
+      "usage": "{{model}} · 调用 {{calls}} 次 · 约 {{tokens}} tokens",
+      "preferencesUsed": "用了你的讲解偏好",
+      "writing": {
+        "text": "正在写文字讲解…",
+        "whiteboard": "正在画白板讲解…",
+        "interactive": "正在设计并制作互动页面，需要一两分钟…"
+      },
+      "canLeave": "可以离开此页，回来时会看到结果。",
+      "tryAgain": "再试一次",
+      "modelUnavailable": "当前没有可用的模型，请先在设置里选择模型。",
+      "busy": "现在同时进行的任务太多，请稍后再试。",
+      "cancelled": "已取消。",
+      "error": {
+        "model_error": "模型没有正常回复。",
+        "timeout": "模型回复超时。",
+        "invalid_output": "模型的回复不符合要求，没有保存。",
+        "budget": "这次的调用次数已用完。",
+        "interrupted": "生成被中断了。",
+        "internal": "生成时出错了。"
+      },
+      "retry": "重试（还剩 {{left}} 次）",
+      "noRetries": "重试次数已用完，可以重新生成一份。",
+      "diagnosis": "错在哪里",
+      "takeaway": "记住这一点",
+      "check": "自测一下",
+      "showAnswer": "看答案",
+      "board": {
+        "previous": "上一步",
+        "next": "下一步",
+        "step": "第 {{step}} / {{total}} 步",
+        "all": "全部显示"
+      },
+      "widget": {
+        "simulation": "拖动或调整页面里的控件，观察变化。",
+        "diagram": "点击图里的步骤，逐步展开。"
+      },
+      "sources": "引用的资料",
+      "page": "第 {{page}} 页",
+      "again": "重新生成",
+      "delete": "删除",
+      "deleteTitle": "删除这份讲解？",
+      "deleteBody": "删除后不能恢复。",
+      "deleteCourseBody": "只删除这条记录；已生成的课程仍在本学科里，可以在学科页移除。",
+      "deleted": "已删除",
+      "next": "下一步：做新题验证",
+      "nextHint": "做几道同类的新题；独立做对才会计入复习里的掌握证据。",
+      "course": {
+        "banner": "将为「{{name}}」的一道错题生成课程并加入该学科；媒体：{{media}}",
+        "requirement": "课程需求：",
+        "media": "媒体：",
+        "open": "打开课程",
+        "start": "去生成课程",
+        "retryJob": "重试生成",
+        "stillWriting": "课程已加入学科，后面的页面还在生成（{{ready}}/{{total}}）。",
+        "once": "一份讲解只会加入一节课程；取消或重试都不会重复加入。",
+        "job": {
+          "queued": "排队中…",
+          "running": "生成中（{{ready}}/{{total}} 页）",
+          "awaiting_confirmation": "等待确认大纲，请回到课程生成页面。",
+          "retry_wait": "稍后会自动重试。",
+          "needs_attention": "结果还不确定，需要你确认。",
+          "succeeded": "已完成。",
+          "failed": "生成失败。",
+          "cancelled": "已取消，可以重新生成。"
+        }
+      }
     }
   }
 }

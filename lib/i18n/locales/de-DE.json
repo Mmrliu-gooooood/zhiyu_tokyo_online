@@ -3849,6 +3849,124 @@
         "scope": "Prüfungsumfang",
         "inScope": "Im Umfang"
       }
+    },
+    "explain": {
+      "title": "Erklärung zu dieser Frage",
+      "intro": "Wenn Lösung, Nachschlagen und die Frage an Mitlernende nicht reichen, kannst du dir eine Erklärung zu dieser Frage schreiben lassen. Es wird nichts automatisch erzeugt.",
+      "open": "Erklärung anfordern",
+      "fromChat": "Erklärung anfordern",
+      "dialogTitle": "Diese Frage erklären",
+      "dialogIntro": "Wähle eine Form. Verwendet werden nur diese Frage, deine Antwort und ihre Bewertung, die Materialien dieses Fachs und die Erklärvorlieben aus Memory.",
+      "format": {
+        "text": "Text",
+        "whiteboard": "Whiteboard",
+        "interactive": "Interaktiv",
+        "course": "Ganzer Kurs"
+      },
+      "formatHint": {
+        "text": "Wo der Fehler lag und wie es richtig geht, Schritt für Schritt. Am schnellsten. Höchstens {{count}} Modellaufrufe.",
+        "whiteboard": "Schritt für Schritt am Whiteboard, wie eine Lehrkraft an der Tafel. Höchstens {{count}} Modellaufrufe.",
+        "interactive": "Eine kleine Seite zum Ausprobieren (Schieberegler oder ein Diagramm, das sich aufklappt), dauert ein bis zwei Minuten. Höchstens {{count}} Modellaufrufe.",
+        "course": "Nach Bestätigung auf der Startseite erstellt die Kursgenerierung eine vollständige Lektion und fügt sie diesem Fach hinzu. Dauert länger."
+      },
+      "media": {
+        "title": "Für diesen Kurs zusätzlich erzeugen (standardmäßig alles aus):",
+        "image": "Bilder",
+        "tts": "Sprache",
+        "video": "Video",
+        "none": "keine Bilder, Sprache oder Videos",
+        "unavailable": "(in den Einstellungen nicht aktiviert)",
+        "note": "Nur Angekreuztes wird erzeugt; in den Einstellungen bereits aktivierte Schalter werden nicht übernommen."
+      },
+      "consent": "Verwendet das gewählte Modell; keine Bilder, Sprache oder Videos. Fragst du für dieselbe Frage und Antwort erneut, öffnet sich die gespeicherte Erklärung.",
+      "consentCourse": "Die Startseite öffnet sich mit ausgefüllter Kursanfrage; du kannst sie vor dem Erzeugen ändern. Eine Frage fügt jeweils höchstens einen Kurs hinzu.",
+      "confirm": "Erklärung schreiben",
+      "confirmCourse": "Zur Kursgenerierung",
+      "cancel": "Abbrechen",
+      "reused": "Zu dieser Frage gibt es schon dieselbe Erklärung; sie wurde geöffnet.",
+      "courseReused": "Zu dieser Frage gibt es schon einen Kurs (oder er wird erzeugt); er wurde geöffnet.",
+      "limit": "Du hast heute {{count}} Erklärungen erzeugt. Versuche es morgen wieder.",
+      "status": {
+        "pending": "Wird geschrieben",
+        "ready": "Fertig",
+        "failed": "Nicht geschrieben",
+        "cancelled": "Abgebrochen",
+        "courseWaiting": "Kurs nicht gestartet",
+        "courseRunning": "Kurs wird erzeugt"
+      },
+      "pageTitle": "Erklärungen",
+      "pageSubtitle": "Erklärungen zu deinen falsch beantworteten Fragen werden hier gespeichert, damit du sie jederzeit nachlesen kannst.",
+      "thisQuestion": "Diese Frage",
+      "all": "Erklärungen in diesem Fach ({{count}})",
+      "empty": "Noch keine Erklärungen. Öffne eine Frage im Fehlerheft, um eine anzufordern.",
+      "backToItem": "Zurück zur Frage",
+      "forQuestion": "Frage:",
+      "usage": "{{model}} · {{calls}} Aufrufe · etwa {{tokens}} Tokens",
+      "preferencesUsed": "deine Erklärvorlieben wurden genutzt",
+      "writing": {
+        "text": "Erklärung wird geschrieben…",
+        "whiteboard": "Whiteboard wird gezeichnet…",
+        "interactive": "Interaktive Seite wird entworfen und erstellt, das dauert ein bis zwei Minuten…"
+      },
+      "canLeave": "Du kannst die Seite verlassen; das Ergebnis ist da, wenn du zurückkommst.",
+      "tryAgain": "Erneut versuchen",
+      "modelUnavailable": "Kein Modell verfügbar. Wähle zuerst eines in den Einstellungen.",
+      "busy": "Gerade laufen zu viele Aufgaben. Bitte versuche es gleich noch einmal.",
+      "cancelled": "Abgebrochen.",
+      "error": {
+        "model_error": "Das Modell hat nicht richtig geantwortet.",
+        "timeout": "Das Modell hat zu lange gebraucht.",
+        "invalid_output": "Die Antwort des Modells erfüllte die Anforderungen nicht und wurde nicht gespeichert.",
+        "budget": "Dieser Versuch hat alle Aufrufe verbraucht.",
+        "interrupted": "Das Schreiben wurde unterbrochen.",
+        "internal": "Beim Schreiben ist ein Fehler aufgetreten."
+      },
+      "retry": "Erneut versuchen (noch {{left}})",
+      "noRetries": "Keine Versuche mehr; du kannst eine neue schreiben lassen.",
+      "diagnosis": "Wo der Fehler lag",
+      "takeaway": "Merke",
+      "check": "Selbstcheck",
+      "showAnswer": "Antwort zeigen",
+      "board": {
+        "previous": "Vorheriger Schritt",
+        "next": "Nächster Schritt",
+        "step": "Schritt {{step}} von {{total}}",
+        "all": "Alles zeigen"
+      },
+      "widget": {
+        "simulation": "Bewege oder verstelle die Regler auf der Seite und beobachte, was sich ändert.",
+        "diagram": "Klicke auf die Schritte im Diagramm, um sie aufzuklappen."
+      },
+      "sources": "Zitierte Materialien",
+      "page": "S. {{page}}",
+      "again": "Neu schreiben",
+      "delete": "Löschen",
+      "deleteTitle": "Diese Erklärung löschen?",
+      "deleteBody": "Das kann nicht rückgängig gemacht werden.",
+      "deleteCourseBody": "Nur dieser Eintrag wird gelöscht; der Kurs bleibt im Fach (auf der Fachseite entfernen).",
+      "deleted": "Gelöscht",
+      "next": "Weiter: mit neuen Fragen prüfen",
+      "nextHint": "Beantworte einige neue Fragen derselben Art; nur richtige Antworten ohne Hilfe zählen in der Wiederholung als Nachweis.",
+      "course": {
+        "banner": "Ein Kurs zu einer falsch beantworteten Frage wird erzeugt und „{{name}}“ hinzugefügt. Medien: {{media}}",
+        "requirement": "Kursanfrage:",
+        "media": "Medien:",
+        "open": "Kurs öffnen",
+        "start": "Zur Kursgenerierung",
+        "retryJob": "Erzeugung wiederholen",
+        "stillWriting": "Der Kurs ist im Fach; weitere Seiten werden noch erzeugt ({{ready}}/{{total}}).",
+        "once": "Eine Erklärung fügt nur einen Kurs hinzu; Abbrechen oder Wiederholen fügt ihn nie doppelt hinzu.",
+        "job": {
+          "queued": "In der Warteschlange…",
+          "running": "Wird erzeugt ({{ready}}/{{total}} Seiten)",
+          "awaiting_confirmation": "Wartet auf die Bestätigung der Gliederung auf der Kursgenerierungsseite.",
+          "retry_wait": "Wird gleich automatisch wiederholt.",
+          "needs_attention": "Das Ergebnis ist unklar und braucht deine Entscheidung.",
+          "succeeded": "Fertig.",
+          "failed": "Erzeugung fehlgeschlagen.",
+          "cancelled": "Abgebrochen; du kannst ihn erneut erzeugen."
+        }
+      }
     }
   }
 }

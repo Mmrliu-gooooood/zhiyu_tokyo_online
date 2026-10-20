@@ -538,6 +538,8 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       // references a space and a parsed material version.
       await client.query('DELETE FROM study_question_candidates WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_question_extractions WHERE owner_id=$1', [ownerId]);
+      // Explanations (v34) under their wrong item and space.
+      await client.query('DELETE FROM study_explanations WHERE owner_id=$1', [ownerId]);
       // Review cards and settings, Memory summaries (v33) under their space
       // (cards also under their wrong item, so they go first).
       await client.query('DELETE FROM study_review_cards WHERE owner_id=$1', [ownerId]);

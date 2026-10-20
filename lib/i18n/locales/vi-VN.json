@@ -3849,6 +3849,124 @@
         "scope": "Phạm vi thi",
         "inScope": "Trong phạm vi"
       }
+    },
+    "explain": {
+      "title": "Giải thích câu hỏi này",
+      "intro": "Khi lời giải, xem lại bài và hỏi bạn học vẫn chưa đủ, bạn có thể yêu cầu một bài giải thích riêng cho câu hỏi này. Không có gì được tạo tự động.",
+      "open": "Yêu cầu giải thích",
+      "fromChat": "Yêu cầu giải thích",
+      "dialogTitle": "Giải thích câu hỏi này",
+      "dialogIntro": "Chọn một hình thức. Chỉ dùng câu hỏi này, câu trả lời và kết quả chấm của bạn, tài liệu của môn này và các ưu tiên giải thích bạn đặt trong Memory.",
+      "format": {
+        "text": "Văn bản",
+        "whiteboard": "Bảng trắng",
+        "interactive": "Tương tác",
+        "course": "Khóa học đầy đủ"
+      },
+      "formatHint": {
+        "text": "Sai ở đâu và làm sao cho đúng, từng bước một. Nhanh nhất. Tối đa {{count}} lần gọi mô hình.",
+        "whiteboard": "Từng bước trên bảng trắng như giáo viên giảng bài. Tối đa {{count}} lần gọi mô hình.",
+        "interactive": "Một trang nhỏ để thao tác (thanh trượt hoặc sơ đồ mở dần), mất một hai phút. Tối đa {{count}} lần gọi mô hình.",
+        "course": "Sau khi xác nhận ở Trang chủ, tính năng tạo khóa học sẽ làm một bài học đầy đủ và thêm vào môn này. Mất nhiều thời gian hơn."
+      },
+      "media": {
+        "title": "Tạo thêm cho khóa học này (mặc định tắt hết):",
+        "image": "Hình ảnh",
+        "tts": "Giọng nói",
+        "video": "Video",
+        "none": "không có hình ảnh, giọng nói hay video",
+        "unavailable": "(chưa bật trong cài đặt)",
+        "note": "Chỉ tạo mục bạn đánh dấu; không dùng lại các công tắc đã bật trong cài đặt."
+      },
+      "consent": "Dùng mô hình bạn đã chọn; không có hình ảnh, giọng nói hay video. Yêu cầu lại cho cùng câu hỏi và câu trả lời sẽ mở bài giải thích đã lưu.",
+      "consentCourse": "Trang chủ sẽ mở với yêu cầu khóa học đã điền sẵn; bạn có thể sửa trước khi tạo. Mỗi câu hỏi chỉ thêm tối đa một khóa học mỗi lần.",
+      "confirm": "Viết giải thích",
+      "confirmCourse": "Đến phần tạo khóa học",
+      "cancel": "Hủy",
+      "reused": "Câu hỏi này đã có bài giải thích giống vậy; đã mở cho bạn.",
+      "courseReused": "Câu hỏi này đã có khóa học (hoặc đang tạo); đã mở cho bạn.",
+      "limit": "Hôm nay bạn đã tạo {{count}} bài giải thích. Hãy thử lại vào ngày mai.",
+      "status": {
+        "pending": "Đang viết",
+        "ready": "Xong",
+        "failed": "Chưa viết được",
+        "cancelled": "Đã hủy",
+        "courseWaiting": "Chưa bắt đầu khóa học",
+        "courseRunning": "Đang tạo khóa học"
+      },
+      "pageTitle": "Giải thích",
+      "pageSubtitle": "Các bài giải thích cho câu bạn làm sai được lưu ở đây để xem lại bất cứ lúc nào.",
+      "thisQuestion": "Câu hỏi này",
+      "all": "Giải thích trong môn này ({{count}})",
+      "empty": "Chưa có bài giải thích. Mở một câu trong sổ lỗi sai để yêu cầu.",
+      "backToItem": "Quay lại câu hỏi",
+      "forQuestion": "Câu hỏi:",
+      "usage": "{{model}} · {{calls}} lần gọi · khoảng {{tokens}} token",
+      "preferencesUsed": "đã dùng ưu tiên giải thích của bạn",
+      "writing": {
+        "text": "Đang viết giải thích…",
+        "whiteboard": "Đang vẽ bảng trắng…",
+        "interactive": "Đang thiết kế và tạo trang tương tác, mất một hai phút…"
+      },
+      "canLeave": "Bạn có thể rời trang; kết quả sẽ có ở đây khi bạn quay lại.",
+      "tryAgain": "Thử lại",
+      "modelUnavailable": "Không có mô hình khả dụng. Hãy chọn mô hình trong cài đặt trước.",
+      "busy": "Đang có quá nhiều tác vụ. Vui lòng thử lại sau ít phút.",
+      "cancelled": "Đã hủy.",
+      "error": {
+        "model_error": "Mô hình không trả lời đúng cách.",
+        "timeout": "Mô hình phản hồi quá lâu.",
+        "invalid_output": "Câu trả lời của mô hình không đạt yêu cầu nên không được lưu.",
+        "budget": "Lần thử này đã dùng hết lượt gọi.",
+        "interrupted": "Việc viết bị gián đoạn.",
+        "internal": "Có lỗi khi viết."
+      },
+      "retry": "Thử lại (còn {{left}} lần)",
+      "noRetries": "Đã hết lượt thử lại; bạn có thể yêu cầu bài mới.",
+      "diagnosis": "Sai ở đâu",
+      "takeaway": "Ghi nhớ",
+      "check": "Tự kiểm tra",
+      "showAnswer": "Xem đáp án",
+      "board": {
+        "previous": "Bước trước",
+        "next": "Bước sau",
+        "step": "Bước {{step}}/{{total}}",
+        "all": "Hiện tất cả"
+      },
+      "widget": {
+        "simulation": "Kéo hoặc chỉnh các điều khiển trên trang và quan sát sự thay đổi.",
+        "diagram": "Nhấn vào các bước trong sơ đồ để mở dần."
+      },
+      "sources": "Tài liệu được trích dẫn",
+      "page": "tr. {{page}}",
+      "again": "Viết bài mới",
+      "delete": "Xóa",
+      "deleteTitle": "Xóa bài giải thích này?",
+      "deleteBody": "Không thể hoàn tác.",
+      "deleteCourseBody": "Chỉ xóa bản ghi này; khóa học vẫn ở trong môn (có thể gỡ ở trang môn học).",
+      "deleted": "Đã xóa",
+      "next": "Tiếp theo: kiểm tra bằng câu hỏi mới",
+      "nextHint": "Làm vài câu hỏi mới cùng dạng; chỉ câu đúng không cần trợ giúp mới được tính là bằng chứng nắm vững khi ôn tập.",
+      "course": {
+        "banner": "Một khóa học cho câu làm sai sẽ được tạo và thêm vào “{{name}}”. Phương tiện: {{media}}",
+        "requirement": "Yêu cầu khóa học:",
+        "media": "Phương tiện:",
+        "open": "Mở khóa học",
+        "start": "Đến phần tạo khóa học",
+        "retryJob": "Tạo lại",
+        "stillWriting": "Khóa học đã ở trong môn; các trang sau vẫn đang được tạo ({{ready}}/{{total}}).",
+        "once": "Mỗi bài giải thích chỉ thêm một khóa học; hủy hay thử lại đều không thêm hai lần.",
+        "job": {
+          "queued": "Đang chờ…",
+          "running": "Đang tạo ({{ready}}/{{total}} trang)",
+          "awaiting_confirmation": "Đang chờ xác nhận dàn ý ở trang tạo khóa học.",
+          "retry_wait": "Sẽ tự thử lại sau ít phút.",
+          "needs_attention": "Kết quả chưa chắc chắn, cần bạn quyết định.",
+          "succeeded": "Hoàn tất.",
+          "failed": "Tạo thất bại.",
+          "cancelled": "Đã hủy; bạn có thể tạo lại."
+        }
+      }
     }
   }
 }

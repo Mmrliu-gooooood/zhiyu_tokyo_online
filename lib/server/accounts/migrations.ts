@@ -56,6 +56,7 @@ import { ACCOUNTS_MIGRATION_30 } from './sql-study-grading';
 import { ACCOUNTS_MIGRATION_31 } from './sql-study-wrongbook';
 import { ACCOUNTS_MIGRATION_32 } from './sql-study-practice';
 import { ACCOUNTS_MIGRATION_33 } from './sql-study-review';
+import { ACCOUNTS_MIGRATION_34 } from './sql-study-explanations';
 
 function executeWhenColumnMissing(table: string, column: string, sql: string): string {
   const statements = sql
@@ -184,6 +185,7 @@ export const ACCOUNT_MIGRATIONS = [
   { version: 31, sql: ACCOUNTS_MIGRATION_31 },
   { version: 32, sql: ACCOUNTS_MIGRATION_32 },
   { version: 33, sql: ACCOUNTS_MIGRATION_33 },
+  { version: 34, sql: ACCOUNTS_MIGRATION_34 },
 ] as const;
 
 export function accountsMigrationChecksum(version: number): string {

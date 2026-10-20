@@ -3849,6 +3849,124 @@
         "scope": "Conteúdo",
         "inScope": "No conteúdo"
       }
+    },
+    "explain": {
+      "title": "Explicação desta questão",
+      "intro": "Quando a solução, rever o conteúdo e perguntar a um colega não bastam, você pode pedir uma explicação escrita para esta questão. Nada é gerado automaticamente.",
+      "open": "Pedir uma explicação",
+      "fromChat": "Pedir uma explicação",
+      "dialogTitle": "Explicar esta questão",
+      "dialogIntro": "Escolha um formato. Usa apenas esta questão, sua resposta e a correção, os materiais desta disciplina e as preferências de explicação definidas no Memory.",
+      "format": {
+        "text": "Texto",
+        "whiteboard": "Quadro branco",
+        "interactive": "Interativa",
+        "course": "Curso completo"
+      },
+      "formatHint": {
+        "text": "Onde errou e como acertar, passo a passo. O mais rápido. No máximo {{count}} chamadas ao modelo.",
+        "whiteboard": "Passo a passo num quadro branco, como um professor. No máximo {{count}} chamadas ao modelo.",
+        "interactive": "Uma pequena página prática (controles deslizantes ou um diagrama que se abre), leva um ou dois minutos. No máximo {{count}} chamadas ao modelo.",
+        "course": "Após confirmar no Início, a geração de cursos cria uma aula completa e a adiciona a esta disciplina. Leva mais tempo."
+      },
+      "media": {
+        "title": "Gerar também para este curso (tudo desligado por padrão):",
+        "image": "Imagens",
+        "tts": "Voz",
+        "video": "Vídeo",
+        "none": "sem imagens, voz ou vídeo",
+        "unavailable": "(não ativado nas configurações)",
+        "note": "Só é gerado o que você marcar; chaves já ligadas nas configurações não são reaproveitadas."
+      },
+      "consent": "Usa o modelo que você escolheu; sem imagens, voz ou vídeo. Pedir de novo para a mesma questão e resposta abre a explicação salva.",
+      "consentCourse": "O Início abre com o pedido do curso preenchido; você pode editá-lo antes de gerar. Uma questão adiciona no máximo um curso por vez.",
+      "confirm": "Escrever explicação",
+      "confirmCourse": "Ir para a geração do curso",
+      "cancel": "Cancelar",
+      "reused": "Esta questão já tem a mesma explicação; ela foi aberta para você.",
+      "courseReused": "Esta questão já tem um curso (ou um em geração); ele foi aberto para você.",
+      "limit": "Você já gerou {{count}} explicações hoje. Tente amanhã.",
+      "status": {
+        "pending": "Escrevendo",
+        "ready": "Pronta",
+        "failed": "Não escrita",
+        "cancelled": "Cancelada",
+        "courseWaiting": "Curso não iniciado",
+        "courseRunning": "Gerando curso"
+      },
+      "pageTitle": "Explicações",
+      "pageSubtitle": "As explicações das questões que você errou ficam guardadas aqui para rever quando quiser.",
+      "thisQuestion": "Esta questão",
+      "all": "Explicações desta disciplina ({{count}})",
+      "empty": "Ainda não há explicações. Abra uma questão no caderno de erros para pedir uma.",
+      "backToItem": "Voltar à questão",
+      "forQuestion": "Questão:",
+      "usage": "{{model}} · {{calls}} chamadas · cerca de {{tokens}} tokens",
+      "preferencesUsed": "suas preferências de explicação foram usadas",
+      "writing": {
+        "text": "Escrevendo a explicação…",
+        "whiteboard": "Desenhando o quadro…",
+        "interactive": "Projetando e criando a página interativa; leva um ou dois minutos…"
+      },
+      "canLeave": "Você pode sair desta página; o resultado estará aqui quando voltar.",
+      "tryAgain": "Tentar de novo",
+      "modelUnavailable": "Nenhum modelo disponível. Escolha um nas configurações primeiro.",
+      "busy": "Há tarefas demais em andamento. Tente novamente em instantes.",
+      "cancelled": "Cancelada.",
+      "error": {
+        "model_error": "O modelo não respondeu corretamente.",
+        "timeout": "O modelo demorou demais.",
+        "invalid_output": "A resposta do modelo não atendeu aos requisitos e não foi salva.",
+        "budget": "Esta tentativa usou todas as chamadas.",
+        "interrupted": "A escrita foi interrompida.",
+        "internal": "Algo deu errado ao escrever."
+      },
+      "retry": "Tentar de novo (restam {{left}})",
+      "noRetries": "Não restam tentativas; você pode escrever uma nova.",
+      "diagnosis": "Onde errou",
+      "takeaway": "Lembre-se",
+      "check": "Teste-se",
+      "showAnswer": "Ver resposta",
+      "board": {
+        "previous": "Passo anterior",
+        "next": "Próximo passo",
+        "step": "Passo {{step}} de {{total}}",
+        "all": "Mostrar tudo"
+      },
+      "widget": {
+        "simulation": "Arraste ou ajuste os controles da página e observe o que muda.",
+        "diagram": "Clique nos passos do diagrama para abri-los."
+      },
+      "sources": "Materiais citados",
+      "page": "p. {{page}}",
+      "again": "Escrever outra",
+      "delete": "Excluir",
+      "deleteTitle": "Excluir esta explicação?",
+      "deleteBody": "Não é possível desfazer.",
+      "deleteCourseBody": "Só este registro é excluído; o curso continua na disciplina (remova-o na página da disciplina).",
+      "deleted": "Excluída",
+      "next": "Próximo: verificar com questões novas",
+      "nextHint": "Responda algumas questões novas do mesmo tipo; só acertos sem ajuda contam como evidência de domínio na revisão.",
+      "course": {
+        "banner": "Um curso para uma questão errada será gerado e adicionado a “{{name}}”. Mídia: {{media}}",
+        "requirement": "Pedido do curso:",
+        "media": "Mídia:",
+        "open": "Abrir curso",
+        "start": "Ir para a geração do curso",
+        "retryJob": "Tentar gerar de novo",
+        "stillWriting": "O curso já está na disciplina; as próximas páginas ainda estão sendo geradas ({{ready}}/{{total}}).",
+        "once": "Uma explicação adiciona apenas um curso; cancelar ou tentar de novo nunca o adiciona duas vezes.",
+        "job": {
+          "queued": "Na fila…",
+          "running": "Gerando ({{ready}}/{{total}} páginas)",
+          "awaiting_confirmation": "Aguardando a confirmação do roteiro na página de geração do curso.",
+          "retry_wait": "Vai tentar de novo automaticamente em breve.",
+          "needs_attention": "O resultado é incerto e precisa da sua decisão.",
+          "succeeded": "Concluído.",
+          "failed": "A geração falhou.",
+          "cancelled": "Cancelado; você pode gerar de novo."
+        }
+      }
     }
   }
 }

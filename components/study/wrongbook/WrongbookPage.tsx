@@ -74,6 +74,7 @@ import type {
 } from '@/lib/study/wrongbook/contracts';
 import { cn } from '@/lib/utils';
 import { GenerationPanel } from '@/components/study/practice/GenerationPanel';
+import { ExplainSection } from '@/components/study/explanations/ExplainSection';
 import { PracticeChips } from '@/components/study/practice/PracticeHelp';
 import { newRequestKey } from '@/components/study/exams/exam-format';
 import { practiceApi } from '@/lib/study/practice/client';
@@ -111,6 +112,7 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
   const [spaceName, setSpaceName] = useState('');
   const [chatOn, setChatOn] = useState(false);
   const [practiceOn, setPracticeOn] = useState(false);
+  const [explainOn, setExplainOn] = useState(false);
   const [filter, setFilter] = useState<WrongbookFilter>(DEFAULT_FILTER);
   const [data, setData] = useState<WrongbookPageData | null>(null);
   const [listing, setListing] = useState(false);
@@ -125,6 +127,7 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
       if (!cancelled) {
         setChatOn(capabilities.companionChat);
         setPracticeOn(capabilities.practice);
+        setExplainOn(capabilities.explanations);
       }
     });
     void loadStudyPage(async () => {
@@ -377,6 +380,7 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
                 open={openId === item.id}
                 chatOn={chatOn}
                 practiceOn={practiceOn}
+                explainOn={explainOn}
                 onToggle={() => setOpenId((current) => (current === item.id ? null : item.id))}
                 onState={applyState}
               />
@@ -479,6 +483,7 @@ function WrongItemCard({
   open,
   chatOn,
   practiceOn,
+  explainOn,
   onToggle,
   onState,
 }: {
@@ -487,6 +492,7 @@ function WrongItemCard({
   open: boolean;
   chatOn: boolean;
   practiceOn: boolean;
+  explainOn: boolean;
   onToggle: () => void;
   onState: (item: WrongItemSummary) => void;
 }) {
@@ -611,23 +617,36 @@ function WrongItemCard({
         </div>
       </div>
       {open ? (
-        <WrongItemBody itemId={item.id} spaceId={spaceId} chatOn={chatOn} practiceOn={practiceOn} />
+        <WrongItemBody
+          itemId={item.id}
+          spaceId={spaceId}
+          chatOn={chatOn}
+          practiceOn={practiceOn}
+          explainOn={explainOn}
+        />
       ) : null}
     </li>
   );
 }
 
-/** One item's detail: answers, look back, asking a classmate, variants (also used by the review page, B12). */
+/**
+ * One item's detail, help in steps: the answers (with the question's own
+ * explanation), look back, asking a classmate, an explanation on request
+ * (B13), variants (also used by the review page, B12, and the explanations
+ * page, B13).
+ */
 export function WrongItemBody({
   itemId,
   spaceId,
   chatOn,
   practiceOn,
+  explainOn = false,
 }: {
   itemId: string;
   spaceId: string;
   chatOn: boolean;
   practiceOn: boolean;
+  explainOn?: boolean;
 }) {
   const { t } = useI18n();
   const [detail, setDetail] = useState<WrongItemDetail | null>(null);
@@ -675,6 +694,7 @@ export function WrongItemBody({
       {chatOn ? (
         <AskClassmate spaceId={spaceId} itemId={itemId} stem={shown.question.stem} />
       ) : null}
+      {explainOn && newestWrong ? <ExplainSection spaceId={spaceId} itemId={itemId} /> : null}
       {practiceOn && newestWrong ? (
         <VariantPractice spaceId={spaceId} itemId={itemId} question={newestWrong.question} />
       ) : null}
@@ -1064,7 +1084,7 @@ function OccurrencePractice({ occurrence }: { occurrence: WrongOccurrenceView })
  * materials), after the student agreed to the plan; the practice paper's
  * answers then join this item's history.
  */
-function VariantPractice({
+export function VariantPractice({
   spaceId,
   itemId,
   question,

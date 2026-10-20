@@ -62,6 +62,7 @@ import {
   type CompanionNode,
 } from '@/lib/study/companion/fold';
 import { StudyApiError, fetchStudyCapabilities, studyApi } from '@/lib/study/spaces/client';
+import { itemExplanationsHref } from '@/lib/study/explanations/client';
 import type { StudySpaceSummary } from '@/lib/study/spaces/contracts';
 import { cn } from '@/lib/utils';
 import { whilePageVisible } from '@/lib/workbench/page-visible-lifecycle';
@@ -77,6 +78,8 @@ interface PageData {
   originSpaces: string[];
   /** B06 Memory is served (preference confirm prompts, turn notes). */
   memory: boolean;
+  /** B13 explanations on request: a chat about a wrong question links to them. */
+  explanations: boolean;
   /** B10: the wrong item a new chat is opened from (its space is fixed). */
   wrongItem: WrongItemDetail | null;
 }
@@ -240,6 +243,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
         chats,
         originSpaces,
         memory: capabilities.memory,
+        explanations: capabilities.explanations,
         wrongItem,
       };
     }).then((result) => {
@@ -711,6 +715,21 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
                 >
                   {t('study.wrongbook.open')}
                 </Link>
+                {data?.explanations ? (
+                  <>
+                    {' · '}
+                    <Link
+                      href={itemExplanationsHref(
+                        header.chat.spaceId,
+                        header.chat.origin.wrongItem.itemId,
+                      )}
+                      className="text-primary hover:underline"
+                      data-testid="companion-explain-link"
+                    >
+                      {t('study.explain.fromChat')}
+                    </Link>
+                  </>
+                ) : null}
               </p>
             ) : null}
             {header?.originCourse && header.chat.origin && !header.chat.origin.wrongItem ? (

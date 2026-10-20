@@ -29,6 +29,7 @@ import {
   isStudyPracticeFlagOn,
   isStudyQaFlagOn,
   isStudyReviewFlagOn,
+  isStudyExplanationsFlagOn,
   isStudyWrongbookFlagOn,
 } from '@/lib/server/study/flags';
 
@@ -269,6 +270,24 @@ export function studyReviewRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyReviewEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B13 explanations on request: the wrong-answer book plus ZHIYU_STUDY_EXPLANATIONS_ENABLED. */
+export function isStudyExplanationsEnabled(): boolean {
+  return isStudyExplanationsFlagOn() && isStudyWrongbookEnabled();
+}
+
+/** studyRoute for the explanation APIs. */
+export function studyExplanationsRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyExplanationsEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

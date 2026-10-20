@@ -192,6 +192,8 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
         foreign key(owner_id,item_id) references study_wrong_items(owner_id,id));
       CREATE TABLE study_review_settings(owner_id text,space_id text);
       CREATE TABLE study_memory_summaries(owner_id text,space_id text);
+      CREATE TABLE study_explanations(owner_id text,id text,item_id text,
+        foreign key(owner_id,item_id) references study_wrong_items(owner_id,id));
       CREATE TABLE study_question_extractions(owner_id text,id text,primary key(owner_id,id));
       CREATE TABLE study_question_candidates(owner_id text,extraction_id text,id text,
         foreign key(owner_id,extraction_id) references study_question_extractions(owner_id,id));
@@ -269,6 +271,7 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       INSERT INTO study_review_cards VALUES('${OWNER}','wi-1'),('${OTHER}','wi-1');
       INSERT INTO study_review_settings VALUES('${OWNER}','space-1'),('${OTHER}','space-1');
       INSERT INTO study_memory_summaries VALUES('${OWNER}','space-1'),('${OTHER}','space-1');
+      INSERT INTO study_explanations VALUES('${OWNER}','ex-1','wi-1'),('${OTHER}','ex-1','wi-1');
       INSERT INTO study_question_extractions VALUES('${OWNER}','qx-1'),('${OTHER}','qx-1');
       INSERT INTO study_question_candidates VALUES('${OWNER}','qx-1','qc-1'),('${OTHER}','qx-1','qc-1');
       INSERT INTO learning_tasks VALUES
@@ -503,6 +506,7 @@ describe.each(backends)('account deletion lifecycle (%s)', (backend) => {
       'study_review_cards',
       'study_review_settings',
       'study_memory_summaries',
+      'study_explanations',
       'study_question_extractions',
       'study_question_candidates',
     ]) {

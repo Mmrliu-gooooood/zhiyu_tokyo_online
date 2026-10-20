@@ -105,6 +105,8 @@ import {
 } from '@/lib/generation/job-client';
 import { getDocumentStore } from '@/lib/document-store';
 import { linkGeneratedCourseToStudySpace } from '@/lib/study/spaces/pending-links';
+import { explanationApi } from '@/lib/study/explanations/client';
+import { withMediaChoice } from '@/lib/generation/media-choice';
 
 const log = createLogger('GenerationPreview');
 const OUTLINE_REVIEW_AUTO_CONTINUE_MS = 2500;
@@ -304,7 +306,11 @@ function GenerationPreviewContent() {
           // The first scene is already published transactionally. The classroom becomes an observer.
           if (job.readyScenes > 0) {
             backgroundReadyStageRef.current = job.stageId;
-            linkGeneratedCourseToStudySpace(current.studySpaceId, job.stageId);
+            linkGeneratedCourseToStudySpace(
+              current.studySpaceId,
+              job.stageId,
+              current.studyExplanationId,
+            );
             if (backgroundAgentRevealRef.current !== 'revealing')
               router.push(`/classroom/${encodeURIComponent(job.stageId)}`);
           }
@@ -488,7 +494,7 @@ function GenerationPreviewContent() {
   // Get API credentials from localStorage
   const getApiHeaders = () => {
     const modelConfig = getCurrentModelConfig();
-    const settings = useSettingsStore.getState();
+    const settings = withMediaChoice(useSettingsStore.getState(), sessionRef.current?.mediaChoice);
     const imageProviderConfig = settings.imageProvidersConfig?.[settings.imageProviderId];
     const videoProviderConfig = settings.videoProvidersConfig?.[settings.videoProviderId];
     const imageSelection = settings.imageSelection ?? {
@@ -617,6 +623,12 @@ function GenerationPreviewContent() {
         });
         if (!generationRuntimeRef.current?.isCurrent(run.epoch)) return;
         persistSession({ ...backgroundSession, generationJobId: job.jobId });
+        // B13: a wrong-question explanation shows (and can cancel) the job of its course.
+        if (backgroundSession.studyExplanationId) {
+          void explanationApi
+            .attachCourse(backgroundSession.studyExplanationId, { jobId: job.jobId })
+            .catch(() => undefined);
+        }
         applyBackgroundSnapshot(job);
         return;
       }
@@ -1073,7 +1085,7 @@ function GenerationPreviewContent() {
       }
 
       // ── Agent generation (after outlines — uses languageDirective + outlines) ──
-      const settings = useSettingsStore.getState();
+      const settings = withMediaChoice(useSettingsStore.getState(), currentSession.mediaChoice);
       const ttsProvidersConfig = withPlatformTTSAvailability(
         settings.ttsProvidersConfig,
         settings.ttsSelection,
@@ -1460,7 +1472,11 @@ function GenerationPreviewContent() {
       });
       if (!published) return;
       if (!runtime.transition(epoch, 'completed')) return;
-      linkGeneratedCourseToStudySpace(currentSession.studySpaceId, stage.id);
+      linkGeneratedCourseToStudySpace(
+        currentSession.studySpaceId,
+        stage.id,
+        currentSession.studyExplanationId,
+      );
       router.push(`/classroom/${stage.id}`);
     } catch (err) {
       if (!runtime.isCurrent(epoch)) return;

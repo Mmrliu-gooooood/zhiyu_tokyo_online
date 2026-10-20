@@ -85,6 +85,8 @@ export interface StudyCapabilities {
   practice: boolean;
   /** B12 review tasks, mastery evidence and Memory summaries (needs the wrong-answer book). */
   review: boolean;
+  /** B13 explanations of a wrong question on request (needs the wrong-answer book). */
+  explanations: boolean;
 }
 
 const CAPABILITY_KEYS = [
@@ -100,6 +102,7 @@ const CAPABILITY_KEYS = [
   'wrongbook',
   'practice',
   'review',
+  'explanations',
 ] as const satisfies ReadonlyArray<keyof StudyCapabilities>;
 
 function capabilitiesFrom(body: Record<string, unknown> | null): StudyCapabilities {

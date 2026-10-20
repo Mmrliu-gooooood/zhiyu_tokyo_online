@@ -3849,6 +3849,124 @@
         "scope": "Exam scope",
         "inScope": "In scope"
       }
+    },
+    "explain": {
+      "title": "Explanation for this question",
+      "intro": "When the solution, looking back and asking a classmate are not enough, you can have an explanation written for this question. Nothing is generated automatically.",
+      "open": "Get an explanation",
+      "fromChat": "Get an explanation",
+      "dialogTitle": "Explain this question",
+      "dialogIntro": "Choose a form. It uses only this question, your answer and its grading, this subject's materials and the explanation preferences you set in Memory.",
+      "format": {
+        "text": "Text",
+        "whiteboard": "Whiteboard",
+        "interactive": "Interactive",
+        "course": "Full course"
+      },
+      "formatHint": {
+        "text": "Where it went wrong and how to get it right, step by step. Fastest. At most {{count}} model calls.",
+        "whiteboard": "Worked step by step on a whiteboard, like a teacher at the board. At most {{count}} model calls.",
+        "interactive": "A small hands-on page (sliders or a diagram that unfolds), takes a minute or two. At most {{count}} model calls.",
+        "course": "After you confirm on Home, course generation writes a full lesson and adds it to this subject. Takes longer."
+      },
+      "media": {
+        "title": "Also generate for this course (all off by default):",
+        "image": "Images",
+        "tts": "Speech",
+        "video": "Video",
+        "none": "no images, speech or video",
+        "unavailable": "(not enabled in settings)",
+        "note": "Only what you tick is generated; switches already on in settings are not reused."
+      },
+      "consent": "Uses the model you selected; no images, speech or video. Asking again for the same question and answer opens the saved explanation.",
+      "consentCourse": "Home opens with the course request filled in; you can edit it before generating. One question adds at most one course at a time.",
+      "confirm": "Write explanation",
+      "confirmCourse": "Go to course generation",
+      "cancel": "Cancel",
+      "reused": "This question already has the same explanation; it is opened for you.",
+      "courseReused": "This question already has a course (or one being generated); it is opened for you.",
+      "limit": "You have generated {{count}} explanations today. Try again tomorrow.",
+      "status": {
+        "pending": "Writing",
+        "ready": "Ready",
+        "failed": "Not written",
+        "cancelled": "Cancelled",
+        "courseWaiting": "Course not started",
+        "courseRunning": "Course generating"
+      },
+      "pageTitle": "Explanations",
+      "pageSubtitle": "Explanations written for your wrong questions are kept here to look back at any time.",
+      "thisQuestion": "This question",
+      "all": "Explanations in this subject ({{count}})",
+      "empty": "No explanations yet. Open a question in the wrong-answer book to get one.",
+      "backToItem": "Back to the question",
+      "forQuestion": "Question:",
+      "usage": "{{model}} · {{calls}} calls · about {{tokens}} tokens",
+      "preferencesUsed": "your explanation preferences were used",
+      "writing": {
+        "text": "Writing the explanation…",
+        "whiteboard": "Drawing the whiteboard…",
+        "interactive": "Designing and building the interactive page, this takes a minute or two…"
+      },
+      "canLeave": "You can leave this page; the result will be here when you come back.",
+      "tryAgain": "Try again",
+      "modelUnavailable": "No model is available. Choose one in settings first.",
+      "busy": "Too many tasks are running right now. Please try again shortly.",
+      "cancelled": "Cancelled.",
+      "error": {
+        "model_error": "The model did not answer properly.",
+        "timeout": "The model took too long.",
+        "invalid_output": "The model's reply did not meet the requirements and was not saved.",
+        "budget": "This try used all its calls.",
+        "interrupted": "Writing was interrupted.",
+        "internal": "Something went wrong while writing."
+      },
+      "retry": "Retry ({{left}} left)",
+      "noRetries": "No retries left; you can write a new one.",
+      "diagnosis": "What went wrong",
+      "takeaway": "Remember",
+      "check": "Check yourself",
+      "showAnswer": "Show answer",
+      "board": {
+        "previous": "Previous step",
+        "next": "Next step",
+        "step": "Step {{step}} of {{total}}",
+        "all": "Show all"
+      },
+      "widget": {
+        "simulation": "Drag or adjust the controls on the page and watch what changes.",
+        "diagram": "Click the steps in the diagram to unfold them."
+      },
+      "sources": "Materials cited",
+      "page": "p. {{page}}",
+      "again": "Write a new one",
+      "delete": "Delete",
+      "deleteTitle": "Delete this explanation?",
+      "deleteBody": "This cannot be undone.",
+      "deleteCourseBody": "Only this record is deleted; the course stays in the subject (remove it on the subject page).",
+      "deleted": "Deleted",
+      "next": "Next: check with new questions",
+      "nextHint": "Answer a few new questions of the same kind; only right answers without help count as mastery evidence in review.",
+      "course": {
+        "banner": "A course for a wrong question will be generated and added to “{{name}}”. Media: {{media}}",
+        "requirement": "Course request:",
+        "media": "Media:",
+        "open": "Open course",
+        "start": "Go to course generation",
+        "retryJob": "Retry generation",
+        "stillWriting": "The course is in the subject; later pages are still being generated ({{ready}}/{{total}}).",
+        "once": "An explanation adds one course only; cancelling or retrying never adds it twice.",
+        "job": {
+          "queued": "Queued…",
+          "running": "Generating ({{ready}}/{{total}} pages)",
+          "awaiting_confirmation": "Waiting for the outline to be confirmed on the course generation page.",
+          "retry_wait": "Will retry automatically shortly.",
+          "needs_attention": "The result is uncertain and needs your decision.",
+          "succeeded": "Done.",
+          "failed": "Generation failed.",
+          "cancelled": "Cancelled; you can generate it again."
+        }
+      }
     }
   }
 }

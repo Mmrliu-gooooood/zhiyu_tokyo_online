@@ -207,8 +207,8 @@ async function seedItem(db: Db, owner: string, space: string, id: string) {
 
 describe('accounts v33 review tasks and Memory summaries', () => {
   it('is registered with a checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(33);
-    expect(ACCOUNT_MIGRATIONS.at(-1)?.version).toBe(33);
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(33);
+    expect(ACCOUNT_MIGRATIONS.some((migration) => migration.version === 33)).toBe(true);
     expect(accountsMigrationChecksum(33)).toMatch(/^[0-9a-f]{64}$/);
   });
 

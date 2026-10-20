@@ -124,6 +124,32 @@ export async function resolveMemoryContext(
 }
 
 /**
+ * What an explanation of a wrong question receives (B13): the subject's
+ * explanation-style preferences only (no goal, facts or summary), resolved
+ * when the student asks for it. Null when Memory is off or nothing is set;
+ * never throws.
+ */
+export async function resolveExplanationPreferences(
+  db: Queryable,
+  ownerId: string,
+  spaceId: string,
+): Promise<{ text: string; refs: string[] } | null> {
+  if (!isStudyMemoryFlagOn()) return null;
+  try {
+    const controls = await readMemoryControls(db, ownerId);
+    if (!controls.global.enabled || controls.spaces.get(spaceId)?.enabled === false) return null;
+    const items = selectClassroomPreferences(await listPreferences(db, ownerId, spaceId), spaceId);
+    if (items.length === 0) return null;
+    return { text: items.map((item) => item.text).join('\n'), refs: items.map((item) => item.ref) };
+  } catch (error) {
+    log.warn('explanation preferences unavailable; explaining without them', {
+      code: (error as { code?: string }).code,
+    });
+    return null;
+  }
+}
+
+/**
  * What a live classroom reply receives (option A of the B06 classroom
  * decision): the explanation-style preferences only, for the subject the
  * course belongs to (`classroomPreferenceScope`). Same per-request,

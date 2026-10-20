@@ -6,9 +6,13 @@
  * reach the server a moment later, so the link is queued per account in
  * localStorage and retried (on hand-over and on every classroom open) until
  * the server accepts it. Linking is idempotent server-side, so retries,
- * reloads and regenerated jobs never add a course twice.
+ * reloads and regenerated jobs never add a course twice. A course generated
+ * for a wrong-question explanation (B13) is linked through that explanation,
+ * which accepts one course only.
  */
 import { peekAccountUserId } from '@/lib/auth/account-environment';
+import { explanationApi } from '@/lib/study/explanations/client';
+import { isExplanationId } from '@/lib/study/explanations/contracts';
 import { StudyApiError, fetchStudyCapability, studyApi } from '@/lib/study/spaces/client';
 import { isContentId, isStudyId } from '@/lib/study/spaces/contracts';
 
@@ -16,6 +20,8 @@ interface PendingLink {
   spaceId: string;
   stageId: string;
   createdAt: number;
+  /** B13: link through this course explanation. */
+  explanationId?: string;
 }
 
 /** A course document that has not reached the server yet is retried for this long. */
@@ -33,7 +39,10 @@ function read(key: string): PendingLink[] {
     if (!Array.isArray(value)) return [];
     return value.filter(
       (item): item is PendingLink =>
-        isStudyId(item?.spaceId) && isContentId(item?.stageId) && Number.isFinite(item?.createdAt),
+        isStudyId(item?.spaceId) &&
+        isContentId(item?.stageId) &&
+        Number.isFinite(item?.createdAt) &&
+        (item?.explanationId === undefined || isExplanationId(item.explanationId)),
     );
   } catch {
     return [];
@@ -49,12 +58,22 @@ function write(key: string, links: PendingLink[]): void {
   }
 }
 
-export function rememberPendingStudyLink(spaceId: string | undefined, stageId: string): void {
+export function rememberPendingStudyLink(
+  spaceId: string | undefined,
+  stageId: string,
+  explanationId?: string,
+): void {
   if (!spaceId || !isStudyId(spaceId) || !isContentId(stageId)) return;
+  if (explanationId !== undefined && !isExplanationId(explanationId)) return;
   const key = storageKey();
   if (!key) return;
   const links = read(key).filter((link) => !(link.spaceId === spaceId && link.stageId === stageId));
-  links.push({ spaceId, stageId, createdAt: Date.now() });
+  links.push({
+    spaceId,
+    stageId,
+    createdAt: Date.now(),
+    ...(explanationId ? { explanationId } : {}),
+  });
   write(key, links);
 }
 
@@ -75,7 +94,11 @@ async function flushOnce(stageId?: string): Promise<void> {
   const settled = new Set<PendingLink>();
   for (const link of due) {
     try {
-      await studyApi.linkCourse(link.spaceId, link.stageId, 'generation');
+      if (link.explanationId) {
+        await explanationApi.attachCourse(link.explanationId, { stageId: link.stageId });
+      } else {
+        await studyApi.linkCourse(link.spaceId, link.stageId, 'generation');
+      }
       settled.add(link);
     } catch (error) {
       if (!(error instanceof StudyApiError) || error.status >= 500) continue;
@@ -102,9 +125,10 @@ const handedOver = new Set<string>();
 export function linkGeneratedCourseToStudySpace(
   spaceId: string | undefined,
   stageId: string,
+  explanationId?: string,
 ): void {
   if (!spaceId || handedOver.has(`${spaceId}\n${stageId}`)) return;
   handedOver.add(`${spaceId}\n${stageId}`);
-  rememberPendingStudyLink(spaceId, stageId);
+  rememberPendingStudyLink(spaceId, stageId, explanationId);
   void flushPendingStudyLinks(stageId);
 }

@@ -142,6 +142,8 @@ x-runtime-environment: &runtime-environment
   # Review tasks, mastery evidence, Memory summaries (B12). Needs accounts v33;
   # web schedules and writes summaries, the worker reads them into chats.
   ZHIYU_STUDY_REVIEW_ENABLED: ${ZHIYU_STUDY_REVIEW_ENABLED:-}
+  # Explanations on request (B13). Needs accounts v34; web only.
+  ZHIYU_STUDY_EXPLANATIONS_ENABLED: ${ZHIYU_STUDY_EXPLANATIONS_ENABLED:-}
   ZHIYU_DEFAULT_TEXT_MODEL: ${ZHIYU_DEFAULT_TEXT_MODEL:-}
   ZHIYU_DEFAULT_TEXT_DISPLAY_NAME: ${ZHIYU_DEFAULT_TEXT_DISPLAY_NAME:-}
   ZHIYU_DEFAULT_TEXT_ENABLED: ${ZHIYU_DEFAULT_TEXT_ENABLED:-}

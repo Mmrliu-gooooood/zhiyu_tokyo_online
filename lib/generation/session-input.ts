@@ -3,6 +3,7 @@ import type { GenerationInput } from '@/lib/server/generation-jobs/contracts';
 import type { ModelConfigInput } from '@/types/pro-model';
 import type { ModelSelection } from '@/lib/types/platform-default-models';
 import { useSettingsStore } from '@/lib/store/settings';
+import { withMediaChoice } from '@/lib/generation/media-choice';
 import { useAgentRegistry } from '@/lib/orchestration/registry/store';
 import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { loadDocumentBlob } from '@/lib/utils/image-storage';
@@ -73,7 +74,7 @@ export async function buildGenerationJobInput(
   const modelConfigRef = preparedModel?.ref;
   // A rejected platform snapshot may have refreshed the entire catalog. Freeze
   // media settings only now, so their revisions match the refreshed snapshots.
-  const settings = useSettingsStore.getState();
+  const settings = withMediaChoice(useSettingsStore.getState(), session.mediaChoice);
   const imageSelection = settings.imageSelection ?? {
     source: 'user' as const,
     providerId: settings.imageProviderId,

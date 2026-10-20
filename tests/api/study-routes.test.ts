@@ -74,6 +74,7 @@ describe('study routes', () => {
       wrongbook: false,
       practice: false,
       review: false,
+      explanations: false,
     });
     vi.stubEnv('ZHIYU_STUDY_SPACES_ENABLED', '');
     expect(await (await capabilities()).json()).toEqual({
@@ -90,6 +91,7 @@ describe('study routes', () => {
       wrongbook: false,
       practice: false,
       review: false,
+      explanations: false,
     });
     const hidden = await listSpaces(request());
     expect(hidden.status).toBe(404);

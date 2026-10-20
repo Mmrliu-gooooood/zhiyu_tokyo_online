@@ -248,6 +248,14 @@ function HomePage() {
     setForm((prev) => (prev.requirement ? prev : { ...prev, requirement: cachedRequirement }));
   }, [cachedRequirement]);
 
+  // A course explanation of a wrong question (B13) brings its requirement (editable).
+  const explanationRequirement = studyTarget.target?.explanation?.requirement ?? '';
+  useEffect(() => {
+    if (!explanationRequirement) return;
+    draftRestoredRef.current = true;
+    setForm((prev) => ({ ...prev, requirement: explanationRequirement }));
+  }, [explanationRequirement]);
+
   const [themeOpen, setThemeOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // True while the Generate click drains upload-time ingests and builds the
@@ -756,6 +764,13 @@ function HomePage() {
         sceneOutlines: null,
         currentStep: 'generating' as const,
         ...(studyTarget.target ? { studySpaceId: studyTarget.target.id } : {}),
+        // B13: the course of a wrong-question explanation, with only the media ticked there.
+        ...(studyTarget.target?.explanation
+          ? {
+              studyExplanationId: studyTarget.target.explanation.id,
+              mediaChoice: studyTarget.target.explanation.media,
+            }
+          : {}),
         ...(studyText
           ? {
               studyMaterialVersions: studyMaterials.map(({ materialId, versionId }) => ({

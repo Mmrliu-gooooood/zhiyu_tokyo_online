@@ -3849,6 +3849,124 @@
         "scope": "Programme",
         "inScope": "Au programme"
       }
+    },
+    "explain": {
+      "title": "Explication de cette question",
+      "intro": "Quand la correction, revoir le cours et demander à un camarade ne suffisent pas, vous pouvez demander une explication rédigée pour cette question. Rien n’est généré automatiquement.",
+      "open": "Demander une explication",
+      "fromChat": "Demander une explication",
+      "dialogTitle": "Expliquer cette question",
+      "dialogIntro": "Choisissez une forme. Elle n’utilise que cette question, votre réponse et sa correction, les supports de cette matière et les préférences d’explication définies dans Memory.",
+      "format": {
+        "text": "Texte",
+        "whiteboard": "Tableau blanc",
+        "interactive": "Interactive",
+        "course": "Cours complet"
+      },
+      "formatHint": {
+        "text": "Où était l’erreur et comment réussir, étape par étape. Le plus rapide. Au plus {{count}} appels au modèle.",
+        "whiteboard": "Étape par étape au tableau blanc, comme un enseignant. Au plus {{count}} appels au modèle.",
+        "interactive": "Une petite page à manipuler (curseurs ou schéma qui se déplie), une à deux minutes. Au plus {{count}} appels au modèle.",
+        "course": "Après confirmation sur l’accueil, la génération de cours crée une leçon complète et l’ajoute à cette matière. Plus long."
+      },
+      "media": {
+        "title": "Générer aussi pour ce cours (tout désactivé par défaut) :",
+        "image": "Images",
+        "tts": "Voix",
+        "video": "Vidéo",
+        "none": "ni images, ni voix, ni vidéo",
+        "unavailable": "(non activé dans les paramètres)",
+        "note": "Seul ce que vous cochez est généré ; les options déjà activées dans les paramètres ne sont pas reprises."
+      },
+      "consent": "Utilise le modèle choisi ; ni images, ni voix, ni vidéo. Redemander pour la même question et la même réponse ouvre l’explication enregistrée.",
+      "consentCourse": "L’accueil s’ouvre avec la demande de cours déjà remplie ; vous pouvez la modifier avant de générer. Une question n’ajoute qu’un cours à la fois.",
+      "confirm": "Rédiger l’explication",
+      "confirmCourse": "Aller générer le cours",
+      "cancel": "Annuler",
+      "reused": "Cette question a déjà la même explication ; elle a été ouverte.",
+      "courseReused": "Cette question a déjà un cours (ou un cours en génération) ; il a été ouvert.",
+      "limit": "Vous avez généré {{count}} explications aujourd’hui. Réessayez demain.",
+      "status": {
+        "pending": "Rédaction",
+        "ready": "Prête",
+        "failed": "Non rédigée",
+        "cancelled": "Annulée",
+        "courseWaiting": "Cours non lancé",
+        "courseRunning": "Cours en génération"
+      },
+      "pageTitle": "Explications",
+      "pageSubtitle": "Les explications de vos questions ratées sont gardées ici pour les revoir à tout moment.",
+      "thisQuestion": "Cette question",
+      "all": "Explications de cette matière ({{count}})",
+      "empty": "Pas encore d’explication. Ouvrez une question dans le carnet d’erreurs pour en demander une.",
+      "backToItem": "Retour à la question",
+      "forQuestion": "Question :",
+      "usage": "{{model}} · {{calls}} appels · environ {{tokens}} jetons",
+      "preferencesUsed": "vos préférences d’explication ont été utilisées",
+      "writing": {
+        "text": "Rédaction de l’explication…",
+        "whiteboard": "Dessin du tableau…",
+        "interactive": "Conception et création de la page interactive, une à deux minutes…"
+      },
+      "canLeave": "Vous pouvez quitter cette page ; le résultat sera là à votre retour.",
+      "tryAgain": "Réessayer",
+      "modelUnavailable": "Aucun modèle disponible. Choisissez-en un dans les paramètres.",
+      "busy": "Trop de tâches en cours. Réessayez dans un instant.",
+      "cancelled": "Annulée.",
+      "error": {
+        "model_error": "Le modèle n’a pas répondu correctement.",
+        "timeout": "Le modèle a mis trop de temps.",
+        "invalid_output": "La réponse du modèle ne respectait pas les exigences et n’a pas été enregistrée.",
+        "budget": "Cet essai a utilisé tous ses appels.",
+        "interrupted": "La rédaction a été interrompue.",
+        "internal": "Une erreur s’est produite pendant la rédaction."
+      },
+      "retry": "Réessayer (encore {{left}})",
+      "noRetries": "Plus d’essais ; vous pouvez en rédiger une nouvelle.",
+      "diagnosis": "Où était l’erreur",
+      "takeaway": "À retenir",
+      "check": "Vérifiez-vous",
+      "showAnswer": "Voir la réponse",
+      "board": {
+        "previous": "Étape précédente",
+        "next": "Étape suivante",
+        "step": "Étape {{step}} sur {{total}}",
+        "all": "Tout afficher"
+      },
+      "widget": {
+        "simulation": "Déplacez ou réglez les commandes de la page et observez ce qui change.",
+        "diagram": "Cliquez sur les étapes du schéma pour les déplier."
+      },
+      "sources": "Supports cités",
+      "page": "p. {{page}}",
+      "again": "En rédiger une nouvelle",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer cette explication ?",
+      "deleteBody": "Action irréversible.",
+      "deleteCourseBody": "Seul cet enregistrement est supprimé ; le cours reste dans la matière (retirez-le depuis la page de la matière).",
+      "deleted": "Supprimée",
+      "next": "Ensuite : vérifier avec de nouvelles questions",
+      "nextHint": "Répondez à quelques nouvelles questions du même type ; seules les bonnes réponses sans aide comptent comme preuve de maîtrise dans les révisions.",
+      "course": {
+        "banner": "Un cours pour une question ratée sera généré et ajouté à « {{name}} ». Médias : {{media}}",
+        "requirement": "Demande de cours :",
+        "media": "Médias :",
+        "open": "Ouvrir le cours",
+        "start": "Aller générer le cours",
+        "retryJob": "Relancer la génération",
+        "stillWriting": "Le cours est dans la matière ; les pages suivantes sont encore en génération ({{ready}}/{{total}}).",
+        "once": "Une explication n’ajoute qu’un seul cours ; annuler ou réessayer ne l’ajoute jamais deux fois.",
+        "job": {
+          "queued": "En file d’attente…",
+          "running": "Génération ({{ready}}/{{total}} pages)",
+          "awaiting_confirmation": "En attente de validation du plan sur la page de génération du cours.",
+          "retry_wait": "Nouvel essai automatique sous peu.",
+          "needs_attention": "Le résultat est incertain et demande votre décision.",
+          "succeeded": "Terminé.",
+          "failed": "La génération a échoué.",
+          "cancelled": "Annulé ; vous pouvez relancer la génération."
+        }
+      }
     }
   }
 }

@@ -65,6 +65,7 @@ export async function runIndependentHeavyTaskRequest(
     | 'study-grade'
     | 'study-practice'
     | 'study-summary'
+    | 'study-explanation'
   >,
   body: (signal: AbortSignal) => Promise<Response>,
 ): Promise<Response> {
@@ -187,6 +188,7 @@ async function acquireIndependentLease(
     | 'study-grade'
     | 'study-practice'
     | 'study-summary'
+    | 'study-explanation'
   >,
   holder: string,
 ): Promise<IndependentLease | null> {

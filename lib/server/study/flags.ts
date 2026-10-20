@@ -112,3 +112,16 @@ export function isStudyReviewFlagOn(env: NodeJS.ProcessEnv = process.env): boole
   const flag = env.ZHIYU_STUDY_REVIEW_ENABLED;
   return (flag === '1' || flag === 'true') && isStudyWrongbookFlagOn(env);
 }
+
+/**
+ * ZHIYU_STUDY_EXPLANATIONS_ENABLED: explanations of one wrong question on
+ * request (learning plan B13) — short text, a whiteboard, a light
+ * interactive page, or a full course through the existing course generation.
+ * Needs the wrong-answer book (B10). Web only; each explanation uses the
+ * student's model after they chose it. Off: no new explanations; saved ones
+ * are not shown; wrong items, practice and review work as before.
+ */
+export function isStudyExplanationsFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_EXPLANATIONS_ENABLED;
+  return (flag === '1' || flag === 'true') && isStudyWrongbookFlagOn(env);
+}

@@ -3849,6 +3849,124 @@
         "scope": "考試範圍",
         "inScope": "在範圍內"
       }
+    },
+    "explain": {
+      "title": "專項講解",
+      "intro": "解析、回看和問學伴都不夠時，可以為這道題生成一份講解。不會自動生成。",
+      "open": "生成專項講解",
+      "fromChat": "生成專項講解",
+      "dialogTitle": "為這道題生成講解",
+      "dialogIntro": "選一種形式。講解只用這道題、你的作答和評分、本學科資料，以及你在 Memory 裡設定的講解偏好。",
+      "format": {
+        "text": "文字講解",
+        "whiteboard": "白板講解",
+        "interactive": "互動講解",
+        "course": "完整課程"
+      },
+      "formatHint": {
+        "text": "一步步寫清楚錯在哪裡、怎麼做對，最快。最多呼叫模型 {{count}} 次。",
+        "whiteboard": "像老師在白板上邊寫邊講，一步步展示。最多呼叫模型 {{count}} 次。",
+        "interactive": "一個可以動手操作的小網頁（滑桿或逐步展開的圖），需要一兩分鐘。最多呼叫模型 {{count}} 次。",
+        "course": "到首頁確認後，用課程生成做一節完整的課並加入本學科，耗時較長。"
+      },
+      "media": {
+        "title": "這節課還要生成（預設都不生成）：",
+        "image": "圖片",
+        "tts": "語音",
+        "video": "影片",
+        "none": "不生成圖片、語音或影片",
+        "unavailable": "（未在設定中啟用）",
+        "note": "只生成勾選的項目，不沿用設定裡已經打開的開關。"
+      },
+      "consent": "將使用你目前選擇的模型，不會生成圖片、語音或影片。同樣的題目和作答再次生成時，會直接打開已儲存的講解。",
+      "consentCourse": "確認後打開首頁，課程需求已經填好，可以修改後再開始生成。一道題同時只會加入一節課程。",
+      "confirm": "生成講解",
+      "confirmCourse": "去生成課程",
+      "cancel": "取消",
+      "reused": "這道題已有同樣的講解，已為你打開。",
+      "courseReused": "這道題已有一節課程（或正在生成），已為你打開。",
+      "limit": "今天已生成 {{count}} 份講解，明天再試。",
+      "status": {
+        "pending": "生成中",
+        "ready": "已完成",
+        "failed": "未成功",
+        "cancelled": "已取消",
+        "courseWaiting": "等待開始生成課程",
+        "courseRunning": "課程生成中"
+      },
+      "pageTitle": "專項講解",
+      "pageSubtitle": "為做錯的題生成的講解都儲存在這裡，可以隨時回看。",
+      "thisQuestion": "這道錯題",
+      "all": "本學科的講解（{{count}}）",
+      "empty": "還沒有講解。在錯題本裡展開一道題，就可以生成專項講解。",
+      "backToItem": "回到這道錯題",
+      "forQuestion": "題目：",
+      "usage": "{{model}} · 呼叫 {{calls}} 次 · 約 {{tokens}} tokens",
+      "preferencesUsed": "用了你的講解偏好",
+      "writing": {
+        "text": "正在寫文字講解…",
+        "whiteboard": "正在畫白板講解…",
+        "interactive": "正在設計並製作互動頁面，需要一兩分鐘…"
+      },
+      "canLeave": "可以離開此頁，回來時會看到結果。",
+      "tryAgain": "再試一次",
+      "modelUnavailable": "目前沒有可用的模型，請先在設定裡選擇模型。",
+      "busy": "現在同時進行的任務太多，請稍後再試。",
+      "cancelled": "已取消。",
+      "error": {
+        "model_error": "模型沒有正常回覆。",
+        "timeout": "模型回覆逾時。",
+        "invalid_output": "模型的回覆不符合要求，沒有儲存。",
+        "budget": "這次的呼叫次數已用完。",
+        "interrupted": "生成被中斷了。",
+        "internal": "生成時出錯了。"
+      },
+      "retry": "重試（還剩 {{left}} 次）",
+      "noRetries": "重試次數已用完，可以重新生成一份。",
+      "diagnosis": "錯在哪裡",
+      "takeaway": "記住這一點",
+      "check": "自我測驗",
+      "showAnswer": "看答案",
+      "board": {
+        "previous": "上一步",
+        "next": "下一步",
+        "step": "第 {{step}} / {{total}} 步",
+        "all": "全部顯示"
+      },
+      "widget": {
+        "simulation": "拖動或調整頁面裡的控制項，觀察變化。",
+        "diagram": "點擊圖裡的步驟，逐步展開。"
+      },
+      "sources": "引用的資料",
+      "page": "第 {{page}} 頁",
+      "again": "重新生成",
+      "delete": "刪除",
+      "deleteTitle": "刪除這份講解？",
+      "deleteBody": "刪除後無法復原。",
+      "deleteCourseBody": "只刪除這筆紀錄；已生成的課程仍在本學科裡，可以在學科頁移除。",
+      "deleted": "已刪除",
+      "next": "下一步：做新題驗證",
+      "nextHint": "做幾道同類的新題；獨立做對才會計入複習裡的掌握證據。",
+      "course": {
+        "banner": "將為「{{name}}」的一道錯題生成課程並加入該學科；媒體：{{media}}",
+        "requirement": "課程需求：",
+        "media": "媒體：",
+        "open": "打開課程",
+        "start": "去生成課程",
+        "retryJob": "重試生成",
+        "stillWriting": "課程已加入學科，後面的頁面還在生成（{{ready}}/{{total}}）。",
+        "once": "一份講解只會加入一節課程；取消或重試都不會重複加入。",
+        "job": {
+          "queued": "排隊中…",
+          "running": "生成中（{{ready}}/{{total}} 頁）",
+          "awaiting_confirmation": "等待確認大綱，請回到課程生成頁面。",
+          "retry_wait": "稍後會自動重試。",
+          "needs_attention": "結果還不確定，需要你確認。",
+          "succeeded": "已完成。",
+          "failed": "生成失敗。",
+          "cancelled": "已取消，可以重新生成。"
+        }
+      }
     }
   }
 }

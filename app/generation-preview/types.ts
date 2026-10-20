@@ -49,6 +49,10 @@ export interface GenerationSessionState {
   taskEngineMode?: boolean;
   // Study space the learner started this generation from; the finished course is linked to it.
   studySpaceId?: string;
+  // B13: the wrong-question explanation this course is for (it is linked through it, once).
+  studyExplanationId?: string;
+  // B13: media this session may generate (each also needs its setting on); absent = settings.
+  mediaChoice?: { image: boolean; tts: boolean; video: boolean };
 }
 
 export type GenerationStep = {
