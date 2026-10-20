@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest';
 import { renderMemoryBlock, selectMemoryContext } from '@/lib/study/memory/contracts';
 import {
   SUMMARY_POLICY,
+  buildSummaryMessage,
+  compactSummaryInput,
   decideSummary,
   parseSummary,
   summaryBasis,
@@ -380,6 +382,33 @@ describe('Memory summaries', () => {
     expect(
       decideSummary(failed, summaryBasis('space-a', milestone, REVIEW), milestone, now, false).reason,
     ).toBe('retry_later');
+  });
+
+  it('gives the model only what happened: no zero counts, practice apart from tests', () => {
+    expect(
+      compactSummaryInput({
+        a: 0,
+        b: [],
+        c: null,
+        d: { e: 0 },
+        f: [{ title: '变式练习', earned: 2, total: 2, helped: 0 }],
+        g: 3,
+      }),
+    ).toEqual({ f: [{ title: '变式练习', earned: 2, total: 2 }], g: 3 });
+    const message = buildSummaryMessage({
+      subject: '微积分',
+      today: '2026-10-20',
+      examDate: null,
+      activity: {
+        coursesViewed: 0,
+        tests: [{ title: '小测', earned: 1, total: 4 }],
+        practice: [{ title: '变式练习 · 导数', earned: 2, total: 2, independent: 2 }],
+      },
+      wrongItems: { pending: 1, stable: 1, weakConcepts: ['导数'], stableConcepts: [] },
+    });
+    expect(message).not.toContain('coursesViewed');
+    expect(message).not.toContain('examDate');
+    expect(message).toContain('"practice":[{"title":"变式练习 · 导数"');
   });
 
   it('reads only a short JSON summary', () => {

@@ -41,6 +41,7 @@ import {
   type ReviewSnapshot,
   type StoredSummaryBasis,
   type SummaryDecision,
+  type SummaryInput,
   type SummaryRecord,
   type SummaryView,
 } from '@/lib/study/memory/summary';
@@ -207,6 +208,8 @@ interface Gathered {
   review: ReviewSnapshot;
   courseTitles: Map<string, string>;
   paperTitles: Map<string, string>;
+  /** Papers of the space that are practice (variants, redos), not tests. */
+  practicePapers: Set<string>;
 }
 
 async function gather(
@@ -230,6 +233,11 @@ async function gather(
       if (record.course) courseTitles.set(record.course.stageId, record.course.title);
       if (record.paper?.title) paperTitles.set(record.paper.id, record.paper.title);
     }
+    const practice = await tx.query<{ id: string }>(
+      `SELECT id FROM study_exam_papers
+        WHERE owner_id = $1 AND space_id = $2 AND blueprint ? 'practice'`,
+      [ownerId, spaceId],
+    );
     return {
       spaceName: space.rows[0].name,
       examDate: space.rows[0].exam_date ? String(space.rows[0].exam_date).slice(0, 10) : null,
@@ -244,11 +252,12 @@ async function gather(
       review: await readReviewSnapshot(tx, ownerId, spaceId),
       courseTitles,
       paperTitles,
+      practicePapers: new Set(practice.rows.map((row) => row.id)),
     };
   });
 }
 
-function summaryInput(gathered: Gathered, spaceId: string, now: Date) {
+function summaryInput(gathered: Gathered, spaceId: string, now: Date): SummaryInput {
   const records = gathered.records;
   const recent = aggregateRecentState(
     records.map((record) => ({
@@ -267,37 +276,48 @@ function summaryInput(gathered: Gathered, spaceId: string, now: Date) {
   const finished = new Set(
     records.filter((record) => record.type === 'course_finished').map((record) => record.stageId),
   );
+  const graded = records.filter((record) => record.type === 'exam_graded');
+  const paper = (record: GatheredRecord) => ({
+    title: (gathered.paperTitles.get(String(record.payload.paperId ?? '')) ?? '').slice(0, 60),
+    earned: Number(record.payload.earned ?? 0),
+    total: Number(record.payload.totalPoints ?? 0),
+  });
+  const isPractice = (record: GatheredRecord) =>
+    gathered.practicePapers.has(String(record.payload.paperId ?? ''));
+  const { states, weakConcepts, stableConcepts } = gathered.review;
   return {
     subject: gathered.spaceName,
     today: now.toISOString().slice(0, 10),
     examDate: gathered.examDate,
-    recent: {
-      windowDays: recent.windowDays,
+    activity: {
       coursesViewed: recent.coursesViewed,
       coursesFinished: recent.coursesFinished,
-      quizzesGraded: recent.quizzesGraded,
-      objective: recent.objective,
-      companionQuestions: recent.companionQuestions,
-      examsGraded: recent.examsGraded,
-      examPoints: recent.examPoints,
-    },
-    courses: recent.courseProgress.slice(0, 6).map((course) => ({
-      title: (gathered.courseTitles.get(course.stageId) ?? '').slice(0, 60),
-      furthestPage: course.furthestPage,
-      pageCount: course.pageCount,
-      finished: finished.has(course.stageId),
-    })),
-    papers: records
-      .filter((record) => record.type === 'exam_graded')
-      .slice(0, 6)
-      .map((record) => ({
-        title: (gathered.paperTitles.get(String(record.payload.paperId ?? '')) ?? '').slice(0, 60),
-        earned: Number(record.payload.earned ?? 0),
-        total: Number(record.payload.totalPoints ?? 0),
+      courses: recent.courseProgress.slice(0, 6).map((course) => ({
+        title: (gathered.courseTitles.get(course.stageId) ?? '').slice(0, 60),
+        furthestPage: course.furthestPage,
+        pageCount: course.pageCount,
+        finished: finished.has(course.stageId),
       })),
-    hintsUsed: records.filter((record) => record.type === 'hint_used').length,
-    reviewsDone: records.filter((record) => record.type === 'review_done').length,
-    review: gathered.review,
+      classroomQuizzes: recent.quizzesGraded
+        ? { graded: recent.quizzesGraded, objective: recent.objective }
+        : undefined,
+      companionQuestions: recent.companionQuestions,
+      tests: graded.filter((record) => !isPractice(record)).slice(0, 6).map(paper),
+      practice: graded
+        .filter(isPractice)
+        .slice(0, 6)
+        .map((record) => {
+          const independence = record.payload.independence as
+            | { independent?: number; helped?: number; repeated?: number }
+            | undefined;
+          return { ...paper(record), ...(independence ?? {}) };
+        }),
+      hintsOrAnswersShown: records.filter((record) => record.type === 'hint_used').length,
+      reviewsDone: records.filter(
+        (record) => record.type === 'review_done' && record.payload.outcome === 'done',
+      ).length,
+    },
+    wrongItems: { ...states, weakConcepts, stableConcepts },
     corrections: records
       .flatMap((record) => (record.correction ? [record.correction.slice(0, 120)] : []))
       .slice(0, 5),

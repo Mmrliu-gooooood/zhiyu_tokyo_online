@@ -3080,7 +3080,7 @@
       },
       "summary": {
         "title": "Aktuelle Zusammenfassung (für Lernpartner sichtbar)",
-        "meta": "Aus deinen Lernaufzeichnungen ·",
+        "meta": "Von KI aus deinen Lernaufzeichnungen ·",
         "delete": "Löschen",
         "deleted": "Zusammenfassung gelöscht; aus denselben Aufzeichnungen wird keine neue erstellt"
       }

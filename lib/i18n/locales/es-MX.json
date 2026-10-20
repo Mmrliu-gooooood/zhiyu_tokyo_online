@@ -3080,7 +3080,7 @@
       },
       "summary": {
         "title": "Resumen reciente (lo ven tus compañeros)",
-        "meta": "Escrito a partir de tus registros ·",
+        "meta": "Escrito por IA a partir de tus registros ·",
         "delete": "Eliminar",
         "deleted": "Resumen eliminado; los mismos registros no lo volverán a crear"
       }

@@ -66,7 +66,7 @@ import { cn } from '@/lib/utils';
 
 const CHIP = 'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px]';
 const SELECT = 'h-8 rounded-md border border-border bg-background px-2 text-sm';
-const MINUTE_CHOICES = [10, 15, 20, 30, 45, 60, 90, 120];
+const MINUTE_CHOICES = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 
 const STATE_STYLE: Record<EvidenceState, string> = {
   pending: 'bg-red-500/10 text-red-600 dark:text-red-400',

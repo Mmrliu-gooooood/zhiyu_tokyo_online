@@ -3080,7 +3080,7 @@
       },
       "summary": {
         "title": "Résumé récent (visible par vos camarades)",
-        "meta": "Rédigé à partir de vos enregistrements ·",
+        "meta": "Rédigé par l’IA à partir de vos enregistrements ·",
         "delete": "Supprimer",
         "deleted": "Résumé supprimé ; les mêmes enregistrements ne le recréeront pas"
       }
