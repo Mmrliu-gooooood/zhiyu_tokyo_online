@@ -16,7 +16,7 @@
 | B08 | 已上线（2026-10-12，release-20261012；同日 Web 20261012b 修 PDF 文字里的 NUL） | `learn/b08-question-import` → main（快进，已推送 tokyo） | accounts v29 `cfd0433a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 PDF；模型整理用真实 DeepSeek 1 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_EXTRACTION_ENABLED=1` | 见 B08“未验证” |
 | B09 | 已上线（2026-10-13，release-20261013；10-17 Web 20261017 修报告小问题） | `learn/b09-grading` → main `f8b4fb4b`（快进，已推送 tokyo） | accounts v30 `c556442a…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实 DeepSeek 批改 7 次）；生产非管理员账号登录验收通过 | 已启用 `ZHIYU_STUDY_GRADING_ENABLED=1` | 见 B09“未验证” |
 | B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
-| B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产登录验收待做 | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
+| B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变；2026-10-20 生产验收通过，修复见 release-20261020） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产登录验收待做 | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -127,9 +127,17 @@
 
 验收中发现（B09 起就有，未修）：主观题第一次批改进行中时，“等待批改…”下面同时显示“正在重新批改，原评分保留在下方…”（`AttemptPage.tsx` 的 `reviewing` 没有要求已有成绩）；批改完成后消失，只影响显示。
 
-已修复（2026-10-20，分支 `fix/grading-first-run-label`，待发布）：判断改为 `reviewInProgress()`（`lib/study/assessments/contracts.ts`），只有已有成绩、又有新的官方批改在进行时才算“重新批改”；`tests/study/open-questions.test.ts` 新增 1 项。
+已修复并上线（2026-10-20，`af13a5cf`，Web `release-20261020`）：判断改为 `reviewInProgress()`（`lib/study/assessments/contracts.ts`），只有已有成绩、又有新的官方批改在进行时才算“重新批改”；`tests/study/open-questions.test.ts` 新增 1 项。
 
 清理（2026-10-20，用户自己删除）：测试学科和资料库中的“导数讲义”已删除；数据库核对该账号学科、题库、试卷、作答、评分、任务、错题与作答记录、资料、索引片段均为 0（用量与学习记录按设计保留）。服务器旧镜像按用户指示删除 9 个，只留 web 20261018c/20261018b 与 worker 20261018，磁盘 63% → 28%。
+
+### 发布后修复（2026-10-20，release-20261020，只换 Web）
+
+- 内容：上面“验收中发现”的批改中提示（`af13a5cf`，main 快进并推送 tokyo）。Worker 不涉及这段代码，不换。
+- 发布前：服务器 compose 与仓库完全相同，`scripts/supabase-compose.sh` 相同；进行中的学习任务、批改、AI 出题租约都为 0；磁盘 28%。
+- Web 镜像 `930a350eedbb` 标为 `release-20261020` 送到东京；备份 `.env.hosted.local.bak-20261020-pre`、`docker-compose.supabase.yml.bak-20261020-pre`（指向 web 20261018c、worker 20261018）；env 只改 `ZHIYU_WEB_IMAGE`，apply 只重建 Web。
+- readiness `ready`（v32、2/2 Worker）；LISTEN 首连一次成功（2.7 s）；无 WARN/ERROR；登录状态下页面与 capabilities（`practice`、`grading` 为 true）正常；磁盘 29%。
+
 
 ## B10 跨课堂错题本与答疑回看（2026-10-17）
 
