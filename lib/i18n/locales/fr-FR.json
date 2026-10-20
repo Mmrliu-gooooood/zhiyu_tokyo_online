@@ -3018,7 +3018,12 @@
         "exam_graded": "A remis un test",
         "hintUsed": "Indice de la question {{position}} vu en entraînement dans « {{space}} »",
         "solutionSeen": "Réponse de la question {{position}} vue en entraînement dans « {{space}} »",
-        "examPractice": "{{independent}} nouvelles questions réussies seul · aide vue pour {{helped}}"
+        "examPractice": "{{independent}} nouvelles questions réussies seul · aide vue pour {{helped}}",
+        "review": {
+          "done": "Révisé une erreur dans {{space}}",
+          "postponed": "Reporté une révision dans {{space}}",
+          "skipped": "Ignoré une révision dans {{space}}"
+        }
       },
       "source": {
         "study_progress": "Progression",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Cette préférence n’existe plus.",
         "STUDY_SPACE_NOT_FOUND": "Cette matière n’existe plus.",
         "STUDY_INVALID_INPUT": "La saisie n’est pas valide."
+      },
+      "summary": {
+        "title": "Résumé récent (visible par vos camarades)",
+        "meta": "Rédigé à partir de vos enregistrements ·",
+        "delete": "Supprimer",
+        "deleted": "Résumé supprimé ; les mêmes enregistrements ne le recréeront pas"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "Questions",
         "intro": "L’IA rédige, à partir de la question d’origine (et des passages liés des ressources de la matière), de nouvelles questions sur la même notion et la même méthode mais au contenu différent — jamais une copie.",
         "help": "Dans les épreuves d’entraînement, indices et réponses sont visibles et enregistrés ; les résultats rejoignent l’historique de cette erreur."
+      }
+    },
+    "review": {
+      "open": "Révision",
+      "title": "Révision",
+      "subtitle": "Révisions planifiées à partir de vos erreurs et réponses : la répétition espacée décide quand, et seules les nouvelles questions réussies seul comptent comme preuve.",
+      "manualMode": "Memory est désactivé pour cette matière : rien n’est planifié automatiquement. Seules les questions que vous avez datées ou marquées sont listées.",
+      "openMemory": "Réglages Memory",
+      "today": "Aujourd’hui {{date}}",
+      "dailyMinutes": "Temps par jour",
+      "minutes": "{{count}} min",
+      "examIn": "Examen le {{date}} (dans {{days}} jours)",
+      "examPassed": "La date d’examen {{date}} est passée",
+      "noExam": "Pas de date d’examen",
+      "scope": "Programme : {{scope}}",
+      "noScope": "Pas de programme d’examen",
+      "editExam": "Modifier dans la matière",
+      "empty": "Aucune erreur dans cette matière pour l’instant. Les questions ratées vont dans le carnet d’erreurs et sont planifiées ici.",
+      "dueToday": "Aujourd’hui",
+      "dueOn": "{{date}}",
+      "lastAnswer": "Dernière réponse",
+      "evidenceLine": "Depuis l’erreur : {{independent}} nouvelles questions réussies seul · {{helped}} réussies avec indice ou solution · {{practiced}} refaites avec succès",
+      "redoUnavailable": "Cette question ne peut pas être refaite ici (pas une question de la banque, ou supprimée). Refaites les questions de cours dans le cours.",
+      "rules": "Règles : les dates viennent de la répétition espacée FSRS appliquée à vos réponses ; vos propres dates priment. « Stable » demande deux nouvelles questions différentes réussies seul après l’erreur, dont au moins une pas juste après. Refaire la même question ou réussir après un indice ou la solution compte comme entraînement. C’est une règle du produit, pas un test de niveau.",
+      "section": {
+        "today": "Aujourd’hui · {{count}} (environ {{minutes}} min)",
+        "todayManual": "Aujourd’hui",
+        "todayEmpty": "Rien à réviser aujourd’hui.",
+        "overflow": "À faire aujourd’hui, au-delà de votre temps · {{count}}",
+        "overflowHint": "En dernier : continuez si vous avez le temps, sinon demain.",
+        "unscheduled": "Non planifiées · {{count}}",
+        "unscheduledHint": "Memory désactivé : rien n’est planifié automatiquement. Reportez une question à un jour ou marquez-la dans le carnet d’erreurs.",
+        "upcoming": "Plus tard · {{count}}",
+        "stable": "Stables · {{count}}",
+        "stableHint": "Réponses autonomes stables ; un dernier regard à l’échéance.",
+        "skipped": "Ignorées · {{count}}",
+        "none": "Aucune."
+      },
+      "evidence": {
+        "pending": "À revoir",
+        "practiced": "Refaite juste",
+        "helped": "Juste avec aide",
+        "independent": "1 nouvelle question réussie",
+        "stable": "Stable"
+      },
+      "reason": {
+        "overdue": "En retard de {{days}} jours",
+        "due": "Répétition espacée : {{date}}",
+        "exam": "Une révision avant l’examen ({{date}})",
+        "scope": "Au programme : {{concepts}}",
+        "out_of_scope": "Hors programme",
+        "recentWrong": "Ratée {{count}} fois ces {{days}} derniers jours",
+        "not_rechecked": "Pas retentée depuis l’erreur",
+        "flagged": "Marquée par vous",
+        "manual": "Fixée par vous au {{date}}",
+        "unlinked": "Aucune notion"
+      },
+      "action": {
+        "redo": "Refaire",
+        "done": "Révisée",
+        "doneHint": "Vous avez repris l’explication : prochaine révision planifiée comme un rappel difficile ; ce n’est pas une preuve",
+        "postpone": "Reporter",
+        "postponeDays": "Au {{date}} (dans {{count}} jours)",
+        "unpostpone": "Annuler le report",
+        "skip": "Ignorer",
+        "skipHint": "La laisser de côté jusqu’à votre prochaine réponse",
+        "restore": "Rétablir",
+        "open": "Ouvrir",
+        "close": "Fermer"
+      },
+      "done": {
+        "done": "Noté : révisée",
+        "postpone": "Reportée au {{date}}",
+        "skip": "Ignorée jusqu’à votre prochaine réponse",
+        "clear": "Rétablie"
+      },
+      "summary": {
+        "title": "Ce que voient vos camarades",
+        "working": "Mise à jour…",
+        "none": "Pas encore de résumé. Il est rédigé quand il y a assez de nouveaux enregistrements."
+      },
+      "concepts": {
+        "title": "Preuves par notion",
+        "hint": "Les erreurs sont seulement comptées par notion ; rien n’est déduit d’une question à l’autre.",
+        "name": "Notion",
+        "scope": "Programme",
+        "inScope": "Au programme"
       }
     }
   }

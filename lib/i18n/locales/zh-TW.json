@@ -3018,7 +3018,12 @@
         "exam_graded": "完成了一次測驗",
         "hintUsed": "在「{{space}}」的練習中看了第 {{position}} 題的提示",
         "solutionSeen": "在「{{space}}」的練習中看了第 {{position}} 題的答案",
-        "examPractice": "獨立完成新題 {{independent}} 題 · 看過提示或答案 {{helped}} 題"
+        "examPractice": "獨立完成新題 {{independent}} 題 · 看過提示或答案 {{helped}} 題",
+        "review": {
+          "done": "在{{space}}複習了一道錯題",
+          "postponed": "在{{space}}延後了一道錯題的複習",
+          "skipped": "在{{space}}暫時忽略了一道錯題"
+        }
       },
       "source": {
         "study_progress": "學習進度",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "這項偏好已不存在。",
         "STUDY_SPACE_NOT_FOUND": "這個學科已不存在。",
         "STUDY_INVALID_INPUT": "內容格式不正確。"
+      },
+      "summary": {
+        "title": "近期情況摘要（學伴可見）",
+        "meta": "系統依學習紀錄整理 ·",
+        "delete": "刪除",
+        "deleted": "已刪除摘要，同樣的紀錄不會再產生"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "題數",
         "intro": "AI 依據原題（以及本學科資料中相關的段落）寫同知識點、同類思路但內容不同的新題，不會照抄原題。",
         "help": "練習卷裡可以看提示或答案，會被記錄；練習的結果會出現在這道錯題的作答記錄裡。"
+      }
+    },
+    "review": {
+      "open": "複習",
+      "title": "複習",
+      "subtitle": "依你的錯題和作答紀錄安排複習：什麼時候複習由間隔重複推算，是否掌握只看你獨立答對新題的紀錄。",
+      "manualMode": "這個學科的 Memory 已關閉：系統不自動安排複習，下面只列出你自己安排了日期或標記為待複習的題。",
+      "openMemory": "開啟 Memory 設定",
+      "today": "今天 {{date}}",
+      "dailyMinutes": "每天可用時間",
+      "minutes": "{{count}} 分鐘",
+      "examIn": "考試 {{date}}（還有 {{days}} 天）",
+      "examPassed": "考試日期 {{date}} 已過",
+      "noExam": "沒有設定考試日期",
+      "scope": "範圍：{{scope}}",
+      "noScope": "沒有設定考試範圍",
+      "editExam": "在學科中修改",
+      "empty": "這個學科還沒有錯題。答錯的題會進入錯題本，並在這裡安排複習。",
+      "dueToday": "今天",
+      "dueOn": "{{date}}",
+      "lastAnswer": "最近一次作答",
+      "evidenceLine": "答錯後：獨立答對新題 {{independent}} 道 · 看提示或答案後答對 {{helped}} 次 · 重做答對 {{practiced}} 次",
+      "redoUnavailable": "這道題不能直接重做（不是題庫裡的題，或已經刪除）。課堂裡的題請回到課堂重做。",
+      "rules": "規則：複習時間用 FSRS 間隔重複依你的作答推算，你自己設定的日期優先。「穩定」需要答錯後獨立答對兩道不同的新題，且至少一道不是緊接著答錯之後做的；原題重做、看過提示或答案後答對只算練習。這是產品規則，不是能力測評。",
+      "section": {
+        "today": "今天 · {{count}} 道（約 {{minutes}} 分鐘）",
+        "todayManual": "今天",
+        "todayEmpty": "今天沒有要複習的題。",
+        "overflow": "今天到期、超出可用時間 · {{count}} 道",
+        "overflowHint": "排在後面：時間允許可以繼續做，否則明天再看。",
+        "unscheduled": "未安排 · {{count}} 道",
+        "unscheduledHint": "Memory 關閉時不會自動安排，可以延後到某一天，或在錯題本裡標記待複習。",
+        "upcoming": "之後 · {{count}} 道",
+        "stable": "已穩定 · {{count}} 道",
+        "stableHint": "已有穩定的獨立作答紀錄，到期時再看一次。",
+        "skipped": "已忽略 · {{count}} 道",
+        "none": "沒有。"
+      },
+      "evidence": {
+        "pending": "待複習",
+        "practiced": "重做答對",
+        "helped": "提示後答對",
+        "independent": "獨立答對 1 道新題",
+        "stable": "穩定"
+      },
+      "reason": {
+        "overdue": "已過期 {{days}} 天",
+        "due": "依間隔重複安排在 {{date}}",
+        "exam": "考試（{{date}}）前再複習一次",
+        "scope": "在考試範圍內：{{concepts}}",
+        "out_of_scope": "不在考試範圍內",
+        "recentWrong": "最近 {{days}} 天錯了 {{count}} 次",
+        "not_rechecked": "答錯後還沒有再做過",
+        "flagged": "你標記了待複習",
+        "manual": "你安排在 {{date}}",
+        "unlinked": "沒有關聯知識點"
+      },
+      "action": {
+        "redo": "重做原題",
+        "done": "複習過了",
+        "doneHint": "看過解析、自己重新想過：按「想起來有點難」安排下次複習，不算作答證據",
+        "postpone": "延後",
+        "postponeDays": "延後到 {{date}}（{{count}} 天後）",
+        "unpostpone": "取消延後",
+        "skip": "忽略",
+        "skipHint": "暫時不複習這道題，下次作答後會重新安排",
+        "restore": "恢復",
+        "open": "展開",
+        "close": "收起"
+      },
+      "done": {
+        "done": "已記下：複習過了",
+        "postpone": "已延後到 {{date}}",
+        "skip": "已忽略，下次作答後會重新安排",
+        "clear": "已恢復"
+      },
+      "summary": {
+        "title": "學伴看到的近期情況",
+        "working": "正在整理……",
+        "none": "還沒有摘要。有足夠的新學習紀錄時會自動整理一段，供學伴參考。"
+      },
+      "concepts": {
+        "title": "依知識點看作答證據",
+        "hint": "只是把錯題依知識點歸類計數，不會根據一道題推斷另一道題。",
+        "name": "知識點",
+        "scope": "考試範圍",
+        "inScope": "在範圍內"
       }
     }
   }

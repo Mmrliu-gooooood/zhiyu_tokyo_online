@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import {
   Archive,
   ArchiveRestore,
+  CalendarCheck,
   CalendarClock,
   ChevronLeft,
   BookX,
@@ -56,6 +57,7 @@ import {
 } from '@/components/study/spaces/StudyShell';
 import { ExamCountdown, RelativeTime } from '@/components/study/spaces/study-format';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { reviewApi } from '@/lib/study/review/client';
 import { StudyApiError, fetchStudyCapabilities, studyApi } from '@/lib/study/spaces/client';
 import { SpaceMaterialsSection } from '@/components/study/materials/SpaceMaterialsSection';
 import type { StudySpaceCourse, StudySpaceDetail } from '@/lib/study/spaces/contracts';
@@ -82,6 +84,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
   const [qaOn, setQaOn] = useState(false);
   const [examsOn, setExamsOn] = useState(false);
   const [wrongbookOn, setWrongbookOn] = useState(false);
+  const [reviewOn, setReviewOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,11 +94,17 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
       setQaOn(capabilities.qa);
       setExamsOn(capabilities.exams);
       setWrongbookOn(capabilities.wrongbook);
+      setReviewOn(capabilities.review);
+      // B12: bring the subject's Memory summary up to date in the background
+      // (the server calls the model only when the records changed enough).
+      if (capabilities.review && capabilities.memory) {
+        void reviewApi.refreshSummary(spaceId).catch(() => undefined);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [spaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,7 +195,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
             ) : null}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {examsOn ? (
             <Button asChild variant="outline" data-testid="study-open-practice">
               <Link href={`/study/${encodeURIComponent(space.id)}/practice`}>
@@ -200,6 +209,14 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
               <Link href={`/study/${encodeURIComponent(space.id)}/wrongbook`}>
                 <BookX className="mr-1 size-4" />
                 {t('study.wrongbook.open')}
+              </Link>
+            </Button>
+          ) : null}
+          {reviewOn ? (
+            <Button asChild variant="outline" data-testid="study-open-review">
+              <Link href={`/study/${encodeURIComponent(space.id)}/review`}>
+                <CalendarCheck className="mr-1 size-4" />
+                {t('study.review.open')}
               </Link>
             </Button>
           ) : null}

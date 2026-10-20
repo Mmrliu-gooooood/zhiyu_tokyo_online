@@ -7,8 +7,9 @@
  * v25 (classmate templates), v26 (after-class classmate chats), v27
  * (learning events, preferences and Memory controls), v28 (question bank,
  * papers and attempts), v29 (exercise extraction from materials), v30 (open
- * questions and their gradings), v31 (the wrong-answer book) and v32 (AI
- * top-ups, variants and practice assistance).
+ * questions and their gradings), v31 (the wrong-answer book), v32 (AI
+ * top-ups, variants and practice assistance) and v33 (review cards, review
+ * settings and Memory summaries).
  */
 import { splitSqlStatements, type Queryable } from '@openmaic/storage/document/pg';
 
@@ -26,11 +27,12 @@ import { STUDY_TABLES_SQL_V29 } from '@/lib/server/accounts/sql-study-extraction
 import { STUDY_TABLES_SQL_V30 } from '@/lib/server/accounts/sql-study-grading';
 import { STUDY_TABLES_SQL_V31 } from '@/lib/server/accounts/sql-study-wrongbook';
 import { STUDY_TABLES_SQL_V32 } from '@/lib/server/accounts/sql-study-practice';
+import { STUDY_TABLES_SQL_V33 } from '@/lib/server/accounts/sql-study-review';
 
 /** Needs the document schema and stage_meta first (foreign keys). */
 export async function ensureStudySchema(queryable: Queryable): Promise<void> {
   for (const statement of splitSqlStatements(
-    `${STUDY_TABLES_SQL_V22}\n${STUDY_TABLES_SQL_V23}\n${STUDY_TABLES_SQL_V24}\n${STUDY_KNOWLEDGE_STORAGE_LEGACY_SQL_V24}\n${STUDY_TABLES_SQL_V25}\n${STUDY_TABLES_SQL_V26}\n${STUDY_TABLES_SQL_V27}\n${STUDY_TABLES_SQL_V28}\n${STUDY_TABLES_SQL_V29}\n${STUDY_TABLES_SQL_V30}\n${STUDY_TABLES_SQL_V31}\n${STUDY_TABLES_SQL_V32}`,
+    `${STUDY_TABLES_SQL_V22}\n${STUDY_TABLES_SQL_V23}\n${STUDY_TABLES_SQL_V24}\n${STUDY_KNOWLEDGE_STORAGE_LEGACY_SQL_V24}\n${STUDY_TABLES_SQL_V25}\n${STUDY_TABLES_SQL_V26}\n${STUDY_TABLES_SQL_V27}\n${STUDY_TABLES_SQL_V28}\n${STUDY_TABLES_SQL_V29}\n${STUDY_TABLES_SQL_V30}\n${STUDY_TABLES_SQL_V31}\n${STUDY_TABLES_SQL_V32}\n${STUDY_TABLES_SQL_V33}`,
   )) {
     await queryable.query(statement);
   }

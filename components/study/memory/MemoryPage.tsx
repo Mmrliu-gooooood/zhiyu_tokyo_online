@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { RelativeTime } from '@/components/study/spaces/study-format';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -53,6 +54,7 @@ import {
 } from '@/lib/study/memory/contracts';
 import type { MemoryOverview } from '@/lib/study/memory/overview';
 import type { RecentState } from '@/lib/study/memory/recent-state';
+import { reviewApi } from '@/lib/study/review/client';
 import { StudyApiError, fetchStudyCapabilities } from '@/lib/study/spaces/client';
 
 const CHOICE_KEYS = Object.keys(PREFERENCE_CHOICES) as ChoicePreferenceKey[];
@@ -219,6 +221,10 @@ export function MemoryPage() {
             space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
           },
         );
+      case 'review_done':
+        return t(`study.memory.record.review.${String(payload.outcome ?? 'done')}`, {
+          space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
+        });
       case 'companion_question':
         return t('study.memory.record.companionQuestion', {
           space: spaceName(record.spaceIds[0] ?? null) || t('study.memory.record.unknownSpace'),
@@ -539,6 +545,9 @@ export function MemoryPage() {
 
   const recentCard = (recent: RecentState, title: string) => {
     const lines = recentLines(recent);
+    const summary = recent.spaceId
+      ? (data.summaries ?? []).find((item) => item.spaceId === recent.spaceId)
+      : undefined;
     return (
       <div
         key={recent.spaceId ?? 'all'}
@@ -555,6 +564,36 @@ export function MemoryPage() {
         ) : (
           <p className="mt-1.5 text-xs text-muted-foreground">{t('study.memory.recent.empty')}</p>
         )}
+        {summary?.text ? (
+          <div
+            className="mt-2 rounded-lg bg-muted/60 px-2.5 py-2 text-xs leading-5"
+            data-testid="memory-summary"
+          >
+            <p className="mb-0.5 font-medium text-muted-foreground">
+              {t('study.memory.summary.title')}
+            </p>
+            <p className="text-foreground">{summary.text}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <span>
+                {t('study.memory.summary.meta')} <RelativeTime iso={summary.createdAt} />
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() =>
+                  void run(
+                    () => reviewApi.deleteSummary(summary.spaceId),
+                    t('study.memory.summary.deleted'),
+                  )
+                }
+                data-testid="memory-summary-delete"
+              >
+                {t('study.memory.summary.delete')}
+              </button>
+            </p>
+          </div>
+        ) : null}
       </div>
     );
   };

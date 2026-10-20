@@ -42,6 +42,7 @@ import {
 import {
   conceptKey,
   effectiveRubric,
+  isGradable,
   packFingerprint,
   type QuestionContent,
   type QuestionOrigin,
@@ -386,6 +387,91 @@ export async function submitPaperAttempt(
     attempt: await getAttemptView(db, ownerId, attemptId),
     alreadySubmitted: outcome.kind === 'already',
   };
+}
+
+// ── redoing a wrong question (B12) ──────────────────────────────────────────
+
+/**
+ * Freeze a one-question practice paper with the current version of a bank
+ * question a wrong-answer item is about. Its answer joins the item's history
+ * (same question key) and, the question having been answered before, counts
+ * as practice, never as an independent check. Retrying with the same key
+ * returns the same paper.
+ */
+export async function publishRedoPaper(
+  db: StudyDb,
+  ownerId: string,
+  input: {
+    spaceId: string;
+    questionId: string;
+    wrongItemId: string;
+    questionKey: string;
+    title: string;
+    idempotencyKey: string;
+    allowOpen: boolean;
+  },
+): Promise<{ paperId: string; created: boolean }> {
+  const requestHash = createHash('sha256')
+    .update(JSON.stringify(['redo', input.wrongItemId, input.questionId, input.title]))
+    .digest('hex');
+  const replay = async () => {
+    const existing = await findPaperByKey(db, ownerId, input.idempotencyKey);
+    if (!existing) return null;
+    if (existing.requestHash !== requestHash) throw new StudyError('STUDY_IDEMPOTENCY_CONFLICT');
+    return { paperId: existing.id, created: false };
+  };
+  const earlier = await replay();
+  if (earlier) return earlier;
+  const outcome = await db.withTransaction(async (tx) => {
+    await requireQuestionSpace(tx, ownerId, input.spaceId, { writable: true });
+    const current = await tx.query<{ current_version: number; space_id: string }>(
+      `SELECT current_version, space_id FROM study_questions WHERE owner_id = $1 AND id = $2`,
+      [ownerId, input.questionId],
+    );
+    const row = current.rows[0];
+    if (!row || row.space_id !== input.spaceId) {
+      throw new StudyError('STUDY_REVIEW_REDO_UNAVAILABLE', { reason: 'question_gone' });
+    }
+    const versions = await loadQuestionVersions(tx, ownerId, [
+      { id: input.questionId, version: Number(row.current_version) },
+    ]);
+    const frozen = versions.get(`${input.questionId}@${Number(row.current_version)}`);
+    if (!frozen || !isGradable(frozen.content)) {
+      throw new StudyError('STUDY_REVIEW_REDO_UNAVAILABLE', { reason: 'not_gradable' });
+    }
+    if (frozen.content.type === 'short_answer' && !input.allowOpen) {
+      throw new StudyError('STUDY_REVIEW_REDO_UNAVAILABLE', { reason: 'open_unavailable' });
+    }
+    const item = resolvedVersion(frozen);
+    const paperId = createPaperId();
+    const inserted = await insertPaper(tx, ownerId, {
+      id: paperId,
+      spaceId: input.spaceId,
+      title: input.title,
+      mode: 'bank',
+      blueprint: {
+        spaceId: input.spaceId,
+        sections: [{ type: item.content.type, count: 1 }],
+        conceptIds: [],
+        stageId: null,
+        difficulty: 'any',
+        avoidSeen: false,
+        includeUnverified: true,
+        includePublic: true,
+        packIds: [],
+        seed: 'redo',
+        practice: { kind: 'redo', wrongItemId: input.wrongItemId, questionKey: input.questionKey },
+      },
+      items: [frozenItem(item)],
+      idempotencyKey: input.idempotencyKey,
+      requestHash,
+    });
+    return inserted ? { paperId, created: true } : null;
+  });
+  if (outcome) return outcome;
+  const raced = await replay();
+  if (!raced) throw new StudyError('STUDY_IDEMPOTENCY_CONFLICT');
+  return raced;
 }
 
 // ── papers fed by an AI practice job (B11) ──────────────────────────────────

@@ -538,6 +538,11 @@ export async function deleteAccountRelations(pool: Pool, userId: string): Promis
       // references a space and a parsed material version.
       await client.query('DELETE FROM study_question_candidates WHERE owner_id=$1', [ownerId]);
       await client.query('DELETE FROM study_question_extractions WHERE owner_id=$1', [ownerId]);
+      // Review cards and settings, Memory summaries (v33) under their space
+      // (cards also under their wrong item, so they go first).
+      await client.query('DELETE FROM study_review_cards WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_review_settings WHERE owner_id=$1', [ownerId]);
+      await client.query('DELETE FROM study_memory_summaries WHERE owner_id=$1', [ownerId]);
       // AI top-up and variant jobs (v32) under their space.
       await client.query('DELETE FROM study_practice_jobs WHERE owner_id=$1', [ownerId]);
       // Wrong-answer book (v31): occurrences reference their item and a paper attempt.

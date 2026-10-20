@@ -83,6 +83,8 @@ export interface StudyCapabilities {
   wrongbook: boolean;
   /** B11 AI top-ups, AI papers, variants and practice hints (needs exams). */
   practice: boolean;
+  /** B12 review tasks, mastery evidence and Memory summaries (needs the wrong-answer book). */
+  review: boolean;
 }
 
 const CAPABILITY_KEYS = [
@@ -97,6 +99,7 @@ const CAPABILITY_KEYS = [
   'grading',
   'wrongbook',
   'practice',
+  'review',
 ] as const satisfies ReadonlyArray<keyof StudyCapabilities>;
 
 function capabilitiesFrom(body: Record<string, unknown> | null): StudyCapabilities {

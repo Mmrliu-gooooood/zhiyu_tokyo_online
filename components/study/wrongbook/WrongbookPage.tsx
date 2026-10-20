@@ -15,7 +15,8 @@
  *   classroom page (offered only while it still shows the same content) —
  *   and asking a classmate, whose chat carries the question.
  * - Marking for review and archiving are the student's own; the order
- *   stays by the latest mistake (automatic review planning comes later).
+ *   stays by the latest mistake. Review planning is the review page's (B12),
+ *   which also opens an item's detail (`WrongItemBody`) in place.
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -616,7 +617,8 @@ function WrongItemCard({
   );
 }
 
-function WrongItemBody({
+/** One item's detail: answers, look back, asking a classmate, variants (also used by the review page, B12). */
+export function WrongItemBody({
   itemId,
   spaceId,
   chatOn,

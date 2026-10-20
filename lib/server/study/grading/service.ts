@@ -28,6 +28,7 @@ import { createLogger } from '@/lib/logger';
 import { runIndependentHeavyTaskRequest } from '@/lib/server/heavy-task-admission/independent-request';
 import { getAttemptView, paperItemWithKey } from '@/lib/server/study/exams/repository';
 import { projectExamAttempt } from '@/lib/server/study/memory/projector';
+import { invalidateAttemptSummary } from '@/lib/server/study/memory/summary';
 import { StudyError, type StudyDb } from '@/lib/server/study/spaces/repository';
 import {
   isOpenAnswer,
@@ -369,6 +370,10 @@ export async function gradeNextItem(
           : null;
         if (stored && outcome.status === 'succeeded') {
           await projectExamAttempt(db, ownerId, input.attemptId);
+          // A regrade changes what the space's Memory summary (B12) was written from.
+          if (claim.kind === 'review') {
+            await invalidateAttemptSummary(db, ownerId, input.attemptId);
+          }
         }
       }
       return Response.json(

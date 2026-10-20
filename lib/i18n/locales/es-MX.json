@@ -3018,7 +3018,12 @@
         "exam_graded": "Entregó una prueba",
         "hintUsed": "Vio la pista de la pregunta {{position}} al practicar en «{{space}}»",
         "solutionSeen": "Vio la respuesta de la pregunta {{position}} al practicar en «{{space}}»",
-        "examPractice": "{{independent}} preguntas nuevas resueltas solo · ayuda vista en {{helped}}"
+        "examPractice": "{{independent}} preguntas nuevas resueltas solo · ayuda vista en {{helped}}",
+        "review": {
+          "done": "Repasaste un error en {{space}}",
+          "postponed": "Pospusiste un repaso en {{space}}",
+          "skipped": "Omitiste un repaso en {{space}}"
+        }
       },
       "source": {
         "study_progress": "Progreso",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Esta preferencia ya no existe.",
         "STUDY_SPACE_NOT_FOUND": "Esta materia ya no existe.",
         "STUDY_INVALID_INPUT": "La entrada no es válida."
+      },
+      "summary": {
+        "title": "Resumen reciente (lo ven tus compañeros)",
+        "meta": "Escrito a partir de tus registros ·",
+        "delete": "Eliminar",
+        "deleted": "Resumen eliminado; los mismos registros no lo volverán a crear"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "Preguntas",
         "intro": "La IA escribe, a partir de la pregunta original (y fragmentos relacionados de los materiales de la materia), preguntas nuevas del mismo tema y método pero con otro contenido; nunca una copia.",
         "help": "En los exámenes de práctica puedes ver pistas o respuestas, y queda registrado; los resultados aparecen en el historial de esta pregunta."
+      }
+    },
+    "review": {
+      "open": "Repaso",
+      "title": "Repaso",
+      "subtitle": "Repasos planeados a partir de tus errores y respuestas: la repetición espaciada decide cuándo, y solo cuentan como evidencia las preguntas nuevas que respondiste bien por tu cuenta.",
+      "manualMode": "Memory está desactivada en esta materia: no se planea nada automáticamente. Solo aparecen las preguntas con fecha tuya o marcadas para repasar.",
+      "openMemory": "Ajustes de Memory",
+      "today": "Hoy {{date}}",
+      "dailyMinutes": "Tiempo por día",
+      "minutes": "{{count}} min",
+      "examIn": "Examen el {{date}} (faltan {{days}} días)",
+      "examPassed": "La fecha del examen {{date}} ya pasó",
+      "noExam": "Sin fecha de examen",
+      "scope": "Temario: {{scope}}",
+      "noScope": "Sin temario de examen",
+      "editExam": "Editar en la materia",
+      "empty": "Aún no hay errores en esta materia. Las preguntas que falles van al cuaderno de errores y se planean aquí.",
+      "dueToday": "Hoy",
+      "dueOn": "{{date}}",
+      "lastAnswer": "Última respuesta",
+      "evidenceLine": "Desde el error: {{independent}} preguntas nuevas bien por tu cuenta · {{helped}} bien con pista o solución · {{practiced}} rehechas bien",
+      "redoUnavailable": "Esta pregunta no se puede rehacer aquí (no es del banco de preguntas o se eliminó). Rehaz las preguntas de clase en su clase.",
+      "rules": "Reglas: las fechas salen de la repetición espaciada FSRS sobre tus respuestas; tus propias fechas tienen prioridad. «Estable» requiere dos preguntas nuevas distintas bien por tu cuenta después del error, al menos una no justo después. Rehacer la misma pregunta o acertar tras una pista o la solución cuenta como práctica. Es una regla del producto, no una prueba de capacidad.",
+      "section": {
+        "today": "Hoy · {{count}} (unos {{minutes}} min)",
+        "todayManual": "Hoy",
+        "todayEmpty": "Nada que repasar hoy.",
+        "overflow": "Para hoy, fuera de tu tiempo · {{count}}",
+        "overflowHint": "Al final: sigue si tienes tiempo; si no, mañana.",
+        "unscheduled": "Sin fecha · {{count}}",
+        "unscheduledHint": "Con Memory desactivada no se planea nada: pospón una pregunta a un día o márcala en el cuaderno de errores.",
+        "upcoming": "Después · {{count}}",
+        "stable": "Estables · {{count}}",
+        "stableHint": "Respuestas propias estables; un vistazo más cuando toque.",
+        "skipped": "Omitidas · {{count}}",
+        "none": "Ninguna."
+      },
+      "evidence": {
+        "pending": "Por repasar",
+        "practiced": "Rehecha bien",
+        "helped": "Bien con ayuda",
+        "independent": "1 pregunta nueva bien",
+        "stable": "Estable"
+      },
+      "reason": {
+        "overdue": "{{days}} días de retraso",
+        "due": "Repetición espaciada: {{date}}",
+        "exam": "Un repaso antes del examen ({{date}})",
+        "scope": "En el temario: {{concepts}}",
+        "out_of_scope": "Fuera del temario",
+        "recentWrong": "Fallada {{count}} veces en los últimos {{days}} días",
+        "not_rechecked": "Sin intentar de nuevo desde el error",
+        "flagged": "La marcaste para repasar",
+        "manual": "La pusiste para el {{date}}",
+        "unlinked": "Sin tema"
+      },
+      "action": {
+        "redo": "Rehacer",
+        "done": "Repasada",
+        "doneHint": "Revisaste la explicación: el próximo repaso se planea como un recuerdo difícil; no cuenta como evidencia",
+        "postpone": "Posponer",
+        "postponeDays": "Al {{date}} (en {{count}} días)",
+        "unpostpone": "Quitar aplazamiento",
+        "skip": "Omitir",
+        "skipHint": "Dejarla fuera hasta tu próxima respuesta",
+        "restore": "Restaurar",
+        "open": "Abrir",
+        "close": "Cerrar"
+      },
+      "done": {
+        "done": "Anotado: repasada",
+        "postpone": "Pospuesta al {{date}}",
+        "skip": "Omitida hasta tu próxima respuesta",
+        "clear": "Restaurada"
+      },
+      "summary": {
+        "title": "Lo que ven tus compañeros",
+        "working": "Actualizando…",
+        "none": "Aún no hay resumen. Se escribe cuando hay suficientes registros nuevos."
+      },
+      "concepts": {
+        "title": "Evidencia por tema",
+        "hint": "Los errores solo se cuentan por tema; no se infiere de una pregunta a otra.",
+        "name": "Tema",
+        "scope": "Temario",
+        "inScope": "En el temario"
       }
     }
   }

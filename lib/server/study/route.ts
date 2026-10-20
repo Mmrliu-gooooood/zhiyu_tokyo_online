@@ -28,6 +28,7 @@ import {
   isStudyMemoryFlagOn,
   isStudyPracticeFlagOn,
   isStudyQaFlagOn,
+  isStudyReviewFlagOn,
   isStudyWrongbookFlagOn,
 } from '@/lib/server/study/flags';
 
@@ -250,6 +251,24 @@ export function studyPracticeRoute(
   handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
 ): Promise<Response> {
   if (!isStudyPracticeEnabled()) {
+    return Promise.resolve(
+      new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+    );
+  }
+  return studyRoute(req, handler);
+}
+
+/** B12 review tasks and Memory summaries: the wrong-answer book plus ZHIYU_STUDY_REVIEW_ENABLED. */
+export function isStudyReviewEnabled(): boolean {
+  return isStudyReviewFlagOn() && isStudyWrongbookEnabled();
+}
+
+/** studyRoute for the review-task and summary APIs. */
+export function studyReviewRoute(
+  req: Request,
+  handler: (ownerId: string, db: StudyDb, headers: Headers) => Promise<Response>,
+): Promise<Response> {
+  if (!isStudyReviewEnabled()) {
     return Promise.resolve(
       new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } }),
     );

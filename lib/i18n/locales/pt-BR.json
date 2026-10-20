@@ -3018,7 +3018,12 @@
         "exam_graded": "Entregou uma prova",
         "hintUsed": "Viu a dica da questão {{position}} ao praticar em \"{{space}}\"",
         "solutionSeen": "Viu a resposta da questão {{position}} ao praticar em \"{{space}}\"",
-        "examPractice": "{{independent}} questões novas feitas sozinho · ajuda vista em {{helped}}"
+        "examPractice": "{{independent}} questões novas feitas sozinho · ajuda vista em {{helped}}",
+        "review": {
+          "done": "Revisou um erro em {{space}}",
+          "postponed": "Adiou uma revisão em {{space}}",
+          "skipped": "Ignorou uma revisão em {{space}}"
+        }
       },
       "source": {
         "study_progress": "Progresso",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Esta preferência não existe mais.",
         "STUDY_SPACE_NOT_FOUND": "Esta matéria não existe mais.",
         "STUDY_INVALID_INPUT": "Entrada inválida."
+      },
+      "summary": {
+        "title": "Resumo recente (visível aos colegas)",
+        "meta": "Escrito a partir dos seus registros ·",
+        "delete": "Excluir",
+        "deleted": "Resumo excluído; os mesmos registros não o recriarão"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "Questões",
         "intro": "A IA escreve, a partir da questão original (e de trechos relacionados dos materiais da matéria), questões novas do mesmo tópico e método, mas com outro conteúdo — nunca uma cópia.",
         "help": "Nas provas de prática você pode ver dicas ou respostas, e isso fica registrado; os resultados aparecem no histórico desta questão."
+      }
+    },
+    "review": {
+      "open": "Revisão",
+      "title": "Revisão",
+      "subtitle": "Revisões planejadas a partir dos seus erros e respostas: a repetição espaçada decide quando, e só contam como evidência questões novas que você acertou sozinho.",
+      "manualMode": "A Memory está desligada nesta matéria: nada é planejado automaticamente. Só aparecem as questões com data sua ou marcadas para revisar.",
+      "openMemory": "Ajustes da Memory",
+      "today": "Hoje {{date}}",
+      "dailyMinutes": "Tempo por dia",
+      "minutes": "{{count}} min",
+      "examIn": "Prova em {{date}} (faltam {{days}} dias)",
+      "examPassed": "A data da prova {{date}} já passou",
+      "noExam": "Sem data de prova",
+      "scope": "Conteúdo: {{scope}}",
+      "noScope": "Sem conteúdo de prova",
+      "editExam": "Editar na matéria",
+      "empty": "Ainda não há erros nesta matéria. As questões que você errar vão para o caderno de erros e são planejadas aqui.",
+      "dueToday": "Hoje",
+      "dueOn": "{{date}}",
+      "lastAnswer": "Última resposta",
+      "evidenceLine": "Desde o erro: {{independent}} questões novas certas sozinho · {{helped}} certas com dica ou solução · {{practiced}} refeitas certas",
+      "redoUnavailable": "Esta questão não pode ser refeita aqui (não é do banco de questões ou foi excluída). Refaça questões de aula na aula.",
+      "rules": "Regras: as datas vêm da repetição espaçada FSRS sobre suas respostas; suas próprias datas têm prioridade. \"Estável\" exige duas questões novas diferentes acertadas sozinho depois do erro, pelo menos uma não logo em seguida. Refazer a mesma questão ou acertar depois de dica ou solução conta como prática. É uma regra do produto, não um teste de capacidade.",
+      "section": {
+        "today": "Hoje · {{count}} (cerca de {{minutes}} min)",
+        "todayManual": "Hoje",
+        "todayEmpty": "Nada para revisar hoje.",
+        "overflow": "Para hoje, além do seu tempo · {{count}}",
+        "overflowHint": "No final: continue se tiver tempo; senão, amanhã.",
+        "unscheduled": "Sem data · {{count}}",
+        "unscheduledHint": "Com a Memory desligada nada é planejado: adie uma questão para um dia ou marque-a no caderno de erros.",
+        "upcoming": "Depois · {{count}}",
+        "stable": "Estáveis · {{count}}",
+        "stableHint": "Respostas próprias estáveis; mais uma olhada no vencimento.",
+        "skipped": "Ignoradas · {{count}}",
+        "none": "Nenhuma."
+      },
+      "evidence": {
+        "pending": "A revisar",
+        "practiced": "Refeita certa",
+        "helped": "Certa com ajuda",
+        "independent": "1 questão nova certa",
+        "stable": "Estável"
+      },
+      "reason": {
+        "overdue": "{{days}} dias atrasada",
+        "due": "Repetição espaçada: {{date}}",
+        "exam": "Mais uma revisão antes da prova ({{date}})",
+        "scope": "No conteúdo: {{concepts}}",
+        "out_of_scope": "Fora do conteúdo",
+        "recentWrong": "Errada {{count}} vezes nos últimos {{days}} dias",
+        "not_rechecked": "Não tentada de novo desde o erro",
+        "flagged": "Você marcou para revisar",
+        "manual": "Você marcou para {{date}}",
+        "unlinked": "Sem tópico"
+      },
+      "action": {
+        "redo": "Refazer",
+        "done": "Revisada",
+        "doneHint": "Você revisou a explicação: a próxima revisão é planejada como lembrança difícil; não conta como evidência",
+        "postpone": "Adiar",
+        "postponeDays": "Para {{date}} (em {{count}} dias)",
+        "unpostpone": "Desfazer adiamento",
+        "skip": "Ignorar",
+        "skipHint": "Deixar de fora até sua próxima resposta",
+        "restore": "Restaurar",
+        "open": "Abrir",
+        "close": "Fechar"
+      },
+      "done": {
+        "done": "Anotado: revisada",
+        "postpone": "Adiada para {{date}}",
+        "skip": "Ignorada até sua próxima resposta",
+        "clear": "Restaurada"
+      },
+      "summary": {
+        "title": "O que os colegas veem",
+        "working": "Atualizando…",
+        "none": "Ainda sem resumo. Ele é escrito quando há registros novos suficientes."
+      },
+      "concepts": {
+        "title": "Evidência por tópico",
+        "hint": "Os erros são só contados por tópico; nada é inferido de uma questão para outra.",
+        "name": "Tópico",
+        "scope": "Conteúdo",
+        "inScope": "No conteúdo"
       }
     }
   }

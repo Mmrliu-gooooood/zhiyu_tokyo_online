@@ -141,6 +141,8 @@ export async function setMemoryControl(
            RETURNING space_id, enabled, enabled_since, revision, updated_at`,
           [ownerId, spaceId, enabled],
         );
+    // Off: the summaries written from this Memory go with it (B12).
+    if (!enabled) await deleteSummaryRows(tx, ownerId, spaceId);
     return controlOf(result.rows[0]!);
   });
 }
@@ -265,6 +267,28 @@ export async function deletePreference(
   });
 }
 
+// ── summaries (B12) ─────────────────────────────────────────────────────────
+
+/**
+ * Delete the derived Memory summaries (v33) of one space, or all of them
+ * (`spaceId` null), after their inputs were deleted or corrected, or Memory
+ * was turned off. A no-op before v33.
+ */
+export async function deleteSummaryRows(
+  db: Queryable,
+  ownerId: string,
+  spaceId: string | null,
+): Promise<void> {
+  const present = await db.query<{ present: boolean }>(
+    "SELECT to_regclass('study_memory_summaries') IS NOT NULL AS present",
+  );
+  if (present.rows[0]?.present !== true) return;
+  await db.query(
+    `DELETE FROM study_memory_summaries WHERE owner_id = $1 AND ($2::text IS NULL OR space_id = $2)`,
+    [ownerId, spaceId],
+  );
+}
+
 // ── suppressions ────────────────────────────────────────────────────────────
 
 export async function suppress(
@@ -362,6 +386,8 @@ export async function createFact(
   return db.withTransaction(async (tx) => {
     await assertSpace(tx, ownerId, input.spaceId);
     if (input.origin === 'correction') {
+      // A correction changes what summaries were written from (B12).
+      await deleteSummaryRows(tx, ownerId, null);
       const record = await tx.query(
         `SELECT 1 FROM study_learning_events WHERE owner_id = $1 AND source_key = $2`,
         [ownerId, input.correctsKey],
@@ -423,6 +449,7 @@ export async function updateFact(
       throw new StudyError('STUDY_REVISION_CONFLICT', { current: factOf(current) });
     }
     await assertSpace(tx, ownerId, spaceId);
+    if (current.origin === 'correction') await deleteSummaryRows(tx, ownerId, null);
     const result = await tx.query<FactRow>(
       `UPDATE study_memory_facts
           SET text = $3, space_id = $4, revision = revision + 1, updated_at = clock_timestamp()
@@ -435,11 +462,12 @@ export async function updateFact(
 }
 
 export async function deleteFact(db: Queryable, ownerId: string, factId: string): Promise<void> {
-  const result = await db.query(
-    `DELETE FROM study_memory_facts WHERE owner_id = $1 AND id = $2 RETURNING id`,
+  const result = await db.query<{ origin: FactOrigin }>(
+    `DELETE FROM study_memory_facts WHERE owner_id = $1 AND id = $2 RETURNING origin`,
     [ownerId, factId],
   );
   if (result.rows.length === 0) throw new StudyError('STUDY_MEMORY_FACT_NOT_FOUND');
+  if (result.rows[0]!.origin === 'correction') await deleteSummaryRows(db, ownerId, null);
 }
 
 // ── learning events ─────────────────────────────────────────────────────────
@@ -589,6 +617,7 @@ export async function deleteLearningRecord(
       key,
     ]);
     await suppress(tx, ownerId, 'event', [key], 'deleted');
+    await deleteSummaryRows(tx, ownerId, null);
   });
 }
 
@@ -639,6 +668,7 @@ export async function clearMemory(
       );
     }
     if (options.facts || options.records) {
+      await deleteSummaryRows(tx, ownerId, null);
       // Corrections belong to their records: clearing either removes them.
       const deleted = await tx.query(
         `DELETE FROM study_memory_facts

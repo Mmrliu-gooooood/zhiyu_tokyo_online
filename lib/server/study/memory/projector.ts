@@ -383,6 +383,44 @@ export async function projectExamAttempt(
   }
 }
 
+/**
+ * A review action the student took (B12): reviewed, postponed or skipped one
+ * wrong-answer item. Recorded under the same switches as every other record;
+ * best effort (the action itself is saved either way).
+ */
+export async function projectReviewAction(
+  db: MaybeTransactional,
+  ownerId: string,
+  input: {
+    itemId: string;
+    spaceId: string;
+    revision: number;
+    outcome: 'done' | 'postponed' | 'skipped';
+    occurredAt: string;
+  },
+): Promise<void> {
+  if (!isStudyMemoryFlagOn()) return;
+  try {
+    await inTransaction(db, (tx) =>
+      record(tx, ownerId, [
+        {
+          type: 'review_done',
+          payloadVersion: 1,
+          sourceType: 'review_task',
+          sourceId: input.itemId,
+          sourceKey: `review:${input.itemId}:${input.revision}`,
+          stageId: null,
+          spaceId: input.spaceId,
+          occurredAt: input.occurredAt,
+          payload: { reviewTaskId: input.itemId, outcome: input.outcome },
+        },
+      ]),
+    );
+  } catch (error) {
+    log.warn('review projection failed', { code: (error as { code?: string }).code });
+  }
+}
+
 const lastSync = new Map<string, number>();
 const inFlight = new Map<string, Promise<SyncOutcome>>();
 const SYNC_INTERVAL_MS = 15_000;

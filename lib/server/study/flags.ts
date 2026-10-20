@@ -99,3 +99,16 @@ export function isStudyPracticeFlagOn(env: NodeJS.ProcessEnv = process.env): boo
   const flag = env.ZHIYU_STUDY_PRACTICE_ENABLED;
   return (flag === '1' || flag === 'true') && isStudyExamsFlagOn(env);
 }
+
+/**
+ * ZHIYU_STUDY_REVIEW_ENABLED: review tasks, mastery evidence and short Memory
+ * summaries (learning plan B12). Needs the wrong-answer book (B10). Web
+ * schedules and writes summaries (with the student's model, only when the
+ * records changed); the generation worker reads a summary into after-class
+ * chats, so set it there too. Off: no review list, no new summaries and none
+ * injected; wrong items, papers and Memory work as before.
+ */
+export function isStudyReviewFlagOn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZHIYU_STUDY_REVIEW_ENABLED;
+  return (flag === '1' || flag === 'true') && isStudyWrongbookFlagOn(env);
+}

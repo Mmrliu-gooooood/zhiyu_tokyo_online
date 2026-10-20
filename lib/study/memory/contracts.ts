@@ -200,6 +200,8 @@ export const MEMORY_LIMITS = {
   injectItems: 8,
   injectFacts: 4,
   injectTokens: 300,
+  /** A space's summary (B12) comes on top, within its own cap. */
+  summaryTokens: 220,
   /** Recent-state window. */
   recentDays: 14,
   /** Characters of a chat question kept in its learning record. */
@@ -370,9 +372,12 @@ export type MemoryContextState =
   | 'unavailable';
 
 export interface MemoryContextItem {
-  /** Stable reference, e.g. `pref:example_order@global`, `fact:mf-…`, `goal:space`. */
+  /**
+   * Stable reference, e.g. `pref:example_order@global`, `fact:mf-…`,
+   * `goal:space`, `summary:<spaceId>@<watermark>`.
+   */
   ref: string;
-  kind: 'preference' | 'fact' | 'goal';
+  kind: 'preference' | 'fact' | 'goal' | 'summary';
   text: string;
 }
 
@@ -428,6 +433,8 @@ export interface MemoryContextInput {
   /** The study space's own goal and exam date (B01), when set. */
   spaceGoal: { goal: string | null; examDate: string | null } | null;
   spaceId: string;
+  /** The space's ready summary of recent records (B12), if any. */
+  summary?: { text: string; sourceWatermark: number | null } | null;
 }
 
 function preferenceRef(item: Pick<PreferenceView, 'key' | 'spaceId'>): string {
@@ -501,17 +508,41 @@ export function selectMemoryContext(
     tokens += cost;
     chosen.push(item);
   }
+  const summary = input.summary?.text ? quote(input.summary.text) : '';
+  if (summary && approximateTokens(summary) <= MEMORY_LIMITS.summaryTokens) {
+    chosen.push({
+      ref: `summary:${input.spaceId}@${input.summary?.sourceWatermark ?? 0}`,
+      kind: 'summary',
+      text: summary,
+    });
+  }
   return chosen;
 }
 
 /** The system-prompt block for the chosen items ('' when none). */
 export function renderMemoryBlock(items: readonly MemoryContextItem[]): string {
-  if (items.length === 0) return '';
-  return [
-    '学生在 Memory 里设定的偏好与情况（由学生本人填写或确认；所有学伴共用）：',
-    ...items.map((item) => `- ${item.text}`),
-    '直接按这些偏好来讲；学生在本轮另有要求时以本轮要求为准。不要提到偏好或设定本身（不要说“按你的偏好”“根据你的设定”之类的话），也不要向学生复述这段内容，更不要把它当作学生已经掌握某个知识点的证据。',
-  ].join('\n');
+  const own = items.filter((item) => item.kind !== 'summary');
+  const summary = items.find((item) => item.kind === 'summary');
+  const parts: string[] = [];
+  if (own.length > 0) {
+    parts.push(
+      [
+        '学生在 Memory 里设定的偏好与情况（由学生本人填写或确认；所有学伴共用）：',
+        ...own.map((item) => `- ${item.text}`),
+        '直接按这些偏好来讲；学生在本轮另有要求时以本轮要求为准。不要提到偏好或设定本身（不要说“按你的偏好”“根据你的设定”之类的话），也不要向学生复述这段内容，更不要把它当作学生已经掌握某个知识点的证据。',
+      ].join('\n'),
+    );
+  }
+  if (summary) {
+    parts.push(
+      [
+        '本学科近期学习情况（系统按学习记录自动整理的摘要，可能不完整，只供参考）：',
+        summary.text,
+        '可以据此判断从哪里讲起，但以学生本轮说的为准；不要向学生复述这段摘要，也不要把它当作学生已经掌握某个知识点的证据。',
+      ].join('\n'),
+    );
+  }
+  return parts.join('\n\n');
 }
 
 // ── what a classroom reply receives ─────────────────────────────────────────

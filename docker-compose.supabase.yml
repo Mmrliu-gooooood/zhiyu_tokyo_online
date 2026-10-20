@@ -139,6 +139,9 @@ x-runtime-environment: &runtime-environment
   ZHIYU_STUDY_WRONGBOOK_ENABLED: ${ZHIYU_STUDY_WRONGBOOK_ENABLED:-}
   # AI practice: top-ups, AI papers, variants (B11). Needs accounts v32; web reads it.
   ZHIYU_STUDY_PRACTICE_ENABLED: ${ZHIYU_STUDY_PRACTICE_ENABLED:-}
+  # Review tasks, mastery evidence, Memory summaries (B12). Needs accounts v33;
+  # web schedules and writes summaries, the worker reads them into chats.
+  ZHIYU_STUDY_REVIEW_ENABLED: ${ZHIYU_STUDY_REVIEW_ENABLED:-}
   ZHIYU_DEFAULT_TEXT_MODEL: ${ZHIYU_DEFAULT_TEXT_MODEL:-}
   ZHIYU_DEFAULT_TEXT_DISPLAY_NAME: ${ZHIYU_DEFAULT_TEXT_DISPLAY_NAME:-}
   ZHIYU_DEFAULT_TEXT_ENABLED: ${ZHIYU_DEFAULT_TEXT_ENABLED:-}

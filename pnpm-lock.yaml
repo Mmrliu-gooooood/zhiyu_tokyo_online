@@ -380,6 +380,9 @@ importers:
       tokenlens:
         specifier: ^1.3.1
         version: 1.3.1
+      ts-fsrs:
+        specifier: 5.4.2
+        version: 5.4.2
       turndown:
         specifier: ^7.2.4
         version: 7.2.4
@@ -12569,6 +12572,10 @@ packages:
   ts-dedent@2.3.0:
     resolution: {integrity: sha512-JfJeIHke7y2egdGGgRAvpCwYFUsHlM2gPcrVOxFkznt/4uzQ7HFmvE63iFHVLBJNDuyDOQgijDK/tXH/f6Msjg==}
     engines: {node: '>=6.10'}
+
+  ts-fsrs@5.4.2:
+    resolution: {integrity: sha512-z4qop4pzTcyTzuJ566d9EaX/4bZZzhYfeaPImfVr+xcYT65c5oBgFDijUhCE/D+C78eaolHIhKRZ04/RwF+v2g==}
+    engines: {node: '>=20.0.0'}
 
   ts-json-schema-generator@2.4.0:
     resolution: {integrity: sha512-HbmNsgs58CfdJq0gpteRTxPXG26zumezOs+SB9tgky6MpqiFgQwieCn2MW70+sxpHouZ/w9LW0V6L4ZQO4y1Ug==}
@@ -27364,6 +27371,8 @@ snapshots:
       typescript: 5.9.3
 
   ts-dedent@2.3.0: {}
+
+  ts-fsrs@5.4.2: {}
 
   ts-json-schema-generator@2.4.0:
     dependencies:

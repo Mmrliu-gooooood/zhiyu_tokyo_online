@@ -3018,7 +3018,12 @@
         "exam_graded": "完成了一次测试",
         "hintUsed": "在「{{space}}」的练习中看了第 {{position}} 题的提示",
         "solutionSeen": "在「{{space}}」的练习中看了第 {{position}} 题的答案",
-        "examPractice": "独立完成新题 {{independent}} 道 · 看过提示或答案 {{helped}} 道"
+        "examPractice": "独立完成新题 {{independent}} 道 · 看过提示或答案 {{helped}} 道",
+        "review": {
+          "done": "在{{space}}复习了一道错题",
+          "postponed": "在{{space}}推迟了一道错题的复习",
+          "skipped": "在{{space}}暂时忽略了一道错题"
+        }
       },
       "source": {
         "study_progress": "学习进度",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "这项偏好已不存在。",
         "STUDY_SPACE_NOT_FOUND": "这个学科已不存在。",
         "STUDY_INVALID_INPUT": "内容格式不正确。"
+      },
+      "summary": {
+        "title": "近期情况摘要（学伴可见）",
+        "meta": "系统按学习记录整理 ·",
+        "delete": "删除",
+        "deleted": "已删除摘要，同样的记录不会再生成"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "题数",
         "intro": "AI 依据原题（以及本学科资料中相关的段落）写同知识点、同类思路但内容不同的新题，不会照抄原题。",
         "help": "练习卷里可以看提示或答案，会被记录；练习的结果会出现在这道错题的作答记录里。"
+      }
+    },
+    "review": {
+      "open": "复习",
+      "title": "复习",
+      "subtitle": "按你的错题和作答记录安排复习：什么时候复习由间隔重复推算，掌握与否只看你独立答对新题的记录。",
+      "manualMode": "这个学科的 Memory 已关闭：系统不自动安排复习，下面只列出你自己安排了日期或标记为待复习的题。",
+      "openMemory": "打开 Memory 设置",
+      "today": "今天 {{date}}",
+      "dailyMinutes": "每天可用时间",
+      "minutes": "{{count}} 分钟",
+      "examIn": "考试 {{date}}（还有 {{days}} 天）",
+      "examPassed": "考试日期 {{date}} 已过",
+      "noExam": "没有设置考试日期",
+      "scope": "范围：{{scope}}",
+      "noScope": "没有设置考试范围",
+      "editExam": "在学科中修改",
+      "empty": "这个学科还没有错题。答错的题会进入错题本，并在这里安排复习。",
+      "dueToday": "今天",
+      "dueOn": "{{date}}",
+      "lastAnswer": "最近一次作答",
+      "evidenceLine": "答错后：独立答对新题 {{independent}} 道 · 看提示或答案后答对 {{helped}} 次 · 重做答对 {{practiced}} 次",
+      "redoUnavailable": "这道题不能直接重做（不是题库里的题，或已经删除）。课堂里的题请回到课堂重做。",
+      "rules": "规则：复习时间用 FSRS 间隔重复按你的作答推算，你自己设定的日期优先。“稳定”需要答错后独立答对两道不同的新题，且至少一道不是紧接着答错之后做的；原题重做、看过提示或答案后答对只算练习。这是产品规则，不是能力测评。",
+      "section": {
+        "today": "今天 · {{count}} 道（约 {{minutes}} 分钟）",
+        "todayManual": "今天",
+        "todayEmpty": "今天没有要复习的题。",
+        "overflow": "今天到期、超出可用时间 · {{count}} 道",
+        "overflowHint": "排在后面：时间允许可以继续做，否则明天再看。",
+        "unscheduled": "未安排 · {{count}} 道",
+        "unscheduledHint": "Memory 关闭时不会自动安排，可以推迟到某一天，或在错题本里标记待复习。",
+        "upcoming": "之后 · {{count}} 道",
+        "stable": "已稳定 · {{count}} 道",
+        "stableHint": "已有稳定的独立作答记录，到期时再看一次。",
+        "skipped": "已忽略 · {{count}} 道",
+        "none": "没有。"
+      },
+      "evidence": {
+        "pending": "待复习",
+        "practiced": "重做答对",
+        "helped": "提示后答对",
+        "independent": "独立答对 1 道新题",
+        "stable": "稳定"
+      },
+      "reason": {
+        "overdue": "已过期 {{days}} 天",
+        "due": "按间隔重复安排在 {{date}}",
+        "exam": "考试（{{date}}）前再复习一次",
+        "scope": "在考试范围内：{{concepts}}",
+        "out_of_scope": "不在考试范围内",
+        "recentWrong": "最近 {{days}} 天错了 {{count}} 次",
+        "not_rechecked": "答错后还没有再做过",
+        "flagged": "你标记了待复习",
+        "manual": "你安排在 {{date}}",
+        "unlinked": "没有关联知识点"
+      },
+      "action": {
+        "redo": "重做原题",
+        "done": "复习过了",
+        "doneHint": "看过解析、自己重新想过：按“想起来有点难”安排下次复习，不算作答证据",
+        "postpone": "推迟",
+        "postponeDays": "推迟到 {{date}}（{{count}} 天后）",
+        "unpostpone": "取消推迟",
+        "skip": "忽略",
+        "skipHint": "暂时不复习这道题，下次作答后会重新安排",
+        "restore": "恢复",
+        "open": "展开",
+        "close": "收起"
+      },
+      "done": {
+        "done": "已记下：复习过了",
+        "postpone": "已推迟到 {{date}}",
+        "skip": "已忽略，下次作答后会重新安排",
+        "clear": "已恢复"
+      },
+      "summary": {
+        "title": "学伴看到的近期情况",
+        "working": "正在整理……",
+        "none": "还没有摘要。有足够的新学习记录时会自动整理一段，供学伴参考。"
+      },
+      "concepts": {
+        "title": "按知识点看作答证据",
+        "hint": "只是把错题按知识点归类计数，不会根据一道题推断另一道题。",
+        "name": "知识点",
+        "scope": "考试范围",
+        "inScope": "在范围内"
       }
     }
   }

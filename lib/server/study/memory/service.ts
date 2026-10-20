@@ -9,7 +9,10 @@ import { MEMORY_LIMITS } from '@/lib/study/memory/contracts';
 import type { MemoryOverview, MemorySpaceInfo } from '@/lib/study/memory/overview';
 import { aggregateRecentState } from '@/lib/study/memory/recent-state';
 
+import { isStudyReviewFlagOn } from '@/lib/server/study/flags';
+
 import { syncLearningEvents } from './projector';
+import { readSummaries } from './summary';
 import {
   listFacts,
   listLearningRecords,
@@ -64,9 +67,10 @@ export async function readMemoryOverview(
     const suppressed = await listSuppressions(tx, ownerId, ['preference', 'suggestion']);
     const since = new Date(now.getTime() - MEMORY_LIMITS.recentDays * 86_400_000).toISOString();
     const recent = await listLearningRecords(tx, ownerId, { since, limit: 2000 });
-    return { controls, spaceRows, preferences, facts, records, suppressed, recent };
+    const summaries = isStudyReviewFlagOn() ? await readSummaries(tx, ownerId) : [];
+    return { controls, spaceRows, preferences, facts, records, suppressed, recent, summaries };
   });
-  const { controls, spaceRows, preferences, facts, records, suppressed, recent } = read;
+  const { controls, spaceRows, preferences, facts, records, suppressed, recent, summaries } = read;
   const stateRecords = recent.map((record) => ({
     seq: record.seq,
     type: record.type,
@@ -117,5 +121,6 @@ export async function readMemoryOverview(
     names: { courses, classmates },
     suppressedSuggestions: [...new Set(suppressed.map((item) => item.key))],
     sync,
+    summaries,
   };
 }

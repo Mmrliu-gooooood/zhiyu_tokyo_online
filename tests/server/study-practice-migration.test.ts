@@ -191,8 +191,8 @@ const REQUEST: VariantJobRequest = {
 
 describe('accounts v32 AI practice', () => {
   it('is registered with a checksum', () => {
-    expect(ACCOUNTS_SCHEMA_VERSION).toBe(32);
-    expect(ACCOUNT_MIGRATIONS.at(-1)?.version).toBe(32);
+    expect(ACCOUNTS_SCHEMA_VERSION).toBeGreaterThanOrEqual(32);
+    expect(ACCOUNT_MIGRATIONS.some((migration) => migration.version === 32)).toBe(true);
     expect(accountsMigrationChecksum(32)).toMatch(/^[0-9a-f]{64}$/);
   });
 

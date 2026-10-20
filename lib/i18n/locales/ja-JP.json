@@ -3018,7 +3018,12 @@
         "exam_graded": "試験を提出しました",
         "hintUsed": "「{{space}}」の練習で第 {{position}} 問のヒントを見た",
         "solutionSeen": "「{{space}}」の練習で第 {{position}} 問の答えを見た",
-        "examPractice": "新しい問題を自力で正解 {{independent}} 問 · ヒントか答えを見た {{helped}} 問"
+        "examPractice": "新しい問題を自力で正解 {{independent}} 問 · ヒントか答えを見た {{helped}} 問",
+        "review": {
+          "done": "{{space}}で間違えた問題を復習しました",
+          "postponed": "{{space}}で復習を延期しました",
+          "skipped": "{{space}}で復習をスキップしました"
+        }
       },
       "source": {
         "study_progress": "学習進度",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "この好みはもう存在しません。",
         "STUDY_SPACE_NOT_FOUND": "この科目はもう存在しません。",
         "STUDY_INVALID_INPUT": "入力内容が正しくありません。"
+      },
+      "summary": {
+        "title": "最近の要約（クラスメートに表示）",
+        "meta": "学習記録から作成 ·",
+        "delete": "削除",
+        "deleted": "要約を削除しました。同じ記録から再作成はしません"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "問題数",
         "intro": "AI が元の問題（とこの科目の資料の関連部分）をもとに、同じ知識ポイント・同じ考え方で内容の違う新しい問題を作ります。元の問題をそのまま写すことはありません。",
         "help": "練習用のテストではヒントや答えを見られ、それは記録されます。結果はこの誤答の履歴に表示されます。"
+      }
+    },
+    "review": {
+      "open": "復習",
+      "title": "復習",
+      "subtitle": "間違えた問題と解答記録から復習を計画します。いつ復習するかは間隔反復で決まり、身についたかどうかは新しい問題を自力で解けた記録だけで判断します。",
+      "manualMode": "この科目の Memory はオフです。自動の復習予定は作りません。自分で日付を決めた問題と「要復習」にした問題だけを表示します。",
+      "openMemory": "Memory 設定",
+      "today": "今日 {{date}}",
+      "dailyMinutes": "1日の時間",
+      "minutes": "{{count}} 分",
+      "examIn": "試験 {{date}}（あと {{days}} 日）",
+      "examPassed": "試験日 {{date}} は過ぎました",
+      "noExam": "試験日なし",
+      "scope": "範囲：{{scope}}",
+      "noScope": "試験範囲なし",
+      "editExam": "科目で編集",
+      "empty": "この科目にはまだ間違えた問題がありません。間違えた問題はまちがいノートに入り、ここで復習を計画します。",
+      "dueToday": "今日",
+      "dueOn": "{{date}}",
+      "lastAnswer": "最後の解答",
+      "evidenceLine": "間違えた後：新しい問題を自力で正解 {{independent}} 問 · ヒント／解答を見て正解 {{helped}} 回 · 解き直して正解 {{practiced}} 回",
+      "redoUnavailable": "この問題はここで解き直せません（問題バンクの問題でないか、削除されています）。授業の問題は授業で解き直してください。",
+      "rules": "ルール：復習日は解答をもとに FSRS 間隔反復で計算し、自分で決めた日付を優先します。「定着」には、間違えた後に別々の新しい問題を2問自力で正解し、そのうち少なくとも1問が間違えた直後ではないことが必要です。同じ問題の解き直しや、ヒント・解答を見た後の正解は練習として扱います。これは製品のルールで、能力テストではありません。",
+      "section": {
+        "today": "今日 · {{count}} 問（約 {{minutes}} 分）",
+        "todayManual": "今日",
+        "todayEmpty": "今日復習する問題はありません。",
+        "overflow": "今日期限・時間外 · {{count}} 問",
+        "overflowHint": "後ろに並べています。時間があれば続けて、なければ明日に。",
+        "unscheduled": "未予定 · {{count}} 問",
+        "unscheduledHint": "Memory オフでは自動で予定しません。日付を指定して延期するか、まちがいノートで「要復習」にしてください。",
+        "upcoming": "今後 · {{count}} 問",
+        "stable": "定着 · {{count}} 問",
+        "stableHint": "自力で解けた記録が安定しています。期限が来たらもう一度確認しましょう。",
+        "skipped": "スキップ · {{count}} 問",
+        "none": "なし。"
+      },
+      "evidence": {
+        "pending": "要復習",
+        "practiced": "解き直して正解",
+        "helped": "ヒント後に正解",
+        "independent": "新問題を1問自力で正解",
+        "stable": "定着"
+      },
+      "reason": {
+        "overdue": "{{days}} 日超過",
+        "due": "間隔反復で {{date}}",
+        "exam": "試験（{{date}}）の前にもう一度",
+        "scope": "試験範囲内：{{concepts}}",
+        "out_of_scope": "試験範囲外",
+        "recentWrong": "最近 {{days}} 日で {{count}} 回間違い",
+        "not_rechecked": "間違えてからまだ解き直していない",
+        "flagged": "「要復習」にしました",
+        "manual": "{{date}} に設定",
+        "unlinked": "知識点なし"
+      },
+      "action": {
+        "redo": "解き直す",
+        "done": "復習した",
+        "doneHint": "解説を見直した：次回は「思い出すのが難しい」として予定します。解答の証拠にはなりません",
+        "postpone": "延期",
+        "postponeDays": "{{date}} に延期（{{count}} 日後）",
+        "unpostpone": "延期を取り消す",
+        "skip": "スキップ",
+        "skipHint": "次に解答するまで復習から外します",
+        "restore": "戻す",
+        "open": "開く",
+        "close": "閉じる"
+      },
+      "done": {
+        "done": "記録しました：復習済み",
+        "postpone": "{{date}} に延期しました",
+        "skip": "スキップしました。次の解答後に再計画します",
+        "clear": "戻しました"
+      },
+      "summary": {
+        "title": "クラスメートが見る最近の様子",
+        "working": "更新中…",
+        "none": "まだ要約はありません。新しい学習記録が十分にたまると自動で作成されます。"
+      },
+      "concepts": {
+        "title": "知識点ごとの解答の証拠",
+        "hint": "間違えた問題を知識点ごとに数えるだけで、ある問題から別の問題を推測しません。",
+        "name": "知識点",
+        "scope": "試験範囲",
+        "inScope": "範囲内"
       }
     }
   }

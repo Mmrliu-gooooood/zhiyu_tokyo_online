@@ -58,10 +58,11 @@ export interface ExamBlueprint {
   /**
    * Set by the server on papers fed by an AI practice job (B11), never read
    * from a request: the job, and for variant practice the wrong question it
-   * varies (such papers offer hints and solutions, recorded per item).
+   * varies (such papers offer hints and solutions, recorded per item). A redo
+   * of a wrong question (B12) is a practice paper too.
    */
   jobId?: string;
-  practice?: { kind: 'variant'; wrongItemId: string; questionKey: string };
+  practice?: { kind: 'variant' | 'redo'; wrongItemId: string; questionKey: string };
 }
 
 /** A question the builder may pick (already restricted to complete, gradable ones). */

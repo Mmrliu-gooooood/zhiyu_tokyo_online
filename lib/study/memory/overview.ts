@@ -10,6 +10,7 @@ import type {
   PreferenceView,
 } from '@/lib/study/memory/contracts';
 import type { RecentState } from '@/lib/study/memory/recent-state';
+import type { SummaryView } from '@/lib/study/memory/summary';
 
 export interface MemorySpaceInfo {
   spaceId: string;
@@ -31,4 +32,6 @@ export interface MemoryOverview {
   /** Preference values the student deleted or declined: never suggested again. */
   suppressedSuggestions: string[];
   sync: { ran: boolean; recorded: number; failed: string[] };
+  /** Each space's ready summary of recent records (B12; empty when the feature is off). */
+  summaries: SummaryView[];
 }

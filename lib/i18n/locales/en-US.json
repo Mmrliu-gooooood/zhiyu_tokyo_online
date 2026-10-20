@@ -3018,7 +3018,12 @@
         "exam_graded": "Submitted a paper",
         "hintUsed": "Saw the hint for question {{position}} in practice in “{{space}}”",
         "solutionSeen": "Saw the answer to question {{position}} in practice in “{{space}}”",
-        "examPractice": "{{independent}} new questions done on own · help seen on {{helped}}"
+        "examPractice": "{{independent}} new questions done on own · help seen on {{helped}}",
+        "review": {
+          "done": "Reviewed a mistake in {{space}}",
+          "postponed": "Postponed a review in {{space}}",
+          "skipped": "Skipped a review in {{space}}"
+        }
       },
       "source": {
         "study_progress": "Progress",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "This preference no longer exists.",
         "STUDY_SPACE_NOT_FOUND": "This subject no longer exists.",
         "STUDY_INVALID_INPUT": "The input is not valid."
+      },
+      "summary": {
+        "title": "Recent summary (classmates see it)",
+        "meta": "Written from your learning records ·",
+        "delete": "Delete",
+        "deleted": "Summary deleted; the same records won't rebuild it"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "Questions",
         "intro": "AI writes new questions on the same knowledge point and method from the original (and related passages of this subject's materials), never a copy of it.",
         "help": "Practice papers let you see hints or answers, which is recorded; the results join this question's history."
+      }
+    },
+    "review": {
+      "open": "Review",
+      "title": "Review",
+      "subtitle": "Reviews planned from your mistakes and answers: spaced repetition decides when, and only new questions you answered on your own count as evidence.",
+      "manualMode": "Memory is off for this subject: nothing is scheduled automatically. Only questions you dated or flagged for review are listed.",
+      "openMemory": "Memory settings",
+      "today": "Today {{date}}",
+      "dailyMinutes": "Time per day",
+      "minutes": "{{count}} min",
+      "examIn": "Exam {{date}} ({{days}} days left)",
+      "examPassed": "Exam date {{date}} has passed",
+      "noExam": "No exam date",
+      "scope": "Scope: {{scope}}",
+      "noScope": "No exam scope",
+      "editExam": "Edit in subject",
+      "empty": "No mistakes in this subject yet. Questions you get wrong go to the wrong-answer book and are planned here.",
+      "dueToday": "Today",
+      "dueOn": "{{date}}",
+      "lastAnswer": "Last answered",
+      "evidenceLine": "Since the mistake: {{independent}} new questions right on your own · {{helped}} right after a hint or the solution · {{practiced}} redone right",
+      "redoUnavailable": "This question can't be redone here (not a question-bank question, or deleted). Redo classroom questions in their classroom.",
+      "rules": "Rules: review dates come from FSRS spaced repetition over your answers; dates you set come first. \"Stable\" needs two different new questions answered right on your own after the mistake, at least one not straight after it. Redoing the same question, or answering after a hint or the solution, counts as practice. This is a product rule, not an ability test.",
+      "section": {
+        "today": "Today · {{count}} (about {{minutes}} min)",
+        "todayManual": "Today",
+        "todayEmpty": "Nothing to review today.",
+        "overflow": "Due today, beyond your time · {{count}}",
+        "overflowHint": "Listed last: go on if you have time, otherwise tomorrow.",
+        "unscheduled": "Not scheduled · {{count}}",
+        "unscheduledHint": "With Memory off nothing is scheduled automatically: postpone one to a day, or flag it in the wrong-answer book.",
+        "upcoming": "Later · {{count}}",
+        "stable": "Stable · {{count}}",
+        "stableHint": "Stable evidence of answering on your own; one more look when due.",
+        "skipped": "Skipped · {{count}}",
+        "none": "None."
+      },
+      "evidence": {
+        "pending": "To review",
+        "practiced": "Redone right",
+        "helped": "Right with help",
+        "independent": "1 new question right",
+        "stable": "Stable"
+      },
+      "reason": {
+        "overdue": "{{days}} days overdue",
+        "due": "Spaced repetition: {{date}}",
+        "exam": "One more review before the exam ({{date}})",
+        "scope": "In the exam scope: {{concepts}}",
+        "out_of_scope": "Outside the exam scope",
+        "recentWrong": "Wrong {{count}} times in the last {{days}} days",
+        "not_rechecked": "Not tried again since the mistake",
+        "flagged": "You flagged it for review",
+        "manual": "You set it for {{date}}",
+        "unlinked": "No knowledge point"
+      },
+      "action": {
+        "redo": "Redo",
+        "done": "Reviewed",
+        "doneHint": "You went through the explanation again: the next review is planned as a hard recall; not evidence",
+        "postpone": "Postpone",
+        "postponeDays": "To {{date}} (in {{count}} days)",
+        "unpostpone": "Undo postpone",
+        "skip": "Skip",
+        "skipHint": "Leave it out until your next answer to it",
+        "restore": "Restore",
+        "open": "Open",
+        "close": "Close"
+      },
+      "done": {
+        "done": "Noted: reviewed",
+        "postpone": "Postponed to {{date}}",
+        "skip": "Skipped until your next answer",
+        "clear": "Restored"
+      },
+      "summary": {
+        "title": "What classmates see",
+        "working": "Updating…",
+        "none": "No summary yet. One is written when there are enough new learning records."
+      },
+      "concepts": {
+        "title": "Evidence by knowledge point",
+        "hint": "Mistakes counted by knowledge point; nothing is inferred from one question to another.",
+        "name": "Knowledge point",
+        "scope": "Exam scope",
+        "inScope": "In scope"
       }
     }
   }

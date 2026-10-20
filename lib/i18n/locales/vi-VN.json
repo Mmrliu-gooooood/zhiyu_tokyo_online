@@ -3018,7 +3018,12 @@
         "exam_graded": "Đã nộp một đề",
         "hintUsed": "Đã xem gợi ý câu {{position}} khi luyện tập trong \"{{space}}\"",
         "solutionSeen": "Đã xem đáp án câu {{position}} khi luyện tập trong \"{{space}}\"",
-        "examPractice": "Tự làm đúng {{independent}} câu mới · có trợ giúp {{helped}} câu"
+        "examPractice": "Tự làm đúng {{independent}} câu mới · có trợ giúp {{helped}} câu",
+        "review": {
+          "done": "Đã ôn một câu sai trong {{space}}",
+          "postponed": "Đã hoãn một lần ôn trong {{space}}",
+          "skipped": "Đã bỏ qua một lần ôn trong {{space}}"
+        }
       },
       "source": {
         "study_progress": "Tiến độ",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Sở thích này không còn tồn tại.",
         "STUDY_SPACE_NOT_FOUND": "Môn học này không còn tồn tại.",
         "STUDY_INVALID_INPUT": "Dữ liệu nhập không hợp lệ."
+      },
+      "summary": {
+        "title": "Tóm tắt gần đây (bạn học xem được)",
+        "meta": "Viết từ ghi chép học tập ·",
+        "delete": "Xóa",
+        "deleted": "Đã xóa tóm tắt; cùng ghi chép sẽ không tạo lại"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "Số câu",
         "intro": "AI dựa vào câu gốc (và các đoạn liên quan trong tài liệu của môn) để viết câu hỏi mới cùng điểm kiến thức, cùng cách làm nhưng khác nội dung — không chép lại câu gốc.",
         "help": "Trong đề luyện tập có thể xem gợi ý hoặc đáp án và việc đó được ghi lại; kết quả sẽ hiện trong lịch sử của câu sai này."
+      }
+    },
+    "review": {
+      "open": "Ôn tập",
+      "title": "Ôn tập",
+      "subtitle": "Lịch ôn tập dựa trên câu sai và bài làm của bạn: khi nào ôn do lặp lại ngắt quãng quyết định, và chỉ câu hỏi mới bạn tự làm đúng mới được tính là bằng chứng.",
+      "manualMode": "Memory đang tắt cho môn này: hệ thống không tự lên lịch. Chỉ hiện các câu bạn tự đặt ngày hoặc đánh dấu cần ôn.",
+      "openMemory": "Cài đặt Memory",
+      "today": "Hôm nay {{date}}",
+      "dailyMinutes": "Thời gian mỗi ngày",
+      "minutes": "{{count}} phút",
+      "examIn": "Thi ngày {{date}} (còn {{days}} ngày)",
+      "examPassed": "Ngày thi {{date}} đã qua",
+      "noExam": "Chưa có ngày thi",
+      "scope": "Phạm vi: {{scope}}",
+      "noScope": "Chưa có phạm vi thi",
+      "editExam": "Sửa trong môn học",
+      "empty": "Môn này chưa có câu sai. Câu làm sai sẽ vào sổ câu sai và được lên lịch ôn ở đây.",
+      "dueToday": "Hôm nay",
+      "dueOn": "{{date}}",
+      "lastAnswer": "Lần làm gần nhất",
+      "evidenceLine": "Sau khi sai: tự làm đúng {{independent}} câu mới · đúng sau gợi ý/đáp án {{helped}} lần · làm lại đúng {{practiced}} lần",
+      "redoUnavailable": "Không thể làm lại câu này ở đây (không thuộc ngân hàng câu hỏi hoặc đã bị xóa). Câu trong lớp học hãy làm lại trong lớp.",
+      "rules": "Quy tắc: ngày ôn được tính bằng lặp lại ngắt quãng FSRS từ bài làm; ngày bạn tự đặt được ưu tiên. \"Vững\" cần hai câu mới khác nhau tự làm đúng sau khi sai, ít nhất một câu không làm ngay sau đó. Làm lại cùng câu hoặc làm đúng sau gợi ý/đáp án chỉ tính là luyện tập. Đây là quy tắc sản phẩm, không phải bài đánh giá năng lực.",
+      "section": {
+        "today": "Hôm nay · {{count}} câu (khoảng {{minutes}} phút)",
+        "todayManual": "Hôm nay",
+        "todayEmpty": "Hôm nay không có câu cần ôn.",
+        "overflow": "Đến hạn hôm nay, quá thời gian · {{count}} câu",
+        "overflowHint": "Xếp cuối: còn thời gian thì làm tiếp, không thì để mai.",
+        "unscheduled": "Chưa lên lịch · {{count}} câu",
+        "unscheduledHint": "Khi Memory tắt, hệ thống không tự lên lịch: hãy hoãn câu đến một ngày hoặc đánh dấu trong sổ câu sai.",
+        "upcoming": "Sau này · {{count}} câu",
+        "stable": "Đã vững · {{count}} câu",
+        "stableHint": "Có bằng chứng tự làm đúng ổn định; xem lại một lần khi đến hạn.",
+        "skipped": "Đã bỏ qua · {{count}} câu",
+        "none": "Không có."
+      },
+      "evidence": {
+        "pending": "Cần ôn",
+        "practiced": "Làm lại đúng",
+        "helped": "Đúng nhờ trợ giúp",
+        "independent": "Tự làm đúng 1 câu mới",
+        "stable": "Vững"
+      },
+      "reason": {
+        "overdue": "Quá hạn {{days}} ngày",
+        "due": "Lặp lại ngắt quãng: {{date}}",
+        "exam": "Ôn thêm một lần trước kỳ thi ({{date}})",
+        "scope": "Trong phạm vi thi: {{concepts}}",
+        "out_of_scope": "Ngoài phạm vi thi",
+        "recentWrong": "Sai {{count}} lần trong {{days}} ngày qua",
+        "not_rechecked": "Chưa làm lại từ khi sai",
+        "flagged": "Bạn đã đánh dấu cần ôn",
+        "manual": "Bạn đặt vào {{date}}",
+        "unlinked": "Chưa gắn kiến thức"
+      },
+      "action": {
+        "redo": "Làm lại",
+        "done": "Đã ôn",
+        "doneHint": "Bạn đã xem lại lời giải: lần ôn sau được xếp như nhớ lại khó; không tính là bằng chứng",
+        "postpone": "Hoãn",
+        "postponeDays": "Đến {{date}} ({{count}} ngày nữa)",
+        "unpostpone": "Bỏ hoãn",
+        "skip": "Bỏ qua",
+        "skipHint": "Tạm bỏ khỏi danh sách đến lần làm tiếp theo",
+        "restore": "Khôi phục",
+        "open": "Mở",
+        "close": "Thu gọn"
+      },
+      "done": {
+        "done": "Đã ghi: đã ôn",
+        "postpone": "Đã hoãn đến {{date}}",
+        "skip": "Đã bỏ qua đến lần làm tiếp theo",
+        "clear": "Đã khôi phục"
+      },
+      "summary": {
+        "title": "Bạn học thấy gì gần đây",
+        "working": "Đang cập nhật…",
+        "none": "Chưa có tóm tắt. Tóm tắt được viết khi có đủ ghi chép học tập mới."
+      },
+      "concepts": {
+        "title": "Bằng chứng theo kiến thức",
+        "hint": "Câu sai chỉ được đếm theo kiến thức; không suy từ câu này sang câu khác.",
+        "name": "Kiến thức",
+        "scope": "Phạm vi thi",
+        "inScope": "Trong phạm vi"
       }
     }
   }

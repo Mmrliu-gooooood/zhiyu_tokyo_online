@@ -3018,7 +3018,12 @@
         "exam_graded": "Einen Test abgegeben",
         "hintUsed": "Hinweis zu Frage {{position}} beim Üben in „{{space}}“ angesehen",
         "solutionSeen": "Lösung zu Frage {{position}} beim Üben in „{{space}}“ angesehen",
-        "examPractice": "{{independent}} neue Fragen selbst gelöst · Hilfe bei {{helped}} gesehen"
+        "examPractice": "{{independent}} neue Fragen selbst gelöst · Hilfe bei {{helped}} gesehen",
+        "review": {
+          "done": "Einen Fehler in {{space}} wiederholt",
+          "postponed": "Eine Wiederholung in {{space}} verschoben",
+          "skipped": "Eine Wiederholung in {{space}} übersprungen"
+        }
       },
       "source": {
         "study_progress": "Fortschritt",
@@ -3072,6 +3077,12 @@
         "STUDY_PREFERENCE_NOT_FOUND": "Diese Vorliebe existiert nicht mehr.",
         "STUDY_SPACE_NOT_FOUND": "Dieses Fach existiert nicht mehr.",
         "STUDY_INVALID_INPUT": "Die Eingabe ist ungültig."
+      },
+      "summary": {
+        "title": "Aktuelle Zusammenfassung (für Lernpartner sichtbar)",
+        "meta": "Aus deinen Lernaufzeichnungen ·",
+        "delete": "Löschen",
+        "deleted": "Zusammenfassung gelöscht; aus denselben Aufzeichnungen wird keine neue erstellt"
       }
     },
     "practice": {
@@ -3750,6 +3761,93 @@
         "count": "Fragen",
         "intro": "Die KI schreibt aus der Originalfrage (und passenden Abschnitten der Fachmaterialien) neue Fragen zum selben Wissenspunkt und Lösungsweg, aber mit anderem Inhalt – nie eine Kopie.",
         "help": "In Übungstests kannst du Hinweise oder Lösungen sehen, das wird festgehalten; die Ergebnisse erscheinen im Verlauf dieser Fehlerfrage."
+      }
+    },
+    "review": {
+      "open": "Wiederholen",
+      "title": "Wiederholen",
+      "subtitle": "Wiederholungen aus deinen Fehlern und Antworten: Wann, entscheidet verteilte Wiederholung; als Beleg zählen nur neue Fragen, die du selbstständig richtig beantwortet hast.",
+      "manualMode": "Memory ist für dieses Fach aus: Es wird nichts automatisch geplant. Aufgeführt sind nur Fragen mit deinem eigenen Datum oder deiner Markierung.",
+      "openMemory": "Memory-Einstellungen",
+      "today": "Heute {{date}}",
+      "dailyMinutes": "Zeit pro Tag",
+      "minutes": "{{count}} Min.",
+      "examIn": "Prüfung {{date}} (noch {{days}} Tage)",
+      "examPassed": "Prüfungstermin {{date}} ist vorbei",
+      "noExam": "Kein Prüfungstermin",
+      "scope": "Umfang: {{scope}}",
+      "noScope": "Kein Prüfungsumfang",
+      "editExam": "Im Fach bearbeiten",
+      "empty": "In diesem Fach gibt es noch keine Fehler. Falsch beantwortete Fragen kommen ins Fehlerbuch und werden hier geplant.",
+      "dueToday": "Heute",
+      "dueOn": "{{date}}",
+      "lastAnswer": "Zuletzt beantwortet",
+      "evidenceLine": "Seit dem Fehler: {{independent}} neue Fragen selbstständig richtig · {{helped}}× richtig mit Hinweis oder Lösung · {{practiced}}× wiederholt richtig",
+      "redoUnavailable": "Diese Frage lässt sich hier nicht wiederholen (keine Fragenbank-Frage oder gelöscht). Unterrichtsfragen bitte im Unterricht wiederholen.",
+      "rules": "Regeln: Wiederholungstermine berechnet FSRS (verteilte Wiederholung) aus deinen Antworten; deine eigenen Termine haben Vorrang. „Gefestigt“ braucht nach dem Fehler zwei verschiedene neue Fragen, selbstständig richtig, mindestens eine nicht direkt nach dem Fehler. Dieselbe Frage erneut oder nach Hinweis/Lösung richtig zählt als Übung. Das ist eine Produktregel, kein Leistungstest.",
+      "section": {
+        "today": "Heute · {{count}} (etwa {{minutes}} Min.)",
+        "todayManual": "Heute",
+        "todayEmpty": "Heute ist nichts fällig.",
+        "overflow": "Heute fällig, über deiner Zeit · {{count}}",
+        "overflowHint": "Am Ende: weitermachen, wenn Zeit bleibt, sonst morgen.",
+        "unscheduled": "Nicht geplant · {{count}}",
+        "unscheduledHint": "Mit Memory aus wird nichts automatisch geplant: verschiebe eine Frage auf einen Tag oder markiere sie im Fehlerbuch.",
+        "upcoming": "Später · {{count}}",
+        "stable": "Gefestigt · {{count}}",
+        "stableHint": "Gefestigte selbstständige Antworten; bei Fälligkeit noch einmal ansehen.",
+        "skipped": "Übersprungen · {{count}}",
+        "none": "Keine."
+      },
+      "evidence": {
+        "pending": "Zu wiederholen",
+        "practiced": "Wiederholt richtig",
+        "helped": "Mit Hilfe richtig",
+        "independent": "1 neue Frage richtig",
+        "stable": "Gefestigt"
+      },
+      "reason": {
+        "overdue": "{{days}} Tage überfällig",
+        "due": "Verteilte Wiederholung: {{date}}",
+        "exam": "Noch einmal vor der Prüfung ({{date}})",
+        "scope": "Im Prüfungsumfang: {{concepts}}",
+        "out_of_scope": "Außerhalb des Prüfungsumfangs",
+        "recentWrong": "{{count}}× falsch in den letzten {{days}} Tagen",
+        "not_rechecked": "Seit dem Fehler nicht erneut versucht",
+        "flagged": "Von dir markiert",
+        "manual": "Von dir auf {{date}} gelegt",
+        "unlinked": "Kein Wissenspunkt"
+      },
+      "action": {
+        "redo": "Erneut lösen",
+        "done": "Wiederholt",
+        "doneHint": "Erklärung noch einmal durchgegangen: nächste Wiederholung als schwerer Abruf geplant; kein Beleg",
+        "postpone": "Verschieben",
+        "postponeDays": "Auf {{date}} (in {{count}} Tagen)",
+        "unpostpone": "Verschieben aufheben",
+        "skip": "Überspringen",
+        "skipHint": "Bis zur nächsten Antwort auslassen",
+        "restore": "Wiederherstellen",
+        "open": "Öffnen",
+        "close": "Schließen"
+      },
+      "done": {
+        "done": "Notiert: wiederholt",
+        "postpone": "Auf {{date}} verschoben",
+        "skip": "Bis zur nächsten Antwort übersprungen",
+        "clear": "Wiederhergestellt"
+      },
+      "summary": {
+        "title": "Was Lernpartner sehen",
+        "working": "Wird aktualisiert…",
+        "none": "Noch keine Zusammenfassung. Sie entsteht, sobald genug neue Lernaufzeichnungen da sind."
+      },
+      "concepts": {
+        "title": "Belege nach Wissenspunkt",
+        "hint": "Fehler werden nur nach Wissenspunkt gezählt; von einer Frage wird nicht auf eine andere geschlossen.",
+        "name": "Wissenspunkt",
+        "scope": "Prüfungsumfang",
+        "inScope": "Im Umfang"
       }
     }
   }

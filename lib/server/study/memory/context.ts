@@ -12,7 +12,7 @@
 import type { Queryable } from '@openmaic/storage/document/pg';
 
 import { createLogger } from '@/lib/logger';
-import { isStudyMemoryFlagOn } from '@/lib/server/study/flags';
+import { isStudyMemoryFlagOn, isStudyReviewFlagOn } from '@/lib/server/study/flags';
 import {
   approximateTokens,
   classroomPreferenceScope,
@@ -55,6 +55,37 @@ function resolved(
   };
 }
 
+/**
+ * The space's ready summary (B12), or null. A read failure (e.g. before v33)
+ * only leaves the summary out; the rest of Memory still applies.
+ */
+async function readSpaceSummary(
+  db: Queryable,
+  ownerId: string,
+  spaceId: string,
+): Promise<{ text: string; sourceWatermark: number | null } | null> {
+  if (!isStudyReviewFlagOn()) return null;
+  try {
+    const result = await db.query<{ text: string; source_watermark: string | number | null }>(
+      `SELECT text, source_watermark FROM study_memory_summaries
+        WHERE owner_id = $1 AND space_id = $2 AND status = 'ready'`,
+      [ownerId, spaceId],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          text: row.text,
+          sourceWatermark: row.source_watermark === null ? null : Number(row.source_watermark),
+        }
+      : null;
+  } catch (error) {
+    log.warn('memory summary unavailable; answering without it', {
+      code: (error as { code?: string }).code,
+    });
+    return null;
+  }
+}
+
 export async function resolveMemoryContext(
   db: Queryable,
   ownerId: string,
@@ -81,6 +112,7 @@ export async function resolveMemoryContext(
         facts,
         spaceGoal: row ? { goal: row.goal, examDate } : null,
         spaceId,
+        summary: await readSpaceSummary(db, ownerId, spaceId),
       }),
     );
   } catch (error) {
