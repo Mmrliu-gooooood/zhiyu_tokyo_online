@@ -18,7 +18,7 @@
 | B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 | B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变；2026-10-20 生产验收通过，修复见 release-20261020） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产非管理员账号登录验收通过（2026-10-20） | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
 | B12 | 已上线（2026-10-20，Web + Worker release-20261020b；同版含学习区顶栏手机宽度修复） | `learn/b12-review-memory` → main `51fda587`（快进，已推送 tokyo） | accounts v33 `562f6394…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：摘要 5 次、变式 2 次、学伴回答 2 次） | 已启用 `ZHIYU_STUDY_REVIEW_ENABLED=1`（Web 与 Worker） | 见 B12“未验证”；生产非管理员账号登录验收通过（2026-10-20） |
-| B13 | 实现完成，本地验收通过（2026-10-21），未合并、未上线 | `learn/b13-explanations` | — | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：讲解 6 次、变式 2 次、学伴 2 次、课程生成 3 次（其中 1 次取消）） | 未启用（`ZHIYU_STUDY_EXPLANATIONS_ENABLED`，只 Web；需要 accounts v34 `02f9d2a6…`） | 见 B13“未验证” |
+| B13 | 已上线（2026-10-21，Web release-20261021；Worker 不变） | `learn/b13-explanations` → main `30463a14`（快进，已推送 tokyo） | accounts v34 `02f9d2a6…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：讲解 6 次、变式 2 次、学伴 2 次、课程生成 3 次（其中 1 次取消）） | 已启用 `ZHIYU_STUDY_EXPLANATIONS_ENABLED=1`（只 Web） | 见 B13“未验证”；生产登录验收待做 |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -98,6 +98,15 @@
 
 - 运行时：`ZHIYU_STUDY_EXPLANATIONS_ENABLED` 置空后 apply：讲解页与接口 404，错题详情不再显示“专项讲解”；已保存的讲解保留不显示；错题本、变式练习、复习、课程照常。
 - 版本回退：回到 release-20261020b 镜像，v34 表保留不用。
+
+### 发布（2026-10-21，用户指示“上线 B13 吧”）
+
+1. 只读核对生产：v33 checksum = `562f6394…`（与仓库一致）；v34 表不存在；服务器 compose 与仓库只差新开关两行；`scripts/supabase-compose.sh` 相同；磁盘 40%。
+2. Supabase `apply_migration`（`accounts_v34_study_explanations`）执行仓库 v34 SQL 原文（导出文件 sha256 = `02f9d2a6b8b68f5ffdfd556736aeb56495e24199396c96d821e84003dc08eeb7`），写入 `app_schema_migrations(34, 02f9d2a6…)`。核对：表归 postgres、RLS 开启且强制；只有一条 app_web owner 策略（FOR ALL）与 app_web 查/插/改/删；app_worker、anon、authenticated 无授权。
+3. `learn/b13-explanations` 快进合并到 main（`30463a14`），推送 tokyo。
+4. 构建镜像；Web 镜像内核对有 `/api/study/explanations` 与讲解页面、含新开关。只发 Web：`4886b5455027` 标为 `release-20261021` 送到东京，磁盘 41%。Worker 行为不变，仍为 release-20261020b。
+5. 切换前生成任务、学习任务、AI 出题租约、运行中的 agent 会话都为 0。备份 `.env.hosted.local.bak-20261021-pre`、`docker-compose.supabase.yml.bak-20261021-pre`（指向 web 20261020b、worker 20261020b）；compose 换成仓库版本；env 改 Web 镜像并加 `ZHIYU_STUDY_EXPLANATIONS_ENABLED=1`；`apply --tier 4 --mode background`。
+6. readiness `ready`、accountsVersion 34、2/2 Worker；capabilities 含 `explanations: true`；未登录访问讲解接口 401；三个容器 LISTEN 首连一次成功（Web 2.6 s），无 WARN/ERROR。
 
 ## B12 复习任务、掌握证据与轻量摘要（2026-10-20）
 
