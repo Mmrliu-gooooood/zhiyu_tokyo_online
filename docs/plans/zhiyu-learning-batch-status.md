@@ -18,7 +18,7 @@
 | B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 | B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变；2026-10-20 生产验收通过，修复见 release-20261020） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产非管理员账号登录验收通过（2026-10-20） | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
 | B12 | 已上线（2026-10-20，Web + Worker release-20261020b；同版含学习区顶栏手机宽度修复） | `learn/b12-review-memory` → main `51fda587`（快进，已推送 tokyo） | accounts v33 `562f6394…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：摘要 5 次、变式 2 次、学伴回答 2 次） | 已启用 `ZHIYU_STUDY_REVIEW_ENABLED=1`（Web 与 Worker） | 见 B12“未验证”；生产非管理员账号登录验收通过（2026-10-20） |
-| B13 | 实现完成，本地验收通过（2026-10-21），未合并、未上线 | `learn/b13-explanations` | — | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：讲解 6 次、变式 2 次、学伴 2 次、课程生成 2 次） | 未启用（`ZHIYU_STUDY_EXPLANATIONS_ENABLED`，只 Web；需要 accounts v34 `02f9d2a6…`） | 见 B13“未验证” |
+| B13 | 实现完成，本地验收通过（2026-10-21），未合并、未上线 | `learn/b13-explanations` | — | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：讲解 6 次、变式 2 次、学伴 2 次、课程生成 3 次（其中 1 次取消）） | 未启用（`ZHIYU_STUDY_EXPLANATIONS_ENABLED`，只 Web；需要 accounts v34 `02f9d2a6…`） | 见 B13“未验证” |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
