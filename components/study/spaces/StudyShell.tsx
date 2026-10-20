@@ -34,52 +34,55 @@ export function StudyShell({ children }: { children: ReactNode }) {
   }, []);
   return (
     <div className="min-h-[100dvh] bg-background">
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8">
         <Link href="/" aria-label={t('study.backHome')} className="shrink-0 rounded-md">
           <ZhiyuLockup size="sm" />
         </Link>
-        <nav className="flex items-center gap-1">
-          <Link
-            href="/study"
-            className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            {t('study.nav')}
-          </Link>
-          {materialsOn ? (
+        <div className="flex min-w-0 items-center gap-1">
+          {/* At phone width the links scroll inside the nav; the account menu stays put. */}
+          <nav className="scrollbar-hide flex min-w-0 items-center gap-1 overflow-x-auto">
             <Link
-              href="/study/materials"
-              data-testid="study-nav-materials"
+              href="/study"
               className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              {t('study.materials.nav')}
+              {t('study.nav')}
             </Link>
-          ) : null}
-          {classmatesOn ? (
+            {materialsOn ? (
+              <Link
+                href="/study/materials"
+                data-testid="study-nav-materials"
+                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {t('study.materials.nav')}
+              </Link>
+            ) : null}
+            {classmatesOn ? (
+              <Link
+                href="/study/classmates"
+                data-testid="study-nav-classmates"
+                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {t('study.classmates.nav')}
+              </Link>
+            ) : null}
+            {memoryOn ? (
+              <Link
+                href="/study/memory"
+                data-testid="study-nav-memory"
+                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {t('study.memory.nav')}
+              </Link>
+            ) : null}
             <Link
-              href="/study/classmates"
-              data-testid="study-nav-classmates"
-              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              href="/"
+              className="hidden whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground sm:inline-flex"
             >
-              {t('study.classmates.nav')}
+              {t('study.backHome')}
             </Link>
-          ) : null}
-          {memoryOn ? (
-            <Link
-              href="/study/memory"
-              data-testid="study-nav-memory"
-              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              {t('study.memory.nav')}
-            </Link>
-          ) : null}
-          <Link
-            href="/"
-            className="hidden whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground sm:inline-flex"
-          >
-            {t('study.backHome')}
-          </Link>
-          <AccountMenu triggerClassName="rounded-md text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-none dark:hover:bg-muted" />
-        </nav>
+          </nav>
+          <AccountMenu triggerClassName="shrink-0 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-none dark:hover:bg-muted" />
+        </div>
       </header>
       <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 md:px-8 md:pt-10">{children}</main>
     </div>
