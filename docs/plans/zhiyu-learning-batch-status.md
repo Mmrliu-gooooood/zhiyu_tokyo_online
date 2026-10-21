@@ -31,6 +31,8 @@
 
 ## 全部批次完成后再做：embedding 与 OCR（用户决定 2026-10-06）
 
+- **2026-10-21 用户决定：B01–B13 已全部上线，embedding 与 OCR 暂不部署，先保持现状；等用户想部署时再讨论方式。** 以下为当初记录的方向。
+
 - 先完成全部待完成批次；期间检索保持纯关键词、资料只支持文字版 PDF，不接 embedding 模型与 OCR。
 - 之后接入：embedding 选 **Qwen3-Embedding-0.6B** 或其他小模型（0.6B 输出 1024 维，可直接用 v24 的向量列与 `STUDY_EMBEDDING_MODEL` 开关）；OCR 选 **RapidOCR** 或其他较小的 OCR（作为 `lib/pdf` 文档提取器的新 provider）。具体用法（自托管/API、资源与费用）届时再讨论。
 - 接入后补做原计划中依赖它们的任务：B02 扫描版解析、B03 混合检索、B05 语义答疑、B08 扫描资料习题提取、OCR 用量展示。详见[实施方案](2026-09-27-zhiyu-learning-implementation-plan.md)第 13 节。
