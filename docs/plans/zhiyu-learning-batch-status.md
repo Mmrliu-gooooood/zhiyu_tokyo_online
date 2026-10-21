@@ -18,7 +18,7 @@
 | B10 | 已上线（2026-10-18，release-20261018；同版修复课堂学习检测生成；Web 20261018b 删除学科时清理学伴对话） | `learn/b10-wrongbook` → main `936860f0`（快进，已推送 tokyo） | accounts v31 `790cdb51…`（生产已执行） | 本地托管模式验收通过（真实 RLS、双账号、真实课堂小测与 Worker；真实 DeepSeek 批改 1 次、学伴回答 1 次）；生产非管理员账号登录验收通过（含学习检测生成） | 已启用 `ZHIYU_STUDY_WRONGBOOK_ENABLED=1` | 见 B10“未验证” |
 | B11 | 已上线（2026-10-18，Web release-20261018c；Worker 不变；2026-10-20 生产验收通过，修复见 release-20261020） | `learn/b11-ai-practice` → main `0a6f1a55`（快进，已推送 tokyo） | accounts v32 `358fd15b…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实资料解析与关键词索引、真实 DeepSeek 出题 8 次、批改 2 次）；生产非管理员账号登录验收通过（2026-10-20） | 已启用 `ZHIYU_STUDY_PRACTICE_ENABLED=1` | 见 B11“未验证” |
 | B12 | 已上线（2026-10-20，Web + Worker release-20261020b；同版含学习区顶栏手机宽度修复） | `learn/b12-review-memory` → main `51fda587`（快进，已推送 tokyo） | accounts v33 `562f6394…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：摘要 5 次、变式 2 次、学伴回答 2 次） | 已启用 `ZHIYU_STUDY_REVIEW_ENABLED=1`（Web 与 Worker） | 见 B12“未验证”；生产非管理员账号登录验收通过（2026-10-20） |
-| B13 | 已上线（2026-10-21，Web release-20261021；Worker 不变） | `learn/b13-explanations` → main `30463a14`（快进，已推送 tokyo） | accounts v34 `02f9d2a6…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：讲解 6 次、变式 2 次、学伴 2 次、课程生成 3 次（其中 1 次取消）） | 已启用 `ZHIYU_STUDY_EXPLANATIONS_ENABLED=1`（只 Web） | 见 B13“未验证”；生产非管理员账号登录验收通过（2026-10-21） |
+| B13 | 已上线（2026-10-21，Web release-20261021；同日修复 Web+Worker release-20261021b） | `learn/b13-explanations` → main `30463a14`（快进，已推送 tokyo） | accounts v34 `02f9d2a6…`（生产已执行） | 本地托管模式验收通过（真实 RLS、真实 Worker；真实 DeepSeek：讲解 6 次、变式 2 次、学伴 2 次、课程生成 3 次（其中 1 次取消）） | 已启用 `ZHIYU_STUDY_EXPLANATIONS_ENABLED=1`（只 Web） | 见 B13“未验证”；生产非管理员账号登录验收通过（2026-10-21） |
 
 ## 随 B09 一起发布：Web 启动时 LISTEN 首次连接超时（用户决定 2026-10-13）
 
@@ -124,6 +124,20 @@
 9. 建学伴“小林（B13 验收）”，从 $(\cos x)'$ 打开答疑并提问：页首“错题本 · 生成专项讲解”链接到这道题的讲解页；学伴正常回答。
 10. 删除白板讲解：确认后不可再读（404），回到这道错题。手机宽度 375 下讲解页无横向滚动。
 11. 用量（这个账号）：`study-explanation` 4 次、`study-practice` 2 次、学伴 2 次，其余为课程生成（大纲 3、页面与动作若干）；**没有任何语音、图片、视频用量**。Web 与两个 Worker 无 WARN/ERROR；其他账号的讲解行 0 条。
+
+### 验收后修复：课程标题公式与课程重试文案（2026-10-21，main `ced4a5ff`）
+
+- **课程与页面标题里的 LaTeX 原文**（上面第 8 条）：`@openmaic/generation` 新增 `plainTitleText`，课程名与每页大纲标题（包括流式大纲接口）把 `\(…\)`、`\[…\]`、`$$…$$`、`$…$` 写成纯文本：去掉定界符，常见命令写成符号或名字（`\cdot`→·、`\pi`→π、`\cos`→cos），`\frac{a}{b}`→a/b，简单指数写成上标（$x^3$→x³、$x^{n-1}$→xⁿ⁻¹），不能写成上标的保留 `^`。专项讲解生成课程时，填入的需求里题干与作答也先转成纯文本。
+- **课程重试文案**：课程讲解的重试按钮改为“重新生成课程”（`study.explain.course.restart`，12 个语言），不再显示“重试（还剩 1 次）”；三种轻量形式仍显示剩余次数。
+- 测试：生成包 2 个新测试（标题中的公式、无公式或无法上标的标题），接口测试核对课程需求为纯文本；应用 47 个文件 370 个测试、生成包 17 个测试通过；tsc、eslint、prettier 无问题。
+
+### 发布修复（2026-10-21，用户指示“上线这个修复吧”）
+
+1. 镜像构建改用 npmmirror（registry.npmjs.org 连续 4 次超时；pnpm 仍按 lockfile 校验完整性）。标题转换同时在 Web（流式大纲）与 Worker（后台生成）里，所以两个都发：Web `5173cafc83cc`、Worker `2769afd1aa7a`，标为 `release-20261021b`；核对 Web 镜像含“重新生成课程”与上标表，Worker `dist-worker/generation.mjs` 含上标表（release-20261020b 不含）。
+2. 服务器 compose 与仓库一致；无数据库迁移（仍为 v34）。备份 `.env.hosted.local.bak-20261021b-pre`、`docker-compose.supabase.yml.bak-20261021b-pre`（指向 web 20261021、worker 20261020b）；env 只改两个镜像变量；`apply --tier 4 --mode background`。
+3. readiness `ready`、accountsVersion 34、2/2 Worker；三个容器无重启、无 WARN/ERROR；无进行中的生成任务。
+4. 清理旧镜像（用户同意）：服务器只保留当前 `release-20261021b` 与回退用的 web `release-20261021`、worker `release-20261020b`，磁盘 52% → 38%。
+5. 界面上的标题与文案在下次生成课程时观察，未单独花费一次生成验证。
 
 ## B12 复习任务、掌握证据与轻量摘要（2026-10-20）
 
