@@ -26,7 +26,7 @@ import {
   formatTeacherPersonaForPrompt,
 } from '@openmaic/generation';
 import type { AgentInfo } from '@openmaic/generation';
-import { DEFAULT_LANGUAGE_DIRECTIVE } from '@openmaic/generation';
+import { DEFAULT_LANGUAGE_DIRECTIVE, plainTitleText } from '@openmaic/generation';
 import { MAX_PDF_CONTENT_CHARS, MAX_VISION_IMAGES } from '@/lib/constants/generation';
 import { nanoid } from 'nanoid';
 import type {
@@ -92,7 +92,7 @@ function normalizeStreamedTitle(raw: string): string | null {
   } catch {
     title = raw;
   }
-  const normalized = title.trim();
+  const normalized = plainTitleText(title.trim());
   return normalized ? normalized.slice(0, 120) : null;
 }
 
@@ -502,6 +502,9 @@ async function handlePost(req: NextRequest) {
                   // Ensure ID and order
                   const enrichedBase = {
                     ...outline,
+                    ...(typeof outline.title === 'string'
+                      ? { title: plainTitleText(outline.title) }
+                      : {}),
                     order: parsedOutlines.length + 1,
                   };
                   const normalized = taskEngineMode

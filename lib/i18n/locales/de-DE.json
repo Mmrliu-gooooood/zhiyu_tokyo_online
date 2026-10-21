@@ -3966,7 +3966,8 @@
           "failed": "Erzeugung fehlgeschlagen.",
           "cancelled": "Abgebrochen; du kannst ihn erneut erzeugen."
         },
-        "cancelJob": "Erzeugung stoppen"
+        "cancelJob": "Erzeugung stoppen",
+        "restart": "Kurs neu erzeugen"
       }
     }
   }

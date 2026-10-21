@@ -3966,7 +3966,8 @@
           "failed": "La génération a échoué.",
           "cancelled": "Annulé ; vous pouvez relancer la génération."
         },
-        "cancelJob": "Arrêter la génération"
+        "cancelJob": "Arrêter la génération",
+        "restart": "Regénérer le cours"
       }
     }
   }

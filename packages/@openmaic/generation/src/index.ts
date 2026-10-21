@@ -80,6 +80,7 @@ export type {
   OutlinePromptContext,
 } from './outline-generator.js';
 export { changeOutlineType } from './outline-type.js';
+export { plainTitleText } from './title-text.js';
 export { uniquifyMediaElementIds } from './outline-media.js';
 export { partitionImagesForVision } from './outline-formatters.js';
 export type { VisionImagePartition } from './outline-formatters.js';

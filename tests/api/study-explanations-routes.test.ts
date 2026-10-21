@@ -495,6 +495,9 @@ describe('explanations on request', () => {
       callCap: 0,
     });
     expect(course.explanation.requirement).toContain('导数');
+    // Formulas as plain text (LaTeX in a request tends to come back as source in course titles).
+    expect(course.explanation.requirement).toContain("(x²)'");
+    expect(course.explanation.requirement).not.toContain('$');
     // Nothing for the page to run: course generation writes the course.
     expect((await run(course.explanation.id)).ran).toBe(false);
     // Asking again while it waits returns it.

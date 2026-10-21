@@ -6,6 +6,7 @@ import {
   applyOutlineFallbacks,
   generateSceneOutlinesFromRequirements,
   sanitizeProceduralSkillOutline,
+  plainTitleText,
   type AICallFn,
   type GenerationLogger,
   type SceneOutline,
@@ -116,6 +117,23 @@ describe('generateSceneOutlinesFromRequirements', () => {
       JSON.stringify(raw),
     );
   }
+
+  test('writes LaTeX in course and scene titles as plain text', async () => {
+    const result = await runWith({
+      languageDirective: 'Teach in Chinese.',
+      courseTitle: "幂函数求导：\\( (x^3)' \\) 错在哪",
+      outlines: [{ ...baseOutline, title: "错题引入：$(\\cos x)'$ 与 $x^{n-1}$" }],
+    });
+    expect(result.data?.courseTitle).toBe("幂函数求导：(x³)' 错在哪");
+    expect(result.data?.outlines[0]?.title).toBe("错题引入：(cos x)' 与 xⁿ⁻¹");
+  });
+
+  test('keeps titles without formulas, and powers it cannot lift', () => {
+    expect(plainTitleText('Photosynthesis')).toBe('Photosynthesis');
+    expect(plainTitleText('价格 5 元')).toBe('价格 5 元');
+    expect(plainTitleText('$e^{ax}$ 与 $\\frac{1}{2}$')).toBe('e^ax 与 1/2');
+    expect(plainTitleText('\\[ a \\cdot b \\]')).toBe('a · b');
+  });
 
   test('trims and caps a string courseTitle', async () => {
     const result = await runWith({

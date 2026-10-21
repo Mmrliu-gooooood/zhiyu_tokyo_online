@@ -349,9 +349,9 @@ export function ExplanationPage({
               data-testid="explanation-retry"
             >
               <RotateCcw className="mr-1 size-4" />
-              {t('study.explain.retry', {
-                left: light ? EXPLANATION_LIMITS.attempts - detail.attempts : 1,
-              })}
+              {light
+                ? t('study.explain.retry', { left: EXPLANATION_LIMITS.attempts - detail.attempts })
+                : t('study.explain.course.restart')}
             </Button>
           ) : light ? (
             <p className="mt-1 text-xs text-muted-foreground">{t('study.explain.noRetries')}</p>

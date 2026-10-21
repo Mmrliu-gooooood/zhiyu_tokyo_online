@@ -3966,7 +3966,8 @@
           "failed": "Generation failed.",
           "cancelled": "Cancelled; you can generate it again."
         },
-        "cancelJob": "Stop generating"
+        "cancelJob": "Stop generating",
+        "restart": "Generate the course again"
       }
     }
   }

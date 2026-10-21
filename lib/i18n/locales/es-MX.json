@@ -3966,7 +3966,8 @@
           "failed": "La generación falló.",
           "cancelled": "Cancelado; puedes generarlo de nuevo."
         },
-        "cancelJob": "Detener la generación"
+        "cancelJob": "Detener la generación",
+        "restart": "Generar el curso de nuevo"
       }
     }
   }

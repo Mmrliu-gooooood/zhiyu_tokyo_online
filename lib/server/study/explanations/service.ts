@@ -23,7 +23,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 
-import { generateWidgetContent, type SceneOutline } from '@openmaic/generation';
+import { generateWidgetContent, plainTitleText, type SceneOutline } from '@openmaic/generation';
 import type { Queryable } from '@openmaic/storage/document/pg';
 
 import { supportedLocales } from '@/lib/i18n/locales';
@@ -206,8 +206,10 @@ function defaultRequirement(request: Omit<ExplanationRequest, 'course'>): string
     ? request.question.concepts.slice(0, 3).join('、')
     : '这道题涉及的知识点';
   return clip(
+    // Formulas as plain text: LaTeX here tends to come back as source in course titles.
     `请围绕「${topic}」生成一节专项课程，帮我弄懂下面这道我做错的题，并配一两道类似的例题。` +
-      `题目：${clip(request.question.stem, 200)} 我的作答：${clip(request.studentAnswer, 120)}`,
+      `题目：${plainTitleText(clip(request.question.stem, 200))} ` +
+      `我的作答：${plainTitleText(clip(request.studentAnswer, 120))}`,
     EXPLANATION_LIMITS.requirementChars,
   );
 }

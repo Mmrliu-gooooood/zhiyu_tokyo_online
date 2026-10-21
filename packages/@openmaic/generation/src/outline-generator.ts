@@ -14,6 +14,7 @@ import {
   sortDocumentImagesForVision,
 } from './outline-formatters.js';
 import { uniquifyMediaElementIds } from './outline-media.js';
+import { plainTitleText } from './title-text.js';
 import type { ImageMapping, PdfImage, SceneOutline, UserRequirements } from './outline-types.js';
 import type { AICallFn, GenerationResult } from './pipeline-types.js';
 import { buildPrompt, PROMPT_IDS } from './prompts/index.js';
@@ -159,7 +160,9 @@ export async function generateSceneOutlinesFromRequirements(
       languageDirective = parsed.languageDirective || DEFAULT_LANGUAGE_DIRECTIVE;
       const rawTitle = parsed.courseTitle;
       courseTitle =
-        typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim().slice(0, 120) : undefined;
+        typeof rawTitle === 'string' && rawTitle.trim()
+          ? plainTitleText(rawTitle.trim()).slice(0, 120)
+          : undefined;
       rawOutlines = parsed.outlines;
     } else {
       return { success: false, error: 'Failed to parse scene outlines response' };
@@ -171,6 +174,7 @@ export async function generateSceneOutlinesFromRequirements(
 
     const enriched = rawOutlines.map((outline, index) => ({
       ...outline,
+      ...(typeof outline.title === 'string' ? { title: plainTitleText(outline.title) } : {}),
       id: outline.id || nanoid(),
       order: index + 1,
     }));
@@ -215,7 +219,9 @@ export function applyOutlineFallbacks(
   // outline parser. Keep an interactive scene usable when the model invents a
   // widget name that this version of the renderer cannot generate.
   if (outline.type === 'interactive' && outline.widgetType && !isWidgetType(outline.widgetType)) {
-    logger.warn(`Unsupported widget type in interactive outline "${outline.title}"; using simulation`);
+    logger.warn(
+      `Unsupported widget type in interactive outline "${outline.title}"; using simulation`,
+    );
     return {
       ...outline,
       widgetType: 'simulation',
