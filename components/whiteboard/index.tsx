@@ -119,15 +119,15 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
               y: reduceMotion ? 0 : 16,
               transition: { duration: reduceMotion ? 0 : 0.5, ease: [0.4, 0, 0.2, 1] },
             }}
-            className="absolute inset-4 pointer-events-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-2xl rounded-3xl shadow-[0_32px_80px_-20px_rgba(0,0,0,0.25)] border-2 border-primary/25 flex flex-col overflow-hidden z-[120] ring-4 ring-primary/10"
+            className="absolute inset-4 pointer-events-auto bg-card/95 backdrop-blur-2xl rounded-3xl shadow-[0_32px_80px_-20px_rgba(0,0,0,0.25)] border-2 border-primary/25 flex flex-col overflow-hidden z-[120] ring-4 ring-primary/10"
           >
             {/* Header */}
-            <div className="h-14 px-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between shrink-0 bg-white/50 dark:bg-gray-800/50">
+            <div className="h-14 px-6 border-b border-border flex items-center justify-between shrink-0 bg-card/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <PencilLine className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-gray-800 dark:text-gray-200 tracking-tight">
+                <span className="font-bold text-foreground tracking-tight">
                   {t('whiteboard.title')}
                 </span>
               </div>
@@ -143,7 +143,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                       transition={{ duration: 0.15 }}
                       onClick={() => canvasRef.current?.resetView()}
                       whileTap={reduceMotion ? undefined : { scale: 0.9 }}
-                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                      className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                       title={t('whiteboard.resetView')}
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -157,7 +157,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                       onClick={handleClear}
                       disabled={isClearing || elementCount === 0}
                       whileTap={reduceMotion ? undefined : { scale: 0.9 }}
-                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                      className="p-2 text-muted-foreground hover:text-mistake hover:bg-mistake-soft rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
                       title={t('whiteboard.clear')}
                     >
                       <motion.div
@@ -182,7 +182,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                         type="button"
                         onClick={() => setHistoryOpen(!historyOpen)}
                         whileTap={reduceMotion ? undefined : { scale: 0.9 }}
-                        className="relative p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        className="relative p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                         title={t('whiteboard.history')}
                       >
                         <History className="w-4 h-4" />
@@ -199,11 +199,11 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                     </div>
                   </>
                 )}
-                <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+                <div className="w-px h-4 bg-muted mx-1" />
                 <button
                   type="button"
                   onClick={onClose}
-                  className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                   title={t('whiteboard.minimize')}
                 >
                   <Minimize2 className="w-5 h-5" />
@@ -212,7 +212,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
             </div>
 
             {/* Whiteboard Content Area */}
-            <div className="flex-1 relative bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#374151_1px,transparent_1px)] [background-size:24px_24px] overflow-hidden">
+            <div className="flex-1 relative bg-[radial-gradient(var(--border-strong)_1px,transparent_1px)] [background-size:24px_24px] overflow-hidden">
               <WhiteboardCanvas
                 ref={canvasRef}
                 whiteboard={whiteboard}

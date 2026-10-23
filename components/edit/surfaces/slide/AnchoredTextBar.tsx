@@ -10,7 +10,7 @@ interface AnchoredTextBarProps {
   readonly editingElementId: string;
 }
 
-const Separator = () => <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />;
+const Separator = () => <div className="h-5 w-px bg-muted" />;
 
 /**
  * The selection-anchored bar for a text element — the format controls, z-order

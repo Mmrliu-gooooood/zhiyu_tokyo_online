@@ -1818,7 +1818,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
       <div
         ref={stageRef}
         className={cn(
-          'flex-1 overflow-hidden bg-[#eef1ef] dark:bg-background',
+          'flex-1 overflow-hidden bg-muted',
           isPresenting && !controlsVisible && 'cursor-none',
         )}
       >
@@ -2302,19 +2302,19 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               <AlertDialogTitle>{t('stage.confirmSwitchTitle')}</AlertDialogTitle>
             </VisuallyHidden.Root>
             {/* Top accent bar */}
-            <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400" />
+            <div className="h-1 bg-gradient-to-r from-review via-review to-mistake" />
 
             <div className="px-6 pt-5 pb-2 flex flex-col items-center text-center">
               {/* Icon */}
-              <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4 ring-1 ring-amber-200/50 dark:ring-amber-700/30">
-                <AlertTriangle className="w-6 h-6 text-amber-500 dark:text-amber-400" />
+              <div className="w-12 h-12 rounded-full bg-review-soft flex items-center justify-center mb-4 ring-1 ring-review/30">
+                <AlertTriangle className="w-6 h-6 text-review" />
               </div>
               {/* Title */}
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-1.5">
+              <h3 className="text-base font-bold text-foreground mb-1.5">
                 {t('stage.confirmSwitchTitle')}
               </h3>
               {/* Description */}
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 {t('stage.confirmSwitchMessage')}
               </p>
             </div>
@@ -2325,7 +2325,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmSceneSwitch}
-                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 shadow-md shadow-amber-200/50 dark:shadow-amber-900/30"
+                className="flex-1 rounded-xl bg-gradient-to-r from-review to-review hover:from-review hover:to-review text-primary-foreground border-0 shadow-md shadow-review/50"
               >
                 {t('common.confirm')}
               </AlertDialogAction>

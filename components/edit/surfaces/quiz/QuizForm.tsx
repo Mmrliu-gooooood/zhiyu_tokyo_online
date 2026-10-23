@@ -48,7 +48,7 @@ export function QuizForm() {
 
   return (
     <div
-      className="h-full w-full overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950/30"
+      className="h-full w-full overflow-y-auto bg-muted/40"
       data-testid="quiz-surface"
       // Faint dot grid gives the authoring canvas a subtle texture so the
       // white question cards read as floating sheets rather than flat boxes.
@@ -115,15 +115,11 @@ function EmptyState() {
   const { t } = useI18n();
   return (
     <div className="mt-20 flex flex-col items-center gap-3 text-center" data-testid="quiz-empty">
-      <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-violet-50 text-violet-500 shadow-[0_8px_24px_-12px_rgba(114,46,209,0.5)] dark:from-violet-500/20 dark:to-violet-500/5 dark:text-violet-300">
+      <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-soft to-primary-soft text-primary shadow-[0_8px_24px_-12px_color-mix(in_srgb,var(--primary)_50%,transparent)]">
         <ListChecks className="h-7 w-7" strokeWidth={1.75} />
       </div>
-      <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
-        {t('edit.quiz.empty')}
-      </p>
-      <p className="max-w-xs text-xs text-zinc-400 dark:text-zinc-500">
-        {t('edit.quiz.emptyHint')}
-      </p>
+      <p className="text-sm font-semibold text-muted-foreground">{t('edit.quiz.empty')}</p>
+      <p className="max-w-xs text-xs text-muted-foreground">{t('edit.quiz.emptyHint')}</p>
     </div>
   );
 }

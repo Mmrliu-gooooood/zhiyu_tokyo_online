@@ -23,7 +23,7 @@ export function AvatarPicker({ value, onChange }: AvatarPickerProps) {
           className={cn(
             'flex size-12 items-center justify-center overflow-hidden rounded-xl border-2 transition-all',
             value === src
-              ? 'border-primary shadow-[0_0_0_3px_rgba(114,46,209,0.18)]'
+              ? 'border-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_18%,transparent)]'
               : 'border-transparent hover:border-border',
           )}
         >

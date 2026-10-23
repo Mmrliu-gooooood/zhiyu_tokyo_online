@@ -33,7 +33,7 @@ export function InsertButton({ item, iconOnly = false, popoverSide = 'bottom' }:
         iconOnly ? 'w-9 justify-center px-0' : 'gap-1.5 px-3',
         item.active
           ? 'bg-secondary text-primary'
-          : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       <span className="flex h-4 w-4 items-center justify-center [&>svg]:h-4 [&>svg]:w-4">

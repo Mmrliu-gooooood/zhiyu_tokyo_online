@@ -322,7 +322,7 @@ export function SlideNavRail() {
         'relative flex h-full shrink-0 flex-col overflow-hidden',
         'border-r border-border/70',
         'bg-background/92 backdrop-blur-xl',
-        'shadow-[2px_0_20px_rgba(20,30,25,0.025)]',
+        'shadow-[2px_0_20px_rgba(20,26,46,0.025)]',
       )}
       style={{
         width: collapsed ? RAIL_HANDLE_PX : persistedWidth,
@@ -361,10 +361,10 @@ export function SlideNavRail() {
           data-testid="slide-nav-rail-collapse"
           className={cn(
             'absolute inset-0 z-10 flex items-center justify-center',
-            'text-zinc-400/70 dark:text-zinc-500/70',
-            'hover:bg-gray-100/80 hover:text-zinc-600 dark:hover:bg-gray-800/80 dark:hover:text-zinc-300',
+            'text-muted-foreground/70',
+            'hover:bg-muted/80 hover:text-muted-foreground',
             'focus-visible:outline-none focus-visible:bg-secondary focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-primary/30',
-            'active:bg-gray-200/90 active:text-zinc-700 dark:active:bg-gray-700/90 dark:active:text-zinc-200',
+            'active:bg-muted/90 active:text-foreground',
             'transition-colors duration-150',
           )}
         >
@@ -379,10 +379,10 @@ export function SlideNavRail() {
           data-testid="slide-nav-rail-collapse"
           className={cn(
             'absolute right-0 top-1/2 z-10 flex h-8 w-6 -translate-y-1/2 items-center justify-center rounded-l-md',
-            'text-zinc-400/70 dark:text-zinc-500/70',
-            'hover:bg-gray-100/80 hover:text-zinc-600 dark:hover:bg-gray-800/80 dark:hover:text-zinc-300',
+            'text-muted-foreground/70',
+            'hover:bg-muted/80 hover:text-muted-foreground',
             'focus-visible:outline-none focus-visible:bg-secondary focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-primary/30',
-            'active:bg-gray-200/90 active:text-zinc-700 dark:active:bg-gray-700/90 dark:active:text-zinc-200',
+            'active:bg-muted/90 active:text-foreground',
             'transition-colors duration-150',
           )}
         >
@@ -404,7 +404,7 @@ export function SlideNavRail() {
               type="button"
               onClick={() => router.push('/')}
               title={t('generation.backToHome')}
-              className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 -mx-1.5 py-1 -my-1 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 active:scale-[0.97] transition-all duration-150"
+              className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 -mx-1.5 py-1 -my-1 hover:bg-muted/80 active:scale-[0.97] transition-all duration-150"
             >
               {/* Desktop client: the Electron title bar already shows the brand icon + name, so the edit rail doesn't repeat it;
                   returning home is handled by the edit bar's CommandBar back arrow. */}

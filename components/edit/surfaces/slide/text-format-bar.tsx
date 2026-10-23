@@ -83,7 +83,7 @@ function ToggleButton({ label, active, payload, run, children }: ToggleButtonPro
       className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
         active
           ? 'bg-secondary text-primary'
-          : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
     >
       {children}
@@ -92,7 +92,7 @@ function ToggleButton({ label, active, payload, run, children }: ToggleButtonPro
 }
 
 function Divider() {
-  return <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />;
+  return <div className="h-5 w-px bg-muted" />;
 }
 
 // Font-size bounds, shared by the size input commit and the −/+ stepper so the
@@ -102,9 +102,8 @@ export const FONT_SIZE_MAX = 96;
 
 // Subtle raised −/+ button inside the size stepper pill.
 const STEP_BUTTON =
-  'flex h-7 w-7 items-center justify-center rounded text-zinc-600 transition-colors ' +
-  'hover:bg-white hover:text-zinc-900 hover:shadow-sm ' +
-  'dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100';
+  'flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors ' +
+  'hover:bg-card hover:text-foreground hover:shadow-sm';
 
 export function TextFormatBar({ elementId, attrs }: TextFormatBarProps) {
   const { t } = useI18n();
@@ -146,7 +145,7 @@ export function TextFormatBar({ elementId, attrs }: TextFormatBarProps) {
         <SelectTrigger
           size="sm"
           aria-label={t('edit.text.font')}
-          className="w-32 border-0 px-2 text-xs font-normal text-zinc-700 shadow-none hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="w-32 border-0 px-2 text-xs font-normal text-foreground shadow-none hover:bg-muted"
         >
           {/* Render the trigger text via children — Radix's `placeholder` only
               fires for an *empty* `value`, not for an unmatched non-empty one,
@@ -164,7 +163,7 @@ export function TextFormatBar({ elementId, attrs }: TextFormatBarProps) {
       </Select>
 
       {/* Font size — one cohesive stepper pill */}
-      <div className="flex h-8 items-center rounded-md bg-zinc-100 p-0.5 dark:bg-zinc-800">
+      <div className="flex h-8 items-center rounded-md bg-muted p-0.5">
         <BarButton
           label={t('edit.text.sizeDown')}
           onClick={() => run({ command: 'fontsize', value: stepFontSize(attrs.fontsize, -2) })}
@@ -187,7 +186,7 @@ export function TextFormatBar({ elementId, attrs }: TextFormatBarProps) {
               e.currentTarget.blur();
             }
           }}
-          className="w-9 bg-transparent text-center text-xs font-semibold tabular-nums text-zinc-800 outline-none focus:bg-white dark:text-zinc-100 dark:focus:bg-zinc-700"
+          className="w-9 bg-transparent text-center text-xs font-semibold tabular-nums text-foreground outline-none focus:bg-card"
         />
         <BarButton
           label={t('edit.text.sizeUp')}
@@ -234,7 +233,7 @@ export function TextFormatBar({ elementId, attrs }: TextFormatBarProps) {
             type="button"
             aria-label={t('edit.text.color')}
             onMouseDown={(e) => e.preventDefault()}
-            className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-muted"
           >
             <span
               className="h-4 w-4 rounded ring-1 ring-inset ring-black/15 dark:ring-white/20"

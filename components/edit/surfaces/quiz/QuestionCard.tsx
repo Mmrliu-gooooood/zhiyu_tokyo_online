@@ -41,16 +41,16 @@ const TYPES: QuizQuestionType[] = ['single', 'multiple', 'short_answer'];
 /** Per-type accent: a quiz scene's question types read at a glance by colour. */
 const TYPE_ACCENT: Record<QuizQuestionType, { badge: string; rail: string }> = {
   single: {
-    badge: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
-    rail: 'from-violet-400 to-violet-600',
+    badge: 'bg-primary-soft text-primary-ink',
+    rail: 'from-primary to-primary',
   },
   multiple: {
-    badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
-    rail: 'from-indigo-400 to-indigo-600',
+    badge: 'bg-ai-soft text-ai-ink',
+    rail: 'from-ai to-ai',
   },
   short_answer: {
-    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
-    rail: 'from-amber-400 to-amber-600',
+    badge: 'bg-review-soft text-review-ink',
+    rail: 'from-review to-review',
   },
 };
 
@@ -84,10 +84,10 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
       whileDrag={{ scale: 1.01, boxShadow: '0 18px 40px -12px rgba(24,24,27,0.25)', zIndex: 30 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'group/card relative overflow-hidden rounded-2xl border bg-white transition-shadow dark:bg-zinc-900',
+        'group/card relative overflow-hidden rounded-2xl border bg-card transition-shadow',
         expanded
-          ? 'border-primary/25 shadow-[0_12px_32px_-16px_rgba(53,107,89,0.24)]'
-          : 'border-zinc-200/80 hover:border-zinc-300 hover:shadow-[0_8px_24px_-16px_rgba(24,24,27,0.25)] dark:border-zinc-800 dark:hover:border-zinc-700',
+          ? 'border-primary/25 shadow-[0_12px_32px_-16px_color-mix(in_srgb,var(--primary)_24%,transparent)]'
+          : 'border-border/80 hover:border-border-strong hover:shadow-[0_8px_24px_-16px_rgba(24,24,27,0.25)]',
       )}
     >
       {/* Left accent rail — colours the active question by its type. */}
@@ -111,7 +111,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
           type="button"
           aria-label={t('edit.quiz.reorder')}
           onPointerDown={(e) => controls.start(e)}
-          className="cursor-grab touch-none text-zinc-300 opacity-0 transition-opacity group-hover/card:opacity-100 hover:text-zinc-500 active:cursor-grabbing dark:text-zinc-600 dark:hover:text-zinc-400"
+          className="cursor-grab touch-none text-subtle-foreground opacity-0 transition-opacity group-hover/card:opacity-100 hover:text-muted-foreground active:cursor-grabbing"
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -123,11 +123,11 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
         >
           <ChevronRight
             className={cn(
-              'h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200',
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
               expanded && 'rotate-90 text-primary',
             )}
           />
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-zinc-100 font-mono text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-muted font-mono text-xs font-semibold text-muted-foreground">
             {index + 1}
           </span>
           <span
@@ -141,15 +141,13 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
           <span
             className={cn(
               'truncate text-sm',
-              q.question
-                ? 'font-medium text-zinc-800 dark:text-zinc-100'
-                : 'italic text-zinc-400 dark:text-zinc-500',
+              q.question ? 'font-medium text-foreground' : 'italic text-muted-foreground',
             )}
           >
             {q.question || t('edit.quiz.untitledQuestion')}
           </span>
         </button>
-        <span className="shrink-0 rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-500 tabular-nums dark:bg-zinc-800 dark:text-zinc-400">
+        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground tabular-nums">
           {q.points ?? 1}
         </span>
         <button
@@ -157,7 +155,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
           aria-label={t('edit.quiz.deleteQuestion')}
           onPointerDown={stopDrag}
           onClick={() => deleteQuizQuestion(q.id)}
-          className="shrink-0 rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:text-zinc-600 dark:hover:bg-rose-950/40"
+          className="shrink-0 rounded-lg p-1.5 text-subtle-foreground transition-colors hover:bg-mistake-soft hover:text-mistake"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -168,7 +166,7 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col gap-4 border-t border-zinc-100 px-4 pb-4 pt-3.5 dark:border-zinc-800/80"
+          className="flex flex-col gap-4 border-t border-border px-4 pb-4 pt-3.5"
         >
           {/* Question text */}
           <Field label={t('edit.quiz.questionLabel')}>
@@ -236,8 +234,8 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
                       className={cn(
                         'group/opt flex items-center gap-2 rounded-xl border p-1 transition-colors',
                         correct
-                          ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/25 dark:bg-emerald-500/[0.07]'
-                          : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/40',
+                          ? 'border-correct/30 bg-correct-soft/70'
+                          : 'border-transparent hover:bg-muted',
                       )}
                     >
                       <button
@@ -250,8 +248,8 @@ export function QuestionCard({ question: q, index, expanded, onToggle }: Props) 
                           'relative flex h-8 w-8 shrink-0 items-center justify-center border font-mono text-xs font-bold transition-all',
                           q.type === 'single' ? 'rounded-full' : 'rounded-lg',
                           correct
-                            ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
-                            : 'border-zinc-300 bg-white text-zinc-400 hover:border-emerald-400 hover:text-emerald-500 dark:border-zinc-600 dark:bg-zinc-800',
+                            ? 'border-correct/60 bg-correct text-primary-foreground shadow-sm shadow-correct/30'
+                            : 'border-border-strong bg-card text-muted-foreground hover:border-correct/60 hover:text-correct',
                         )}
                       >
                         {correct ? <Check className="h-4 w-4" strokeWidth={3} /> : optionLetter(i)}
@@ -366,7 +364,7 @@ function Field({
 }) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       {children}
@@ -395,10 +393,10 @@ function IconButton({
       onPointerDown={stopDrag}
       onClick={onClick}
       className={cn(
-        'rounded-lg p-1 text-zinc-400 transition-colors disabled:pointer-events-none disabled:opacity-30',
+        'rounded-lg p-1 text-muted-foreground transition-colors disabled:pointer-events-none disabled:opacity-30',
         danger
-          ? 'hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/40'
-          : 'hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300',
+          ? 'hover:bg-mistake-soft hover:text-mistake'
+          : 'hover:bg-muted hover:text-muted-foreground',
       )}
     >
       {children}

@@ -6,7 +6,7 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { reorderSlideElement } from './use-slide-surface';
 
 const BTN =
-  'flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100';
+  'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
 /**
  * To-front / to-back z-order buttons for the anchored bars. Two-way only —

@@ -22,7 +22,7 @@ export function FloatingToolbar({ actions }: FloatingToolbarProps) {
 
   return (
     <div className="pointer-events-none absolute left-1/2 top-5 z-20 -translate-x-1/2">
-      <div className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-background/95 p-1 shadow-[0_4px_24px_-8px_rgba(20,30,25,0.14),0_1px_2px_rgba(20,30,25,0.04)] ring-1 ring-border/70 backdrop-blur dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)]">
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-background/95 p-1 shadow-[0_4px_24px_-8px_rgba(20,26,46,0.14),0_1px_2px_rgba(20,26,46,0.04)] ring-1 ring-border/70 backdrop-blur dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)]">
         {grouped.map((group, groupIndex) => (
           <Fragment key={groupIndex}>
             {groupIndex > 0 && <div className="mx-0.5 h-5 w-px bg-border" />}
@@ -45,8 +45,8 @@ function ActionButton({ action }: { readonly action: FloatingAction }) {
       onClick={action.popoverContent ? undefined : action.onInvoke}
       className={`flex h-8 items-center gap-1.5 rounded-xl px-2 transition-colors disabled:pointer-events-none disabled:opacity-40 ${
         isDanger
-          ? 'text-zinc-500 hover:bg-rose-50 hover:text-rose-600 dark:text-zinc-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-400'
-          : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
+          ? 'text-muted-foreground hover:bg-mistake-soft hover:text-mistake-ink'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
     >
       {action.icon}

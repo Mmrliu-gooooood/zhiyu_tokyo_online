@@ -75,7 +75,7 @@ function AvatarWithOverlay({ agent, size, ringColor, onPickerOpen }: AvatarWithO
         style={{ width: size, height: size, boxShadow: `0 0 0 2px ${ringColor}` }}
       />
       {hovering && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-full bg-zinc-900/45">
+        <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45">
           <Camera className="size-3.5 text-white" />
         </div>
       )}
@@ -460,7 +460,7 @@ function ClassmateCard({
               type="button"
               data-testid="agent-roster-remove"
               onClick={() => onRemove(agent.id)}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px] text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-400"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px] text-muted-foreground transition-colors hover:bg-mistake-soft hover:text-mistake-ink"
             >
               <UserMinus className="size-3.5" />
               {t('edit.roster.removeFromClass')}

@@ -127,7 +127,7 @@ function useClearCuePreviewOnUnmount() {
  * the calmer amber stays clear of the blue interactive controls and is dropped
  * the moment the clip is filled.
  */
-const INCOMPLETE_CLIP = 'border-dashed border-amber-400/70';
+const INCOMPLETE_CLIP = 'border-dashed border-review/70';
 
 const AXIS_FROM_TOP = 20; // px from track top to the axis center (nodes hang below it)
 
@@ -211,7 +211,7 @@ function DeleteButton({ onDelete }: { onDelete: () => void }) {
         e.stopPropagation();
         onDelete();
       }}
-      className="grid size-5 place-items-center rounded-md text-muted-foreground/55 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/15"
+      className="grid size-5 place-items-center rounded-md text-muted-foreground/55 transition-colors hover:bg-mistake-soft hover:text-mistake"
       aria-label={t('edit.delete')}
     >
       <Trash2 className="size-3.5" />
@@ -464,15 +464,15 @@ export function SpeechTtsBar({
 
   const STATUS: Record<TtsStatus, { label: string; cls: string }> = {
     checking: { label: t('edit.tts.statusChecking'), cls: 'text-muted-foreground' },
-    ready: { label: t('edit.tts.statusReady'), cls: 'text-emerald-600 dark:text-emerald-400' },
+    ready: { label: t('edit.tts.statusReady'), cls: 'text-correct-ink' },
     none: { label: t('edit.tts.statusNone'), cls: 'text-muted-foreground' },
-    missing: { label: t('edit.tts.statusMissing'), cls: 'text-amber-600 dark:text-amber-400' },
+    missing: { label: t('edit.tts.statusMissing'), cls: 'text-review-ink' },
     unknown: { label: t('edit.tts.statusUnknown'), cls: 'text-muted-foreground' },
     generating: {
       label: t('edit.tts.statusGenerating'),
-      cls: 'text-amber-600 dark:text-amber-400',
+      cls: 'text-review-ink',
     },
-    error: { label: t('edit.tts.statusError'), cls: 'text-rose-500' },
+    error: { label: t('edit.tts.statusError'), cls: 'text-mistake' },
   };
   // A batch "Voice all" run drives this line's loading state from the parent
   // (regenerating) — independent of the local single-line status. `batchPending`
@@ -503,7 +503,7 @@ export function SpeechTtsBar({
         className={cn(
           'grid size-5 place-items-center rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent',
           previewPhase === 'playing'
-            ? 'text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+            ? 'text-mistake hover:bg-mistake/10 hover:text-mistake-ink'
             : 'text-muted-foreground/60 hover:bg-muted hover:text-foreground',
         )}
         aria-label={previewLabel}
@@ -607,7 +607,7 @@ function SpeechClip({
   return (
     <div
       className={cn(
-        'group/clip relative flex h-full w-[228px] shrink-0 flex-col overflow-hidden rounded-xl border border-border/85 bg-white/75 shadow-sm transition-colors focus-within:border-primary/60 hover:border-primary/35 dark:bg-slate-800/50',
+        'group/clip relative flex h-full w-[228px] shrink-0 flex-col overflow-hidden rounded-xl border border-border/85 bg-card/75 shadow-sm transition-colors focus-within:border-primary/60 hover:border-primary/35',
         needsText && INCOMPLETE_CLIP,
       )}
     >
@@ -713,22 +713,22 @@ function DiscussionClip({
   return (
     <div
       className={cn(
-        'group/disc relative flex h-full w-[228px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200/80 bg-white/70 shadow-sm transition-colors focus-within:border-yellow-400 hover:border-yellow-300/70 dark:border-gray-700/60 dark:bg-slate-800/50 dark:hover:border-yellow-500/40',
+        'group/disc relative flex h-full w-[228px] shrink-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-card/70 shadow-sm transition-colors focus-within:border-peer/60 hover:border-peer/30',
         needsTopic && INCOMPLETE_CLIP,
       )}
     >
       {/* The empty state reads from the amber dashed frame + the "topic
           (required)" placeholder; the discussion keeps its Flag glyph identity. */}
       <span className={cn('absolute inset-x-0 top-0 h-[3px]', m.accent)} />
-      <div className="flex items-center gap-1.5 border-b border-yellow-300/50 bg-yellow-400/15 px-2 py-1 dark:border-yellow-500/25 dark:bg-yellow-500/10">
-        <span className="flex size-4 items-center justify-center rounded-md bg-yellow-400 text-yellow-950 dark:bg-yellow-500 dark:text-slate-900">
+      <div className="flex items-center gap-1.5 border-b border-peer/30 bg-peer/15 px-2 py-1">
+        <span className="flex size-4 items-center justify-center rounded-md bg-peer text-peer-ink">
           <Flag className="size-2.5" />
         </span>
-        <span className="text-[8.5px] font-semibold uppercase tracking-[0.12em] text-yellow-700 dark:text-yellow-400">
+        <span className="text-[8.5px] font-semibold uppercase tracking-[0.12em] text-peer-ink">
           {t('edit.cue.discussion')}
         </span>
         <span
-          className="ml-auto text-[8.5px] font-medium uppercase tracking-[0.1em] text-yellow-600/70 dark:text-yellow-500/60"
+          className="ml-auto text-[8.5px] font-medium uppercase tracking-[0.1em] text-peer-ink/70"
           title={t('edit.timeline.discussionTerminalHint')}
         >
           {t('edit.timeline.discussionTerminal')}
@@ -746,7 +746,7 @@ function DiscussionClip({
           topicDirty.current = false;
         }}
         placeholder={t('edit.timeline.discussionTopicPlaceholder')}
-        className="h-[46px] shrink-0 resize-none bg-transparent px-3 pt-2 text-[12.5px] font-medium leading-[1.55] text-foreground/85 outline-none placeholder:font-normal placeholder:text-amber-500/60 [scrollbar-width:thin]"
+        className="h-[46px] shrink-0 resize-none bg-transparent px-3 pt-2 text-[12.5px] font-medium leading-[1.55] text-foreground/85 outline-none placeholder:font-normal placeholder:text-review/60 [scrollbar-width:thin]"
       />
       <textarea
         value={promptVal}
@@ -761,7 +761,7 @@ function DiscussionClip({
         placeholder={t('edit.timeline.discussionPromptPlaceholder')}
         className="min-h-0 flex-1 resize-none bg-transparent px-3 text-[11px] leading-[1.6] text-muted-foreground outline-none placeholder:text-muted-foreground/35 [scrollbar-width:thin]"
       />
-      <div className="flex items-center gap-1 border-t border-gray-100 px-2 py-1 dark:border-gray-700/50">
+      <div className="flex items-center gap-1 border-t border-border px-2 py-1">
         <span className="shrink-0 text-[9px] text-muted-foreground/50">
           {t('edit.timeline.discussionAgent')}
         </span>
@@ -771,7 +771,7 @@ function DiscussionClip({
         >
           <SelectTrigger
             size="sm"
-            className="ml-auto h-6 max-w-[150px] gap-1 rounded border-border px-1.5 py-0 text-[10px] shadow-none focus-visible:ring-yellow-400/40 [&_svg]:size-3"
+            className="ml-auto h-6 max-w-[150px] gap-1 rounded border-border px-1.5 py-0 text-[10px] shadow-none focus-visible:ring-peer/40 [&_svg]:size-3"
           >
             <SelectValue placeholder={t('edit.timeline.discussionAgentUnset')} />
           </SelectTrigger>
@@ -865,7 +865,7 @@ function CueMarker({
         if (bound) onPick();
       }}
       className={cn(
-        'group/cue relative flex h-full w-[108px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200/80 bg-white/65 shadow-sm transition-colors dark:border-gray-700/60 dark:bg-slate-800/40',
+        'group/cue relative flex h-full w-[108px] shrink-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-card/65 shadow-sm transition-colors',
         bound ? 'cursor-pointer hover:border-primary/35' : 'cursor-grab active:cursor-grabbing',
         needsTarget && cn('border-dashed', m.dash),
       )}
@@ -902,9 +902,7 @@ function CueMarker({
           <span
             className={cn(
               'text-[9px]',
-              needsTarget
-                ? 'font-medium text-amber-600 dark:text-amber-400'
-                : 'text-muted-foreground/45',
+              needsTarget ? 'font-medium text-review-ink' : 'text-muted-foreground/45',
             )}
           >
             {needsTarget
@@ -966,12 +964,12 @@ function NodeDot({
         if (bound) onPick();
       }}
       className={cn(
-        'grid size-6 place-items-center ring-2 ring-white transition-transform hover:scale-110 dark:ring-slate-900',
+        'grid size-6 place-items-center ring-2 ring-card transition-transform hover:scale-110',
         isDiscussion ? 'rounded-[7px]' : 'rounded-full',
         needsTarget
-          ? 'text-amber-600 bg-amber-100 ring-amber-200 animate-pulse dark:bg-amber-500/20 dark:text-amber-400'
+          ? 'text-review-ink bg-review-soft ring-review/30 animate-pulse'
           : isDiscussion
-            ? 'bg-yellow-400 text-yellow-900 ring-yellow-200 dark:bg-yellow-500 dark:text-slate-900 dark:ring-yellow-500/30'
+            ? 'bg-peer text-peer-ink ring-peer/30'
             : m.glyph,
         bound
           ? 'cursor-pointer'
@@ -1260,7 +1258,7 @@ export function ActionsBar({ sceneId }: { sceneId: string }) {
       </span>
       {/* pan the timeline viewport left/right */}
       {!lineMode && (
-        <div className="flex shrink-0 items-center border-l border-gray-200/70 pl-1 dark:border-gray-700/60">
+        <div className="flex shrink-0 items-center border-l border-border/70 pl-1">
           <button
             type="button"
             onClick={() => panViewport(-1)}

@@ -46,7 +46,7 @@ export function TableInsertPicker({ onPick, getLabel }: TableInsertPickerProps) 
       </div>
       <div
         data-testid="table-insert-dimensions"
-        className="text-center text-sm font-medium text-zinc-700 dark:text-zinc-200"
+        className="text-center text-sm font-medium text-foreground"
       >
         {getLabel(size.rows, size.columns)}
       </div>

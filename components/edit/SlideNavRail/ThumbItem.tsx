@@ -134,7 +134,7 @@ function ThumbItemComponent({
           <span
             title={t('edit.nav.sceneIncomplete')}
             aria-label={t('edit.nav.sceneIncomplete')}
-            className="absolute right-1 top-1 z-10 size-2 rounded-full bg-amber-400 shadow-sm ring-2 ring-white dark:ring-slate-900"
+            className="absolute right-1 top-1 z-10 size-2 rounded-full bg-review shadow-sm ring-2 ring-card"
           />
         )}
         {/* Scene header — index badge + title. Title doubles as the
@@ -172,7 +172,7 @@ function ThumbItemComponent({
                 onPointerDown={(e) => e.stopPropagation()}
                 aria-label={t('edit.nav.rename')}
                 className={cn(
-                  'min-w-0 flex-1 truncate rounded-sm bg-white px-1 py-0 text-xs font-bold outline-none',
+                  'min-w-0 flex-1 truncate rounded-sm bg-card px-1 py-0 text-xs font-bold outline-none',
                   'ring-1 ring-primary/60 focus:ring-2 focus:ring-primary/30',
                   'text-foreground dark:bg-card',
                 )}
@@ -210,11 +210,10 @@ function ThumbItemComponent({
                   aria-label={t('edit.nav.moreActions')}
                   data-testid="slide-nav-more"
                   className={cn(
-                    'shrink-0 rounded p-0.5 text-zinc-400 transition-opacity',
+                    'shrink-0 rounded p-0.5 text-muted-foreground transition-opacity',
                     'opacity-0 group-hover/thumb:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35',
-                    'hover:bg-zinc-200/80 hover:text-zinc-700',
-                    'dark:hover:bg-zinc-700 dark:hover:text-zinc-200',
+                    'hover:bg-muted/80 hover:text-foreground',
                   )}
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
@@ -244,7 +243,7 @@ function ThumbItemComponent({
         <div
           className={cn(
             'relative aspect-video w-full overflow-hidden rounded',
-            'bg-zinc-100 ring-1 ring-black/5 dark:bg-zinc-800 dark:ring-white/5',
+            'bg-muted ring-1 ring-black/5 dark:ring-white/5',
           )}
         >
           <div className="absolute inset-0 flex items-center justify-center">

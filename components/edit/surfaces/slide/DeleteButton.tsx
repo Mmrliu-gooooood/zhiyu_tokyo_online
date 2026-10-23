@@ -15,7 +15,7 @@ export function DeleteButton({ elementId }: { readonly elementId: string }) {
       // click fires; the op then deletes the element.
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => deleteSlideElement(elementId)}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-zinc-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-mistake-soft hover:text-mistake-ink"
     >
       <Trash2 className="h-4 w-4" />
     </button>

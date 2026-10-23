@@ -61,11 +61,9 @@ const ICONS = {
 } as const;
 
 const SEVERITY_STYLES = {
-  info: 'border-zinc-200 bg-white text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200',
-  suggestion:
-    'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100',
-  warning:
-    'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-100',
+  info: 'border-border bg-card text-foreground',
+  suggestion: 'border-review/30 bg-review-soft text-review-ink',
+  warning: 'border-mistake/30 bg-mistake-soft text-mistake-ink',
 } as const;
 
 function HintCard({ hint }: { readonly hint: EditorHint }) {
@@ -80,7 +78,7 @@ function HintCard({ hint }: { readonly hint: EditorHint }) {
         <button
           type="button"
           onClick={hint.action.onInvoke}
-          className="pointer-events-auto shrink-0 rounded-md bg-white/60 px-2.5 py-1 text-xs font-medium hover:bg-white dark:bg-zinc-800/60 dark:hover:bg-zinc-800"
+          className="pointer-events-auto shrink-0 rounded-md bg-card/60 px-2.5 py-1 text-xs font-medium hover:bg-card"
         >
           {hint.action.label}
         </button>

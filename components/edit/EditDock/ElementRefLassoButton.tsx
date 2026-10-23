@@ -142,7 +142,7 @@ export function ElementRefLassoButton({ sceneId }: { readonly sceneId: string })
           title={t('edit.elementRef.counts', { count: refs.length, max: MAX_ELEMENT_REFS })}
           className={cn(
             'grid size-4 place-items-center rounded-full font-mono text-[9px] font-semibold leading-none tabular-nums',
-            armed ? 'bg-white/25 text-white' : 'bg-primary/20 text-primary',
+            armed ? 'bg-card/25 text-primary-foreground' : 'bg-primary/20 text-primary',
           )}
         >
           {refs.length}

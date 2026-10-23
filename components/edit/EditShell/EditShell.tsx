@@ -299,7 +299,7 @@ function Frame({
 
   return (
     <StageGrid
-      className="bg-[#eef1ef] text-foreground dark:bg-background"
+      className="bg-muted text-foreground"
       topSlot={
         hideCommandBar ? null : (
           // `data-maic-edit-chrome`: the workbench's hand-edit signal scope
@@ -353,7 +353,7 @@ function Frame({
           {usesClassroomAspect(sceneType) ? (
             <ContainBox
               fit="contain"
-              className="overflow-hidden rounded-2xl bg-white ring-1 ring-border/80 shadow-[0_1px_2px_rgba(20,30,25,0.035),0_12px_32px_rgba(20,30,25,0.07)] dark:bg-card dark:shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
+              className="overflow-hidden rounded-2xl bg-white ring-1 ring-border/80 shadow-[0_1px_2px_rgba(20,26,46,0.035),0_12px_32px_rgba(20,26,46,0.07)] dark:bg-card dark:shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
             >
               <div
                 data-maic-edit-canvas="true"
@@ -367,7 +367,7 @@ function Frame({
             <div
               data-maic-edit-canvas="true"
               data-maic-stage-card="true"
-              className="relative h-full w-full overflow-hidden rounded-2xl bg-white ring-1 ring-border/80 shadow-[0_1px_2px_rgba(20,30,25,0.035),0_12px_32px_rgba(20,30,25,0.07)] dark:bg-card dark:shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
+              className="relative h-full w-full overflow-hidden rounded-2xl bg-white ring-1 ring-border/80 shadow-[0_1px_2px_rgba(20,26,46,0.035),0_12px_32px_rgba(20,26,46,0.07)] dark:bg-card dark:shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
             >
               {children}
             </div>

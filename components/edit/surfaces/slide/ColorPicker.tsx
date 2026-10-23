@@ -110,7 +110,7 @@ export function ColorPicker({
             className="h-5 w-5 shrink-0 rounded ring-1 ring-inset ring-black/15 dark:ring-white/20"
             style={{ backgroundColor: color }}
           />
-          <span className="truncate font-mono text-[11px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+          <span className="truncate font-mono text-[11px] tracking-wider text-muted-foreground uppercase">
             {color}
           </span>
         </div>
@@ -120,13 +120,13 @@ export function ColorPicker({
             aria-label="Sample a color from the screen"
             onMouseDown={(e) => e.preventDefault()}
             onClick={sampleScreen}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Pipette className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
-      <div className="flex gap-1 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+      <div className="flex gap-1 border-t border-border pt-3">
         {COMMON.map((c) => (
           <button
             key={c}

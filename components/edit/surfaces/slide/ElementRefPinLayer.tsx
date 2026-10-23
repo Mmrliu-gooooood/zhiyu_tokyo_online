@@ -143,8 +143,8 @@ export function ElementRefPinLayer() {
                 <span
                   className={
                     isHovered
-                      ? 'absolute -left-2 -top-2 grid size-[18px] place-items-center rounded-full bg-primary font-mono text-[10px] font-semibold leading-none tabular-nums text-primary-foreground shadow-md shadow-primary/25 ring-2 ring-white dark:ring-slate-900'
-                      : 'absolute -left-2 -top-2 grid size-4 place-items-center rounded-full bg-primary/85 font-mono text-[9px] font-semibold leading-none tabular-nums text-primary-foreground ring-2 ring-white dark:ring-slate-900'
+                      ? 'absolute -left-2 -top-2 grid size-[18px] place-items-center rounded-full bg-primary font-mono text-[10px] font-semibold leading-none tabular-nums text-primary-foreground shadow-md shadow-primary/25 ring-2 ring-card'
+                      : 'absolute -left-2 -top-2 grid size-4 place-items-center rounded-full bg-primary/85 font-mono text-[9px] font-semibold leading-none tabular-nums text-primary-foreground ring-2 ring-card'
                   }
                 >
                   {ref.ordinal}

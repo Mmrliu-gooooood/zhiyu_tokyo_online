@@ -43,7 +43,7 @@ export function ImagePicker({ onPick }: ImagePickerProps) {
           e.preventDefault();
           void handleFiles(e.dataTransfer.files);
         }}
-        className="rounded-lg border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-400"
+        className="rounded-lg border border-dashed border-border-strong p-5 text-center text-sm text-muted-foreground hover:border-border-strong"
       >
         {t('edit.insert.imageDrop')}
       </button>
@@ -54,7 +54,7 @@ export function ImagePicker({ onPick }: ImagePickerProps) {
         className="hidden"
         onChange={(e) => void handleFiles(e.target.files)}
       />
-      <div className="text-center text-xs text-zinc-400">{t('edit.insert.imageOr')}</div>
+      <div className="text-center text-xs text-muted-foreground">{t('edit.insert.imageOr')}</div>
       <div className="flex gap-2">
         <Input
           value={url}

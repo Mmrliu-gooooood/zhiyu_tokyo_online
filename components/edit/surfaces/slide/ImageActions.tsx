@@ -8,7 +8,7 @@ import { ImagePicker } from './ImagePicker';
 import { replaceImageSrc, toggleImageFlip } from './use-slide-surface';
 
 const BTN =
-  'flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100';
+  'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
 /**
  * Replace / flip controls for a selected image element. Mounted inside the

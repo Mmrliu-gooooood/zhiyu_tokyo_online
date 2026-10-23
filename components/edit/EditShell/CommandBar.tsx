@@ -40,7 +40,7 @@ export function CommandBar({ title, history, commands, trailing }: CommandBarPro
   const exitLabel = t(classroomExitLabelKey(searchParams));
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/70 bg-background/95 px-4 shadow-[0_1px_2px_rgba(20,30,25,0.025)] backdrop-blur-xl sm:px-6">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/70 bg-background/95 px-4 shadow-[0_1px_2px_rgba(20,26,46,0.025)] backdrop-blur-xl sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {/* Classroom exit mirrors playback Header's leftmost button so the
             user has the same global-out affordance across standalone modes. */}
