@@ -44,6 +44,12 @@
 - 测试：全量 vitest 901 个文件 / 9278 个用例通过，tsc 无错误；本地用模拟学习数据截图核对电脑、手机、浅色、深色。“今天要做”跨学科汇总未做（需要新接口）。
 - 发布（用户指示“推送并上线”）：只构建 Web（`ded5a2bdf063`），标为 `release-20261023b` 送到东京，磁盘 41%。服务器 compose 与 `supabase-compose.sh` 与仓库一致（忽略换行符）；无进行中的生成任务、学习任务与讲解。备份 `*.bak-20261023b-pre`（指向 web/worker 20261023），env 只改 `ZHIYU_WEB_IMAGE`，`apply --tier 4 --mode background`。readiness `ready`、2/2 Worker，Web 容器 healthy、无 WARN/ERROR；未登录的登录页已显示新 Logo 与宋体标题。登录后的页面待用户登录核对。
 
+### 修复：问候语名字与 /study 高亮（2026-10-23，Web release-20261023c，main `e083982d`）
+
+- 生产核对（用户登录后）：首页、侧边栏、/study 空状态、账户菜单与编辑资料弹窗正常；该账号 0 个学科，学科内标签页未能核对。发现首页问候语只读资料昵称（显示“同学”），而账户卡片显示账号名；没有学科时 /study 上侧边栏“学科空间”入口未高亮。
+- 修复：问候语与账户卡片共用 `useLearnerIdentity`（昵称 → 账号显示名 → 默认）；无学科时的“学科空间”入口在 /study 标为当前页。eslint、tsc、相关测试 262 个通过。
+- 发布（用户指示）：只构建 Web（`533b5253648f`）标为 `release-20261023c`；无进行中任务；备份 `*.bak-20261023c-pre`（指向 web 20261023b），env 只改 `ZHIYU_WEB_IMAGE`，apply 后 readiness `ready`、2/2 Worker、Web healthy、无 WARN/ERROR，磁盘 42%。生产核对：问候语“晚上好，zhigngliu0724”与账户卡片一致；/study 上“学科空间”高亮。
+
 ## B13 按需专项讲解与完整闭环（2026-10-21）
 
 ### 范围与起点
