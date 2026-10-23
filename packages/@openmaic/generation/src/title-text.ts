@@ -3,7 +3,8 @@
  * course cards). Models sometimes write formulas in them as LaTeX —
  * `\( (x^3)' \)`, `$\cos x$` — which then shows as source. Titles are
  * turned into readable plain text instead: delimiters dropped, common
- * commands named (cos, sin, ·, ×), simple powers as superscripts (x³).
+ * commands named (cos, sin, ·, ×), simple powers as superscripts (x³),
+ * other powers and groups kept in parentheses (e^(2x), √(x+1), (a+b)/2).
  * Anything else in the title is left as written.
  */
 
@@ -48,26 +49,53 @@ const SYMBOLS: Record<string, string> = {
   rightarrow: '→',
   int: '∫',
   sum: 'Σ',
-  sqrt: '√',
 };
 
-function lift(body: string, whole: string): string {
+/** Commands that take braced arguments; written out after the symbols. */
+const STRUCTURAL = new Set(['frac', 'dfrac', 'tfrac', 'sqrt']);
+
+/** Superscript characters for `body`, or null when one of them has none. */
+function lift(body: string): string | null {
   const chars = Array.from(body.replace(/\s+/gu, ''));
   return chars.length > 0 && chars.every((char) => SUPERSCRIPTS[char])
     ? chars.map((char) => SUPERSCRIPTS[char]).join('')
-    : whole;
+    : null;
+}
+
+/**
+ * A braced group once its braces are gone: in parentheses when longer than
+ * one character, so `e^{2x}` reads e^(2x), not e^2x (e² times x).
+ */
+function group(body: string): string {
+  const text = body.trim();
+  return Array.from(text).length > 1 ? `(${text})` : text;
+}
+
+/** A fraction part, in parentheses when it is a sum or difference: (a+b)/2. */
+function fractionPart(body: string): string {
+  const text = body.trim();
+  return /[+\-−±\s]/u.test(text) ? `(${text})` : text;
 }
 
 /** One formula as plain text. */
 function plainFormula(latex: string): string {
   let text = latex
-    .replace(/\\(?:d|t)?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/gu, '$1/$2')
-    .replace(/\\left|\\right/gu, '')
-    .replace(/\\([A-Za-z]+)/gu, (_whole, name: string) => SYMBOLS[name] ?? name)
+    .replace(/\\(?:left|right)(?![A-Za-z])/gu, '')
+    .replace(/\\([A-Za-z]+)/gu, (whole, name: string) =>
+      STRUCTURAL.has(name) ? whole : (SYMBOLS[name] ?? name),
+    )
+    .replace(
+      /\\(?:d|t)?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/gu,
+      (_whole, top: string, bottom: string) => `${fractionPart(top)}/${fractionPart(bottom)}`,
+    )
+    .replace(/\\sqrt\s*\{([^{}]*)\}/gu, (_whole, body: string) => `√${group(body)}`)
+    .replace(/\\sqrt/gu, '√')
+    .replace(/\\(?:d|t)?frac/gu, '')
     .replace(/\\[,;!: ]/gu, ' ');
   text = text
-    .replace(/\^\{([^{}]{1,8})\}/gu, (whole, body: string) => lift(body, whole))
-    .replace(/\^([0-9]+|n)(?![A-Za-z0-9{])/gu, (whole, body: string) => lift(body, whole))
+    .replace(/\^\{([^{}]{1,8})\}/gu, (_whole, body: string) => lift(body) ?? `^${group(body)}`)
+    .replace(/\^([0-9]+|n)(?![A-Za-z0-9{])/gu, (whole, body: string) => lift(body) ?? whole)
+    .replace(/_\{([^{}]{1,8})\}/gu, (_whole, body: string) => `_${group(body)}`)
     .replace(/[{}]/gu, '');
   return text.replace(/\s+/gu, ' ').trim();
 }

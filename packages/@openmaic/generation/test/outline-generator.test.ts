@@ -131,8 +131,17 @@ describe('generateSceneOutlinesFromRequirements', () => {
   test('keeps titles without formulas, and powers it cannot lift', () => {
     expect(plainTitleText('Photosynthesis')).toBe('Photosynthesis');
     expect(plainTitleText('价格 5 元')).toBe('价格 5 元');
-    expect(plainTitleText('$e^{ax}$ 与 $\\frac{1}{2}$')).toBe('e^ax 与 1/2');
+    expect(plainTitleText('$e^{ax}$ 与 $\\frac{1}{2}$')).toBe('e^(ax) 与 1/2');
     expect(plainTitleText('\\[ a \\cdot b \\]')).toBe('a · b');
+  });
+
+  test('keeps groups it cannot lift in parentheses, so they read the same', () => {
+    expect(plainTitleText("$(e^{2x})'$")).toBe("(e^(2x))'");
+    expect(plainTitleText('$e^{x}$ 与 $x^{-1}$')).toBe('e^x 与 x⁻¹');
+    expect(plainTitleText('$a_{n+1}$ 与 $a_{n}$')).toBe('a_(n+1) 与 a_n');
+    expect(plainTitleText('$\\sqrt{x+1}$ 与 $\\sqrt{2}$')).toBe('√(x+1) 与 √2');
+    expect(plainTitleText('$\\frac{a+b}{2}$ 与 $\\dfrac{\\pi}{2}$')).toBe('(a+b)/2 与 π/2');
+    expect(plainTitleText('$x \\leftarrow y$')).toBe('x leftarrow y');
   });
 
   test('trims and caps a string courseTitle', async () => {
