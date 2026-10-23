@@ -298,7 +298,7 @@ export function ProviderConfigPanel({
     <div className="space-y-6 max-w-3xl">
       {/* Server-configured notice */}
       {isServerConfigured && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300">
+        <div className="rounded-lg border border-ai/30 bg-ai-soft p-3 text-sm text-ai-ink">
           {t('settings.serverConfiguredNotice')}
         </div>
       )}
@@ -388,8 +388,10 @@ export function ProviderConfigPanel({
               <div
                 className={cn(
                   'rounded-lg p-3 text-sm overflow-hidden',
-                  testStatus === 'success' && 'bg-green-50 text-green-700 border border-green-200',
-                  testStatus === 'error' && 'bg-red-50 text-red-700 border border-red-200',
+                  testStatus === 'success' &&
+                    'bg-correct-soft text-correct-ink border border-correct/30',
+                  testStatus === 'error' &&
+                    'bg-mistake-soft text-mistake-ink border border-mistake/30',
                 )}
               >
                 <div className="flex items-start gap-2 min-w-0">
@@ -430,7 +432,7 @@ export function ProviderConfigPanel({
               )}
               <p className="text-xs text-muted-foreground">{t('settings.fixedEndpointHint')}</p>
               {baseUrl && (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-review/30 bg-review-soft p-2.5 text-xs text-review-ink">
                   <span className="break-all">
                     {t('settings.customBaseUrlNotAllowed').replace('{url}', baseUrl)}
                   </span>
@@ -527,7 +529,7 @@ export function ProviderConfigPanel({
       {/* Models - No selection state, just list for management */}
       <div className="space-y-3">
         {provider.id === 'azure' && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+          <div className="rounded-lg border border-ai/30 bg-ai-soft p-3 text-sm text-ai-ink">
             {t('settings.azureDeploymentHint')}
           </div>
         )}
@@ -582,8 +584,9 @@ export function ProviderConfigPanel({
           <div
             className={cn(
               'rounded-lg p-2.5 text-xs',
-              fetchStatus === 'success' && 'bg-green-50 text-green-700 border border-green-200',
-              fetchStatus === 'error' && 'bg-amber-50 text-amber-700 border border-amber-200',
+              fetchStatus === 'success' &&
+                'bg-correct-soft text-correct-ink border border-correct/30',
+              fetchStatus === 'error' && 'bg-review-soft text-review-ink border border-review/30',
             )}
           >
             {fetchMessage}

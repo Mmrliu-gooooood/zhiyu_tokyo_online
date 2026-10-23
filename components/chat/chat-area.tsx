@@ -110,7 +110,9 @@ export interface ChatAreaRef {
   pauseActiveLiveBuffer: () => boolean;
   resumeActiveLiveBuffer: () => void;
   switchToTab: (tab: 'lecture' | 'chat') => void;
-  attachTeachBackActivity: (activity: import('@/lib/learning/teach-back/activity').TeachBackProjectedActivity) => void;
+  attachTeachBackActivity: (
+    activity: import('@/lib/learning/teach-back/activity').TeachBackProjectedActivity,
+  ) => void;
 }
 
 const DEFAULT_WIDTH = 340;
@@ -134,12 +136,9 @@ export function GuidedModeToggle({
 }) {
   if (!enabled) return null;
   return (
-    <div
-      data-testid="guided-learning-toggle"
-      className="flex min-w-0 items-center gap-2"
-    >
-      <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#356B59] dark:text-[#9FC0B0]" />
-      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-gray-600 dark:text-gray-300">
+    <div data-testid="guided-learning-toggle" className="flex min-w-0 items-center gap-2">
+      <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
+      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground">
         {label}
       </span>
       <button
@@ -152,7 +151,7 @@ export function GuidedModeToggle({
         onClick={() => onChange(!active)}
         className={cn(
           'relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-          active ? 'bg-[#356B59] dark:bg-[#7FA392]' : 'bg-gray-200 dark:bg-gray-700',
+          active ? 'bg-primary' : 'bg-muted',
         )}
       >
         <span
@@ -291,7 +290,10 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
         onTeachBackContextChange?.(t('chat.teachBack.inputHintRoundComplete'));
         return;
       }
-      const n = Math.min((teachBackView.activity?.explanations.length ?? 0) + 1, TEACH_BACK_MAX_EXPLANATIONS);
+      const n = Math.min(
+        (teachBackView.activity?.explanations.length ?? 0) + 1,
+        TEACH_BACK_MAX_EXPLANATIONS,
+      );
       onTeachBackContextChange?.(
         t('chat.teachBack.inputHint', { n, max: TEACH_BACK_MAX_EXPLANATIONS }),
       );
@@ -493,7 +495,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
           'flex flex-col shrink-0 z-20 relative overflow-visible',
           embedded
             ? 'h-full min-h-0 bg-transparent'
-            : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-l border-gray-100 dark:border-gray-800 shadow-[-2px_0_24px_rgba(0,0,0,0.02)]',
+            : 'bg-card/80 backdrop-blur-xl border-l border-border shadow-[-2px_0_24px_rgba(0,0,0,0.02)]',
           className,
         )}
       >
@@ -501,9 +503,9 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
         {!collapsed && !embedded && (
           <div
             onMouseDown={handleDragStart}
-            className="group absolute bottom-0 left-0 top-0 z-50 w-1.5 cursor-col-resize transition-colors hover:bg-[#356B59]/20 active:bg-[#356B59]/30 dark:hover:bg-[#7FA392]/20 dark:active:bg-[#7FA392]/30"
+            className="group absolute bottom-0 left-0 top-0 z-50 w-1.5 cursor-col-resize transition-colors hover:bg-primary/20 active:bg-primary/30"
           >
-            <div className="absolute left-0.5 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-gray-300 transition-colors group-hover:bg-[#356B59] dark:bg-gray-600 dark:group-hover:bg-[#7FA392]" />
+            <div className="absolute left-0.5 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-muted transition-colors group-hover:bg-primary" />
           </div>
         )}
 
@@ -527,8 +529,8 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
                     {/* Amber pulse dot when there's an active chat session and user is on Notes tab */}
                     {hasActiveChatSession && activeTab === 'lecture' && (
                       <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-review opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-review" />
                       </span>
                     )}
                   </TabsTrigger>
@@ -539,7 +541,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
                     type="button"
                     onClick={() => onCollapseChange(true)}
                     aria-label={t('common.close')}
-                    className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center bg-gray-100/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 ring-1 ring-black/[0.04] dark:ring-white/[0.06] hover:bg-gray-200/90 dark:hover:bg-gray-700/90 hover:text-gray-700 dark:hover:text-gray-200 active:scale-90 transition-all duration-200"
+                    className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center bg-muted/80 text-muted-foreground ring-1 ring-border hover:bg-muted/90 hover:text-foreground active:scale-90 transition-all duration-200"
                   >
                     <PanelRightClose className="w-4 h-4" />
                   </button>
@@ -560,7 +562,7 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
 
             {/* Chat Tab */}
             <TabsContent value="chat" className="flex-1 overflow-hidden flex flex-col">
-              <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+              <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <GuidedModeToggle
                     enabled={guidedLearningEnabled}
@@ -568,7 +570,9 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
                     disabled={isStreaming || teachBackActive}
                     label={t('chat.guided.label')}
                     description={
-                      teachBackActive ? t('chat.teachBack.endToSwitch') : t('chat.guided.description')
+                      teachBackActive
+                        ? t('chat.teachBack.endToSwitch')
+                        : t('chat.guided.description')
                     }
                     onChange={setGuidedMode}
                   />
@@ -665,13 +669,13 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(
                 ) : null}
                 {chatSessions.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-50">
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E7F1EC] text-[#356B59]/55 dark:bg-[#356B59]/20 dark:text-[#9FC0B0]">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary/55">
                       <MessageSquare className="w-6 h-6" />
                     </div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {t('chat.noConversations')}
                     </p>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-[10px] text-muted-foreground mt-1">
                       {t('chat.startConversation')}
                     </p>
                   </div>

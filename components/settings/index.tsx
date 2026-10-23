@@ -915,7 +915,7 @@ export function SettingsDialog({
           <nav
             data-testid="zhiyu-settings-nav"
             aria-label={t('settings.title')}
-            className="flex-shrink-0 overflow-y-auto bg-[#F4F7F5] p-3 dark:bg-[#151D1A]"
+            className="flex-shrink-0 overflow-y-auto bg-muted p-3"
             style={{ width: sidebarWidth }}
           >
             <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1442,7 +1442,7 @@ export function SettingsDialog({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 border-t border-border/70 bg-[#F7F9F8] px-6 py-3 dark:bg-[#131A18]">
+              <div className="flex items-center justify-end gap-3 border-t border-border/70 bg-muted px-6 py-3">
                 {saveStatus === 'saved' && (
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4" />

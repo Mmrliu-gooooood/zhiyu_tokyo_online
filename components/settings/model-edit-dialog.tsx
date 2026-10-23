@@ -337,8 +337,10 @@ export function ModelEditDialog({
                   (requiresApiKey && !apiKey && !isServerConfigured && !credentialId)
                 }
                 className={cn(
-                  testStatus === 'success' && 'border-green-600 text-green-600 hover:bg-green-50',
-                  testStatus === 'error' && 'border-red-600 text-red-600 hover:bg-red-50',
+                  testStatus === 'success' &&
+                    'border-correct/60 text-correct-ink hover:bg-correct-soft',
+                  testStatus === 'error' &&
+                    'border-mistake/60 text-mistake-ink hover:bg-mistake-soft',
                 )}
               >
                 {testStatus === 'testing' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -351,8 +353,10 @@ export function ModelEditDialog({
               <div
                 className={cn(
                   'rounded-lg p-3 text-sm',
-                  testStatus === 'success' && 'bg-green-50 text-green-700 border border-green-200',
-                  testStatus === 'error' && 'bg-red-50 text-red-700 border border-red-200',
+                  testStatus === 'success' &&
+                    'bg-correct-soft text-correct-ink border border-correct/30',
+                  testStatus === 'error' &&
+                    'bg-mistake-soft text-mistake-ink border border-mistake/30',
                 )}
               >
                 <div className="flex items-start gap-2 flex-wrap">

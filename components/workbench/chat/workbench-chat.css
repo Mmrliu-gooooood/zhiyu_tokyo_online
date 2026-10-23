@@ -79,10 +79,9 @@
     --wb-danger: var(--destructive);
     --wb-danger-soft: color-mix(in srgb, var(--destructive) 11%, transparent);
     --wb-danger-line: color-mix(in srgb, var(--destructive) 45%, transparent);
-    /* shadcn has no success/warning pair; these two fixed hues are the whole
-       departure from the semantic palette. */
-    --wb-success: #059669;
-    --wb-warning: #d97706;
+    /* success / warning come from the global role colors (correct / review). */
+    --wb-success: var(--correct);
+    --wb-warning: var(--review);
     --wb-focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
 
     /* code surfaces (fixed, GitHub-flavored; dark overrides below) */
@@ -104,8 +103,6 @@
 
   .dark .wbchat {
     --wb-code-chip-mix: 11%;
-    --wb-success: #34d399;
-    --wb-warning: #fbbf24;
     --wb-code-surface: #0d1117;
     --wb-code-line: #2d333b;
     --wb-code-text: #c9cdd4;

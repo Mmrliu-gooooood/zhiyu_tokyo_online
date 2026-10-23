@@ -338,7 +338,7 @@ export function SubscriptionSignIn({
       {!open && account?.status === 'active' && (
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <CheckCircle2 className="h-4 w-4 text-correct-ink" />
             <span>{t('settings.oauthStatusConnected')}</span>
             {account.accountLabel && (
               <span className="text-muted-foreground">
@@ -353,7 +353,7 @@ export function SubscriptionSignIn({
         </div>
       )}
       {!open && account?.status === 'reauth_required' && (
-        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+        <div className="flex items-center gap-2 text-review-ink">
           <XCircle className="h-4 w-4" />
           {t('settings.oauthStatusReauth')}
         </div>

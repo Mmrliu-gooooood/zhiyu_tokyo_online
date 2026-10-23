@@ -18,9 +18,9 @@ interface SessionListProps {
 }
 
 const sessionBadgeStyles = {
-  qa: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  discussion: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  lecture: 'bg-[#E7F1EC] text-[#356B59] dark:bg-[#356B59]/25 dark:text-[#B8D1C4]',
+  qa: 'bg-ai-soft text-ai-ink',
+  discussion: 'bg-review-soft text-review-ink',
+  lecture: 'bg-primary-soft text-primary',
 };
 
 // Labels are provided via i18n in the component
@@ -28,18 +28,18 @@ const sessionBadgeStyles = {
 function getStatusIcon(status: SessionStatus) {
   switch (status) {
     case 'active':
-      return <Circle className="size-2.5 fill-green-500 text-green-500" />;
+      return <Circle className="size-2.5 fill-correct text-correct" />;
     case 'soft-closing':
-      return <Circle className="size-2.5 fill-amber-500 text-amber-500 animate-pulse" />;
+      return <Circle className="size-2.5 fill-review text-review animate-pulse" />;
     case 'interrupted':
-      return <Clock className="size-2.5 text-yellow-500" />;
+      return <Clock className="size-2.5 text-review" />;
     case 'completed':
-      return <CheckCircle className="size-2.5 text-gray-400" />;
+      return <CheckCircle className="size-2.5 text-muted-foreground" />;
     case 'error':
-      return <AlertCircle className="size-2.5 text-red-500" />;
+      return <AlertCircle className="size-2.5 text-mistake" />;
     case 'idle':
     default:
-      return <Circle className="size-2.5 text-gray-300" />;
+      return <Circle className="size-2.5 text-subtle-foreground" />;
   }
 }
 
@@ -59,11 +59,7 @@ export function SessionList({
         const isExpanded = expandedSessionIds.has(session.id);
         const isActive = session.status === 'active' || session.status === 'soft-closing';
         const dotColor =
-          session.type === 'lecture'
-            ? 'bg-[#356B59] dark:bg-[#7FA392]'
-            : session.type === 'qa'
-              ? 'bg-blue-500'
-              : 'bg-amber-500';
+          session.type === 'lecture' ? 'bg-primary' : session.type === 'qa' ? 'bg-ai' : 'bg-review';
 
         return (
           <div
@@ -71,14 +67,14 @@ export function SessionList({
             className={cn(
               'rounded-xl border transition-all duration-500 overflow-hidden',
               isActive
-                ? 'border-[#C9DED4] bg-[#E7F1EC]/40 shadow-sm dark:border-[#356B59]/50 dark:bg-[#356B59]/15'
-                : 'border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-gray-800/50',
+                ? 'border-primary/25 bg-primary-soft/40 shadow-sm'
+                : 'border-border bg-card/50',
             )}
           >
             {/* Session Header */}
             <button
               onClick={() => onToggleExpand(session.id)}
-              className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
             >
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className={cn(dotColor, 'relative inline-flex rounded-full h-2.5 w-2.5')} />
@@ -99,18 +95,18 @@ export function SessionList({
               >
                 {t(`chat.badge.${session.type}`)}
               </span>
-              <span className="flex-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">
+              <span className="flex-1 text-[11px] font-semibold text-foreground truncate">
                 {session.title}
               </span>
-              <div className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500">
+              <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
                 {getStatusIcon(session.status)}
               </div>
-              <span className="text-[9px] text-gray-400 dark:text-gray-500 font-medium tabular-nums shrink-0">
+              <span className="text-[9px] text-muted-foreground font-medium tabular-nums shrink-0">
                 {session.messages.length}
               </span>
               <ChevronDown
                 className={cn(
-                  'w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform duration-200 shrink-0',
+                  'w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 shrink-0',
                   !isExpanded && '-rotate-90',
                 )}
               />
@@ -124,7 +120,7 @@ export function SessionList({
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2, ease: 'easeInOut' }}
-                  className="overflow-hidden border-t border-gray-100/50 dark:border-gray-700/50"
+                  className="overflow-hidden border-t border-border/50"
                 >
                   <div className="px-2 pb-2 pt-1">
                     <ChatSessionComponent

@@ -202,7 +202,7 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
       )}
       {/* Server-configured notice */}
       {isServerConfigured && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300">
+        <div className="rounded-lg border border-ai/30 bg-ai-soft p-3 text-sm text-ai-ink">
           {t('settings.serverConfiguredNotice')}
         </div>
       )}
@@ -270,9 +270,9 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
                 className={cn(
                   'rounded-lg p-3 text-sm overflow-hidden',
                   testStatus === 'success' &&
-                    'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800',
+                    'bg-correct-soft text-correct-ink border border-correct/30',
                   testStatus === 'error' &&
-                    'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800',
+                    'bg-mistake-soft text-mistake-ink border border-mistake/30',
                 )}
               >
                 <div className="flex items-start gap-2 min-w-0">

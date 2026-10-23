@@ -220,7 +220,7 @@ export const wbStyles = {
    * (~34vh); the footer with the submit control is never among what scrolls away.
    */
   questionForm: {
-    box: 'flex flex-col gap-2.5 rounded-2xl border border-[var(--wb-accent-line)] bg-[var(--wb-surface)] px-3 py-3 shadow-[0_10px_32px_-14px_rgba(15,23,42,0.22)] motion-safe:animate-[wb-form-fade_var(--wb-duration-base)_var(--wb-ease-out)] motion-reduce:animate-none dark:shadow-[0_12px_36px_-12px_rgba(0,0,0,0.55)]',
+    box: 'flex flex-col gap-2.5 rounded-2xl border border-[var(--wb-accent-line)] bg-[var(--wb-surface)] px-3 py-3 shadow-[0_10px_32px_-14px_rgba(15,23,42,0.22)] motion-safe:animate-[wb-form-fade_var(--wb-duration-base)_var(--wb-ease-out)] motion-reduce:animate-none',
     // The question is the form's title, so it carries the weight a title does —
     // the one place in the rail where prose is bold.
     question:
@@ -300,7 +300,7 @@ export const wbStyles = {
   },
   composer: {
     inputBox:
-      'relative rounded-2xl border border-[var(--wb-line)] bg-[var(--wb-surface)] shadow-[0_10px_32px_-14px_rgba(15,23,42,0.22)] transition duration-150 focus-within:border-[var(--wb-accent)] focus-within:shadow-[var(--wb-focus-ring),0_10px_32px_-14px_rgba(15,23,42,0.22)] dark:shadow-[0_12px_36px_-12px_rgba(0,0,0,0.55)]',
+      'relative rounded-2xl border border-[var(--wb-line)] bg-[var(--wb-surface)] shadow-[0_10px_32px_-14px_rgba(15,23,42,0.22)] transition duration-150 focus-within:border-[var(--wb-accent)] focus-within:shadow-[var(--wb-focus-ring),0_10px_32px_-14px_rgba(15,23,42,0.22)]',
     /**
      * Everything attached to the next message, INSIDE the box it is attached to.
      *

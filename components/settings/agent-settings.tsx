@@ -112,7 +112,7 @@ export function AgentSettings({
                     <div className="font-medium text-sm flex items-center gap-1.5">
                       {getAgentName(agent)}
                       {agent.role === 'teacher' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 leading-none">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-ai-soft text-ai-ink leading-none">
                           {t('settings.required')}
                         </span>
                       )}
@@ -127,10 +127,10 @@ export function AgentSettings({
             <div
               className={`p-3 rounded-lg text-sm ${
                 selectedAgentIds.length === 0
-                  ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                  ? 'bg-mistake-soft text-mistake-ink border border-mistake/30'
                   : selectedAgentIds.length === 1
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                    : 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                    ? 'bg-ai-soft text-ai-ink border border-ai/30'
+                    : 'bg-peer-soft text-peer-ink border border-peer/30'
               }`}
             >
               {selectedAgentIds.length === 0 && (
@@ -164,7 +164,7 @@ export function AgentSettings({
         ) : (
           <>
             {/* Auto mode: description */}
-            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 text-sm">
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-correct-soft text-correct-ink border border-correct/30 text-sm">
               <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <span>{t('settings.agentModeAutoDesc')}</span>
             </div>

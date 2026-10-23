@@ -73,7 +73,7 @@ export function ContinueWithClassmate({
       target="_blank"
       rel="noopener"
       data-testid="continue-with-classmate"
-      className="mt-1 inline-flex items-center gap-1 text-[10px] text-[#5277B6] hover:underline dark:text-[#9BB4DE]"
+      className="mt-1 inline-flex items-center gap-1 text-[10px] text-ai hover:underline"
     >
       <MessageCircleMore className="size-3" />
       {t('study.companion.continueWith', { name })}

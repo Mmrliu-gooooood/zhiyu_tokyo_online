@@ -141,10 +141,10 @@ export const WorkspaceClassroomPane = memo(function WorkspaceClassroomPane({
             disabled={scenes.length === 0}
             onClick={() => setPlaybackOn(true)}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-[#E7F1EC] px-3 text-[11px] font-medium text-[#356B59] transition-[background-color,color,transform,box-shadow] duration-150',
-              'hover:bg-[#DDEBE4] hover:shadow-sm motion-safe:hover:-translate-y-px disabled:pointer-events-none disabled:opacity-40',
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary-soft px-3 text-[11px] font-medium text-primary transition-[background-color,color,transform,box-shadow] duration-150',
+              'hover:bg-primary-soft hover:shadow-sm motion-safe:hover:-translate-y-px disabled:pointer-events-none disabled:opacity-40',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              'dark:bg-[#356B59]/25 dark:text-[#B8D1C4] dark:hover:bg-[#356B59]/35 dark:hover:shadow-none',
+              'dark:hover:shadow-none',
             )}
           >
             <Play className="size-3.5" aria-hidden="true" />

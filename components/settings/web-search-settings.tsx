@@ -59,19 +59,19 @@ export function WebSearchSettings({ selectedProviderId }: WebSearchSettingsProps
     <div className="space-y-6 max-w-3xl">
       {/* Server-configured notice */}
       {isServerConfigured && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300">
+        <div className="rounded-lg border border-ai/30 bg-ai-soft p-3 text-sm text-ai-ink">
           {t('settings.serverConfiguredNotice')}
         </div>
       )}
 
       {isOperatorManagedBaseUrl && !isServerConfigured && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-sm text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg border border-review/30 bg-review-soft p-3 text-sm text-review-ink">
           {t('settings.searxngServerOnlyNotice')}
         </div>
       )}
 
       {!provider.requiresApiKey && !isServerConfigured && !isOperatorManagedBaseUrl && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-sm text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg border border-review/30 bg-review-soft p-3 text-sm text-review-ink">
           {t('settings.webSearchApiKeyOptional')}
         </div>
       )}
@@ -205,7 +205,7 @@ export function WebSearchSettings({ selectedProviderId }: WebSearchSettingsProps
                           href={meta.docsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-0.5 ml-1.5 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                          className="inline-flex items-center gap-0.5 ml-1.5 text-ai hover:text-ai-ink hover:underline"
                         >
                           {t('settings.viewDocs')}
                           <ExternalLink className="h-3 w-3" />

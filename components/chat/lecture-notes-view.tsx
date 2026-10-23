@@ -19,38 +19,31 @@ import type { LectureNoteEntry } from '@/lib/types/chat';
 const ACTION_ICON_ONLY: Record<string, { Icon: typeof Flashlight; style: string }> = {
   spotlight: {
     Icon: Flashlight,
-    style:
-      'bg-yellow-50 dark:bg-yellow-500/15 border-yellow-300/40 dark:border-yellow-500/30 text-yellow-700 dark:text-yellow-300',
+    style: 'bg-review-soft border-review/30 text-review-ink',
   },
   laser: {
     Icon: MousePointer2,
-    style:
-      'bg-red-50 dark:bg-red-500/15 border-red-300/40 dark:border-red-500/30 text-red-600 dark:text-red-300',
+    style: 'bg-mistake-soft border-mistake/30 text-mistake-ink',
   },
   play_video: {
     Icon: Play,
-    style:
-      'bg-yellow-50 dark:bg-yellow-500/15 border-yellow-300/40 dark:border-yellow-500/30 text-yellow-700 dark:text-yellow-300',
+    style: 'bg-review-soft border-review/30 text-review-ink',
   },
   widget_highlight: {
     Icon: Highlighter,
-    style:
-      'bg-amber-50 dark:bg-amber-500/15 border-amber-300/40 dark:border-amber-500/30 text-amber-700 dark:text-amber-300',
+    style: 'bg-review-soft border-review/30 text-review-ink',
   },
   widget_setState: {
     Icon: SlidersHorizontal,
-    style:
-      'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300/40 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300',
+    style: 'bg-ai-soft border-ai/30 text-ai-ink',
   },
   widget_annotation: {
     Icon: StickyNote,
-    style:
-      'bg-sky-50 dark:bg-sky-500/15 border-sky-300/40 dark:border-sky-500/30 text-sky-700 dark:text-sky-300',
+    style: 'bg-ai-soft border-ai/30 text-ai-ink',
   },
   widget_reveal: {
     Icon: Eye,
-    style:
-      'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-300/40 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300',
+    style: 'bg-correct-soft border-correct/30 text-correct-ink',
   },
 };
 
@@ -85,15 +78,11 @@ export function LectureNotesView({
   if (notes.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-6">
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E7F1EC] text-[#356B59]/55 ring-1 ring-[#C9DED4] dark:bg-[#356B59]/20 dark:text-[#9FC0B0] dark:ring-[#356B59]/40">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary/55 ring-1 ring-primary/25">
           <BookOpen className="w-6 h-6" />
         </div>
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-          {t('chat.lectureNotes.empty')}
-        </p>
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-          {t('chat.lectureNotes.emptyHint')}
-        </p>
+        <p className="text-xs font-medium text-muted-foreground">{t('chat.lectureNotes.empty')}</p>
+        <p className="text-[10px] text-muted-foreground mt-1">{t('chat.lectureNotes.emptyHint')}</p>
       </div>
     );
   }
@@ -114,9 +103,7 @@ export function LectureNotesView({
             data-scene-id={note.sceneId}
             className={cn(
               'relative mb-3 last:mb-0 rounded-lg px-3 py-2.5 transition-colors duration-200',
-              isCurrent
-                ? 'bg-[#E7F1EC]/80 ring-1 ring-[#C9DED4] dark:bg-[#356B59]/20 dark:ring-[#356B59]/45'
-                : 'bg-gray-50/50 dark:bg-gray-800/30',
+              isCurrent ? 'bg-primary-soft/80 ring-1 ring-primary/25' : 'bg-muted/50',
             )}
           >
             {/* Page label row */}
@@ -125,30 +112,26 @@ export function LectureNotesView({
               <div
                 className={cn(
                   'w-2 h-2 rounded-full shrink-0',
-                  isCurrent
-                    ? 'bg-[#356B59] shadow-sm shadow-[#356B59]/30 dark:bg-[#7FA392]'
-                    : 'bg-gray-300 dark:bg-gray-600',
+                  isCurrent ? 'bg-primary shadow-sm shadow-primary/30' : 'bg-muted',
                 )}
               />
               <span
                 className={cn(
                   'text-[10px] font-semibold tracking-wide',
-                  isCurrent
-                    ? 'text-[#356B59] dark:text-[#9FC0B0]'
-                    : 'text-gray-400 dark:text-gray-500',
+                  isCurrent ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
                 {pageLabel}
               </span>
               {isCurrent && (
-                <span className="rounded-full bg-[#DDEBE4] px-1.5 py-px text-[9px] font-bold text-[#356B59] dark:bg-[#356B59]/28 dark:text-[#B8D1C4]">
+                <span className="rounded-full bg-primary-soft px-1.5 py-px text-[9px] font-bold text-primary">
                   {t('chat.lectureNotes.currentPage')}
                 </span>
               )}
             </div>
 
             {/* Scene title */}
-            <h4 className="text-[13px] font-bold text-gray-800 dark:text-gray-100 mb-1.5 leading-snug pl-4">
+            <h4 className="text-[13px] font-bold text-foreground mb-1.5 leading-snug pl-4">
               {note.sceneTitle}
             </h4>
 
@@ -206,10 +189,10 @@ export function LectureNotesView({
                     return (
                       <div
                         key={i}
-                        className="my-1.5 flex items-start gap-1.5 rounded-md border border-amber-200/60 dark:border-amber-700/30 bg-amber-50/60 dark:bg-amber-900/10 px-2 py-1.5"
+                        className="my-1.5 flex items-start gap-1.5 rounded-md border border-review/30 bg-review-soft/60 px-2 py-1.5"
                       >
-                        <MessageSquare className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
-                        <span className="text-[11px] leading-snug text-amber-800 dark:text-amber-300">
+                        <MessageSquare className="w-3 h-3 text-review shrink-0 mt-0.5" />
+                        <span className="text-[11px] leading-snug text-review-ink">
                           {row.label}
                         </span>
                       </div>
@@ -258,12 +241,8 @@ export function LectureNotesView({
                         onClick={() => onJumpToAction?.(note.sceneId, row.actionIndex)}
                         className={cn(
                           'block w-full text-left rounded-md px-1 py-0.5 text-[12px] leading-[1.8] transition-colors',
-                          isActiveSpeech
-                            ? 'bg-[#DDEBE4] text-[#234D40] dark:bg-[#356B59]/30 dark:text-[#D7E8E0]'
-                            : 'text-gray-700 dark:text-gray-300',
-                          canJump
-                            ? 'cursor-pointer hover:bg-[#E7F1EC] dark:hover:bg-[#356B59]/20'
-                            : 'cursor-default',
+                          isActiveSpeech ? 'bg-primary-soft text-primary-ink' : 'text-foreground',
+                          canJump ? 'cursor-pointer hover:bg-primary-soft' : 'cursor-default',
                         )}
                         aria-label={jumpTitle}
                       >
@@ -272,10 +251,7 @@ export function LectureNotesView({
                     );
                   }
                   return (
-                    <p
-                      key={i}
-                      className="text-[12px] leading-[1.8] text-gray-700 dark:text-gray-300"
-                    >
+                    <p key={i} className="text-[12px] leading-[1.8] text-foreground">
                       {content}
                     </p>
                   );

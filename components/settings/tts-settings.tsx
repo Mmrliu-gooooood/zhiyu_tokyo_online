@@ -256,7 +256,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
           timeline's per-line audio (preview / regenerate / bulk voiceover) is
           unavailable on it — surface that when this provider is selected. */}
       {selectedProviderId === 'browser-native-tts' && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="rounded-lg border border-review/30 bg-review-soft p-3 text-sm text-review-ink">
           {t('settings.ttsBrowserNativeTimelineNotice')}
         </div>
       )}
@@ -296,7 +296,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
 
       {/* Server-configured notice */}
       {isServerConfigured && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300">
+        <div className="rounded-lg border border-ai/30 bg-ai-soft p-3 text-sm text-ai-ink">
           {t('settings.serverConfiguredNotice')}
         </div>
       )}
@@ -575,10 +575,8 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
         <div
           className={cn(
             'rounded-lg p-3 text-sm overflow-hidden',
-            testStatus === 'success' &&
-              'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800',
-            testStatus === 'error' &&
-              'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800',
+            testStatus === 'success' && 'bg-correct-soft text-correct-ink border border-correct/30',
+            testStatus === 'error' && 'bg-mistake-soft text-mistake-ink border border-mistake/30',
           )}
         >
           <div className="flex items-start gap-2 min-w-0">
@@ -599,7 +597,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                 key={model.id}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/40 text-xs font-mono text-muted-foreground"
               >
-                <span className="size-1.5 rounded-full bg-emerald-500/70" />
+                <span className="size-1.5 rounded-full bg-correct/70" />
                 {model.name}
               </div>
             ))}
@@ -988,7 +986,7 @@ function VoxCPMVoiceManager() {
             {t('settings.voxcpmCloneCount', { count: cloneCount })}
           </span>
           {!supportsReferenceAudio && (
-            <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300">
+            <span className="rounded-md border border-review/30 bg-review-soft px-2 py-1 text-review-ink">
               {t('settings.voxcpmCloneUnsupported')}
             </span>
           )}
@@ -1080,7 +1078,7 @@ function VoxCPMVoiceManager() {
                   </TabsTrigger>
                 </TabsList>
                 {createMode === 'clone' && !supportsReferenceAudio && (
-                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300">
+                  <span className="rounded-md border border-review/30 bg-review-soft px-2 py-1 text-xs text-review-ink">
                     {t('settings.voxcpmCloneSaveOnly')}
                   </span>
                 )}
@@ -1407,9 +1405,7 @@ function QwenVoiceCloneManager() {
         <Label className="text-base font-semibold">{t('settings.qwenCloneVoicesTitle')}</Label>
         <p className="mt-1 text-xs text-muted-foreground">{t('settings.qwenCloneRefAudioHint')}</p>
         {!recordingSupported && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">
-            {t('settings.qwenCloneUnsupported')}
-          </p>
+          <p className="mt-1 text-xs text-review-ink">{t('settings.qwenCloneUnsupported')}</p>
         )}
       </div>
 
@@ -1548,15 +1544,15 @@ function VoiceProfileRow({
 }) {
   const iconClassName =
     kind === 'auto'
-      ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300'
+      ? 'bg-peer-soft text-peer-ink'
       : kind === 'clone'
-        ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+        ? 'bg-ai-soft text-ai-ink'
         : 'bg-muted text-muted-foreground';
   const badgeClassName =
     badgeTone === 'default'
-      ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/40 dark:text-violet-300'
+      ? 'border-peer/30 bg-peer-soft text-peer-ink'
       : badgeTone === 'warning'
-        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-300'
+        ? 'border-review/30 bg-review-soft text-review-ink'
         : 'border-border/70 bg-background text-muted-foreground';
   const { t } = useI18n();
 

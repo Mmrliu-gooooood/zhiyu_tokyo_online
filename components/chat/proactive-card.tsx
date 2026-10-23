@@ -141,7 +141,7 @@ export const ProactiveCard = ({
             e.stopPropagation();
             onSkip();
           }}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:scale-110 transition-all z-20 group/close"
+          className="absolute -top-2 -right-2 w-6 h-6 bg-card shadow-md border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-mistake hover:scale-110 transition-all z-20 group/close"
           title={t('proactiveCard.skip')}
         >
           <X className="w-3 h-3 stroke-[2.5]" />
@@ -149,7 +149,7 @@ export const ProactiveCard = ({
 
         {/* Triangle Tail */}
         <div
-          className="absolute -bottom-[6px] w-3 h-3 bg-white dark:bg-gray-800 border-b border-r border-gray-100 dark:border-gray-700 z-10"
+          className="absolute -bottom-[6px] w-3 h-3 bg-card border-b border-r border-border z-10"
           style={{
             left: `${pos.tailOffset}px`,
             transform: 'translateX(-50%) rotate(45deg)',
@@ -157,14 +157,12 @@ export const ProactiveCard = ({
         />
 
         {/* Card body */}
-        <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-3.5 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100 dark:border-gray-700 flex flex-col gap-2.5 relative overflow-hidden">
+        <div className="bg-popover/95 backdrop-blur-sm p-3.5 rounded-2xl shadow-float flex flex-col gap-2.5 relative overflow-hidden">
           {/* Progress Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-50/50 dark:bg-gray-700/50">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-muted/50">
             <div
               className={`h-full transition-all duration-[50ms] ease-linear ${
-                isPaused
-                  ? 'bg-gray-300 dark:bg-gray-600'
-                  : 'bg-gradient-to-r from-amber-400 to-amber-500 dark:from-amber-500 dark:to-amber-600'
+                isPaused ? 'bg-muted' : 'bg-review'
               }`}
               style={{ width: `${progress}%` }}
             />
@@ -173,7 +171,7 @@ export const ProactiveCard = ({
           {/* Header */}
           <div className="flex items-center gap-2 px-0.5 pt-1">
             {agentAvatar && (
-              <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-gray-100 dark:border-gray-700">
+              <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-border">
                 <img
                   src={agentAvatar}
                   alt={agentName || ''}
@@ -183,7 +181,7 @@ export const ProactiveCard = ({
             )}
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
               {agentName && (
-                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">
+                <span className="text-[11px] font-semibold text-foreground truncate">
                   {agentName}
                 </span>
               )}
@@ -199,14 +197,14 @@ export const ProactiveCard = ({
             </div>
             <span
               className={`text-[10px] font-bold tabular-nums shrink-0 ${
-                isPaused ? 'text-gray-300 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'
+                isPaused ? 'text-subtle-foreground' : 'text-muted-foreground'
               }`}
             >
               {Math.max(0, Math.ceil((progress / 100) * (DISCUSSION_AUTO_SKIP_MS / 1000)))}s
             </span>
           </div>
 
-          <p className="text-[13px] font-bold text-gray-800 dark:text-gray-200 leading-snug px-0.5">
+          <p className="text-[13px] font-bold text-foreground leading-snug px-0.5">
             {action.topic}
           </p>
 
@@ -216,7 +214,7 @@ export const ProactiveCard = ({
                 e.stopPropagation();
                 onListen();
               }}
-              className="flex-1 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 dark:from-amber-500 dark:to-amber-600 dark:hover:from-amber-600 dark:hover:to-amber-700 text-white text-[11px] font-black rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] shadow-sm shadow-amber-200/50 dark:shadow-amber-800/50"
+              className="flex-1 py-2 bg-review hover:bg-review/90 text-primary-foreground text-[11px] font-black rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] shadow-sm shadow-review/40"
             >
               <Play className="w-3 h-3 fill-current" /> {t('proactiveCard.join')}
             </button>
@@ -228,8 +226,8 @@ export const ProactiveCard = ({
               }}
               className={`p-2 aspect-square rounded-lg border transition-colors active:scale-90 ${
                 isPaused
-                  ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50'
-                  : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 border-gray-100 dark:border-gray-600'
+                  ? 'bg-review-soft text-review-ink border-review/30 hover:bg-review-soft'
+                  : 'bg-muted hover:bg-muted text-muted-foreground hover:text-muted-foreground border-border'
               }`}
               title={isPaused ? t('proactiveCard.resume') : t('proactiveCard.pause')}
             >

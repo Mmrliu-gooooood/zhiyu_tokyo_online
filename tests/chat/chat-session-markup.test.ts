@@ -104,6 +104,6 @@ describe('ChatSessionComponent markup contract', () => {
     expect(html).toContain('data-testid="zhiyu-chat-content"');
     expect(html).toContain('Chlorophyll captures light energy.');
     expect(html).toContain('How is that energy stored?');
-    expect(html).toContain('bg-[#E7F1EC]');
+    expect(html).toContain('bg-primary-soft');
   });
 });

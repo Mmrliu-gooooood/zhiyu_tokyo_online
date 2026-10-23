@@ -92,26 +92,20 @@ const MessageBubble = memo(function MessageBubble({
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full animate-pulse',
-            isTeacher
-              ? 'bg-[#356B59]/70 dark:bg-[#7FA392]/70'
-              : 'bg-[#5277B6]/70 dark:bg-[#89A6D4]/70',
+            isTeacher ? 'bg-primary/70' : 'bg-ai/70',
           )}
         />
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full animate-pulse',
-            isTeacher
-              ? 'bg-[#356B59]/70 dark:bg-[#7FA392]/70'
-              : 'bg-[#5277B6]/70 dark:bg-[#89A6D4]/70',
+            isTeacher ? 'bg-primary/70' : 'bg-ai/70',
           )}
           style={{ animationDelay: '200ms' }}
         />
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full animate-pulse',
-            isTeacher
-              ? 'bg-[#356B59]/70 dark:bg-[#7FA392]/70'
-              : 'bg-[#5277B6]/70 dark:bg-[#89A6D4]/70',
+            isTeacher ? 'bg-primary/70' : 'bg-ai/70',
           )}
           style={{ animationDelay: '400ms' }}
         />
@@ -132,8 +126,8 @@ const MessageBubble = memo(function MessageBubble({
       className={cn(
         'inline-block max-w-[92%] rounded-xl px-3 py-2 text-left text-[12px] leading-relaxed transition-shadow duration-300',
         isUser
-          ? 'ml-auto rounded-tr-sm border border-[#C9DED4] bg-[#E7F1EC] text-[#234D40] dark:border-[#356B59]/55 dark:bg-[#356B59]/25 dark:text-[#D7E8E0]'
-          : 'rounded-tl-sm border border-gray-100 bg-white text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200',
+          ? 'ml-auto rounded-tr-sm border border-primary/25 bg-primary-soft text-primary-ink'
+          : 'rounded-tl-sm border border-border bg-card text-foreground shadow-sm',
       )}
     >
       <span className="whitespace-pre-wrap break-words">
@@ -151,7 +145,7 @@ const MessageBubble = memo(function MessageBubble({
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50 animate-pulse ml-1 align-middle" />
                 )}
                 {message.metadata?.interrupted && isLast && !isLive && (
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 ml-1 align-middle" />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-mistake ml-1 align-middle" />
                 )}
               </span>
             );
@@ -238,7 +232,7 @@ export function ChatSessionComponent({
   if (session.messages.length === 0 && !isActive) {
     return (
       <div className="h-20 flex items-center justify-center text-center px-2">
-        <p className="text-[10px] text-gray-400 dark:text-gray-500">{t('chat.noMessages')}</p>
+        <p className="text-[10px] text-muted-foreground">{t('chat.noMessages')}</p>
       </div>
     );
   }
@@ -302,12 +296,11 @@ export function ChatSessionComponent({
               className={cn(
                 'flex gap-2 px-1.5 py-1 rounded-lg border-l-[3px] border-l-transparent transition-[background-color,border-color] duration-300',
                 isUser && 'flex-row-reverse',
-                isActiveBubble &&
-                  'border-l-[#356B59] bg-[#E7F1EC]/60 dark:border-l-[#7FA392] dark:bg-[#356B59]/15',
+                isActiveBubble && 'border-l-primary bg-primary-soft/60',
               )}
             >
               {/* Mini Avatar */}
-              <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 mt-0.5 ring-1 ring-gray-200/50 dark:ring-gray-700/50">
+              <div className="w-5 h-5 rounded-full overflow-hidden bg-muted shrink-0 mt-0.5 ring-1 ring-border/50">
                 <AvatarDisplay src={avatar} alt="avatar" className="text-xs" />
               </div>
 
@@ -317,11 +310,7 @@ export function ChatSessionComponent({
                   data-testid="zhiyu-chat-identity"
                   className={cn(
                     'text-[9px] font-bold uppercase tracking-wider block mb-0.5',
-                    isUser
-                      ? 'text-[#356B59] dark:text-[#9FC0B0]'
-                      : isTeacher
-                        ? 'text-[#356B59] dark:text-[#9FC0B0]'
-                        : 'text-[#5277B6] dark:text-[#9BB4DE]',
+                    isUser ? 'text-primary' : isTeacher ? 'text-primary' : 'text-ai',
                   )}
                 >
                   {(() => {
@@ -364,12 +353,12 @@ export function ChatSessionComponent({
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="mx-3 mt-2 mb-1 flex items-center gap-2"
             >
-              <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
-              <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500 font-medium">
+              <div className="h-px flex-1 bg-muted/70" />
+              <span className="flex items-center gap-1 text-[9px] text-muted-foreground font-medium">
                 <CircleStop className="w-2.5 h-2.5" />
                 {t('chat.ended')}
               </span>
-              <div className="h-px flex-1 bg-gray-200/70 dark:bg-gray-700/70" />
+              <div className="h-px flex-1 bg-muted/70" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -389,7 +378,7 @@ export function ChatSessionComponent({
             <button
               type="button"
               onClick={() => onEndSession(session.id)}
-              className="h-7 bg-red-50/80 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200/60 dark:border-red-800/50 px-2.5 rounded-md text-[11px] font-semibold flex items-center gap-1.5 transition-colors hover:bg-red-100 dark:hover:bg-red-900/35"
+              className="h-7 bg-mistake-soft/80 text-mistake-ink border border-mistake/30 px-2.5 rounded-md text-[11px] font-semibold flex items-center gap-1.5 transition-colors hover:bg-mistake-soft"
             >
               <CircleStop className="size-3" />
               {endButtonText}
@@ -398,12 +387,12 @@ export function ChatSessionComponent({
               <button
                 type="button"
                 onClick={() => onContinueSession(session.id)}
-                className="flex h-7 items-center gap-1.5 rounded-md border border-[#C9DED4] bg-white px-2.5 text-[11px] font-semibold text-[#356B59] transition-colors hover:bg-[#E7F1EC] dark:border-[#356B59]/60 dark:bg-gray-800 dark:text-[#9FC0B0] dark:hover:bg-[#356B59]/20"
+                className="flex h-7 items-center gap-1.5 rounded-md border border-primary/25 bg-card px-2.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary-soft"
               >
                 <MessageCircleMore className="size-3" />
                 {t('chat.softClosing')}
                 {remainingSoftCloseSeconds !== undefined && (
-                  <span className="text-[9px] font-medium tabular-nums text-gray-400 dark:text-gray-500">
+                  <span className="text-[9px] font-medium tabular-nums text-muted-foreground">
                     {remainingSoftCloseSeconds}s
                   </span>
                 )}

@@ -108,9 +108,9 @@ export function PlatformDefaultPanel({
               {statusKey === 'loading' ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
               ) : available ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-correct-ink" aria-hidden="true" />
               ) : (
-                <CircleAlert className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+                <CircleAlert className="h-3.5 w-3.5 text-review-ink" aria-hidden="true" />
               )}
               {t(`settings.platformDefault.statuses.${statusKey}`)}
             </dd>

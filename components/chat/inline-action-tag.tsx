@@ -31,18 +31,13 @@ interface InlineActionTagProps {
 
 // ── Style tokens ──────────────────────────────────────────────
 
-const WB_STYLE =
-  'bg-[#EAF0FA] border-[#C8D5EA] text-[#5277B6] dark:bg-[#5277B6]/20 dark:border-[#5277B6]/45 dark:text-[#A8BEE1]';
-const WB_ACCENT = 'bg-[#5277B6] dark:bg-[#89A6D4]';
+const WB_STYLE = 'bg-ai-soft border-ai/30 text-ai';
+const WB_ACCENT = 'bg-ai';
 
-const SPOTLIGHT_STYLE =
-  'bg-yellow-50 dark:bg-yellow-500/15 border-yellow-300/40 dark:border-yellow-500/30 text-yellow-700 dark:text-yellow-300';
-const LASER_STYLE =
-  'bg-red-50 dark:bg-red-500/15 border-red-300/40 dark:border-red-500/30 text-red-600 dark:text-red-300';
-const DISCUSS_STYLE =
-  'bg-amber-50 dark:bg-amber-500/15 border-amber-300/40 dark:border-amber-500/30 text-amber-700 dark:text-amber-300';
-const DEFAULT_STYLE =
-  'bg-gray-50 dark:bg-gray-500/15 border-gray-300/40 dark:border-gray-500/30 text-gray-600 dark:text-gray-300';
+const SPOTLIGHT_STYLE = 'bg-review-soft border-review/30 text-review-ink';
+const LASER_STYLE = 'bg-mistake-soft border-mistake/30 text-mistake-ink';
+const DISCUSS_STYLE = 'bg-review-soft border-review/30 text-review-ink';
+const DEFAULT_STYLE = 'bg-muted border-border-strong/40 text-muted-foreground';
 
 // ── Action config ─────────────────────────────────────────────
 
@@ -110,7 +105,7 @@ export function InlineActionTag({ actionName, state }: InlineActionTagProps) {
             WB_ACCENT,
           )}
         >
-          <PenLine className="h-[7px] w-[7px] text-white dark:text-[#1C2D4A]" strokeWidth={2.5} />
+          <PenLine className="h-[7px] w-[7px] text-primary-foreground" strokeWidth={2.5} />
         </span>
       )}
 

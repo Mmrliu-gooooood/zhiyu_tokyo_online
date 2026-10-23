@@ -35,12 +35,13 @@
  */
 
 /* ── Tokens ──────────────────────────────────────────────────────────────
-   Slate ramp + brand violet, matching the rest of the product. */
+   The workbench's own roles, each mapped onto the global design tokens
+   (app/globals.css), so both themes follow the product palette. */
 .ws-root {
-  --ws-canvas-top: #f4f6f3;
-  --ws-canvas-bottom: #e8eeea;
-  --ws-rail: rgba(255, 255, 255, 0.72);
-  --ws-surface: rgba(255, 255, 255, 0.82);
+  --ws-canvas-top: var(--background);
+  --ws-canvas-bottom: color-mix(in srgb, var(--muted) 70%, var(--background));
+  --ws-rail: color-mix(in srgb, var(--card) 72%, transparent);
+  --ws-surface: color-mix(in srgb, var(--card) 82%, transparent);
 
   /* The ink ramp, re-cut. Every step used to sit within one slate shade of its
      neighbour, so the rail read as one grey band: the counts (slate-300) came
@@ -54,16 +55,17 @@
        mute    4.7:1  metadata, counts, glyphs, buttons at rest (AA)
        faint   2.5:1  DECORATION ONLY — separators, rules. Never text.
 
-     The palette is unchanged: these are all slate steps, just further apart. */
-  --ws-ink: #0f172a; /* slate-900 */
-  --ws-ink-soft: #334155; /* slate-700 */
-  --ws-ink-mute: #64748b; /* slate-500 */
-  --ws-ink-faint: #94a3b8; /* slate-400 */
+     The roles now sit on the global ink ramp (foreground / muted-foreground /
+     subtle-foreground), which keeps the same AA distances in both themes. */
+  --ws-ink: var(--foreground);
+  --ws-ink-soft: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+  --ws-ink-mute: var(--muted-foreground);
+  --ws-ink-faint: var(--subtle-foreground);
 
-  --ws-line: rgba(15, 23, 42, 0.11);
-  --ws-line-soft: rgba(15, 23, 42, 0.065);
-  --ws-tint: rgba(15, 23, 42, 0.055);
-  --ws-tint-strong: rgba(15, 23, 42, 0.09);
+  --ws-line: color-mix(in srgb, var(--foreground) 11%, transparent);
+  --ws-line-soft: color-mix(in srgb, var(--foreground) 6.5%, transparent);
+  --ws-tint: color-mix(in srgb, var(--foreground) 5.5%, transparent);
+  --ws-tint-strong: color-mix(in srgb, var(--foreground) 9%, transparent);
 
   /* The `@` course menu's row, and how many of them its window shows.
      The window is a WHOLE NUMBER of rows so the resting state never cuts one in
@@ -117,14 +119,14 @@
 
   /* Floating menus sit OVER the tree, so they are opaque where the rail is
      translucent: a popover you can read the list through is not a popover. */
-  --ws-raised: #ffffff;
+  --ws-raised: var(--popover);
 
-  --ws-accent: #3d6b5a;
-  --ws-accent-thread: rgba(61, 107, 90, 0.32);
-  --ws-accent-wash: rgba(61, 107, 90, 0.08);
+  --ws-accent: var(--primary);
+  --ws-accent-thread: color-mix(in srgb, var(--primary) 32%, transparent);
+  --ws-accent-wash: color-mix(in srgb, var(--primary) 8%, transparent);
 
-  --ws-live: #10b981; /* emerald-500, as v2 */
-  --ws-fail: #f43f5e; /* rose-500,   as v2 */
+  --ws-live: var(--correct);
+  --ws-fail: var(--mistake);
 
   --ws-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
@@ -138,7 +140,8 @@
   --ws-lift-focus:
     0 0 0 1px var(--ws-accent-thread), 0 0 0 4px var(--ws-accent-wash),
     0 2px 3px -1px rgba(15, 23, 42, 0.04), 0 8px 16px -4px rgba(15, 23, 42, 0.055),
-    0 22px 40px -14px rgba(15, 23, 42, 0.08), 0 40px 70px -34px rgba(61, 107, 90, 0.14);
+    0 22px 40px -14px rgba(15, 23, 42, 0.08),
+    0 40px 70px -34px color-mix(in srgb, var(--primary) 14%, transparent);
   --ws-lift-sm:
     0 1px 1px rgba(15, 23, 42, 0.03), 0 2px 4px -1px rgba(15, 23, 42, 0.035),
     0 6px 12px -6px rgba(15, 23, 42, 0.045);
@@ -152,44 +155,17 @@
   color: var(--ws-ink);
 }
 
+/* Colors come from the global tokens, which already switch with the theme;
+   dark only needs its own (black) casts. */
 .dark .ws-root {
-  --ws-canvas-top: #121816;
-  --ws-canvas-bottom: #0e1412;
-  --ws-rail: rgba(15, 23, 42, 0.62);
-  --ws-surface: rgba(15, 23, 42, 0.78);
-
-  /* Dark's ramp was already the better of the two — it cleared AA at every step
-     that carries text — so it is lifted only at the top and the bottom, to keep
-     the ROLES the same distance apart in both themes:
-
-       ink    16.8:1  soft  11.7:1  mute  6.8:1  faint  3.6:1 (decoration)
-
-     Everything dark gains from this pass it gains from usage, not from the
-     ramp: counts and labels moved off `faint`, and the rail's buttons stopped
-     resting at 45% opacity. */
-  --ws-ink: #f8fafc; /* slate-50  */
-  --ws-ink-soft: #cbd5e1; /* slate-300 */
-  --ws-ink-mute: #94a3b8; /* slate-400 */
-  --ws-ink-faint: #64748b; /* slate-500 — decoration only */
-
-  --ws-line: rgba(255, 255, 255, 0.12);
-  --ws-line-soft: rgba(255, 255, 255, 0.07);
-  --ws-tint: rgba(255, 255, 255, 0.06);
-  --ws-tint-strong: rgba(255, 255, 255, 0.1);
-
-  --ws-raised: #1e293b; /* slate-800 — one step above the slate-900 canvas */
-
-  --ws-accent: #7fa392;
-  --ws-accent-thread: rgba(127, 163, 146, 0.36);
-  --ws-accent-wash: rgba(127, 163, 146, 0.1);
-
   --ws-lift:
     0 1px 1px rgba(0, 0, 0, 0.3), 0 4px 10px -3px rgba(0, 0, 0, 0.32),
     0 14px 28px -12px rgba(0, 0, 0, 0.38), 0 30px 54px -26px rgba(0, 0, 0, 0.44);
   --ws-lift-focus:
     0 0 0 1px var(--ws-accent-thread), 0 0 0 4px var(--ws-accent-wash),
     0 2px 4px -1px rgba(0, 0, 0, 0.3), 0 10px 20px -5px rgba(0, 0, 0, 0.36),
-    0 26px 48px -16px rgba(0, 0, 0, 0.44), 0 44px 76px -36px rgba(127, 163, 146, 0.2);
+    0 26px 48px -16px rgba(0, 0, 0, 0.44),
+    0 44px 76px -36px color-mix(in srgb, var(--primary) 20%, transparent);
   --ws-lift-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 10px -4px rgba(0, 0, 0, 0.34);
   --ws-lift-sm-hover: 0 2px 4px rgba(0, 0, 0, 0.34), 0 8px 16px -6px rgba(0, 0, 0, 0.4);
 
@@ -210,9 +186,13 @@
    pointing at nothing. */
 .ws-canvas {
   background-image:
-    /* the pool behind hero + composer — violet-white, so the brand tints the
+    /* the pool behind hero + composer — brand-tinted, so the brand tints the
        light rather than sitting in a swatch somewhere */
-    radial-gradient(58% 34% at 50% 43%, rgba(61, 107, 90, 0.062), rgba(61, 107, 90, 0) 72%),
+    radial-gradient(
+      58% 34% at 50% 43%,
+      color-mix(in srgb, var(--primary) 6.2%, transparent),
+      transparent 72%
+    ),
     /* a white core inside the pool, so the falloff is not one flat cone and
        the composer sits in the brightest part of the canvas */
     radial-gradient(40% 24% at 50% 47%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 74%),
@@ -230,7 +210,11 @@
 
 .dark .ws-canvas {
   background-image:
-    radial-gradient(62% 36% at 50% 43%, rgba(127, 163, 146, 0.075), rgba(127, 163, 146, 0) 70%),
+    radial-gradient(
+      62% 36% at 50% 43%,
+      color-mix(in srgb, var(--primary) 7.5%, transparent),
+      transparent 70%
+    ),
     radial-gradient(36% 22% at 50% 47%, rgba(226, 232, 240, 0.045), rgba(226, 232, 240, 0) 72%),
     var(--ws-grain);
 }
@@ -696,14 +680,14 @@
   width: 46px;
   height: 46px;
   border-radius: 12px;
-  filter: drop-shadow(0 6px 14px rgba(61, 107, 90, 0.22))
+  filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--primary) 22%, transparent))
     drop-shadow(0 1px 2px rgba(15, 23, 42, 0.1));
   user-select: none;
   -webkit-user-drag: none;
 }
 
 .dark .ws-hero-mark {
-  filter: drop-shadow(0 6px 18px rgba(127, 163, 146, 0.26))
+  filter: drop-shadow(0 6px 18px color-mix(in srgb, var(--primary) 26%, transparent))
     drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
