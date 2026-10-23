@@ -117,7 +117,9 @@ export function WorkbenchLaunchBridge() {
       >
         <div className="w-full max-w-md rounded-[22px] border border-border bg-card p-8 shadow-[0_16px_48px_rgba(20,32,25,0.08)] dark:shadow-black/25">
           <ZhiyuLockup size="sm" className="mb-8 justify-center" />
-          <h1 className="text-lg font-semibold text-foreground">{t('workspace.loadFailed')}</h1>
+          <h1 className="font-display text-xl font-bold text-foreground">
+            {t('workspace.loadFailed')}
+          </h1>
           <p className="mt-2 break-words text-sm text-destructive">{error}</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button

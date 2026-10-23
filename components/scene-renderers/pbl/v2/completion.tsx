@@ -127,7 +127,7 @@ export function PBLV2Completion({ project, onBack }: Props) {
         }));
 
   return (
-    <div className="relative h-full w-full overflow-y-auto bg-[radial-gradient(circle_at_20%_10%,rgba(124,92,255,0.18),transparent_32%),radial-gradient(circle_at_88%_0%,rgba(34,211,238,0.14),transparent_30%),linear-gradient(135deg,#0b1220_0%,#111c33_52%,#0a1020_100%)] text-slate-100">
+    <div className="relative h-full w-full overflow-y-auto bg-[radial-gradient(circle_at_20%_10%,rgba(82,102,173,0.18),transparent_32%),radial-gradient(circle_at_88%_0%,rgba(95,192,208,0.14),transparent_30%),linear-gradient(135deg,#0b1220_0%,#111c33_52%,#0a1020_100%)] text-slate-100">
       <div className="m-auto w-full max-w-6xl px-8 py-10">
         {onBack && (
           <button
@@ -417,20 +417,20 @@ const CONFETTI: ReadonlyArray<{
   drift: number;
   rotate: number;
 }> = [
-  { left: 6, color: '#a78bfa', size: 6, delay: 0.0, duration: 3.0, drift: 14, rotate: 320 },
-  { left: 14, color: '#67e8f9', size: 7, delay: 0.7, duration: 3.4, drift: -10, rotate: -260 },
+  { left: 6, color: '#8fa4e8', size: 6, delay: 0.0, duration: 3.0, drift: 14, rotate: 320 },
+  { left: 14, color: '#5fc0d0', size: 7, delay: 0.7, duration: 3.4, drift: -10, rotate: -260 },
   { left: 22, color: '#fcd34d', size: 5, delay: 1.3, duration: 2.8, drift: 8, rotate: 400 },
   { left: 30, color: '#6ee7b7', size: 6, delay: 0.4, duration: 3.2, drift: -16, rotate: -340 },
   { left: 38, color: '#f9a8d4', size: 7, delay: 1.0, duration: 3.6, drift: 12, rotate: 300 },
-  { left: 46, color: '#7dd3fc', size: 5, delay: 0.2, duration: 2.9, drift: -8, rotate: -380 },
-  { left: 54, color: '#a78bfa', size: 6, delay: 1.5, duration: 3.3, drift: 16, rotate: 360 },
+  { left: 46, color: '#9adce6', size: 5, delay: 0.2, duration: 2.9, drift: -8, rotate: -380 },
+  { left: 54, color: '#8fa4e8', size: 6, delay: 1.5, duration: 3.3, drift: 16, rotate: 360 },
   { left: 62, color: '#fcd34d', size: 7, delay: 0.6, duration: 3.0, drift: -12, rotate: -300 },
   { left: 70, color: '#6ee7b7', size: 5, delay: 1.1, duration: 3.5, drift: 10, rotate: 420 },
-  { left: 78, color: '#67e8f9', size: 6, delay: 0.3, duration: 2.7, drift: -14, rotate: -340 },
+  { left: 78, color: '#5fc0d0', size: 6, delay: 0.3, duration: 2.7, drift: -14, rotate: -340 },
   { left: 86, color: '#f9a8d4', size: 7, delay: 0.9, duration: 3.4, drift: 8, rotate: 320 },
-  { left: 94, color: '#a78bfa', size: 5, delay: 1.4, duration: 3.1, drift: -10, rotate: -360 },
+  { left: 94, color: '#8fa4e8', size: 5, delay: 1.4, duration: 3.1, drift: -10, rotate: -360 },
   { left: 18, color: '#fcd34d', size: 6, delay: 1.8, duration: 3.2, drift: 12, rotate: 380 },
-  { left: 82, color: '#7dd3fc', size: 6, delay: 2.0, duration: 3.3, drift: -8, rotate: -320 },
+  { left: 82, color: '#9adce6', size: 6, delay: 2.0, duration: 3.3, drift: -8, rotate: -320 },
 ];
 
 function CelebrationHeader() {

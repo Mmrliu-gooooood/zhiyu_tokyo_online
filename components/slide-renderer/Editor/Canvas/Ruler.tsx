@@ -39,7 +39,7 @@ export function Ruler({ viewportStyles, elementList }: RulerProps) {
     <div className="ruler text-xs">
       {/* Ruler corner */}
       <div
-        className="corner absolute bg-white border border-gray-200 w-5 h-5"
+        className="corner absolute bg-card border border-border w-5 h-5"
         style={{
           left: viewportStyles.left - 25 + 'px',
           top: viewportStyles.top - 25 + 'px',
@@ -48,7 +48,7 @@ export function Ruler({ viewportStyles, elementList }: RulerProps) {
 
       {/* Horizontal ruler */}
       <div
-        className="h absolute bg-white border border-gray-200 h-5 flex justify-between items-center overflow-hidden"
+        className="h absolute bg-card border border-border h-5 flex justify-between items-center overflow-hidden"
         style={{
           width: viewportStyles.width * canvasScale + 'px',
           left: viewportStyles.left + 'px',
@@ -65,9 +65,9 @@ export function Ruler({ viewportStyles, elementList }: RulerProps) {
           >
             {marker * 100 <= viewportSize && <span>{marker * 100}</span>}
             {/* Major tick mark */}
-            <div className="absolute right-0 bottom-0 w-[0.1px] h-3 bg-gray-600 last:content-none" />
+            <div className="absolute right-0 bottom-0 w-[0.1px] h-3 bg-muted-foreground last:content-none" />
             {/* Minor tick mark (50) */}
-            <div className="absolute right-1/2 bottom-0 w-[0.1px] h-2 bg-gray-600" />
+            <div className="absolute right-1/2 bottom-0 w-[0.1px] h-2 bg-muted-foreground" />
           </div>
         ))}
 
@@ -84,7 +84,7 @@ export function Ruler({ viewportStyles, elementList }: RulerProps) {
 
       {/* Vertical ruler */}
       <div
-        className="v absolute bg-white border border-gray-200 w-5 overflow-hidden"
+        className="v absolute bg-card border border-border w-5 overflow-hidden"
         style={{
           height: viewportStyles.height * canvasScale + 'px',
           top: viewportStyles.top + 'px',
@@ -101,9 +101,9 @@ export function Ruler({ viewportStyles, elementList }: RulerProps) {
           >
             {marker * 100 <= viewportSize * viewportRatio && <span>{marker * 100}</span>}
             {/* Major tick mark */}
-            <div className="absolute bottom-0 right-0 h-[0.1px] w-3 bg-gray-600 last:content-none" />
+            <div className="absolute bottom-0 right-0 h-[0.1px] w-3 bg-muted-foreground last:content-none" />
             {/* Minor tick mark (50) */}
-            <div className="absolute bottom-1/2 right-0 h-[0.1px] w-2 bg-gray-600" />
+            <div className="absolute bottom-1/2 right-0 h-[0.1px] w-2 bg-muted-foreground" />
           </div>
         ))}
 

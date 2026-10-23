@@ -70,3 +70,27 @@ export function pickGlobalContinue(
 export function resumeHref(stageId: string): string {
   return `/classroom/${encodeURIComponent(stageId)}?resume=study`;
 }
+
+/**
+ * The one next step a space card suggests, from what the summary already
+ * knows: keep going where the learner stopped, look back over a finished
+ * course, start the first course, or add one.
+ */
+export type SpaceNextStep =
+  | { kind: 'continue'; stageId: string; courseName: string; page: number }
+  | { kind: 'revisit'; courseName: string }
+  | { kind: 'start' }
+  | { kind: 'add-first' };
+
+export function spaceNextStep(space: StudySpaceSummary): SpaceNextStep | null {
+  if (space.status !== 'active') return null;
+  const last = space.lastStudied;
+  if (last && !last.reachedEnd) {
+    const page = stoppedAtPage(last);
+    if (page) {
+      return { kind: 'continue', stageId: last.stageId, courseName: last.courseName, page };
+    }
+  }
+  if (last) return { kind: 'revisit', courseName: last.courseName };
+  return space.courseCount > 0 ? { kind: 'start' } : { kind: 'add-first' };
+}

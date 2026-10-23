@@ -244,7 +244,7 @@ function StageLabel({ stage }: { readonly stage: ScenarioStage }) {
   if (stage === 'roleplay') {
     return (
       <div className="ml-3 mt-2 mb-0.5 flex items-center px-1">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/20 px-2.5 py-1 ring-1 ring-violet-400/35 shadow-[0_4px_14px_rgba(124,92,255,0.25)]">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/20 px-2.5 py-1 ring-1 ring-violet-400/35 shadow-[0_4px_14px_rgba(82,102,173,0.25)]">
           <Drama className="h-3 w-3 text-violet-100" />
           <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-50">
             {t(labelKey)}
@@ -329,10 +329,10 @@ function MilestoneNode({
         isRoleplay && 'ml-3 rounded-xl border-l-[3px] border-l-violet-400/70',
         isRoleplay &&
           !active &&
-          'border-violet-400/25 bg-gradient-to-br from-violet-500/[0.15] via-violet-500/[0.07] to-fuchsia-500/[0.05] shadow-[0_8px_24px_rgba(124,92,255,0.16)]',
+          'border-violet-400/25 bg-gradient-to-br from-violet-500/[0.15] via-violet-500/[0.07] to-fuchsia-500/[0.05] shadow-[0_8px_24px_rgba(82,102,173,0.16)]',
         isRoleplay &&
           active &&
-          'border-violet-300/45 bg-gradient-to-br from-violet-500/[0.24] to-fuchsia-500/[0.10] shadow-[0_12px_32px_rgba(124,92,255,0.34)] ring-1 ring-violet-300/45',
+          'border-violet-300/45 bg-gradient-to-br from-violet-500/[0.24] to-fuchsia-500/[0.10] shadow-[0_12px_32px_rgba(82,102,173,0.34)] ring-1 ring-violet-300/45',
         // Bookends & ordinary projects keep the original primary active highlight.
         !isRoleplay &&
           active &&
@@ -395,7 +395,7 @@ function MilestoneNode({
             disabled={sceneBusy}
             className={cn(
               'flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-colors',
-              'bg-gradient-to-r from-primary to-violet-400 text-primary-foreground shadow-[0_8px_22px_rgba(124,92,255,0.30)] hover:brightness-110',
+              'bg-gradient-to-r from-primary to-violet-400 text-primary-foreground shadow-[0_8px_22px_rgba(82,102,173,0.30)] hover:brightness-110',
               'disabled:cursor-not-allowed disabled:opacity-60',
             )}
           >
@@ -446,7 +446,7 @@ function MicrotaskRow({
       className={cn(
         'rounded-md px-1.5 py-1 text-[11px] transition-colors',
         task.status === 'in_progress' &&
-          'bg-cyan-100/[0.08] text-foreground font-medium shadow-[inset_2px_0_0_rgba(157,140,255,0.9)]',
+          'bg-cyan-100/[0.08] text-foreground font-medium shadow-[inset_2px_0_0_rgba(143,164,232,0.9)]',
         task.status === 'completed' && 'text-muted-foreground line-through',
         task.status === 'todo' && 'text-muted-foreground/72',
       )}
@@ -462,7 +462,7 @@ function MicrotaskRow({
           disabled={taskBusy}
           className={cn(
             'ml-5 mt-1.5 inline-flex min-w-[64px] items-center justify-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold',
-            'border border-violet-100/15 bg-primary/72 text-white shadow-[0_6px_16px_rgba(157,140,255,0.16)] transition-colors hover:bg-primary/88',
+            'border border-violet-100/15 bg-primary/72 text-white shadow-[0_6px_16px_rgba(143,164,232,0.16)] transition-colors hover:bg-primary/88',
             'disabled:cursor-not-allowed disabled:opacity-60',
           )}
         >

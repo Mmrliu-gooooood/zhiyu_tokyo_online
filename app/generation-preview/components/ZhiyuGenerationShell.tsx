@@ -48,11 +48,11 @@ export function ZhiyuGenerationShell({
         <section className="rounded-[22px] border border-border/70 bg-card p-5 shadow-[0_16px_44px_rgba(20,26,46,0.06)] md:p-6">
           <div className="mb-5">
             {!terminal ? (
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--zhiyu-ai)]">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-ai">
                 {t('generation.aiWorking')}
               </p>
             ) : null}
-            <h1 className="text-xl font-semibold tracking-[-0.02em] md:text-2xl">
+            <h1 className="font-display text-xl font-bold md:text-2xl">
               {statusTitle ?? t('generation.aiWorking')}
             </h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">

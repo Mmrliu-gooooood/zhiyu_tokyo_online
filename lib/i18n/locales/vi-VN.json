@@ -31,7 +31,11 @@
       "idle": "Đang chờ",
       "teaching": "Đang giảng",
       "thinking": "Đang suy nghĩ"
-    }
+    },
+    "pageOf": "Trang {{current}} / {{total}}",
+    "prevPage": "Trước",
+    "nextPage": "Tiếp",
+    "whiteboard": "Bảng trắng"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "Học tập sinh tạo trong lớp học tương tác đa tác nhân",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "Chào {{name}}"
+    "greetingWithName": "Chào {{name}}",
+    "subtitle": "Hãy nói điều bạn muốn học. Giáo viên AI và các bạn học sẽ mở một buổi học mà bạn có thể đặt câu hỏi bất cứ lúc nào.",
+    "stepsTitle": "Bắt đầu buổi học trong ba bước",
+    "step1Title": "Nói điều bạn muốn học",
+    "step1Desc": "Một chủ đề, một bài tập hoặc tài liệu của bạn",
+    "step2Title": "Giáo viên AI chuẩn bị",
+    "step2Desc": "Tự động tạo slide, phần giảng và bài luyện tập",
+    "step3Title": "Vào lớp học",
+    "step3Desc": "Vừa nghe vừa hỏi giáo viên bất cứ lúc nào",
+    "tryTitle": "Thử một trong số này",
+    "example1Title": "Đạo hàm hàm lượng giác",
+    "example1Meta": "Giải tích · khoảng 15 phút",
+    "example1Prompt": "Giảng công thức đạo hàm của các hàm lượng giác, kèm vài bài tập từ dễ đến khó",
+    "example2Title": "Viết chương trình Python đầu tiên",
+    "example2Meta": "Lập trình nhập môn · khoảng 30 phút",
+    "example2Prompt": "Dạy tôi Python từ đầu và giúp tôi viết chương trình đầu tiên trong 30 phút",
+    "example3Title": "Biến đổi Fourier là gì",
+    "example3Meta": "Tín hiệu và hệ thống · giảng trên bảng trắng",
+    "example3Prompt": "Giảng cho tôi về biến đổi Fourier trên bảng trắng"
   },
   "toolbar": {
     "pdfParser": "Bộ đọc PDF",
@@ -134,7 +156,10 @@
     "ttsPreview": "Nghe thử",
     "ttsPreviewing": "Đang phát…",
     "interactiveModeHint": "Bật chế độ ưu tiên tương tác để có nhiều nội dung thực hành hơn",
-    "interactiveModeLabel": "Chế độ tương tác"
+    "interactiveModeLabel": "Chế độ tương tác",
+    "addMaterials": "Thêm tài liệu",
+    "webSearchLabel": "Tìm kiếm web",
+    "mediaLabel": "Giọng nói và hình ảnh"
   },
   "export": {
     "pptx": "Xuất PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "Nhận tệp PDF tối đa 50MB",
     "courseMaterialSizeLimit": "Tài liệu, slide, bảng tính, ảnh và văn bản thuần — tối đa 50MB (định dạng được nhận tùy vào bộ bóc tách đang chọn)",
     "generateFailed": "Không tạo được lớp học, vui lòng thử lại",
-    "requirementPlaceholder": "Hãy nói bạn muốn học gì, ví dụ\n\"Dạy tôi Python từ đầu trong 30 phút\"\n\"Giảng phép biến đổi Fourier trên bảng\"\n\"Cách chơi board game Avalon\"",
+    "requirementPlaceholder": "Nhập điều bạn muốn học, ví dụ: \"Giảng biến đổi Fourier trên bảng trắng\"",
     "requirementRequired": "Vui lòng nhập yêu cầu về bài học",
     "fileTooLarge": "Tệp quá lớn. Vui lòng chọn tệp nhỏ hơn 50MB",
     "courseMaterialCountLimit": "Bạn chỉ tải lên được tối đa 5 tệp tài liệu",
@@ -3969,6 +3994,22 @@
         "cancelJob": "Dừng tạo",
         "restart": "Tạo lại khóa học"
       }
-    }
+    },
+    "navLabel": "Điều hướng khu học tập",
+    "next": {
+      "label": "Bước tiếp theo",
+      "continue": "Tiếp tục “{{name}}” ở trang {{page}}",
+      "revisit": "Ôn lại “{{name}}” hoặc học bài tiếp theo",
+      "start": "Bắt đầu buổi học đầu tiên",
+      "addFirst": "Thêm khóa học hoặc tài liệu để tạo buổi học đầu tiên",
+      "continueAction": "Tiếp tục",
+      "openAction": "Mở môn học"
+    },
+    "emptyStep1Title": "Tạo môn học",
+    "emptyStep1Desc": "Ví dụ “Giải tích”",
+    "emptyStep2Title": "Thêm khóa học hoặc tài liệu",
+    "emptyStep2Desc": "Đưa khóa học có sẵn vào hoặc tải bài giảng lên",
+    "emptyStep3Title": "Tạo buổi học đầu tiên",
+    "emptyStep3Desc": "Giáo viên AI giảng theo tài liệu của bạn"
   }
 }

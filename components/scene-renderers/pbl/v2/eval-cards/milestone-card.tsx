@@ -72,7 +72,7 @@ export function MilestoneCard({ evaluation, handover, onContinue, className }: P
   return (
     <div
       className={cn(
-        'relative space-y-4 overflow-hidden rounded-2xl border border-violet-200/85 bg-[linear-gradient(145deg,rgba(252,250,255,0.98)_0%,rgba(238,242,255,0.94)_48%,rgba(232,250,255,0.96)_100%)] p-5 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_22px_58px_rgba(8,18,38,0.30),0_0_0_1px_rgba(139,92,246,0.10),0_0_42px_rgba(34,211,238,0.10)] ring-1 ring-violet-300/20',
+        'relative space-y-4 overflow-hidden rounded-2xl border border-violet-200/85 bg-[linear-gradient(145deg,rgba(252,250,255,0.98)_0%,rgba(238,242,255,0.94)_48%,rgba(232,250,255,0.96)_100%)] p-5 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_22px_58px_rgba(8,18,38,0.30),0_0_0_1px_rgba(82,102,173,0.10),0_0_42px_rgba(95,192,208,0.10)] ring-1 ring-violet-300/20',
         className,
       )}
     >
@@ -149,7 +149,7 @@ export function MilestoneCard({ evaluation, handover, onContinue, className }: P
                 'inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition-all',
                 consumed
                   ? 'cursor-default border border-slate-300 bg-slate-100 text-slate-500 shadow-none'
-                  : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-[0_12px_28px_rgba(99,102,241,0.30),0_0_22px_rgba(34,211,238,0.18)] hover:from-violet-500 hover:to-cyan-400 hover:shadow-[0_16px_34px_rgba(99,102,241,0.38),0_0_28px_rgba(34,211,238,0.24)]',
+                  : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-[0_12px_28px_rgba(82,102,173,0.30),0_0_22px_rgba(95,192,208,0.18)] hover:from-violet-500 hover:to-cyan-400 hover:shadow-[0_16px_34px_rgba(82,102,173,0.38),0_0_28px_rgba(95,192,208,0.24)]',
               )}
             >
               {consumed ? (

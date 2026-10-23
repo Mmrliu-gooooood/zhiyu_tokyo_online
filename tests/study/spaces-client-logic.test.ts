@@ -19,6 +19,7 @@ import {
   courseViewStatus,
   pickContinueCourse,
   pickGlobalContinue,
+  spaceNextStep,
   viewedPercent,
 } from '@/lib/study/spaces/view-model';
 
@@ -230,5 +231,46 @@ describe('study page view model', () => {
         space('c', 'archived', '2026-10-04T10:00:00.000Z'),
       ])?.space.id,
     ).toBe('b');
+  });
+});
+
+describe('spaceNextStep', () => {
+  const space = (overrides: Partial<StudySpaceSummary>) =>
+    ({
+      id: 'sp',
+      status: 'active',
+      courseCount: 2,
+      lastStudied: null,
+      ...overrides,
+    }) as StudySpaceSummary;
+
+  it('continues the unfinished course at the page the learner stopped on', () => {
+    expect(spaceNextStep(space({ lastStudied: progress({ courseName: 'Trig' }) }))).toEqual({
+      kind: 'continue',
+      stageId: 'stage-1',
+      courseName: 'Trig',
+      page: 2,
+    });
+  });
+
+  it('suggests revisiting a course whose last page was viewed', () => {
+    expect(
+      spaceNextStep(space({ lastStudied: progress({ courseName: 'Trig', reachedEnd: true }) })),
+    ).toEqual({ kind: 'revisit', courseName: 'Trig' });
+  });
+
+  it('revisits when the stopped-at page no longer exists', () => {
+    expect(
+      spaceNextStep(space({ lastStudied: progress({ courseName: 'Trig', sceneIndex: null }) })),
+    ).toEqual({ kind: 'revisit', courseName: 'Trig' });
+  });
+
+  it('starts the first course, or adds one to an empty space', () => {
+    expect(spaceNextStep(space({}))).toEqual({ kind: 'start' });
+    expect(spaceNextStep(space({ courseCount: 0 }))).toEqual({ kind: 'add-first' });
+  });
+
+  it('suggests nothing for an archived space', () => {
+    expect(spaceNextStep(space({ status: 'archived' }))).toBeNull();
   });
 });

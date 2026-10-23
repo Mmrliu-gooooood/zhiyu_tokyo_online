@@ -1840,7 +1840,7 @@ function GenerationPreviewContent() {
       <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-4">
         <div className="text-center text-muted-foreground" role="status">
           <ZhiyuLockup className="mb-6" />
-          <div className="mx-auto size-8 animate-spin rounded-full border-2 border-[color:var(--zhiyu-ai)] border-t-transparent motion-reduce:animate-none" />
+          <div className="mx-auto size-8 animate-spin rounded-full border-2 border-ai border-t-transparent motion-reduce:animate-none" />
           <p className="mt-4 text-sm">{t('generation.aiWorking')}</p>
         </div>
       </div>
@@ -1962,7 +1962,7 @@ function GenerationPreviewContent() {
 
               <div className="max-w-2xl space-y-2 text-center mx-auto">
                 {jobStatusTitle ? (
-                  <p className="text-sm font-medium text-[color:var(--zhiyu-ai)]" role="status">
+                  <p className="text-sm font-medium text-ai" role="status">
                     {jobStatusTitle}
                   </p>
                 ) : null}
@@ -2081,9 +2081,9 @@ function GenerationPreviewContent() {
                       key="error"
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="flex size-28 items-center justify-center rounded-full bg-[color:var(--zhiyu-coral-soft)]"
+                      className="flex size-28 items-center justify-center rounded-full bg-mistake-soft"
                     >
-                      <AlertCircle className="size-14 text-[color:var(--zhiyu-coral)]" />
+                      <AlertCircle className="size-14 text-mistake" />
                     </motion.div>
                   ) : currentGeneratedScene?.type === 'slide' &&
                     currentGeneratedScene.content.type === 'slide' ? (
@@ -2146,7 +2146,7 @@ function GenerationPreviewContent() {
                       <TooltipTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[color:var(--zhiyu-learning)]/25 bg-[color:var(--zhiyu-learning-soft)] px-3 text-xs font-medium text-[color:var(--zhiyu-learning)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-review/25 bg-review-soft px-3 text-xs font-medium text-review focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <AlertTriangle className="size-3.5" />
                           {truncationWarnings.length}
@@ -2170,7 +2170,7 @@ function GenerationPreviewContent() {
                       size="sm"
                       variant="outline"
                       onClick={() => setShowAgentReveal(true)}
-                      className="rounded-full border-[color:var(--zhiyu-lavender)]/25 bg-[color:var(--zhiyu-lavender-soft)] text-[color:var(--zhiyu-lavender)] hover:bg-[color:var(--zhiyu-lavender-soft)]"
+                      className="rounded-full border-peer/25 bg-peer-soft text-peer hover:bg-peer-soft"
                     >
                       <Bot className="mr-2 size-3.5" />
                       {t('generation.viewAgents')}

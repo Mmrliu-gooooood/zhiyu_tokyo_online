@@ -259,7 +259,7 @@ function CharacterAvatar({
   return (
     <span
       className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 text-lg font-bold text-white shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
-      style={{ borderColor: 'rgba(255,255,255,0.7)', background: accent ?? '#9d8cff' }}
+      style={{ borderColor: 'rgba(255,255,255,0.7)', background: accent ?? '#8fa4e8' }}
     >
       {isImg ? (
         <Image src={avatar} alt="" width={48} height={48} className="h-12 w-12 object-cover" />

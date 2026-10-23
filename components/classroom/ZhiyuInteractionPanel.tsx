@@ -90,8 +90,8 @@ export function ZhiyuInteractionPanel({
                 className={cn(
                   'size-1.5 rounded-full',
                   liveStatus === 'teaching' && 'bg-primary',
-                  liveStatus === 'thinking' && 'bg-[var(--zhiyu-ai)]',
-                  liveStatus === 'discussion' && 'bg-[var(--zhiyu-learning)]',
+                  liveStatus === 'thinking' && 'bg-ai',
+                  liveStatus === 'discussion' && 'bg-review',
                   liveStatus === 'idle' && 'bg-muted-foreground/50',
                 )}
                 aria-hidden="true"

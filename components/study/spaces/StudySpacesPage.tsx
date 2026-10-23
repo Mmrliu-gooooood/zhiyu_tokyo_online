@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Archive,
-  BookOpen,
+  ArrowRight,
   CalendarClock,
   ChevronDown,
   ChevronRight,
@@ -28,11 +28,13 @@ import {
 } from '@/components/study/spaces/StudyShell';
 import { ExamCountdown, RelativeTime } from '@/components/study/spaces/study-format';
 import { useI18n } from '@/lib/hooks/use-i18n';
+import { cn } from '@/lib/utils';
 import { studyApi } from '@/lib/study/spaces/client';
 import type { StudySpaceSummary } from '@/lib/study/spaces/contracts';
 import {
   pickGlobalContinue,
   resumeHref,
+  spaceNextStep,
   stoppedAtPage,
   viewedPercent,
 } from '@/lib/study/spaces/view-model';
@@ -95,10 +97,10 @@ export function StudySpacesPage() {
       {resume ? (
         <section
           data-testid="study-continue"
-          className="mb-8 flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:flex-row sm:items-center"
+          className="mb-8 flex flex-col gap-4 rounded-xl bg-primary-soft p-5 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)] sm:flex-row sm:items-center"
         >
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-primary">{t('study.continueLearning')}</p>
+            <p className="text-xs font-semibold text-primary-ink">{t('study.continueLearning')}</p>
             <h2 className="mt-1 truncate text-lg font-semibold text-foreground">
               {resume.progress.courseName}
             </h2>
@@ -125,12 +127,30 @@ export function StudySpacesPage() {
       {active.length === 0 ? (
         <div
           data-testid="study-empty"
-          className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-16 text-center"
+          className="flex flex-col items-center gap-4 rounded-xl bg-card px-5 py-10 text-center shadow-flat"
         >
-          <BookOpen className="size-8 text-muted-foreground" />
-          <h2 className="text-base font-semibold text-foreground">{t('study.emptyTitle')}</h2>
+          <h2 className="font-display text-xl font-bold text-foreground">
+            {t('study.emptyTitle')}
+          </h2>
           <p className="max-w-md text-sm leading-6 text-muted-foreground">{t('study.empty')}</p>
-          <Button className="mt-2" onClick={() => setCreateOpen(true)}>
+          <ol className="grid w-full max-w-2xl gap-2.5 text-left sm:grid-cols-3">
+            {([1, 2, 3] as const).map((n) => (
+              <li key={n} className="flex items-start gap-2.5 rounded-xl bg-muted px-3.5 py-3">
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {n}
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-sm font-semibold text-foreground">
+                    {t(`study.emptyStep${n}Title`)}
+                  </span>
+                  <span className="text-xs leading-5 text-muted-foreground">
+                    {t(`study.emptyStep${n}Desc`)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1 size-4" />
             {t('study.createSpace')}
           </Button>
@@ -199,47 +219,97 @@ function SpaceCard({ space }: { space: StudySpaceSummary }) {
     space.educationLevel ? t(`study.level.${space.educationLevel}`) : null,
     space.subject,
   ].filter(Boolean);
+  const href = `/study/${encodeURIComponent(space.id)}`;
+  const next = spaceNextStep(space);
+  const nextText = !next
+    ? null
+    : next.kind === 'continue'
+      ? t('study.next.continue', { name: next.courseName, page: next.page })
+      : next.kind === 'revisit'
+        ? t('study.next.revisit', { name: next.courseName })
+        : next.kind === 'start'
+          ? t('study.next.start')
+          : t('study.next.addFirst');
   return (
-    <Link
-      href={`/study/${encodeURIComponent(space.id)}`}
+    // The whole card opens the space (the title link is stretched over it);
+    // the next-step link sits above that layer.
+    <div
       data-testid="study-space-card"
-      className="flex h-full flex-col gap-3 rounded-xl bg-card p-5 sticker"
+      className="relative flex h-full flex-col gap-3 rounded-xl bg-card p-5 sticker"
     >
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="min-w-0 truncate text-base font-semibold text-foreground">{space.name}</h2>
-        {space.status === 'archived' ? (
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-            {t('study.archived')}
-          </span>
-        ) : null}
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className={cn(
+            'flex size-10 shrink-0 items-center justify-center rounded-[10px] font-display text-lg font-bold',
+            space.status === 'archived'
+              ? 'bg-muted text-muted-foreground'
+              : 'bg-primary-soft text-primary-ink',
+          )}
+        >
+          {Array.from(space.name.trim())[0] ?? '·'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="min-w-0 truncate text-base font-semibold text-foreground">
+              <Link
+                href={href}
+                className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+              >
+                {space.name}
+              </Link>
+            </h2>
+            {space.status === 'archived' ? (
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                {t('study.archived')}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            {meta.length ? <span>{meta.join(' · ')}</span> : null}
+            <span>{t('study.courseCount', { count: space.courseCount })}</span>
+            {space.examDate ? (
+              <span className="inline-flex items-center gap-1">
+                <CalendarClock className="size-3.5" />
+                <ExamCountdown examDate={space.examDate} timezone={space.timezone} />
+              </span>
+            ) : null}
+          </p>
+        </div>
       </div>
-      {meta.length ? (
-        <p className="-mt-2 text-xs text-muted-foreground">{meta.join(' · ')}</p>
+      {space.lastStudied ? (
+        <div>
+          <p className="truncate text-xs text-muted-foreground">
+            {t('study.lastStudied', { name: space.lastStudied.courseName })}
+          </p>
+          <Progress
+            className="mt-2"
+            value={viewedPercent(space.lastStudied, space.lastStudied.sceneCount)}
+          />
+        </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>{t('study.courseCount', { count: space.courseCount })}</span>
-        {space.examDate ? (
-          <span className="inline-flex items-center gap-1">
-            <CalendarClock className="size-3.5" />
-            <ExamCountdown examDate={space.examDate} timezone={space.timezone} />
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-auto">
-        {space.lastStudied ? (
-          <>
-            <p className="truncate text-xs text-muted-foreground">
-              {t('study.lastStudied', { name: space.lastStudied.courseName })}
+      {next ? (
+        <div className="mt-auto flex flex-col items-start gap-2 border-t border-border pt-3">
+          <div className="w-full min-w-0">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground">
+              {t('study.next.label')}
             </p>
-            <Progress
-              className="mt-2"
-              value={viewedPercent(space.lastStudied, space.lastStudied.sceneCount)}
-            />
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">{t('study.notStartedYet')}</p>
-        )}
-      </div>
-    </Link>
+            <p className="truncate text-[13px] font-semibold text-foreground">{nextText}</p>
+          </div>
+          <Button asChild size="sm" variant="secondary" className="relative z-10 shrink-0">
+            <Link href={next.kind === 'continue' ? resumeHref(next.stageId) : href}>
+              {next.kind === 'continue' ? (
+                <Play className="size-3.5" />
+              ) : (
+                <ArrowRight className="size-3.5" />
+              )}
+              {next.kind === 'continue'
+                ? t('study.next.continueAction')
+                : t('study.next.openAction')}
+            </Link>
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }

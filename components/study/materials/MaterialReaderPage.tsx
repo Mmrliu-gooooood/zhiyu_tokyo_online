@@ -415,7 +415,7 @@ function BlockContent({
   }
   return (
     <p
-      className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground"
+      className="whitespace-pre-wrap break-words text-[15px] leading-7 text-foreground"
       data-testid="study-reader-block"
     >
       <MarkedText text={block.text ?? ''} quote={quote} />
@@ -443,7 +443,7 @@ function TextOriginal({ url }: { url: string }) {
   if (text === null)
     return <LoaderCircle className="mx-auto my-8 size-4 animate-spin text-muted-foreground" />;
   return (
-    <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-1 text-sm leading-7">
+    <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-1 text-[15px] leading-7">
       {text}
     </pre>
   );

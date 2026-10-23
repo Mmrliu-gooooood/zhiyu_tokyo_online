@@ -51,7 +51,7 @@ export function CompletionCtaCard({ onView, className }: Props) {
       <button
         type="button"
         onClick={onView}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-[0_0_28px_rgba(155,124,255,0.26)] transition-opacity hover:opacity-90"
+        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-[0_0_28px_rgba(143,164,232,0.26)] transition-opacity hover:opacity-90"
       >
         {t('pbl.v2.completion.completionCta')}
         <ArrowRight className="w-4 h-4" />

@@ -123,7 +123,10 @@ export function FolderCard({
 
   return (
     <div
-      className="group cursor-pointer"
+      className={cn(
+        'group cursor-pointer overflow-hidden rounded-xl bg-card sticker',
+        dropActive && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+      )}
       onClick={editing ? undefined : onOpen}
       onDragEnter={(e) => {
         if (editing) return;
@@ -155,10 +158,7 @@ export function FolderCard({
       <div
         ref={thumbRef}
         className={cn(
-          'relative w-full aspect-[16/9] rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/10 overflow-hidden transition-transform duration-200 group-hover:scale-[1.02] ring-1',
-          dropActive
-            ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-[1.03]'
-            : 'ring-primary',
+          'relative w-full aspect-[16/9] overflow-hidden border-b border-border bg-primary-soft/60',
         )}
       >
         {hasCovers ? (
@@ -306,7 +306,7 @@ export function FolderCard({
                   {t('common.cancel')}
                 </button>
                 <button
-                  className="px-3.5 py-1 rounded-lg text-[12px] font-medium bg-red-500/90 text-white hover:bg-red-500 transition-colors"
+                  className="px-3.5 py-1 rounded-lg text-[12px] font-medium bg-mistake/90 text-white hover:bg-mistake transition-colors"
                   onClick={() => {
                     // Close the overlay before the async delete: on success the
                     // card unmounts; on failure the user sees the error toast
@@ -324,10 +324,7 @@ export function FolderCard({
         </AnimatePresence>
       </div>
 
-      <div className="mt-2.5 px-1 flex items-center gap-2">
-        <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
-          {t('classroom.folderBadge')}
-        </span>
+      <div className="flex flex-col gap-1 px-3.5 pb-3 pt-2.5">
         {editing ? (
           <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
             <input
@@ -344,15 +341,19 @@ export function FolderCard({
               onBlur={commit}
               disabled={submitting}
               maxLength={80}
-              className="w-full bg-transparent border-b border-primary/40 text-[15px] font-medium text-foreground/90 outline-none disabled:opacity-50"
+              className="w-full bg-transparent border-b border-primary/40 text-[14px] font-semibold text-foreground outline-none disabled:opacity-50"
             />
             {error && <p className="mt-1 text-[11px] text-destructive">{error}</p>}
           </div>
         ) : (
-          <p className="font-medium text-[15px] truncate text-foreground/90 min-w-0">
+          <p className="min-w-0 truncate text-[14px] font-semibold text-foreground">
             {folder.name}
           </p>
         )}
+        <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+          <Folder className="size-3" />
+          {t('classroom.folderBadge')}
+        </span>
       </div>
     </div>
   );

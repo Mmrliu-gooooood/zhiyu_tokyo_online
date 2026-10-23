@@ -59,28 +59,28 @@ const TYPE_THEME: Record<
   }
 > = {
   slide: {
-    chip: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300',
-    chipHover: 'hover:bg-blue-100/80 dark:hover:bg-blue-500/15',
-    accent: 'bg-blue-500',
-    dot: 'bg-blue-400',
+    chip: 'bg-primary-soft text-primary-ink',
+    chipHover: 'hover:bg-primary-soft/80',
+    accent: 'bg-primary',
+    dot: 'bg-primary',
   },
   quiz: {
-    chip: 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-300',
-    chipHover: 'hover:bg-purple-100/80 dark:hover:bg-purple-500/15',
-    accent: 'bg-purple-500',
-    dot: 'bg-purple-400',
+    chip: 'bg-review-soft text-review-ink',
+    chipHover: 'hover:bg-review-soft/80',
+    accent: 'bg-review',
+    dot: 'bg-review',
   },
   interactive: {
-    chip: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300',
-    chipHover: 'hover:bg-emerald-100/80 dark:hover:bg-emerald-500/15',
-    accent: 'bg-emerald-500',
-    dot: 'bg-emerald-400',
+    chip: 'bg-ai-soft text-ai-ink',
+    chipHover: 'hover:bg-ai-soft/80',
+    accent: 'bg-ai',
+    dot: 'bg-ai',
   },
   pbl: {
-    chip: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
-    chipHover: 'hover:bg-amber-100/80 dark:hover:bg-amber-500/15',
-    accent: 'bg-amber-500',
-    dot: 'bg-amber-400',
+    chip: 'bg-peer-soft text-peer-ink',
+    chipHover: 'hover:bg-peer-soft/80',
+    accent: 'bg-peer',
+    dot: 'bg-peer',
   },
 };
 
@@ -238,19 +238,19 @@ export function OutlinesEditor({
       animate={{ rotate: 0 }}
       className={cn(
         'relative overflow-hidden rounded-3xl border border-border/40',
-        'bg-white/85 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.25)] backdrop-blur-xl',
+        'bg-card/85 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.25)] backdrop-blur-xl',
         'dark:border-white/5 dark:bg-slate-950/70 dark:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]',
       )}
     >
       {/* Soft gradient wash */}
-      <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[80%] -translate-x-1/2 rounded-full bg-blue-500/[0.04] blur-3xl dark:bg-blue-400/[0.08]" />
+      <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[80%] -translate-x-1/2 rounded-full bg-primary/[0.04] blur-3xl" />
 
       {/* Header */}
       <div className="relative flex items-start gap-3 px-6 pt-6 pb-4 md:px-10 md:pt-8 md:pb-6">
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/70">
-            <Sparkles className="size-3 text-blue-500" />
+            <Sparkles className="size-3 text-primary" />
             {t('generation.outlineEditorEyebrow')}
           </div>
           <h2 className="text-2xl font-semibold tracking-tight md:text-[28px]">
@@ -260,7 +260,7 @@ export function OutlinesEditor({
             {isStreaming && (
               <motion.span
                 aria-hidden
-                className="inline-flex size-1.5 rounded-full bg-blue-500"
+                className="inline-flex size-1.5 rounded-full bg-primary"
                 animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
                 transition={{ duration: 1.2, repeat: Infinity }}
               />
@@ -277,7 +277,7 @@ export function OutlinesEditor({
             className={cn(
               'mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
               'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
           >
@@ -401,7 +401,7 @@ export function OutlinesEditor({
           <Button
             onClick={onConfirm}
             disabled={isLoading || isStreaming || outlines.length === 0 || blockingCount > 0}
-            className="rounded-full px-6 shadow-lg shadow-blue-500/20"
+            className="rounded-full px-6 shadow-lg shadow-primary/20"
           >
             {isLoading ? (
               <>
@@ -527,10 +527,10 @@ function SceneRow({
       }}
       className={cn(
         'group/scene relative rounded-2xl px-3 py-3.5 transition-colors md:px-4',
-        'hover:bg-slate-50/60 dark:hover:bg-slate-800/30',
-        'focus-within:bg-slate-50/80 dark:focus-within:bg-slate-800/40',
+        'hover:bg-muted/60',
+        'focus-within:bg-muted/80',
         isDragging && 'opacity-40',
-        isDragTarget && 'bg-blue-500/[0.04] ring-1 ring-blue-400/40',
+        isDragTarget && 'bg-primary/[0.04] ring-1 ring-primary/40',
       )}
     >
       <div className="flex items-start gap-2.5">
@@ -569,7 +569,7 @@ function SceneRow({
               'hover:bg-muted hover:text-foreground/80',
               'group-hover/scene:text-muted-foreground/70',
               'active:cursor-grabbing',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
               disabled && 'pointer-events-none opacity-30',
             )}
           >
@@ -601,7 +601,7 @@ function SceneRow({
             {!disabled && !outline.title.trim() && (
               // Incomplete marker — a soft amber dot before a blank title. A
               // blank title blocks generation; the gate below counts how many.
-              <span aria-hidden className="mt-[11px] h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+              <span aria-hidden className="mt-[11px] h-2 w-2 shrink-0 rounded-full bg-review" />
             )}
             <textarea
               ref={titleRef}
@@ -731,7 +731,7 @@ function EmptyState({
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="text-blue-500/70"
+          className="text-primary/70"
         >
           <Loader2 className="size-6" />
         </motion.div>
@@ -879,7 +879,7 @@ function StreamingPlaceholder({ nextIndex }: { nextIndex: number }) {
       {/* Left rail: spacer for grip column + spinner where the number badge would be */}
       <div className="flex shrink-0 items-center gap-0.5 pt-1">
         <span className="size-7" aria-hidden />
-        <span className="flex size-7 items-center justify-center rounded-full bg-blue-500/10 text-blue-500">
+        <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Loader2 className="size-3.5 animate-spin" />
         </span>
       </div>
@@ -946,8 +946,8 @@ function InsertDivider({
             'absolute top-1/2 h-px -translate-y-1/2 transition-colors',
             // Edge: short, neutral line; between: longer, blue line
             isEdge
-              ? 'inset-x-16 bg-muted-foreground/40 group-hover/insert:bg-blue-500/60'
-              : 'inset-x-8 bg-blue-400/30 group-hover/insert:bg-blue-500/60',
+              ? 'inset-x-16 bg-muted-foreground/40 group-hover/insert:bg-primary/60'
+              : 'inset-x-8 bg-primary/30 group-hover/insert:bg-primary/60',
           )}
         />
         <span
@@ -955,8 +955,8 @@ function InsertDivider({
             'relative flex items-center justify-center rounded-full text-white transition-all',
             // Edge: smaller, neutral, no shadow until hover; between: full blue badge
             isEdge
-              ? 'size-4 bg-muted-foreground/60 group-hover/insert:size-5 group-hover/insert:bg-blue-500 group-hover/insert:shadow-md group-hover/insert:shadow-blue-500/30'
-              : 'size-5 bg-blue-500 shadow-md shadow-blue-500/30 group-hover/insert:scale-110',
+              ? 'size-4 bg-muted-foreground/60 group-hover/insert:size-5 group-hover/insert:bg-primary group-hover/insert:shadow-md group-hover/insert:shadow-primary/30'
+              : 'size-5 bg-primary shadow-md shadow-primary/30 group-hover/insert:scale-110',
           )}
         >
           <Plus className={cn('transition-all', isEdge ? 'size-2.5' : 'size-3')} />
@@ -1001,7 +1001,7 @@ function KeyPointInput({
           'inline-block rounded-full bg-transparent px-2.5 py-1 text-xs',
           'text-foreground placeholder:text-muted-foreground/50',
           'border border-dashed border-transparent transition-colors',
-          'hover:border-muted-foreground/20 focus:border-blue-400/50 focus:bg-blue-500/[0.03]',
+          'hover:border-muted-foreground/20 focus:border-primary/50 focus:bg-primary/[0.03]',
           'focus:outline-none focus:ring-0',
         )}
       />
@@ -1117,7 +1117,7 @@ function QuizConfigDisclosure({
                     'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all',
                     'border',
                     selected
-                      ? 'border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-200'
+                      ? 'border-review/40 bg-review/10 text-review-ink'
                       : 'border-border/40 bg-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
                     isOnlySelected && 'cursor-not-allowed opacity-90',
                   )}
@@ -1200,7 +1200,7 @@ function InteractiveConfigDisclosure({
                   className={cn(
                     'rounded-md border px-2 py-1.5 text-xs font-medium transition-all',
                     selected
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                      ? 'border-ai/40 bg-ai/10 text-ai-ink'
                       : 'border-border/40 bg-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
                   )}
                 >
@@ -1221,7 +1221,7 @@ function InteractiveConfigDisclosure({
             placeholder={t('generation.interactiveConceptPlaceholder')}
             className={cn(
               'w-full rounded-md border border-border/50 bg-background px-2 py-1.5 text-xs',
-              'focus:border-emerald-400/50 focus:outline-none focus:ring-0',
+              'focus:border-ai/50 focus:outline-none focus:ring-0',
             )}
           />
         </div>
@@ -1344,7 +1344,7 @@ function PblConfigDisclosure({
             placeholder={t('generation.pblProjectTopicPlaceholder')}
             className={cn(
               'w-full rounded-md border border-border/50 bg-background px-2 py-1.5 text-xs',
-              'focus:border-amber-400/50 focus:outline-none focus:ring-0',
+              'focus:border-peer/50 focus:outline-none focus:ring-0',
             )}
           />
         </div>
@@ -1359,7 +1359,7 @@ function PblConfigDisclosure({
             rows={2}
             className={cn(
               'w-full resize-none rounded-md border border-border/50 bg-background px-2 py-1.5 text-xs',
-              'focus:border-amber-400/50 focus:outline-none focus:ring-0',
+              'focus:border-peer/50 focus:outline-none focus:ring-0',
             )}
           />
         </div>
@@ -1375,7 +1375,7 @@ function PblConfigDisclosure({
               rows={2}
               className={cn(
                 'w-full resize-none rounded-md border border-border/50 bg-background px-2 py-1.5 text-xs',
-                'focus:border-amber-400/50 focus:outline-none focus:ring-0',
+                'focus:border-peer/50 focus:outline-none focus:ring-0',
               )}
             />
           </div>
@@ -1389,14 +1389,14 @@ function PblConfigDisclosure({
               {skills.map((skill) => (
                 <span
                   key={skill}
-                  className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-200"
+                  className="inline-flex items-center gap-1 rounded-full bg-peer/10 px-2 py-0.5 text-xs text-peer-ink"
                 >
                   {skill}
                   <button
                     type="button"
                     onClick={() => removeSkill(skill)}
                     aria-label={t('generation.removeSkill')}
-                    className="inline-flex size-3 items-center justify-center rounded-full hover:bg-amber-500/20"
+                    className="inline-flex size-3 items-center justify-center rounded-full hover:bg-peer/20"
                   >
                     <X className="size-2.5" />
                   </button>
@@ -1418,7 +1418,7 @@ function PblConfigDisclosure({
             placeholder={t('generation.pblAddSkill')}
             className={cn(
               'w-full rounded-md border border-dashed border-border/50 bg-background px-2 py-1.5 text-xs',
-              'focus:border-amber-400/50 focus:outline-none focus:ring-0',
+              'focus:border-peer/50 focus:outline-none focus:ring-0',
             )}
           />
         </div>

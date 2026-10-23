@@ -31,7 +31,11 @@
       "idle": "Aguardando",
       "teaching": "Ensinando",
       "thinking": "Pensando"
-    }
+    },
+    "pageOf": "Página {{current}} / {{total}}",
+    "prevPage": "Anterior",
+    "nextPage": "Próxima",
+    "whiteboard": "Quadro"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "Aprendizagem Generativa em Sala de Aula Interativa Multi-Agente",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "Olá, {{name}}"
+    "greetingWithName": "Olá, {{name}}",
+    "subtitle": "Diga o que você quer aprender. Um professor de IA e colegas conduzem uma aula em que você pode perguntar a qualquer momento.",
+    "stepsTitle": "Comece uma aula em três passos",
+    "step1Title": "Diga o que quer aprender",
+    "step1Desc": "Um tema, um exercício ou seu próprio material",
+    "step2Title": "O professor de IA prepara",
+    "step2Desc": "Slides, explicações e exercícios gerados para você",
+    "step3Title": "Entre na aula",
+    "step3Desc": "Ouça e pergunte ao professor o que quiser",
+    "tryTitle": "Experimente um destes",
+    "example1Title": "Derivadas de funções trigonométricas",
+    "example1Meta": "Cálculo · cerca de 15 min",
+    "example1Prompt": "Explique as regras de derivação das funções trigonométricas com alguns exercícios do fácil ao difícil",
+    "example2Title": "Seu primeiro programa em Python",
+    "example2Meta": "Programação básica · cerca de 30 min",
+    "example2Prompt": "Me ensine Python do zero e me ajude a escrever meu primeiro programa em 30 minutos",
+    "example3Title": "O que é a transformada de Fourier?",
+    "example3Meta": "Sinais e sistemas · no quadro branco",
+    "example3Prompt": "Explique a transformada de Fourier no quadro branco"
   },
   "toolbar": {
     "pdfParser": "Analisador",
@@ -134,7 +156,10 @@
     "ttsPreview": "Pré-visualizar",
     "ttsPreviewing": "Reproduzindo...",
     "interactiveModeHint": "Ative o modo interativo para conteúdos mais práticos",
-    "interactiveModeLabel": "Modo Interativo"
+    "interactiveModeLabel": "Modo Interativo",
+    "addMaterials": "Adicionar materiais",
+    "webSearchLabel": "Pesquisa na web",
+    "mediaLabel": "Voz e imagens"
   },
   "export": {
     "pptx": "Exportar PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "Suporta arquivos PDF de até 50 MB",
     "courseMaterialSizeLimit": "Documentos, apresentações, planilhas, imagens e texto — até 50 MB (formatos aceitos dependem do extrator selecionado)",
     "generateFailed": "Falha ao gerar a sala, tente novamente",
-    "requirementPlaceholder": "Conte-me o que você quer aprender, por exemplo:\n\"Me ensine Python do zero em 30 minutos\"\n\"Explique a Transformada de Fourier no quadro\"\n\"Como jogar o jogo de tabuleiro Avalon\"",
+    "requirementPlaceholder": "Diga o que quer aprender, ex.: \"Explique a transformada de Fourier no quadro branco\"",
     "requirementRequired": "Por favor, descreva os objetivos do curso",
     "fileTooLarge": "Arquivo muito grande. Selecione um arquivo com menos de 50 MB",
     "courseMaterialCountLimit": "Você pode enviar até 5 arquivos de material do curso",
@@ -3969,6 +3994,22 @@
         "cancelJob": "Parar a geração",
         "restart": "Gerar o curso de novo"
       }
-    }
+    },
+    "navLabel": "Navegação de estudo",
+    "next": {
+      "label": "Próximo passo",
+      "continue": "Continuar “{{name}}” na página {{page}}",
+      "revisit": "Revisar “{{name}}” ou fazer a próxima aula",
+      "start": "Começar a primeira aula",
+      "addFirst": "Adicione um curso ou material para criar a primeira aula",
+      "continueAction": "Continuar",
+      "openAction": "Abrir espaço"
+    },
+    "emptyStep1Title": "Crie um espaço",
+    "emptyStep1Desc": "Por exemplo “Cálculo”",
+    "emptyStep2Title": "Adicione cursos ou material",
+    "emptyStep2Desc": "Inclua um curso ou envie apostilas",
+    "emptyStep3Title": "Gere a primeira aula",
+    "emptyStep3Desc": "O professor de IA explica com seu material"
   }
 }

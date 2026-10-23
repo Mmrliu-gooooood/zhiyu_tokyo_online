@@ -31,7 +31,11 @@
       "idle": "في الانتظار",
       "teaching": "يشرح",
       "thinking": "يفكر"
-    }
+    },
+    "pageOf": "الصفحة {{current}} / {{total}}",
+    "prevPage": "السابق",
+    "nextPage": "التالي",
+    "whiteboard": "السبورة"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "التعلّم التوليدي في فصل تفاعلي متعدد الوكلاء",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "مرحبًا، {{name}}"
+    "greetingWithName": "مرحبًا، {{name}}",
+    "subtitle": "قل ما تريد تعلّمه، وسيقدّم لك معلم ذكاء اصطناعي وزملاء درسًا يمكنك أن تسأل فيه في أي وقت.",
+    "stepsTitle": "ابدأ درسًا في ثلاث خطوات",
+    "step1Title": "قل ما تريد تعلّمه",
+    "step1Desc": "موضوع أو مسألة أو موادك الخاصة",
+    "step2Title": "المعلم يحضّر الدرس",
+    "step2Desc": "تُنشأ الشرائح والشروح والتمارين تلقائيًا",
+    "step3Title": "ادخل الدرس",
+    "step3Desc": "استمع واسأل المعلم متى شئت",
+    "tryTitle": "جرّب أحد هذه",
+    "example1Title": "مشتقات الدوال المثلثية",
+    "example1Meta": "التفاضل والتكامل · نحو 15 دقيقة",
+    "example1Prompt": "اشرح قواعد اشتقاق الدوال المثلثية مع بعض التمارين من السهل إلى الصعب",
+    "example2Title": "اكتب أول برنامج بلغة Python",
+    "example2Meta": "أساسيات البرمجة · نحو 30 دقيقة",
+    "example2Prompt": "علّمني Python من الصفر وساعدني على كتابة أول برنامج خلال 30 دقيقة",
+    "example3Title": "ما هو تحويل فورييه؟",
+    "example3Meta": "الإشارات والنظم · على السبورة",
+    "example3Prompt": "اشرح تحويل فورييه على السبورة"
   },
   "toolbar": {
     "pdfParser": "محلل PDF",
@@ -134,7 +156,10 @@
     "ttsTitle": "تحويل النص إلى كلام",
     "ttsHint": "اختر صوتًا للمعلم الذكي",
     "ttsPreview": "معاينة",
-    "ttsPreviewing": "جارٍ التشغيل..."
+    "ttsPreviewing": "جارٍ التشغيل...",
+    "addMaterials": "إضافة مواد",
+    "webSearchLabel": "البحث على الويب",
+    "mediaLabel": "الصوت والصور"
   },
   "export": {
     "pptx": "تصدير PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "يدعم ملفات PDF حتى 50 ميغابايت",
     "courseMaterialSizeLimit": "المستندات والعروض التقديمية وجداول البيانات والصور والنصوص العادية — حتى 50 ميغابايت (تعتمد الصيغ المقبولة على المستخرج المحدد)",
     "generateFailed": "فشل توليد الفصل، يرجى المحاولة مرة أخرى",
-    "requirementPlaceholder": "أخبرني بأي شيء تريد تعلمه، مثلاً:\n\"علمني بايثون من الصفر في 30 دقيقة\"\n\"اشرح تحويل فورييه على السبورة\"\n\"كيف تلعب لعبة أفالون\"",
+    "requirementPlaceholder": "اكتب ما تريد تعلّمه، مثلاً: \"اشرح تحويل فورييه على السبورة\"",
     "requirementRequired": "يرجى إدخال متطلبات المقرر",
     "fileTooLarge": "الملف كبير جدًا. يرجى اختيار ملف أصغر من 50 ميغابايت",
     "courseMaterialCountLimit": "يمكنك رفع ما يصل إلى 5 ملفات لمواد المقرر",
@@ -3969,6 +3994,22 @@
         "cancelJob": "إيقاف التوليد",
         "restart": "أعد توليد الدرس"
       }
-    }
+    },
+    "navLabel": "تنقل منطقة الدراسة",
+    "next": {
+      "label": "الخطوة التالية",
+      "continue": "تابع \"{{name}}\" من الصفحة {{page}}",
+      "revisit": "راجع \"{{name}}\" أو انتقل إلى الدرس التالي",
+      "start": "ابدأ الدرس الأول",
+      "addFirst": "أضف دورة أو مواد لإنشاء الدرس الأول",
+      "continueAction": "متابعة",
+      "openAction": "فتح المساحة"
+    },
+    "emptyStep1Title": "أنشئ مساحة",
+    "emptyStep1Desc": "مثلاً \"التفاضل والتكامل\"",
+    "emptyStep2Title": "أضف دورات أو مواد",
+    "emptyStep2Desc": "أضف دورة موجودة أو ارفع ملاحظاتك",
+    "emptyStep3Title": "أنشئ الدرس الأول",
+    "emptyStep3Desc": "يشرح المعلم بالاعتماد على موادك"
   }
 }

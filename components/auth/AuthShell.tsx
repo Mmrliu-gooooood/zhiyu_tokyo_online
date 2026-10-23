@@ -25,7 +25,7 @@ export function AuthShell({
           <Link href="/auth/login" aria-label={t('auth.productName')}>
             <ZhiyuLockup />
           </Link>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">{title}</h1>
           {description ? (
             <p className="max-w-full text-pretty text-sm leading-6 text-muted-foreground break-words">
               {description}

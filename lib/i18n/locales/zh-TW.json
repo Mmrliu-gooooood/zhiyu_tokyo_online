@@ -31,7 +31,11 @@
       "idle": "等待",
       "teaching": "正在講解",
       "thinking": "正在思考"
-    }
+    },
+    "pageOf": "第 {{current}} / {{total}} 頁",
+    "prevPage": "上一頁",
+    "nextPage": "下一頁",
+    "whiteboard": "白板"
   },
   "learningFeedback": {
     "open": "開啟學習回饋",
@@ -101,7 +105,25 @@
     "headline": "一句話，生成一堂課",
     "slogan": "多智能體教師與同學，即時講授與討論",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "嗨，{{name}}"
+    "greetingWithName": "嗨，{{name}}",
+    "subtitle": "說出你想學的內容，AI 老師和同學會陪你上一堂可以隨時提問的課。",
+    "stepsTitle": "三步開始上課",
+    "step1Title": "說出想學的",
+    "step1Desc": "一個主題、一道題，或上傳講義",
+    "step2Title": "AI 老師備課",
+    "step2Desc": "自動生成課件、講解和練習",
+    "step3Title": "進入課堂",
+    "step3Desc": "邊聽邊問，隨時向老師提問",
+    "tryTitle": "試試這些",
+    "example1Title": "三角函數求導",
+    "example1Meta": "高等數學 · 約 15 分鐘",
+    "example1Prompt": "講解三角函數的求導公式，配幾道由淺入深的練習題",
+    "example2Title": "從零寫出第一個 Python 程式",
+    "example2Meta": "程式入門 · 約 30 分鐘",
+    "example2Prompt": "從零學 Python，30 分鐘寫出第一個程式",
+    "example3Title": "傅立葉轉換是什麼",
+    "example3Meta": "訊號與系統 · 白板講解",
+    "example3Prompt": "用白板給我講解傅立葉轉換"
   },
   "toolbar": {
     "pdfParser": "解析器",
@@ -134,7 +156,10 @@
     "ttsPreview": "試聽",
     "ttsPreviewing": "播放中...",
     "interactiveModeHint": "啟用互動優先模式以獲得更多實作內容",
-    "interactiveModeLabel": "互動模式"
+    "interactiveModeLabel": "互動模式",
+    "addMaterials": "新增資料",
+    "webSearchLabel": "聯網搜尋",
+    "mediaLabel": "語音和配圖"
   },
   "export": {
     "pptx": "匯出 PPTX",
@@ -1168,7 +1193,7 @@
     "pdfSizeLimit": "支援最大50MB的PDF檔案",
     "courseMaterialSizeLimit": "支援文件、簡報、表格、圖像、純文字，最大 50MB（實際支援格式依所選解析器而定）",
     "generateFailed": "生成課堂失敗，請重試",
-    "requirementPlaceholder": "輸入你想學的任何內容，例如：\n「從零學 Python，30 分鐘寫出第一個程式」\n「用白板為我講解傅立葉轉換」\n「阿瓦隆桌遊怎麼玩」",
+    "requirementPlaceholder": "輸入你想學的任何內容，例如：用白板給我講解傅立葉轉換",
     "requirementRequired": "請輸入課程需求",
     "fileTooLarge": "檔案過大，請選擇小於 50MB 的檔案",
     "courseMaterialCountLimit": "最多可上傳 5 個課程材料檔案",
@@ -3969,6 +3994,22 @@
         "cancelJob": "停止生成",
         "restart": "重新生成課程"
       }
-    }
+    },
+    "navLabel": "學習區導覽",
+    "next": {
+      "label": "下一步",
+      "continue": "繼續《{{name}}》第 {{page}} 頁",
+      "revisit": "回顧《{{name}}》，或學下一堂課",
+      "start": "開始學習第一堂課",
+      "addFirst": "加入課程或資料，生成第一堂課",
+      "continueAction": "繼續上課",
+      "openAction": "打開學科"
+    },
+    "emptyStep1Title": "新建學科",
+    "emptyStep1Desc": "例如「高等數學」",
+    "emptyStep2Title": "加入課程或資料",
+    "emptyStep2Desc": "放進已有課程，或上傳講義",
+    "emptyStep3Title": "生成第一堂課",
+    "emptyStep3Desc": "AI 老師依資料講解"
   }
 }

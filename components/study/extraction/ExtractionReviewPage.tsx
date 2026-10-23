@@ -358,7 +358,7 @@ export function ExtractionReviewPage({
       </Link>
       <header className="mb-4 space-y-1.5">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h1 className="min-w-0 text-xl font-semibold tracking-[-0.02em] text-foreground md:text-2xl">
+          <h1 className="min-w-0 font-display text-xl font-bold text-foreground md:text-2xl">
             {t('study.extraction.reviewTitle')}
             <span className="mt-1 block text-sm font-normal text-muted-foreground">
               {extractionTitle(t, extraction)}

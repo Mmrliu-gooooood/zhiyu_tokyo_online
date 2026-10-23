@@ -1733,7 +1733,7 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
                   className={cn(
                     'size-2 rounded-full',
                     teaching && 'bg-primary',
-                    thinking && 'bg-[var(--zhiyu-ai)]',
+                    thinking && 'bg-ai',
                     !teaching && !thinking && 'bg-muted-foreground/35',
                   )}
                   aria-hidden="true"

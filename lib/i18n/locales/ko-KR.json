@@ -31,7 +31,11 @@
       "idle": "대기 중",
       "teaching": "강의 중",
       "thinking": "생각 중"
-    }
+    },
+    "pageOf": "{{current}} / {{total}} 페이지",
+    "prevPage": "이전",
+    "nextPage": "다음",
+    "whiteboard": "화이트보드"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "멀티 에이전트 인터랙티브 교실에서 펼치는 생성형 학습",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "안녕하세요, {{name}}!"
+    "greetingWithName": "안녕하세요, {{name}}!",
+    "subtitle": "배우고 싶은 것을 말하면 AI 선생님과 친구들이 언제든 질문할 수 있는 수업을 열어 줍니다.",
+    "stepsTitle": "세 단계로 수업 시작",
+    "step1Title": "배우고 싶은 것 말하기",
+    "step1Desc": "주제, 문제 하나, 또는 강의 자료 업로드",
+    "step2Title": "AI 선생님이 준비",
+    "step2Desc": "슬라이드, 설명, 연습 문제를 자동 생성",
+    "step3Title": "수업 입장",
+    "step3Desc": "들으면서 언제든 선생님께 질문",
+    "tryTitle": "이렇게 시작해 보세요",
+    "example1Title": "삼각함수 미분",
+    "example1Meta": "미적분 · 약 15분",
+    "example1Prompt": "삼각함수의 미분 공식을 설명하고 쉬운 것부터 어려운 순서로 연습 문제를 몇 개 내 줘",
+    "example2Title": "첫 번째 Python 프로그램 만들기",
+    "example2Meta": "프로그래밍 입문 · 약 30분",
+    "example2Prompt": "Python을 처음부터 가르쳐 주고 30분 안에 첫 프로그램을 작성하게 도와줘",
+    "example3Title": "푸리에 변환이란",
+    "example3Meta": "신호와 시스템 · 화이트보드 설명",
+    "example3Prompt": "화이트보드로 푸리에 변환을 설명해 줘"
   },
   "toolbar": {
     "pdfParser": "파서",
@@ -134,7 +156,10 @@
     "ttsPreview": "미리 듣기",
     "ttsPreviewing": "재생 중...",
     "interactiveModeHint": "체험 중심 콘텐츠를 위해 인터랙티브 우선 모드를 사용하세요",
-    "interactiveModeLabel": "인터랙티브 모드"
+    "interactiveModeLabel": "인터랙티브 모드",
+    "addMaterials": "자료 추가",
+    "webSearchLabel": "웹 검색",
+    "mediaLabel": "음성 및 이미지"
   },
   "export": {
     "pptx": "PPTX 내보내기",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "최대 50MB PDF 파일을 지원합니다",
     "courseMaterialSizeLimit": "문서, 슬라이드, 스프레드시트, 이미지, 텍스트 — 최대 50MB (지원 형식은 선택한 파서에 따라 다름)",
     "generateFailed": "교실 생성에 실패했습니다. 다시 시도해주세요",
-    "requirementPlaceholder": "학습하고 싶은 내용을 자유롭게 입력하세요, 예:\n\"파이썬을 30분 만에 처음부터 가르쳐주세요\"\n\"칠판에 푸리에 변환을 설명해주세요\"\n\"보드게임 Avalon 하는 방법\"",
+    "requirementPlaceholder": "배우고 싶은 내용을 입력하세요. 예: 화이트보드로 푸리에 변환을 설명해 줘",
     "requirementRequired": "강좌 요구사항을 입력해주세요",
     "fileTooLarge": "파일이 너무 큽니다. 50MB 미만의 파일을 선택해주세요",
     "courseMaterialCountLimit": "강의 자료 파일은 최대 5개까지 업로드할 수 있습니다",
@@ -3969,6 +3994,22 @@
         "cancelJob": "생성 중지",
         "restart": "강의 다시 생성"
       }
-    }
+    },
+    "navLabel": "학습 영역 탐색",
+    "next": {
+      "label": "다음 단계",
+      "continue": "「{{name}}」 {{page}}페이지부터 계속",
+      "revisit": "「{{name}}」 복습 또는 다음 수업",
+      "start": "첫 수업 시작하기",
+      "addFirst": "강의나 자료를 추가해 첫 수업 만들기",
+      "continueAction": "계속하기",
+      "openAction": "공간 열기"
+    },
+    "emptyStep1Title": "학습 공간 만들기",
+    "emptyStep1Desc": "예: \"미적분\"",
+    "emptyStep2Title": "강의나 자료 추가",
+    "emptyStep2Desc": "기존 강의를 넣거나 자료 업로드",
+    "emptyStep3Title": "첫 수업 생성",
+    "emptyStep3Desc": "AI 선생님이 자료로 설명"
   }
 }

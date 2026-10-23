@@ -384,7 +384,7 @@ function AnswerSheet({
     <div data-testid="attempt-sheet">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-[-0.02em] text-foreground">
+          <h1 className="truncate font-display text-2xl font-bold text-foreground">
             {initial.title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground" data-testid="attempt-progress">
@@ -739,7 +739,7 @@ function AttemptReport({
   return (
     <div data-testid="attempt-report" data-state={summary.state}>
       <header className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-        <h1 className="text-xl font-semibold text-foreground">{attempt.title}</h1>
+        <h1 className="font-display text-xl font-bold text-foreground">{attempt.title}</h1>
         <p className="mt-3 text-3xl font-semibold text-primary" data-testid="attempt-score">
           {t('study.practice.report.score', {
             earned: summary.earned,

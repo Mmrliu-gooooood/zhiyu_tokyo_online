@@ -233,7 +233,7 @@ function PBLV2Container({
   })();
 
   return (
-    <div ref={hostRef} className="h-full w-full">
+    <div ref={hostRef} className="zhiyu-pbl-palette h-full w-full">
       {content}
       {(runtimeProject.uiPhase === 'workspace' || runtimeProject.uiPhase === 'completed') &&
         typeof document !== 'undefined' &&
@@ -454,7 +454,7 @@ function PBLV2WorkspaceLayer({
       />
       <motion.div
         className={cn(
-          'fixed overflow-hidden bg-background text-foreground',
+          'zhiyu-pbl-palette fixed overflow-hidden bg-background text-foreground',
           // Docked must behave like ordinary in-page content: NO positive
           // z-index. Header dropdowns portal to <body>, but their Radix popper
           // wrapper is z-auto (the `z-50` lives on the inner content, trapped by

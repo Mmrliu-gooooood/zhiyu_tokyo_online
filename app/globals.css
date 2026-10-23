@@ -232,6 +232,46 @@
   --correct-ink: #9adbb5;
 }
 
+/* PBL v2 is a fixed-dark immersive surface written against Tailwind's violet /
+   cyan / fuchsia scales. Inside it those scales are re-pointed at the brand
+   families (indigo, AI teal, classmate violet) so the scene matches the rest of
+   the product without rewriting its classes. */
+.zhiyu-pbl-palette {
+  --color-violet-50: oklch(0.97 0.026 268);
+  --color-violet-100: oklch(0.935 0.045 268);
+  --color-violet-200: oklch(0.88 0.072 268);
+  --color-violet-300: oklch(0.8 0.098 268);
+  --color-violet-400: oklch(0.71 0.117 268);
+  --color-violet-500: oklch(0.62 0.13 268);
+  --color-violet-600: oklch(0.53 0.13 268);
+  --color-violet-700: oklch(0.45 0.12 268);
+  --color-violet-800: oklch(0.38 0.104 268);
+  --color-violet-900: oklch(0.32 0.085 268);
+  --color-violet-950: oklch(0.23 0.065 268);
+  --color-cyan-50: oklch(0.97 0.018 212);
+  --color-cyan-100: oklch(0.935 0.032 212);
+  --color-cyan-200: oklch(0.88 0.05 212);
+  --color-cyan-300: oklch(0.8 0.068 212);
+  --color-cyan-400: oklch(0.71 0.081 212);
+  --color-cyan-500: oklch(0.62 0.09 212);
+  --color-cyan-600: oklch(0.53 0.09 212);
+  --color-cyan-700: oklch(0.45 0.083 212);
+  --color-cyan-800: oklch(0.38 0.072 212);
+  --color-cyan-900: oklch(0.32 0.058 212);
+  --color-cyan-950: oklch(0.23 0.045 212);
+  --color-fuchsia-50: oklch(0.97 0.026 300);
+  --color-fuchsia-100: oklch(0.935 0.045 300);
+  --color-fuchsia-200: oklch(0.88 0.072 300);
+  --color-fuchsia-300: oklch(0.8 0.098 300);
+  --color-fuchsia-400: oklch(0.71 0.117 300);
+  --color-fuchsia-500: oklch(0.62 0.13 300);
+  --color-fuchsia-600: oklch(0.53 0.13 300);
+  --color-fuchsia-700: oklch(0.45 0.12 300);
+  --color-fuchsia-800: oklch(0.38 0.104 300);
+  --color-fuchsia-900: oklch(0.32 0.085 300);
+  --color-fuchsia-950: oklch(0.23 0.065 300);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

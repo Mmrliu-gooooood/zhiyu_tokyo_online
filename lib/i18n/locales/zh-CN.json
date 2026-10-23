@@ -31,7 +31,11 @@
       "idle": "等待",
       "teaching": "正在讲解",
       "thinking": "正在思考"
-    }
+    },
+    "pageOf": "第 {{current}} / {{total}} 页",
+    "prevPage": "上一页",
+    "nextPage": "下一页",
+    "whiteboard": "白板"
   },
   "learningFeedback": {
     "open": "打开学习反馈",
@@ -101,7 +105,25 @@
     "headline": "一句话，生成一堂互动课",
     "slogan": "多智能体教师与同学，实时讲授与讨论",
     "footer": "智域 · 基于 OpenMAIC 构建",
-    "greetingWithName": "嗨，{{name}}"
+    "greetingWithName": "嗨，{{name}}",
+    "subtitle": "说出你想学的内容，AI 老师和同学会陪你上一堂可以随时提问的课。",
+    "stepsTitle": "三步开始上课",
+    "step1Title": "说出想学的",
+    "step1Desc": "一个主题、一道题，或上传讲义",
+    "step2Title": "AI 老师备课",
+    "step2Desc": "自动生成课件、讲解和练习",
+    "step3Title": "进入课堂",
+    "step3Desc": "边听边问，随时向老师提问",
+    "tryTitle": "试试这些",
+    "example1Title": "三角函数求导",
+    "example1Meta": "高等数学 · 约 15 分钟",
+    "example1Prompt": "讲解三角函数的求导公式，配几道由浅入深的练习题",
+    "example2Title": "从零写出第一个 Python 程序",
+    "example2Meta": "编程入门 · 约 30 分钟",
+    "example2Prompt": "从零学 Python，30 分钟写出第一个程序",
+    "example3Title": "傅里叶变换是什么",
+    "example3Meta": "信号与系统 · 白板讲解",
+    "example3Prompt": "用白板给我讲解傅里叶变换"
   },
   "toolbar": {
     "pdfParser": "解析器",
@@ -134,7 +156,10 @@
     "ttsPreview": "试听",
     "ttsPreviewing": "播放中...",
     "interactiveModeHint": "开启深度交互模式，生成更多互动内容",
-    "interactiveModeLabel": "深度交互"
+    "interactiveModeLabel": "深度交互",
+    "addMaterials": "添加资料",
+    "webSearchLabel": "联网搜索",
+    "mediaLabel": "语音和配图"
   },
   "export": {
     "pptx": "导出 PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "支持最大50MB的PDF文件",
     "courseMaterialSizeLimit": "支持文档、演示、表格、图像、纯文本，最大 50MB（具体支持格式随所选解析器而定）",
     "generateFailed": "生成课堂失败，请重试",
-    "requirementPlaceholder": "输入你想学的任何内容，例如：\n「从零学 Python，30 分钟写出第一个程序」\n「用白板给我讲解傅里叶变换」\n「阿瓦隆桌游怎么玩」",
+    "requirementPlaceholder": "输入你想学的任何内容，例如：用白板给我讲解傅里叶变换",
     "requirementRequired": "请输入课程需求",
     "fileTooLarge": "文件过大，请选择小于 50MB 的文件",
     "courseMaterialCountLimit": "最多可上传 5 个课程材料文件",
@@ -3969,6 +3994,22 @@
         "cancelJob": "停止生成",
         "restart": "重新生成课程"
       }
-    }
+    },
+    "navLabel": "学习区导航",
+    "next": {
+      "label": "下一步",
+      "continue": "继续《{{name}}》第 {{page}} 页",
+      "revisit": "回顾《{{name}}》，或学下一堂课",
+      "start": "开始学习第一堂课",
+      "addFirst": "加入课程或资料，生成第一堂课",
+      "continueAction": "继续上课",
+      "openAction": "打开学科"
+    },
+    "emptyStep1Title": "新建学科",
+    "emptyStep1Desc": "例如“高等数学”",
+    "emptyStep2Title": "加入课程或资料",
+    "emptyStep2Desc": "放进已有课程，或上传讲义",
+    "emptyStep3Title": "生成第一堂课",
+    "emptyStep3Desc": "AI 老师按资料讲解"
   }
 }

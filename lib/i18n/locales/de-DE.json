@@ -31,7 +31,11 @@
       "idle": "Wartet",
       "teaching": "Unterrichtet",
       "thinking": "Denkt nach"
-    }
+    },
+    "pageOf": "Seite {{current}} / {{total}}",
+    "prevPage": "Zurück",
+    "nextPage": "Weiter",
+    "whiteboard": "Whiteboard"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "Generatives Lernen im interaktiven Lernraum mit mehreren KI-Agenten",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "Hallo, {{name}}"
+    "greetingWithName": "Hallo, {{name}}",
+    "subtitle": "Sag, was du lernen möchtest. Eine KI-Lehrkraft und Mitlernende gestalten eine Stunde, in der du jederzeit Fragen stellen kannst.",
+    "stepsTitle": "In drei Schritten zur Unterrichtsstunde",
+    "step1Title": "Sag, was du lernen willst",
+    "step1Desc": "Ein Thema, eine Aufgabe oder eigene Unterlagen",
+    "step2Title": "Die KI-Lehrkraft bereitet vor",
+    "step2Desc": "Folien, Erklärungen und Übungen entstehen automatisch",
+    "step3Title": "Unterricht betreten",
+    "step3Desc": "Zuhören und jederzeit nachfragen",
+    "tryTitle": "Probier eines davon",
+    "example1Title": "Ableitungen trigonometrischer Funktionen",
+    "example1Meta": "Analysis · ca. 15 Min.",
+    "example1Prompt": "Erkläre die Ableitungsregeln für trigonometrische Funktionen mit einigen Übungen von leicht bis schwer",
+    "example2Title": "Dein erstes Python-Programm",
+    "example2Meta": "Programmiergrundlagen · ca. 30 Min.",
+    "example2Prompt": "Bring mir Python von Grund auf bei und hilf mir, in 30 Minuten mein erstes Programm zu schreiben",
+    "example3Title": "Was ist die Fourier-Transformation?",
+    "example3Meta": "Signale und Systeme · am Whiteboard",
+    "example3Prompt": "Erkläre die Fourier-Transformation am Whiteboard"
   },
   "toolbar": {
     "pdfParser": "Parser",
@@ -134,7 +156,10 @@
     "ttsPreview": "Vorschau",
     "ttsPreviewing": "Wird abgespielt...",
     "interactiveModeHint": "Aktiviere den interaktiven Modus, damit bevorzugt interaktive Inhalte erzeugt werden",
-    "interactiveModeLabel": "Interaktiver Modus"
+    "interactiveModeLabel": "Interaktiver Modus",
+    "addMaterials": "Material hinzufügen",
+    "webSearchLabel": "Websuche",
+    "mediaLabel": "Stimme & Bilder"
   },
   "export": {
     "pptx": "PPTX exportieren",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "Unterstützt PDF-Dateien bis zu 50 MB",
     "courseMaterialSizeLimit": "Dokumente, Präsentationen, Tabellendateien, Bilder und Klartext – bis zu 50 MB (unterstützte Formate hängen vom gewählten Extraktor ab)",
     "generateFailed": "Kurs konnte nicht erstellt werden. Bitte versuche es erneut.",
-    "requirementPlaceholder": "Beschreibe, was du lernen möchtest, z. B.\n\"Bring mir Python in 30 Minuten von Grund auf bei\"\n\"Erkläre die Fourier-Transformation am Whiteboard\"\n\"Wie spielt man das Brettspiel Avalon?\"",
+    "requirementPlaceholder": "Beschreibe, was du lernen möchtest, z. B. „Erkläre die Fourier-Transformation am Whiteboard“",
     "requirementRequired": "Bitte gib die Kursanforderungen ein",
     "fileTooLarge": "Die Datei ist zu groß. Wähle bitte eine Datei unter 50 MB aus.",
     "courseMaterialCountLimit": "Du kannst bis zu 5 Dateien als Kursmaterial hochladen",
@@ -3969,6 +3994,22 @@
         "cancelJob": "Erzeugung stoppen",
         "restart": "Kurs neu erzeugen"
       }
-    }
+    },
+    "navLabel": "Lernbereich-Navigation",
+    "next": {
+      "label": "Nächster Schritt",
+      "continue": "„{{name}}“ ab Seite {{page}} fortsetzen",
+      "revisit": "„{{name}}“ wiederholen oder die nächste Stunde",
+      "start": "Erste Stunde beginnen",
+      "addFirst": "Kurs oder Material hinzufügen und die erste Stunde erstellen",
+      "continueAction": "Fortsetzen",
+      "openAction": "Bereich öffnen"
+    },
+    "emptyStep1Title": "Bereich anlegen",
+    "emptyStep1Desc": "Zum Beispiel „Analysis“",
+    "emptyStep2Title": "Kurse oder Material hinzufügen",
+    "emptyStep2Desc": "Einen Kurs übernehmen oder Unterlagen hochladen",
+    "emptyStep3Title": "Erste Stunde erstellen",
+    "emptyStep3Desc": "Die KI-Lehrkraft erklärt anhand deiner Unterlagen"
   }
 }

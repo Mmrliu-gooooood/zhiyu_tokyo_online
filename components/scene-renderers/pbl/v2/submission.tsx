@@ -658,7 +658,7 @@ export function PBLV2SubmissionPanel({
                 if (!submitLocked) setModalOpen(true);
               }}
               disabled={submitLocked}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-[0_0_28px_rgba(155,124,255,0.26)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-[0_0_28px_rgba(143,164,232,0.26)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Upload className="w-3.5 h-3.5" />
               {t('pbl.v2.submission.submitOutput')}

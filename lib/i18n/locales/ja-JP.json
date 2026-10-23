@@ -31,7 +31,11 @@
       "idle": "待機中",
       "teaching": "解説中",
       "thinking": "思考中"
-    }
+    },
+    "pageOf": "{{current}} / {{total}} ページ",
+    "prevPage": "前へ",
+    "nextPage": "次へ",
+    "whiteboard": "ホワイトボード"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "マルチエージェント対話型教室で生成的に学ぶ",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "こんにちは、{{name}}さん"
+    "greetingWithName": "こんにちは、{{name}}さん",
+    "subtitle": "学びたいことを伝えるだけで、AI の先生とクラスメートがいつでも質問できる授業を開きます。",
+    "stepsTitle": "3 ステップで授業を始める",
+    "step1Title": "学びたいことを伝える",
+    "step1Desc": "テーマ、問題、または資料のアップロード",
+    "step2Title": "AI の先生が準備",
+    "step2Desc": "スライド・解説・練習問題を自動で作成",
+    "step3Title": "授業に参加",
+    "step3Desc": "聞きながら、いつでも先生に質問",
+    "tryTitle": "こちらを試す",
+    "example1Title": "三角関数の微分",
+    "example1Meta": "微分積分 · 約 15 分",
+    "example1Prompt": "三角関数の微分公式を解説し、易しい順に練習問題をいくつか付けて",
+    "example2Title": "はじめての Python プログラム",
+    "example2Meta": "プログラミング入門 · 約 30 分",
+    "example2Prompt": "Python をゼロから教えて、30 分で最初のプログラムを書けるようにして",
+    "example3Title": "フーリエ変換とは",
+    "example3Meta": "信号とシステム · ホワイトボード",
+    "example3Prompt": "ホワイトボードでフーリエ変換を説明して"
   },
   "toolbar": {
     "pdfParser": "パーサー",
@@ -134,7 +156,10 @@
     "ttsPreview": "プレビュー",
     "ttsPreviewing": "再生中...",
     "interactiveModeHint": "インタラクティブ優先モードを有効にして、より実践的なコンテンツを生成",
-    "interactiveModeLabel": "インタラクティブモード"
+    "interactiveModeLabel": "インタラクティブモード",
+    "addMaterials": "資料を追加",
+    "webSearchLabel": "ウェブ検索",
+    "mediaLabel": "音声と画像"
   },
   "export": {
     "pptx": "PPTXエクスポート",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "50MBまでのPDFファイルに対応しています",
     "courseMaterialSizeLimit": "ドキュメント、スライド、表計算、画像、テキスト — 最大50MB（対応形式は選択したエクストラクタに依存）",
     "generateFailed": "教室の生成に失敗しました。もう一度お試しください",
-    "requirementPlaceholder": "学びたいことを自由に入力してください。例えば：\n「Pythonをゼロから30分で教えて」\n「フーリエ変換をホワイトボードで解説して」\n「ボードゲーム『アバロン』の遊び方」",
+    "requirementPlaceholder": "学びたいことを入力してください。例：ホワイトボードでフーリエ変換を説明して",
     "requirementRequired": "コースの要件を入力してください",
     "fileTooLarge": "ファイルが大きすぎます。50MB以下のファイルを選択してください",
     "courseMaterialCountLimit": "教材ファイルは最大5件までアップロードできます",
@@ -3969,6 +3994,22 @@
         "cancelJob": "生成を止める",
         "restart": "コースを生成し直す"
       }
-    }
+    },
+    "navLabel": "学習エリアのナビゲーション",
+    "next": {
+      "label": "次のステップ",
+      "continue": "「{{name}}」の {{page}} ページから続ける",
+      "revisit": "「{{name}}」を振り返るか、次の授業へ",
+      "start": "最初の授業を始める",
+      "addFirst": "コースか資料を追加して最初の授業を作る",
+      "continueAction": "続ける",
+      "openAction": "スペースを開く"
+    },
+    "emptyStep1Title": "スペースを作成",
+    "emptyStep1Desc": "例：「微分積分」",
+    "emptyStep2Title": "コースや資料を追加",
+    "emptyStep2Desc": "既存のコースか講義資料を入れる",
+    "emptyStep3Title": "最初の授業を生成",
+    "emptyStep3Desc": "AI の先生が資料に沿って解説"
   }
 }

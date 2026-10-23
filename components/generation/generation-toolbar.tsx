@@ -230,13 +230,15 @@ export function GenerationToolbar({
   };
 
   // ─── Pill button helper ─────────────────────────────
+  // Labelled option buttons: a learner should read what each one does
+  // without hovering for a tooltip.
   const pillCls =
-    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer select-none whitespace-nowrap border';
-  const pillMuted = `${pillCls} border-border/50 text-muted-foreground/70 hover:text-foreground hover:bg-muted/60`;
-  const pillActive = `${pillCls} border-primary/40 dark:border-primary/40 bg-primary/10 dark:bg-primary/15 text-primary`;
+    'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition-colors cursor-pointer select-none whitespace-nowrap border';
+  const pillMuted = `${pillCls} border-border bg-card text-foreground hover:bg-muted`;
+  const pillActive = `${pillCls} border-primary/30 bg-primary-soft text-primary-ink`;
 
   return (
-    <div className="flex items-center gap-1 flex-wrap">
+    <div className="flex flex-wrap items-center gap-1">
       {/* ── Model selector ── */}
       {configuredProviders.length > 0 || textPlatformDefault ? (
         <ModelSettingsPopover
@@ -266,7 +268,7 @@ export function GenerationToolbar({
               onClick={(event) => onSettingsOpen('providers', event.currentTarget)}
               className={cn(
                 pillCls,
-                'text-review-ink animate-pulse',
+                'border-review/30 text-review-ink animate-pulse',
                 'bg-review-soft hover:bg-review/15',
               )}
             >
@@ -278,9 +280,9 @@ export function GenerationToolbar({
         </Tooltip>
       )}
 
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
         {/* ── Separator ── */}
-        <div className="w-px h-4 bg-border/60 mx-1" />
+        <div className="mx-1 hidden h-4 w-px bg-border/60 sm:block" />
 
         {/* ── Course material (extractor + upload) combined Popover ── */}
         <Popover>
@@ -296,7 +298,8 @@ export function GenerationToolbar({
               </button>
             ) : (
               <button className={pillMuted}>
-                <Paperclip className="size-3.5" />
+                <Paperclip className="size-3.5 text-muted-foreground" />
+                <span>{t('toolbar.addMaterials')}</span>
               </button>
             )}
           </PopoverTrigger>
@@ -447,12 +450,13 @@ export function GenerationToolbar({
           <Popover>
             <PopoverTrigger asChild>
               <button className={webSearch ? pillActive : pillMuted}>
-                <Globe2 className={cn('size-3.5', webSearch && 'animate-pulse')} />
+                <Globe2 className={cn('size-3.5', !webSearch && 'text-muted-foreground')} />
+                <span>{t('toolbar.webSearchLabel')}</span>
                 {webSearch && (
-                  <span>
+                  <span className="font-normal opacity-75">
                     {WEB_SEARCH_PROVIDERS[webSearchProviderId]
                       ? getWebSearchProviderDisplayName(webSearchProviderId, t)
-                      : 'Search'}
+                      : t('toolbar.on')}
                   </span>
                 )}
               </button>
@@ -530,10 +534,11 @@ export function GenerationToolbar({
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                className={cn(pillCls, 'text-muted-foreground/40 cursor-not-allowed')}
+                className={cn(pillCls, 'border-border text-subtle-foreground cursor-not-allowed')}
                 disabled
               >
                 <Globe2 className="size-3.5" />
+                <span>{t('toolbar.webSearchLabel')}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>{t('toolbar.webSearchNoProvider')}</TooltipContent>
@@ -541,7 +546,7 @@ export function GenerationToolbar({
         )}
 
         {/* ── Separator ── */}
-        <div className="w-px h-4 bg-border/60 mx-1" />
+        <div className="mx-1 hidden h-4 w-px bg-border/60 sm:block" />
 
         {/* ── Media popover ── */}
         <MediaPopover onSettingsOpen={onSettingsOpen} />
@@ -919,10 +924,8 @@ function ModelSettingsPopover({
             <button
               aria-label={`${currentProviderName} / ${currentModelLabel}`}
               className={cn(
-                'inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border px-2 text-xs font-medium transition-all',
-                'border-primary/40 bg-primary/10 text-primary hover:bg-primary/10 dark:border-primary/70 dark:bg-primary/15',
-                currentModelId &&
-                  'shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]',
+                'inline-flex h-8 min-w-0 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors',
+                'border-border bg-card text-foreground hover:bg-muted',
               )}
             >
               {currentProviderIcon ? (
@@ -932,10 +935,11 @@ function ModelSettingsPopover({
                   className="size-4 shrink-0 rounded-sm"
                 />
               ) : (
-                <Bot className="size-3.5 shrink-0" />
+                <Bot className="size-3.5 shrink-0 text-muted-foreground" />
               )}
+              <span className="max-w-[9rem] truncate">{currentModelLabel}</span>
               {currentThinkingLabel && (
-                <span className="shrink-0 rounded-full bg-card/80 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary ring-1 ring-primary dark:bg-primary/15 dark:ring-primary">
+                <span className="shrink-0 rounded-full bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-ink">
                   {currentThinkingLabel}
                 </span>
               )}

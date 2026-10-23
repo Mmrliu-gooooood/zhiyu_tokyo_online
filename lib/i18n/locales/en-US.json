@@ -31,7 +31,11 @@
       "idle": "Waiting",
       "teaching": "Teaching",
       "thinking": "Thinking"
-    }
+    },
+    "pageOf": "Page {{current}} / {{total}}",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "whiteboard": "Whiteboard"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "Turn one idea into an interactive class",
     "slogan": "Learn with AI teachers and classmates in real-time lessons and discussion",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "Hi, {{name}}"
+    "greetingWithName": "Hi, {{name}}",
+    "subtitle": "Say what you want to learn. An AI teacher and classmates will run a class you can interrupt with questions at any time.",
+    "stepsTitle": "Start a class in three steps",
+    "step1Title": "Say what you want to learn",
+    "step1Desc": "A topic, a problem, or your own notes",
+    "step2Title": "The AI teacher prepares",
+    "step2Desc": "Slides, explanations and practice are generated for you",
+    "step3Title": "Join the class",
+    "step3Desc": "Listen along and ask the teacher anything",
+    "tryTitle": "Try one of these",
+    "example1Title": "Derivatives of trig functions",
+    "example1Meta": "Calculus · about 15 min",
+    "example1Prompt": "Explain the derivative rules for trigonometric functions, with a few practice problems from easy to hard",
+    "example2Title": "Write your first Python program",
+    "example2Meta": "Programming basics · about 30 min",
+    "example2Prompt": "Teach me Python from scratch and help me write my first program in 30 minutes",
+    "example3Title": "What is the Fourier transform?",
+    "example3Meta": "Signals and systems · on the whiteboard",
+    "example3Prompt": "Explain the Fourier transform on the whiteboard"
   },
   "toolbar": {
     "pdfParser": "Parser",
@@ -134,7 +156,10 @@
     "ttsPreview": "Preview",
     "ttsPreviewing": "Playing...",
     "interactiveModeHint": "Enable interactive-first mode for more hands-on content",
-    "interactiveModeLabel": "Interactive Mode"
+    "interactiveModeLabel": "Interactive Mode",
+    "addMaterials": "Add materials",
+    "webSearchLabel": "Web search",
+    "mediaLabel": "Voice & images"
   },
   "export": {
     "pptx": "Export PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "Supports PDF files up to 50MB",
     "courseMaterialSizeLimit": "Documents, slides, spreadsheets, images, and plain text — up to 50MB (accepted formats depend on the selected extractor)",
     "generateFailed": "Failed to generate classroom, please try again",
-    "requirementPlaceholder": "Tell me anything you want to learn, e.g.\n\"Teach me Python from scratch in 30 minutes\"\n\"Explain Fourier Transform on the whiteboard\"\n\"How to play the board game Avalon\"",
+    "requirementPlaceholder": "Tell me anything you want to learn, e.g. \"Explain the Fourier transform on the whiteboard\"",
     "requirementRequired": "Please enter course requirements",
     "fileTooLarge": "File too large. Please select a file smaller than 50MB",
     "courseMaterialCountLimit": "You can upload up to 5 course material files",
@@ -3969,6 +3994,22 @@
         "cancelJob": "Stop generating",
         "restart": "Generate the course again"
       }
-    }
+    },
+    "navLabel": "Study navigation",
+    "next": {
+      "label": "Next step",
+      "continue": "Continue “{{name}}” at page {{page}}",
+      "revisit": "Look back over “{{name}}” or take the next class",
+      "start": "Start your first class",
+      "addFirst": "Add a course or materials to make your first class",
+      "continueAction": "Continue",
+      "openAction": "Open space"
+    },
+    "emptyStep1Title": "Create a space",
+    "emptyStep1Desc": "For example “Calculus”",
+    "emptyStep2Title": "Add courses or materials",
+    "emptyStep2Desc": "Bring in a course or upload notes",
+    "emptyStep3Title": "Generate your first class",
+    "emptyStep3Desc": "The AI teacher works from your materials"
   }
 }

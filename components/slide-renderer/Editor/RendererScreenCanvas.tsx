@@ -78,13 +78,10 @@ function PlaybackVideoContent({
 
   if (showSkeleton) {
     return (
-      <div className="flex h-full w-full items-center justify-center rounded bg-gradient-to-br from-indigo-50 via-violet-50/60 to-blue-50 dark:from-indigo-950/40 dark:via-violet-950/30 dark:to-blue-950/20">
+      <div className="flex h-full w-full items-center justify-center rounded bg-gradient-to-br from-ai-soft via-ai-soft/60 to-ai-soft">
         <div className="relative h-14 w-14">
-          <div className="absolute inset-0 animate-pulse rounded-full border-2 border-indigo-300/40 dark:border-indigo-500/30" />
-          <Film
-            className="absolute inset-0 m-auto h-5 w-5 text-indigo-400/80 dark:text-indigo-500/70"
-            strokeWidth={1.5}
-          />
+          <div className="absolute inset-0 animate-pulse rounded-full border-2 border-ai/30" />
+          <Film className="absolute inset-0 m-auto h-5 w-5 text-ai/80" strokeWidth={1.5} />
         </div>
       </div>
     );
@@ -93,10 +90,10 @@ function PlaybackVideoContent({
   if (showDisabled) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center rounded bg-gray-50 dark:bg-gray-900/20"
+        className="flex h-full w-full items-center justify-center rounded bg-muted"
         data-media-state="disabled"
       >
-        <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">
           <VideoOff className="h-3 w-3 shrink-0" />
           <span>{t('settings.mediaGenerationDisabled')}</span>
         </div>
@@ -106,9 +103,9 @@ function PlaybackVideoContent({
 
   if (showError && media?.resolution.kind === 'failed') {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 rounded bg-red-50 dark:bg-red-900/20">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 rounded bg-mistake-soft">
         {task?.errorCode === 'CONTENT_SENSITIVE' ? (
-          <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-review-ink">
             <ShieldAlert className="h-3 w-3 shrink-0" />
             <span>{t('settings.mediaContentSensitive')}</span>
           </div>
@@ -121,7 +118,7 @@ function PlaybackVideoContent({
               }
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400 dark:hover:bg-red-900/60"
+            className="flex items-center gap-1 rounded bg-mistake-soft px-2 py-1 text-[10px] font-medium text-mistake-ink transition-colors hover:bg-mistake-soft"
           >
             <RotateCcw className="h-3 w-3" />
             {t('settings.mediaRetry')}
@@ -153,7 +150,7 @@ function PlaybackVideoContent({
               }
             }}
             onPointerDown={(event) => event.stopPropagation()}
-            className="absolute right-1 top-1 flex items-center gap-1 rounded bg-red-100/95 px-2 py-1 text-[10px] font-medium text-red-600 shadow-sm dark:bg-red-900/80 dark:text-red-300"
+            className="absolute right-1 top-1 flex items-center gap-1 rounded bg-mistake-soft/95 px-2 py-1 text-[10px] font-medium text-mistake-ink shadow-sm"
           >
             <RotateCcw className="h-3 w-3" />
             {t('settings.mediaRetry')}
@@ -166,7 +163,7 @@ function PlaybackVideoContent({
   return (
     <div className="flex h-full w-full items-center justify-center rounded bg-black/10">
       <svg
-        className="h-12 w-12 text-gray-400"
+        className="h-12 w-12 text-muted-foreground"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -210,13 +207,13 @@ export function PlaybackImageContent({
   if (state === 'pending') {
     return (
       <div
-        className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50/60 to-yellow-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/20"
+        className="flex h-full w-full items-center justify-center bg-gradient-to-br from-review-soft via-review-soft/60 to-review-soft"
         data-media-state="pending"
       >
         <div className="relative h-12 w-12">
-          <div className="absolute inset-0 animate-pulse rounded-full border-2 border-amber-300/40 dark:border-amber-500/30" />
+          <div className="absolute inset-0 animate-pulse rounded-full border-2 border-review/30" />
           <Paintbrush
-            className="absolute inset-0 m-auto h-5 w-5 text-amber-400/80 dark:text-amber-500/70"
+            className="absolute inset-0 m-auto h-5 w-5 text-review/80"
             strokeWidth={1.5}
           />
         </div>
@@ -227,10 +224,10 @@ export function PlaybackImageContent({
   if (state === 'disabled') {
     return (
       <div
-        className="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-gray-900/20"
+        className="flex h-full w-full items-center justify-center bg-muted"
         data-media-state="disabled"
       >
-        <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">
           <ImageOff className="h-3 w-3 shrink-0" />
           <span>{t('settings.mediaGenerationDisabled')}</span>
         </div>
@@ -241,11 +238,11 @@ export function PlaybackImageContent({
   if (state === 'failed' && media?.resolution.kind === 'failed') {
     return (
       <div
-        className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-red-50 dark:bg-red-900/20"
+        className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-mistake-soft"
         data-media-state="failed"
       >
         {task?.errorCode === 'CONTENT_SENSITIVE' ? (
-          <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-review-ink">
             <ShieldAlert className="h-3 w-3 shrink-0" />
             <span>{t('settings.mediaContentSensitive')}</span>
           </div>
@@ -258,7 +255,7 @@ export function PlaybackImageContent({
               }
             }}
             onPointerDown={(event) => event.stopPropagation()}
-            className="flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400 dark:hover:bg-red-900/60"
+            className="flex items-center gap-1 rounded bg-mistake-soft px-2 py-1 text-[10px] font-medium text-mistake-ink transition-colors hover:bg-mistake-soft"
           >
             <RotateCcw className="h-3 w-3" />
             {t('settings.mediaRetry')}
@@ -280,7 +277,7 @@ export function PlaybackImageContent({
             }
           }}
           onPointerDown={(event) => event.stopPropagation()}
-          className="absolute right-1 top-1 flex items-center gap-1 rounded bg-red-100/95 px-2 py-1 text-[10px] font-medium text-red-600 shadow-sm dark:bg-red-900/80 dark:text-red-300"
+          className="absolute right-1 top-1 flex items-center gap-1 rounded bg-mistake-soft/95 px-2 py-1 text-[10px] font-medium text-mistake-ink shadow-sm"
         >
           <RotateCcw className="h-3 w-3" />
           {t('settings.mediaRetry')}

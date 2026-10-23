@@ -943,18 +943,21 @@ function HomePage() {
           <h1 className="text-balance font-display text-[32px] font-bold leading-[1.2] text-foreground md:text-[44px]">
             {t('home.headline')}
           </h1>
+          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-muted-foreground md:text-base">
+            {t('home.subtitle')}
+          </p>
         </section>
 
-        <section className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
+        <section className="grid grid-cols-[minmax(0,1fr)] items-stretch gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
           <div
             data-testid="zhiyu-home-create-card"
             data-pro-morph="composer"
             className="w-full rounded-3xl bg-card shadow-feature transition-shadow focus-within:shadow-[0_0_0_1.5px_var(--primary),0_5px_0_var(--primary)]"
           >
             {/* ── Greeting + Profile + Agents ── */}
-            <div className="relative z-20 flex items-start justify-between">
+            <div className="relative z-20 flex flex-wrap items-start justify-between gap-x-2">
               <GreetingBar />
-              <div className="pr-3 pt-3.5 shrink-0">
+              <div className="min-w-0 shrink pl-3 pr-3 pt-3.5 sm:pl-0">
                 <AgentBar />
               </div>
             </div>
@@ -981,7 +984,7 @@ function HomePage() {
             <textarea
               ref={textareaRef}
               placeholder={t('upload.requirementPlaceholder')}
-              className="min-h-[168px] max-h-[320px] w-full resize-none border-0 bg-transparent px-5 pb-4 pt-2 text-[15px] leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none"
+              className="min-h-[140px] max-h-[320px] w-full resize-none border-0 bg-transparent px-5 pb-4 pt-2 text-base leading-relaxed placeholder:text-subtle-foreground focus:outline-none md:min-h-[168px]"
               value={form.requirement}
               onChange={(e) => updateForm('requirement', e.target.value)}
               onKeyDown={handleKeyDown}
@@ -989,8 +992,8 @@ function HomePage() {
             />
 
             {/* Toolbar row */}
-            <div className="flex items-end gap-2 border-t border-border/70 px-4 py-3">
-              <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/70 px-4 py-3">
+              <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
                 <GenerationToolbar
                   webSearch={form.webSearch}
                   onWebSearchChange={(v) => updateForm('webSearch', v)}
@@ -1007,63 +1010,114 @@ function HomePage() {
                 />
               </div>
 
-              {/* Interactive mode toggle */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <InteractiveModeButton
-                    pressed={form.interactiveMode}
-                    label={t('toolbar.interactiveModeLabel')}
-                    onPressedChange={(pressed) => updateForm('interactiveMode', pressed)}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  {t('toolbar.interactiveModeHint')}
-                </TooltipContent>
-              </Tooltip>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {/* Interactive mode toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <InteractiveModeButton
+                      pressed={form.interactiveMode}
+                      label={t('toolbar.interactiveModeLabel')}
+                      onPressedChange={(pressed) => updateForm('interactiveMode', pressed)}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {t('toolbar.interactiveModeHint')}
+                  </TooltipContent>
+                </Tooltip>
 
-              {/* Voice input */}
-              <SpeechButton
-                size="md"
-                onTranscription={(text) => {
-                  setForm((prev) => {
-                    const next = prev.requirement + (prev.requirement ? ' ' : '') + text;
-                    updateRequirementCache(next);
-                    return { ...prev, requirement: next };
-                  });
-                }}
-              />
+                {/* Voice input */}
+                <SpeechButton
+                  size="md"
+                  onTranscription={(text) => {
+                    setForm((prev) => {
+                      const next = prev.requirement + (prev.requirement ? ' ' : '') + text;
+                      updateRequirementCache(next);
+                      return { ...prev, requirement: next };
+                    });
+                  }}
+                />
 
-              {/* Send button */}
-              <button
-                onClick={handleGenerate}
-                disabled={!canGenerate || preparingGenerate}
-                className={cn(
-                  'flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 transition-all',
-                  canGenerate && !preparingGenerate
-                    ? 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer'
-                    : 'bg-muted text-muted-foreground/40 cursor-not-allowed',
-                )}
-              >
-                <span className="text-xs font-medium">
-                  {preparingGenerate ? t('stage.generating') : t('toolbar.enterClassroom')}
-                </span>
-                {preparingGenerate ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <ArrowUp className="size-3.5" />
-                )}
-              </button>
+                {/* Send button */}
+                <button
+                  onClick={handleGenerate}
+                  disabled={!canGenerate || preparingGenerate}
+                  className={cn(
+                    'flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-md px-4 transition-[background-color,translate,box-shadow]',
+                    canGenerate && !preparingGenerate
+                      ? 'cursor-pointer bg-primary text-primary-foreground shadow-edge-primary hover:bg-primary-hover active:translate-y-0.5 active:shadow-none'
+                      : 'cursor-not-allowed bg-muted text-subtle-foreground',
+                  )}
+                >
+                  <span className="text-[13px] font-semibold">
+                    {preparingGenerate ? t('stage.generating') : t('toolbar.enterClassroom')}
+                  </span>
+                  {preparingGenerate ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <ArrowUp className="size-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
-          <aside className="relative flex min-h-[310px] flex-col overflow-hidden rounded-3xl bg-primary p-5 text-primary-foreground md:p-6">
+          <aside className="relative hidden min-h-[310px] flex-col overflow-hidden rounded-3xl bg-primary p-5 text-primary-foreground md:p-6 lg:flex dark:bg-primary-soft dark:text-primary-ink">
             <div className="relative my-auto py-2">
               <ZhiyuLearningVisual className="mx-auto max-w-[330px] drop-shadow-[0_18px_28px_rgb(14_18_32/0.2)]" />
             </div>
-            <p className="relative max-w-[30rem] text-sm leading-6 text-primary-foreground/80">
+            <p className="relative max-w-[30rem] text-sm leading-6 text-primary-foreground/80 dark:text-primary-ink/80">
               {t('home.slogan')}
             </p>
           </aside>
+        </section>
+
+        {hydrated && classrooms.length === 0 && folders.length === 0 && (
+          <ol aria-label={t('home.stepsTitle')} className="mt-5 grid gap-2.5 sm:grid-cols-3">
+            {([1, 2, 3] as const).map((n) => (
+              <li
+                key={n}
+                className="flex items-start gap-3 rounded-xl bg-card px-4 py-3 shadow-flat"
+              >
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {n}
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-sm font-semibold text-foreground">
+                    {t(`home.step${n}Title`)}
+                  </span>
+                  <span className="text-[13px] leading-5 text-muted-foreground">
+                    {t(`home.step${n}Desc`)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <section aria-labelledby="home-try-title" className="mt-8">
+          <h2 id="home-try-title" className="mb-3 text-[17px] font-semibold text-foreground">
+            {t('home.tryTitle')}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([1, 2, 3] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => {
+                  updateForm('requirement', t(`home.example${n}Prompt`));
+                  textareaRef.current?.focus();
+                }}
+                className="flex flex-col gap-1 rounded-xl bg-card px-4 py-3.5 text-left sticker"
+              >
+                <span className="text-[15px] font-semibold text-foreground">
+                  {t(`home.example${n}Title`)}
+                </span>
+                <span className="text-[13px] text-muted-foreground">
+                  {t(`home.example${n}Meta`)}
+                </span>
+              </button>
+            ))}
+          </div>
         </section>
 
         {showVocationalTestUi && (
@@ -1139,32 +1193,31 @@ function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="relative z-10 mx-auto mt-10 flex w-full max-w-6xl flex-col items-center"
+          className="relative z-10 mx-auto mt-10 flex w-full max-w-6xl flex-col items-start"
         >
           {/* Trigger — divider-line with centered text. Fixed height keeps the
               bar geometrically stable when the New-folder action or the folder
               path appears/disappears (entering vs leaving a folder). */}
-          <div className="group w-full flex items-center gap-4 h-9">
-            <div className="flex-1 h-px bg-border/40 group-hover:bg-border/70 transition-colors" />
-            <div className="shrink-0 flex items-center gap-3 text-[13px] text-muted-foreground/60 select-none">
+          <div className="w-full flex items-center gap-4 h-9">
+            <div className="flex min-w-0 flex-1 items-center gap-3 text-[13px] text-muted-foreground select-none">
               <button
                 onClick={() => {
                   if (currentFolderId) setCurrentFolderId(undefined);
                   else persistRecentOpen(!recentOpen);
                 }}
-                className="flex items-center gap-2 hover:text-foreground/70 transition-colors cursor-pointer"
+                className="mr-auto flex min-w-0 items-center gap-2 text-[17px] font-semibold text-foreground transition-colors hover:text-primary cursor-pointer"
               >
-                <Clock className="size-3.5" />
+                <Clock className="size-4 text-muted-foreground" />
                 {t('classroom.recentClassrooms')}
                 {currentFolder && (
                   <>
                     <ChevronRight className="size-3 opacity-40" />
-                    <span className="text-foreground/80 truncate max-w-[160px]">
+                    <span className="text-foreground truncate max-w-[160px]">
                       {currentFolder.name}
                     </span>
                   </>
                 )}
-                <span className="text-[11px] tabular-nums opacity-60">
+                <span className="text-[12px] font-normal tabular-nums text-muted-foreground">
                   {currentFolder ? currentFolderClassrooms.length : classrooms.length}
                 </span>
                 <motion.div
@@ -1192,7 +1245,7 @@ function HomePage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.12, ease: 'easeOut' }}
-                    className="flex items-center justify-center size-6 rounded-full text-muted-foreground/50 hover:text-foreground/70 hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
                     <Search className="size-3.5" />
                   </motion.button>
@@ -1260,7 +1313,7 @@ function HomePage() {
               <button
                 onClick={triggerImport}
                 disabled={importing}
-                className="group/import grid grid-cols-[auto_0fr] hover:grid-cols-[auto_1fr] items-center gap-1 rounded-full px-1.5 py-0.5 text-[12px] text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-muted/50 transition-all duration-200 cursor-pointer"
+                className="group/import grid grid-cols-[auto_0fr] hover:grid-cols-[auto_1fr] items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 cursor-pointer"
               >
                 <Upload className="size-3" />
                 <span className="overflow-hidden opacity-0 group-hover/import:opacity-100 transition-opacity duration-200 whitespace-nowrap">
@@ -1271,7 +1324,7 @@ function HomePage() {
                 <button
                   onClick={triggerPptxFileSelect}
                   disabled={pptxImporting}
-                  className="group/import-pptx grid grid-cols-[auto_0fr] hover:grid-cols-[auto_1fr] items-center gap-1 rounded-full px-1.5 py-0.5 text-[12px] text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-muted/50 transition-all duration-200 cursor-pointer"
+                  className="group/import-pptx grid grid-cols-[auto_0fr] hover:grid-cols-[auto_1fr] items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 cursor-pointer"
                 >
                   <Presentation className="size-3" />
                   <span className="overflow-hidden opacity-0 group-hover/import-pptx:opacity-100 transition-opacity duration-200 whitespace-nowrap">
@@ -1289,13 +1342,12 @@ function HomePage() {
                   }}
                   aria-label={t('classroom.newFolderTitle')}
                   title={t('classroom.newFolderTitle')}
-                  className="inline-flex items-center justify-center size-7 rounded-full bg-muted/40 text-muted-foreground ring-1 ring-border/50 hover:bg-muted hover:text-foreground hover:ring-border transition-[background-color,color,box-shadow] cursor-pointer"
+                  className="inline-flex items-center justify-center size-7 rounded-md bg-card text-muted-foreground shadow-edge-outline hover:bg-muted hover:text-foreground transition-[background-color,color,box-shadow] cursor-pointer"
                 >
                   <FolderPlus className="size-3.5" />
                 </button>
               )}
             </div>
-            <div className="flex-1 h-px bg-border/40 group-hover:bg-border/70 transition-colors" />
           </div>
 
           {/* Expandable content */}
@@ -1309,7 +1361,7 @@ function HomePage() {
                 className="w-full overflow-hidden"
               >
                 {folders.length === 0 && classrooms.length === 0 ? (
-                  <div className="pt-8 pb-2 text-center text-[13px] text-muted-foreground/60">
+                  <div className="mt-4 rounded-xl px-4 py-8 text-center text-[13px] text-muted-foreground shadow-flat">
                     {t('classroom.emptyLibraryHint')}
                   </div>
                 ) : !isSearching && currentFolderId && currentFolderClassrooms.length === 0 ? (
@@ -1320,11 +1372,11 @@ function HomePage() {
                     </p>
                   </div>
                 ) : isSearching && filteredClassrooms.length === 0 ? (
-                  <div className="pt-8 pb-2 text-center text-[13px] text-muted-foreground/60">
+                  <div className="pt-8 pb-2 text-center text-[13px] text-muted-foreground">
                     {t('classroom.searchEmpty')}
                   </div>
                 ) : (
-                  <div className="pt-8">
+                  <div className="pt-5">
                     {/* Breadcrumb — shown only while searching (the folder path
                         already lives in the centered header above). */}
                     {isSearching && (
@@ -1363,7 +1415,7 @@ function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.2 }}
-                        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8"
+                        className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4"
                       >
                         {/* Root + non-search: render folder tiles first. */}
                         {!isSearching &&
@@ -1560,7 +1612,7 @@ function GreetingBar() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="leading-none select-none flex items-center gap-1">
-                  <span className="text-[13px] font-semibold text-foreground/85 group-hover:text-foreground transition-colors">
+                  <span className="whitespace-nowrap text-[13px] font-semibold text-foreground/85 group-hover:text-foreground transition-colors">
                     {t('home.greetingWithName', { name: displayName })}
                   </span>
                   <ChevronDown className="size-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors shrink-0" />
@@ -1803,7 +1855,7 @@ function ClassroomCard({
 
   return (
     <div
-      className="group cursor-pointer"
+      className="group cursor-pointer overflow-hidden rounded-xl bg-card sticker"
       onClick={confirmingDelete ? undefined : onClick}
       draggable={!confirmingDelete && !editing}
       onDragStart={(e) => {
@@ -1816,10 +1868,10 @@ function ClassroomCard({
         window.dispatchEvent(new CustomEvent('course-drag-end'));
       }}
     >
-      {/* Thumbnail — large radius, no border, subtle bg */}
+      {/* Thumbnail — the card's top, divided from the info by a hairline */}
       <div
         ref={thumbRef}
-        className="relative w-full aspect-[16/9] rounded-2xl bg-muted overflow-hidden transition-transform duration-200 group-hover:scale-[1.02]"
+        className="relative w-full aspect-[16/9] overflow-hidden border-b border-border bg-muted"
       >
         {slide && thumbWidth > 0 ? (
           <SlideThumbnail
@@ -1830,8 +1882,8 @@ function ClassroomCard({
           />
         ) : !slide ? (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-12 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-              <span className="text-xl opacity-50">📄</span>
+            <div className="flex size-12 items-center justify-center rounded-xl bg-primary-soft text-primary-ink">
+              <Presentation className="size-5" />
             </div>
           </div>
         ) : null}
@@ -1921,7 +1973,7 @@ function ClassroomCard({
                   {t('common.cancel')}
                 </button>
                 <button
-                  className="px-3.5 py-1 rounded-lg text-[12px] font-medium bg-red-500/90 text-white hover:bg-red-500 transition-colors"
+                  className="px-3.5 py-1 rounded-lg text-[12px] font-medium bg-mistake/90 text-white hover:bg-mistake transition-colors"
                   onClick={onConfirmDelete}
                 >
                   {t('classroom.delete')}
@@ -1932,11 +1984,8 @@ function ClassroomCard({
         </AnimatePresence>
       </div>
 
-      {/* Info — outside the thumbnail */}
-      <div className="mt-2.5 px-1 flex items-center gap-2">
-        <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-          {classroom.sceneCount} {t('classroom.slides')} · {formatDate(classroom.updatedAt)}
-        </span>
+      {/* Info — title first, then pages and date */}
+      <div className="flex flex-col gap-1 px-3.5 pb-3 pt-2.5">
         {editing ? (
           <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
             <input
@@ -1950,14 +1999,14 @@ function ClassroomCard({
               onBlur={commitRename}
               maxLength={100}
               placeholder={t('classroom.renamePlaceholder')}
-              className="w-full bg-transparent border-b border-primary/60 text-[15px] font-medium text-foreground/90 outline-none placeholder:text-muted-foreground/40"
+              className="w-full bg-transparent border-b border-primary/60 text-[14px] font-semibold text-foreground outline-none placeholder:text-subtle-foreground"
             />
           </div>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
               <p
-                className="font-medium text-[15px] truncate text-foreground/90 min-w-0 cursor-text"
+                className="min-w-0 cursor-text truncate text-[14px] font-semibold text-foreground"
                 onDoubleClick={startRename}
               >
                 {classroom.name}
@@ -1984,6 +2033,9 @@ function ClassroomCard({
             </TooltipContent>
           </Tooltip>
         )}
+        <span className="text-[12px] tabular-nums text-muted-foreground">
+          {classroom.sceneCount} {t('classroom.slides')} · {formatDate(classroom.updatedAt)}
+        </span>
       </div>
     </div>
   );

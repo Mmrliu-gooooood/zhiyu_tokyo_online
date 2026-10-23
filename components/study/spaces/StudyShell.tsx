@@ -5,11 +5,13 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { LoaderCircle } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Bookmark, FileText, FolderOpen, Home, LoaderCircle, Users } from 'lucide-react';
 
 import { AccountMenu } from '@/components/auth/AccountMenu';
 import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { peekAccountUserId } from '@/lib/auth/account-environment';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { flushAllStudyProgress } from '@/lib/study/progress/sync';
@@ -32,6 +34,40 @@ export function StudyShell({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+  const pathname = usePathname() ?? '';
+  const navItems = [
+    { href: '/study', label: t('study.nav'), icon: FolderOpen },
+    materialsOn && {
+      href: '/study/materials',
+      label: t('study.materials.nav'),
+      icon: FileText,
+      testId: 'study-nav-materials',
+    },
+    classmatesOn && {
+      href: '/study/classmates',
+      label: t('study.classmates.nav'),
+      icon: Users,
+      testId: 'study-nav-classmates',
+    },
+    memoryOn && {
+      href: '/study/memory',
+      label: t('study.memory.nav'),
+      icon: Bookmark,
+      testId: 'study-nav-memory',
+    },
+    { href: '/', label: t('study.backHome'), icon: Home, className: 'hidden sm:inline-flex' },
+  ].filter((item) => !!item) as Array<{
+    href: string;
+    label: string;
+    icon: typeof FolderOpen;
+    testId?: string;
+    className?: string;
+  }>;
+  // Space pages (/study/<id>/…) belong to the spaces section.
+  const currentHref =
+    ['/study/materials', '/study/classmates', '/study/memory'].find(
+      (href) => pathname === href || pathname.startsWith(`${href}/`),
+    ) ?? (pathname.startsWith('/study') ? '/study' : null);
   return (
     <div className="min-h-[100dvh] bg-background">
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8">
@@ -40,46 +76,32 @@ export function StudyShell({ children }: { children: ReactNode }) {
         </Link>
         <div className="flex min-w-0 items-center gap-1">
           {/* At phone width the links scroll inside the nav; the account menu stays put. */}
-          <nav className="scrollbar-hide flex min-w-0 items-center gap-1 overflow-x-auto">
-            <Link
-              href="/study"
-              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              {t('study.nav')}
-            </Link>
-            {materialsOn ? (
-              <Link
-                href="/study/materials"
-                data-testid="study-nav-materials"
-                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {t('study.materials.nav')}
-              </Link>
-            ) : null}
-            {classmatesOn ? (
-              <Link
-                href="/study/classmates"
-                data-testid="study-nav-classmates"
-                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {t('study.classmates.nav')}
-              </Link>
-            ) : null}
-            {memoryOn ? (
-              <Link
-                href="/study/memory"
-                data-testid="study-nav-memory"
-                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {t('study.memory.nav')}
-              </Link>
-            ) : null}
-            <Link
-              href="/"
-              className="hidden whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground sm:inline-flex"
-            >
-              {t('study.backHome')}
-            </Link>
+          <nav
+            aria-label={t('study.navLabel')}
+            className="scrollbar-hide flex min-w-0 items-center gap-1 overflow-x-auto"
+          >
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const current = item.href === currentHref;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  data-testid={item.testId}
+                  aria-current={current ? 'page' : undefined}
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors',
+                    current
+                      ? 'bg-primary-soft font-semibold text-primary-ink'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    item.className,
+                  )}
+                >
+                  <Icon className="size-4" aria-hidden />
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
           <AccountMenu triggerClassName="shrink-0 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-none dark:hover:bg-muted" />
         </div>
@@ -125,7 +147,7 @@ export function StudyStatus({
       data-testid={`study-state-${state}`}
       className="mx-auto flex max-w-md flex-col items-center gap-3 py-24 text-center"
     >
-      <h1 className="text-lg font-semibold text-foreground">{body.title}</h1>
+      <h1 className="font-display text-xl font-bold text-foreground">{body.title}</h1>
       <p className="text-sm leading-6 text-muted-foreground">{body.text}</p>
       <div className="mt-2 flex gap-2">
         {state === 'signed-out' ? (

@@ -240,7 +240,7 @@ export function LectureNotesView({
                         title={jumpTitle}
                         onClick={() => onJumpToAction?.(note.sceneId, row.actionIndex)}
                         className={cn(
-                          'block w-full text-left rounded-md px-1 py-0.5 text-[12px] leading-[1.8] transition-colors',
+                          'block w-full text-left rounded-md px-1 py-0.5 text-[13px] leading-[1.8] transition-colors',
                           isActiveSpeech ? 'bg-primary-soft text-primary-ink' : 'text-foreground',
                           canJump ? 'cursor-pointer hover:bg-primary-soft' : 'cursor-default',
                         )}
@@ -251,7 +251,7 @@ export function LectureNotesView({
                     );
                   }
                   return (
-                    <p key={i} className="text-[12px] leading-[1.8] text-foreground">
+                    <p key={i} className="text-[13px] leading-[1.8] text-foreground">
                       {content}
                     </p>
                   );

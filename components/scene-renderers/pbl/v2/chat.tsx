@@ -682,7 +682,7 @@ export function PBLV2Chat({
             <span>{t('pbl.v2.chat.guidancePointer')}</span>
           </div>
         )}
-        <div className="flex items-center gap-2 rounded-2xl border border-cyan-100/[0.13] bg-slate-700/[0.26] px-3 py-2 shadow-[0_12px_34px_rgba(6,16,34,0.28)] transition-all focus-within:border-primary/70 focus-within:bg-slate-700/[0.34] focus-within:shadow-[0_0_0_1px_rgba(157,140,255,0.28),0_16px_40px_rgba(6,16,34,0.30)]">
+        <div className="flex items-center gap-2 rounded-2xl border border-cyan-100/[0.13] bg-slate-700/[0.26] px-3 py-2 shadow-[0_12px_34px_rgba(6,16,34,0.28)] transition-all focus-within:border-primary/70 focus-within:bg-slate-700/[0.34] focus-within:shadow-[0_0_0_1px_rgba(143,164,232,0.28),0_16px_40px_rgba(6,16,34,0.30)]">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-cyan-100/[0.12] bg-cyan-100/[0.06] text-muted-foreground">
             <MessageSquare className="h-3.5 w-3.5" />
           </div>
@@ -725,7 +725,7 @@ export function PBLV2Chat({
             aria-label={t('pbl.v2.chat.send')}
             className={cn(
               'shrink-0 rounded-xl h-9 w-9 flex items-center justify-center',
-              'bg-primary text-primary-foreground shadow-[0_0_24px_rgba(155,124,255,0.35)] hover:opacity-90 transition-opacity',
+              'bg-primary text-primary-foreground shadow-[0_0_24px_rgba(143,164,232,0.35)] hover:opacity-90 transition-opacity',
               'disabled:opacity-40 disabled:cursor-not-allowed',
             )}
           >
@@ -876,7 +876,7 @@ function StreamingDraft({
 
   if (status === 'eval-milestone') {
     return (
-      <div className="relative animate-in fade-in-0 overflow-hidden rounded-2xl border border-violet-200/85 bg-[linear-gradient(145deg,rgba(252,250,255,0.98)_0%,rgba(238,242,255,0.94)_48%,rgba(232,250,255,0.96)_100%)] p-5 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_22px_58px_rgba(8,18,38,0.30),0_0_0_1px_rgba(139,92,246,0.10),0_0_42px_rgba(34,211,238,0.10)] ring-1 ring-violet-300/20 duration-300">
+      <div className="relative animate-in fade-in-0 overflow-hidden rounded-2xl border border-violet-200/85 bg-[linear-gradient(145deg,rgba(252,250,255,0.98)_0%,rgba(238,242,255,0.94)_48%,rgba(232,250,255,0.96)_100%)] p-5 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_22px_58px_rgba(8,18,38,0.30),0_0_0_1px_rgba(82,102,173,0.10),0_0_42px_rgba(95,192,208,0.10)] ring-1 ring-violet-300/20 duration-300">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-cyan-400" />
         <div className="relative mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-700">
           {label}
@@ -1053,8 +1053,8 @@ function MessageBubble({
         <div className="flex min-w-[52%] max-w-[90%] items-center gap-3">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-200/70 to-cyan-200/70" />
           <div className="relative rounded-full border border-violet-200/70 bg-gradient-to-r from-violet-50/95 via-indigo-50/90 to-cyan-50/95 px-4 py-1.5 text-[11px] font-semibold text-violet-700 shadow-[0_12px_34px_rgba(55,48,163,0.24)]">
-            <span className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.48)]" />
-            <span className="absolute -right-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.45)]" />
+            <span className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(143,164,232,0.48)]" />
+            <span className="absolute -right-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(95,192,208,0.45)]" />
             {label}
           </div>
           <div className="h-px flex-1 bg-gradient-to-l from-transparent via-cyan-200/70 to-violet-200/70" />
@@ -1090,7 +1090,7 @@ function MessageBubble({
       <div
         className={cn(
           'max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-[0_12px_30px_rgba(6,16,34,0.22)]',
-          'bg-gradient-to-br from-primary to-violet-400 text-primary-foreground shadow-[0_14px_34px_rgba(124,92,255,0.24)]',
+          'bg-gradient-to-br from-primary to-violet-400 text-primary-foreground shadow-[0_14px_34px_rgba(82,102,173,0.24)]',
         )}
       >
         <div className="whitespace-pre-wrap break-words">{displayContent}</div>
@@ -1472,7 +1472,7 @@ function streamStatusLabel(
 function ThinkingDots({ tone = 'muted' }: { readonly tone?: 'muted' | 'violet' } = {}) {
   const dotClass =
     tone === 'violet'
-      ? 'bg-violet-500/70 shadow-[0_0_10px_rgba(139,92,246,0.28)]'
+      ? 'bg-violet-500/70 shadow-[0_0_10px_rgba(82,102,173,0.28)]'
       : 'bg-muted-foreground';
   return (
     <div className="flex items-center gap-1 py-1">
@@ -1514,7 +1514,7 @@ function ContinuingDots({ tone = 'muted' }: { readonly tone?: 'muted' | 'violet'
   const { t } = useI18n();
   const dotClass =
     tone === 'violet'
-      ? 'bg-violet-500/65 shadow-[0_0_10px_rgba(139,92,246,0.24)]'
+      ? 'bg-violet-500/65 shadow-[0_0_10px_rgba(82,102,173,0.24)]'
       : 'bg-muted-foreground/55';
   return (
     <div className="mt-1 flex items-center gap-1" aria-label={t('pbl.v2.chat.stillTyping')}>

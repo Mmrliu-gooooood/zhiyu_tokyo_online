@@ -887,7 +887,7 @@ export function Roundtable({
                   <div className="flex items-center gap-0.5 h-8">
                     <VoiceWaveformBars barClassName="bg-ai" />
                   </div>
-                  <span className="text-[11px] font-semibold tracking-wider text-[var(--zhiyu-ai)] uppercase">
+                  <span className="text-[11px] font-semibold tracking-wider text-ai uppercase">
                     {isProcessing ? t('roundtable.processing') : t('roundtable.listening')}
                   </span>
                   {/* Mic button */}
@@ -902,7 +902,7 @@ export function Roundtable({
                     <div className="relative w-12 h-12 rounded-full bg-ai shadow-[0_4px_20px_color-mix(in_srgb,var(--ai)_28%,transparent)] flex items-center justify-center group-hover:scale-105 transition-transform duration-300 border border-white/20">
                       <Mic className="w-5 h-5 text-primary-foreground" />
                     </div>
-                    <div className="absolute inset-0 rounded-full border-2 border-[var(--zhiyu-ai)] opacity-40 motion-safe:animate-[ping_2s_ease-in-out_infinite]" />
+                    <div className="absolute inset-0 rounded-full border-2 border-ai opacity-40 motion-safe:animate-[ping_2s_ease-in-out_infinite]" />
                   </button>
                 </div>
               </motion.div>
@@ -1426,7 +1426,7 @@ export function Roundtable({
                     <motion.div
                       initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="text-[10px] font-bold tracking-widest text-[var(--zhiyu-ai)] uppercase bg-card/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm border border-ai/25 mr-1"
+                      className="text-[10px] font-bold tracking-widest text-ai uppercase bg-card/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm border border-ai/25 mr-1"
                     >
                       {isProcessing ? t('roundtable.processing') : t('roundtable.listening')}
                     </motion.div>
@@ -1443,8 +1443,8 @@ export function Roundtable({
                     <div className="relative w-16 h-16 rounded-full bg-ai shadow-[0_4px_20px_color-mix(in_srgb,var(--ai)_28%,transparent)] flex items-center justify-center z-20 group-hover:scale-105 transition-transform duration-300 border border-white/20 dark:border-white/10">
                       <Mic className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <div className="absolute inset-0 rounded-full border-2 border-[var(--zhiyu-ai)] opacity-40 motion-safe:animate-[ping_2s_ease-in-out_infinite] z-10" />
-                    <div className="absolute inset-0 rounded-full border border-[var(--zhiyu-ai)] opacity-20 motion-safe:animate-[ping_3s_ease-in-out_infinite_0.5s] z-10" />
+                    <div className="absolute inset-0 rounded-full border-2 border-ai opacity-40 motion-safe:animate-[ping_2s_ease-in-out_infinite] z-10" />
+                    <div className="absolute inset-0 rounded-full border border-ai opacity-20 motion-safe:animate-[ping_3s_ease-in-out_infinite_0.5s] z-10" />
                     <div className="absolute inset-0 bg-ai blur-2xl opacity-20 group-hover:opacity-40 transition-opacity z-0" />
                   </button>
                 </motion.div>

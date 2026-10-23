@@ -31,7 +31,11 @@
       "idle": "En espera",
       "teaching": "Explicando",
       "thinking": "Pensando"
-    }
+    },
+    "pageOf": "Página {{current}} / {{total}}",
+    "prevPage": "Anterior",
+    "nextPage": "Siguiente",
+    "whiteboard": "Pizarra"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "Aprendizaje generativo en un aula interactiva multiagente",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "Hola, {{name}}"
+    "greetingWithName": "Hola, {{name}}",
+    "subtitle": "Di lo que quieres aprender. Un profesor de IA y compañeros darán una clase en la que puedes preguntar cuando quieras.",
+    "stepsTitle": "Empieza una clase en tres pasos",
+    "step1Title": "Di lo que quieres aprender",
+    "step1Desc": "Un tema, un ejercicio o tus propios apuntes",
+    "step2Title": "El profesor de IA prepara",
+    "step2Desc": "Se generan diapositivas, explicaciones y práctica",
+    "step3Title": "Entra a la clase",
+    "step3Desc": "Escucha y pregunta al profesor lo que quieras",
+    "tryTitle": "Prueba uno de estos",
+    "example1Title": "Derivadas de funciones trigonométricas",
+    "example1Meta": "Cálculo · unos 15 min",
+    "example1Prompt": "Explica las reglas de derivación de las funciones trigonométricas con algunos ejercicios de fácil a difícil",
+    "example2Title": "Escribe tu primer programa en Python",
+    "example2Meta": "Programación básica · unos 30 min",
+    "example2Prompt": "Enséñame Python desde cero y ayúdame a escribir mi primer programa en 30 minutos",
+    "example3Title": "¿Qué es la transformada de Fourier?",
+    "example3Meta": "Señales y sistemas · en la pizarra",
+    "example3Prompt": "Explica la transformada de Fourier en la pizarra"
   },
   "toolbar": {
     "pdfParser": "Analizador",
@@ -134,7 +156,10 @@
     "ttsPreview": "Probar",
     "ttsPreviewing": "Reproduciendo...",
     "interactiveModeHint": "Activa el modo interactivo para obtener contenido más práctico",
-    "interactiveModeLabel": "Modo interactivo"
+    "interactiveModeLabel": "Modo interactivo",
+    "addMaterials": "Añadir materiales",
+    "webSearchLabel": "Búsqueda web",
+    "mediaLabel": "Voz e imágenes"
   },
   "export": {
     "pptx": "Exportar PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "Admite archivos PDF de hasta 50 MB",
     "courseMaterialSizeLimit": "Documentos, diapositivas, hojas de cálculo, imágenes y texto plano — hasta 50 MB (los formatos aceptados dependen del extractor seleccionado)",
     "generateFailed": "No se pudo generar el aula, inténtalo de nuevo",
-    "requirementPlaceholder": "Dime qué quieres aprender, p. ej.\n\"Enséñame Python desde cero en 30 minutos\"\n\"Explica la transformada de Fourier en el pizarrón\"\n\"Cómo jugar el juego de mesa Avalon\"",
+    "requirementPlaceholder": "Escribe lo que quieras aprender, p. ej. \"Explica la transformada de Fourier en la pizarra\"",
     "requirementRequired": "Ingresa los requisitos del curso",
     "fileTooLarge": "Archivo demasiado grande. Selecciona uno de menos de 50 MB",
     "courseMaterialCountLimit": "Puedes subir hasta 5 archivos de material del curso",
@@ -3969,6 +3994,22 @@
         "cancelJob": "Detener la generación",
         "restart": "Generar el curso de nuevo"
       }
-    }
+    },
+    "navLabel": "Navegación de estudio",
+    "next": {
+      "label": "Siguiente paso",
+      "continue": "Continuar “{{name}}” en la página {{page}}",
+      "revisit": "Repasar “{{name}}” o tomar la siguiente clase",
+      "start": "Empezar la primera clase",
+      "addFirst": "Añade un curso o material para crear la primera clase",
+      "continueAction": "Continuar",
+      "openAction": "Abrir espacio"
+    },
+    "emptyStep1Title": "Crea un espacio",
+    "emptyStep1Desc": "Por ejemplo “Cálculo”",
+    "emptyStep2Title": "Añade cursos o material",
+    "emptyStep2Desc": "Incluye un curso o sube apuntes",
+    "emptyStep3Title": "Genera tu primera clase",
+    "emptyStep3Desc": "El profesor de IA explica con tu material"
   }
 }

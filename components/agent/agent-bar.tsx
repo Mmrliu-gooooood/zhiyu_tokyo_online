@@ -896,7 +896,7 @@ export function AgentBar() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-96">
+    <div ref={containerRef} className="relative w-full max-w-96 sm:w-96">
       <Tooltip>
         <TooltipTrigger asChild>
           <button

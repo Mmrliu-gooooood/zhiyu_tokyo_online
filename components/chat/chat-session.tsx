@@ -92,20 +92,20 @@ const MessageBubble = memo(function MessageBubble({
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full animate-pulse',
-            isTeacher ? 'bg-primary/70' : 'bg-ai/70',
+            isTeacher ? 'bg-primary/70' : 'bg-peer/70',
           )}
         />
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full animate-pulse',
-            isTeacher ? 'bg-primary/70' : 'bg-ai/70',
+            isTeacher ? 'bg-primary/70' : 'bg-peer/70',
           )}
           style={{ animationDelay: '200ms' }}
         />
         <span
           className={cn(
             'w-1.5 h-1.5 rounded-full animate-pulse',
-            isTeacher ? 'bg-primary/70' : 'bg-ai/70',
+            isTeacher ? 'bg-primary/70' : 'bg-peer/70',
           )}
           style={{ animationDelay: '400ms' }}
         />
@@ -124,10 +124,13 @@ const MessageBubble = memo(function MessageBubble({
     <div
       data-testid="zhiyu-chat-content"
       className={cn(
-        'inline-block max-w-[92%] rounded-xl px-3 py-2 text-left text-[12px] leading-relaxed transition-shadow duration-300',
+        'inline-block max-w-[92%] rounded-xl px-3 py-2 text-left text-[13px] leading-relaxed text-foreground transition-shadow duration-300',
+        // Speakers read apart by colour: teacher indigo, classmates violet, the learner neutral.
         isUser
-          ? 'ml-auto rounded-tr-sm border border-primary/25 bg-primary-soft text-primary-ink'
-          : 'rounded-tl-sm border border-border bg-card text-foreground shadow-sm',
+          ? 'ml-auto rounded-tr-sm bg-muted'
+          : isTeacher
+            ? 'rounded-tl-sm bg-primary-soft'
+            : 'rounded-tl-sm bg-peer-soft',
       )}
     >
       <span className="whitespace-pre-wrap break-words">
@@ -270,15 +273,15 @@ export function ChatSessionComponent({
                       opacity: 1,
                       y: 0,
                       boxShadow: [
-                        '0 0 0 0 rgba(53, 107, 89, 0)',
-                        '0 0 20px 0 rgba(53, 107, 89, 0.15)',
-                        '0 0 8px 0 rgba(53, 107, 89, 0.08)',
+                        '0 0 0 0 rgba(36, 54, 110, 0)',
+                        '0 0 20px 0 rgba(36, 54, 110, 0.15)',
+                        '0 0 8px 0 rgba(36, 54, 110, 0.08)',
                       ],
                     }
                   : {
                       opacity: 1,
                       y: 0,
-                      boxShadow: '0 0 0 0 rgba(53, 107, 89, 0)',
+                      boxShadow: '0 0 0 0 rgba(36, 54, 110, 0)',
                     }
               }
               transition={
@@ -310,7 +313,7 @@ export function ChatSessionComponent({
                   data-testid="zhiyu-chat-identity"
                   className={cn(
                     'text-[9px] font-bold uppercase tracking-wider block mb-0.5',
-                    isUser ? 'text-primary' : isTeacher ? 'text-primary' : 'text-ai',
+                    isUser ? 'text-muted-foreground' : isTeacher ? 'text-primary' : 'text-peer-ink',
                   )}
                 >
                   {(() => {

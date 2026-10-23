@@ -22,8 +22,7 @@ describe('InteractiveModeButton markup contract', () => {
     const html = renderButton(true);
 
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('border-primary bg-primary text-primary-foreground');
-    expect(html).toContain('dark:border-primary dark:bg-primary');
+    expect(html).toContain('border-primary/30 bg-primary-soft text-primary-ink');
     expect(html).toContain('lucide-check');
   });
 
@@ -31,11 +30,9 @@ describe('InteractiveModeButton markup contract', () => {
     const html = renderButton(false);
 
     expect(html).toContain('aria-pressed="false"');
-    expect(html).toContain('border-primary bg-transparent text-primary');
-    expect(html).toContain('dark:border-primary dark:text-primary');
+    expect(html).toContain('border-border bg-card text-foreground');
     expect(html).toContain('lucide-atom');
-    expect(html).not.toContain('bg-primary text-primary-foreground');
-    expect(html).not.toContain('dark:bg-primary dark:text-primary-foreground');
+    expect(html).not.toContain('bg-primary-soft text-primary-ink');
   });
 
   it('forwards wrapper-injected attributes and classes to the DOM button', () => {

@@ -68,6 +68,14 @@ const ctrlBtn = cn(
   'hover:bg-muted-foreground/[0.08] active:scale-90',
 );
 
+/* Labelled control: icon + text; the text shows once the bar itself is wide enough */
+const labelBtn = cn(
+  'relative h-7 rounded-md flex items-center justify-center gap-1 px-1.5 @[46rem]/bar:px-2',
+  'text-[12px] font-medium whitespace-nowrap',
+  'transition-all duration-150 outline-none cursor-pointer',
+  'hover:bg-muted-foreground/[0.08] active:scale-95',
+);
+
 /* Subtle separator */
 function CtrlDivider() {
   return <div className="w-px h-3 bg-muted/80 mx-0.5 shrink-0" />;
@@ -157,7 +165,7 @@ export function CanvasToolbar({
   const presentationLabel = isPresenting ? t('stage.exitFullscreen') : t('stage.fullscreen');
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('@container/bar flex items-center gap-2', className)}>
       {/* ── Left: sidebar toggle + page indicator ── */}
       <div className="flex items-center gap-1 shrink-0 pl-1">
         {onToggleSidebar && (
@@ -173,10 +181,8 @@ export function CanvasToolbar({
             <LayoutList className="w-3.5 h-3.5" />
           </button>
         )}
-        <span className="text-[11px] text-muted-foreground tabular-nums select-none font-medium">
-          {currentSceneIndex + 1}
-          <span className="opacity-35 mx-px">/</span>
-          {scenesCount}
+        <span className="whitespace-nowrap text-[12px] font-medium tabular-nums text-muted-foreground select-none">
+          {t('classroomWorkspace.pageOf', { current: currentSceneIndex + 1, total: scenesCount })}
         </span>
       </div>
 
@@ -186,7 +192,7 @@ export function CanvasToolbar({
       <div className="flex-1 flex items-center justify-center min-w-0">
         <div
           className={cn(
-            'inline-flex items-center gap-0.5 px-1 h-7',
+            'inline-flex items-center gap-0.5 px-1 h-8',
             isPresenting
               ? '' /* Single visual layer in fullscreen — buttons sit inside outer pill directly */
               : 'bg-muted/60 rounded-lg',
@@ -269,9 +275,9 @@ export function CanvasToolbar({
                   <button
                     onClick={onCycleSpeed}
                     className={cn(
-                      'w-8 h-5 rounded flex items-center justify-center',
+                      'w-9 h-7 rounded-md flex items-center justify-center',
                       'transition-all duration-150 outline-none cursor-pointer',
-                      'text-[11px] font-semibold tabular-nums leading-none',
+                      'text-[12px] font-semibold tabular-nums leading-none',
                       'active:scale-90',
                       playbackSpeed !== 1
                         ? 'bg-primary/10 text-primary'
@@ -297,12 +303,13 @@ export function CanvasToolbar({
               onClick={onPrevSlide}
               disabled={!canGoPrev}
               className={cn(
-                ctrlBtn,
-                'w-6 h-6 text-muted-foreground disabled:opacity-20 disabled:pointer-events-none',
+                labelBtn,
+                'text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none',
               )}
               aria-label={t('classroomWorkspace.previousScene')}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="hidden @[46rem]/bar:inline">{t('classroomWorkspace.prevPage')}</span>
             </button>
           )}
 
@@ -347,9 +354,8 @@ export function CanvasToolbar({
             <button
               onClick={onPlayPause}
               className={cn(
-                ctrlBtn,
-                'w-7 h-6',
-                engineState === 'playing' ? 'text-primary' : 'text-muted-foreground',
+                labelBtn,
+                'bg-card text-foreground shadow-edge-outline active:shadow-edge-outline-pressed',
               )}
               aria-label={
                 engineState === 'playing'
@@ -358,10 +364,15 @@ export function CanvasToolbar({
               }
             >
               {engineState === 'playing' ? (
-                <Pause className="w-3.5 h-3.5" />
+                <Pause className="w-3.5 h-3.5 text-primary" />
               ) : (
-                <Play className="w-3.5 h-3.5 ml-px" />
+                <Play className="w-3.5 h-3.5 ml-px text-primary" />
               )}
+              <span className="hidden @[46rem]/bar:inline">
+                {engineState === 'playing'
+                  ? t('classroomWorkspace.pause')
+                  : t('classroomWorkspace.play')}
+              </span>
             </button>
           ) : null}
 
@@ -371,11 +382,12 @@ export function CanvasToolbar({
               onClick={onNextSlide}
               disabled={!canGoNext}
               className={cn(
-                ctrlBtn,
-                'w-6 h-6 text-muted-foreground disabled:opacity-20 disabled:pointer-events-none',
+                labelBtn,
+                'text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none',
               )}
               aria-label={t('classroomWorkspace.nextScene')}
             >
+              <span className="hidden @[46rem]/bar:inline">{t('classroomWorkspace.nextPage')}</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
@@ -413,13 +425,16 @@ export function CanvasToolbar({
               onWhiteboardClose();
             }}
             className={cn(
-              ctrlBtn,
-              'w-6 h-6',
-              whiteboardOpen ? 'text-primary' : 'text-muted-foreground',
+              labelBtn,
+              whiteboardOpen
+                ? 'bg-primary-soft text-primary-ink'
+                : 'text-muted-foreground hover:text-foreground',
             )}
             title={whiteboardOpen ? t('whiteboard.minimize') : t('whiteboard.open')}
+            aria-label={whiteboardOpen ? t('whiteboard.minimize') : t('whiteboard.open')}
           >
             <PencilLine className="w-3.5 h-3.5" />
+            <span className="hidden @[46rem]/bar:inline">{t('classroomWorkspace.whiteboard')}</span>
             {!whiteboardOpen && whiteboardElementCount > 0 && (
               <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
             )}
@@ -434,7 +449,7 @@ export function CanvasToolbar({
               }}
               disabled={!canPickSlideElement}
               className={cn(
-                'relative flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-all',
+                'relative flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-2 text-[12px] font-medium transition-all',
                 elementPickActive
                   ? 'bg-primary/15 text-primary ring-1 ring-primary/35'
                   : 'text-muted-foreground hover:bg-muted-foreground/[0.08]',
@@ -449,7 +464,9 @@ export function CanvasToolbar({
               }
             >
               <Quote className="h-3.5 w-3.5" />
-              <span>{t('chat.elementReference.button')}</span>
+              <span className="hidden @[36rem]/bar:inline">
+                {t('chat.elementReference.button')}
+              </span>
             </button>
           )}
         </div>

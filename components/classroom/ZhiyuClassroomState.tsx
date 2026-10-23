@@ -30,13 +30,13 @@ export function ZhiyuClassroomState({
           className={cn(
             'mb-4 flex size-12 items-center justify-center rounded-full',
             kind === 'error' && 'bg-destructive/10 text-destructive',
-            kind === 'notFound' && 'bg-[var(--zhiyu-learning-soft)] text-[var(--zhiyu-learning)]',
+            kind === 'notFound' && 'bg-review-soft text-review',
             kind === 'loading' && 'bg-secondary text-primary',
           )}
         >
           <Icon className={cn('size-5', kind === 'loading' && 'animate-spin')} />
         </div>
-        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+        <h1 className="font-display text-xl font-bold text-foreground">{title}</h1>
         {description ? (
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}

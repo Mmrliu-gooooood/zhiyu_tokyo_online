@@ -3,18 +3,13 @@
 import { AlertCircle, Check, Circle, LoaderCircle } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { cn } from '@/lib/utils';
-import type {
-  ZhiyuGenerationStatus,
-  ZhiyuGenerationStep,
-} from './zhiyu-generation-state';
+import type { ZhiyuGenerationStatus, ZhiyuGenerationStep } from './zhiyu-generation-state';
 
 const STATUS_STYLES: Record<ZhiyuGenerationStatus, string> = {
   done: 'border-primary/15 bg-primary/8 text-primary dark:bg-primary/12',
-  active:
-    'border-[color:var(--zhiyu-ai)]/20 bg-[color:var(--zhiyu-ai-soft)] text-[color:var(--zhiyu-ai)]',
+  active: 'border-ai/20 bg-ai-soft text-ai',
   pending: 'border-border/70 bg-muted/35 text-muted-foreground',
-  error:
-    'border-[color:var(--zhiyu-coral)]/20 bg-[color:var(--zhiyu-coral-soft)] text-[color:var(--zhiyu-coral)]',
+  error: 'border-mistake/20 bg-mistake-soft text-mistake',
 };
 
 const STATUS_LABEL_KEYS: Record<ZhiyuGenerationStatus, string> = {

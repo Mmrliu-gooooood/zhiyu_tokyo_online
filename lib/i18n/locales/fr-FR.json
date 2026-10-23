@@ -31,7 +31,11 @@
       "idle": "En attente",
       "teaching": "Enseigne",
       "thinking": "Réfléchit"
-    }
+    },
+    "pageOf": "Page {{current}} / {{total}}",
+    "prevPage": "Précédent",
+    "nextPage": "Suivant",
+    "whiteboard": "Tableau"
   },
   "learningFeedback": {
     "open": "Open learning feedback",
@@ -101,7 +105,25 @@
     "headline": "One prompt. A whole classroom.",
     "slogan": "L’apprentissage génératif en classe interactive multi-agents",
     "footer": "ZHIYU · Powered by OpenMAIC",
-    "greetingWithName": "Bonjour, {{name}}"
+    "greetingWithName": "Bonjour, {{name}}",
+    "subtitle": "Dites ce que vous voulez apprendre. Un professeur IA et des camarades animent un cours où vous pouvez poser des questions à tout moment.",
+    "stepsTitle": "Lancer un cours en trois étapes",
+    "step1Title": "Dites ce que vous voulez apprendre",
+    "step1Desc": "Un sujet, un exercice ou vos propres notes",
+    "step2Title": "Le professeur IA prépare",
+    "step2Desc": "Diapositives, explications et exercices générés pour vous",
+    "step3Title": "Rejoindre le cours",
+    "step3Desc": "Écoutez et posez vos questions au professeur",
+    "tryTitle": "Essayez l’un de ceux-ci",
+    "example1Title": "Dérivées des fonctions trigonométriques",
+    "example1Meta": "Analyse · environ 15 min",
+    "example1Prompt": "Explique les règles de dérivation des fonctions trigonométriques avec quelques exercices du plus simple au plus difficile",
+    "example2Title": "Votre premier programme Python",
+    "example2Meta": "Initiation à la programmation · environ 30 min",
+    "example2Prompt": "Apprends-moi Python depuis zéro et aide-moi à écrire mon premier programme en 30 minutes",
+    "example3Title": "Qu’est-ce que la transformée de Fourier ?",
+    "example3Meta": "Signaux et systèmes · au tableau blanc",
+    "example3Prompt": "Explique la transformée de Fourier au tableau blanc"
   },
   "toolbar": {
     "pdfParser": "Analyseur",
@@ -134,7 +156,10 @@
     "ttsPreview": "Écouter",
     "ttsPreviewing": "Lecture…",
     "interactiveModeHint": "Activez le mode interactif pour obtenir un contenu plus pratique",
-    "interactiveModeLabel": "Mode interactif"
+    "interactiveModeLabel": "Mode interactif",
+    "addMaterials": "Ajouter des documents",
+    "webSearchLabel": "Recherche web",
+    "mediaLabel": "Voix et images"
   },
   "export": {
     "pptx": "Exporter en PPTX",
@@ -1187,7 +1212,7 @@
     "pdfSizeLimit": "Accepte les fichiers PDF jusqu’à 50 Mo",
     "courseMaterialSizeLimit": "Documents, présentations, tableurs, images et texte brut, jusqu’à 50 Mo (les formats acceptés dépendent de l’extracteur choisi)",
     "generateFailed": "Échec de la génération de la classe, veuillez réessayer",
-    "requirementPlaceholder": "Dites-moi ce que vous voulez apprendre, par exemple :\n« Apprends-moi Python en partant de zéro en 30 minutes »\n« Explique la transformation de Fourier au tableau »\n« Comment jouer au jeu de société Avalon »",
+    "requirementPlaceholder": "Dites ce que vous voulez apprendre, p. ex. « Explique la transformée de Fourier au tableau blanc »",
     "requirementRequired": "Veuillez saisir vos attentes pour le cours",
     "fileTooLarge": "Fichier trop volumineux. Veuillez choisir un fichier de moins de 50 Mo",
     "courseMaterialCountLimit": "Vous pouvez envoyer jusqu’à 5 supports de cours",
@@ -3969,6 +3994,22 @@
         "cancelJob": "Arrêter la génération",
         "restart": "Regénérer le cours"
       }
-    }
+    },
+    "navLabel": "Navigation de l’espace d’étude",
+    "next": {
+      "label": "Étape suivante",
+      "continue": "Reprendre « {{name}} » à la page {{page}}",
+      "revisit": "Revoir « {{name}} » ou suivre le cours suivant",
+      "start": "Commencer le premier cours",
+      "addFirst": "Ajoutez un cours ou des documents pour créer le premier cours",
+      "continueAction": "Reprendre",
+      "openAction": "Ouvrir l’espace"
+    },
+    "emptyStep1Title": "Créer un espace",
+    "emptyStep1Desc": "Par exemple « Analyse »",
+    "emptyStep2Title": "Ajouter cours ou documents",
+    "emptyStep2Desc": "Intégrez un cours ou importez des notes",
+    "emptyStep3Title": "Générer le premier cours",
+    "emptyStep3Desc": "Le professeur IA s’appuie sur vos documents"
   }
 }
