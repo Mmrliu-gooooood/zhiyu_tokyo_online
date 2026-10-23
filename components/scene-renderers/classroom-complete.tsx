@@ -141,7 +141,7 @@ function Sparkles() {
         <motion.div
           key={i}
           aria-hidden
-          className="absolute text-amber-300 dark:text-amber-200"
+          className="absolute text-review"
           style={{
             width: s.size,
             height: s.size,
@@ -289,7 +289,7 @@ function QuizRing({
           fill="none"
           stroke="currentColor"
           strokeWidth="8"
-          className="text-amber-200/70 dark:text-amber-900/40"
+          className="text-review/70"
         />
         <motion.circle
           cx="44"
@@ -310,7 +310,7 @@ function QuizRing({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xl font-black text-amber-700 dark:text-amber-300">
+        <span className="text-xl font-black text-review-ink">
           <AnimatedCounter value={pct} delay={delay} duration={1.0} />
           <span className="text-sm font-bold">%</span>
         </span>
@@ -400,7 +400,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
           {t('classroomComplete.title')}
         </span>
         {/* Base background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-amber-950/30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-review-soft via-card to-review-soft" />
         {/* Radial glow */}
         <motion.div
           aria-hidden
@@ -465,7 +465,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                     transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                     style={{ width: compact ? 90 : 148, height: compact ? 112 : 185 }}
                   >
-                    <TrophySvg className="w-full h-full drop-shadow-[0_10px_18px_rgba(180,83,9,0.35)]" />
+                    <TrophySvg className="w-full h-full drop-shadow-[0_10px_18px_color-mix(in_srgb,var(--review)_35%,transparent)]" />
                   </motion.div>
                 </motion.div>
                 {!compact && <Sparkles />}
@@ -477,7 +477,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ delay: 0.65, type: 'spring', stiffness: 280, damping: 18 }}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-white font-bold uppercase tracking-wider shadow-lg shadow-amber-500/30',
+                  'inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-review via-review to-review text-primary-foreground font-bold uppercase tracking-wider shadow-lg shadow-review/30',
                   compact ? 'px-3 py-1 text-[10px]' : 'px-4 py-1.5 text-xs',
                 )}
               >
@@ -499,18 +499,13 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                 <h2
                   title={title || t('classroomComplete.title')}
                   className={cn(
-                    'line-clamp-2 break-words font-black leading-tight bg-gradient-to-br from-amber-700 via-orange-600 to-amber-800 dark:from-amber-200 dark:via-orange-200 dark:to-amber-300 bg-clip-text text-transparent',
+                    'line-clamp-2 break-words font-black leading-tight bg-gradient-to-br from-review-ink via-review to-review-ink bg-clip-text text-transparent',
                     compact ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl',
                   )}
                 >
                   {title || t('classroomComplete.title')}
                 </h2>
-                <p
-                  className={cn(
-                    'text-gray-500 dark:text-gray-400',
-                    compact ? 'text-xs' : 'text-sm',
-                  )}
-                >
+                <p className={cn('text-muted-foreground', compact ? 'text-xs' : 'text-sm')}>
                   {dateLabel}
                 </p>
               </motion.div>
@@ -541,20 +536,17 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                           damping: 20,
                         }}
                         className={cn(
-                          'rounded-2xl bg-white/90 dark:bg-gray-900/70 border border-amber-100 dark:border-amber-900/40 shadow-sm flex flex-col items-center backdrop-blur-sm',
+                          'rounded-2xl bg-card/90 border border-review/30 shadow-sm flex flex-col items-center backdrop-blur-sm',
                           compact ? 'px-3 py-2 gap-0.5' : 'px-4 py-4 gap-1.5',
                         )}
                       >
                         <Icon
-                          className={cn(
-                            'text-amber-500 dark:text-amber-400',
-                            compact ? 'w-4 h-4' : 'w-6 h-6',
-                          )}
+                          className={cn('text-review', compact ? 'w-4 h-4' : 'w-6 h-6')}
                           strokeWidth={1.8}
                         />
                         <div
                           className={cn(
-                            'font-black text-gray-900 dark:text-gray-100 leading-none',
+                            'font-black text-foreground leading-none',
                             compact ? 'text-xl' : 'text-3xl',
                           )}
                         >
@@ -562,7 +554,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                         </div>
                         <div
                           className={cn(
-                            'text-gray-500 dark:text-gray-400 uppercase tracking-wider',
+                            'text-muted-foreground uppercase tracking-wider',
                             compact ? 'text-[10px]' : 'text-[11px]',
                           )}
                         >
@@ -581,7 +573,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: 1.2, type: 'spring', stiffness: 220, damping: 20 }}
                   className={cn(
-                    'w-full rounded-2xl bg-gradient-to-br from-amber-100 via-orange-50 to-amber-100 dark:from-amber-950/50 dark:via-orange-950/30 dark:to-amber-950/50 border border-amber-200 dark:border-amber-900/50 shadow-md shadow-amber-200/30 dark:shadow-amber-950/20',
+                    'w-full rounded-2xl bg-gradient-to-br from-review-soft via-review-soft to-review-soft border border-review/30 shadow-md shadow-review/30',
                     compact ? 'px-4 py-3' : 'px-6 py-5',
                   )}
                 >
@@ -592,7 +584,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                     <div className="flex-1 min-w-0">
                       <div
                         className={cn(
-                          'font-bold text-amber-700 dark:text-amber-300',
+                          'font-bold text-review-ink',
                           compact ? 'text-sm' : 'text-base',
                         )}
                       >
@@ -605,7 +597,7 @@ export function ClassroomCompletePage({ scenes, title }: ClassroomCompletePagePr
                       </div>
                       <div
                         className={cn(
-                          'mt-1 space-y-0.5 text-amber-700/80 dark:text-amber-300/80',
+                          'mt-1 space-y-0.5 text-review-ink/80',
                           compact ? 'text-xs' : 'text-sm',
                         )}
                       >

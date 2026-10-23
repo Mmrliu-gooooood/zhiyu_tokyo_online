@@ -105,24 +105,22 @@ export function CanvasArea({
   );
 
   return (
-    <div className="group/canvas flex h-full w-full flex-col bg-[#eef1ef] dark:bg-background">
+    <div className="group/canvas flex h-full w-full flex-col bg-muted">
       {/* Slide area — takes remaining space */}
       <div
         className={cn(
           'relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-5 transition-colors duration-500 lg:p-6',
-          currentScene?.type === 'interactive'
-            ? 'bg-blue-50/30 dark:bg-blue-900/10'
-            : 'bg-gray-50/30 dark:bg-gray-900/30',
+          currentScene?.type === 'interactive' ? 'bg-ai-soft/30' : 'bg-muted/30',
         )}
       >
         <StageViewport
           workbench={inWorkbenchPanel}
           interactive={currentScene?.type === 'interactive'}
           className={cn(
-            'relative overflow-hidden rounded-2xl bg-white shadow-[0_16px_40px_rgba(32,52,44,0.12)] transition-all duration-500 dark:bg-gray-800 dark:shadow-[0_18px_46px_rgba(0,0,0,0.35)]',
+            'relative overflow-hidden rounded-2xl bg-card shadow-[0_16px_40px_rgba(20,26,46,0.12)] transition-all duration-500 dark:shadow-[0_18px_46px_rgba(0,0,0,0.35)]',
             showControls && !isLiveSession && currentScene?.type === 'slide' && 'cursor-pointer',
             currentScene?.type === 'interactive'
-              ? 'ring-1 ring-blue-900/5 dark:ring-blue-500/10'
+              ? 'ring-1 ring-ai/5'
               : 'ring-1 ring-black/5 dark:ring-white/5',
           )}
           onClick={handleSlideClick}
@@ -180,20 +178,20 @@ export function CanvasArea({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="absolute inset-0 z-[105] flex flex-col items-center justify-center bg-white dark:bg-gray-800"
+                className="absolute inset-0 z-[105] flex flex-col items-center justify-center bg-card"
               >
                 {isGenerationFailed ? (
                   <div className="flex flex-col items-center gap-3">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
-                      <CircleAlert className="size-6 text-red-500" />
+                    <div className="flex size-12 items-center justify-center rounded-full bg-mistake-soft">
+                      <CircleAlert className="size-6 text-mistake" />
                     </div>
-                    <span className="text-sm text-red-500 dark:text-red-400 font-medium">
+                    <span className="text-sm text-mistake font-medium">
                       {t('stage.generationFailed')}
                     </span>
                     {onRetryGeneration && (
                       <button
                         onClick={onRetryGeneration}
-                        className="mt-1 px-4 py-1.5 text-xs font-medium rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors active:scale-95"
+                        className="mt-1 px-4 py-1.5 text-xs font-medium rounded-full bg-mistake-soft text-mistake-ink hover:bg-mistake-soft transition-colors active:scale-95"
                       >
                         {t('generation.retryScene')}
                       </button>
@@ -203,7 +201,7 @@ export function CanvasArea({
                   <div className="flex flex-col items-center gap-4">
                     {/* Spinner */}
                     <div className="relative w-12 h-12">
-                      <div className="absolute inset-0 rounded-full border-2 border-gray-100 dark:border-gray-700" />
+                      <div className="absolute inset-0 rounded-full border-2 border-border" />
                       <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
                     </div>
                     {/* Text */}
@@ -211,7 +209,7 @@ export function CanvasArea({
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2, duration: 0.3 }}
-                      className="text-sm text-gray-400 dark:text-gray-500 font-medium"
+                      className="text-sm text-muted-foreground font-medium"
                     >
                       {t('stage.generatingNextPage')}
                     </motion.span>
@@ -223,7 +221,7 @@ export function CanvasArea({
 
           {/* Scene Number Badge */}
           {currentScene && (
-            <div className="absolute top-4 right-4 text-gray-200 dark:text-gray-700 font-black text-4xl opacity-50 pointer-events-none select-none mix-blend-multiply dark:mix-blend-screen">
+            <div className="absolute top-4 right-4 text-foreground font-black text-4xl opacity-50 pointer-events-none select-none mix-blend-multiply dark:mix-blend-screen">
               {(currentSceneIndex + 1).toString().padStart(2, '0')}
             </div>
           )}
@@ -248,7 +246,7 @@ export function CanvasArea({
                     onPlayPause();
                   }}
                 >
-                  <span className="flex size-16 items-center justify-center rounded-full bg-white/95 text-primary shadow-[0_10px_30px_rgba(33,72,57,0.16)] ring-1 ring-primary/10 transition-colors hover:bg-secondary dark:bg-card/95">
+                  <span className="flex size-16 items-center justify-center rounded-full bg-card/95 text-primary shadow-[0_10px_30px_rgba(20,26,46,0.16)] ring-1 ring-primary/10 transition-colors hover:bg-secondary dark:bg-card/95">
                     <Play className="ml-0.5 size-6 fill-current" />
                   </span>
                 </motion.button>
@@ -263,8 +261,8 @@ export function CanvasArea({
         <CanvasToolbar
           className={cn(
             'shrink-0 h-9 px-2',
-            'bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl',
-            'border-t border-gray-200/40 dark:border-gray-700/40',
+            'bg-card/80 backdrop-blur-xl',
+            'border-t border-border/40',
           )}
           currentSceneIndex={currentSceneIndex}
           scenesCount={scenesCount}

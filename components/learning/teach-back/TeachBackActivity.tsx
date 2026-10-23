@@ -32,8 +32,8 @@ export function TeachBackEntryButton({
       className={cn(
         'inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         active
-          ? 'bg-[#356B59] text-white ring-[#356B59] dark:bg-[#7FA392] dark:ring-[#7FA392]'
-          : 'bg-white text-[#356B59] ring-[#C9DED4] hover:bg-[#E7F1EC] dark:bg-gray-900 dark:text-[#9FC0B0] dark:ring-[#356B59]/50',
+          ? 'bg-primary text-primary-foreground ring-primary'
+          : 'bg-card text-primary ring-primary/25 hover:bg-primary-soft',
       )}
     >
       <GraduationCap className="h-3.5 w-3.5 shrink-0" />
@@ -99,14 +99,14 @@ export function TeachBackActivityCard({
   return (
     <section
       data-testid="teach-back-card"
-      className="rounded-xl border border-[#C9DED4] bg-white/90 p-3 text-xs shadow-sm dark:border-[#356B59]/50 dark:bg-gray-900/80"
+      className="rounded-xl border border-primary/25 bg-card/90 p-3 text-xs shadow-sm"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-semibold text-[#356B59] dark:text-[#9FC0B0]">{t('chat.teachBack.label')}</p>
+          <p className="font-semibold text-primary">{t('chat.teachBack.label')}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{statusLabel}</p>
         </div>
-        <span className="shrink-0 rounded-full bg-[#E7F1EC] px-2 py-0.5 text-[10px] text-[#356B59] dark:bg-[#356B59]/20 dark:text-[#9FC0B0]">
+        <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[10px] text-primary">
           {sceneTitle}
         </span>
       </div>
@@ -115,7 +115,9 @@ export function TeachBackActivityCard({
         <div className="mt-3 space-y-2">
           <p>{t('chat.teachBack.preparing')}</p>
           <Button type="button" size="sm" variant="secondary" onClick={onFinish}>
-            {canResumeLecture ? t('chat.teachBack.endAndResume') : t('chat.teachBack.returnToClass')}
+            {canResumeLecture
+              ? t('chat.teachBack.endAndResume')
+              : t('chat.teachBack.returnToClass')}
           </Button>
         </div>
       ) : null}
@@ -150,17 +152,22 @@ export function TeachBackActivityCard({
               </select>
             )}
           </label>
-          {needsConfirmReplace ? (
-            <p role="status">{t('chat.teachBack.confirmReplace')}</p>
-          ) : null}
+          {needsConfirmReplace ? <p role="status">{t('chat.teachBack.confirmReplace')}</p> : null}
           {view.errorCode ? (
             <p className="text-destructive" role="alert">
               {t(`chat.teachBack.errors.${view.errorCode}`)}
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={preparing || peers.length === 0} onClick={onStart}>
-              {needsConfirmReplace ? t('chat.teachBack.confirmReplaceStart') : t('chat.teachBack.start')}
+            <Button
+              type="button"
+              size="sm"
+              disabled={preparing || peers.length === 0}
+              onClick={onStart}
+            >
+              {needsConfirmReplace
+                ? t('chat.teachBack.confirmReplaceStart')
+                : t('chat.teachBack.start')}
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
               {t('chat.teachBack.cancel')}
@@ -194,7 +201,7 @@ export function TeachBackActivityCard({
       {activity?.hasStarted && view.ui !== 'paused' ? (
         <div className="mt-3 space-y-2">
           {activity.currentQuestion ? (
-            <p className="rounded-lg bg-[#E7F1EC] p-2 dark:bg-[#356B59]/20">{activity.currentQuestion.text}</p>
+            <p className="rounded-lg bg-primary-soft p-2">{activity.currentQuestion.text}</p>
           ) : null}
           {activity.explanations.at(-1) ? (
             <p className="text-muted-foreground">
@@ -225,7 +232,9 @@ export function TeachBackActivityCard({
                     <span className="font-medium">{t(`chat.teachBack.status.${item.status}`)}</span>
                     {': '}
                     {item.reason}
-                    {item.citation ? ` ${t('chat.teachBack.basedOn')} “${item.citation.excerpt}”` : ''}
+                    {item.citation
+                      ? ` ${t('chat.teachBack.basedOn')} “${item.citation.excerpt}”`
+                      : ''}
                   </p>
                 ))
               )}
@@ -246,14 +255,18 @@ export function TeachBackActivityCard({
                 type="button"
                 size="sm"
                 data-testid="teach-back-ask-again"
-                disabled={view.ui === 'preparing' || view.ui === 'submitting' || view.ui === 'saving'}
+                disabled={
+                  view.ui === 'preparing' || view.ui === 'submitting' || view.ui === 'saving'
+                }
                 onClick={onAskAgain}
               >
                 {t('chat.teachBack.askAgain')}
               </Button>
             ) : null}
             <Button type="button" size="sm" variant="secondary" onClick={onFinish}>
-              {canResumeLecture ? t('chat.teachBack.endAndResume') : t('chat.teachBack.returnToClass')}
+              {canResumeLecture
+                ? t('chat.teachBack.endAndResume')
+                : t('chat.teachBack.returnToClass')}
             </Button>
           </div>
         </div>

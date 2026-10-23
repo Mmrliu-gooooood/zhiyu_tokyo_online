@@ -166,7 +166,7 @@ export function TtsConfigPopover() {
               className={cn(
                 pillCls,
                 ttsEnabled
-                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-700/50'
+                  ? 'bg-correct-soft text-correct-ink border-correct/30'
                   : 'border-border/50 text-muted-foreground/70 hover:text-foreground hover:bg-muted/60',
               )}
             >
@@ -187,7 +187,7 @@ export function TtsConfigPopover() {
           <Volume2
             className={cn(
               'size-4 shrink-0',
-              ttsEnabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+              ttsEnabled ? 'text-correct-ink' : 'text-muted-foreground',
             )}
           />
           <span
@@ -226,7 +226,7 @@ export function TtsConfigPopover() {
                   'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all shrink-0',
                   !canPreview && 'cursor-not-allowed opacity-50',
                   previewing
-                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                    ? 'bg-correct-soft text-correct-ink'
                     : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >

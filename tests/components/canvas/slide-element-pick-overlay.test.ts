@@ -284,7 +284,7 @@ describe('SlideElementPickOverlay renderer DOM differential', () => {
       ),
     );
 
-    const outline = container.querySelector('.border-violet-400\\/70') as HTMLElement;
+    const outline = container.querySelector('.border-primary\\/70') as HTMLElement;
     expect(outline.style.cssText).toContain('left: 40px');
     expect(outline.style.cssText).toContain('width: 100px');
 
@@ -369,7 +369,7 @@ describe('SlideElementPickOverlay renderer DOM differential', () => {
     rects.set('text-1', { left: 300, top: 200, width: 150, height: 60 });
     flushAnimationFrame();
 
-    const outline = container.querySelector('.border-violet-400\\/70') as HTMLElement;
+    const outline = container.querySelector('.border-primary\\/70') as HTMLElement;
     expect(outline.style.cssText).toContain('left: 300px');
     expect(outline.style.cssText).toContain('width: 150px');
 

@@ -114,7 +114,7 @@ export function ZhiyuClassroomShell({
         } as CSSProperties
       }
       className={cn(
-        'flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#eef1ef] text-foreground dark:bg-background',
+        'flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-muted text-foreground',
         className,
       )}
     >

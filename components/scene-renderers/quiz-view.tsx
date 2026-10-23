@@ -190,19 +190,19 @@ function QuizCover({
     <div className="w-full h-full flex flex-col items-center justify-center gap-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 p-6 opacity-[0.03]">
-        <PieChart className="w-52 h-52 text-violet-500" />
+        <PieChart className="w-52 h-52 text-primary" />
       </div>
       <div className="absolute bottom-0 left-0 p-6 opacity-[0.02]">
-        <BookOpenText className="w-40 h-40 text-violet-500 rotate-12" />
+        <BookOpenText className="w-40 h-40 text-primary rotate-12" />
       </div>
 
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        className="w-16 h-16 bg-gradient-to-br from-violet-100 to-purple-50 dark:from-violet-900/50 dark:to-purple-900/30 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-100 dark:shadow-violet-900/30 ring-1 ring-violet-200/50 dark:ring-violet-700/50"
+        className="w-16 h-16 bg-gradient-to-br from-primary-soft to-primary-soft rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30 ring-1 ring-primary/30"
       >
-        <PieChart className="w-8 h-8 text-violet-500" />
+        <PieChart className="w-8 h-8 text-primary" />
       </motion.div>
 
       <motion.div
@@ -211,8 +211,8 @@ function QuizCover({
         transition={{ delay: 0.1 }}
         className="text-center z-10"
       >
-        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('quiz.title')}</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('quiz.subtitle')}</p>
+        <h3 className="text-xl font-bold text-foreground">{t('quiz.title')}</h3>
+        <p className="text-sm text-muted-foreground mt-1">{t('quiz.subtitle')}</p>
       </motion.div>
 
       <motion.div
@@ -221,17 +221,17 @@ function QuizCover({
         transition={{ delay: 0.2 }}
         className="flex gap-5 text-sm z-10"
       >
-        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-          <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-            <BookOpenText className="w-3.5 h-3.5 text-violet-500" />
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-7 h-7 rounded-lg bg-primary-soft flex items-center justify-center">
+            <BookOpenText className="w-3.5 h-3.5 text-primary" />
           </div>
           <span>
             {questionCount} {t('quiz.questionsCount')}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-          <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-            <PieChart className="w-3.5 h-3.5 text-violet-500" />
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-7 h-7 rounded-lg bg-primary-soft flex items-center justify-center">
+            <PieChart className="w-3.5 h-3.5 text-primary" />
           </div>
           <span>
             {t('quiz.totalPrefix')} {totalPoints} {t('quiz.pointsSuffix')}
@@ -246,7 +246,7 @@ function QuizCover({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={onStart}
-        className="mt-1 px-8 py-2.5 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-full font-medium shadow-lg shadow-violet-200/50 dark:shadow-violet-900/50 hover:shadow-violet-300/50 transition-shadow z-10 flex items-center gap-2"
+        className="mt-1 px-8 py-2.5 bg-gradient-to-r from-primary to-primary text-primary-foreground rounded-full font-medium shadow-lg shadow-primary/50 hover:shadow-primary/50 transition-shadow z-10 flex items-center gap-2"
       >
         {t('quiz.startQuiz')}
         <ChevronRight className="w-4 h-4" />
@@ -290,38 +290,23 @@ function SingleChoiceQuestion({
                 // Default state
                 !isReview &&
                   !selected &&
-                  'border-gray-200 dark:border-gray-600 hover:border-violet-200 dark:hover:border-violet-700 hover:bg-violet-50/50 dark:hover:bg-violet-900/30',
-                !isReview &&
-                  selected &&
-                  'border-violet-400 bg-violet-50 dark:bg-violet-900/30 ring-1 ring-violet-200 dark:ring-violet-700',
+                  'border-border hover:border-primary/30 hover:bg-primary-soft/50',
+                !isReview && selected && 'border-primary/60 bg-primary-soft ring-1 ring-primary/30',
                 // Review states
-                isReview &&
-                  isCorrectOpt &&
-                  'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30',
-                isReview &&
-                  isWrong &&
-                  !isCorrectOpt &&
-                  'border-red-300 bg-red-50 dark:bg-red-900/30',
-                isReview &&
-                  !isCorrectOpt &&
-                  !selected &&
-                  'border-gray-100 dark:border-gray-700 opacity-60',
+                isReview && isCorrectOpt && 'border-correct/60 bg-correct-soft',
+                isReview && isWrong && !isCorrectOpt && 'border-mistake/30 bg-mistake-soft',
+                isReview && !isCorrectOpt && !selected && 'border-border opacity-60',
                 disabled && !isReview && 'cursor-default',
               )}
             >
               <span
                 className={cn(
                   'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors',
-                  !isReview &&
-                    !selected &&
-                    'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
-                  !isReview && selected && 'bg-violet-500 text-white',
-                  isReview && isCorrectOpt && 'bg-emerald-500 text-white',
-                  isReview && isWrong && !isCorrectOpt && 'bg-red-400 text-white',
-                  isReview &&
-                    !isCorrectOpt &&
-                    !selected &&
-                    'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500',
+                  !isReview && !selected && 'bg-muted text-muted-foreground',
+                  !isReview && selected && 'bg-primary text-primary-foreground',
+                  isReview && isCorrectOpt && 'bg-correct text-primary-foreground',
+                  isReview && isWrong && !isCorrectOpt && 'bg-mistake text-primary-foreground',
+                  isReview && !isCorrectOpt && !selected && 'bg-muted text-muted-foreground',
                 )}
               >
                 {opt.value}
@@ -329,16 +314,16 @@ function SingleChoiceQuestion({
               <span
                 className={cn(
                   'flex-1',
-                  isReview && !isCorrectOpt && !selected && 'text-gray-400 dark:text-gray-500',
+                  isReview && !isCorrectOpt && !selected && 'text-muted-foreground',
                 )}
               >
                 <QuizMathText text={opt.label} />
               </span>
               {isReview && isCorrectOpt && (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-correct shrink-0" />
               )}
               {isReview && isWrong && !isCorrectOpt && (
-                <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <XCircle className="w-5 h-5 text-mistake shrink-0" />
               )}
             </button>
           );
@@ -380,9 +365,7 @@ function MultipleChoiceQuestion({
   return (
     <QuestionCard question={question} index={index} result={result}>
       {!isReview && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
-          {t('quiz.multipleChoiceHint')}
-        </p>
+        <p className="text-xs text-muted-foreground mb-2">{t('quiz.multipleChoiceHint')}</p>
       )}
       <div className="grid gap-2">
         {question.options?.map((opt) => {
@@ -399,34 +382,24 @@ function MultipleChoiceQuestion({
                 'flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all text-sm',
                 !isReview &&
                   !isSelected &&
-                  'border-gray-200 dark:border-gray-600 hover:border-violet-200 dark:hover:border-violet-700 hover:bg-violet-50/50 dark:hover:bg-violet-900/30',
+                  'border-border hover:border-primary/30 hover:bg-primary-soft/50',
                 !isReview &&
                   isSelected &&
-                  'border-violet-400 bg-violet-50 dark:bg-violet-900/30 ring-1 ring-violet-200 dark:ring-violet-700',
-                isReview &&
-                  isCorrectOpt &&
-                  'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30',
-                isReview && isWrong && 'border-red-300 bg-red-50 dark:bg-red-900/30',
-                isReview &&
-                  !isCorrectOpt &&
-                  !isSelected &&
-                  'border-gray-100 dark:border-gray-700 opacity-60',
+                  'border-primary/60 bg-primary-soft ring-1 ring-primary/30',
+                isReview && isCorrectOpt && 'border-correct/60 bg-correct-soft',
+                isReview && isWrong && 'border-mistake/30 bg-mistake-soft',
+                isReview && !isCorrectOpt && !isSelected && 'border-border opacity-60',
                 disabled && !isReview && 'cursor-default',
               )}
             >
               <span
                 className={cn(
                   'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors',
-                  !isReview &&
-                    !isSelected &&
-                    'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
-                  !isReview && isSelected && 'bg-violet-500 text-white',
-                  isReview && isCorrectOpt && 'bg-emerald-500 text-white',
-                  isReview && isWrong && 'bg-red-400 text-white',
-                  isReview &&
-                    !isCorrectOpt &&
-                    !isSelected &&
-                    'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500',
+                  !isReview && !isSelected && 'bg-muted text-muted-foreground',
+                  !isReview && isSelected && 'bg-primary text-primary-foreground',
+                  isReview && isCorrectOpt && 'bg-correct text-primary-foreground',
+                  isReview && isWrong && 'bg-mistake text-primary-foreground',
+                  isReview && !isCorrectOpt && !isSelected && 'bg-muted text-muted-foreground',
                 )}
               >
                 {!isReview && isSelected ? <Check className="w-3.5 h-3.5" /> : opt.value}
@@ -434,15 +407,15 @@ function MultipleChoiceQuestion({
               <span
                 className={cn(
                   'flex-1',
-                  isReview && !isCorrectOpt && !isSelected && 'text-gray-400 dark:text-gray-500',
+                  isReview && !isCorrectOpt && !isSelected && 'text-muted-foreground',
                 )}
               >
                 <QuizMathText text={opt.label} />
               </span>
               {isReview && isCorrectOpt && (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-correct shrink-0" />
               )}
-              {isReview && isWrong && <XCircle className="w-5 h-5 text-red-400 shrink-0" />}
+              {isReview && isWrong && <XCircle className="w-5 h-5 text-mistake shrink-0" />}
             </button>
           );
         })}
@@ -483,7 +456,7 @@ function ShortAnswerQuestion({
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
             placeholder={t('quiz.inputPlaceholder')}
-            className="w-full min-h-[100px] p-3 pb-10 rounded-xl border border-gray-200 dark:border-gray-600 text-sm resize-none focus:outline-none focus:border-violet-300 dark:focus:border-violet-600 focus:ring-2 focus:ring-violet-100 dark:focus:ring-violet-900/50 transition-all disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:bg-gray-800/50 dark:text-gray-200 dark:placeholder:text-gray-500"
+            className="w-full min-h-[100px] p-3 pb-10 rounded-xl border border-border text-sm resize-none focus:outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/30 transition-all disabled:bg-muted disabled:text-muted-foreground"
           />
           <SpeechButton
             size="sm"
@@ -494,34 +467,30 @@ function ShortAnswerQuestion({
               onChange(cur + (cur ? ' ' : '') + text);
             }}
           />
-          <span className="absolute bottom-3 right-3 text-xs text-gray-300 dark:text-gray-600">
+          <span className="absolute bottom-3 right-3 text-xs text-subtle-foreground">
             {(value ?? '').length} {t('quiz.charCount')}
           </span>
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{t('quiz.yourAnswer')}</p>
+          <div className="p-3 rounded-xl bg-muted border border-border text-sm text-foreground">
+            <p className="text-xs text-muted-foreground mb-1">{t('quiz.yourAnswer')}</p>
             {value ? (
               <QuizMathText text={value} />
             ) : (
-              <span className="text-gray-400 dark:text-gray-500 italic">
-                {t('quiz.notAnswered')}
-              </span>
+              <span className="text-muted-foreground italic">{t('quiz.notAnswered')}</span>
             )}
           </div>
           {result.aiComment && (
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800">
-              <Sparkles className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-primary-soft border border-primary/30">
+              <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-medium text-violet-600 dark:text-violet-400 mb-0.5">
-                  {t('quiz.aiComment')}
-                </p>
-                <p className="text-xs text-violet-600/80 dark:text-violet-400/80">
+                <p className="text-xs font-medium text-primary-ink mb-0.5">{t('quiz.aiComment')}</p>
+                <p className="text-xs text-primary-ink/80">
                   <QuizMathText text={result.aiComment} />
                 </p>
               </div>
-              <span className="ml-auto text-xs font-bold text-violet-600 dark:text-violet-400 shrink-0">
+              <span className="ml-auto text-xs font-bold text-primary-ink shrink-0">
                 {result.earned}/{question.points ?? 1}
                 {t('quiz.pointsSuffix')}
               </span>
@@ -554,23 +523,21 @@ function QuestionCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       className={cn(
-        'bg-white dark:bg-gray-800 rounded-2xl border p-5 relative overflow-hidden',
-        !isReview && 'border-gray-150 dark:border-gray-700 shadow-sm',
-        isReview &&
-          result.status === 'correct' &&
-          'border-emerald-200 dark:border-emerald-800 shadow-sm shadow-emerald-50 dark:shadow-emerald-900/20',
+        'bg-card rounded-2xl border p-5 relative overflow-hidden',
+        !isReview && 'border-border shadow-sm',
+        isReview && result.status === 'correct' && 'border-correct/30 shadow-sm shadow-correct/30',
         isReview &&
           result.status === 'incorrect' &&
-          'border-red-200 dark:border-red-800 shadow-sm shadow-red-50 dark:shadow-red-900/20',
+          'border-mistake/30 shadow-sm shadow-mistake/30',
       )}
     >
       {/* Left accent */}
       <div
         className={cn(
           'absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl',
-          !isReview && 'bg-violet-400',
-          isReview && result.status === 'correct' && 'bg-emerald-400',
-          isReview && result.status === 'incorrect' && 'bg-red-400',
+          !isReview && 'bg-primary',
+          isReview && result.status === 'correct' && 'bg-correct',
+          isReview && result.status === 'incorrect' && 'bg-mistake',
         )}
       />
 
@@ -580,23 +547,18 @@ function QuestionCard({
           <span
             className={cn(
               'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0',
-              !isReview &&
-                'bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400',
-              isReview &&
-                result.status === 'correct' &&
-                'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400',
-              isReview &&
-                result.status === 'incorrect' &&
-                'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400',
+              !isReview && 'bg-primary-soft text-primary-ink',
+              isReview && result.status === 'correct' && 'bg-correct-soft text-correct-ink',
+              isReview && result.status === 'incorrect' && 'bg-mistake-soft text-mistake-ink',
             )}
           >
             {index + 1}
           </span>
           <div>
-            <div className="text-sm font-medium text-gray-800 dark:text-gray-100 leading-relaxed">
+            <div className="text-sm font-medium text-foreground leading-relaxed">
               <QuizMathText text={question.question} allowDisplayMode />
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {question.type === 'single'
                 ? t('quiz.singleChoice')
                 : question.type === 'multiple'
@@ -609,8 +571,8 @@ function QuestionCard({
         </div>
         {isReview && (
           <div className="shrink-0 ml-2">
-            {result.status === 'correct' && <CheckCircle2 className="w-6 h-6 text-emerald-500" />}
-            {result.status === 'incorrect' && <XCircle className="w-6 h-6 text-red-400" />}
+            {result.status === 'correct' && <CheckCircle2 className="w-6 h-6 text-correct" />}
+            {result.status === 'incorrect' && <XCircle className="w-6 h-6 text-mistake" />}
           </div>
         )}
       </div>
@@ -620,7 +582,7 @@ function QuestionCard({
 
       {/* Analysis (review only) */}
       {isReview && question.analysis && (
-        <div className="mt-3 p-3 rounded-lg bg-blue-50/70 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+        <div className="mt-3 p-3 rounded-lg bg-ai-soft/70 border border-ai/30 text-xs text-ai-ink leading-relaxed">
           <span className="font-medium">{t('quiz.analysis')}</span>
           <QuizMathText text={question.analysis} allowDisplayMode />
         </div>
@@ -646,21 +608,21 @@ function ScoreBanner({
   const color = pct >= 80 ? 'emerald' : pct >= 60 ? 'amber' : 'red';
   const colorMap = {
     emerald: {
-      bg: 'from-emerald-500 to-teal-500',
-      shadow: 'shadow-emerald-200/50 dark:shadow-emerald-900/50',
-      ring: 'bg-emerald-400/30',
+      bg: 'from-correct to-correct/80',
+      shadow: 'shadow-correct/50',
+      ring: 'bg-correct/30',
       text: t('quiz.excellent'),
     },
     amber: {
-      bg: 'from-amber-500 to-yellow-500',
-      shadow: 'shadow-amber-200/50 dark:shadow-amber-900/50',
-      ring: 'bg-amber-400/30',
+      bg: 'from-review to-review/80',
+      shadow: 'shadow-review/50',
+      ring: 'bg-review/30',
       text: t('quiz.keepGoing'),
     },
     red: {
-      bg: 'from-red-500 to-rose-500',
-      shadow: 'shadow-red-200/50 dark:shadow-red-900/50',
-      ring: 'bg-red-400/30',
+      bg: 'from-mistake to-mistake/80',
+      shadow: 'shadow-mistake/50',
+      ring: 'bg-mistake/30',
       text: t('quiz.needsReview'),
     },
   };
@@ -670,14 +632,18 @@ function ScoreBanner({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={cn('rounded-2xl p-6 bg-gradient-to-r text-white shadow-lg', c.bg, c.shadow)}
+      className={cn(
+        'rounded-2xl p-6 bg-gradient-to-r text-primary-foreground shadow-lg',
+        c.bg,
+        c.shadow,
+      )}
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-white/80 text-sm font-medium">{c.text}</p>
+          <p className="text-primary-foreground/80 text-sm font-medium">{c.text}</p>
           <div className="flex items-baseline gap-1 mt-1">
             <span className="text-4xl font-black">{score}</span>
-            <span className="text-white/60 text-lg">/ {total}</span>
+            <span className="text-primary-foreground/60 text-lg">/ {total}</span>
           </div>
           <div className="flex gap-3 mt-3 text-xs">
             <span className="flex items-center gap-1">
@@ -1061,11 +1027,11 @@ export function QuizView({
 
   if (runtimeGate.status === 'error') {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-full w-full items-center justify-center bg-muted">
         <button
           type="button"
           onClick={() => setHydrationVersion((version) => version + 1)}
-          className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700"
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary"
         >
           <RotateCcw className="h-4 w-4" />
           {t('quiz.retry')}
@@ -1076,14 +1042,14 @@ export function QuizView({
 
   if (!isQuizRuntimeReady(runtimeGate)) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      <div className="flex h-full w-full items-center justify-center bg-muted">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-900 overflow-hidden flex flex-col">
+    <div className="w-full h-full bg-gradient-to-b from-muted to-card overflow-hidden flex flex-col">
       <AnimatePresence mode="wait">
         {phase === 'not_started' && (
           <motion.div
@@ -1110,13 +1076,11 @@ export function QuizView({
             className="flex-1 flex flex-col min-h-0"
           >
             {/* Header bar */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur shrink-0">
+            <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card/80 backdrop-blur shrink-0">
               <div className="flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-violet-500" />
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                  {t('quiz.answering')}
-                </span>
-                <span className="text-xs text-gray-400 ml-1">
+                <PieChart className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">{t('quiz.answering')}</span>
+                <span className="text-xs text-muted-foreground ml-1">
                   {
                     Object.keys(answers).filter((k) => {
                       const a = answers[k];
@@ -1134,8 +1098,8 @@ export function QuizView({
                 className={cn(
                   'px-4 py-1.5 rounded-lg text-xs font-medium transition-all',
                   allAnswered
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:shadow-md hover:shadow-violet-200/50 dark:hover:shadow-violet-900/50 active:scale-[0.97]'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed',
+                    ? 'bg-gradient-to-r from-primary to-primary text-primary-foreground shadow-sm hover:shadow-md hover:shadow-primary/50 active:scale-[0.97]'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed',
                 )}
               >
                 {t('quiz.submitAnswers')}
@@ -1193,19 +1157,17 @@ export function QuizView({
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
             >
-              <Loader2 className="w-10 h-10 text-violet-500" />
+              <Loader2 className="w-10 h-10 text-primary" />
             </motion.div>
             <div className="text-center">
-              <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
-                {t('quiz.aiGrading')}
-              </p>
-              <p className="text-sm text-gray-400 mt-1">{t('quiz.aiGradingWait')}</p>
+              <p className="text-base font-semibold text-foreground">{t('quiz.aiGrading')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('quiz.aiGradingWait')}</p>
             </div>
             <div className="flex gap-1 mt-2">
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
-                  className="w-2 h-2 rounded-full bg-violet-400"
+                  className="w-2 h-2 rounded-full bg-primary"
                   animate={{ opacity: [0.3, 1, 0.3] }}
                   transition={{
                     repeat: Infinity,
@@ -1225,19 +1187,17 @@ export function QuizView({
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center"
           >
-            <Loader2 className="h-9 w-9 text-amber-500" />
+            <Loader2 className="h-9 w-9 text-review" />
             <div>
-              <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
-                {t('quiz.pendingTitle')}
-              </p>
-              <p className="mt-1 text-sm text-gray-400">{t('quiz.pendingDescription')}</p>
+              <p className="text-base font-semibold text-foreground">{t('quiz.pendingTitle')}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t('quiz.pendingDescription')}</p>
             </div>
             <div className="flex flex-wrap justify-center gap-3">
               {retryablePendingCount > 0 && (
                 <button
                   type="button"
                   onClick={() => setPhase('grading')}
-                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary"
                 >
                   {t('quiz.retryGrading')}
                 </button>
@@ -1246,7 +1206,7 @@ export function QuizView({
                 type="button"
                 onClick={() => void handleRetry()}
                 disabled={retrying}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:text-violet-600 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-primary-ink disabled:opacity-50"
               >
                 {t('quiz.retry')}
               </button>
@@ -1262,10 +1222,10 @@ export function QuizView({
             className="flex-1 flex flex-col min-h-0"
           >
             {/* Header bar */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur shrink-0">
+            <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card/80 backdrop-blur shrink-0">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <CheckCircle2 className="w-4 h-4 text-correct" />
+                <span className="text-sm font-semibold text-foreground">
                   {t('quiz.quizReport')}
                 </span>
               </div>
@@ -1273,7 +1233,7 @@ export function QuizView({
                 type="button"
                 onClick={() => void handleRetry()}
                 disabled={retrying}
-                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary-ink transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 {t('quiz.retry')}
@@ -1283,7 +1243,7 @@ export function QuizView({
             {/* Results */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {!attemptPayload ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <div className="rounded-xl border border-review/30 bg-review-soft p-4 text-sm text-review-ink">
                   {t('quiz.legacySnapshotUnavailable')}
                 </div>
               ) : (
@@ -1342,10 +1302,10 @@ export function QuizView({
                   return (
                     <div key={q.id} className="space-y-2">
                       {questionView}
-                      <div className="flex flex-wrap gap-2 rounded-xl border border-violet-100 bg-violet-50/50 p-3 dark:border-violet-900 dark:bg-violet-950/20">
+                      <div className="flex flex-wrap gap-2 rounded-xl border border-primary/30 bg-primary-soft/50 p-3">
                         <button
                           type="button"
-                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:text-violet-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:text-primary-ink"
                           aria-expanded={expandedRemediationQuestion === q.id}
                           onClick={() =>
                             setExpandedRemediationQuestion((current) =>
@@ -1359,7 +1319,7 @@ export function QuizView({
                         {onDiscussQuestion ? (
                           <button
                             type="button"
-                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:text-violet-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:text-primary-ink"
                             onClick={() => {
                               setRemediationError(false);
                               void Promise.resolve(
@@ -1375,31 +1335,31 @@ export function QuizView({
                           type="button"
                           disabled
                           title={t('quiz.remediationUnavailable')}
-                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                           {t('quiz.checkUnderstanding')}
                         </button>
-                        <p className="basis-full text-xs text-gray-500 dark:text-gray-400">
+                        <p className="basis-full text-xs text-muted-foreground">
                           {t('quiz.remediationUnavailable')}
                         </p>
                         {remediationError ? (
-                          <p className="basis-full text-xs text-red-600 dark:text-red-400">
+                          <p className="basis-full text-xs text-mistake-ink">
                             {t('quiz.remediationActionFailed')}
                           </p>
                         ) : null}
                       </div>
                       {expandedRemediationQuestion === q.id ? (
-                        <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm dark:border-gray-700 dark:bg-gray-900">
+                        <div className="rounded-xl border border-border bg-card p-3 text-sm">
                           <p className="font-medium">{context.question.prompt}</p>
-                          <p className="mt-2 text-gray-600 dark:text-gray-300">
+                          <p className="mt-2 text-muted-foreground">
                             {t('quiz.savedAnswer')}:{' '}
                             {Array.isArray(context.question.answer)
                               ? context.question.answer.join(', ')
                               : context.question.answer || '—'}
                           </p>
                           {context.question.explanation ? (
-                            <p className="mt-2 text-gray-600 dark:text-gray-300">
+                            <p className="mt-2 text-muted-foreground">
                               {context.question.explanation}
                             </p>
                           ) : null}

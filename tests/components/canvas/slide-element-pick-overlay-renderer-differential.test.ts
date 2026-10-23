@@ -167,7 +167,7 @@ describe.each([
       expect(container.querySelector('#screen-element-text-1 > .base-element-text')).not.toBeNull();
     }
 
-    const outline = container.querySelector('.border-violet-400\\/70') as HTMLElement;
+    const outline = container.querySelector('.border-primary\\/70') as HTMLElement;
     expect(outline.style.cssText).toContain('left: 80px');
     expect(outline.style.cssText).toContain('top: 60px');
     expect(outline.style.cssText).toContain('width: 120px');

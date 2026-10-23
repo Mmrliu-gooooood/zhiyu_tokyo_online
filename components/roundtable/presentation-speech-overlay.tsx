@@ -141,35 +141,33 @@ function CollapsedBubblePill({
           'flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-xl shadow-md cursor-pointer transition-all duration-200',
           'hover:shadow-lg motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]',
           bubble.role === 'user'
-            ? 'bg-teal-50/80 dark:bg-teal-950/70 border-teal-200/70 dark:border-teal-800/60'
+            ? 'bg-primary-soft/80 border-primary/30'
             : bubble.role === 'agent'
-              ? 'bg-blue-50/80 dark:bg-blue-950/70 border-blue-200/70 dark:border-blue-800/60'
-              : 'bg-white/80 dark:bg-gray-900/85 border-gray-200/70 dark:border-gray-700/70',
+              ? 'bg-peer-soft/80 border-peer/30'
+              : 'bg-card/80 border-border/70',
         )}
       >
         <div
           className={cn(
             'w-6 h-6 rounded-full overflow-hidden border shrink-0',
             bubble.role === 'user'
-              ? 'border-teal-300 dark:border-teal-600'
+              ? 'border-primary/30'
               : bubble.role === 'agent'
-                ? 'border-blue-300 dark:border-blue-600'
-                : 'border-emerald-200 dark:border-emerald-700',
+                ? 'border-peer/30'
+                : 'border-primary/30',
           )}
         >
           <AvatarDisplay src={bubble.avatar} alt={bubble.name} />
         </div>
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate max-w-[120px]">
+        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
           {bubble.name}
         </span>
-        <ChevronUp className="w-3 h-3 text-gray-400 dark:text-gray-500 shrink-0" />
+        <ChevronUp className="w-3 h-3 text-muted-foreground shrink-0" />
       </button>
       {onPlayPause && (
         <button
           type="button"
-          aria-label={
-            isPaused ? t('classroomWorkspace.play') : t('classroomWorkspace.pause')
-          }
+          aria-label={isPaused ? t('classroomWorkspace.play') : t('classroomWorkspace.pause')}
           onClick={(e) => {
             e.stopPropagation();
             onPlayPause();
@@ -178,16 +176,16 @@ function CollapsedBubblePill({
             'p-2 rounded-full border backdrop-blur-xl shadow-md cursor-pointer transition-all duration-200',
             'hover:shadow-lg motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]',
             bubble.role === 'user'
-              ? 'bg-teal-50/80 dark:bg-teal-950/70 border-teal-200/70 dark:border-teal-800/60 hover:bg-teal-100 dark:hover:bg-teal-900/70'
+              ? 'bg-primary-soft/80 border-primary/30 hover:bg-primary-soft'
               : bubble.role === 'agent'
-                ? 'bg-blue-50/80 dark:bg-blue-950/70 border-blue-200/70 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/70'
-                : 'bg-white/80 dark:bg-gray-900/85 border-gray-200/70 dark:border-gray-700/70 hover:bg-gray-100 dark:hover:bg-gray-800/70',
+                ? 'bg-peer-soft/80 border-peer/30 hover:bg-peer-soft'
+                : 'bg-card/80 border-border/70 hover:bg-muted',
           )}
         >
           {isPaused ? (
-            <Play className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 ml-0.5" />
+            <Play className="w-3.5 h-3.5 text-muted-foreground ml-0.5" />
           ) : (
-            <Pause className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+            <Pause className="w-3.5 h-3.5 text-muted-foreground" />
           )}
         </button>
       )}
@@ -234,10 +232,10 @@ export function PresentationBubbleCard({
         'relative w-full min-w-0 rounded-3xl border backdrop-blur-xl shadow-[0_18px_50px_-20px_rgba(0,0,0,0.45)] overflow-hidden group/bubble',
         onClick && 'cursor-pointer',
         bubble.role === 'user'
-          ? 'bg-teal-50/60 dark:bg-teal-950/55 border-teal-200/70 dark:border-teal-800/60'
+          ? 'bg-primary-soft/60 border-primary/30'
           : bubble.role === 'agent'
-            ? 'bg-blue-50/60 dark:bg-blue-950/55 border-blue-200/70 dark:border-blue-800/60'
-            : 'bg-white/62 dark:bg-gray-900/82 border-gray-200/70 dark:border-gray-700/70',
+            ? 'bg-peer-soft/60 border-peer/30'
+            : 'bg-card/62 border-border/70',
       )}
     >
       <div className="flex items-center gap-3 px-4 pt-3 pb-2">
@@ -245,10 +243,10 @@ export function PresentationBubbleCard({
           className={cn(
             'w-10 h-10 rounded-full overflow-hidden border-2 shadow-sm shrink-0',
             bubble.role === 'user'
-              ? 'border-teal-300 dark:border-teal-600'
+              ? 'border-primary/30'
               : bubble.role === 'agent'
-                ? 'border-blue-300 dark:border-blue-600'
-                : 'border-emerald-200 dark:border-emerald-700',
+                ? 'border-peer/30'
+                : 'border-primary/30',
           )}
         >
           <AvatarDisplay src={bubble.avatar} alt={bubble.name} />
@@ -258,10 +256,10 @@ export function PresentationBubbleCard({
             className={cn(
               'text-[11px] font-semibold uppercase tracking-[0.16em]',
               bubble.role === 'user'
-                ? 'text-teal-500 dark:text-teal-300'
+                ? 'text-primary'
                 : bubble.role === 'agent'
-                  ? 'text-blue-500 dark:text-blue-300'
-                  : 'text-emerald-500 dark:text-emerald-300',
+                  ? 'text-peer'
+                  : 'text-primary',
             )}
           >
             {bubble.role === 'user'
@@ -271,14 +269,12 @@ export function PresentationBubbleCard({
                 : t('settings.agentRoles.teacher')}
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-              {bubble.name}
-            </div>
+            <div className="text-sm font-medium text-foreground truncate">{bubble.name}</div>
             {audioIndicatorState === 'generating' && (
-              <Loader2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="w-3.5 h-3.5 text-review animate-spin motion-reduce:animate-none" />
             )}
             {audioIndicatorState === 'playing' && (
-              <Volume2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+              <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
             )}
           </div>
         </div>
@@ -290,7 +286,7 @@ export function PresentationBubbleCard({
               e.stopPropagation();
               onCollapse();
             }}
-            className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors duration-200 cursor-pointer z-10"
+            className="absolute top-2 right-2 p-1.5 rounded-full text-muted-foreground hover:text-muted-foreground hover:bg-muted/80 transition-colors duration-200 cursor-pointer z-10"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
@@ -308,19 +304,19 @@ export function PresentationBubbleCard({
                 className={cn(
                   'w-1.5 h-1.5 rounded-full',
                   bubble.role === 'user'
-                    ? 'bg-teal-400 dark:bg-teal-500'
+                    ? 'bg-primary'
                     : bubble.role === 'agent'
-                      ? 'bg-blue-400 dark:bg-blue-500'
-                      : 'bg-emerald-400 dark:bg-emerald-500',
+                      ? 'bg-peer'
+                      : 'bg-primary',
                 )}
               />
             ))}
           </div>
         ) : (
-          <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-gray-800 dark:text-gray-100">
+          <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-foreground">
             {bubble.text}
             {bubble.isTopicPending && (
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 ml-1 align-middle" />
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-mistake ml-1 align-middle" />
             )}
           </p>
         )}
@@ -342,9 +338,9 @@ export function PresentationBubbleCard({
                   e.stopPropagation();
                   onClick?.();
                 }}
-                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-emerald-100 dark:group-hover/bubble:bg-emerald-900/50 transition-all duration-300 cursor-pointer"
+                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-card/40 backdrop-blur-sm group-hover/bubble:bg-primary-soft transition-all duration-300 cursor-pointer"
               >
-                <Play className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover/bubble:text-emerald-600 dark:group-hover/bubble:text-emerald-400 ml-0.5" />
+                <Play className="w-3.5 h-3.5 text-muted-foreground group-hover/bubble:text-primary-ink ml-0.5" />
               </button>
             );
           }
@@ -358,9 +354,9 @@ export function PresentationBubbleCard({
                   e.stopPropagation();
                   onClick?.();
                 }}
-                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-emerald-100 dark:group-hover/bubble:bg-emerald-900/50 transition-all duration-300 cursor-pointer"
+                className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-card/40 backdrop-blur-sm group-hover/bubble:bg-primary-soft transition-all duration-300 cursor-pointer"
               >
-                <Repeat className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover/bubble:text-emerald-600 dark:group-hover/bubble:text-emerald-400" />
+                <Repeat className="w-3.5 h-3.5 text-muted-foreground group-hover/bubble:text-primary-ink" />
               </button>
             );
           }
@@ -369,17 +365,15 @@ export function PresentationBubbleCard({
           return (
             <button
               type="button"
-              aria-label={
-                isPaused ? t('classroomWorkspace.play') : t('classroomWorkspace.pause')
-              }
+              aria-label={isPaused ? t('classroomWorkspace.play') : t('classroomWorkspace.pause')}
               onClick={(e) => {
                 e.stopPropagation();
                 onClick?.();
               }}
-              className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm group-hover/bubble:bg-emerald-100 dark:group-hover/bubble:bg-emerald-900/50 transition-all duration-300 cursor-pointer"
+              className="absolute right-2.5 bottom-2.5 z-20 p-1.5 rounded-full bg-card/40 backdrop-blur-sm group-hover/bubble:bg-primary-soft transition-all duration-300 cursor-pointer"
             >
               {isPaused ? (
-                <Play className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 group-hover/bubble:text-emerald-600 dark:group-hover/bubble:text-emerald-400 ml-0.5" />
+                <Play className="w-3.5 h-3.5 text-review group-hover/bubble:text-primary-ink ml-0.5" />
               ) : (
                 <>
                   {/* Breathing bars — visible by default, hidden on hover */}
@@ -413,7 +407,7 @@ export function PresentationBubbleCard({
                     />
                   </div>
                   {/* Pause icon on hover */}
-                  <Pause className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hidden group-hover/bubble:block" />
+                  <Pause className="w-3.5 h-3.5 text-primary-ink hidden group-hover/bubble:block" />
                 </>
               )}
             </button>

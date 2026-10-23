@@ -17,14 +17,11 @@ export function ZhiyuPlaybackBar({
     <div
       data-testid="zhiyu-playback-bar"
       className={cn(
-        'flex h-12 items-center border-t border-border/70 bg-card/95 px-3 shadow-[0_-8px_24px_rgba(30,55,45,0.04)] backdrop-blur-xl transition-opacity dark:bg-card/95',
+        'flex h-12 items-center border-t border-border/70 bg-card/95 px-3 shadow-[0_-8px_24px_rgba(20,26,46,0.04)] backdrop-blur-xl transition-opacity dark:bg-card/95',
         !visible && 'pointer-events-none opacity-0',
       )}
     >
-      <CanvasToolbar
-        {...toolbarProps}
-        className={cn('h-full w-full px-1', className)}
-      />
+      <CanvasToolbar {...toolbarProps} className={cn('h-full w-full px-1', className)} />
     </div>
   );
 }

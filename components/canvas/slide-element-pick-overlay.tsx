@@ -286,7 +286,7 @@ export function SlideElementPickOverlay({ scene, onPick, onCancel }: SlideElemen
       {outlines.map((outline) => (
         <div
           key={outline.id}
-          className="absolute rounded-sm border border-violet-400/70 bg-violet-400/[0.04] pointer-events-none"
+          className="absolute rounded-sm border border-primary/70 bg-primary/[0.04] pointer-events-none"
           style={{
             left: outline.left,
             top: outline.top,
@@ -296,14 +296,14 @@ export function SlideElementPickOverlay({ scene, onPick, onCancel }: SlideElemen
         />
       ))}
 
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-gray-950/80 px-3 py-1.5 text-xs font-medium text-white shadow-lg pointer-events-none">
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground/80 px-3 py-1.5 text-xs font-medium text-background shadow-lg pointer-events-none">
         {t('chat.elementReference.instruction')}
       </div>
 
       {fallbackElements.length > 0 && (
         <button
           type="button"
-          className="absolute bottom-3 left-3 rounded-lg border border-violet-200 bg-white/95 px-3 py-1.5 text-xs font-medium text-violet-700 shadow-lg dark:border-violet-700 dark:bg-gray-900/95 dark:text-violet-300"
+          className="absolute bottom-3 left-3 rounded-lg border border-primary/30 bg-card/95 px-3 py-1.5 text-xs font-medium text-primary-ink shadow-lg"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.preventDefault();
@@ -320,7 +320,7 @@ export function SlideElementPickOverlay({ scene, onPick, onCancel }: SlideElemen
         <div
           role="menu"
           data-testid="slide-element-pick-candidates"
-          className="absolute z-10 max-h-44 w-52 overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur dark:border-gray-700 dark:bg-gray-900/95"
+          className="absolute z-10 max-h-44 w-52 overflow-y-auto rounded-xl border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur"
           style={showFallback ? { left: 12, bottom: 48 } : menuPosition}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
@@ -335,16 +335,16 @@ export function SlideElementPickOverlay({ scene, onPick, onCancel }: SlideElemen
                   type="button"
                   role="menuitem"
                   key={id}
-                  className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-violet-50 dark:hover:bg-violet-950/40"
+                  className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-primary-soft"
                   onClick={() => pickById(id)}
                 >
-                  <span className="shrink-0 font-semibold text-violet-600 dark:text-violet-400">
+                  <span className="shrink-0 font-semibold text-primary-ink">
                     {presentation.typeLabel}
                   </span>
-                  <span aria-hidden="true" className="shrink-0 text-gray-400">
+                  <span aria-hidden="true" className="shrink-0 text-muted-foreground">
                     ·
                   </span>
-                  <span className="min-w-0 truncate text-gray-600 dark:text-gray-300">
+                  <span className="min-w-0 truncate text-muted-foreground">
                     {presentation.displaySummary}
                   </span>
                 </button>

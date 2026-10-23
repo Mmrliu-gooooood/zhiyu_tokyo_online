@@ -132,7 +132,7 @@ export function VideoExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md gap-5 rounded-2xl border-border/80 bg-background p-6 shadow-[0_24px_70px_rgba(20,30,25,0.16)]">
+      <DialogContent className="max-w-md gap-5 rounded-2xl border-border/80 bg-background p-6 shadow-[0_24px_70px_rgba(20,26,46,0.16)]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--zhiyu-ai-soft)] text-[var(--zhiyu-ai)]">

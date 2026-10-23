@@ -65,12 +65,12 @@ export interface CanvasToolbarProps {
 const ctrlBtn = cn(
   'relative w-7 h-7 rounded-md flex items-center justify-center',
   'transition-all duration-150 outline-none cursor-pointer',
-  'hover:bg-gray-500/[0.08] dark:hover:bg-gray-400/[0.08] active:scale-90',
+  'hover:bg-muted-foreground/[0.08] active:scale-90',
 );
 
 /* Subtle separator */
 function CtrlDivider() {
-  return <div className="w-px h-3 bg-gray-200/80 dark:bg-gray-700/60 mx-0.5 shrink-0" />;
+  return <div className="w-px h-3 bg-muted/80 mx-0.5 shrink-0" />;
 }
 
 /* Volume icon based on level */
@@ -166,16 +166,14 @@ export function CanvasToolbar({
             className={cn(
               ctrlBtn,
               'w-6 h-6',
-              sidebarCollapsed
-                ? 'text-gray-400 dark:text-gray-500'
-                : 'text-gray-600 dark:text-gray-300',
+              sidebarCollapsed ? 'text-muted-foreground' : 'text-muted-foreground',
             )}
             aria-label={t('classroomWorkspace.toggleSceneRail')}
           >
             <LayoutList className="w-3.5 h-3.5" />
           </button>
         )}
-        <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums select-none font-medium">
+        <span className="text-[11px] text-muted-foreground tabular-nums select-none font-medium">
           {currentSceneIndex + 1}
           <span className="opacity-35 mx-px">/</span>
           {scenesCount}
@@ -191,7 +189,7 @@ export function CanvasToolbar({
             'inline-flex items-center gap-0.5 px-1 h-7',
             isPresenting
               ? '' /* Single visual layer in fullscreen — buttons sit inside outer pill directly */
-              : 'bg-gray-100/60 dark:bg-gray-800/60 rounded-lg',
+              : 'bg-muted/60 rounded-lg',
           )}
         >
           {/* Volume with vertical popover slider */}
@@ -209,10 +207,10 @@ export function CanvasToolbar({
                   ctrlBtn,
                   'w-6 h-6',
                   !ttsEnabled
-                    ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                    ? 'text-subtle-foreground cursor-not-allowed'
                     : ttsMuted
-                      ? 'text-red-500 dark:text-red-400'
-                      : 'text-gray-500 dark:text-gray-400',
+                      ? 'text-mistake'
+                      : 'text-muted-foreground',
                 )}
                 aria-label={
                   ttsMuted ? t('classroomWorkspace.unmute') : t('classroomWorkspace.mute')
@@ -229,8 +227,8 @@ export function CanvasToolbar({
                   volumeHover && ttsEnabled && 'pointer-events-auto opacity-100',
                 )}
               >
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-2 py-2.5 flex flex-col items-center gap-1.5">
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums font-medium select-none">
+                <div className="bg-card border border-border rounded-lg shadow-lg px-2 py-2.5 flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground tabular-nums font-medium select-none">
                     {Math.round(effectiveVolume * 100)}
                   </span>
                   <input
@@ -247,7 +245,7 @@ export function CanvasToolbar({
                     className={cn(
                       'appearance-none cursor-pointer',
                       'h-16 w-1 rounded-full',
-                      'bg-gray-200 dark:bg-gray-600',
+                      'bg-muted',
                       '[writing-mode:vertical-lr] [direction:rtl]',
                       '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3',
                       '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary',
@@ -258,7 +256,7 @@ export function CanvasToolbar({
                   />
                 </div>
                 {/* Arrow pointing down */}
-                <div className="w-2 h-2 bg-white dark:bg-gray-800 border-b border-r border-gray-200 dark:border-gray-700 rotate-45 -mt-[5px]" />
+                <div className="w-2 h-2 bg-card border-b border-r border-border rotate-45 -mt-[5px]" />
               </div>
             </div>
           )}
@@ -277,7 +275,7 @@ export function CanvasToolbar({
                       'active:scale-90',
                       playbackSpeed !== 1
                         ? 'bg-primary/10 text-primary'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+                        : 'text-muted-foreground hover:text-foreground',
                     )}
                     aria-label={t('classroomWorkspace.speed')}
                   >
@@ -300,7 +298,7 @@ export function CanvasToolbar({
               disabled={!canGoPrev}
               className={cn(
                 ctrlBtn,
-                'w-6 h-6 text-gray-500 dark:text-gray-400 disabled:opacity-20 disabled:pointer-events-none',
+                'w-6 h-6 text-muted-foreground disabled:opacity-20 disabled:pointer-events-none',
               )}
               aria-label={t('classroomWorkspace.previousScene')}
             >
@@ -318,13 +316,13 @@ export function CanvasToolbar({
                 }}
                 className={cn(
                   'flex items-center gap-1.5 h-6 px-2.5 rounded-md',
-                  'bg-red-500/10 dark:bg-red-400/10 text-red-600 dark:text-red-400',
+                  'bg-mistake/10 text-mistake-ink',
                   'text-[11px] font-semibold whitespace-nowrap',
-                  'hover:bg-red-500/20 dark:hover:bg-red-400/20 active:scale-95 transition-all cursor-pointer',
+                  'hover:bg-mistake/20 active:scale-95 transition-all cursor-pointer',
                 )}
                 title={t('roundtable.stopDiscussion')}
               >
-                <span className="inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
+                <span className="inline-flex rounded-full h-1.5 w-1.5 bg-mistake" />
                 {t('roundtable.stopDiscussion')}
               </button>
               {isSoftClosing && onContinueDiscussion && (
@@ -338,7 +336,7 @@ export function CanvasToolbar({
                 >
                   {t('roundtable.softClosing')}
                   {remainingSoftCloseSeconds !== undefined && (
-                    <span className="text-[9px] font-medium tabular-nums text-gray-400 dark:text-gray-500">
+                    <span className="text-[9px] font-medium tabular-nums text-muted-foreground">
                       {remainingSoftCloseSeconds}s
                     </span>
                   )}
@@ -351,9 +349,7 @@ export function CanvasToolbar({
               className={cn(
                 ctrlBtn,
                 'w-7 h-6',
-                engineState === 'playing'
-                  ? 'text-primary'
-                  : 'text-gray-500 dark:text-gray-400',
+                engineState === 'playing' ? 'text-primary' : 'text-muted-foreground',
               )}
               aria-label={
                 engineState === 'playing'
@@ -376,7 +372,7 @@ export function CanvasToolbar({
               disabled={!canGoNext}
               className={cn(
                 ctrlBtn,
-                'w-6 h-6 text-gray-500 dark:text-gray-400 disabled:opacity-20 disabled:pointer-events-none',
+                'w-6 h-6 text-muted-foreground disabled:opacity-20 disabled:pointer-events-none',
               )}
               aria-label={t('classroomWorkspace.nextScene')}
             >
@@ -396,9 +392,7 @@ export function CanvasToolbar({
                     className={cn(
                       ctrlBtn,
                       'w-8 h-6',
-                      autoPlayLecture
-                        ? 'text-primary'
-                        : 'text-gray-500 dark:text-gray-400',
+                      autoPlayLecture ? 'text-primary' : 'text-muted-foreground',
                     )}
                     aria-label={t('classroomWorkspace.autoPlay')}
                   >
@@ -421,9 +415,7 @@ export function CanvasToolbar({
             className={cn(
               ctrlBtn,
               'w-6 h-6',
-              whiteboardOpen
-                ? 'text-primary'
-                : 'text-gray-500 dark:text-gray-400',
+              whiteboardOpen ? 'text-primary' : 'text-muted-foreground',
             )}
             title={whiteboardOpen ? t('whiteboard.minimize') : t('whiteboard.open')}
           >
@@ -445,7 +437,7 @@ export function CanvasToolbar({
                 'relative flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-all',
                 elementPickActive
                   ? 'bg-primary/15 text-primary ring-1 ring-primary/35'
-                  : 'text-gray-500 hover:bg-gray-500/[0.08] dark:text-gray-400',
+                  : 'text-muted-foreground hover:bg-muted-foreground/[0.08]',
                 !canPickSlideElement && 'cursor-not-allowed opacity-35',
               )}
               aria-label={t('chat.elementReference.button')}
@@ -472,9 +464,7 @@ export function CanvasToolbar({
             className={cn(
               ctrlBtn,
               'w-6 h-6',
-              isPresenting
-                ? 'text-primary'
-                : 'text-gray-500 dark:text-gray-400',
+              isPresenting ? 'text-primary' : 'text-muted-foreground',
             )}
             aria-label={presentationLabel}
             title={presentationLabel}
@@ -492,9 +482,7 @@ export function CanvasToolbar({
             className={cn(
               ctrlBtn,
               'w-6 h-6',
-              chatCollapsed
-                ? 'text-gray-400 dark:text-gray-500'
-                : 'text-gray-600 dark:text-gray-300',
+              chatCollapsed ? 'text-muted-foreground' : 'text-muted-foreground',
             )}
             aria-label={t('classroomWorkspace.toggleInteraction')}
           >

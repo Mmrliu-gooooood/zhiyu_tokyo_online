@@ -24,7 +24,7 @@ export function ZhiyuClassroomState({
       aria-live={kind === 'error' ? 'assertive' : 'polite'}
       className="flex min-h-0 flex-1 items-center justify-center bg-background px-6"
     >
-      <div className="flex w-full max-w-md flex-col items-center rounded-3xl border border-border/70 bg-card px-8 py-10 text-center shadow-[0_20px_50px_rgba(29,58,46,0.08)]">
+      <div className="flex w-full max-w-md flex-col items-center rounded-3xl border border-border/70 bg-card px-8 py-10 text-center shadow-[0_20px_50px_rgba(20,26,46,0.08)]">
         <ZhiyuLockup size="sm" className="mb-8" />
         <div
           className={cn(

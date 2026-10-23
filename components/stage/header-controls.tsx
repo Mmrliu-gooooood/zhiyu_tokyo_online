@@ -117,9 +117,7 @@ export function HeaderControls({
   if (!showGlobalControls && !showCourseActions) {
     return onToggleEditMode ? (
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-          {t('stage.proMode')}
-        </span>
+        <span className="text-sm font-medium text-muted-foreground">{t('stage.proMode')}</span>
         <Switch
           checked={proChecked}
           onCheckedChange={onToggleEditMode}
@@ -143,8 +141,8 @@ export function HeaderControls({
         className={cn(
           'shrink-0 flex items-center gap-1 backdrop-blur-md shadow-sm rounded-full',
           compact
-            ? 'bg-zinc-100/70 dark:bg-zinc-800/70 border border-zinc-200/60 dark:border-zinc-700/60 px-1.5 py-1'
-            : 'bg-white/60 dark:bg-gray-800/60 border border-gray-100/50 dark:border-gray-700/50 px-2 py-1.5',
+            ? 'bg-muted/70 border border-border/60 px-1.5 py-1'
+            : 'bg-card/60 border border-border/50 px-2 py-1.5',
         )}
       >
         {/* Language — Radix DropdownMenu so its menu portals to body
@@ -156,7 +154,7 @@ export function HeaderControls({
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button
-              className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all group"
+              className="p-2 rounded-full text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-sm transition-all group"
               aria-label={t('settings.theme')}
             >
               {theme === 'light' && <Sun className="w-4 h-4" />}
@@ -169,8 +167,7 @@ export function HeaderControls({
               onSelect={() => setTheme('light')}
               className={cn(
                 'cursor-pointer gap-2',
-                theme === 'light' &&
-                  'bg-secondary text-primary',
+                theme === 'light' && 'bg-secondary text-primary',
               )}
             >
               <Sun className="w-4 h-4" />
@@ -180,8 +177,7 @@ export function HeaderControls({
               onSelect={() => setTheme('dark')}
               className={cn(
                 'cursor-pointer gap-2',
-                theme === 'dark' &&
-                  'bg-secondary text-primary',
+                theme === 'dark' && 'bg-secondary text-primary',
               )}
             >
               <Moon className="w-4 h-4" />
@@ -191,8 +187,7 @@ export function HeaderControls({
               onSelect={() => setTheme('system')}
               className={cn(
                 'cursor-pointer gap-2',
-                theme === 'system' &&
-                  'bg-secondary text-primary',
+                theme === 'system' && 'bg-secondary text-primary',
               )}
             >
               <Monitor className="w-4 h-4" />
@@ -204,7 +199,7 @@ export function HeaderControls({
         {/* Settings */}
         <button
           onClick={() => setSettingsOpen(true)}
-          className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all group"
+          className="p-2 rounded-full text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-sm transition-all group"
           aria-label={t('settings.title')}
         >
           <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
@@ -222,11 +217,9 @@ export function HeaderControls({
         <label
           className={cn(
             'shrink-0 inline-flex items-center gap-2.5 rounded-full border shadow-sm transition-colors duration-200',
-            'bg-white/60 dark:bg-gray-800/60 backdrop-blur-md',
+            'bg-card/60 backdrop-blur-md',
             compact ? 'h-8 px-2.5' : 'h-9 px-3',
-            proChecked
-              ? 'border-primary/60'
-              : 'border-gray-100/50 dark:border-gray-700/50',
+            proChecked ? 'border-primary/60' : 'border-border/50',
             !canEdit && mode !== 'edit'
               ? 'opacity-60 cursor-not-allowed'
               : 'cursor-pointer hover:border-primary/45',
@@ -245,9 +238,7 @@ export function HeaderControls({
           <span
             className={cn(
               'text-[11px] font-bold uppercase tracking-[0.14em] tabular-nums select-none transition-colors duration-200',
-              proChecked
-                ? 'text-primary'
-                : 'text-gray-500 dark:text-gray-400',
+              proChecked ? 'text-primary' : 'text-muted-foreground',
             )}
           >
             {t('edit.proMode')}
@@ -278,8 +269,8 @@ export function HeaderControls({
             className={cn(
               'shrink-0 p-2 rounded-full transition-all',
               canExport && !isExporting && !isExportingZip && !isExportingScript
-                ? 'text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm'
-                : 'text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-50',
+                ? 'text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-sm'
+                : 'text-subtle-foreground cursor-not-allowed opacity-50',
             )}
             aria-label={exportLabel}
           >
@@ -301,7 +292,7 @@ export function HeaderControls({
             className="cursor-pointer gap-2.5"
             title={canExport ? undefined : t('export.mediaPending')}
           >
-            <FileDown className="w-4 h-4 text-gray-400 shrink-0" />
+            <FileDown className="w-4 h-4 text-muted-foreground shrink-0" />
             <span>{t('export.pptx')}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -310,10 +301,10 @@ export function HeaderControls({
             className="cursor-pointer gap-2.5"
             title={canExport ? undefined : t('export.mediaPending')}
           >
-            <Package className="w-4 h-4 text-gray-400 shrink-0" />
+            <Package className="w-4 h-4 text-muted-foreground shrink-0" />
             <div>
               <div>{t('export.resourcePack')}</div>
-              <div className="text-[11px] text-gray-400 dark:text-gray-500">
+              <div className="text-[11px] text-muted-foreground">
                 {t('export.resourcePackDesc')}
               </div>
             </div>
@@ -324,10 +315,10 @@ export function HeaderControls({
             className="cursor-pointer gap-2.5"
             title={canExport ? undefined : t('export.mediaPending')}
           >
-            <Archive className="w-4 h-4 text-gray-400 shrink-0" />
+            <Archive className="w-4 h-4 text-muted-foreground shrink-0" />
             <div>
               <div>{t('export.classroomZip')}</div>
-              <div className="text-[11px] text-gray-400 dark:text-gray-500">
+              <div className="text-[11px] text-muted-foreground">
                 {t('export.classroomZipDesc')}
               </div>
             </div>
@@ -338,7 +329,7 @@ export function HeaderControls({
               title={canExport ? undefined : t('export.mediaPending')}
               className="cursor-pointer gap-2.5"
             >
-              <NotebookText className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />
+              <NotebookText className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
               <span>{t('export.script')}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="min-w-[240px]">
@@ -347,10 +338,13 @@ export function HeaderControls({
                 onSelect={exportScriptMd}
                 className="cursor-pointer gap-2.5"
               >
-                <NotebookText className="w-4 h-4 text-gray-400 shrink-0" aria-hidden="true" />
+                <NotebookText
+                  className="w-4 h-4 text-muted-foreground shrink-0"
+                  aria-hidden="true"
+                />
                 <div>
                   <div>{t('export.scriptMd')}</div>
-                  <div className="text-[11px] text-gray-400 dark:text-gray-500">
+                  <div className="text-[11px] text-muted-foreground">
                     {t('export.scriptMdDesc')}
                   </div>
                 </div>
@@ -360,13 +354,10 @@ export function HeaderControls({
                 onSelect={exportScriptDocx}
                 className="cursor-pointer gap-2.5"
               >
-                <NotebookText
-                  className="w-4 h-4 text-gray-400 dark:text-gray-500"
-                  aria-hidden="true"
-                />
+                <NotebookText className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <div>{t('export.scriptDocx')}</div>
-                  <div className="text-[11px] text-gray-400 dark:text-gray-500">
+                  <div className="text-[11px] text-muted-foreground">
                     {t('export.scriptDocxDesc')}
                   </div>
                 </div>
@@ -377,15 +368,13 @@ export function HeaderControls({
             <DropdownMenuItem
               disabled={!canExport}
               onSelect={() => setVideoDialogOpen(true)}
-              className="cursor-pointer gap-2.5 border-t border-gray-200 dark:border-gray-700"
+              className="cursor-pointer gap-2.5 border-t border-border"
               title={canExport ? undefined : t('export.mediaPending')}
             >
-              <Film className="w-4 h-4 text-gray-400 shrink-0" />
+              <Film className="w-4 h-4 text-muted-foreground shrink-0" />
               <div>
                 <div>{t('export.video')}</div>
-                <div className="text-[11px] text-gray-400 dark:text-gray-500">
-                  {t('export.videoDesc')}
-                </div>
+                <div className="text-[11px] text-muted-foreground">{t('export.videoDesc')}</div>
               </div>
             </DropdownMenuItem>
           )}
