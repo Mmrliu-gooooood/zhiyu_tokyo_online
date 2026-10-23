@@ -128,7 +128,8 @@
     "greetingMorning": "Chào buổi sáng, {{name}}",
     "greetingAfternoon": "Chào buổi chiều, {{name}}",
     "greetingEvening": "Chào buổi tối, {{name}}",
-    "allSpaces": "Tất cả môn học"
+    "allSpaces": "Tất cả môn học",
+    "allCourses": "Tất cả khóa học ({{count}})"
   },
   "toolbar": {
     "pdfParser": "Bộ đọc PDF",

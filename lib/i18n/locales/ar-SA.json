@@ -128,7 +128,8 @@
     "greetingMorning": "صباح الخير، {{name}}",
     "greetingAfternoon": "مساء الخير، {{name}}",
     "greetingEvening": "مساء الخير، {{name}}",
-    "allSpaces": "كل المواد"
+    "allSpaces": "كل المواد",
+    "allCourses": "كل الدورات ({{count}})"
   },
   "toolbar": {
     "pdfParser": "محلل PDF",

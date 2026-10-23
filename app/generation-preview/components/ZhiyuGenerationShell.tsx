@@ -43,18 +43,23 @@ export function ZhiyuGenerationShell({
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 py-5 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:px-7 lg:py-7">
-        <section className="rounded-[22px] border border-border/70 bg-card p-5 shadow-[0_16px_44px_rgba(20,26,46,0.06)] md:p-6">
+      {/* On desktop the two panels keep one fixed height for the whole run, so
+          changing titles, previews and status lines never resize the page;
+          anything taller scrolls inside its panel. */}
+      <main className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 py-5 lg:h-[calc(100dvh-4rem)] lg:min-h-[640px] lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:px-7 lg:py-7">
+        <section className="rounded-[22px] border border-border/70 bg-card p-5 shadow-[0_16px_44px_rgba(20,26,46,0.06)] md:p-6 lg:min-h-0 lg:overflow-y-auto">
           <div className="mb-5">
             {!terminal ? (
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-ai">
                 {t('generation.aiWorking')}
               </p>
             ) : null}
-            <h1 className="font-display text-xl font-bold md:text-2xl">
+            {/* Two lines are reserved for the title and the detail so a shorter
+                status does not pull the progress list up. */}
+            <h1 className="line-clamp-2 min-h-[2lh] font-display text-xl font-bold md:text-2xl">
               {statusTitle ?? t('generation.aiWorking')}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            <p className="mt-2 line-clamp-2 min-h-[2lh] text-sm leading-6 text-muted-foreground">
               {statusDetail ?? t('generation.generatingOutlinesDesc')}
             </p>
           </div>
@@ -64,7 +69,7 @@ export function ZhiyuGenerationShell({
 
         <section
           data-testid="zhiyu-generation-preview"
-          className="min-h-[480px] overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-[0_16px_44px_rgba(20,26,46,0.06)]"
+          className="min-h-[480px] overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-[0_16px_44px_rgba(20,26,46,0.06)] lg:min-h-0 lg:overflow-y-auto"
         >
           {preview}
         </section>

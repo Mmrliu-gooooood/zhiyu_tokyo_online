@@ -128,7 +128,8 @@
     "greetingMorning": "おはようございます、{{name}}",
     "greetingAfternoon": "こんにちは、{{name}}",
     "greetingEvening": "こんばんは、{{name}}",
-    "allSpaces": "すべての教科"
+    "allSpaces": "すべての教科",
+    "allCourses": "すべてのコース（{{count}}）"
   },
   "toolbar": {
     "pdfParser": "パーサー",

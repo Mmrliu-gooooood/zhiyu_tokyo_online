@@ -128,7 +128,8 @@
     "greetingMorning": "좋은 아침이에요, {{name}}",
     "greetingAfternoon": "좋은 오후예요, {{name}}",
     "greetingEvening": "좋은 저녁이에요, {{name}}",
-    "allSpaces": "모든 과목"
+    "allSpaces": "모든 과목",
+    "allCourses": "모든 강의 ({{count}})"
   },
   "toolbar": {
     "pdfParser": "파서",

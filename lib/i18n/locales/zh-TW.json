@@ -128,7 +128,8 @@
     "greetingMorning": "早安，{{name}}",
     "greetingAfternoon": "午安，{{name}}",
     "greetingEvening": "晚安，{{name}}",
-    "allSpaces": "全部學科"
+    "allSpaces": "全部學科",
+    "allCourses": "全部課程（{{count}}）"
   },
   "toolbar": {
     "pdfParser": "解析器",

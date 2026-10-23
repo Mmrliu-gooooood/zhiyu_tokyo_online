@@ -17,7 +17,7 @@ import {
   Home,
   Layers,
   Plus,
-  Sparkles,
+  Zap,
   Users,
 } from 'lucide-react';
 
@@ -137,12 +137,13 @@ function AppSidebar({ nav, ultra }: { nav: StudyNav; ultra: Ultra }) {
   const hiddenCount = spaces.length - visibleSpaces.length;
 
   return (
-    // The outer column paints the sidebar's surface the full page height; the
-    // nav inside it sticks to the viewport.
-    <div className="hidden w-[248px] shrink-0 border-r border-border bg-card lg:block">
+    // The outer column reserves the sidebar's width in the layout; the nav is
+    // fixed to the viewport. (Not sticky: when a menu locks page scroll, <body>
+    // becomes the scroll container and a sticky nav would jump to its top.)
+    <div className="hidden w-[248px] shrink-0 lg:block">
       <nav
         aria-label={t('shell.navLabel')}
-        className="sticky top-0 flex h-[100dvh] flex-col gap-1 overflow-y-auto px-3.5 py-4"
+        className="fixed inset-y-0 left-0 z-30 flex w-[248px] flex-col gap-1 overflow-y-auto border-r border-border bg-card px-3.5 py-4"
       >
         <Link
           href="/"
@@ -173,7 +174,7 @@ function AppSidebar({ nav, ultra }: { nav: StudyNav; ultra: Ultra }) {
             data-testid="pro-mode-enter"
             className={itemClass(false)}
           >
-            <Sparkles className="size-[18px]" aria-hidden />
+            <Zap className="size-[18px]" aria-hidden />
             <span className="flex-1 text-left">{t('shell.ultra')}</span>
             <UltraBadge />
           </button>
@@ -267,7 +268,11 @@ function AppSidebar({ nav, ultra }: { nav: StudyNav; ultra: Ultra }) {
             {item.label}
           </Link>
         ))}
-        <Link href="/#library" className={itemClass(false)}>
+        <Link
+          href="/courses"
+          aria-current={pathname === '/courses' ? 'page' : undefined}
+          className={itemClass(pathname === '/courses')}
+        >
           <Layers className="size-[18px]" aria-hidden />
           {t('shell.library')}
         </Link>

@@ -128,7 +128,8 @@
     "greetingMorning": "早上好，{{name}}",
     "greetingAfternoon": "下午好，{{name}}",
     "greetingEvening": "晚上好，{{name}}",
-    "allSpaces": "全部学科"
+    "allSpaces": "全部学科",
+    "allCourses": "全部课程（{{count}}）"
   },
   "toolbar": {
     "pdfParser": "解析器",

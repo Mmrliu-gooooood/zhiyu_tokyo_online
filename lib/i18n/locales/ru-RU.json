@@ -128,7 +128,8 @@
     "greetingMorning": "Доброе утро, {{name}}",
     "greetingAfternoon": "Добрый день, {{name}}",
     "greetingEvening": "Добрый вечер, {{name}}",
-    "allSpaces": "Все предметы"
+    "allSpaces": "Все предметы",
+    "allCourses": "Все курсы ({{count}})"
   },
   "toolbar": {
     "pdfParser": "Парсер",

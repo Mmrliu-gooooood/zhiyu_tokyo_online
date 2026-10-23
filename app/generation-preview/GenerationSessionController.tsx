@@ -2055,7 +2055,7 @@ function GenerationPreviewContent() {
           </Button>
         }
         preview={
-          <div className="flex min-h-[480px] flex-col">
+          <div className="flex h-full min-h-[480px] flex-col">
             <div className="flex items-center justify-between gap-4 border-b border-border/70 px-5 py-4 md:px-7">
               <div className="min-w-0">
                 {!jobPresentation?.terminal ? (
@@ -2073,7 +2073,9 @@ function GenerationPreviewContent() {
             </div>
 
             <div className="flex flex-1 flex-col items-center justify-center bg-muted/25 px-5 py-8 md:px-8">
-              <div className="flex min-h-64 w-full max-w-2xl items-center justify-center rounded-[18px] border border-border/70 bg-background p-6 shadow-[0_12px_36px_rgba(20,26,46,0.07)]">
+              {/* On desktop one 16:9 stage holds every phase (topic cards, slide
+                  previews, placeholders), so the frame keeps its size between them. */}
+              <div className="flex min-h-64 w-full max-w-2xl items-center justify-center overflow-hidden rounded-[18px] border border-border/70 bg-background p-6 shadow-[0_12px_36px_rgba(20,26,46,0.07)] lg:aspect-video lg:min-h-0">
                 <AnimatePresence mode="popLayout">
                   {error ? (
                     <motion.div
@@ -2090,7 +2092,7 @@ function GenerationPreviewContent() {
                       key={currentGeneratedScene.id}
                       initial={{ scale: 0.96, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="aspect-video w-full max-w-2xl overflow-hidden rounded-xl bg-card shadow-sm"
+                      className="aspect-video w-full max-w-full overflow-hidden rounded-xl bg-card shadow-sm lg:h-full lg:w-auto"
                     >
                       <SlideThumbnail
                         slide={currentGeneratedScene.content.canvas}
@@ -2142,12 +2144,13 @@ function GenerationPreviewContent() {
               </div>
 
               <div className="mt-6 w-full max-w-2xl rounded-2xl border border-border/70 bg-card px-5 py-4">
-                <p className="text-sm leading-6 text-muted-foreground">
+                <p className="line-clamp-2 min-h-[2lh] text-sm leading-6 text-muted-foreground">
                   {jobStatusDetail ??
                     (error ? error : statusMessage || t(activeStepText.description))}
                 </p>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
+                {/* The action row keeps its height while its buttons come and go. */}
+                <div className="mt-4 flex min-h-9 flex-wrap items-center gap-2">
                   {truncationWarnings.length > 0 && !error ? (
                     <Tooltip>
                       <TooltipTrigger asChild>

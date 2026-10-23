@@ -128,7 +128,8 @@
     "greetingMorning": "Buenos días, {{name}}",
     "greetingAfternoon": "Buenas tardes, {{name}}",
     "greetingEvening": "Buenas noches, {{name}}",
-    "allSpaces": "Todas las materias"
+    "allSpaces": "Todas las materias",
+    "allCourses": "Todos los cursos ({{count}})"
   },
   "toolbar": {
     "pdfParser": "Analizador",
