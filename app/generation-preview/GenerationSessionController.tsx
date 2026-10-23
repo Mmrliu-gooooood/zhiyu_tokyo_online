@@ -1851,7 +1851,7 @@ function GenerationPreviewContent() {
   if (!session) {
     return (
       <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md rounded-[22px] border-border/70 p-8 shadow-[0_16px_44px_rgba(30,48,39,0.08)]">
+        <Card className="w-full max-w-md rounded-[22px] border-border/70 p-8 shadow-[0_16px_44px_rgba(20,26,46,0.08)]">
           <div className="text-center space-y-4">
             <ZhiyuLockup className="mb-7 justify-center" />
             <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted/60">
@@ -1951,9 +1951,9 @@ function GenerationPreviewContent() {
                     className={cn(
                       'h-1.5 rounded-full transition-all duration-500',
                       idx < outlineStepIndex
-                        ? 'w-1.5 bg-blue-500/30'
+                        ? 'w-1.5 bg-primary/30'
                         : idx === outlineStepIndex
-                          ? 'w-8 bg-blue-500'
+                          ? 'w-8 bg-primary'
                           : 'w-1.5 bg-muted/50',
                     )}
                   />
@@ -1977,7 +1977,7 @@ function GenerationPreviewContent() {
               </div>
 
               {error && (
-                <div className="mx-auto max-w-2xl rounded-md border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
+                <div className="mx-auto max-w-2xl rounded-md border border-mistake/20 bg-mistake/10 px-4 py-3 text-sm text-mistake-ink">
                   {error}
                 </div>
               )}
@@ -2074,7 +2074,7 @@ function GenerationPreviewContent() {
             </div>
 
             <div className="flex flex-1 flex-col items-center justify-center bg-muted/25 px-5 py-8 md:px-8">
-              <div className="flex min-h-64 w-full max-w-2xl items-center justify-center rounded-[18px] border border-border/70 bg-background p-6 shadow-[0_12px_36px_rgba(30,48,39,0.07)]">
+              <div className="flex min-h-64 w-full max-w-2xl items-center justify-center rounded-[18px] border border-border/70 bg-background p-6 shadow-[0_12px_36px_rgba(20,26,46,0.07)]">
                 <AnimatePresence mode="popLayout">
                   {error ? (
                     <motion.div
@@ -2091,7 +2091,7 @@ function GenerationPreviewContent() {
                       key={currentGeneratedScene.id}
                       initial={{ scale: 0.96, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="aspect-video w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-sm"
+                      className="aspect-video w-full max-w-2xl overflow-hidden rounded-xl bg-card shadow-sm"
                     >
                       <SlideThumbnail
                         slide={currentGeneratedScene.content.canvas}

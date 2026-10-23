@@ -45,7 +45,7 @@ export function ZhiyuGenerationShell({
       </header>
 
       <main className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 py-5 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:px-7 lg:py-7">
-        <section className="rounded-[22px] border border-border/70 bg-card p-5 shadow-[0_16px_44px_rgba(30,48,39,0.06)] md:p-6">
+        <section className="rounded-[22px] border border-border/70 bg-card p-5 shadow-[0_16px_44px_rgba(20,26,46,0.06)] md:p-6">
           <div className="mb-5">
             {!terminal ? (
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--zhiyu-ai)]">
@@ -67,7 +67,7 @@ export function ZhiyuGenerationShell({
 
         <section
           data-testid="zhiyu-generation-preview"
-          className="min-h-[480px] overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-[0_16px_44px_rgba(30,48,39,0.06)]"
+          className="min-h-[480px] overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-[0_16px_44px_rgba(20,26,46,0.06)]"
         >
           {preview}
         </section>

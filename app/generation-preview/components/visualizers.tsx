@@ -54,16 +54,16 @@ function PdfScanVisualizer() {
   return (
     <div className="size-32 relative flex items-center justify-center">
       <motion.div
-        className="absolute inset-2 bg-cyan-500/5 rounded-2xl blur-lg"
+        className="absolute inset-2 bg-ai/5 rounded-2xl blur-lg"
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 2, repeat: Infinity }}
       />
-      <div className="w-20 h-28 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-xl relative overflow-hidden">
+      <div className="w-20 h-28 bg-card rounded-lg border border-border shadow-xl relative overflow-hidden">
         <div className="p-3 space-y-2 mt-1">
           {[80, 60, 90, 45, 70].map((w, i) => (
             <motion.div
               key={i}
-              className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded"
+              className="h-1.5 bg-muted rounded"
               style={{ width: `${w}%` }}
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
@@ -72,7 +72,7 @@ function PdfScanVisualizer() {
         </div>
         {/* Scanning laser */}
         <motion.div
-          className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_rgba(34,211,238,0.6)]"
+          className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-ai to-transparent shadow-[0_0_12px_color-mix(in_srgb,var(--ai)_60%,transparent)]"
           animate={{ top: ['5%', '90%', '5%'] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -82,7 +82,7 @@ function PdfScanVisualizer() {
         animate={{ rotate: [0, 10, -10, 0] }}
         transition={{ duration: 3, repeat: Infinity }}
       >
-        <ScanLine className="size-6 text-cyan-500/70" />
+        <ScanLine className="size-6 text-ai/70" />
       </motion.div>
     </div>
   );
@@ -115,19 +115,19 @@ function WebSearchVisualizer({ sources }: { sources: Array<{ title: string; url:
     <div className="size-56 relative flex items-center justify-center">
       {/* Background glow */}
       <motion.div
-        className="absolute inset-0 blur-3xl rounded-full bg-teal-500/8"
+        className="absolute inset-0 blur-3xl rounded-full bg-ai/8"
         animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.5, 0.3] }}
         transition={{ duration: 3.5, repeat: Infinity }}
       />
 
       {/* Search results card */}
-      <div className="w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden relative">
+      <div className="w-44 bg-card rounded-xl border border-border shadow-xl overflow-hidden relative">
         {/* Search bar header */}
-        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-          <Search className="size-3 text-teal-500 shrink-0" />
-          <div className="flex-1 h-4 bg-slate-50 dark:bg-slate-700/50 rounded-full overflow-hidden flex items-center px-2">
+        <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+          <Search className="size-3 text-ai shrink-0" />
+          <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden flex items-center px-2">
             <motion.div
-              className="h-1.5 bg-teal-500/25 rounded-full"
+              className="h-1.5 bg-ai/25 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: '70%' }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -140,7 +140,7 @@ function WebSearchVisualizer({ sources }: { sources: Array<{ title: string; url:
           {/* Sliding highlight */}
           {sources.length > 0 && (
             <motion.div
-              className="absolute left-2 right-2 rounded-lg bg-teal-500/[0.06] dark:bg-teal-400/[0.08]"
+              className="absolute left-2 right-2 rounded-lg bg-ai/[0.06]"
               style={{ height: ROW_H - 6 }}
               animate={{ y: activeResult * ROW_H }}
               transition={{ type: 'spring', stiffness: 300, damping: 28 }}
@@ -161,18 +161,15 @@ function WebSearchVisualizer({ sources }: { sources: Array<{ title: string; url:
                   }}
                 >
                   <div
-                    className="h-1.5 bg-teal-200/40 dark:bg-teal-800/30 rounded"
+                    className="h-1.5 bg-ai-soft/40 rounded"
                     style={{ width: `${item.titleW}%` }}
                   />
-                  <div
-                    className="h-1 bg-slate-100 dark:bg-slate-700 rounded"
-                    style={{ width: `${item.urlW}%` }}
-                  />
+                  <div className="h-1 bg-muted rounded" style={{ width: `${item.urlW}%` }} />
                   <div className="flex gap-1">
                     {item.snippetW.map((w, j) => (
                       <div
                         key={j}
-                        className="h-1 bg-slate-100 dark:bg-slate-700 rounded"
+                        className="h-1 bg-muted rounded"
                         style={{ width: `${w * 0.5}%` }}
                       />
                     ))}
@@ -193,19 +190,17 @@ function WebSearchVisualizer({ sources }: { sources: Array<{ title: string; url:
                     <div
                       className={cn(
                         'text-[8px] font-semibold truncate transition-colors duration-300 leading-tight',
-                        isActive
-                          ? 'text-teal-600 dark:text-teal-400'
-                          : 'text-slate-600 dark:text-slate-400',
+                        isActive ? 'text-ai-ink' : 'text-muted-foreground',
                       )}
                     >
                       {source.title}
                     </div>
-                    <div className="text-[6px] text-teal-500/50 truncate leading-tight">
+                    <div className="text-[6px] text-ai/50 truncate leading-tight">
                       {source.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 32)}
                     </div>
                     <div className="flex gap-1">
-                      <div className="h-0.5 flex-1 bg-slate-100 dark:bg-slate-700 rounded-full" />
-                      <div className="h-0.5 w-1/3 bg-slate-100 dark:bg-slate-700 rounded-full" />
+                      <div className="h-0.5 flex-1 bg-muted rounded-full" />
+                      <div className="h-0.5 w-1/3 bg-muted rounded-full" />
                     </div>
                   </motion.div>
                 );
@@ -232,7 +227,7 @@ function WebSearchVisualizer({ sources }: { sources: Array<{ title: string; url:
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-          className="absolute -top-2 -right-2 h-6 px-2 rounded-full bg-teal-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg shadow-teal-500/25 z-20 gap-0.5"
+          className="absolute -top-2 -right-2 h-6 px-2 rounded-full bg-ai text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-lg shadow-ai/25 z-20 gap-0.5"
         >
           <Globe className="size-2.5" />
           {sources.length}
@@ -280,17 +275,16 @@ function StreamingOutlineVisualizer({
       style={{ transformOrigin: 'center center' }}
       className={cn(
         'group/outline-card relative h-52 w-44 overflow-hidden rounded-2xl border p-3 text-left',
-        'bg-white/90 shadow-xl shadow-slate-900/10 backdrop-blur',
-        'dark:bg-slate-900/80',
+        'bg-card/90 shadow-float backdrop-blur',
         isInteractive
-          ? 'cursor-pointer border-blue-400/40 shadow-blue-500/10 transition-shadow hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 dark:border-blue-400/30 dark:hover:border-blue-400/50'
-          : 'border-slate-200/70 dark:border-white/10',
+          ? 'cursor-pointer border-primary/40 shadow-primary/10 transition-shadow hover:border-primary/60 hover:shadow-2xl hover:shadow-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+          : 'border-border/70',
       )}
     >
       <div className="mb-3 flex items-center justify-between">
-        <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700" />
+        <div className="h-1.5 w-12 rounded-full bg-muted" />
         <motion.div
-          className="size-2 rounded-full bg-blue-500"
+          className="size-2 rounded-full bg-primary"
           animate={{ opacity: [0.3, 1, 0.3], scale: [0.9, 1.15, 0.9] }}
           transition={{ repeat: Infinity, duration: 1.1 }}
         />
@@ -298,7 +292,7 @@ function StreamingOutlineVisualizer({
 
       <div className="relative h-[168px] overflow-hidden pl-4">
         {/* Spine sits at the dot's horizontal center: pl-4 (16px) - dot offset (-15px) + dot half (4px) = 5px */}
-        <div className="absolute bottom-0 left-[5px] top-0 w-px bg-slate-200 dark:bg-slate-700" />
+        <div className="absolute bottom-0 left-[5px] top-0 w-px bg-muted" />
         <AnimatePresence initial={false}>
           {outlines.length === 0
             ? [58, 78, 48, 68].map((w, i) => (
@@ -308,12 +302,9 @@ function StreamingOutlineVisualizer({
                   animate={{ opacity: [0.35, 0.75, 0.35] }}
                   transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.16 }}
                 >
-                  <div className="absolute -left-[15px] top-0.5 size-2 rounded-full border border-blue-300 bg-white dark:bg-slate-900" />
-                  <div
-                    className="h-2 rounded-full bg-slate-100 dark:bg-slate-800"
-                    style={{ width: `${w}%` }}
-                  />
-                  <div className="mt-1 h-1 w-2/3 rounded-full bg-slate-100 dark:bg-slate-800" />
+                  <div className="absolute -left-[15px] top-0.5 size-2 rounded-full border border-primary/30 bg-card" />
+                  <div className="h-2 rounded-full bg-muted" style={{ width: `${w}%` }} />
+                  <div className="mt-1 h-1 w-2/3 rounded-full bg-muted" />
                 </motion.div>
               ))
             : outlines.slice(0, 4).map((outline, i) => (
@@ -326,11 +317,11 @@ function StreamingOutlineVisualizer({
                   transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                   className="relative mb-3"
                 >
-                  <div className="absolute -left-[15px] top-0.5 size-2 rounded-full border border-blue-300 bg-white shadow-sm shadow-blue-500/20 dark:bg-slate-900" />
-                  <div className="truncate text-[9px] font-semibold leading-tight text-slate-700 dark:text-slate-200">
+                  <div className="absolute -left-[15px] top-0.5 size-2 rounded-full border border-primary/30 bg-card shadow-sm shadow-primary/20" />
+                  <div className="truncate text-[9px] font-semibold leading-tight text-foreground">
                     {i + 1}. {outline.title}
                   </div>
-                  <div className="mt-1 truncate text-[7px] leading-tight text-slate-400 dark:text-slate-500">
+                  <div className="mt-1 truncate text-[7px] leading-tight text-muted-foreground">
                     {outline.description || outline.keyPoints?.[0] || '...'}
                   </div>
                 </motion.div>
@@ -341,7 +332,7 @@ function StreamingOutlineVisualizer({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-[8px] font-medium text-blue-500/70"
+            className="text-[8px] font-medium text-primary/70"
           >
             +{outlines.length - 4}
           </motion.div>
@@ -349,7 +340,7 @@ function StreamingOutlineVisualizer({
       </div>
 
       <motion.div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-10 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-slate-900 dark:via-slate-900/80"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-10 bg-gradient-to-t from-card via-card/80 to-transparent"
         aria-hidden
       />
 
@@ -357,7 +348,7 @@ function StreamingOutlineVisualizer({
       {isInteractive && (
         <div className="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex items-center justify-center px-2">
           <motion.span
-            className="inline-flex items-center gap-1 rounded-full bg-blue-500 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white shadow-lg shadow-blue-500/50 backdrop-blur"
+            className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold tracking-wide text-primary-foreground shadow-lg shadow-primary/50 backdrop-blur"
             animate={{ y: [0, -1.5, 0] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
           >
@@ -370,7 +361,7 @@ function StreamingOutlineVisualizer({
       {/* Subtle expand icon in top-right corner — pulses gently */}
       {isInteractive && (
         <motion.div
-          className="absolute right-2 top-2 z-10 flex size-5 items-center justify-center rounded-md text-blue-500/80 group-hover/outline-card:text-blue-600 dark:text-blue-400/80 dark:group-hover/outline-card:text-blue-300"
+          className="absolute right-2 top-2 z-10 flex size-5 items-center justify-center rounded-md text-primary/80 group-hover/outline-card:text-primary-ink"
           animate={{ opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
           aria-hidden
@@ -390,7 +381,7 @@ function AgentGenerationVisualizer() {
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            className="w-14 h-20 rounded-lg bg-gradient-to-br from-purple-400 to-blue-500 dark:from-purple-600 dark:to-blue-700 shadow-lg"
+            className="w-14 h-20 rounded-lg bg-gradient-to-br from-peer to-primary shadow-lg"
             animate={{ y: [0, -8, 0], rotateZ: [0, 3, -3, 0] }}
             transition={{
               duration: 1.5,
@@ -399,7 +390,7 @@ function AgentGenerationVisualizer() {
               ease: 'easeInOut',
             }}
           >
-            <div className="w-full h-full flex items-center justify-center text-white/80 text-lg font-bold">
+            <div className="w-full h-full flex items-center justify-center text-primary-foreground/80 text-lg font-bold">
               ?
             </div>
           </motion.div>
@@ -437,29 +428,25 @@ function ContentVisualizer() {
         return {
           color: 'blue',
           label: 'SLIDE',
-          badge:
-            'bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800',
+          badge: 'bg-primary-soft text-primary-ink border-primary/30',
         };
       case 1:
         return {
           color: 'purple',
           label: 'QUIZ',
-          badge:
-            'bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800',
+          badge: 'bg-review-soft text-review-ink border-review/30',
         };
       case 2:
         return {
           color: 'amber',
           label: 'PBL',
-          badge:
-            'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800',
+          badge: 'bg-peer-soft text-peer-ink border-peer/30',
         };
       case 3:
         return {
           color: 'emerald',
           label: 'WEB',
-          badge:
-            'bg-emerald-100 text-emerald-600 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800',
+          badge: 'bg-ai-soft text-ai-ink border-ai/30',
         };
       default:
         return { color: 'blue', label: '', badge: '' };
@@ -475,10 +462,10 @@ function ContentVisualizer() {
         key={`glow-${index}`}
         className={cn(
           'absolute inset-0 blur-3xl rounded-full transition-colors duration-1000',
-          theme.color === 'blue' && 'bg-blue-500/10',
-          theme.color === 'purple' && 'bg-purple-500/10',
-          theme.color === 'amber' && 'bg-amber-500/10',
-          theme.color === 'emerald' && 'bg-emerald-500/10',
+          theme.color === 'blue' && 'bg-primary/10',
+          theme.color === 'purple' && 'bg-review/10',
+          theme.color === 'amber' && 'bg-peer/10',
+          theme.color === 'emerald' && 'bg-ai/10',
         )}
         animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 4, repeat: Infinity }}
@@ -490,10 +477,10 @@ function ContentVisualizer() {
           key={i}
           className={cn(
             'absolute border rounded-full transition-colors duration-1000',
-            theme.color === 'blue' && 'border-blue-500/10',
-            theme.color === 'purple' && 'border-purple-500/10',
-            theme.color === 'amber' && 'border-amber-500/10',
-            theme.color === 'emerald' && 'border-emerald-500/10',
+            theme.color === 'blue' && 'border-primary/10',
+            theme.color === 'purple' && 'border-review/10',
+            theme.color === 'amber' && 'border-peer/10',
+            theme.color === 'emerald' && 'border-ai/10',
           )}
           style={{
             width: 180 + i * 50,
@@ -521,11 +508,11 @@ function ContentVisualizer() {
             exit="exit"
             transition={{ type: 'spring', stiffness: 80, damping: 16 }}
             className={cn(
-              'absolute inset-0 bg-white dark:bg-slate-800 rounded-xl border shadow-xl overflow-hidden flex flex-col p-3 origin-center',
-              theme.color === 'blue' && 'border-blue-200 dark:border-blue-900/30',
-              theme.color === 'purple' && 'border-purple-200 dark:border-purple-900/30',
-              theme.color === 'amber' && 'border-amber-200 dark:border-amber-900/30',
-              theme.color === 'emerald' && 'border-emerald-200 dark:border-emerald-900/30',
+              'absolute inset-0 bg-card rounded-xl border shadow-xl overflow-hidden flex flex-col p-3 origin-center',
+              theme.color === 'blue' && 'border-primary/30',
+              theme.color === 'purple' && 'border-review/30',
+              theme.color === 'amber' && 'border-peer/30',
+              theme.color === 'emerald' && 'border-ai/30',
             )}
           >
             {/* Consistent Badge - Now outside content logic */}
@@ -548,7 +535,7 @@ function ContentVisualizer() {
                   initial={{ width: '0%' }}
                   animate={{ width: '55%' }}
                   transition={{ delay: 0.2 }}
-                  className="h-2 bg-blue-500/20 rounded-full mb-3 shrink-0"
+                  className="h-2 bg-primary/20 rounded-full mb-3 shrink-0"
                 />
                 <div className="flex gap-2 flex-1">
                   <div className="flex-1 space-y-2">
@@ -558,7 +545,7 @@ function ContentVisualizer() {
                         initial={{ width: 0 }}
                         animate={{ width: `${w * 100}%` }}
                         transition={{ delay: 0.3 + i * 0.1 }}
-                        className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full"
+                        className="h-1.5 bg-muted rounded-full"
                       />
                     ))}
                   </div>
@@ -566,9 +553,9 @@ function ContentVisualizer() {
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center shrink-0"
+                    className="w-12 h-12 bg-primary-soft rounded-lg flex items-center justify-center shrink-0"
                   >
-                    <BarChart3 className="size-6 text-blue-500/60" />
+                    <BarChart3 className="size-6 text-primary/60" />
                   </motion.div>
                 </div>
               </div>
@@ -583,7 +570,7 @@ function ContentVisualizer() {
                   transition={{ delay: 0.2 }}
                   className="flex justify-center mb-1"
                 >
-                  <div className="h-2 w-3/4 bg-purple-500/20 rounded-full" />
+                  <div className="h-2 w-3/4 bg-peer/20 rounded-full" />
                 </motion.div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -596,21 +583,18 @@ function ContentVisualizer() {
                       className={cn(
                         'h-6 rounded border flex items-center px-2',
                         i === 1
-                          ? 'bg-purple-500 text-white border-purple-500'
-                          : 'bg-slate-50 dark:bg-slate-700/50 border-slate-100 dark:border-slate-700',
+                          ? 'bg-peer text-primary-foreground border-peer/60'
+                          : 'bg-muted border-border',
                       )}
                     >
                       <div
                         className={cn(
                           'size-1.5 rounded-full mr-2',
-                          i === 1 ? 'bg-white' : 'bg-slate-300',
+                          i === 1 ? 'bg-card' : 'bg-muted',
                         )}
                       />
                       <div
-                        className={cn(
-                          'h-1 w-8 rounded-full',
-                          i === 1 ? 'bg-white/50' : 'bg-slate-200 dark:bg-slate-600',
-                        )}
+                        className={cn('h-1 w-8 rounded-full', i === 1 ? 'bg-card/50' : 'bg-muted')}
                       />
                     </motion.div>
                   ))}
@@ -622,11 +606,11 @@ function ContentVisualizer() {
             {index === 2 && (
               <div className="flex flex-col h-full pt-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Puzzle className="size-3 text-amber-500 shrink-0" />
+                  <Puzzle className="size-3 text-review shrink-0" />
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: '40%' }}
-                    className="h-2 bg-amber-500/20 rounded-full"
+                    className="h-2 bg-review/20 rounded-full"
                   />
                 </div>
                 <div className="flex-1 flex gap-2 overflow-hidden">
@@ -636,13 +620,13 @@ function ContentVisualizer() {
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.2 + col * 0.15 }}
-                      className="flex-1 bg-slate-50 dark:bg-slate-700/30 rounded flex flex-col gap-1 p-1"
+                      className="flex-1 bg-muted rounded flex flex-col gap-1 p-1"
                     >
-                      <div className="h-1 w-6 bg-slate-200 dark:bg-slate-600 rounded mb-1" />
+                      <div className="h-1 w-6 bg-muted rounded mb-1" />
                       {[0, 1].map((card) => (
                         <div
                           key={card}
-                          className="h-3 w-full bg-white dark:bg-slate-600 rounded border border-slate-100 dark:border-slate-500 shadow-sm"
+                          className="h-3 w-full bg-card rounded border border-border shadow-sm"
                         />
                       ))}
                     </motion.div>
@@ -655,13 +639,13 @@ function ContentVisualizer() {
             {index === 3 && (
               <div className="flex flex-col h-full relative pt-1">
                 {/* Browser Chrome - Padded right to avoid badge */}
-                <div className="flex items-center gap-1 mb-2 border-b border-slate-100 dark:border-slate-700 pb-1 pr-10">
+                <div className="flex items-center gap-1 mb-2 border-b border-border pb-1 pr-10">
                   <div className="flex gap-0.5">
-                    <div className="size-1.5 rounded-full bg-red-400" />
-                    <div className="size-1.5 rounded-full bg-amber-400" />
-                    <div className="size-1.5 rounded-full bg-green-400" />
+                    <div className="size-1.5 rounded-full bg-mistake" />
+                    <div className="size-1.5 rounded-full bg-review" />
+                    <div className="size-1.5 rounded-full bg-ai" />
                   </div>
-                  <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-700 rounded-full ml-1" />
+                  <div className="h-1.5 flex-1 bg-muted rounded-full ml-1" />
                 </div>
 
                 <div className="flex-1 flex gap-2 relative">
@@ -669,23 +653,20 @@ function ContentVisualizer() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="w-1/3 bg-slate-50 dark:bg-slate-700/30 rounded p-1 space-y-1"
+                    className="w-1/3 bg-muted rounded p-1 space-y-1"
                   >
                     {[1, 2, 3].map((i) => (
-                      <div
-                        key={i}
-                        className="h-1 w-full bg-slate-200 dark:bg-slate-600 rounded-full"
-                      />
+                      <div key={i} className="h-1 w-full bg-muted rounded-full" />
                     ))}
                   </motion.div>
-                  <div className="flex-1 bg-emerald-50 dark:bg-emerald-900/10 rounded border border-emerald-100 dark:border-emerald-900/30 relative overflow-hidden flex items-center justify-center">
-                    <Globe className="size-8 text-emerald-200 dark:text-emerald-800" />
+                  <div className="flex-1 bg-ai-soft rounded border border-ai/30 relative overflow-hidden flex items-center justify-center">
+                    <Globe className="size-8 text-ai" />
                     <motion.div
                       className="absolute"
                       animate={{ x: [20, -10, 15, 0], y: [10, -15, 5, 0] }}
                       transition={{ duration: 3, ease: 'easeInOut' }}
                     >
-                      <MousePointer2 className="size-3 text-emerald-600 fill-emerald-600" />
+                      <MousePointer2 className="size-3 text-ai-ink fill-ai" />
                     </motion.div>
                   </div>
                 </div>
@@ -719,37 +700,37 @@ function ActionsVisualizer() {
     {
       icon: MessageSquare,
       label: 'Speech',
-      color: 'text-violet-500',
-      activeBg: 'bg-violet-500/10',
-      activeBorder: 'border-violet-200 dark:border-violet-800',
+      color: 'text-primary',
+      activeBg: 'bg-primary/10',
+      activeBorder: 'border-primary/30',
     },
     {
       icon: Focus,
       label: 'Spotlight',
-      color: 'text-amber-500',
-      activeBg: 'bg-amber-500/10',
-      activeBorder: 'border-amber-200 dark:border-amber-800',
+      color: 'text-review',
+      activeBg: 'bg-review/10',
+      activeBorder: 'border-review/30',
     },
     {
       icon: MessageSquare,
       label: 'Speech',
-      color: 'text-violet-500',
-      activeBg: 'bg-violet-500/10',
-      activeBorder: 'border-violet-200 dark:border-violet-800',
+      color: 'text-primary',
+      activeBg: 'bg-primary/10',
+      activeBorder: 'border-primary/30',
     },
     {
       icon: Play,
       label: 'Interact',
-      color: 'text-emerald-500',
-      activeBg: 'bg-emerald-500/10',
-      activeBorder: 'border-emerald-200 dark:border-emerald-800',
+      color: 'text-ai',
+      activeBg: 'bg-ai/10',
+      activeBorder: 'border-ai/30',
     },
     {
       icon: MessageSquare,
       label: 'Speech',
-      color: 'text-violet-500',
-      activeBg: 'bg-violet-500/10',
-      activeBorder: 'border-violet-200 dark:border-violet-800',
+      color: 'text-primary',
+      activeBg: 'bg-primary/10',
+      activeBorder: 'border-primary/30',
     },
   ];
 
@@ -768,21 +749,21 @@ function ActionsVisualizer() {
     <div className="size-56 relative flex items-center justify-center">
       {/* Background pulse */}
       <motion.div
-        className="absolute inset-0 blur-3xl rounded-full bg-violet-500/8"
+        className="absolute inset-0 blur-3xl rounded-full bg-primary/8"
         animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.5, 0.3] }}
         transition={{ duration: 3.5, repeat: Infinity }}
       />
 
       {/* Timeline card */}
-      <div className="w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden relative">
+      <div className="w-44 bg-card rounded-xl border border-border shadow-xl overflow-hidden relative">
         {/* Header */}
-        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-          <Clapperboard className="size-3 text-violet-500" />
+        <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+          <Clapperboard className="size-3 text-primary" />
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: '50%' }}
             transition={{ delay: 0.2 }}
-            className="h-1.5 bg-violet-500/20 rounded-full"
+            className="h-1.5 bg-primary/20 rounded-full"
           />
         </div>
 
@@ -790,7 +771,7 @@ function ActionsVisualizer() {
         <div className="p-2 space-y-1.5 relative">
           {/* Sliding highlight — absolute, animates via y transform, no layout impact */}
           <motion.div
-            className="absolute left-2 right-2 rounded-lg bg-violet-500/[0.06] dark:bg-violet-400/[0.08]"
+            className="absolute left-2 right-2 rounded-lg bg-primary/[0.06]"
             style={{ height: ROW_H - 6 }}
             animate={{ y: activeIdx * ROW_H }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
@@ -811,7 +792,7 @@ function ActionsVisualizer() {
                 <div
                   className={cn(
                     'size-4 rounded flex items-center justify-center shrink-0 transition-colors duration-300',
-                    isActive ? item.color : 'text-slate-300 dark:text-slate-600',
+                    isActive ? item.color : 'text-subtle-foreground',
                   )}
                 >
                   <Icon className="size-3" />
@@ -820,7 +801,7 @@ function ActionsVisualizer() {
                   <span
                     className={cn(
                       'text-[8px] font-semibold uppercase tracking-wider transition-colors duration-300',
-                      isActive ? item.color : 'text-slate-400 dark:text-slate-500',
+                      isActive ? item.color : 'text-muted-foreground',
                     )}
                   >
                     {item.label}
@@ -828,13 +809,13 @@ function ActionsVisualizer() {
                   <div
                     className={cn(
                       'h-1 flex-1 rounded-full transition-colors duration-300',
-                      isActive ? 'bg-current opacity-20' : 'bg-slate-100 dark:bg-slate-700',
+                      isActive ? 'bg-current opacity-20' : 'bg-muted',
                     )}
                   />
                 </div>
                 {/* Pulsing dot — always rendered, opacity-controlled, no layout shift */}
                 <motion.div
-                  className="size-1.5 rounded-full bg-violet-500"
+                  className="size-1.5 rounded-full bg-primary"
                   animate={{ opacity: isActive ? [1, 0.3, 1] : 0 }}
                   transition={isActive ? { duration: 0.8, repeat: Infinity } : { duration: 0.2 }}
                 />
