@@ -44,27 +44,40 @@ import { useTheme } from '@/lib/hooks/use-theme';
 import { useUserProfileStore } from '@/lib/store/user-profile';
 import { cn } from '@/lib/utils';
 
-export function ShellAccount({ variant }: { variant: 'card' | 'avatar' }) {
-  const { t, locale, setLocale } = useI18n();
-  const { theme, setTheme } = useTheme();
-  const router = useRouter();
-  const avatar = useUserProfileStore((s) => s.avatar);
+/**
+ * What the app calls the learner — the profile nickname, else the hosted
+ * account's display name, else the default — shared by the account card and
+ * Home's greeting so the two never disagree.
+ */
+export function useLearnerIdentity(): { name: string; email?: string; signedIn: boolean } {
+  const { t } = useI18n();
   const nickname = useUserProfileStore((s) => s.nickname);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsReturnFocusRef = useRef<HTMLElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const [, setAccountEpoch] = useState(0);
   useEffect(() => {
     const refresh = () => setAccountEpoch((value) => value + 1);
     window.addEventListener('auth-change', refresh);
     return () => window.removeEventListener('auth-change', refresh);
   }, []);
-
   const signedIn = canUseHostedAuthUi() && Boolean(peekAccountUserId());
   const account = signedIn ? peekAccountSnapshot() : undefined;
-  const name = nickname.trim() || account?.displayName?.trim() || t('profile.defaultNickname');
-  const secondary = account?.email ?? t('shell.accountHint');
+  return {
+    name: nickname.trim() || account?.displayName?.trim() || t('profile.defaultNickname'),
+    email: account?.email,
+    signedIn,
+  };
+}
+
+export function ShellAccount({ variant }: { variant: 'card' | 'avatar' }) {
+  const { t, locale, setLocale } = useI18n();
+  const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const avatar = useUserProfileStore((s) => s.avatar);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsReturnFocusRef = useRef<HTMLElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { name, email, signedIn } = useLearnerIdentity();
+  const secondary = email ?? t('shell.accountHint');
 
   return (
     <>
@@ -110,8 +123,8 @@ export function ShellAccount({ variant }: { variant: 'card' | 'avatar' }) {
             <img src={avatar} alt="" className="size-9 rounded-full bg-muted object-cover" />
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-semibold text-foreground">{name}</span>
-              {account?.email ? (
-                <span className="truncate text-xs text-muted-foreground">{account.email}</span>
+              {email ? (
+                <span className="truncate text-xs text-muted-foreground">{email}</span>
               ) : null}
             </span>
           </DropdownMenuLabel>

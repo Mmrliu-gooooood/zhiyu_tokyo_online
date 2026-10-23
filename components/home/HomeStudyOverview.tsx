@@ -11,10 +11,10 @@ import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useShellStudyNav } from '@/components/shell/AppShell';
+import { useLearnerIdentity } from '@/components/shell/ShellAccount';
 import { SpaceCard } from '@/components/study/spaces/StudySpacesPage';
 import { RelativeTime } from '@/components/study/spaces/study-format';
 import { useI18n } from '@/lib/hooks/use-i18n';
-import { useUserProfileStore } from '@/lib/store/user-profile';
 import {
   pickGlobalContinue,
   resumeHref,
@@ -27,11 +27,10 @@ const HOME_SPACES = 3;
 
 export function HomeGreeting() {
   const { t } = useI18n();
-  const nickname = useUserProfileStore((s) => s.nickname);
+  const { name } = useLearnerIdentity();
   // The hour is read after mount so the server render and hydration agree.
   const [hour, setHour] = useState<number | null>(null);
   useEffect(() => setHour(new Date().getHours()), []); // eslint-disable-line react-hooks/set-state-in-effect -- client clock after hydration
-  const name = nickname.trim() || t('profile.defaultNickname');
   const key =
     hour === null
       ? 'home.greetingWithName'

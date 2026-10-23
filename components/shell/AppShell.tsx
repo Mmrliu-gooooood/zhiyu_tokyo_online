@@ -203,7 +203,11 @@ function AppSidebar({ nav, ultra }: { nav: StudyNav; ultra: Ultra }) {
               </Link>
             </div>
             {spaces.length === 0 ? (
-              <Link href="/study" className={itemClass(false)}>
+              <Link
+                href="/study"
+                aria-current={pathname === '/study' ? 'page' : undefined}
+                className={itemClass(pathname === '/study')}
+              >
                 <FolderOpen className="size-[18px]" aria-hidden />
                 {t('study.nav')}
               </Link>
