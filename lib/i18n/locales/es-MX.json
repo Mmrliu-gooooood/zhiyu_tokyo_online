@@ -123,7 +123,12 @@
     "example2Prompt": "Enséñame Python desde cero y ayúdame a escribir mi primer programa en 30 minutos",
     "example3Title": "¿Qué es la transformada de Fourier?",
     "example3Meta": "Señales y sistemas · en la pizarra",
-    "example3Prompt": "Explica la transformada de Fourier en la pizarra"
+    "example3Prompt": "Explica la transformada de Fourier en la pizarra",
+    "composerLabel": "¿Qué quieres aprender? Una frase crea una clase interactiva",
+    "greetingMorning": "Buenos días, {{name}}",
+    "greetingAfternoon": "Buenas tardes, {{name}}",
+    "greetingEvening": "Buenas noches, {{name}}",
+    "allSpaces": "Todas las materias"
   },
   "toolbar": {
     "pdfParser": "Analizador",
@@ -411,10 +416,10 @@
     "exitFullscreen": "Salir de pantalla completa",
     "editCourse": "Editar curso",
     "doneEditing": "Terminar edición",
-    "proModeDisabledHint": "La edición no está disponible en esta página — abre una diapositiva del curso para editar con el modo Pro."
+    "proModeDisabledHint": "Esta página no se puede editar: abre una diapositiva del curso para editarla."
   },
   "edit": {
-    "proMode": "Pro",
+    "proMode": "Editar",
     "undo": "Deshacer",
     "redo": "Rehacer",
     "delete": "Eliminar",
@@ -1404,7 +1409,8 @@
     "exitStay": "Permanecer en esta página",
     "exitCancellingTitle": "Cancelando",
     "exitCancelling": "Cancelando…",
-    "exitCancelFailed": "La cancelación no se ha confirmado. Vuelve a intentarlo o permanece en esta página para consultar el estado."
+    "exitCancelFailed": "La cancelación no se ha confirmado. Vuelve a intentarlo o permanece en esta página para consultar el estado.",
+    "progressSummary": "{{done}} de {{total}} pasos listos"
   },
   "settings": {
     "title": "Configuración",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Salir de Ultra",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,8 +2385,8 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "Modo Pro",
-    "badgeEnter": "Modo Pro",
+    "badgeAria": "Modo Ultra",
+    "badgeEnter": "Entrar al modo Ultra: el banco de trabajo de IA con varias sesiones",
     "badgeExit": "Volver al modo clásico",
     "launchPlaceholder": "Describe la experiencia de aprendizaje que quieres crear",
     "launchSend": "Iniciar construcción"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "Añade cursos o material",
     "emptyStep2Desc": "Incluye un curso o sube apuntes",
     "emptyStep3Title": "Genera tu primera clase",
-    "emptyStep3Desc": "El profesor de IA explica con tu material"
+    "emptyStep3Desc": "El profesor de IA explica con tu material",
+    "tabs": {
+      "label": "Secciones de la materia",
+      "overview": "Resumen"
+    }
+  },
+  "shell": {
+    "navLabel": "Navegación principal",
+    "home": "Inicio",
+    "newCourse": "Nuevo curso",
+    "ultra": "Modo Ultra",
+    "mySpaces": "Mis materias",
+    "showMore": "Mostrar todo ({{count}} más)",
+    "showLess": "Mostrar menos",
+    "library": "Biblioteca de cursos",
+    "accountHint": "Perfil · Ajustes · Tema",
+    "editProfile": "Editar perfil",
+    "profileTitle": "Editar perfil",
+    "nickname": "Apodo",
+    "bio": "Sobre ti",
+    "save": "Guardar",
+    "tabHome": "Inicio",
+    "tabSpaces": "Materias",
+    "tab": {
+      "materials": "Material",
+      "classmates": "Compañeros",
+      "memory": "Memoria"
+    }
   }
 }

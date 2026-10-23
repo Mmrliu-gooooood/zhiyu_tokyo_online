@@ -123,7 +123,12 @@
     "example2Prompt": "Python をゼロから教えて、30 分で最初のプログラムを書けるようにして",
     "example3Title": "フーリエ変換とは",
     "example3Meta": "信号とシステム · ホワイトボード",
-    "example3Prompt": "ホワイトボードでフーリエ変換を説明して"
+    "example3Prompt": "ホワイトボードでフーリエ変換を説明して",
+    "composerLabel": "何を学びたい？ひとことでインタラクティブな授業を作成",
+    "greetingMorning": "おはようございます、{{name}}",
+    "greetingAfternoon": "こんにちは、{{name}}",
+    "greetingEvening": "こんばんは、{{name}}",
+    "allSpaces": "すべての教科"
   },
   "toolbar": {
     "pdfParser": "パーサー",
@@ -411,10 +416,10 @@
     "exitFullscreen": "全画面表示を終了",
     "editCourse": "コースを編集",
     "doneEditing": "編集を完了",
-    "proModeDisabledHint": "このページでは編集できません。コースのスライドを開くと Pro モードで編集できます。"
+    "proModeDisabledHint": "このページは編集できません。コースのページを開くと編集できます。"
   },
   "edit": {
-    "proMode": "プロモード",
+    "proMode": "編集",
     "undo": "元に戻す",
     "redo": "やり直し",
     "delete": "削除",
@@ -1404,7 +1409,8 @@
     "exitStay": "このページに留まる",
     "exitCancellingTitle": "キャンセル中",
     "exitCancelling": "キャンセル中…",
-    "exitCancelFailed": "キャンセルはまだ確認されていません。再試行するか、このページに留まって状態を確認してください。"
+    "exitCancelFailed": "キャンセルはまだ確認されていません。再試行するか、このページに留まって状態を確認してください。",
+    "progressSummary": "{{total}} ステップ中 {{done}} 完了"
   },
   "settings": {
     "title": "設定",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Ultra を終了",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,8 +2385,8 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "Pro モード",
-    "badgeEnter": "Pro モード",
+    "badgeAria": "Ultra モード",
+    "badgeEnter": "Ultra モードへ：マルチセッション AI ワークベンチ",
     "badgeExit": "通常モードに戻る",
     "launchPlaceholder": "作りたい学習体験を描いてください",
     "launchSend": "構築を開始"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "コースや資料を追加",
     "emptyStep2Desc": "既存のコースか講義資料を入れる",
     "emptyStep3Title": "最初の授業を生成",
-    "emptyStep3Desc": "AI の先生が資料に沿って解説"
+    "emptyStep3Desc": "AI の先生が資料に沿って解説",
+    "tabs": {
+      "label": "教科内ナビゲーション",
+      "overview": "概要"
+    }
+  },
+  "shell": {
+    "navLabel": "メインナビゲーション",
+    "home": "ホーム",
+    "newCourse": "新しいコース",
+    "ultra": "Ultra モード",
+    "mySpaces": "マイ教科",
+    "showMore": "すべて表示（あと {{count}} 件）",
+    "showLess": "折りたたむ",
+    "library": "コース一覧",
+    "accountHint": "プロフィール · 設定 · テーマ",
+    "editProfile": "プロフィールを編集",
+    "profileTitle": "プロフィールを編集",
+    "nickname": "ニックネーム",
+    "bio": "自己紹介",
+    "save": "保存",
+    "tabHome": "ホーム",
+    "tabSpaces": "教科",
+    "tab": {
+      "materials": "資料",
+      "classmates": "クラスメート",
+      "memory": "メモリー"
+    }
   }
 }

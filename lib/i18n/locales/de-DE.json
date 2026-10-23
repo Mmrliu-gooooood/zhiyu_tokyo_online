@@ -123,7 +123,12 @@
     "example2Prompt": "Bring mir Python von Grund auf bei und hilf mir, in 30 Minuten mein erstes Programm zu schreiben",
     "example3Title": "Was ist die Fourier-Transformation?",
     "example3Meta": "Signale und Systeme · am Whiteboard",
-    "example3Prompt": "Erkläre die Fourier-Transformation am Whiteboard"
+    "example3Prompt": "Erkläre die Fourier-Transformation am Whiteboard",
+    "composerLabel": "Was möchtest du lernen? Ein Satz genügt für eine interaktive Stunde",
+    "greetingMorning": "Guten Morgen, {{name}}",
+    "greetingAfternoon": "Guten Tag, {{name}}",
+    "greetingEvening": "Guten Abend, {{name}}",
+    "allSpaces": "Alle Fächer"
   },
   "toolbar": {
     "pdfParser": "Parser",
@@ -411,10 +416,10 @@
     "exitFullscreen": "Vollbild beenden",
     "editCourse": "Kurs bearbeiten",
     "doneEditing": "Bearbeitung abschließen",
-    "proModeDisabledHint": "Diese Seite kann nicht bearbeitet werden — öffne eine Kursfolie, um sie im Pro-Modus zu bearbeiten."
+    "proModeDisabledHint": "Diese Seite lässt sich nicht bearbeiten – öffne eine Kursfolie, um sie zu bearbeiten."
   },
   "edit": {
-    "proMode": "Pro",
+    "proMode": "Bearbeiten",
     "undo": "Rückgängig",
     "redo": "Wiederholen",
     "delete": "Löschen",
@@ -1404,7 +1409,8 @@
     "exitStay": "Auf dieser Seite bleiben",
     "exitCancellingTitle": "Abbruch läuft",
     "exitCancelling": "Wird abgebrochen…",
-    "exitCancelFailed": "Der Abbruch wurde nicht bestätigt. Versuchen Sie es erneut oder bleiben Sie auf dieser Seite, um den Status anzuzeigen."
+    "exitCancelFailed": "Der Abbruch wurde nicht bestätigt. Versuchen Sie es erneut oder bleiben Sie auf dieser Seite, um den Status anzuzeigen.",
+    "progressSummary": "{{done}} von {{total}} Schritten erledigt"
   },
   "settings": {
     "title": "Einstellungen",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Ultra beenden",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,9 +2385,9 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "Pro mode",
-    "badgeEnter": "Pro mode",
-    "badgeExit": "Back to classic",
+    "badgeAria": "Ultra-Modus",
+    "badgeEnter": "Ultra-Modus: die KI-Werkbank mit mehreren Sitzungen",
+    "badgeExit": "Zurück zum klassischen Modus",
     "launchPlaceholder": "Describe the learning experience you want to create",
     "launchSend": "Start build"
   },
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "Kurse oder Material hinzufügen",
     "emptyStep2Desc": "Einen Kurs übernehmen oder Unterlagen hochladen",
     "emptyStep3Title": "Erste Stunde erstellen",
-    "emptyStep3Desc": "Die KI-Lehrkraft erklärt anhand deiner Unterlagen"
+    "emptyStep3Desc": "Die KI-Lehrkraft erklärt anhand deiner Unterlagen",
+    "tabs": {
+      "label": "Bereiche des Fachs",
+      "overview": "Überblick"
+    }
+  },
+  "shell": {
+    "navLabel": "Hauptnavigation",
+    "home": "Start",
+    "newCourse": "Neuer Kurs",
+    "ultra": "Ultra-Modus",
+    "mySpaces": "Meine Fächer",
+    "showMore": "Alle anzeigen ({{count}} weitere)",
+    "showLess": "Weniger anzeigen",
+    "library": "Kursbibliothek",
+    "accountHint": "Profil · Einstellungen · Design",
+    "editProfile": "Profil bearbeiten",
+    "profileTitle": "Profil bearbeiten",
+    "nickname": "Spitzname",
+    "bio": "Über dich",
+    "save": "Speichern",
+    "tabHome": "Start",
+    "tabSpaces": "Fächer",
+    "tab": {
+      "materials": "Material",
+      "classmates": "Mitlernende",
+      "memory": "Gedächtnis"
+    }
   }
 }

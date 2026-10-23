@@ -123,7 +123,12 @@
     "example2Prompt": "علّمني Python من الصفر وساعدني على كتابة أول برنامج خلال 30 دقيقة",
     "example3Title": "ما هو تحويل فورييه؟",
     "example3Meta": "الإشارات والنظم · على السبورة",
-    "example3Prompt": "اشرح تحويل فورييه على السبورة"
+    "example3Prompt": "اشرح تحويل فورييه على السبورة",
+    "composerLabel": "ماذا تريد أن تتعلم؟ جملة واحدة تكفي لدرس تفاعلي",
+    "greetingMorning": "صباح الخير، {{name}}",
+    "greetingAfternoon": "مساء الخير، {{name}}",
+    "greetingEvening": "مساء الخير، {{name}}",
+    "allSpaces": "كل المواد"
   },
   "toolbar": {
     "pdfParser": "محلل PDF",
@@ -411,10 +416,10 @@
     "exitFullscreen": "الخروج من ملء الشاشة",
     "editCourse": "تحرير الدورة",
     "doneEditing": "إنهاء التحرير",
-    "proModeDisabledHint": "التحرير غير متاح في هذه الصفحة — افتح شريحة من الدورة للتحرير باستخدام وضع Pro."
+    "proModeDisabledHint": "لا يمكن تعديل هذه الصفحة — افتح شريحة من الدورة لتعديلها."
   },
   "edit": {
-    "proMode": "احترافي",
+    "proMode": "تعديل",
     "undo": "تراجع",
     "redo": "إعادة",
     "delete": "حذف",
@@ -1404,7 +1409,8 @@
     "exitStay": "البقاء في هذه الصفحة",
     "exitCancellingTitle": "جارٍ الإلغاء",
     "exitCancelling": "جارٍ الإلغاء…",
-    "exitCancelFailed": "لم يتم تأكيد الإلغاء. أعد المحاولة أو ابقَ في هذه الصفحة لعرض الحالة."
+    "exitCancelFailed": "لم يتم تأكيد الإلغاء. أعد المحاولة أو ابقَ في هذه الصفحة لعرض الحالة.",
+    "progressSummary": "اكتمل {{done}} من {{total}} خطوات"
   },
   "settings": {
     "title": "الإعدادات",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "الخروج من Ultra",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,8 +2385,8 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "وضع Pro",
-    "badgeEnter": "وضع Pro",
+    "badgeAria": "وضع Ultra",
+    "badgeEnter": "الدخول إلى وضع Ultra: منضدة ذكاء اصطناعي متعددة الجلسات",
     "badgeExit": "العودة إلى الوضع العادي",
     "launchPlaceholder": "صِف تجربة التعلم التي تريد إنشاءها",
     "launchSend": "بدء الإنشاء"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "أضف دورات أو مواد",
     "emptyStep2Desc": "أضف دورة موجودة أو ارفع ملاحظاتك",
     "emptyStep3Title": "أنشئ الدرس الأول",
-    "emptyStep3Desc": "يشرح المعلم بالاعتماد على موادك"
+    "emptyStep3Desc": "يشرح المعلم بالاعتماد على موادك",
+    "tabs": {
+      "label": "أقسام المادة",
+      "overview": "نظرة عامة"
+    }
+  },
+  "shell": {
+    "navLabel": "التنقل الرئيسي",
+    "home": "الرئيسية",
+    "newCourse": "دورة جديدة",
+    "ultra": "وضع Ultra",
+    "mySpaces": "موادي",
+    "showMore": "عرض الكل ({{count}} أخرى)",
+    "showLess": "عرض أقل",
+    "library": "مكتبة الدورات",
+    "accountHint": "الملف · الإعدادات · المظهر",
+    "editProfile": "تعديل الملف الشخصي",
+    "profileTitle": "تعديل الملف الشخصي",
+    "nickname": "الاسم المستعار",
+    "bio": "نبذة عنك",
+    "save": "حفظ",
+    "tabHome": "الرئيسية",
+    "tabSpaces": "المواد",
+    "tab": {
+      "materials": "الملفات",
+      "classmates": "الزملاء",
+      "memory": "الذاكرة"
+    }
   }
 }

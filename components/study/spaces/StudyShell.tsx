@@ -3,111 +3,83 @@
 /**
  * Chrome and status states shared by the study pages (learning plan B01).
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bookmark, FileText, FolderOpen, Home, LoaderCircle, Users } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 
-import { AccountMenu } from '@/components/auth/AccountMenu';
-import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
+import { AppShell, useShellStudyNav } from '@/components/shell/AppShell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { peekAccountUserId } from '@/lib/auth/account-environment';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { flushAllStudyProgress } from '@/lib/study/progress/sync';
-import { fetchStudyCapabilities, fetchStudyCapability } from '@/lib/study/spaces/client';
+import { fetchStudyCapability } from '@/lib/study/spaces/client';
+
+/** `/study/<spaceId>[/<section>]`, excluding the study-wide sections. */
+const SPACE_PATH = /^\/study\/(?!(?:materials|classmates|memory)(?:\/|$))([^/]+)(?:\/([^/]+))?/;
 
 export function StudyShell({ children }: { children: ReactNode }) {
-  const { t } = useI18n();
-  const [materialsOn, setMaterialsOn] = useState(false);
-  const [classmatesOn, setClassmatesOn] = useState(false);
-  const [memoryOn, setMemoryOn] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    void fetchStudyCapabilities().then((capabilities) => {
-      if (cancelled) return;
-      setMaterialsOn(capabilities.materials);
-      setClassmatesOn(capabilities.classmates);
-      setMemoryOn(capabilities.memory);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const pathname = usePathname() ?? '';
-  const navItems = [
-    { href: '/study', label: t('study.nav'), icon: FolderOpen },
-    materialsOn && {
-      href: '/study/materials',
-      label: t('study.materials.nav'),
-      icon: FileText,
-      testId: 'study-nav-materials',
-    },
-    classmatesOn && {
-      href: '/study/classmates',
-      label: t('study.classmates.nav'),
-      icon: Users,
-      testId: 'study-nav-classmates',
-    },
-    memoryOn && {
-      href: '/study/memory',
-      label: t('study.memory.nav'),
-      icon: Bookmark,
-      testId: 'study-nav-memory',
-    },
-    { href: '/', label: t('study.backHome'), icon: Home, className: 'hidden sm:inline-flex' },
-  ].filter((item) => !!item) as Array<{
-    href: string;
-    label: string;
-    icon: typeof FolderOpen;
-    testId?: string;
-    className?: string;
-  }>;
-  // Space pages (/study/<id>/…) belong to the spaces section.
-  const currentHref =
-    ['/study/materials', '/study/classmates', '/study/memory'].find(
-      (href) => pathname === href || pathname.startsWith(`${href}/`),
-    ) ?? (pathname.startsWith('/study') ? '/study' : null);
+  const match = SPACE_PATH.exec(pathname);
   return (
-    <div className="min-h-[100dvh] bg-background">
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-border/80 bg-card/85 px-4 backdrop-blur-md md:px-8">
-        <Link href="/" aria-label={t('study.backHome')} className="shrink-0 rounded-md">
-          <ZhiyuLockup size="sm" />
+    <AppShell>
+      <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 md:px-8 md:pt-8">
+        {match ? <SpaceTabs spaceId={decodeURIComponent(match[1])} section={match[2]} /> : null}
+        {children}
+      </main>
+    </AppShell>
+  );
+}
+
+/** One space's sections as tabs, shared by the space page and its sub-pages. */
+function SpaceTabs({ spaceId, section }: { spaceId: string; section?: string }) {
+  const { t } = useI18n();
+  const caps = useShellStudyNav().capabilities;
+  const base = `/study/${encodeURIComponent(spaceId)}`;
+  // Deeper pages sit under the tab they were opened from.
+  const current =
+    section === 'attempts'
+      ? 'practice'
+      : section === 'explanations'
+        ? 'wrongbook'
+        : !section || section === 'extractions'
+          ? 'overview'
+          : section;
+  const tabs = [
+    { key: 'overview', href: base, label: t('study.tabs.overview'), on: true },
+    { key: 'ask', href: `${base}/ask`, label: t('study.qa.open'), on: caps?.qa },
+    { key: 'practice', href: `${base}/practice`, label: t('study.practice.open'), on: caps?.exams },
+    { key: 'review', href: `${base}/review`, label: t('study.review.open'), on: caps?.review },
+    {
+      key: 'wrongbook',
+      href: `${base}/wrongbook`,
+      label: t('study.wrongbook.open'),
+      on: caps?.wrongbook,
+    },
+  ].filter((tab) => tab.on);
+  if (tabs.length < 2) return null;
+  return (
+    <nav
+      aria-label={t('study.tabs.label')}
+      className="scrollbar-hide -mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-border px-4 md:mx-0 md:px-0"
+    >
+      {tabs.map((tab) => (
+        <Link
+          key={tab.key}
+          href={tab.href}
+          aria-current={tab.key === current ? 'page' : undefined}
+          className={cn(
+            'shrink-0 whitespace-nowrap px-3 py-2.5 text-sm transition-colors',
+            tab.key === current
+              ? 'font-semibold text-primary-ink shadow-[inset_0_-2px_0_var(--primary)]'
+              : 'font-medium text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {tab.label}
         </Link>
-        <div className="flex min-w-0 items-center gap-1">
-          {/* At phone width the links scroll inside the nav; the account menu stays put. */}
-          <nav
-            aria-label={t('study.navLabel')}
-            className="scrollbar-hide flex min-w-0 items-center gap-1 overflow-x-auto"
-          >
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const current = item.href === currentHref;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  data-testid={item.testId}
-                  aria-current={current ? 'page' : undefined}
-                  className={cn(
-                    'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors',
-                    current
-                      ? 'bg-primary-soft font-semibold text-primary-ink'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    item.className,
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <AccountMenu triggerClassName="shrink-0 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-none dark:hover:bg-muted" />
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 md:px-8 md:pt-10">{children}</main>
-    </div>
+      ))}
+    </nav>
   );
 }
 

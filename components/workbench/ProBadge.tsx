@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The Pro badge — the switch into the workbench, worn on the wordmark's
+ * The Ultra badge (formerly "Pro") — the switch into the workbench, worn on the wordmark's
  * shoulder like a trademark. `role="switch"` rather than a button, because it
  * has an on state that outlives the click.
  *
@@ -63,7 +63,7 @@ export function ProBadge({ active, onToggle, className, testId }: ProBadgeProps)
     >
       {/* The negative right margin pays back the trailing letter-space that
           `tracking` adds after the O, so the word sits centred in the pill. */}
-      <span className="-mr-[0.2em]">Pro</span>
+      <span className="-mr-[0.2em]">Ultra</span>
     </motion.button>
   );
 

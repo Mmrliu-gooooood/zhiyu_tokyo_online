@@ -123,7 +123,12 @@
     "example2Prompt": "从零学 Python，30 分钟写出第一个程序",
     "example3Title": "傅里叶变换是什么",
     "example3Meta": "信号与系统 · 白板讲解",
-    "example3Prompt": "用白板给我讲解傅里叶变换"
+    "example3Prompt": "用白板给我讲解傅里叶变换",
+    "composerLabel": "想学什么？一句话生成一堂互动课",
+    "greetingMorning": "早上好，{{name}}",
+    "greetingAfternoon": "下午好，{{name}}",
+    "greetingEvening": "晚上好，{{name}}",
+    "allSpaces": "全部学科"
   },
   "toolbar": {
     "pdfParser": "解析器",
@@ -411,10 +416,10 @@
     "exitFullscreen": "退出全屏",
     "editCourse": "编辑课程",
     "doneEditing": "完成编辑",
-    "proModeDisabledHint": "本页不支持编辑——打开任意课程页即可使用 Pro 模式编辑。"
+    "proModeDisabledHint": "本页不支持编辑——打开任意课程页即可编辑。"
   },
   "edit": {
-    "proMode": "专业模式",
+    "proMode": "编辑",
     "undo": "撤销",
     "redo": "重做",
     "delete": "删除",
@@ -1404,7 +1409,8 @@
     "webSearchFailed": "网络搜索失败",
     "outlinesReadyCount": "{{ready}} / {{total}} 章节就绪",
     "jumpToBlankTitle": "跳到待补充标题的章节",
-    "analyzingMediaMaterial": "解析音视频内容"
+    "analyzingMediaMaterial": "解析音视频内容",
+    "progressSummary": "已完成 {{done}} / {{total}} 步"
   },
   "settings": {
     "title": "设置",
@@ -2269,7 +2275,7 @@
     "retry": "重试",
     "untitledSession": "未命名对话",
     "pagePosition": "第 {{index}} / {{total}} 页",
-    "exitPro": "退出 Pro",
+    "exitPro": "退出 Ultra",
     "navAria": "工作区导航",
     "homeAria": "返回首页",
     "currentSession": "当前对话",
@@ -2379,8 +2385,8 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "专业模式",
-    "badgeEnter": "专业模式",
+    "badgeAria": "Ultra 模式",
+    "badgeEnter": "进入 Ultra 模式：多会话 AI 工作台",
     "badgeExit": "返回普通模式",
     "launchPlaceholder": "描述你想创造的学习体验",
     "launchSend": "开始构建"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "加入课程或资料",
     "emptyStep2Desc": "放进已有课程，或上传讲义",
     "emptyStep3Title": "生成第一堂课",
-    "emptyStep3Desc": "AI 老师按资料讲解"
+    "emptyStep3Desc": "AI 老师按资料讲解",
+    "tabs": {
+      "label": "学科内导航",
+      "overview": "概览"
+    }
+  },
+  "shell": {
+    "navLabel": "主导航",
+    "home": "学习主页",
+    "newCourse": "新建课程",
+    "ultra": "Ultra 模式",
+    "mySpaces": "我的学科",
+    "showMore": "展开全部（还有 {{count}} 个）",
+    "showLess": "收起",
+    "library": "课程库",
+    "accountHint": "资料 · 设置 · 主题",
+    "editProfile": "编辑资料",
+    "profileTitle": "编辑个人资料",
+    "nickname": "昵称",
+    "bio": "自我介绍",
+    "save": "保存",
+    "tabHome": "主页",
+    "tabSpaces": "学科",
+    "tab": {
+      "materials": "资料",
+      "classmates": "学伴",
+      "memory": "记忆"
+    }
   }
 }

@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
-import { ZhiyuLearningVisual } from '@/components/home/ZhiyuLearningVisual';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import type { ZhiyuGenerationStep } from './zhiyu-generation-state';
 import { ZhiyuGenerationTimeline } from './ZhiyuGenerationTimeline';
@@ -59,9 +58,7 @@ export function ZhiyuGenerationShell({
               {statusDetail ?? t('generation.generatingOutlinesDesc')}
             </p>
           </div>
-          <div className="mb-5">
-            {illustration ?? <ZhiyuLearningVisual className="mx-auto max-w-[270px]" />}
-          </div>
+          {illustration ?? <GenerationProgressSummary steps={steps} />}
           <ZhiyuGenerationTimeline steps={steps} />
         </section>
 
@@ -72,6 +69,36 @@ export function ZhiyuGenerationShell({
           {preview}
         </section>
       </main>
+    </div>
+  );
+}
+
+/** Overall progress in words and a bar, above the step list. */
+function GenerationProgressSummary({ steps }: { readonly steps: readonly ZhiyuGenerationStep[] }) {
+  const { t } = useI18n();
+  const done = steps.filter((step) => step.status === 'done').length;
+  const percent = steps.length ? Math.round((done / steps.length) * 100) : 0;
+  return (
+    <div className="mb-5 rounded-xl bg-muted/70 px-4 py-3.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-sm font-semibold text-foreground">
+          {t('generation.progressSummary', { done, total: steps.length })}
+        </span>
+        <span className="text-sm font-semibold tabular-nums text-primary">{percent}%</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-label={t('generation.progressSummary', { done, total: steps.length })}
+        className="mt-2.5 h-2 overflow-hidden rounded-full bg-card"
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
     </div>
   );
 }

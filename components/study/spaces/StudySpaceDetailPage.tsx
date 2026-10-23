@@ -14,12 +14,8 @@ import { useRouter } from 'next/navigation';
 import {
   Archive,
   ArchiveRestore,
-  CalendarCheck,
   CalendarClock,
-  ChevronLeft,
-  BookX,
   ClipboardCheck,
-  MessageSquareQuote,
   MoreHorizontal,
   Pencil,
   Play,
@@ -60,6 +56,7 @@ import { useI18n } from '@/lib/hooks/use-i18n';
 import { reviewApi } from '@/lib/study/review/client';
 import { StudyApiError, fetchStudyCapabilities, studyApi } from '@/lib/study/spaces/client';
 import { SpaceMaterialsSection } from '@/components/study/materials/SpaceMaterialsSection';
+import { STUDY_SPACES_CHANGED_EVENT } from '@/components/shell/use-shell-nav';
 import type { StudySpaceCourse, StudySpaceDetail } from '@/lib/study/spaces/contracts';
 import {
   courseViewStatus,
@@ -81,20 +78,14 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
 
   const [loadKey, setLoadKey] = useState(0);
   const [materialsOn, setMaterialsOn] = useState(false);
-  const [qaOn, setQaOn] = useState(false);
   const [examsOn, setExamsOn] = useState(false);
-  const [wrongbookOn, setWrongbookOn] = useState(false);
-  const [reviewOn, setReviewOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void fetchStudyCapabilities().then((capabilities) => {
       if (cancelled) return;
       setMaterialsOn(capabilities.materials);
-      setQaOn(capabilities.qa);
       setExamsOn(capabilities.exams);
-      setWrongbookOn(capabilities.wrongbook);
-      setReviewOn(capabilities.review);
       // B12: bring the subject's Memory summary up to date in the background
       // (the server calls the model only when the records changed enough).
       if (capabilities.review && capabilities.memory) {
@@ -148,6 +139,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
   async function save(patch: Parameters<typeof studyApi.updateSpace>[2]) {
     try {
       setSpace(await studyApi.updateSpace(space!.id, space!.revision, patch));
+      window.dispatchEvent(new Event(STUDY_SPACES_CHANGED_EVENT));
     } catch (error) {
       if (error instanceof StudyApiError && error.code === 'STUDY_REVISION_CONFLICT') {
         const current = error.body?.current as StudySpaceDetail | undefined;
@@ -160,14 +152,6 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
 
   return (
     <StudyShell>
-      <Link
-        href="/study"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        {t('study.backToSpaces')}
-      </Link>
-
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -196,38 +180,6 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {examsOn ? (
-            <Button asChild variant="outline" data-testid="study-open-practice">
-              <Link href={`/study/${encodeURIComponent(space.id)}/practice`}>
-                <ClipboardCheck className="mr-1 size-4" />
-                {t('study.practice.open')}
-              </Link>
-            </Button>
-          ) : null}
-          {wrongbookOn ? (
-            <Button asChild variant="outline" data-testid="study-open-wrongbook">
-              <Link href={`/study/${encodeURIComponent(space.id)}/wrongbook`}>
-                <BookX className="mr-1 size-4" />
-                {t('study.wrongbook.open')}
-              </Link>
-            </Button>
-          ) : null}
-          {reviewOn ? (
-            <Button asChild variant="outline" data-testid="study-open-review">
-              <Link href={`/study/${encodeURIComponent(space.id)}/review`}>
-                <CalendarCheck className="mr-1 size-4" />
-                {t('study.review.open')}
-              </Link>
-            </Button>
-          ) : null}
-          {qaOn ? (
-            <Button asChild variant="outline" data-testid="study-open-ask">
-              <Link href={`/study/${encodeURIComponent(space.id)}/ask`}>
-                <MessageSquareQuote className="mr-1 size-4" />
-                {t('study.qa.open')}
-              </Link>
-            </Button>
-          ) : null}
           <Button
             variant="outline"
             onClick={() => setEditOpen(true)}
@@ -461,7 +413,10 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
               onClick={() => {
                 void studyApi
                   .deleteSpace(space.id)
-                  .then(() => router.push('/study'))
+                  .then(() => {
+                    window.dispatchEvent(new Event(STUDY_SPACES_CHANGED_EVENT));
+                    router.push('/study');
+                  })
                   .catch(() => toast.error(t('study.errors.generic')));
               }}
             >

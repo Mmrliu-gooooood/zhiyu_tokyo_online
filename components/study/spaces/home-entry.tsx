@@ -1,15 +1,14 @@
 'use client';
 
 /**
- * Home affordances for study spaces (learning plan B01): the header entry, and
- * the "this course will join <space>" banner when Home was opened from a
- * space's "generate a course" action (`/?studySpace=<id>`). Opened from a
- * course explanation of a wrong question (B13, `&studyExplanation=<id>`), the
+ * Home affordances for study spaces (learning plan B01): the "this course will
+ * join <space>" banner when Home was opened from a space's "generate a course"
+ * action (`/?studySpace=<id>`). Opened from a course explanation of a wrong
+ * question (B13, `&studyExplanation=<id>`), the
  * banner says so, the requirement is filled in, and only the media the student
  * ticked there are generated.
  */
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { BookOpenCheck, X } from 'lucide-react';
 
 import { peekAccountUserId } from '@/lib/auth/account-environment';
@@ -18,49 +17,6 @@ import { explanationApi } from '@/lib/study/explanations/client';
 import { isExplanationId, type CourseMedia } from '@/lib/study/explanations/contracts';
 import { fetchStudyCapabilities, fetchStudyCapability, studyApi } from '@/lib/study/spaces/client';
 import { isStudyId } from '@/lib/study/spaces/contracts';
-import { cn } from '@/lib/utils';
-
-/** True when this deployment serves study spaces and an account is signed in. */
-export function useStudySpacesAvailable(): boolean {
-  const [available, setAvailable] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () => {
-      if (!peekAccountUserId()) {
-        setAvailable(false);
-        return;
-      }
-      void fetchStudyCapability().then((enabled) => {
-        if (!cancelled) setAvailable(enabled && Boolean(peekAccountUserId()));
-      });
-    };
-    refresh();
-    window.addEventListener('auth-change', refresh);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('auth-change', refresh);
-    };
-  }, []);
-  return available;
-}
-
-export function StudySpacesNavButton({ className }: { className?: string }) {
-  const { t } = useI18n();
-  if (!useStudySpacesAvailable()) return null;
-  return (
-    <Link
-      href="/study"
-      data-testid="study-spaces-entry"
-      className={cn(
-        'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-        className,
-      )}
-    >
-      <BookOpenCheck className="size-4" />
-      <span className="hidden sm:inline">{t('study.nav')}</span>
-    </Link>
-  );
-}
 
 export interface StudyGenerationTarget {
   id: string;

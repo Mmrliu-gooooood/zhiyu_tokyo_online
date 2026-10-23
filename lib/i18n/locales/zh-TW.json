@@ -123,7 +123,12 @@
     "example2Prompt": "從零學 Python，30 分鐘寫出第一個程式",
     "example3Title": "傅立葉轉換是什麼",
     "example3Meta": "訊號與系統 · 白板講解",
-    "example3Prompt": "用白板給我講解傅立葉轉換"
+    "example3Prompt": "用白板給我講解傅立葉轉換",
+    "composerLabel": "想學什麼？一句話生成一堂互動課",
+    "greetingMorning": "早安，{{name}}",
+    "greetingAfternoon": "午安，{{name}}",
+    "greetingEvening": "晚安，{{name}}",
+    "allSpaces": "全部學科"
   },
   "toolbar": {
     "pdfParser": "解析器",
@@ -411,10 +416,10 @@
     "exitFullscreen": "離開全螢幕",
     "editCourse": "編輯課程",
     "doneEditing": "完成編輯",
-    "proModeDisabledHint": "此頁面無法編輯——開啟課程投影片以使用 Pro 模式編輯。"
+    "proModeDisabledHint": "本頁不支援編輯——打開任意課程頁即可編輯。"
   },
   "edit": {
-    "proMode": "專業模式",
+    "proMode": "編輯",
     "undo": "復原",
     "redo": "重做",
     "delete": "刪除",
@@ -1385,7 +1390,8 @@
     "exitStay": "留在此頁",
     "exitCancellingTitle": "正在取消",
     "exitCancelling": "正在取消…",
-    "exitCancelFailed": "尚未確認取消。請重試，或留在此頁查看狀態。"
+    "exitCancelFailed": "尚未確認取消。請重試，或留在此頁查看狀態。",
+    "progressSummary": "已完成 {{done}} / {{total}} 步"
   },
   "settings": {
     "title": "設定",
@@ -2250,7 +2256,7 @@
     "retry": "重試",
     "untitledSession": "未命名對話",
     "pagePosition": "第 {{index}} / {{total}} 頁",
-    "exitPro": "退出 Pro",
+    "exitPro": "退出 Ultra",
     "navAria": "工作區導覽",
     "homeAria": "返回首頁",
     "currentSession": "目前對話",
@@ -2379,9 +2385,9 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "專業模式",
-    "badgeEnter": "專業模式",
-    "badgeExit": "返回普通模式",
+    "badgeAria": "Ultra 模式",
+    "badgeEnter": "進入 Ultra 模式：多會話 AI 工作台",
+    "badgeExit": "返回一般模式",
     "launchPlaceholder": "描述你想創造的學習體驗",
     "launchSend": "開始構建"
   },
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "加入課程或資料",
     "emptyStep2Desc": "放進已有課程，或上傳講義",
     "emptyStep3Title": "生成第一堂課",
-    "emptyStep3Desc": "AI 老師依資料講解"
+    "emptyStep3Desc": "AI 老師依資料講解",
+    "tabs": {
+      "label": "學科內導覽",
+      "overview": "概覽"
+    }
+  },
+  "shell": {
+    "navLabel": "主導覽",
+    "home": "學習主頁",
+    "newCourse": "新建課程",
+    "ultra": "Ultra 模式",
+    "mySpaces": "我的學科",
+    "showMore": "展開全部（還有 {{count}} 個）",
+    "showLess": "收起",
+    "library": "課程庫",
+    "accountHint": "資料 · 設定 · 主題",
+    "editProfile": "編輯資料",
+    "profileTitle": "編輯個人資料",
+    "nickname": "暱稱",
+    "bio": "自我介紹",
+    "save": "儲存",
+    "tabHome": "主頁",
+    "tabSpaces": "學科",
+    "tab": {
+      "materials": "資料",
+      "classmates": "學伴",
+      "memory": "記憶"
+    }
   }
 }

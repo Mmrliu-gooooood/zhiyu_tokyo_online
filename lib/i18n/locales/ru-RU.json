@@ -123,7 +123,12 @@
     "example2Prompt": "Научи меня Python с нуля и помоги написать первую программу за 30 минут",
     "example3Title": "Что такое преобразование Фурье",
     "example3Meta": "Сигналы и системы · на доске",
-    "example3Prompt": "Объясни преобразование Фурье на доске"
+    "example3Prompt": "Объясни преобразование Фурье на доске",
+    "composerLabel": "Что хотите изучить? Одна фраза — и готов интерактивный урок",
+    "greetingMorning": "Доброе утро, {{name}}",
+    "greetingAfternoon": "Добрый день, {{name}}",
+    "greetingEvening": "Добрый вечер, {{name}}",
+    "allSpaces": "Все предметы"
   },
   "toolbar": {
     "pdfParser": "Парсер",
@@ -411,10 +416,10 @@
     "exitFullscreen": "Свернуть",
     "editCourse": "Редактировать курс",
     "doneEditing": "Завершить редактирование",
-    "proModeDisabledHint": "Редактирование недоступно на этой странице — откройте слайд курса, чтобы редактировать в Pro-режиме."
+    "proModeDisabledHint": "Эту страницу нельзя редактировать — откройте слайд курса."
   },
   "edit": {
-    "proMode": "Pro",
+    "proMode": "Правка",
     "undo": "Отменить",
     "redo": "Повторить",
     "delete": "Удалить",
@@ -1404,7 +1409,8 @@
     "exitStay": "Остаться на этой странице",
     "exitCancellingTitle": "Отмена",
     "exitCancelling": "Отмена…",
-    "exitCancelFailed": "Отмена не подтверждена. Повторите попытку или оставайтесь на этой странице, чтобы следить за состоянием."
+    "exitCancelFailed": "Отмена не подтверждена. Повторите попытку или оставайтесь на этой странице, чтобы следить за состоянием.",
+    "progressSummary": "Готово {{done}} из {{total}} шагов"
   },
   "settings": {
     "title": "Настройки",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Выйти из Ultra",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,8 +2385,8 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "Pro-режим",
-    "badgeEnter": "Pro-режим",
+    "badgeAria": "Режим Ultra",
+    "badgeEnter": "Перейти в режим Ultra: ИИ-верстак с несколькими сессиями",
     "badgeExit": "Вернуться в обычный режим",
     "launchPlaceholder": "Опишите учебный опыт, который хотите создать",
     "launchSend": "Начать сборку"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "Добавьте курсы или материалы",
     "emptyStep2Desc": "Добавьте курс или загрузите конспект",
     "emptyStep3Title": "Создайте первый урок",
-    "emptyStep3Desc": "ИИ-преподаватель объяснит по вашим материалам"
+    "emptyStep3Desc": "ИИ-преподаватель объяснит по вашим материалам",
+    "tabs": {
+      "label": "Разделы предмета",
+      "overview": "Обзор"
+    }
+  },
+  "shell": {
+    "navLabel": "Главное меню",
+    "home": "Главная",
+    "newCourse": "Новый курс",
+    "ultra": "Режим Ultra",
+    "mySpaces": "Мои предметы",
+    "showMore": "Показать все (ещё {{count}})",
+    "showLess": "Свернуть",
+    "library": "Библиотека курсов",
+    "accountHint": "Профиль · Настройки · Тема",
+    "editProfile": "Изменить профиль",
+    "profileTitle": "Изменить профиль",
+    "nickname": "Имя",
+    "bio": "О себе",
+    "save": "Сохранить",
+    "tabHome": "Главная",
+    "tabSpaces": "Предметы",
+    "tab": {
+      "materials": "Материалы",
+      "classmates": "Однокурсники",
+      "memory": "Память"
+    }
   }
 }

@@ -7,7 +7,6 @@ import { AlertCircle, AlertTriangle, ArrowLeft, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
-import { ZhiyuLearningVisual } from '@/components/home/ZhiyuLearningVisual';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { OutlinesEditor } from '@/components/generation/outlines-editor';
 import { cn } from '@/lib/utils';
@@ -2128,7 +2127,15 @@ function GenerationPreviewContent() {
                       animate={{ opacity: 1 }}
                       className="w-full max-w-md"
                     >
-                      <ZhiyuLearningVisual className="mx-auto max-w-[320px]" />
+                      {/* Placeholder cards while the first content is on its way. */}
+                      <div aria-hidden className="grid grid-cols-2 gap-3">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className="h-14 animate-pulse rounded-xl bg-muted motion-reduce:animate-none"
+                          />
+                        ))}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

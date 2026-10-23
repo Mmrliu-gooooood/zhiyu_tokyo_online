@@ -123,7 +123,12 @@
     "example2Prompt": "Teach me Python from scratch and help me write my first program in 30 minutes",
     "example3Title": "What is the Fourier transform?",
     "example3Meta": "Signals and systems · on the whiteboard",
-    "example3Prompt": "Explain the Fourier transform on the whiteboard"
+    "example3Prompt": "Explain the Fourier transform on the whiteboard",
+    "composerLabel": "What do you want to learn? One sentence makes an interactive class",
+    "greetingMorning": "Good morning, {{name}}",
+    "greetingAfternoon": "Good afternoon, {{name}}",
+    "greetingEvening": "Good evening, {{name}}",
+    "allSpaces": "All subjects"
   },
   "toolbar": {
     "pdfParser": "Parser",
@@ -411,10 +416,10 @@
     "exitFullscreen": "Exit Fullscreen",
     "editCourse": "Edit course",
     "doneEditing": "Done editing",
-    "proModeDisabledHint": "Editing isn't available on this page — open a course slide to edit with Pro mode."
+    "proModeDisabledHint": "Editing isn't available on this page — open a course slide to edit it."
   },
   "edit": {
-    "proMode": "Pro",
+    "proMode": "Edit",
     "undo": "Undo",
     "redo": "Redo",
     "delete": "Delete",
@@ -1404,7 +1409,8 @@
     "webSearchFailed": "Web search failed",
     "outlinesReadyCount": "{{ready}} / {{total}} sections ready",
     "jumpToBlankTitle": "Jump to a section that still needs a title",
-    "analyzingMediaMaterial": "Analyzing audio/video"
+    "analyzingMediaMaterial": "Analyzing audio/video",
+    "progressSummary": "{{done}} of {{total}} steps done"
   },
   "settings": {
     "title": "Settings",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Exit Ultra",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2372,8 +2378,8 @@
     "skillsLoadFailed": "Skills failed to load. Click to retry",
     "retrySkills": "Retry",
     "noSkillMatch": "No Skills match “{{query}}”",
-    "badgeAria": "Pro mode",
-    "badgeEnter": "Pro mode",
+    "badgeAria": "Ultra mode",
+    "badgeEnter": "Enter Ultra mode: the multi-session AI workbench",
     "badgeExit": "Back to classic",
     "launchPlaceholder": "Describe the learning experience you want to create",
     "launchSend": "Start build"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "Add courses or materials",
     "emptyStep2Desc": "Bring in a course or upload notes",
     "emptyStep3Title": "Generate your first class",
-    "emptyStep3Desc": "The AI teacher works from your materials"
+    "emptyStep3Desc": "The AI teacher works from your materials",
+    "tabs": {
+      "label": "Subject sections",
+      "overview": "Overview"
+    }
+  },
+  "shell": {
+    "navLabel": "Main navigation",
+    "home": "Home",
+    "newCourse": "New course",
+    "ultra": "Ultra mode",
+    "mySpaces": "My subjects",
+    "showMore": "Show all ({{count}} more)",
+    "showLess": "Show less",
+    "library": "Course library",
+    "accountHint": "Profile · Settings · Theme",
+    "editProfile": "Edit profile",
+    "profileTitle": "Edit profile",
+    "nickname": "Nickname",
+    "bio": "About you",
+    "save": "Save",
+    "tabHome": "Home",
+    "tabSpaces": "Subjects",
+    "tab": {
+      "materials": "Materials",
+      "classmates": "Classmates",
+      "memory": "Memory"
+    }
   }
 }

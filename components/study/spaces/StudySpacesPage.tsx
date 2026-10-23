@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Archive,
   ArrowRight,
@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { StudySpaceFormDialog } from '@/components/study/spaces/StudySpaceFormDialog';
+import { STUDY_SPACES_CHANGED_EVENT } from '@/components/shell/use-shell-nav';
 import {
   StudyShell,
   StudyStatus,
@@ -44,7 +45,8 @@ export function StudySpacesPage() {
   const router = useRouter();
   const [state, setState] = useState<StudyLoadState>('loading');
   const [spaces, setSpaces] = useState<StudySpaceSummary[]>([]);
-  const [createOpen, setCreateOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const [createOpen, setCreateOpen] = useState(() => searchParams?.get('create') === '1');
   const [showArchived, setShowArchived] = useState(false);
 
   const [loadKey, setLoadKey] = useState(0);
@@ -205,6 +207,7 @@ export function StudySpacesPage() {
                   : t('study.errors.generic'),
               );
             });
+            window.dispatchEvent(new Event(STUDY_SPACES_CHANGED_EVENT));
             router.push(`/study/${encodeURIComponent(created.id)}`);
           }}
         />
@@ -213,7 +216,7 @@ export function StudySpacesPage() {
   );
 }
 
-function SpaceCard({ space }: { space: StudySpaceSummary }) {
+export function SpaceCard({ space }: { space: StudySpaceSummary }) {
   const { t } = useI18n();
   const meta = [
     space.educationLevel ? t(`study.level.${space.educationLevel}`) : null,

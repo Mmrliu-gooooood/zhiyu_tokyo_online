@@ -123,7 +123,12 @@
     "example2Prompt": "Dạy tôi Python từ đầu và giúp tôi viết chương trình đầu tiên trong 30 phút",
     "example3Title": "Biến đổi Fourier là gì",
     "example3Meta": "Tín hiệu và hệ thống · giảng trên bảng trắng",
-    "example3Prompt": "Giảng cho tôi về biến đổi Fourier trên bảng trắng"
+    "example3Prompt": "Giảng cho tôi về biến đổi Fourier trên bảng trắng",
+    "composerLabel": "Bạn muốn học gì? Một câu là có ngay buổi học tương tác",
+    "greetingMorning": "Chào buổi sáng, {{name}}",
+    "greetingAfternoon": "Chào buổi chiều, {{name}}",
+    "greetingEvening": "Chào buổi tối, {{name}}",
+    "allSpaces": "Tất cả môn học"
   },
   "toolbar": {
     "pdfParser": "Bộ đọc PDF",
@@ -411,10 +416,10 @@
     "exitFullscreen": "Thoát toàn màn hình",
     "editCourse": "Sửa bài học",
     "doneEditing": "Sửa xong",
-    "proModeDisabledHint": "Trang này không sửa được — hãy mở một slide bài học để dùng chế độ Pro."
+    "proModeDisabledHint": "Trang này không chỉnh sửa được — hãy mở một trang khóa học để chỉnh sửa."
   },
   "edit": {
-    "proMode": "Pro",
+    "proMode": "Chỉnh sửa",
     "undo": "Hoàn tác",
     "redo": "Làm lại",
     "delete": "Xóa",
@@ -1404,7 +1409,8 @@
     "exitStay": "Ở lại trang này",
     "exitCancellingTitle": "Đang hủy",
     "exitCancelling": "Đang hủy…",
-    "exitCancelFailed": "Việc hủy chưa được xác nhận. Hãy thử lại hoặc ở lại trang này để xem trạng thái."
+    "exitCancelFailed": "Việc hủy chưa được xác nhận. Hãy thử lại hoặc ở lại trang này để xem trạng thái.",
+    "progressSummary": "Đã xong {{done}} / {{total}} bước"
   },
   "settings": {
     "title": "Cài đặt",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Thoát Ultra",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,9 +2385,9 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "Chế độ Pro",
-    "badgeEnter": "Chế độ Pro",
-    "badgeExit": "Quay lại chế độ cổ điển",
+    "badgeAria": "Chế độ Ultra",
+    "badgeEnter": "Vào chế độ Ultra: bàn làm việc AI nhiều phiên",
+    "badgeExit": "Về chế độ thường",
     "launchPlaceholder": "Mô tả trải nghiệm học tập bạn muốn tạo",
     "launchSend": "Bắt đầu tạo"
   },
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "Thêm khóa học hoặc tài liệu",
     "emptyStep2Desc": "Đưa khóa học có sẵn vào hoặc tải bài giảng lên",
     "emptyStep3Title": "Tạo buổi học đầu tiên",
-    "emptyStep3Desc": "Giáo viên AI giảng theo tài liệu của bạn"
+    "emptyStep3Desc": "Giáo viên AI giảng theo tài liệu của bạn",
+    "tabs": {
+      "label": "Các mục của môn học",
+      "overview": "Tổng quan"
+    }
+  },
+  "shell": {
+    "navLabel": "Điều hướng chính",
+    "home": "Trang chủ",
+    "newCourse": "Khóa học mới",
+    "ultra": "Chế độ Ultra",
+    "mySpaces": "Môn học của tôi",
+    "showMore": "Xem tất cả (thêm {{count}})",
+    "showLess": "Thu gọn",
+    "library": "Thư viện khóa học",
+    "accountHint": "Hồ sơ · Cài đặt · Giao diện",
+    "editProfile": "Sửa hồ sơ",
+    "profileTitle": "Sửa hồ sơ",
+    "nickname": "Biệt danh",
+    "bio": "Giới thiệu bản thân",
+    "save": "Lưu",
+    "tabHome": "Trang chủ",
+    "tabSpaces": "Môn học",
+    "tab": {
+      "materials": "Tài liệu",
+      "classmates": "Bạn học",
+      "memory": "Ghi nhớ"
+    }
   }
 }

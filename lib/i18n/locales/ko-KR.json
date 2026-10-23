@@ -123,7 +123,12 @@
     "example2Prompt": "Python을 처음부터 가르쳐 주고 30분 안에 첫 프로그램을 작성하게 도와줘",
     "example3Title": "푸리에 변환이란",
     "example3Meta": "신호와 시스템 · 화이트보드 설명",
-    "example3Prompt": "화이트보드로 푸리에 변환을 설명해 줘"
+    "example3Prompt": "화이트보드로 푸리에 변환을 설명해 줘",
+    "composerLabel": "무엇을 배우고 싶나요? 한 문장으로 인터랙티브 수업 만들기",
+    "greetingMorning": "좋은 아침이에요, {{name}}",
+    "greetingAfternoon": "좋은 오후예요, {{name}}",
+    "greetingEvening": "좋은 저녁이에요, {{name}}",
+    "allSpaces": "모든 과목"
   },
   "toolbar": {
     "pdfParser": "파서",
@@ -411,10 +416,10 @@
     "exitFullscreen": "전체화면 종료",
     "editCourse": "강좌 편집",
     "doneEditing": "편집 완료",
-    "proModeDisabledHint": "이 페이지에서는 편집할 수 없습니다 — 코스 슬라이드를 열면 Pro 모드로 편집할 수 있습니다."
+    "proModeDisabledHint": "이 페이지는 편집할 수 없습니다. 강의 페이지를 열면 편집할 수 있습니다."
   },
   "edit": {
-    "proMode": "프로 모드",
+    "proMode": "편집",
     "undo": "실행 취소",
     "redo": "다시 실행",
     "delete": "삭제",
@@ -1404,7 +1409,8 @@
     "exitStay": "이 페이지에 머무르기",
     "exitCancellingTitle": "취소 중",
     "exitCancelling": "취소 중…",
-    "exitCancelFailed": "취소가 확인되지 않았습니다. 다시 시도하거나 이 페이지에서 상태를 확인하세요."
+    "exitCancelFailed": "취소가 확인되지 않았습니다. 다시 시도하거나 이 페이지에서 상태를 확인하세요.",
+    "progressSummary": "{{total}}단계 중 {{done}}단계 완료"
   },
   "settings": {
     "title": "설정",
@@ -2269,7 +2275,7 @@
     "retry": "Retry",
     "untitledSession": "Untitled chat",
     "pagePosition": "Page {{index}} of {{total}}",
-    "exitPro": "Exit Pro",
+    "exitPro": "Ultra 종료",
     "navAria": "Workspace navigation",
     "homeAria": "Back to home",
     "currentSession": "Current chat",
@@ -2379,8 +2385,8 @@
     "skillsLoadFailed": "Skill 加载失败，点击重试",
     "retrySkills": "重试",
     "noSkillMatch": "没有匹配“{{query}}”的 Skill",
-    "badgeAria": "Pro 모드",
-    "badgeEnter": "Pro 모드",
+    "badgeAria": "Ultra 모드",
+    "badgeEnter": "Ultra 모드로: 멀티 세션 AI 워크벤치",
     "badgeExit": "일반 모드로 돌아가기",
     "launchPlaceholder": "만들고 싶은 학습 경험을 설명해 보세요",
     "launchSend": "구축 시작"
@@ -4010,6 +4016,33 @@
     "emptyStep2Title": "강의나 자료 추가",
     "emptyStep2Desc": "기존 강의를 넣거나 자료 업로드",
     "emptyStep3Title": "첫 수업 생성",
-    "emptyStep3Desc": "AI 선생님이 자료로 설명"
+    "emptyStep3Desc": "AI 선생님이 자료로 설명",
+    "tabs": {
+      "label": "과목 메뉴",
+      "overview": "개요"
+    }
+  },
+  "shell": {
+    "navLabel": "주 메뉴",
+    "home": "홈",
+    "newCourse": "새 강의",
+    "ultra": "Ultra 모드",
+    "mySpaces": "내 과목",
+    "showMore": "모두 보기 ({{count}}개 더)",
+    "showLess": "접기",
+    "library": "강의 목록",
+    "accountHint": "프로필 · 설정 · 테마",
+    "editProfile": "프로필 편집",
+    "profileTitle": "프로필 편집",
+    "nickname": "닉네임",
+    "bio": "자기소개",
+    "save": "저장",
+    "tabHome": "홈",
+    "tabSpaces": "과목",
+    "tab": {
+      "materials": "자료",
+      "classmates": "학습 친구",
+      "memory": "메모리"
+    }
   }
 }
