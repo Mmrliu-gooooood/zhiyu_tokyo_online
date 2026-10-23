@@ -246,7 +246,7 @@ export function WrongbookPage({ spaceId }: { spaceId: string }) {
 
       <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+          <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
             {t('study.wrongbook.title')}
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
@@ -447,9 +447,9 @@ function OutcomeChip({
       data-testid="wrongbook-outcome"
       className={cn(
         CHIP,
-        outcome === 'correct' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-        outcome === 'incorrect' && 'bg-red-500/10 text-red-600 dark:text-red-400',
-        outcome === 'partial' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+        outcome === 'correct' && 'bg-correct-soft text-correct-ink',
+        outcome === 'incorrect' && 'bg-mistake-soft text-mistake-ink',
+        outcome === 'partial' && 'bg-review-soft text-review-ink',
         outcome === 'unanswered' && 'bg-muted text-muted-foreground',
       )}
     >
@@ -574,9 +574,7 @@ function WrongItemCard({
               {t('study.wrongbook.lastWrong')} <RelativeTime iso={item.lastWrongAt} />
             </span>
             {item.latest.outcome === 'correct' ? (
-              <span
-                className={cn(CHIP, 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400')}
-              >
+              <span className={cn(CHIP, 'bg-correct-soft text-correct-ink')}>
                 {t('study.wrongbook.laterCorrect')}
               </span>
             ) : null}
@@ -593,7 +591,7 @@ function WrongItemCard({
             onClick={() => void update({ reviewState: review ? 'none' : 'to_review' })}
             data-testid="wrongbook-mark"
           >
-            <Star className={cn('size-4', review && 'fill-amber-400 text-amber-500')} />
+            <Star className={cn('size-4', review && 'fill-review text-review')} />
           </Button>
           <Button
             variant="ghost"
@@ -775,8 +773,8 @@ function OccurrenceView({ occurrence }: { occurrence: WrongOccurrenceView }) {
                 key={option.value}
                 className={cn(
                   'flex items-center gap-3 rounded-xl border px-3.5 py-2 text-sm',
-                  isKey && 'border-emerald-400/70 bg-emerald-500/5',
-                  isChosen && !isKey && 'border-red-300 bg-red-500/5',
+                  isKey && 'border-correct/50 bg-correct-soft/60',
+                  isChosen && !isKey && 'border-mistake/40 bg-mistake-soft/60',
                   !isKey && !isChosen && 'border-border text-muted-foreground',
                 )}
               >

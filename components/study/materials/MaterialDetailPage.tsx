@@ -179,7 +179,7 @@ export function MaterialDetailPage({ materialId }: { materialId: string }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1
-              className="truncate text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl"
+              className="truncate font-display text-2xl font-bold text-foreground md:text-3xl"
               data-testid="study-material-name"
             >
               {material.title}
@@ -512,9 +512,7 @@ function ParsePanel({
         ) : null}
       </div>
       {chosen?.paid ? (
-        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-          {t('study.materials.paidNotice')}
-        </p>
+        <p className="mt-2 text-xs text-review-ink">{t('study.materials.paidNotice')}</p>
       ) : null}
     </section>
   );

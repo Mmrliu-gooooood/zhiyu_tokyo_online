@@ -321,7 +321,7 @@ export function GenerationPanel({
                 })}
       </p>
       {job.uncoveredConcepts.length && !pending ? (
-        <p className="text-amber-700 dark:text-amber-400">
+        <p className="text-review-ink">
           {t('study.practice.ai.uncoveredLeft', {
             names: job.uncoveredConcepts.join(t('study.practice.separator')),
           })}

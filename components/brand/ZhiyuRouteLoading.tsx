@@ -21,9 +21,12 @@ export function ZhiyuRouteLoading({
       data-testid={testId}
       className="flex min-h-screen w-full items-center justify-center bg-background px-6 text-center"
     >
-      <div className="flex flex-col items-center gap-5 rounded-[22px] border border-border bg-card px-10 py-9 shadow-[0_16px_48px_rgba(20,32,25,0.08)] dark:shadow-black/25">
+      <div className="flex flex-col items-center gap-5 rounded-3xl bg-card px-10 py-9 shadow-float">
         <ZhiyuLockup size="sm" />
-        <Loader2 className="size-5 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+        <Loader2
+          className="size-5 animate-spin text-primary motion-reduce:animate-none"
+          aria-hidden="true"
+        />
         <p className="text-sm text-muted-foreground">{t(labelKey)}</p>
       </div>
     </main>

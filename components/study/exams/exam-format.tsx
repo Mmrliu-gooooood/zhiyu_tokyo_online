@@ -61,7 +61,7 @@ export function VerificationChip({ state }: { state: VerificationState }) {
   const { t } = useI18n();
   if (state === 'unverified') {
     return (
-      <span className={cn(CHIP, 'bg-amber-500/10 text-amber-700 dark:text-amber-400')}>
+      <span className={cn(CHIP, 'bg-review-soft text-review-ink')}>
         <CircleDashed className="size-3" />
         {t('study.practice.verification.unverified')}
       </span>
@@ -182,7 +182,7 @@ export function SourceDetails({ source }: { source: SourceDetailsValue | null | 
         </Link>
       ))}
       {chips.map((chip) => (
-        <span key={chip} className={cn(CHIP, 'bg-amber-500/10 text-amber-700 dark:text-amber-400')}>
+        <span key={chip} className={cn(CHIP, 'bg-review-soft text-review-ink')}>
           {chip}
         </span>
       ))}

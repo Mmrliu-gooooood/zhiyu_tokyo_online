@@ -771,10 +771,7 @@ function AttemptReport({
           </p>
         ) : null}
         {summary.state === 'partial' && canGrade ? (
-          <p
-            className="mt-2 text-sm text-amber-700 dark:text-amber-400"
-            data-testid="attempt-grading-state"
-          >
+          <p className="mt-2 text-sm text-review-ink" data-testid="attempt-grading-state">
             {t('study.practice.report.partial', { count: summary.failed })}
           </p>
         ) : null}
@@ -854,9 +851,9 @@ function OutcomeChip({ item }: { item: ReportItem }) {
       data-testid="report-outcome"
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs',
-        item.outcome === 'correct' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-        item.outcome === 'incorrect' && 'bg-red-500/10 text-red-600 dark:text-red-400',
-        item.outcome === 'partial' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+        item.outcome === 'correct' && 'bg-correct-soft text-correct-ink',
+        item.outcome === 'incorrect' && 'bg-mistake-soft text-mistake-ink',
+        item.outcome === 'partial' && 'bg-review-soft text-review-ink',
         (item.outcome === 'unanswered' ||
           item.outcome === 'ungradable' ||
           item.outcome === 'pending') &&
@@ -930,8 +927,8 @@ function ReportCard({ item, assistance }: { item: ReportItem; assistance?: ItemA
               key={option.value}
               className={cn(
                 'flex items-center gap-3 rounded-xl border px-3.5 py-2 text-sm',
-                isKey && 'border-emerald-400/70 bg-emerald-500/5',
-                chosen && !isKey && 'border-red-300 bg-red-500/5',
+                isKey && 'border-correct/50 bg-correct-soft/60',
+                chosen && !isKey && 'border-mistake/40 bg-mistake-soft/60',
                 !isKey && !chosen && 'border-border text-muted-foreground',
               )}
             >
@@ -1096,10 +1093,10 @@ function OpenReportCard({
 
         {self ? (
           <p
-            className="rounded-xl bg-sky-500/5 px-3 py-2 text-foreground"
+            className="rounded-xl bg-ai-soft/60 px-3 py-2 text-foreground"
             data-testid="open-self-grade"
           >
-            <UserPen className="mr-1 inline size-3.5 text-sky-600" />
+            <UserPen className="mr-1 inline size-3.5 text-ai" />
             {t('study.practice.report.selfShown', {
               earned: self.earned ?? 0,
               points: item.points,

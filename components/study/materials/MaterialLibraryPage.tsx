@@ -74,7 +74,7 @@ export function MaterialLibraryPage() {
       </Link>
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+          <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
             {t('study.materials.libraryTitle')}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">

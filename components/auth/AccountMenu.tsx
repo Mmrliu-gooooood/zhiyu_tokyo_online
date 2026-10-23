@@ -35,7 +35,7 @@ export function AccountMenu({ triggerClassName }: { triggerClassName?: string } 
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all',
+            'p-2 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-sm transition-all',
             triggerClassName,
           )}
           aria-label={t('auth.accountMenu')}
@@ -45,7 +45,9 @@ export function AccountMenu({ triggerClassName }: { triggerClassName?: string } 
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="min-w-[160px]">
         {identity ? (
-          <DropdownMenuLabel className="font-normal text-muted-foreground">{identity}</DropdownMenuLabel>
+          <DropdownMenuLabel className="font-normal text-muted-foreground">
+            {identity}
+          </DropdownMenuLabel>
         ) : null}
         <DropdownMenuItem className="cursor-pointer" onSelect={() => router.push('/account')}>
           {t('auth.accountTitle')}

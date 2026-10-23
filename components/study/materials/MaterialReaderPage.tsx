@@ -177,7 +177,7 @@ export function MaterialReaderPage({ materialId }: { materialId: string }) {
 
       {!view.isCurrent && currentVersionId ? (
         <div
-          className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-sm"
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-review/30 bg-review-soft/60 px-4 py-2 text-sm"
           data-testid="study-reader-old-version"
         >
           <span>{t('study.materials.reader.oldVersion', { n: view.versionNo })}</span>
@@ -353,9 +353,7 @@ function MarkedText({ text, quote }: { text: string; quote: string | null }) {
   return (
     <>
       {text.slice(0, match.index)}
-      <mark className="rounded bg-amber-200/70 px-0.5 text-foreground dark:bg-amber-500/30">
-        {match[0]}
-      </mark>
+      <mark className="rounded bg-review-soft px-0.5 text-foreground">{match[0]}</mark>
       {text.slice(match.index + match[0].length)}
     </>
   );
@@ -372,7 +370,7 @@ function BlockView(props: {
     <div
       data-block-id={props.block.id}
       data-cited={cited ? 'true' : undefined}
-      className={cited ? 'rounded-lg ring-2 ring-amber-400/70 ring-offset-2 ring-offset-card' : ''}
+      className={cited ? 'rounded-lg ring-2 ring-review/70 ring-offset-2 ring-offset-card' : ''}
     >
       <BlockContent {...props} />
     </div>

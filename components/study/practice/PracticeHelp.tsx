@@ -96,10 +96,10 @@ export function PracticeHelp({
       </div>
       {view?.hint ? (
         <div
-          className="rounded-xl bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+          className="rounded-xl bg-review-soft px-3 py-2 text-sm text-foreground"
           data-testid="practice-hint-text"
         >
-          <span className="mr-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+          <span className="mr-1 text-xs font-medium text-review-ink">
             {t('study.practice.help.hintLabel')}
           </span>
           <MathText text={view.hint} />
@@ -190,13 +190,13 @@ export function PracticeChips({
         </span>
       ) : null}
       {independent ? (
-        <span className={cn(CHIP, 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400')}>
+        <span className={cn(CHIP, 'bg-correct-soft text-correct-ink')}>
           <BadgeCheck className="size-3" />
           {t('study.practice.help.chip.independent')}
         </span>
       ) : null}
       {level !== 'unassisted' ? (
-        <span className={cn(CHIP, 'bg-amber-500/10 text-amber-700 dark:text-amber-400')}>
+        <span className={cn(CHIP, 'bg-review-soft text-review-ink')}>
           {level === 'hinted' ? <Lightbulb className="size-3" /> : <Eye className="size-3" />}
           {t(`study.practice.help.chip.${level}`)}
         </span>

@@ -467,7 +467,7 @@ export function PaperBuilderPanel({
             </p>
           ) : (
             <div
-              className="space-y-1 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-300"
+              className="space-y-1 rounded-xl border border-review/30 bg-review-soft/60 p-3 text-sm text-review-ink"
               data-testid="build-gaps"
             >
               <p className="font-medium">{t('study.practice.build.gapsTitle')}</p>

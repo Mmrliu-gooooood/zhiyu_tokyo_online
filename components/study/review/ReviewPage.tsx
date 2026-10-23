@@ -69,11 +69,11 @@ const SELECT = 'h-8 rounded-md border border-border bg-background px-2 text-sm';
 const MINUTE_CHOICES = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 
 const STATE_STYLE: Record<EvidenceState, string> = {
-  pending: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  practiced: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
-  helped: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
-  independent: 'bg-sky-500/10 text-sky-700 dark:text-sky-400',
-  stable: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  pending: 'bg-mistake-soft text-mistake-ink',
+  practiced: 'bg-review-soft text-review-ink',
+  helped: 'bg-review-soft text-review-ink',
+  independent: 'bg-ai-soft text-ai-ink',
+  stable: 'bg-correct-soft text-correct-ink',
 };
 
 interface Flags {
@@ -194,7 +194,7 @@ export function ReviewPage({ spaceId }: { spaceId: string }) {
 
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+          <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
             {t('study.review.title')}
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
@@ -566,7 +566,10 @@ export function EvidenceChip({ state }: { state: EvidenceState }) {
   );
 }
 
-function reasonText(t: (key: string, values?: Record<string, unknown>) => string, reason: ReviewReason) {
+function reasonText(
+  t: (key: string, values?: Record<string, unknown>) => string,
+  reason: ReviewReason,
+) {
   switch (reason.kind) {
     case 'overdue':
       return t('study.review.reason.overdue', { days: reason.days });
@@ -610,9 +613,7 @@ function TaskCard({
     setBusy(kind);
     try {
       await reviewApi.act(task.itemId, task.revision, kind, until);
-      toast.success(
-        t(`study.review.done.${kind}`, until ? { date: until } : undefined),
-      );
+      toast.success(t(`study.review.done.${kind}`, until ? { date: until } : undefined));
       await onChanged();
     } catch (error) {
       toast.error(
@@ -763,12 +764,16 @@ function TaskCard({
           {trusted ? <MathText text={task.question.stem} /> : task.question.stem}
         </button>
         {!compact || open ? (
-          <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground" data-testid="review-reasons">
+          <ul
+            className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground"
+            data-testid="review-reasons"
+          >
             {task.reasons.map((reason) => (
               <li key={JSON.stringify(reason)}>· {reasonText(t, reason)}</li>
             ))}
             <li>
-              · {t('study.review.evidenceLine', {
+              ·{' '}
+              {t('study.review.evidenceLine', {
                 independent: task.evidence.independentQuestions,
                 helped: task.evidence.helped,
                 practiced: task.evidence.practiced,
@@ -815,7 +820,9 @@ function ConceptEvidence({ overview }: { overview: ReviewOverview }) {
   const scoped = overview.concepts.some((concept) => concept.inScope !== null);
   return (
     <section className="mt-6" data-testid="review-concepts">
-      <h2 className="mb-1 text-sm font-medium text-foreground">{t('study.review.concepts.title')}</h2>
+      <h2 className="mb-1 text-sm font-medium text-foreground">
+        {t('study.review.concepts.title')}
+      </h2>
       <p className="mb-2 text-xs text-muted-foreground">{t('study.review.concepts.hint')}</p>
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[34rem] text-left text-xs">

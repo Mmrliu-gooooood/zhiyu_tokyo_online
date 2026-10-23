@@ -63,7 +63,7 @@ function status(item: ImportPreviewItem): 'ready' | 'draft' | 'invalid' | 'dupli
 
 const STATUS_STYLE = {
   ready: 'bg-primary/10 text-primary',
-  draft: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  draft: 'bg-review-soft text-review-ink',
   invalid: 'bg-destructive/10 text-destructive',
   duplicate: 'bg-muted text-muted-foreground',
 } as const;
@@ -262,7 +262,7 @@ export function ImportQuestionsDialog({
                                 'mt-1 text-xs',
                                 item.errors.includes(issue)
                                   ? 'text-destructive'
-                                  : 'text-amber-700 dark:text-amber-400',
+                                  : 'text-review-ink',
                               )}
                             >
                               {issueText(issue)}

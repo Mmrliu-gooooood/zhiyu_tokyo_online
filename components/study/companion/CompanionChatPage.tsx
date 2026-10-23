@@ -611,7 +611,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
               {data.memory ? <MemoryTurnNote info={fold.turn?.memory} /> : null}
             </div>
             <span
-              className={`text-[11px] ${sessionId && !connected ? 'text-amber-600' : 'text-muted-foreground'}`}
+              className={`text-[11px] ${sessionId && !connected ? 'text-review-ink' : 'text-muted-foreground'}`}
               data-testid="companion-connection"
             >
               {sessionId
@@ -624,7 +624,7 @@ export function CompanionChatPage({ classmateId }: { classmateId: string }) {
 
           {closed ? (
             <div
-              className="flex items-center gap-2 border-b border-border bg-amber-50 px-5 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+              className="flex items-center gap-2 border-b border-border bg-review-soft px-5 py-2 text-xs text-review-ink"
               data-testid="companion-closed"
             >
               <AlertTriangle className="size-3.5" />

@@ -35,14 +35,14 @@ export function ThemeToggle() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="h-8 w-8 inline-flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all"
+        className="h-8 w-8 inline-flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
         aria-label={t('settings.theme')}
         aria-expanded={open}
       >
         <ActiveIcon className="w-4 h-4" />
       </button>
       {open && (
-        <div className="pro-theme-popover absolute top-full mt-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50 min-w-[140px]">
+        <div className="pro-theme-popover absolute top-full mt-2 right-0 bg-popover rounded-lg shadow-float overflow-hidden z-50 min-w-[140px]">
           {OPTIONS.map(({ value, icon: Icon }) => (
             <button
               key={value}
@@ -51,9 +51,8 @@ export function ThemeToggle() {
                 setOpen(false);
               }}
               className={cn(
-                'w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2',
-                theme === value &&
-                  'bg-primary/10 text-primary dark:bg-primary/15',
+                'w-full px-4 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2',
+                theme === value && 'bg-primary/10 text-primary dark:bg-primary/15',
               )}
             >
               <Icon className="w-4 h-4" />

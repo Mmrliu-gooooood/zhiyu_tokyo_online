@@ -266,8 +266,8 @@ export function GenerationToolbar({
               onClick={(event) => onSettingsOpen('providers', event.currentTarget)}
               className={cn(
                 pillCls,
-                'text-amber-600 dark:text-amber-400 animate-pulse',
-                'bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50',
+                'text-review-ink animate-pulse',
+                'bg-review-soft hover:bg-review/15',
               )}
             >
               <Bot className="size-3.5" />
@@ -649,7 +649,7 @@ function InlineThinkingControl({
       onKeyDown={(event) => event.stopPropagation()}
     >
       <Brain className="size-3.5 shrink-0 text-primary" />
-      <div className="flex min-w-0 items-center gap-0.5 rounded-full border border-primary/40 bg-white/65 p-0.5 dark:border-primary/70 dark:bg-primary/15">
+      <div className="flex min-w-0 items-center gap-0.5 rounded-full border border-primary/40 bg-card/65 p-0.5 dark:border-primary/70 dark:bg-primary/15">
         {hasAutoBudget && (
           <Select
             value={autoBudgetMode}
@@ -922,7 +922,7 @@ function ModelSettingsPopover({
                 'inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border px-2 text-xs font-medium transition-all',
                 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/10 dark:border-primary/70 dark:bg-primary/15',
                 currentModelId &&
-                  'shadow-[0_0_0_1px_rgba(61,107,90,0.12)] dark:shadow-[0_0_0_1px_rgba(127,163,146,0.16)]',
+                  'shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_14%,transparent)]',
               )}
             >
               {currentProviderIcon ? (
@@ -935,7 +935,7 @@ function ModelSettingsPopover({
                 <Bot className="size-3.5 shrink-0" />
               )}
               {currentThinkingLabel && (
-                <span className="shrink-0 rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary ring-1 ring-primary dark:bg-primary/15 dark:ring-primary">
+                <span className="shrink-0 rounded-full bg-card/80 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary ring-1 ring-primary dark:bg-primary/15 dark:ring-primary">
                   {currentThinkingLabel}
                 </span>
               )}

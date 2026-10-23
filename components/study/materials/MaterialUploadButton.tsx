@@ -32,7 +32,7 @@ export function MaterialUploadButton({
   spaceId?: string;
   materialId?: string;
   label?: string;
-  variant?: 'default' | 'outline';
+  variant?: 'default' | 'secondary' | 'outline';
   size?: 'sm' | 'default';
   onUploaded: (result: StudyMaterialUploadResult) => void;
   testId?: string;

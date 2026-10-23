@@ -796,7 +796,7 @@ export function AgentBar() {
   const avatarRow = (
     <div className="flex items-center gap-1.5 shrink-0">
       {teacherAgent && (
-        <div className="size-8 rounded-full overflow-hidden ring-2 ring-blue-400/40 dark:ring-blue-500/30 shrink-0">
+        <div className="size-8 rounded-full overflow-hidden ring-2 ring-primary/30 shrink-0">
           <img
             src={teacherAgent.avatar}
             alt={getAgentName(teacherAgent)}
@@ -818,7 +818,7 @@ export function AgentBar() {
               </div>
             )}
           </div>
-          <Shuffle className="size-4 text-violet-400 dark:text-violet-500" />
+          <Shuffle className="size-4 text-peer" />
         </>
       ) : (
         <>
@@ -933,7 +933,7 @@ export function AgentBar() {
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
             className="absolute right-0 top-full mt-1 z-50 w-96"
           >
-            <div className="rounded-2xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06] shadow-[0_1px_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_8px_-2px_rgba(0,0,0,0.3)] px-2 py-1.5">
+            <div className="rounded-2xl bg-popover/95 backdrop-blur-sm shadow-float px-2 py-1.5">
               {/* Teacher — always visible */}
               {teacherAgent && (
                 <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/5 mb-2">
@@ -1021,9 +1021,9 @@ export function AgentBar() {
               ) : (
                 <div className="flex flex-col items-center pt-6 pb-3 gap-4">
                   <div className="relative flex items-center justify-center">
-                    <div className="absolute size-10 rounded-full bg-violet-400/10 dark:bg-violet-400/15 animate-ping [animation-duration:3s]" />
-                    <div className="absolute size-12 rounded-full bg-violet-400/5 dark:bg-violet-400/10 animate-pulse [animation-duration:2.5s]" />
-                    <Shuffle className="relative size-5 text-violet-400 dark:text-violet-500" />
+                    <div className="absolute size-10 rounded-full bg-peer/10 animate-ping [animation-duration:3s]" />
+                    <div className="absolute size-12 rounded-full bg-peer/5 animate-pulse [animation-duration:2.5s]" />
+                    <Shuffle className="relative size-5 text-peer" />
                   </div>
                   <div className="flex-1" />
                   <div className="text-center space-y-1">

@@ -799,9 +799,7 @@ function Notice({
       data-testid={testId}
       className={cn(
         'rounded-lg px-3 py-2 text-sm',
-        tone === 'warn'
-          ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
-          : 'bg-muted/60 text-muted-foreground',
+        tone === 'warn' ? 'bg-review-soft text-review-ink' : 'bg-muted/60 text-muted-foreground',
       )}
     >
       {children}
@@ -825,7 +823,7 @@ function AnswerBasisChip({ candidate }: { candidate: CandidateView }) {
       className={cn(
         'inline-flex items-center rounded-full px-2 py-0.5 text-[11px]',
         candidate.answerBasis === 'missing' || candidate.answerBasis === 'model'
-          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+          ? 'bg-review-soft text-review-ink'
           : 'bg-muted text-muted-foreground',
       )}
     >
@@ -982,10 +980,10 @@ function CandidateCard(props: {
 
       {suggestion && draft ? (
         <div
-          className="mt-2.5 space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm"
+          className="mt-2.5 space-y-1.5 rounded-xl border border-review/30 bg-review-soft/60 px-3 py-2 text-sm"
           data-testid="candidate-suggestion"
         >
-          <p className="text-xs text-amber-800 dark:text-amber-300">
+          <p className="text-xs text-review-ink">
             {t('study.extraction.suggestion', { model: suggestion.modelString })}
           </p>
           {suggestion.stem && suggestion.stem !== content.stem ? (

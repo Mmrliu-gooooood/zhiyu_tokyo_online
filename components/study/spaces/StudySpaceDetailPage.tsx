@@ -172,7 +172,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1
-              className="truncate text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl"
+              className="truncate font-display text-2xl font-bold text-foreground md:text-3xl"
               data-testid="study-space-name"
             >
               {space.name}
@@ -221,7 +221,7 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
             </Button>
           ) : null}
           {qaOn ? (
-            <Button asChild data-testid="study-open-ask">
+            <Button asChild variant="outline" data-testid="study-open-ask">
               <Link href={`/study/${encodeURIComponent(space.id)}/ask`}>
                 <MessageSquareQuote className="mr-1 size-4" />
                 {t('study.qa.open')}
@@ -328,7 +328,8 @@ export function StudySpaceDetailPage({ spaceId }: { spaceId: string }) {
                 <Plus className="mr-1 size-4" />
                 {t('study.addExisting')}
               </Button>
-              <Button size="sm" asChild>
+              {/* One solid primary per page: "continue" when it is shown, else this. */}
+              <Button size="sm" variant={next ? 'secondary' : 'default'} asChild>
                 <Link
                   href={`/?studySpace=${encodeURIComponent(space.id)}`}
                   data-testid="study-generate-course"
@@ -479,7 +480,7 @@ function StatusChip({ course }: { course: StudySpaceCourse }) {
   return (
     <>
       {course.generation === 'incomplete' ? (
-        <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+        <span className="shrink-0 rounded-full bg-review-soft px-2 py-0.5 text-[11px] text-review-ink">
           {t('study.course.generating')}
         </span>
       ) : null}

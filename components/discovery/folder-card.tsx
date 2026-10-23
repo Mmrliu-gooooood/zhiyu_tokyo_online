@@ -417,7 +417,7 @@ function CoverStack({
             }}
           >
             {thumbWidth > 0 && (
-              <div className="aspect-[16/9] w-full rounded-xl overflow-hidden shadow-md ring-1 ring-black/5 bg-slate-200 dark:bg-slate-700">
+              <div className="aspect-[16/9] w-full rounded-xl overflow-hidden ring-1 ring-border bg-muted">
                 <SlideThumbnail
                   slide={cover}
                   size={Math.round((thumbWidth * widthPct) / 100)}

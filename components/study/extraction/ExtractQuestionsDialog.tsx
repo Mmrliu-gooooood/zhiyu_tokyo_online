@@ -238,9 +238,7 @@ export function ExtractQuestionsDialog({
               </div>
             ) : null}
             {version && !artifact ? (
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                {t('study.extraction.notParsed')}
-              </p>
+              <p className="text-sm text-review-ink">{t('study.extraction.notParsed')}</p>
             ) : null}
             {pageCount ? (
               <div className="space-y-1.5">

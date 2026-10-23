@@ -336,7 +336,7 @@ export function QuestionBankPanel({
                   <VerificationChip state={question.verification} />
                   <OriginChip origin={question.origin} />
                   {!question.gradable ? (
-                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+                    <span className="rounded-full bg-review-soft px-2 py-0.5 text-[11px] text-review-ink">
                       {t('study.practice.bank.draftChip')}
                     </span>
                   ) : null}

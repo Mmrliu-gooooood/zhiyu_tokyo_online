@@ -609,7 +609,7 @@ export function MemoryPage() {
       </Link>
       <header className="mb-2 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+          <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-foreground md:text-3xl">
             <Brain className="size-6 text-primary" />
             {t('study.memory.title')}
           </h1>

@@ -81,7 +81,7 @@ export function StudySpacesPage() {
     <StudyShell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+          <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
             {t('study.title')}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('study.subtitle')}</p>
@@ -203,7 +203,7 @@ function SpaceCard({ space }: { space: StudySpaceSummary }) {
     <Link
       href={`/study/${encodeURIComponent(space.id)}`}
       data-testid="study-space-card"
-      className="flex h-full flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-[0_1px_0_rgba(20,32,25,0.03)] transition-colors hover:border-primary/40"
+      className="flex h-full flex-col gap-3 rounded-xl bg-card p-5 sticker"
     >
       <div className="flex items-start justify-between gap-2">
         <h2 className="min-w-0 truncate text-base font-semibold text-foreground">{space.name}</h2>

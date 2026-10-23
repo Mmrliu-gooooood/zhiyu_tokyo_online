@@ -212,7 +212,7 @@ export function StudyAskPage({ spaceId }: { spaceId: string }) {
         {t('study.qa.backToSpace', { name: spaceName })}
       </Link>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+        <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
           {t('study.qa.title')}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">{t('study.qa.subtitle')}</p>
@@ -221,9 +221,9 @@ export function StudyAskPage({ spaceId }: { spaceId: string }) {
       {!status.available || status.reason ? (
         <div
           data-testid="study-qa-unavailable"
-          className="mb-5 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-foreground"
+          className="mb-5 flex items-start gap-2 rounded-xl border border-review/30 bg-review-soft/60 px-4 py-3 text-sm text-foreground"
         >
-          <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-review-ink" />
           <span>{t(`study.qa.reason.${status.reason ?? 'STORAGE_UNAVAILABLE'}`)}</span>
         </div>
       ) : null}
@@ -448,8 +448,8 @@ const STATE_TONE: Record<StudyIndexState, string> = {
   not_parsed: 'bg-muted text-muted-foreground',
   not_indexed: 'bg-muted text-muted-foreground',
   indexing: 'bg-primary/10 text-primary',
-  ready: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  stale: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  ready: 'bg-correct-soft text-correct-ink',
+  stale: 'bg-review-soft text-review-ink',
   failed: 'bg-destructive/10 text-destructive',
 };
 
@@ -635,7 +635,7 @@ function AnswerCard({
 
       {grounded.length > 0 ? (
         <section className="mb-3" data-testid="study-qa-grounded">
-          <h4 className="mb-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+          <h4 className="mb-1.5 text-xs font-semibold text-correct-ink">
             {t('study.qa.grounded')}
           </h4>
           <div className="space-y-2">
@@ -699,9 +699,7 @@ function AnswerCard({
                 <li key={citation.ref} className="rounded-lg bg-muted/50 p-2">
                   <CitationChip citation={citation} />
                   {!citation.isCurrentVersion ? (
-                    <span className="ml-1 text-amber-700 dark:text-amber-400">
-                      {t('study.qa.notCurrentVersion')}
-                    </span>
+                    <span className="ml-1 text-review-ink">{t('study.qa.notCurrentVersion')}</span>
                   ) : null}
                   <p className="mt-1 text-muted-foreground">{citation.quote}</p>
                 </li>

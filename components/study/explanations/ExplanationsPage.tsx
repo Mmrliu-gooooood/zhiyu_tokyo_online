@@ -92,7 +92,7 @@ export function ExplanationsPage({ spaceId }: { spaceId: string }) {
         {t('study.wrongbook.title')} · {spaceName}
       </Link>
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+        <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
           {t('study.explain.pageTitle')}
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">

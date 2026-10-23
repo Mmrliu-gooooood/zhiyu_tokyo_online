@@ -940,7 +940,7 @@ function HomePage() {
         className="relative z-20 mx-auto mt-[clamp(2rem,7vh,5rem)] w-full max-w-6xl"
       >
         <section className="mb-7 max-w-3xl md:mb-9">
-          <h1 className="text-balance text-[32px] font-semibold leading-[1.15] tracking-[-0.035em] text-foreground md:text-[46px]">
+          <h1 className="text-balance font-display text-[32px] font-bold leading-[1.2] text-foreground md:text-[44px]">
             {t('home.headline')}
           </h1>
         </section>
@@ -949,7 +949,7 @@ function HomePage() {
           <div
             data-testid="zhiyu-home-create-card"
             data-pro-morph="composer"
-            className="w-full rounded-[24px] border border-border/90 bg-card shadow-[0_1px_0_rgba(20,32,25,0.03),0_18px_48px_rgba(20,32,25,0.06)] transition-shadow focus-within:shadow-[0_0_0_1px_var(--primary),0_0_0_6px_color-mix(in_srgb,var(--primary)_7%,transparent),0_20px_52px_rgba(20,32,25,0.08)]"
+            className="w-full rounded-3xl bg-card shadow-feature transition-shadow focus-within:shadow-[0_0_0_1.5px_var(--primary),0_5px_0_var(--primary)]"
           >
             {/* ── Greeting + Profile + Agents ── */}
             <div className="relative z-20 flex items-start justify-between">
@@ -1056,11 +1056,11 @@ function HomePage() {
             </div>
           </div>
 
-          <aside className="relative flex min-h-[310px] flex-col overflow-hidden rounded-[24px] bg-primary p-5 text-primary-foreground shadow-[0_18px_48px_rgba(53,107,89,0.16)] md:p-6">
+          <aside className="relative flex min-h-[310px] flex-col overflow-hidden rounded-3xl bg-primary p-5 text-primary-foreground md:p-6">
             <div className="relative my-auto py-2">
-              <ZhiyuLearningVisual className="mx-auto max-w-[330px] drop-shadow-[0_18px_28px_rgba(18,45,35,0.16)]" />
+              <ZhiyuLearningVisual className="mx-auto max-w-[330px] drop-shadow-[0_18px_28px_rgb(14_18_32/0.2)]" />
             </div>
-            <p className="relative max-w-[30rem] text-sm leading-6 text-white/82">
+            <p className="relative max-w-[30rem] text-sm leading-6 text-primary-foreground/80">
               {t('home.slogan')}
             </p>
           </aside>
@@ -1415,7 +1415,7 @@ function HomePage() {
                                   />
                                   {/* Search view: show the owning folder as a badge. */}
                                   {isSearching && classroom.folderId && (
-                                    <span className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-md bg-primary/80 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm pointer-events-none">
+                                    <span className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-md bg-primary/80 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground backdrop-blur-sm pointer-events-none">
                                       <Folder className="size-2.5" />
                                       {folderNameById.get(classroom.folderId) ?? ''}
                                     </span>
@@ -1552,7 +1552,7 @@ function GreetingBar() {
             <div className="size-8 rounded-full overflow-hidden ring-[1.5px] ring-border/30 group-hover:ring-primary/60 dark:group-hover:ring-primary/40 transition-all duration-300">
               <img src={avatar} alt="" className="size-full object-cover" />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-white dark:bg-slate-800 border border-border/40 flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity">
+            <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-card border border-border/40 flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity">
               <Pencil className="size-[7px] text-muted-foreground/70" />
             </div>
           </div>
@@ -1584,7 +1584,7 @@ function GreetingBar() {
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
             className="absolute left-4 top-3.5 z-50 w-64"
           >
-            <div className="rounded-2xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06] shadow-[0_1px_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_8px_-2px_rgba(0,0,0,0.3)] px-2.5 py-2">
+            <div className="rounded-2xl bg-popover/95 backdrop-blur-sm shadow-float px-2.5 py-2">
               {/* ── Row: avatar + name ── */}
               <div
                 className="flex items-center gap-2.5 cursor-pointer transition-all duration-200"
@@ -1608,7 +1608,7 @@ function GreetingBar() {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-white dark:bg-slate-800 border border-border/60 flex items-center justify-center"
+                    className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-card border border-border/60 flex items-center justify-center"
                   >
                     <ChevronDown
                       className={cn(
@@ -1665,7 +1665,7 @@ function GreetingBar() {
                 <motion.div
                   initial={{ opacity: 0, y: -2 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="shrink-0 size-6 rounded-full flex items-center justify-center hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                  className="shrink-0 size-6 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
                 >
                   <ChevronUp className="size-3.5 text-muted-foreground/50" />
                 </motion.div>
@@ -1689,7 +1689,7 @@ function GreetingBar() {
                             key={url}
                             onClick={() => setAvatar(url)}
                             className={cn(
-                              'size-7 rounded-full overflow-hidden bg-gray-50 dark:bg-gray-800 cursor-pointer transition-all duration-150',
+                              'size-7 rounded-full overflow-hidden bg-muted cursor-pointer transition-all duration-150',
                               'hover:scale-110 active:scale-95',
                               avatar === url
                                 ? 'ring-2 ring-primary ring-offset-0'
@@ -1819,7 +1819,7 @@ function ClassroomCard({
       {/* Thumbnail — large radius, no border, subtle bg */}
       <div
         ref={thumbRef}
-        className="relative w-full aspect-[16/9] rounded-2xl bg-slate-100 dark:bg-slate-800/80 overflow-hidden transition-transform duration-200 group-hover:scale-[1.02]"
+        className="relative w-full aspect-[16/9] rounded-2xl bg-muted overflow-hidden transition-transform duration-200 group-hover:scale-[1.02]"
       >
         {slide && thumbWidth > 0 ? (
           <SlideThumbnail
@@ -1843,9 +1843,9 @@ function ClassroomCard({
                 aria-label={modeBadgeLabel}
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  'absolute bottom-2 left-2 inline-flex items-center justify-center size-5 rounded-full bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shadow-sm z-10',
+                  'absolute bottom-2 left-2 inline-flex items-center justify-center size-5 rounded-full bg-card/70 backdrop-blur-sm shadow-sm z-10',
                   isTaskEngineMode
-                    ? 'text-amber-600 dark:text-amber-300 ring-1 ring-amber-500/35'
+                    ? 'text-review-ink ring-1 ring-review/35'
                     : 'text-primary ring-1 ring-primary/30',
                 )}
               >

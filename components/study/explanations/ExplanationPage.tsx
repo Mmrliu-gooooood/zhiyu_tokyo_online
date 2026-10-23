@@ -276,7 +276,7 @@ export function ExplanationPage({
             className={cn(
               'rounded-full px-2 py-0.5',
               detail.status === 'ready'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                ? 'bg-correct-soft text-correct-ink'
                 : detail.status === 'failed'
                   ? 'bg-destructive/10 text-destructive'
                   : 'bg-muted',
@@ -287,7 +287,7 @@ export function ExplanationPage({
             {statusLabel(detail)}
           </span>
         </p>
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground md:text-3xl">
+        <h1 className="font-display text-2xl font-bold text-foreground md:text-3xl">
           {detail.title ?? t(`study.explain.format.${detail.format}`)}
         </h1>
         <p className="line-clamp-2 text-sm text-muted-foreground">
@@ -480,10 +480,8 @@ function TextView({ content, detail }: { content: TextExplanation; detail: Expla
   const [showAnswer, setShowAnswer] = useState(false);
   return (
     <article className="space-y-4" data-testid="explanation-text">
-      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-        <h2 className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-          {t('study.explain.diagnosis')}
-        </h2>
+      <section className="rounded-2xl border border-review/30 bg-review-soft/60 px-4 py-3">
+        <h2 className="mb-1 text-xs font-medium text-review-ink">{t('study.explain.diagnosis')}</h2>
         <CompanionAnswer text={content.diagnosis} renderCitation={cite} />
       </section>
       <ol className="space-y-3">

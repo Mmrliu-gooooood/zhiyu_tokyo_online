@@ -29,11 +29,11 @@ export function ParseStateChip({
   const { t } = useI18n();
   const tone =
     state === 'succeeded'
-      ? 'bg-primary/10 text-primary'
+      ? 'bg-correct-soft text-correct-ink'
       : state === 'failed'
-        ? 'bg-destructive/10 text-destructive'
+        ? 'bg-mistake-soft text-mistake-ink'
         : isParseActive(state)
-          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+          ? 'bg-ai-soft text-ai-ink'
           : 'bg-muted text-muted-foreground';
   return (
     <span

@@ -84,7 +84,7 @@ export function SpaceMaterialsSection({
               <Plus className="mr-1 size-4" />
               {t('study.materials.addExisting')}
             </Button>
-            <MaterialUploadButton spaceId={spaceId} onUploaded={refresh} />
+            <MaterialUploadButton spaceId={spaceId} onUploaded={refresh} variant="secondary" />
           </div>
         ) : null}
       </div>

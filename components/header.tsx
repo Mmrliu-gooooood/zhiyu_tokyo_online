@@ -51,23 +51,23 @@ export function Header({
   const exitLabel = t(classroomExitLabelKey(searchParams));
 
   return (
-      <header className="flex h-16 items-center justify-between gap-4 border-b border-border/70 bg-card/95 px-5 shadow-[0_4px_18px_rgba(30,55,45,0.035)] backdrop-blur-xl">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <ZhiyuLockup size="sm" className="shrink-0 max-[899px]:[&_span:last-child]:hidden" />
-          <span className="h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-          {hideBackControl
-            ? null
-            : (backControl ?? (
-                <button
-                  onClick={() => exitClassroom(router, searchParams)}
-                  className="shrink-0 p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                  title={exitLabel}
-                  aria-label={exitLabel}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-              ))}
-          {/* Title block — hidden when `mode === 'edit'`. Header lives
+    <header className="flex h-16 items-center justify-between gap-4 border-b border-border/70 bg-card/95 px-5 backdrop-blur-xl">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <ZhiyuLockup size="sm" className="shrink-0 max-[899px]:[&_span:last-child]:hidden" />
+        <span className="h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+        {hideBackControl
+          ? null
+          : (backControl ?? (
+              <button
+                onClick={() => exitClassroom(router, searchParams)}
+                className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title={exitLabel}
+                aria-label={exitLabel}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            ))}
+        {/* Title block — hidden when `mode === 'edit'`. Header lives
               inside `PlaybackChromeRoot`, which is unmounted by `Stage`
               once mode flips to 'edit', so in steady state this branch
               is always taken. The guard exists for the ~280ms
@@ -76,33 +76,33 @@ export function Header({
               already flipped — without the guard, this title would
               briefly stack on top of the incoming EditChromeRoot's
               CommandBar title during the cross-fade. */}
-          {mode !== 'edit' && (
-            <div className="flex min-w-0 flex-col">
-              <h1
-                className="truncate text-sm font-semibold tracking-tight text-foreground"
-                suppressHydrationWarning
-              >
-                {courseTitle || currentSceneTitle || t('common.loading')}
-              </h1>
-              {courseTitle && currentSceneTitle ? (
-                <span className="truncate text-[11px] text-muted-foreground">
-                  {currentSceneTitle}
-                </span>
-              ) : null}
-            </div>
-          )}
-        </div>
+        {mode !== 'edit' && (
+          <div className="flex min-w-0 flex-col">
+            <h1
+              className="truncate text-sm font-semibold tracking-tight text-foreground"
+              suppressHydrationWarning
+            >
+              {courseTitle || currentSceneTitle || t('common.loading')}
+            </h1>
+            {courseTitle && currentSceneTitle ? (
+              <span className="truncate text-[11px] text-muted-foreground">
+                {currentSceneTitle}
+              </span>
+            ) : null}
+          </div>
+        )}
+      </div>
 
-        {/* Standalone classroom keeps the full cluster. Workbench-attached
+      {/* Standalone classroom keeps the full cluster. Workbench-attached
             classrooms omit both the global capsule and course share/export. */}
-        <HeaderControls
-          mode={mode}
-          proModeActive={proModeActive}
-          canEdit={canEdit}
-          onToggleEditMode={onToggleEditMode}
-          showGlobalControls={!hideGlobalControls}
-          showCourseActions={!hideCourseActions}
-        />
-      </header>
+      <HeaderControls
+        mode={mode}
+        proModeActive={proModeActive}
+        canEdit={canEdit}
+        onToggleEditMode={onToggleEditMode}
+        showGlobalControls={!hideGlobalControls}
+        showCourseActions={!hideCourseActions}
+      />
+    </header>
   );
 }
