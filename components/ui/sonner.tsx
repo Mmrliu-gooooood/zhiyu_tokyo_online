@@ -29,7 +29,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border)',
-          '--border-radius': 'var(--radius)',
+          // Toasts are cards: rounded-xl (14px).
+          '--border-radius': 'calc(var(--radius) + 4px)',
         } as React.CSSProperties
       }
       toastOptions={{

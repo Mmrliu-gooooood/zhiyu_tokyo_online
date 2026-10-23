@@ -33,5 +33,5 @@ export const DEFAULT_BRAND: BrandConfig = {
   logoSrc: '/zhiyu-lockup.png',
   logoHasWordmark: true,
   markSrc: '/zhiyu-mark.png',
-  themeColor: '#356B59',
+  themeColor: '#24366E',
 };

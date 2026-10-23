@@ -51,12 +51,50 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-edge: var(--primary-edge);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-ink: var(--primary-ink);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border-strong: var(--border-strong);
+  --color-edge: var(--edge);
+  --color-edge-hover: var(--edge-hover);
+  --color-edge-strong: var(--edge-strong);
+  --color-ai: var(--ai);
+  --color-ai-soft: var(--ai-soft);
+  --color-ai-ink: var(--ai-ink);
+  --color-review: var(--review);
+  --color-review-soft: var(--review-soft);
+  --color-review-ink: var(--review-ink);
+  --color-peer: var(--peer);
+  --color-peer-soft: var(--peer-soft);
+  --color-peer-ink: var(--peer-ink);
+  --color-mistake: var(--mistake);
+  --color-mistake-soft: var(--mistake-soft);
+  --color-mistake-ink: var(--mistake-ink);
+  --color-correct: var(--correct);
+  --color-correct-soft: var(--correct-soft);
+  --color-correct-ink: var(--correct-ink);
+  /* Depth (design spec v2): flat = display-only container; sticker = clickable
+     card (hard bottom edge, see the `sticker` utility); feature = at most one
+     per page (home composer, confirm dialogs); float = transient overlays. */
+  --shadow-flat: 0 0 0 1px var(--border);
+  --shadow-sticker: 0 0 0 1px var(--edge), 0 3px 0 var(--edge);
+  --shadow-sticker-hover: 0 0 0 1px var(--edge-hover), 0 5px 0 var(--edge-hover);
+  --shadow-sticker-press: 0 0 0 1px var(--edge-hover), 0 1px 0 var(--edge-hover);
+  --shadow-feature: 0 0 0 1.5px var(--edge-strong), 0 5px 0 var(--edge-strong);
+  --shadow-float: 0 16px 36px -12px var(--float-shadow), 0 0 0 1px var(--border);
+  --shadow-edge-primary: 0 2px 0 var(--primary-edge);
+  --shadow-edge-outline: 0 0 0 1px var(--edge), 0 2px 0 var(--edge);
+  --shadow-edge-outline-pressed: 0 0 0 1px var(--edge);
+  /* Radius roles: controls rounded-md (8px), cards rounded-xl (14px),
+     panels and dialogs rounded-3xl (20px), tags rounded-full. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 10px);
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
@@ -65,91 +103,133 @@
      @font-face per unicode subset. Previously this came from next/font wrapping
      a single latin-only file, which left Cyrillic and Vietnamese text to OS
      fallback fonts. */
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display-family: var(--font-sans);
+  /* UI text: IBM Plex Sans for Latin and digits, the OS CJK face for Chinese.
+     Headings opt into the display face (Noto Serif SC) with `font-display`. */
+  --font-sans:
+    'IBM Plex Sans Variable', 'Inter Variable', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
+  --font-display-family:
+    'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', ui-serif, serif;
   --font-display: var(--font-display-family);
-  --background: #f3f2f0;
-  --foreground: #142019;
+
+  /* Design spec v2 "靛青 × 贴纸": cool paper neutrals, indigo primary. */
+  --background: #f5f6f8;
+  --foreground: #141a2e;
   --card: #ffffff;
-  --card-foreground: #142019;
+  --card-foreground: #141a2e;
   --popover: #ffffff;
-  --popover-foreground: #142019;
-  --primary: #356b59;
+  --popover-foreground: #141a2e;
+  --primary: #24366e;
+  --primary-hover: #1d2d5e;
+  --primary-edge: #121c3d;
   --primary-foreground: #ffffff;
-  --secondary: #edf1ee;
-  --secondary-foreground: #142019;
-  --muted: #f4f6f4;
-  --muted-foreground: #7e8983;
-  --accent: #edf1ee;
-  --accent-foreground: #142019;
-  --destructive: oklch(0.58 0.22 27);
-  --border: #dfe4e1;
-  --input: #dfe4e1;
-  --ring: #356b59;
-  --zhiyu-ai: #5277b6;
-  --zhiyu-ai-soft: #eaf0f9;
-  --zhiyu-lavender: #7569b7;
-  --zhiyu-lavender-soft: #efedf8;
-  --zhiyu-learning: #c79528;
-  --zhiyu-learning-soft: #f7efcf;
-  --zhiyu-coral: #c75c63;
-  --zhiyu-coral-soft: #f7e7e8;
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --primary-soft: #e7ebf6;
+  --primary-ink: #1e2e61;
+  --secondary: #e7ebf6;
+  --secondary-foreground: #1e2e61;
+  --muted: #eceef2;
+  --muted-foreground: #565f73;
+  --subtle-foreground: #8a92a3;
+  --accent: #eaedf4;
+  --accent-foreground: #141a2e;
+  --border: #e1e4ea;
+  --border-strong: #c9ced8;
+  --input: #c9ced8;
+  --ring: #24366e;
+  --edge: #d3d8e1;
+  --edge-hover: #c1c8d3;
+  --edge-strong: #1b2547;
+  --float-shadow: rgb(20 26 46 / 0.24);
+
+  /* Role colors: each means exactly one thing. Solid for icons and progress,
+     -soft for tag and bubble backgrounds, -ink for text on -soft. */
+  --ai: #1f7a8c;
+  --ai-soft: #e2f1f3;
+  --ai-ink: #155a68;
+  --review: #b7791f;
+  --review-soft: #f7edd9;
+  --review-ink: #7a4f0e;
+  --peer: #7353a8;
+  --peer-soft: #efe9f8;
+  --peer-ink: #52388a;
+  --mistake: #d2462e;
+  --mistake-soft: #fbe9e4;
+  --mistake-ink: #9a2e1a;
+  --correct: #2f7d4f;
+  --correct-soft: #e5f3ea;
+  --correct-ink: #1f5c3a;
+  --destructive: var(--mistake);
+
+  /* Deprecated aliases (pre-v2 names); migrate call sites to the role names. */
+  --zhiyu-ai: var(--ai);
+  --zhiyu-ai-soft: var(--ai-soft);
+  --zhiyu-lavender: var(--peer);
+  --zhiyu-lavender-soft: var(--peer-soft);
+  --zhiyu-learning: var(--review);
+  --zhiyu-learning-soft: var(--review-soft);
+  --zhiyu-coral: var(--mistake);
+  --zhiyu-coral-soft: var(--mistake-soft);
+
+  --chart-1: var(--primary);
+  --chart-2: var(--ai);
+  --chart-3: var(--review);
+  --chart-4: var(--peer);
+  --chart-5: var(--correct);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--primary-soft);
+  --sidebar-accent-foreground: var(--primary-ink);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 .dark {
-  --background: #121816;
-  --foreground: #e8eeea;
-  --card: #1a221f;
-  --card-foreground: #e8eeea;
-  --popover: #1a221f;
-  --popover-foreground: #e8eeea;
-  --primary: #7fa392;
-  --primary-foreground: #121816;
-  --secondary: #1a221f;
-  --secondary-foreground: #e8eeea;
-  --muted: #1a221f;
-  --muted-foreground: #9aa89f;
-  --accent: #1a221f;
-  --accent-foreground: #e8eeea;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #e8eeea14;
-  --input: #e8eeea14;
-  --ring: #7fa392;
-  --zhiyu-ai: #8ca8d4;
-  --zhiyu-ai-soft: #1d2a3b;
-  --zhiyu-lavender: #a79cdb;
-  --zhiyu-lavender-soft: #29253d;
-  --zhiyu-learning: #d9b65f;
-  --zhiyu-learning-soft: #342f20;
-  --zhiyu-coral: #df8c92;
-  --zhiyu-coral-soft: #3a2528;
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0e1220;
+  --foreground: #e6e9f2;
+  --card: #161b2c;
+  --card-foreground: #e6e9f2;
+  --popover: #161b2c;
+  --popover-foreground: #e6e9f2;
+  --primary: #8fa4e8;
+  --primary-hover: #a3b5ee;
+  --primary-edge: #5266ad;
+  --primary-foreground: #0e1220;
+  --primary-soft: #1d2645;
+  --primary-ink: #bac7f2;
+  --secondary: #1d2645;
+  --secondary-foreground: #bac7f2;
+  --muted: #1b2134;
+  --muted-foreground: #a2a9bb;
+  --subtle-foreground: #6f7789;
+  --accent: #1f2539;
+  --accent-foreground: #e6e9f2;
+  --border: rgb(230 233 242 / 0.09);
+  --border-strong: rgb(230 233 242 / 0.17);
+  --input: rgb(230 233 242 / 0.17);
+  --ring: #8fa4e8;
+  --edge: #262d42;
+  --edge-hover: #323b56;
+  --edge-strong: #5266ad;
+  --float-shadow: rgb(0 0 0 / 0.6);
+
+  --ai: #5fc0d0;
+  --ai-soft: #13303a;
+  --ai-ink: #9adce6;
+  --review: #e0ae5c;
+  --review-soft: #33281a;
+  --review-ink: #eed09a;
+  --peer: #b39ae6;
+  --peer-soft: #2a2140;
+  --peer-ink: #d3c3f3;
+  --mistake: #f07a62;
+  --mistake-soft: #3a1e19;
+  --mistake-ink: #f6b0a2;
+  --correct: #5cc28a;
+  --correct-soft: #15301f;
+  --correct-ink: #9adbb5;
 }
 
 @layer base {
@@ -187,24 +267,31 @@
    implementation or changing call-site behavior. */
 .cn-toast {
   border-width: 1px !important;
-  box-shadow: 0 12px 34px rgb(20 32 25 / 0.1) !important;
+  box-shadow: 0 16px 36px -12px var(--float-shadow) !important;
 }
 .cn-toast-success {
-  border-color: color-mix(in srgb, var(--primary) 32%, var(--border)) !important;
-  background: color-mix(in srgb, var(--primary) 10%, var(--popover)) !important;
+  border-color: color-mix(in srgb, var(--correct) 32%, var(--border)) !important;
+  background: color-mix(in srgb, var(--correct-soft) 74%, var(--popover)) !important;
 }
 .cn-toast-info,
 .cn-toast-loading {
-  border-color: color-mix(in srgb, var(--zhiyu-ai) 32%, var(--border)) !important;
-  background: color-mix(in srgb, var(--zhiyu-ai-soft) 74%, var(--popover)) !important;
+  border-color: color-mix(in srgb, var(--ai) 32%, var(--border)) !important;
+  background: color-mix(in srgb, var(--ai-soft) 74%, var(--popover)) !important;
 }
 .cn-toast-warning {
-  border-color: color-mix(in srgb, var(--zhiyu-learning) 36%, var(--border)) !important;
-  background: color-mix(in srgb, var(--zhiyu-learning-soft) 78%, var(--popover)) !important;
+  border-color: color-mix(in srgb, var(--review) 36%, var(--border)) !important;
+  background: color-mix(in srgb, var(--review-soft) 78%, var(--popover)) !important;
 }
 .cn-toast-error {
-  border-color: color-mix(in srgb, var(--zhiyu-coral) 38%, var(--border)) !important;
-  background: color-mix(in srgb, var(--zhiyu-coral-soft) 76%, var(--popover)) !important;
+  border-color: color-mix(in srgb, var(--mistake) 38%, var(--border)) !important;
+  background: color-mix(in srgb, var(--mistake-soft) 76%, var(--popover)) !important;
+}
+
+/* Clickable cards only (design spec v2): a hard bottom edge that lifts on
+   hover and flattens on press; the edge's bottom stays on the same line.
+   Display-only containers use `shadow-flat` instead. */
+@utility sticker {
+  @apply shadow-sticker transition-[translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-sticker-hover active:translate-y-0.5 active:shadow-sticker-press motion-reduce:transition-none;
 }
 
 @media (prefers-reduced-motion: reduce) {

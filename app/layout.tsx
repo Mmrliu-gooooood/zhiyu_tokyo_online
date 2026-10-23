@@ -23,7 +23,13 @@ import { BRAND_ENGLISH_NAME, DEFAULT_BRAND } from '@/lib/brand/brand-config';
 //
 // `--font-sans` moves to globals.css since the family no longer comes from
 // next/font's generated class.
+//
+// IBM Plex Sans leads the UI stack; Inter stays as the fallback for scripts
+// Plex lacks. Noto Serif SC is the heading face (`font-display`); its CJK
+// faces are unicode-range-sliced, so pages download only the glyphs they show.
+import '@fontsource-variable/ibm-plex-sans';
 import '@fontsource-variable/inter';
+import '@fontsource/noto-serif-sc/700.css';
 
 export const metadata: Metadata = {
   title: `${DEFAULT_BRAND.productName} · ${BRAND_ENGLISH_NAME}`,
@@ -40,7 +46,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: DEFAULT_BRAND.themeColor },
-    { media: '(prefers-color-scheme: dark)', color: '#121816' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e1220' },
   ],
 };
 

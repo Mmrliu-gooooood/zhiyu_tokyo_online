@@ -6,7 +6,7 @@ describe('DEFAULT_BRAND (single-brand build)', () => {
     expect(DEFAULT_BRAND.productName).toBe('智域');
     expect(DEFAULT_BRAND.shortName).toBe('智域');
     expect(DEFAULT_BRAND.markSrc).toBe('/zhiyu-mark.png');
-    expect(DEFAULT_BRAND.themeColor).toBe('#356B59');
+    expect(DEFAULT_BRAND.themeColor).toBe('#24366E');
   });
 
   it('marks its horizontal logo as already containing the wordmark', () => {

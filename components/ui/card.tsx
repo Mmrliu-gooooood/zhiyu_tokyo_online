@@ -2,17 +2,25 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * `interactive` marks a card the whole of which is clickable: it gets the
+ * sticker depth (hard bottom edge, lifts on hover). Display-only cards stay
+ * flat with a hairline ring.
+ */
 function Card({
   className,
   size = 'default',
+  interactive = false,
   ...props
-}: React.ComponentProps<'div'> & { size?: 'default' | 'sm' }) {
+}: React.ComponentProps<'div'> & { size?: 'default' | 'sm'; interactive?: boolean }) {
   return (
     <div
       data-slot="card"
       data-size={size}
+      data-interactive={interactive || undefined}
       className={cn(
-        'ring-foreground/10 bg-card text-card-foreground gap-6 overflow-hidden rounded-xl py-6 text-sm shadow-xs ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-4 data-[size=sm]:py-4 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl group/card flex flex-col',
+        'bg-card text-card-foreground gap-6 overflow-hidden rounded-xl py-6 text-sm has-[>img:first-child]:pt-0 data-[size=sm]:gap-4 data-[size=sm]:py-4 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl group/card flex flex-col',
+        interactive ? 'sticker cursor-pointer' : 'ring-border ring-1',
         className,
       )}
       {...props}
