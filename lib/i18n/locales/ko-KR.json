@@ -4045,5 +4045,64 @@
       "classmates": "학습 친구",
       "memory": "메모리"
     }
+  },
+  "landing": {
+    "eyebrow": "AI 인터랙티브 수업",
+    "heroTitle": "한 문장으로, 나를 위한 수업을 만들다",
+    "heroSubtitle": "배우고 싶은 것을 ZHIYU에 말해 보세요 — 개념 하나, 문제 하나, 강의 자료도 좋습니다. AI 선생님과 친구들이 슬라이드·설명·연습 문제를 준비하고, 수업 속에서 질문하며 함께 배웁니다.",
+    "ctaPrimary": "무료 가입하고 시작하기",
+    "ctaSecondary": "이미 계정이 있어요",
+    "heroNote": "브라우저에서 바로, 설치 불필요 · 12개 인터페이스 언어 지원",
+    "signIn": "로그인",
+    "signUp": "무료 가입",
+    "howEyebrow": "수업 방식",
+    "step1Detail": "주제나 문제를 입력하거나 강의 자료를 올리세요. 함께 수업할 AI 친구도 고를 수 있습니다.",
+    "step2Detail": "AI 선생님이 개요를 짜고 슬라이드, 화이트보드 설명, 수업 퀴즈를 몇 분 만에 만듭니다.",
+    "step3Detail": "언제든 손을 들어 질문하세요. 친구들도 되묻고 토론하며, 모르는 부분은 선생님께 바로 물어보면 됩니다.",
+    "featuresEyebrow": "학습 도구",
+    "featuresTitle": "수업이 끝나도 배움은 계속됩니다",
+    "featuresSubtitle": "과목별 학습 공간에 강의, 자료, 문제, 오답, 복습을 한곳에 모으세요.",
+    "feature": {
+      "classroom": {
+        "title": "AI 선생님과 친구들이 한 교실에",
+        "desc": "선생님이 설명하고 친구들이 질문·토론하며, 슬라이드와 화이트보드, 퀴즈가 한 교실에 나타나 진짜 수업 같습니다."
+      },
+      "spaces": {
+        "title": "과목 공간과 자료 Q&A",
+        "desc": "강의 자료를 과목 공간에 넣고 질문하면, 답변에 근거가 된 원문 인용이 붙습니다."
+      },
+      "bank": {
+        "title": "문제 은행과 시험",
+        "desc": "자료에서 문제를 추출해 시험지를 만들고, 서술형 문제도 AI가 채점을 돕습니다."
+      },
+      "wrongbook": {
+        "title": "오답 노트와 복습",
+        "desc": "틀린 문제는 자동으로 오답 노트에 모이고, 필요할 때 해설과 복습 과제를 만듭니다."
+      },
+      "classmates": {
+        "title": "AI 학습 친구",
+        "desc": "개성 있는 학습 친구를 만들어 수업을 함께 듣고, 수업 후에도 언제든 이야기를 나누세요."
+      },
+      "memory": {
+        "title": "학습 메모리",
+        "desc": "진도와 선호하는 설명 방식을 기억해 다음 수업은 멈춘 곳에서 이어집니다. 언제든 확인하거나 끌 수 있습니다."
+      },
+      "ultra": {
+        "title": "Ultra 모드",
+        "desc": "더 강력한 도움이 필요할 땐 Ultra 모드로 전환하세요. 에이전트 워크벤치가 스킬을 사용해 여러 단계의 복잡한 작업을 처리합니다."
+      }
+    },
+    "closingTitle": "오늘은 무엇을 배워 볼까요?",
+    "closingPoint1": "무료 가입",
+    "closingPoint2": "몇 분 만에 첫 수업",
+    "closingPoint3": "PC와 휴대폰 모두",
+    "previewPrompt": "삼각함수의 미분을 설명해 주고 연습 문제도 몇 개 내 줘",
+    "previewCast": "치헝 선생님 + 친구 2명",
+    "previewSlideTitle": "삼각함수의 미분",
+    "previewTeacher": "치헝 · AI 선생님",
+    "previewTeacherSays": "그래프를 보세요. sin x의 각 점에서의 기울기가 바로 cos x의 값이에요.",
+    "previewClassmate": "원시 · AI 친구",
+    "previewClassmateSays": "그럼 cos x를 미분하면 왜 마이너스가 붙어요?",
+    "previewQuiz": "수업 퀴즈 · 3문제"
   }
 }

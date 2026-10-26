@@ -1,4 +1,8 @@
+/** The product introduction signed-out visitors see instead of the app. */
+export const LANDING_PATH = '/welcome';
+
 const PUBLIC_EXACT = new Set([
+  LANDING_PATH,
   '/auth/login',
   '/auth/sign-up',
   '/auth/signup',
@@ -14,10 +18,17 @@ const PUBLIC_EXACT = new Set([
   '/api/auth/resend',
 ]);
 
-/** Login / signup URLs that a signed-in session should leave. */
-const AUTH_SESSION_ENTRY = new Set(['/auth/login', '/auth/sign-up', '/auth/signup']);
+/** Landing / login / signup URLs that a signed-in session should leave. */
+const AUTH_SESSION_ENTRY = new Set([LANDING_PATH, '/auth/login', '/auth/sign-up', '/auth/signup']);
 
-const PUBLIC_PREFIXES = ['/auth/', '/api/auth/confirm', '/_next/', '/favicon.ico', '/logos/', '/avatars/'];
+const PUBLIC_PREFIXES = [
+  '/auth/',
+  '/api/auth/confirm',
+  '/_next/',
+  '/favicon.ico',
+  '/logos/',
+  '/avatars/',
+];
 
 export function isPublicAuthPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
@@ -26,6 +37,11 @@ export function isPublicAuthPath(pathname: string): boolean {
 
 export function isAuthPagePath(pathname: string): boolean {
   return pathname === '/auth' || pathname.startsWith('/auth/');
+}
+
+/** Pages that render without an account: the auth flow and the landing page. */
+export function isSessionFreePagePath(pathname: string): boolean {
+  return pathname === LANDING_PATH || isAuthPagePath(pathname);
 }
 
 export function isAuthSessionEntryPath(pathname: string): boolean {

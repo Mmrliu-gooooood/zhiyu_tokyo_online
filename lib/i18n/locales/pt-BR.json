@@ -4045,5 +4045,64 @@
       "classmates": "Colegas",
       "memory": "Memória"
     }
+  },
+  "landing": {
+    "eyebrow": "Aula interativa com IA",
+    "heroTitle": "Uma frase basta para uma aula feita para você",
+    "heroSubtitle": "Diga ao ZHIYU o que você quer aprender: um conceito, um exercício ou suas anotações. Um professor e colegas de IA preparam slides, explicações e prática, e aprendem com você, pergunta por pergunta.",
+    "ctaPrimary": "Cadastre-se grátis e comece",
+    "ctaSecondary": "Já tenho conta",
+    "heroNote": "Funciona no navegador, sem instalar nada · 12 idiomas de interface",
+    "signIn": "Entrar",
+    "signUp": "Cadastre-se grátis",
+    "howEyebrow": "Como funciona",
+    "step1Detail": "Digite um tema ou um exercício, ou envie anotações e materiais, e escolha os colegas de IA que vão assistir à aula com você.",
+    "step2Detail": "O professor de IA monta o roteiro e cria slides, explicações no quadro e quizzes em poucos minutos.",
+    "step3Detail": "Levante a mão quando quiser; os colegas perguntam e debatem, e o que ficar confuso você pergunta direto ao professor.",
+    "featuresEyebrow": "Ferramentas de estudo",
+    "featuresTitle": "Depois da aula, o aprendizado continua",
+    "featuresSubtitle": "Um espaço para cada matéria: cursos, materiais, exercícios, erros e revisões num só lugar.",
+    "feature": {
+      "classroom": {
+        "title": "Professor e colegas de IA na mesma sala",
+        "desc": "O professor explica, os colegas perguntam e debatem, e slides, quadro e quizzes aparecem na mesma aula, como se fosse de verdade."
+      },
+      "spaces": {
+        "title": "Espaços por matéria e perguntas sobre materiais",
+        "desc": "Guarde anotações e materiais num espaço da matéria e faça perguntas; as respostas citam os trechos em que se baseiam."
+      },
+      "bank": {
+        "title": "Banco de questões e provas",
+        "desc": "Extraia exercícios dos seus materiais, monte simulados e conte com correção assistida por IA nas questões abertas."
+      },
+      "wrongbook": {
+        "title": "Caderno de erros e revisão",
+        "desc": "Questões erradas vão para o caderno de erros, com explicações e tarefas de revisão quando você quiser."
+      },
+      "classmates": {
+        "title": "Colegas de estudo com IA",
+        "desc": "Crie colegas com personalidade própria: eles assistem às aulas com você e ficam disponíveis para conversar depois."
+      },
+      "memory": {
+        "title": "Memória de aprendizado",
+        "desc": "Lembra seu progresso e como você prefere as explicações, para a próxima aula continuar de onde parou; dá para ver ou desligar a qualquer momento."
+      },
+      "ultra": {
+        "title": "Modo Ultra",
+        "desc": "Quando precisar de mais ajuda, mude para o modo Ultra: uma bancada de agentes que usa habilidades para resolver tarefas complexas em várias etapas."
+      }
+    },
+    "closingTitle": "O que você quer aprender hoje?",
+    "closingPoint1": "Cadastro gratuito",
+    "closingPoint2": "Primeira aula em minutos",
+    "closingPoint3": "No computador e no celular",
+    "previewPrompt": "Me explique a derivada das funções trigonométricas, com alguns exercícios",
+    "previewCast": "Professor Qiheng + 2 colegas",
+    "previewSlideTitle": "Derivadas de sen e cos",
+    "previewTeacher": "Qiheng · professor IA",
+    "previewTeacherSays": "Veja o gráfico: a inclinação de sin x em cada ponto é exatamente cos x.",
+    "previewClassmate": "Wenxi · colega IA",
+    "previewClassmateSays": "E por que a derivada de cos x ganha um sinal de menos?",
+    "previewQuiz": "Quiz da aula · 3 questões"
   }
 }

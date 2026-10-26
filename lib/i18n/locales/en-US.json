@@ -4045,5 +4045,64 @@
       "classmates": "Classmates",
       "memory": "Memory"
     }
+  },
+  "landing": {
+    "eyebrow": "Interactive AI classroom",
+    "heroTitle": "One sentence in, a lesson made for you",
+    "heroSubtitle": "Tell ZHIYU what you want to learn — a concept, a problem or your lecture notes. An AI teacher and classmates prepare slides, explanations and practice, then learn it with you, question by question.",
+    "ctaPrimary": "Sign up free and start",
+    "ctaSecondary": "I have an account",
+    "heroNote": "Runs in your browser, nothing to install · 12 interface languages",
+    "signIn": "Log in",
+    "signUp": "Sign up free",
+    "howEyebrow": "How it works",
+    "step1Detail": "Type a topic or a problem, or upload notes and materials — and pick the AI classmates who join you.",
+    "step2Detail": "The AI teacher outlines the lesson and builds slides, whiteboard walkthroughs and quizzes in a few minutes.",
+    "step3Detail": "Raise your hand any time; classmates follow up and discuss, and anything unclear you can ask the teacher directly.",
+    "featuresEyebrow": "Study tools",
+    "featuresTitle": "The learning continues after class",
+    "featuresSubtitle": "Give each subject its own space: courses, materials, questions, mistakes and reviews all in one place.",
+    "feature": {
+      "classroom": {
+        "title": "AI teacher and classmates in one room",
+        "desc": "The teacher explains, classmates ask and discuss, and slides, whiteboard and quizzes appear in the same classroom — like a real class."
+      },
+      "spaces": {
+        "title": "Subject spaces and material Q&A",
+        "desc": "Put notes and materials in a subject space and ask about them; answers quote the passages they rely on."
+      },
+      "bank": {
+        "title": "Question bank and tests",
+        "desc": "Extract exercises from your materials, assemble practice tests, and get AI-assisted grading on open questions."
+      },
+      "wrongbook": {
+        "title": "Mistake book and review",
+        "desc": "Missed questions land in your mistake book, with explanations and review tasks whenever you want them."
+      },
+      "classmates": {
+        "title": "AI study buddies",
+        "desc": "Create classmates with their own personalities — they join your lessons and are there to talk things through afterwards."
+      },
+      "memory": {
+        "title": "Learning memory",
+        "desc": "Remembers your progress and how you like things explained, so the next lesson picks up where you stopped; view or turn it off any time."
+      },
+      "ultra": {
+        "title": "Ultra mode",
+        "desc": "When you need a stronger helper, switch to Ultra mode: an agent workbench that uses skills to handle complex, multi-step tasks."
+      }
+    },
+    "closingTitle": "What do you want to learn today?",
+    "closingPoint1": "Free to sign up",
+    "closingPoint2": "First lesson in minutes",
+    "closingPoint3": "On desktop and phone",
+    "previewPrompt": "Teach me derivatives of trig functions, with a few practice problems",
+    "previewCast": "Teacher Qiheng + 2 classmates",
+    "previewSlideTitle": "Derivatives of sin and cos",
+    "previewTeacher": "Qiheng · AI teacher",
+    "previewTeacherSays": "Look at the graph: the slope of sin x at every point is exactly cos x.",
+    "previewClassmate": "Wenxi · AI classmate",
+    "previewClassmateSays": "So why does the derivative of cos x get a minus sign?",
+    "previewQuiz": "In-class quiz · 3 questions"
   }
 }

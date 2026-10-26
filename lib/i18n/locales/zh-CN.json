@@ -4045,5 +4045,64 @@
       "classmates": "学伴",
       "memory": "记忆"
     }
+  },
+  "landing": {
+    "eyebrow": "AI 互动课堂",
+    "heroTitle": "一句话，\n生成一堂为你而上的课",
+    "heroSubtitle": "告诉智域你想学什么——一个知识点、一道题或一份讲义。AI 老师和同学会备好课件、讲解和练习，陪你在课堂里边问边学。",
+    "ctaPrimary": "免费注册，开始上课",
+    "ctaSecondary": "已有账号，登录",
+    "heroNote": "浏览器打开即用，无需安装 · 支持 12 种界面语言",
+    "signIn": "登录",
+    "signUp": "免费注册",
+    "howEyebrow": "如何上课",
+    "step1Detail": "输入一个主题、一道题，或上传讲义和资料；还可以挑选和你一起上课的 AI 同学。",
+    "step2Detail": "AI 老师拆好大纲，生成课件、白板讲解和随堂练习，几分钟就能开课。",
+    "step3Detail": "随时举手提问，同学会追问和讨论；哪里没听懂，就直接问老师。",
+    "featuresEyebrow": "学习工具",
+    "featuresTitle": "一堂课之后，学习还在继续",
+    "featuresSubtitle": "按学科建一个学习空间，课程、资料、题目、错题和复习都放在一起。",
+    "feature": {
+      "classroom": {
+        "title": "AI 老师和同学同堂",
+        "desc": "老师讲解，同学提问、讨论，课件、白板和随堂测验在同一个课堂里出现，像真的在上课。"
+      },
+      "spaces": {
+        "title": "学科空间与资料答疑",
+        "desc": "把讲义和资料放进学科空间，围绕资料提问，回答会附上引用的原文。"
+      },
+      "bank": {
+        "title": "题库与测试",
+        "desc": "从资料中提取习题、组卷自测，开放题也能由 AI 辅助批改。"
+      },
+      "wrongbook": {
+        "title": "错题本与复习",
+        "desc": "做错的题自动收进错题本，按需生成讲解和复习任务。"
+      },
+      "classmates": {
+        "title": "AI 学伴",
+        "desc": "创建有个性的学伴，课上一起听讲，课后随时找它讨论。"
+      },
+      "memory": {
+        "title": "学习记忆",
+        "desc": "记住你的学习进度和讲解偏好，下一堂课从你停下的地方接着讲；随时可以查看或关闭。"
+      },
+      "ultra": {
+        "title": "Ultra 模式",
+        "desc": "需要更强的帮手时，切换到 Ultra 模式：智能体工作台会使用技能，帮你完成多步骤的复杂任务。"
+      }
+    },
+    "closingTitle": "今天想学点什么？",
+    "closingPoint1": "免费注册",
+    "closingPoint2": "几分钟生成第一堂课",
+    "closingPoint3": "电脑和手机都能学",
+    "previewPrompt": "帮我讲讲三角函数的求导，配几道练习题",
+    "previewCast": "启衡老师 + 2 位同学",
+    "previewSlideTitle": "三角函数的导数",
+    "previewTeacher": "启衡 · AI 老师",
+    "previewTeacherSays": "看图：sin x 每一点的斜率，正好就是 cos x 的值。",
+    "previewClassmate": "问熙 · AI 同学",
+    "previewClassmateSays": "那 cos x 求导，为什么会多一个负号？",
+    "previewQuiz": "随堂练习 · 3 题"
   }
 }

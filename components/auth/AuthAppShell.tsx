@@ -15,14 +15,14 @@ import {
   requireAccountEnvironment,
   setAccountUserId,
 } from '@/lib/auth/account-environment';
-import { isAuthPagePath } from '@/lib/auth/public-paths';
+import { LANDING_PATH, isSessionFreePagePath } from '@/lib/auth/public-paths';
 import { canUseHostedAuthUi, isHostedAuthEnabled } from '@/lib/auth/mode';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { rehydrateAccountStores } from '@/lib/store/account-stores';
 
 export function AuthAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '/';
-  const authPage = isAuthPagePath(pathname);
+  const authPage = isSessionFreePagePath(pathname);
   const hosted = isHostedAuthEnabled();
   const sessionUi = canUseHostedAuthUi();
   const { t } = useI18n();
@@ -50,7 +50,9 @@ export function AuthAppShell({ children }: { children: ReactNode }) {
       .catch(() => {
         if (cancelled) return;
         if (hosted) {
-          window.location.assign(`/auth/login?next=${encodeURIComponent(pathname)}`);
+          window.location.assign(
+            pathname === '/' ? LANDING_PATH : `/auth/login?next=${encodeURIComponent(pathname)}`,
+          );
           return;
         }
         clearAccountEnvironment();

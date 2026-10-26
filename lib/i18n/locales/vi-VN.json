@@ -4045,5 +4045,64 @@
       "classmates": "Bạn học",
       "memory": "Ghi nhớ"
     }
+  },
+  "landing": {
+    "eyebrow": "Lớp học tương tác với AI",
+    "heroTitle": "Một câu thôi, một bài học dành riêng cho bạn",
+    "heroSubtitle": "Hãy nói với ZHIYU điều bạn muốn học — một khái niệm, một bài tập hay tập bài giảng. Giáo viên và bạn học AI chuẩn bị slide, lời giảng và bài luyện tập, rồi cùng bạn vừa hỏi vừa học ngay trong lớp.",
+    "ctaPrimary": "Đăng ký miễn phí và bắt đầu",
+    "ctaSecondary": "Tôi đã có tài khoản",
+    "heroNote": "Dùng ngay trên trình duyệt, không cần cài đặt · 12 ngôn ngữ giao diện",
+    "signIn": "Đăng nhập",
+    "signUp": "Đăng ký miễn phí",
+    "howEyebrow": "Cách học",
+    "step1Detail": "Nhập một chủ đề, một bài tập hoặc tải lên tài liệu — và chọn các bạn học AI sẽ học cùng bạn.",
+    "step2Detail": "Giáo viên AI lập dàn ý, tạo slide, phần giảng trên bảng trắng và câu hỏi kiểm tra chỉ trong vài phút.",
+    "step3Detail": "Giơ tay hỏi bất cứ lúc nào; bạn học sẽ hỏi thêm và thảo luận, chỗ nào chưa hiểu thì hỏi thẳng giáo viên.",
+    "featuresEyebrow": "Công cụ học tập",
+    "featuresTitle": "Hết giờ học, việc học vẫn tiếp tục",
+    "featuresSubtitle": "Mỗi môn có một không gian riêng: khóa học, tài liệu, bài tập, lỗi sai và ôn tập ở cùng một nơi.",
+    "feature": {
+      "classroom": {
+        "title": "Giáo viên và bạn học AI chung một lớp",
+        "desc": "Giáo viên giảng, bạn học đặt câu hỏi và thảo luận; slide, bảng trắng và bài kiểm tra xuất hiện trong cùng một lớp, như học thật."
+      },
+      "spaces": {
+        "title": "Không gian môn học và hỏi đáp tài liệu",
+        "desc": "Đưa bài giảng và tài liệu vào không gian môn học rồi đặt câu hỏi; câu trả lời trích dẫn đoạn gốc làm căn cứ."
+      },
+      "bank": {
+        "title": "Ngân hàng câu hỏi và bài kiểm tra",
+        "desc": "Trích bài tập từ tài liệu, tạo đề tự luyện, câu hỏi mở cũng có AI hỗ trợ chấm."
+      },
+      "wrongbook": {
+        "title": "Sổ lỗi sai và ôn tập",
+        "desc": "Câu làm sai tự động vào sổ lỗi sai, kèm lời giải thích và nhiệm vụ ôn tập khi bạn cần."
+      },
+      "classmates": {
+        "title": "Bạn học AI",
+        "desc": "Tạo những bạn học có cá tính riêng: cùng bạn nghe giảng và sẵn sàng trò chuyện sau giờ học."
+      },
+      "memory": {
+        "title": "Trí nhớ học tập",
+        "desc": "Ghi nhớ tiến độ và cách giảng bạn thích, để buổi sau học tiếp từ chỗ bạn dừng lại; có thể xem hoặc tắt bất cứ lúc nào."
+      },
+      "ultra": {
+        "title": "Chế độ Ultra",
+        "desc": "Khi cần trợ thủ mạnh hơn, hãy chuyển sang chế độ Ultra: bàn làm việc tác tử dùng kỹ năng để xử lý các việc phức tạp nhiều bước."
+      }
+    },
+    "closingTitle": "Hôm nay bạn muốn học gì?",
+    "closingPoint1": "Đăng ký miễn phí",
+    "closingPoint2": "Bài học đầu tiên trong vài phút",
+    "closingPoint3": "Học trên máy tính và điện thoại",
+    "previewPrompt": "Giảng cho tôi đạo hàm của hàm lượng giác, kèm vài bài luyện tập",
+    "previewCast": "Thầy Qiheng + 2 bạn học",
+    "previewSlideTitle": "Đạo hàm của sin và cos",
+    "previewTeacher": "Qiheng · giáo viên AI",
+    "previewTeacherSays": "Nhìn đồ thị: độ dốc của sin x tại mỗi điểm đúng bằng cos x.",
+    "previewClassmate": "Wenxi · bạn học AI",
+    "previewClassmateSays": "Vậy sao đạo hàm của cos x lại có dấu trừ?",
+    "previewQuiz": "Kiểm tra trên lớp · 3 câu"
   }
 }

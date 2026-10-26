@@ -4045,5 +4045,64 @@
       "classmates": "學伴",
       "memory": "記憶"
     }
+  },
+  "landing": {
+    "eyebrow": "AI 互動課堂",
+    "heroTitle": "一句話，\n生成一堂為你而上的課",
+    "heroSubtitle": "告訴智域你想學什麼——一個知識點、一道題或一份講義。AI 老師和同學會備好課件、講解和練習，陪你在課堂裡邊問邊學。",
+    "ctaPrimary": "免費註冊，開始上課",
+    "ctaSecondary": "已有帳號，登入",
+    "heroNote": "瀏覽器打開即用，無需安裝 · 支援 12 種介面語言",
+    "signIn": "登入",
+    "signUp": "免費註冊",
+    "howEyebrow": "如何上課",
+    "step1Detail": "輸入一個主題、一道題，或上傳講義和資料；還可以挑選和你一起上課的 AI 同學。",
+    "step2Detail": "AI 老師拆好大綱，生成課件、白板講解和隨堂練習，幾分鐘就能開課。",
+    "step3Detail": "隨時舉手提問，同學會追問和討論；哪裡沒聽懂，就直接問老師。",
+    "featuresEyebrow": "學習工具",
+    "featuresTitle": "一堂課之後，學習還在繼續",
+    "featuresSubtitle": "按學科建一個學習空間，課程、資料、題目、錯題和複習都放在一起。",
+    "feature": {
+      "classroom": {
+        "title": "AI 老師和同學同堂",
+        "desc": "老師講解，同學提問、討論，課件、白板和隨堂測驗在同一個課堂裡出現，像真的在上課。"
+      },
+      "spaces": {
+        "title": "學科空間與資料答疑",
+        "desc": "把講義和資料放進學科空間，圍繞資料提問，回答會附上引用的原文。"
+      },
+      "bank": {
+        "title": "題庫與測驗",
+        "desc": "從資料中擷取習題、組卷自測，開放題也能由 AI 輔助批改。"
+      },
+      "wrongbook": {
+        "title": "錯題本與複習",
+        "desc": "做錯的題自動收進錯題本，按需生成講解和複習任務。"
+      },
+      "classmates": {
+        "title": "AI 學伴",
+        "desc": "建立有個性的學伴，課上一起聽講，課後隨時找它討論。"
+      },
+      "memory": {
+        "title": "學習記憶",
+        "desc": "記住你的學習進度和講解偏好，下一堂課從你停下的地方接著講；隨時可以查看或關閉。"
+      },
+      "ultra": {
+        "title": "Ultra 模式",
+        "desc": "需要更強的幫手時，切換到 Ultra 模式：智能體工作台會使用技能，幫你完成多步驟的複雜任務。"
+      }
+    },
+    "closingTitle": "今天想學點什麼？",
+    "closingPoint1": "免費註冊",
+    "closingPoint2": "幾分鐘生成第一堂課",
+    "closingPoint3": "電腦和手機都能學",
+    "previewPrompt": "幫我講講三角函數的求導，配幾道練習題",
+    "previewCast": "啟衡老師 + 2 位同學",
+    "previewSlideTitle": "三角函數的導數",
+    "previewTeacher": "啟衡 · AI 老師",
+    "previewTeacherSays": "看圖：sin x 每一點的斜率，正好就是 cos x 的值。",
+    "previewClassmate": "問熙 · AI 同學",
+    "previewClassmateSays": "那 cos x 求導，為什麼會多一個負號？",
+    "previewQuiz": "隨堂練習 · 3 題"
   }
 }

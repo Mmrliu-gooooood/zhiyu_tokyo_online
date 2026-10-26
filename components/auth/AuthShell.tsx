@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { ZhiyuLockup } from '@/components/brand/ZhiyuLockup';
+import { LANDING_PATH } from '@/lib/auth/public-paths';
 import { useI18n } from '@/lib/hooks/use-i18n';
 
 export function AuthShell({
@@ -22,7 +23,7 @@ export function AuthShell({
     <div className="flex min-h-[100dvh] items-center justify-center overflow-x-hidden bg-background px-4 py-8">
       <div className="w-full min-w-0 max-w-md rounded-2xl border border-border/80 bg-card/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
         <div className="mb-6 flex min-w-0 flex-col items-center gap-3 text-center">
-          <Link href="/auth/login" aria-label={t('auth.productName')}>
+          <Link href={LANDING_PATH} aria-label={t('auth.productName')}>
             <ZhiyuLockup />
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">{title}</h1>

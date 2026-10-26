@@ -4045,5 +4045,64 @@
       "classmates": "Mitlernende",
       "memory": "Gedächtnis"
     }
+  },
+  "landing": {
+    "eyebrow": "Interaktiver KI-Unterricht",
+    "heroTitle": "Ein Satz genügt – für eine Lektion nur für dich",
+    "heroSubtitle": "Sag ZHIYU, was du lernen möchtest – ein Konzept, eine Aufgabe oder dein Skript. Eine KI-Lehrkraft und Mitschüler bereiten Folien, Erklärungen und Übungen vor und lernen mit dir, Frage für Frage.",
+    "ctaPrimary": "Kostenlos registrieren",
+    "ctaSecondary": "Ich habe ein Konto",
+    "heroNote": "Läuft im Browser, keine Installation · 12 Oberflächensprachen",
+    "signIn": "Anmelden",
+    "signUp": "Kostenlos registrieren",
+    "howEyebrow": "So funktioniert’s",
+    "step1Detail": "Gib ein Thema oder eine Aufgabe ein oder lade Unterlagen hoch – und wähle die KI-Mitschüler aus, die mitlernen.",
+    "step2Detail": "Die KI-Lehrkraft gliedert die Lektion und erstellt in wenigen Minuten Folien, Whiteboard-Erklärungen und Quizfragen.",
+    "step3Detail": "Melde dich jederzeit; Mitschüler fragen nach und diskutieren, und Unklares fragst du die Lehrkraft direkt.",
+    "featuresEyebrow": "Lernwerkzeuge",
+    "featuresTitle": "Nach dem Unterricht geht das Lernen weiter",
+    "featuresSubtitle": "Jedes Fach bekommt einen eigenen Bereich: Kurse, Unterlagen, Aufgaben, Fehler und Wiederholung an einem Ort.",
+    "feature": {
+      "classroom": {
+        "title": "KI-Lehrkraft und Mitschüler in einem Raum",
+        "desc": "Die Lehrkraft erklärt, Mitschüler fragen und diskutieren, Folien, Whiteboard und Quiz erscheinen im selben Klassenzimmer – wie echter Unterricht."
+      },
+      "spaces": {
+        "title": "Fachbereiche und Fragen zu Unterlagen",
+        "desc": "Lege Skripte und Unterlagen in einen Fachbereich und stelle Fragen dazu; Antworten zitieren die zugrunde liegenden Stellen."
+      },
+      "bank": {
+        "title": "Aufgabensammlung und Tests",
+        "desc": "Aufgaben aus Unterlagen extrahieren, Übungstests zusammenstellen und offene Fragen mit KI-Unterstützung bewerten."
+      },
+      "wrongbook": {
+        "title": "Fehlerheft und Wiederholung",
+        "desc": "Falsch gelöste Aufgaben landen im Fehlerheft – mit Erklärungen und Wiederholungsaufgaben, wann immer du willst."
+      },
+      "classmates": {
+        "title": "KI-Lernpartner",
+        "desc": "Erstelle Lernpartner mit eigener Persönlichkeit – sie sitzen mit im Unterricht und sind auch danach für Gespräche da."
+      },
+      "memory": {
+        "title": "Lerngedächtnis",
+        "desc": "Merkt sich deinen Fortschritt und deine bevorzugten Erklärungen, damit die nächste Lektion dort weitermacht, wo du aufgehört hast; jederzeit einsehbar und abschaltbar."
+      },
+      "ultra": {
+        "title": "Ultra-Modus",
+        "desc": "Wenn du mehr Unterstützung brauchst, wechsle in den Ultra-Modus: eine Agenten-Werkbank, die mit Skills komplexe, mehrstufige Aufgaben erledigt."
+      }
+    },
+    "closingTitle": "Was möchtest du heute lernen?",
+    "closingPoint1": "Kostenlose Registrierung",
+    "closingPoint2": "Erste Lektion in Minuten",
+    "closingPoint3": "Auf Computer und Handy",
+    "previewPrompt": "Erklär mir die Ableitung von Winkelfunktionen, mit ein paar Übungen",
+    "previewCast": "Lehrkraft Qiheng + 2 Mitschüler",
+    "previewSlideTitle": "Ableitung von sin und cos",
+    "previewTeacher": "Qiheng · KI-Lehrkraft",
+    "previewTeacherSays": "Schau auf den Graphen: Die Steigung von sin x ist an jeder Stelle genau cos x.",
+    "previewClassmate": "Wenxi · KI-Mitschülerin",
+    "previewClassmateSays": "Und warum bekommt die Ableitung von cos x ein Minus?",
+    "previewQuiz": "Quiz · 3 Fragen"
   }
 }

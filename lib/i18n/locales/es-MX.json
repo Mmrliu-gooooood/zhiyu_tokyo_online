@@ -4045,5 +4045,64 @@
       "classmates": "Compañeros",
       "memory": "Memoria"
     }
+  },
+  "landing": {
+    "eyebrow": "Clase interactiva con IA",
+    "heroTitle": "Una frase basta para una clase hecha para ti",
+    "heroSubtitle": "Dile a ZHIYU qué quieres aprender: un concepto, un problema o tus apuntes. Un profesor y compañeros de IA preparan diapositivas, explicaciones y práctica, y aprenden contigo, pregunta a pregunta.",
+    "ctaPrimary": "Regístrate gratis y empieza",
+    "ctaSecondary": "Ya tengo cuenta",
+    "heroNote": "Funciona en el navegador, sin instalar nada · 12 idiomas de interfaz",
+    "signIn": "Iniciar sesión",
+    "signUp": "Regístrate gratis",
+    "howEyebrow": "Cómo funciona",
+    "step1Detail": "Escribe un tema o un problema, o sube tus apuntes y materiales, y elige a los compañeros de IA que tomarán la clase contigo.",
+    "step2Detail": "El profesor de IA arma el temario y crea diapositivas, explicaciones en pizarrón y cuestionarios en pocos minutos.",
+    "step3Detail": "Levanta la mano cuando quieras; los compañeros repreguntan y debaten, y lo que no entiendas se lo preguntas directo al profesor.",
+    "featuresEyebrow": "Herramientas de estudio",
+    "featuresTitle": "Después de clase, el aprendizaje sigue",
+    "featuresSubtitle": "Un espacio para cada materia: cursos, materiales, ejercicios, errores y repasos en un solo lugar.",
+    "feature": {
+      "classroom": {
+        "title": "Profesor y compañeros de IA en el mismo salón",
+        "desc": "El profesor explica, los compañeros preguntan y debaten, y diapositivas, pizarrón y cuestionarios aparecen en la misma clase, como si fuera real."
+      },
+      "spaces": {
+        "title": "Espacios por materia y preguntas sobre tus materiales",
+        "desc": "Guarda apuntes y materiales en un espacio por materia y pregunta sobre ellos; las respuestas citan los fragmentos en que se basan."
+      },
+      "bank": {
+        "title": "Banco de ejercicios y exámenes",
+        "desc": "Extrae ejercicios de tus materiales, arma exámenes de práctica y recibe calificación asistida por IA en preguntas abiertas."
+      },
+      "wrongbook": {
+        "title": "Cuaderno de errores y repaso",
+        "desc": "Las preguntas falladas llegan a tu cuaderno de errores, con explicaciones y tareas de repaso cuando las necesites."
+      },
+      "classmates": {
+        "title": "Compañeros de estudio con IA",
+        "desc": "Crea compañeros con personalidad propia: toman clase contigo y siguen disponibles para platicar después."
+      },
+      "memory": {
+        "title": "Memoria de aprendizaje",
+        "desc": "Recuerda tu avance y cómo prefieres las explicaciones, para que la siguiente clase siga donde te quedaste; puedes verla o desactivarla cuando quieras."
+      },
+      "ultra": {
+        "title": "Modo Ultra",
+        "desc": "Cuando necesites más ayuda, cambia al modo Ultra: un banco de trabajo de agentes que usa habilidades para resolver tareas complejas de varios pasos."
+      }
+    },
+    "closingTitle": "¿Qué quieres aprender hoy?",
+    "closingPoint1": "Registro gratuito",
+    "closingPoint2": "Tu primera clase en minutos",
+    "closingPoint3": "En computadora y celular",
+    "previewPrompt": "Explícame la derivada de las funciones trigonométricas, con algunos ejercicios",
+    "previewCast": "Profesor Qiheng + 2 compañeros",
+    "previewSlideTitle": "Derivadas de sen y cos",
+    "previewTeacher": "Qiheng · profesor IA",
+    "previewTeacherSays": "Mira la gráfica: la pendiente de sin x en cada punto es justo cos x.",
+    "previewClassmate": "Wenxi · compañera IA",
+    "previewClassmateSays": "¿Y por qué la derivada de cos x lleva un signo menos?",
+    "previewQuiz": "Cuestionario · 3 preguntas"
   }
 }

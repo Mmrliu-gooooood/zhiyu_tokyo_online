@@ -4045,5 +4045,64 @@
       "classmates": "Camarades",
       "memory": "Mémoire"
     }
+  },
+  "landing": {
+    "eyebrow": "Classe interactive IA",
+    "heroTitle": "Une phrase suffit pour un cours fait pour vous",
+    "heroSubtitle": "Dites à ZHIYU ce que vous voulez apprendre : une notion, un exercice ou vos notes de cours. Un professeur et des camarades IA préparent diapositives, explications et exercices, puis apprennent avec vous, question après question.",
+    "ctaPrimary": "S’inscrire gratuitement",
+    "ctaSecondary": "J’ai déjà un compte",
+    "heroNote": "Dans le navigateur, rien à installer · 12 langues d’interface",
+    "signIn": "Se connecter",
+    "signUp": "S’inscrire gratuitement",
+    "howEyebrow": "Comment ça marche",
+    "step1Detail": "Saisissez un sujet ou un exercice, ou importez vos documents, et choisissez les camarades IA qui suivront le cours avec vous.",
+    "step2Detail": "Le professeur IA établit le plan et crée diapositives, explications au tableau et quiz en quelques minutes.",
+    "step3Detail": "Levez la main à tout moment ; les camarades relancent et débattent, et ce qui reste flou, demandez-le directement au professeur.",
+    "featuresEyebrow": "Outils d’étude",
+    "featuresTitle": "Après le cours, l’apprentissage continue",
+    "featuresSubtitle": "Un espace par matière : cours, documents, exercices, erreurs et révisions réunis au même endroit.",
+    "feature": {
+      "classroom": {
+        "title": "Professeur et camarades IA dans la même salle",
+        "desc": "Le professeur explique, les camarades posent des questions et débattent ; diapositives, tableau et quiz apparaissent dans la même classe, comme en vrai."
+      },
+      "spaces": {
+        "title": "Espaces matières et questions sur vos documents",
+        "desc": "Rangez notes et documents dans un espace matière et posez vos questions ; les réponses citent les passages sur lesquels elles s’appuient."
+      },
+      "bank": {
+        "title": "Banque d’exercices et tests",
+        "desc": "Extrayez des exercices de vos documents, composez des tests et obtenez une correction assistée par IA pour les questions ouvertes."
+      },
+      "wrongbook": {
+        "title": "Carnet d’erreurs et révisions",
+        "desc": "Les questions ratées rejoignent votre carnet d’erreurs, avec explications et tâches de révision à la demande."
+      },
+      "classmates": {
+        "title": "Camarades d’étude IA",
+        "desc": "Créez des camarades à la personnalité propre : ils suivent vos cours et restent disponibles pour en discuter ensuite."
+      },
+      "memory": {
+        "title": "Mémoire d’apprentissage",
+        "desc": "Retient votre progression et vos préférences d’explication pour reprendre là où vous vous êtes arrêté ; consultable et désactivable à tout moment."
+      },
+      "ultra": {
+        "title": "Mode Ultra",
+        "desc": "Besoin d’un renfort ? Passez en mode Ultra : un atelier d’agents qui utilise des compétences pour mener des tâches complexes en plusieurs étapes."
+      }
+    },
+    "closingTitle": "Qu’allez-vous apprendre aujourd’hui ?",
+    "closingPoint1": "Inscription gratuite",
+    "closingPoint2": "Premier cours en quelques minutes",
+    "closingPoint3": "Sur ordinateur et mobile",
+    "previewPrompt": "Explique-moi la dérivée des fonctions trigonométriques, avec quelques exercices",
+    "previewCast": "Professeur Qiheng + 2 camarades",
+    "previewSlideTitle": "Dérivées de sin et cos",
+    "previewTeacher": "Qiheng · professeur IA",
+    "previewTeacherSays": "Regardez la courbe : la pente de sin x en chaque point vaut exactement cos x.",
+    "previewClassmate": "Wenxi · camarade IA",
+    "previewClassmateSays": "Alors pourquoi la dérivée de cos x prend-elle un signe moins ?",
+    "previewQuiz": "Quiz en classe · 3 questions"
   }
 }

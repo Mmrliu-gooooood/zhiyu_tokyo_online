@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { isHostedAuthEnabled } from '@/lib/auth/mode';
-import { isAuthSessionEntryPath, isPublicAuthPath } from '@/lib/auth/public-paths';
+import { LANDING_PATH, isAuthSessionEntryPath, isPublicAuthPath } from '@/lib/auth/public-paths';
 import { safeNextPath } from '@/lib/auth/safe-next';
 import { hasSupabaseBrowserConfig, requireSupabaseBrowserConfig } from './env';
 
@@ -53,9 +53,16 @@ export async function updateSupabaseSession(
 
   if (requireLogin && !user && !isPublicAuthPath(pathname) && !pathname.startsWith('/api/')) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/auth/login';
     const next = safeNextPath(`${pathname}${request.nextUrl.search}`);
-    if (next !== '/') redirectUrl.searchParams.set('next', next);
+    // The bare site address introduces the product; deep links go straight
+    // to login and come back afterwards.
+    if (next === '/') {
+      redirectUrl.pathname = LANDING_PATH;
+      redirectUrl.search = '';
+    } else {
+      redirectUrl.pathname = '/auth/login';
+      redirectUrl.searchParams.set('next', next);
+    }
     const redirect = NextResponse.redirect(redirectUrl);
     for (const cookie of supabaseResponse.cookies.getAll()) {
       redirect.cookies.set(cookie);
