@@ -4103,6 +4103,72 @@
     "previewTeacherSays": "Schau auf den Graphen: Die Steigung von sin x ist an jeder Stelle genau cos x.",
     "previewClassmate": "Wenxi · KI-Mitschülerin",
     "previewClassmateSays": "Und warum bekommt die Ableitung von cos x ein Minus?",
-    "previewQuiz": "Quiz · 3 Fragen"
+    "previewQuiz": "Quiz · 3 Fragen",
+    "topicsLabel": "Von Mathe bis Programmieren – lerne, was du willst",
+    "topic1": "Ableitung von sin und cos",
+    "topic2": "Python-Grundlagen",
+    "topic3": "Fourier-Transformation",
+    "topic4": "Organische Reaktionen",
+    "topic5": "Englische Zeitformen",
+    "topic6": "Mikroökonomie",
+    "topic7": "Klassische Lyrik",
+    "topic8": "Zellteilung",
+    "topic9": "Lineare Algebra",
+    "topic10": "Newtonsche Gesetze",
+    "topic11": "Grundlagen des maschinellen Lernens",
+    "topic12": "Neuere Geschichte",
+    "topic13": "Wahrscheinlichkeit und Statistik",
+    "topic14": "Japanische Kana",
+    "tourEyebrow": "Im Unterricht",
+    "tourTitle": "Mehr als ein Foliensatz",
+    "tourSubtitle": "Jede Lektion wird live von einer KI-Lehrkraft gehalten: vertonte Folien, Schritt für Schritt geschriebene Whiteboard-Herleitungen, Quizfragen mit sofortigem Feedback und Diskussionen mit Mitschülern.",
+    "tour": {
+      "slides": {
+        "tab": "Folien mit Ton",
+        "title": "Folien mit Lehrkraft",
+        "desc": "Die Folien entstehen Seite für Seite aus der Gliederung, die Lehrkraft erklärt jede davon; jederzeit pausieren, zurückspringen oder dazwischenfragen.",
+        "sceneTitle": "Fotosynthese",
+        "point1": "Lichtreaktion: Licht wird zu chemischer Energie",
+        "point2": "Calvin-Zyklus: CO₂ wird gebunden",
+        "point3": "Produkte: Glukose und Sauerstoff",
+        "narrating": "Qiheng erklärt Seite 3"
+      },
+      "whiteboard": {
+        "tab": "Whiteboard",
+        "title": "Schritt für Schritt vorgerechnet",
+        "desc": "Formeln und Herleitungen schreibt die Lehrkraft Schritt für Schritt ans Whiteboard und erklärt dabei – viel leichter nachzuvollziehen als eine nackte Lösung.",
+        "sceneTitle": "Satz des Pythagoras"
+      },
+      "quiz": {
+        "tab": "Quiz",
+        "title": "Direkt nach dem Lernen üben",
+        "desc": "Zwischendurch kommen Auswahl- und Kurzantwortfragen; nach der Antwort siehst du sofort Lösung und Erklärung und erkennst Lücken auf einen Blick.",
+        "sceneLabel": "Quiz · Frage 1",
+        "question": "Was ist sin(π/2)?",
+        "feedback": "Richtig! sin x erreicht bei x = π/2 sein Maximum 1."
+      },
+      "discussion": {
+        "tab": "Diskussion",
+        "title": "Diskutieren mit KI-Mitschülern",
+        "desc": "Offene Fragen werden zur Gesprächsrunde: Mitschüler bringen ihre Sicht ein, die Lehrkraft fasst die Kernpunkte zusammen, und du kannst dich jederzeit einschalten.",
+        "sceneLabel": "Gesprächsrunde",
+        "topic": "Warum begann die Industrielle Revolution in Großbritannien?",
+        "line1": "Großbritannien hatte viel Kohle und Eisen, also reichlich Energie.",
+        "line2": "Ich glaube, Absatzmärkte in Übersee und Kapital waren genauso wichtig.",
+        "line3": "Ihr nennt beide Kernpunkte: Rohstoffe, Märkte, Kapital – dazu Technik und Institutionen. Gehen wir sie durch."
+      }
+    },
+    "faqEyebrow": "FAQ",
+    "faqTitle": "Bevor du loslegst",
+    "faq1q": "Kostet ZHIYU etwas?",
+    "faq1a": "Die Registrierung ist kostenlos, und mit den Modellen der Plattform kannst du Lektionen und Übungen erstellen.",
+    "faq2q": "Muss ich etwas installieren?",
+    "faq2a": "Nein. Öffne zhiyulearn.online im Browser auf Computer oder Handy; dein Fortschritt wird im Konto gespeichert, sodass du auf einem anderen Gerät weitermachen kannst.",
+    "faq3q": "Was kann ich lernen?",
+    "faq3a": "Jedes Fach – Mathe, Programmieren, Sprachen, Naturwissenschaften, Geisteswissenschaften. Starte mit einem einzigen Thema oder lade Skripte und PDFs hoch, damit die Lektion auf deinen Unterlagen aufbaut.",
+    "faq4q": "Sind meine Unterlagen sicher?",
+    "faq4a": "Unterlagen liegen nur in deinem Konto, andere Nutzer haben keinen Zugriff; Kurse und Unterlagen kannst du jederzeit löschen.",
+    "faq5q": "Kann ich mein eigenes Modell nutzen?",
+    "faq5a": "Ja. Standardmäßig laufen die Modelle der Plattform; einen eigenen Modelldienst (z. B. OpenRouter) verbindest du in den Einstellungen."
   }
 }

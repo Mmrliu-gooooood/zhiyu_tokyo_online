@@ -4103,6 +4103,72 @@
     "previewTeacherSays": "Mira la gráfica: la pendiente de sin x en cada punto es justo cos x.",
     "previewClassmate": "Wenxi · compañera IA",
     "previewClassmateSays": "¿Y por qué la derivada de cos x lleva un signo menos?",
-    "previewQuiz": "Cuestionario · 3 preguntas"
+    "previewQuiz": "Cuestionario · 3 preguntas",
+    "topicsLabel": "De las matemáticas a la programación, aprende lo que quieras",
+    "topic1": "Derivadas trigonométricas",
+    "topic2": "Python desde cero",
+    "topic3": "Transformada de Fourier",
+    "topic4": "Reacciones orgánicas",
+    "topic5": "Tiempos en inglés",
+    "topic6": "Microeconomía",
+    "topic7": "Poesía clásica",
+    "topic8": "División celular",
+    "topic9": "Álgebra lineal",
+    "topic10": "Leyes de Newton",
+    "topic11": "Bases de machine learning",
+    "topic12": "Historia moderna",
+    "topic13": "Probabilidad y estadística",
+    "topic14": "Kana japonés",
+    "tourEyebrow": "Dentro de la clase",
+    "tourTitle": "Mucho más que diapositivas",
+    "tourSubtitle": "Cada clase la imparte en vivo un profesor de IA: diapositivas narradas, desarrollos en el pizarrón paso a paso, cuestionarios con retroalimentación inmediata y debates entre compañeros.",
+    "tour": {
+      "slides": {
+        "tab": "Diapositivas narradas",
+        "title": "Diapositivas con profesor",
+        "desc": "Las diapositivas se generan una a una según el temario y el profesor narra cada una; pausa, regresa o interrumpe con una pregunta cuando quieras.",
+        "sceneTitle": "Fotosíntesis",
+        "point1": "Fase luminosa: la luz se vuelve energía química",
+        "point2": "Ciclo de Calvin: fijación de CO₂",
+        "point3": "Productos: glucosa y oxígeno",
+        "narrating": "Qiheng explica la página 3"
+      },
+      "whiteboard": {
+        "tab": "Pizarrón",
+        "title": "Paso a paso frente a ti",
+        "desc": "Fórmulas y desarrollos se escriben paso a paso en el pizarrón mientras el profesor explica: mucho más fácil de seguir que una respuesta suelta.",
+        "sceneTitle": "Teorema de Pitágoras"
+      },
+      "quiz": {
+        "tab": "Cuestionarios",
+        "title": "Practica justo después",
+        "desc": "La clase incluye preguntas de opción múltiple y de respuesta corta; al responder ves la solución y la explicación al instante y detectas tus huecos enseguida.",
+        "sceneLabel": "Cuestionario · Pregunta 1",
+        "question": "¿Cuánto vale sen(π/2)?",
+        "feedback": "¡Correcto! sen x alcanza su máximo, 1, en x = π/2."
+      },
+      "discussion": {
+        "tab": "Debate",
+        "title": "Debate con compañeros de IA",
+        "desc": "Las preguntas abiertas pueden convertirse en mesa redonda: cada compañero opina, el profesor resume lo esencial y tú puedes intervenir cuando quieras.",
+        "sceneLabel": "Mesa redonda",
+        "topic": "¿Por qué la Revolución Industrial empezó en Gran Bretaña?",
+        "line1": "Tenía mucho carbón y hierro, así que le sobraba energía.",
+        "line2": "Creo que los mercados de ultramar y el capital pesaron igual.",
+        "line3": "Los dos dieron en puntos clave: recursos, mercados, capital, además de tecnología e instituciones. Veámoslos uno por uno."
+      }
+    },
+    "faqEyebrow": "Preguntas frecuentes",
+    "faqTitle": "Antes de empezar",
+    "faq1q": "¿ZHIYU tiene costo?",
+    "faq1a": "Registrarse es gratis y puedes generar clases y ejercicios con los modelos que ofrece la plataforma.",
+    "faq2q": "¿Tengo que instalar algo?",
+    "faq2a": "No. Abre zhiyulearn.online en el navegador de tu computadora o celular; tu avance se guarda en tu cuenta y puedes seguir en otro dispositivo.",
+    "faq3q": "¿Qué puedo aprender?",
+    "faq3a": "Cualquier materia: matemáticas, programación, idiomas, ciencias, humanidades. Empieza con un solo tema o sube apuntes y PDF para que la clase gire en torno a tus materiales.",
+    "faq4q": "¿Mis materiales están seguros?",
+    "faq4a": "Se guardan solo en tu cuenta y otros usuarios no pueden verlos; puedes borrar clases y materiales cuando quieras.",
+    "faq5q": "¿Puedo usar mi propio modelo?",
+    "faq5a": "Sí. Por defecto se usan los modelos de la plataforma; si tienes tu propio servicio (por ejemplo, OpenRouter), conéctalo en Configuración."
   }
 }

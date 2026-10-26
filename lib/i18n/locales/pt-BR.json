@@ -4103,6 +4103,72 @@
     "previewTeacherSays": "Veja o gráfico: a inclinação de sin x em cada ponto é exatamente cos x.",
     "previewClassmate": "Wenxi · colega IA",
     "previewClassmateSays": "E por que a derivada de cos x ganha um sinal de menos?",
-    "previewQuiz": "Quiz da aula · 3 questões"
+    "previewQuiz": "Quiz da aula · 3 questões",
+    "topicsLabel": "Da matemática à programação, aprenda o que quiser",
+    "topic1": "Derivadas trigonométricas",
+    "topic2": "Python do zero",
+    "topic3": "Transformada de Fourier",
+    "topic4": "Reações orgânicas",
+    "topic5": "Tempos verbais em inglês",
+    "topic6": "Microeconomia",
+    "topic7": "Poesia clássica",
+    "topic8": "Divisão celular",
+    "topic9": "Álgebra linear",
+    "topic10": "Leis de Newton",
+    "topic11": "Fundamentos de machine learning",
+    "topic12": "História moderna",
+    "topic13": "Probabilidade e estatística",
+    "topic14": "Kana japonês",
+    "tourEyebrow": "Dentro da aula",
+    "tourTitle": "Muito mais que slides",
+    "tourSubtitle": "Cada aula é dada ao vivo por um professor de IA: slides narrados, desenvolvimentos no quadro passo a passo, quizzes com retorno imediato e debates entre colegas.",
+    "tour": {
+      "slides": {
+        "tab": "Slides narrados",
+        "title": "Slides com professor",
+        "desc": "Os slides são gerados um a um a partir do roteiro e o professor narra cada um; pause, volte ou interrompa com uma pergunta quando quiser.",
+        "sceneTitle": "Fotossíntese",
+        "point1": "Fase clara: luz vira energia química",
+        "point2": "Ciclo de Calvin: fixação de CO₂",
+        "point3": "Produtos: glicose e oxigênio",
+        "narrating": "Qiheng está explicando a página 3"
+      },
+      "whiteboard": {
+        "tab": "Quadro",
+        "title": "Passo a passo na sua frente",
+        "desc": "Fórmulas e desenvolvimentos são escritos passo a passo no quadro enquanto o professor explica — muito mais fácil de acompanhar do que uma resposta pronta.",
+        "sceneTitle": "Teorema de Pitágoras"
+      },
+      "quiz": {
+        "tab": "Quizzes",
+        "title": "Pratique logo em seguida",
+        "desc": "A aula traz questões de múltipla escolha e de resposta curta; ao responder você vê a correção e a explicação na hora e percebe o que falta.",
+        "sceneLabel": "Quiz da aula · Questão 1",
+        "question": "Quanto vale sen(π/2)?",
+        "feedback": "Certo! sen x atinge o máximo, 1, em x = π/2."
+      },
+      "discussion": {
+        "tab": "Debate",
+        "title": "Debata com colegas de IA",
+        "desc": "Perguntas abertas viram uma mesa-redonda: cada colega dá sua opinião, o professor resume o essencial e você pode participar quando quiser.",
+        "sceneLabel": "Mesa-redonda",
+        "topic": "Por que a Revolução Industrial começou na Grã-Bretanha?",
+        "line1": "Havia muito carvão e ferro, então energia não faltava.",
+        "line2": "Acho que os mercados ultramarinos e o capital pesaram tanto quanto.",
+        "line3": "Vocês dois tocaram em pontos-chave: recursos, mercados, capital — além de tecnologia e instituições. Vamos ver um por um."
+      }
+    },
+    "faqEyebrow": "Perguntas frequentes",
+    "faqTitle": "Antes de começar",
+    "faq1q": "O ZHIYU é pago?",
+    "faq1a": "O cadastro é gratuito, e você pode gerar aulas e exercícios com os modelos oferecidos pela plataforma.",
+    "faq2q": "Preciso instalar algo?",
+    "faq2a": "Não. Abra zhiyulearn.online no navegador do computador ou do celular; seu progresso fica salvo na conta e você continua em outro aparelho.",
+    "faq3q": "O que posso aprender?",
+    "faq3a": "Qualquer matéria: matemática, programação, idiomas, ciências, humanas. Comece com um único tema ou envie anotações e PDFs para a aula girar em torno dos seus materiais.",
+    "faq4q": "Meus materiais estão seguros?",
+    "faq4a": "Eles ficam só na sua conta e outros usuários não têm acesso; você pode excluir aulas e materiais quando quiser.",
+    "faq5q": "Posso usar meu próprio modelo?",
+    "faq5a": "Sim. Por padrão são usados os modelos da plataforma; se você tiver seu próprio serviço (por exemplo, OpenRouter), conecte-o nas Configurações."
   }
 }

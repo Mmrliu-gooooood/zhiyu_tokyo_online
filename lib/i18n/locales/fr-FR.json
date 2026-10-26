@@ -4103,6 +4103,72 @@
     "previewTeacherSays": "Regardez la courbe : la pente de sin x en chaque point vaut exactement cos x.",
     "previewClassmate": "Wenxi · camarade IA",
     "previewClassmateSays": "Alors pourquoi la dérivée de cos x prend-elle un signe moins ?",
-    "previewQuiz": "Quiz en classe · 3 questions"
+    "previewQuiz": "Quiz en classe · 3 questions",
+    "topicsLabel": "Des maths au code, apprenez ce que vous voulez",
+    "topic1": "Dérivées de sin et cos",
+    "topic2": "Bases de Python",
+    "topic3": "Transformée de Fourier",
+    "topic4": "Réactions organiques",
+    "topic5": "Temps en anglais",
+    "topic6": "Microéconomie",
+    "topic7": "Poésie classique",
+    "topic8": "Division cellulaire",
+    "topic9": "Algèbre linéaire",
+    "topic10": "Lois de Newton",
+    "topic11": "Bases du machine learning",
+    "topic12": "Histoire moderne",
+    "topic13": "Probabilités et statistiques",
+    "topic14": "Kana japonais",
+    "tourEyebrow": "En classe",
+    "tourTitle": "Bien plus qu’un diaporama",
+    "tourSubtitle": "Chaque cours est donné en direct par un professeur IA : diapositives commentées, démonstrations écrites pas à pas au tableau, quiz corrigés aussitôt et discussions entre camarades.",
+    "tour": {
+      "slides": {
+        "tab": "Diapos commentées",
+        "title": "Des diapositives avec un professeur",
+        "desc": "Les diapositives sont créées page par page à partir du plan et le professeur commente chacune ; mettez en pause, revenez en arrière ou posez une question à tout moment.",
+        "sceneTitle": "Photosynthèse",
+        "point1": "Phase claire : la lumière devient énergie chimique",
+        "point2": "Cycle de Calvin : fixation du CO₂",
+        "point3": "Produits : glucose et oxygène",
+        "narrating": "Qiheng explique la page 3"
+      },
+      "whiteboard": {
+        "tab": "Tableau",
+        "title": "Écrit pas à pas sous vos yeux",
+        "desc": "Formules et démonstrations sont écrites étape par étape au tableau, avec l’explication — bien plus facile à suivre qu’une réponse toute faite.",
+        "sceneTitle": "Théorème de Pythagore"
+      },
+      "quiz": {
+        "tab": "Quiz",
+        "title": "S’entraîner juste après",
+        "desc": "Des QCM et des questions courtes ponctuent le cours ; dès que vous répondez, vous voyez la correction et l’explication, et vos lacunes sautent aux yeux.",
+        "sceneLabel": "Quiz · Question 1",
+        "question": "Combien vaut sin(π/2) ?",
+        "feedback": "Exact ! sin x atteint son maximum, 1, en x = π/2."
+      },
+      "discussion": {
+        "tab": "Discussion",
+        "title": "Débattre avec des camarades IA",
+        "desc": "Une question ouverte peut devenir une table ronde : chacun donne son avis, le professeur résume l’essentiel, et vous pouvez intervenir quand vous voulez.",
+        "sceneLabel": "Table ronde",
+        "topic": "Pourquoi la révolution industrielle a-t-elle commencé en Grande-Bretagne ?",
+        "line1": "Le pays avait beaucoup de charbon et de fer, donc de l’énergie en abondance.",
+        "line2": "Je pense que les marchés d’outre-mer et le capital ont autant compté.",
+        "line3": "Vous avez tous deux trouvé des points clés : ressources, marchés, capital — plus la technique et les institutions. Voyons-les un par un."
+      }
+    },
+    "faqEyebrow": "FAQ",
+    "faqTitle": "Avant de commencer",
+    "faq1q": "ZHIYU est-il payant ?",
+    "faq1a": "L’inscription est gratuite, et vous pouvez générer cours et exercices avec les modèles fournis par la plateforme.",
+    "faq2q": "Faut-il installer quelque chose ?",
+    "faq2a": "Non. Ouvrez zhiyulearn.online dans le navigateur de votre ordinateur ou téléphone ; votre progression est enregistrée dans votre compte et vous suit sur un autre appareil.",
+    "faq3q": "Que puis-je apprendre ?",
+    "faq3a": "Toutes les matières : maths, programmation, langues, sciences, sciences humaines. Lancez un cours à partir d’un simple sujet, ou importez notes et PDF pour qu’il s’appuie sur vos documents.",
+    "faq4q": "Mes documents sont-ils en sécurité ?",
+    "faq4a": "Ils sont stockés uniquement dans votre compte et les autres utilisateurs n’y ont pas accès ; vous pouvez supprimer cours et documents à tout moment.",
+    "faq5q": "Puis-je utiliser mon propre modèle ?",
+    "faq5a": "Oui. Les modèles de la plateforme sont utilisés par défaut ; si vous avez votre propre service (par exemple OpenRouter), connectez-le dans les paramètres."
   }
 }

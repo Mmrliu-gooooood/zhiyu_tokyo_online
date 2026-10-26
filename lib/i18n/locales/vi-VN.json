@@ -4103,6 +4103,72 @@
     "previewTeacherSays": "Nhìn đồ thị: độ dốc của sin x tại mỗi điểm đúng bằng cos x.",
     "previewClassmate": "Wenxi · bạn học AI",
     "previewClassmateSays": "Vậy sao đạo hàm của cos x lại có dấu trừ?",
-    "previewQuiz": "Kiểm tra trên lớp · 3 câu"
+    "previewQuiz": "Kiểm tra trên lớp · 3 câu",
+    "topicsLabel": "Từ toán đến lập trình, muốn học gì cũng được",
+    "topic1": "Đạo hàm lượng giác",
+    "topic2": "Python nhập môn",
+    "topic3": "Biến đổi Fourier",
+    "topic4": "Phản ứng hữu cơ",
+    "topic5": "Thì trong tiếng Anh",
+    "topic6": "Kinh tế vi mô",
+    "topic7": "Thơ cổ điển",
+    "topic8": "Phân bào",
+    "topic9": "Đại số tuyến tính",
+    "topic10": "Định luật Newton",
+    "topic11": "Học máy cơ bản",
+    "topic12": "Lịch sử cận đại",
+    "topic13": "Xác suất thống kê",
+    "topic14": "Bảng chữ cái tiếng Nhật",
+    "tourEyebrow": "Trong lớp học",
+    "tourTitle": "Không chỉ là vài trang slide",
+    "tourSubtitle": "Mỗi bài học đều do giáo viên AI giảng trực tiếp: slide có lời giảng, phần chứng minh viết từng bước trên bảng, câu hỏi kiểm tra có phản hồi ngay và thảo luận cùng bạn học.",
+    "tour": {
+      "slides": {
+        "tab": "Slide có lời giảng",
+        "title": "Slide kèm giáo viên",
+        "desc": "Slide được tạo từng trang theo dàn ý và giáo viên giảng từng trang bằng giọng nói; bạn có thể tạm dừng, xem lại hoặc chen vào hỏi bất cứ lúc nào.",
+        "sceneTitle": "Quang hợp",
+        "point1": "Pha sáng: biến quang năng thành hóa năng",
+        "point2": "Pha tối: cố định CO₂",
+        "point3": "Sản phẩm: glucose và oxy",
+        "narrating": "Qiheng đang giảng trang 3"
+      },
+      "whiteboard": {
+        "tab": "Bảng trắng",
+        "title": "Viết từng bước cho bạn xem",
+        "desc": "Gặp công thức và chứng minh, giáo viên viết từng bước lên bảng trắng và giảng song song — dễ theo hơn nhiều so với chỉ xem đáp án.",
+        "sceneTitle": "Định lý Pythagoras"
+      },
+      "quiz": {
+        "tab": "Kiểm tra",
+        "title": "Học xong luyện ngay",
+        "desc": "Trong giờ học có câu trắc nghiệm và câu trả lời ngắn; trả lời xong là thấy ngay đúng sai và lời giải, chỗ nào chưa vững hiện rõ.",
+        "sceneLabel": "Kiểm tra trên lớp · Câu 1",
+        "question": "sin(π/2) bằng bao nhiêu?",
+        "feedback": "Chính xác! sin x đạt giá trị lớn nhất bằng 1 tại x = π/2."
+      },
+      "discussion": {
+        "tab": "Thảo luận",
+        "title": "Thảo luận cùng bạn học AI",
+        "desc": "Câu hỏi mở có thể thành buổi bàn tròn: các bạn nêu ý kiến, giáo viên tổng kết ý chính, và bạn có thể tham gia bất cứ lúc nào.",
+        "sceneLabel": "Bàn tròn",
+        "topic": "Vì sao cách mạng công nghiệp bắt đầu ở Anh?",
+        "line1": "Anh có nhiều than và quặng sắt nên dồi dào năng lượng.",
+        "line2": "Mình nghĩ thị trường hải ngoại và tích lũy vốn cũng rất quan trọng.",
+        "line3": "Cả hai đều nêu đúng ý chính: tài nguyên, thị trường, vốn, cộng thêm công nghệ và thể chế. Ta xem lần lượt nhé."
+      }
+    },
+    "faqEyebrow": "Câu hỏi thường gặp",
+    "faqTitle": "Trước khi bắt đầu",
+    "faq1q": "ZHIYU có mất phí không?",
+    "faq1a": "Đăng ký miễn phí, và bạn có thể tạo bài học, bài luyện tập bằng các mô hình nền tảng cung cấp.",
+    "faq2q": "Có cần cài đặt gì không?",
+    "faq2a": "Không. Mở zhiyulearn.online trên trình duyệt máy tính hoặc điện thoại; tiến độ được lưu vào tài khoản nên đổi thiết bị vẫn học tiếp được.",
+    "faq3q": "Có thể học những gì?",
+    "faq3a": "Mọi môn học: toán, lập trình, ngoại ngữ, khoa học tự nhiên, khoa học xã hội. Chỉ cần nhập một chủ đề là có bài học, hoặc tải lên bài giảng và PDF để bài học xoay quanh tài liệu của bạn.",
+    "faq4q": "Tài liệu tôi tải lên có an toàn không?",
+    "faq4a": "Tài liệu chỉ lưu trong tài khoản của bạn, người khác không truy cập được; bạn có thể xóa khóa học và tài liệu bất cứ lúc nào.",
+    "faq5q": "Tôi có dùng mô hình riêng được không?",
+    "faq5a": "Được. Mặc định dùng mô hình của nền tảng; nếu có dịch vụ mô hình riêng (ví dụ OpenRouter), bạn có thể kết nối trong phần Cài đặt."
   }
 }

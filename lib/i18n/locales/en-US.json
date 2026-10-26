@@ -4103,6 +4103,72 @@
     "previewTeacherSays": "Look at the graph: the slope of sin x at every point is exactly cos x.",
     "previewClassmate": "Wenxi · AI classmate",
     "previewClassmateSays": "So why does the derivative of cos x get a minus sign?",
-    "previewQuiz": "In-class quiz · 3 questions"
+    "previewQuiz": "In-class quiz · 3 questions",
+    "topicsLabel": "From math to coding — learn whatever you like",
+    "topic1": "Derivatives of trig functions",
+    "topic2": "Python basics",
+    "topic3": "Fourier transform",
+    "topic4": "Organic reactions",
+    "topic5": "English tenses",
+    "topic6": "Microeconomics",
+    "topic7": "Classical poetry",
+    "topic8": "Cell division",
+    "topic9": "Linear algebra",
+    "topic10": "Newton’s laws",
+    "topic11": "Machine learning basics",
+    "topic12": "Modern history",
+    "topic13": "Probability and statistics",
+    "topic14": "Japanese kana",
+    "tourEyebrow": "Inside a lesson",
+    "tourTitle": "More than a stack of slides",
+    "tourSubtitle": "Every lesson is taught live by an AI teacher: narrated slides, whiteboard walkthroughs written step by step, quizzes with instant feedback, and discussions with classmates.",
+    "tour": {
+      "slides": {
+        "tab": "Narrated slides",
+        "title": "Slides that come with a teacher",
+        "desc": "Slides are built page by page from the outline, and the teacher narrates each one; pause, go back or jump in with a question any time.",
+        "sceneTitle": "Photosynthesis",
+        "point1": "Light reactions turn light into chemical energy",
+        "point2": "The Calvin cycle fixes carbon dioxide",
+        "point3": "Products: glucose and oxygen",
+        "narrating": "Qiheng is explaining page 3"
+      },
+      "whiteboard": {
+        "tab": "Whiteboard",
+        "title": "Worked out step by step",
+        "desc": "For formulas and derivations, the teacher writes each step on the whiteboard while explaining — far easier to follow than a bare answer.",
+        "sceneTitle": "Pythagorean theorem"
+      },
+      "quiz": {
+        "tab": "Quizzes",
+        "title": "Practice right after you learn",
+        "desc": "Multiple-choice and short-answer questions appear during class, with the answer and an explanation as soon as you respond, so gaps show up right away.",
+        "sceneLabel": "In-class quiz · Question 1",
+        "question": "What is sin(π/2)?",
+        "feedback": "Correct! sin x reaches its maximum, 1, at x = π/2."
+      },
+      "discussion": {
+        "tab": "Discussion",
+        "title": "Discuss with AI classmates",
+        "desc": "Open questions can become a roundtable: classmates share their views, the teacher sums up the key points, and you can join in whenever you like.",
+        "sceneLabel": "Roundtable",
+        "topic": "Why did the Industrial Revolution start in Britain?",
+        "line1": "Britain had plenty of coal and iron, so energy was cheap.",
+        "line2": "I think overseas markets and capital mattered just as much.",
+        "line3": "You’ve both hit key points: resources, markets, capital — plus technology and institutions. Let’s go through them."
+      }
+    },
+    "faqEyebrow": "FAQ",
+    "faqTitle": "Before you start",
+    "faq1q": "Does ZHIYU cost anything?",
+    "faq1a": "Signing up is free, and you can generate lessons and practice with the models the platform provides.",
+    "faq2q": "Do I need to install anything?",
+    "faq2a": "No. Open zhiyulearn.online in a browser on your computer or phone; your progress is saved to your account, so you can continue on another device.",
+    "faq3q": "What can I learn?",
+    "faq3a": "Any subject — math, coding, languages, science, humanities. Start a lesson from a single topic, or upload notes and PDFs to build it around your own materials.",
+    "faq4q": "Are my uploaded materials safe?",
+    "faq4a": "Materials are stored under your account only and other users can’t access them; you can delete courses and materials any time.",
+    "faq5q": "Can I use my own model?",
+    "faq5a": "Yes. The platform’s models are the default; if you have your own model service (such as OpenRouter), connect it in Settings."
   }
 }
