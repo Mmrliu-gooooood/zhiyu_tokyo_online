@@ -1864,6 +1864,12 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 
 经用户确认（2026-10-05）：**以实际项目代码为准**，原方案只要求逻辑相同或相近。上文“设计决策”中的偏离（进度接口挂在 `/api/study/progress/[stageId]`、本批不建 `learning_events` 表等）即为后续批次的基准，后续批次不需要再改回方案原写法。
 
+### 介绍页：未登录访问先看到产品介绍（2026-10-26，Web release-20261026，main `126106b6`）
+
+- 新增公开页面 `/welcome`（`components/landing/`）：顶部导航（如何上课 / 学习工具 / 语言 / 登录 / 免费注册）、首屏标题与课堂插图（用设计 token 绘制，跟随深浅色）、三步开始上课、七项学习工具、结尾注册入口；12 种语言（`check:i18n-keys` 通过）。
+- 访问流程（`lib/supabase/proxy.ts`、`lib/auth/public-paths.ts`）：未登录访问 `/` → 307 到 `/welcome`；其他深链接仍去登录页并带 `next`；已登录访问 `/welcome` → 回到 `/`；登录页 logo 链回介绍页。介绍页不加载账号环境（`isSessionFreePagePath`）。测试 `tests/auth/landing-entry.test.ts`（5 项）。
+- 发布（用户指示）：只构建 Web（`148fbec4bfdf`）标为 `release-20261026`；无排队/运行中任务（仅 2 条 10-24 的 needs_attention）；备份 `*.bak-20261026-pre`（指向 web 20261024），env 只改 `ZHIYU_WEB_IMAGE`；readiness `ready`、2/2 Worker、Web healthy、无 WARN/ERROR，磁盘 44%。生产核对（未登录）：`/` → `/welcome`，`/study` → `/auth/login?next=%2Fstudy`，页面标题正确；点“免费注册”到注册页、点“登录”到登录页、登录页 logo 回介绍页；手机深色无横向溢出；控制台 0 错误。已登录访问 `/welcome` 的跳转只由单元测试覆盖（浏览器窗格当时无登录会话）。
+
 ### 生产发布与验收（2026-10-05）
 
 - 发布：main 快进到 `a1a0a7b6` 并推送 `tokyo`；本地构建镜像 `release-20261005`（两镜像 smoke-pi-runtime 通过；依赖与构建配置相对 R2 镜像无变化），`docker save | gzip | ssh docker load` 送到东京。
