@@ -1611,6 +1611,14 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 - 未运行：Playwright e2e、生产镜像构建、promptfoo 外壳（本机安装失败）。
 - **关键词模式复验（2026-10-06）**：全量 Vitest `--maxWorkers=4` **858 个文件 / 8901 项通过，17 个文件、94 项跳过，0 失败**；带扩展的 PostgreSQL 17：检索端到端 10 项 + v24 迁移 4 项通过；`tsc`、改动文件 ESLint/Prettier、`check:i18n-keys` 通过。本地托管模式浏览器复验（不启动 embedding 服务，`STUDY_EMBEDDING_MODEL` 为空）：答疑页显示“检索方式：关键词匹配（不调用检索模型）”→“为全部资料建立索引”4 份全部可检索（讲义第 5 页无文字）→ 数据库 4 个 `keyword@1` 索引、12 个 chunk、0 个向量，Worker 日志 0 次 embedding 调用 → 问 arctan x 的导数得 [E1] 第 4 页依据，元信息“关键词检索”→ 点 [E1] 阅读器第 4 页加框并标出摘录 → 问红黑树得“资料中未找到”+ 模型补充说明 → 只检索原文“期末考试是哪一天”两份冲突通知排前两位；用量只有 2 条答疑调用。环境文件、测试账号、PDF、假 S3 数据与数据库容器已删除。
 
+### 后续：没有资料也能提问（2026-10-29，Web release-20261029，main `93607697`）
+
+- 用户决定：学科“提问”页不再要求先建好索引；有资料先参考资料，没有就用模型自己的知识。
+- 改动：`askSpace` 在范围为空（学科没有可用索引、且未指定版本）时不再抛 `STUDY_QA_NOT_INDEXED`，跳过查询 embedding 与检索，提示词写明“这个学科还没有可检索的资料”，答案存为 `retrieval: 'none'`（新增的检索类型；无迁移，`body` 是 jsonb）。页面：“提问”只要求功能可用，“只检索原文”仍要求有索引；答案显示“模型回答”+“不是资料原文”提示，不显示“资料中未找到”；元信息“未检索资料”。12 个语言文件新增 `noScope`、`noRetrieval`、`modelAnswer`、`modelAnswerHint` 并改写 `noIndexYet`。指定版本无效仍返回 `STUDY_QA_INVALID_SCOPE`；每小时 60 次限额不变。
+- 测试：带扩展的 PostgreSQL 17 检索端到端 11 项（新增“无索引时只由模型回答、0 次 embedding”）、`knowledge-logic`、i18n 7 个文件 64 项通过；`tsc`、改动文件 ESLint/Prettier 通过。
+- 发布（用户指示）：只构建 Web（`621af8768a6f`）标为 `release-20261029`；compose 与 `supabase-compose.sh` 与仓库一致；无运行中生成任务（2 个旧的 `needs_attention`）；备份 `*.bak-20261029-pre`（指向 web 20261026b），env 只改 `ZHIYU_WEB_IMAGE`；readiness `ready`、v34、2/2 Worker、Web healthy、无 WARN/ERROR，磁盘 46%。
+- 生产验收（用户账号，新建学科“验收-无资料提问”，无资料）：页面显示新的空状态与“本学科还没有可检索的资料，将由模型凭自身知识回答”；“提问”可用、“只检索原文”禁用；问“拉格朗日中值定理的条件是什么？”得到“模型回答”（闭区间连续、开区间可导，结论正确），无“资料中未找到”，元信息“未检索资料 · platform:zhiyu-default-text · 输入 328 / 输出 125 tokens，1 次调用”；刷新后答案仍在；Web 日志 0 条 WARN/ERROR。测试学科待用户删除。
+
 ## B02 共享资料版本、结构化解析与阅读（2026-10-05，已上线）
 
 ### 范围与起点
