@@ -2719,7 +2719,7 @@
       "open": "Ask your materials",
       "backToSpace": "Back to “{{name}}”",
       "title": "Ask your materials",
-      "subtitle": "Answers come from this space’s materials; every piece of evidence opens the original to check.",
+      "subtitle": "Answers draw on this space’s materials first, and every piece of evidence opens the original to check; without materials, the model answers from its own knowledge.",
       "questionLabel": "Your question",
       "placeholder": "For example: what are the conditions of the mean value theorem? (Ctrl+Enter to ask)",
       "pinnedScope": "Searching only the {{count}} selected material versions.",

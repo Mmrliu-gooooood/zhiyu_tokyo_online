@@ -2719,7 +2719,7 @@
       "open": "Interroger vos supports",
       "backToSpace": "Retour à « {{name}} »",
       "title": "Interroger vos supports",
-      "subtitle": "Les réponses viennent des supports de cet espace ; chaque preuve ouvre l’original pour vérification.",
+      "subtitle": "Les réponses s’appuient d’abord sur les supports de cet espace, chaque preuve ouvrant l’original pour vérification ; sans supports, le modèle répond avec ses propres connaissances.",
       "questionLabel": "Votre question",
       "placeholder": "Par exemple : quelles sont les conditions du théorème des accroissements finis ? (Ctrl+Entrée pour demander)",
       "pinnedScope": "Recherche limitée aux {{count}} versions sélectionnées.",

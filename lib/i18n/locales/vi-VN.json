@@ -2719,7 +2719,7 @@
       "open": "Hỏi tài liệu",
       "backToSpace": "Quay lại “{{name}}”",
       "title": "Hỏi tài liệu",
-      "subtitle": "Câu trả lời lấy từ tài liệu của không gian học này; mỗi bằng chứng đều mở được bản gốc để đối chiếu.",
+      "subtitle": "Câu trả lời ưu tiên dựa vào tài liệu của không gian học này, mỗi bằng chứng đều mở được bản gốc để đối chiếu; khi chưa có tài liệu, mô hình trả lời bằng kiến thức của nó.",
       "questionLabel": "Câu hỏi của bạn",
       "placeholder": "Ví dụ: điều kiện của định lý giá trị trung bình là gì? (Ctrl+Enter để hỏi)",
       "pinnedScope": "Chỉ tìm trong {{count}} phiên bản tài liệu đã chọn.",

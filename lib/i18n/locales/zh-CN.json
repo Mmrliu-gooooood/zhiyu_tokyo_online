@@ -2719,7 +2719,7 @@
       "open": "资料答疑",
       "backToSpace": "返回“{{name}}”",
       "title": "资料答疑",
-      "subtitle": "根据本学科的资料回答问题，每条依据都可以点开原文核对。",
+      "subtitle": "有资料时优先根据资料回答，每条依据都可以点开原文核对；还没有资料时，由模型凭自身知识回答。",
       "questionLabel": "你的问题",
       "placeholder": "例如：拉格朗日中值定理的条件是什么？（Ctrl+Enter 提问）",
       "pinnedScope": "只在已选的 {{count}} 个资料版本中查找。",

@@ -2719,7 +2719,7 @@
       "open": "Perguntar aos materiais",
       "backToSpace": "Voltar para “{{name}}”",
       "title": "Perguntar aos materiais",
-      "subtitle": "As respostas vêm dos materiais deste espaço; cada evidência abre o original para conferência.",
+      "subtitle": "As respostas se baseiam primeiro nos materiais deste espaço, e cada evidência abre o original para conferência; sem materiais, o modelo responde com o próprio conhecimento.",
       "questionLabel": "Sua pergunta",
       "placeholder": "Por exemplo: quais são as condições do teorema do valor médio? (Ctrl+Enter para perguntar)",
       "pinnedScope": "Buscando apenas nas {{count}} versões selecionadas.",

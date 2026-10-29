@@ -2719,7 +2719,7 @@
       "open": "資料答疑",
       "backToSpace": "返回「{{name}}」",
       "title": "資料答疑",
-      "subtitle": "根據本學科的資料回答問題，每條依據都可以點開原文核對。",
+      "subtitle": "有資料時優先根據資料回答，每條依據都可以點開原文核對；還沒有資料時，由模型憑自身知識回答。",
       "questionLabel": "你的問題",
       "placeholder": "例如：拉格朗日均值定理的條件是什麼？（Ctrl+Enter 提問）",
       "pinnedScope": "只在已選的 {{count}} 個資料版本中查找。",

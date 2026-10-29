@@ -2719,7 +2719,7 @@
       "open": "Materialien fragen",
       "backToSpace": "Zurück zu „{{name}}“",
       "title": "Materialien fragen",
-      "subtitle": "Antworten stammen aus den Materialien dieses Lernbereichs; jeder Beleg öffnet das Original zur Prüfung.",
+      "subtitle": "Antworten stützen sich zuerst auf die Materialien dieses Lernbereichs, jeder Beleg öffnet das Original zur Prüfung; ohne Materialien antwortet das Modell aus eigenem Wissen.",
       "questionLabel": "Deine Frage",
       "placeholder": "Zum Beispiel: Welche Voraussetzungen hat der Mittelwertsatz? (Strg+Enter zum Fragen)",
       "pinnedScope": "Es wird nur in den {{count}} ausgewählten Materialversionen gesucht.",
