@@ -1617,7 +1617,8 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 - 改动：`askSpace` 在范围为空（学科没有可用索引、且未指定版本）时不再抛 `STUDY_QA_NOT_INDEXED`，跳过查询 embedding 与检索，提示词写明“这个学科还没有可检索的资料”，答案存为 `retrieval: 'none'`（新增的检索类型；无迁移，`body` 是 jsonb）。页面：“提问”只要求功能可用，“只检索原文”仍要求有索引；答案显示“模型回答”+“不是资料原文”提示，不显示“资料中未找到”；元信息“未检索资料”。12 个语言文件新增 `noScope`、`noRetrieval`、`modelAnswer`、`modelAnswerHint` 并改写 `noIndexYet`。指定版本无效仍返回 `STUDY_QA_INVALID_SCOPE`；每小时 60 次限额不变。
 - 测试：带扩展的 PostgreSQL 17 检索端到端 11 项（新增“无索引时只由模型回答、0 次 embedding”）、`knowledge-logic`、i18n 7 个文件 64 项通过；`tsc`、改动文件 ESLint/Prettier 通过。
 - 发布（用户指示）：只构建 Web（`621af8768a6f`）标为 `release-20261029`；compose 与 `supabase-compose.sh` 与仓库一致；无运行中生成任务（2 个旧的 `needs_attention`）；备份 `*.bak-20261029-pre`（指向 web 20261026b），env 只改 `ZHIYU_WEB_IMAGE`；readiness `ready`、v34、2/2 Worker、Web healthy、无 WARN/ERROR，磁盘 46%。
-- 生产验收（用户账号，新建学科“验收-无资料提问”，无资料）：页面显示新的空状态与“本学科还没有可检索的资料，将由模型凭自身知识回答”；“提问”可用、“只检索原文”禁用；问“拉格朗日中值定理的条件是什么？”得到“模型回答”（闭区间连续、开区间可导，结论正确），无“资料中未找到”，元信息“未检索资料 · platform:zhiyu-default-text · 输入 328 / 输出 125 tokens，1 次调用”；刷新后答案仍在；Web 日志 0 条 WARN/ERROR。测试学科待用户删除。
+- 生产验收（用户账号，新建学科“验收-无资料提问”，无资料）：页面显示新的空状态与“本学科还没有可检索的资料，将由模型凭自身知识回答”；“提问”可用、“只检索原文”禁用；问“拉格朗日中值定理的条件是什么？”得到“模型回答”（闭区间连续、开区间可导，结论正确），无“资料中未找到”，元信息“未检索资料 · platform:zhiyu-default-text · 输入 328 / 输出 125 tokens，1 次调用”；刷新后答案仍在；Web 日志 0 条 WARN/ERROR。测试学科已由用户删除。
+- 副标题跟进（Web release-20261029b，main `3495d18f`）：12 个语言的 `study.qa.subtitle` 改为“有资料时优先根据资料回答，每条依据都可以点开原文核对；还没有资料时，由模型凭自身知识回答。”（不再暗示必须有资料）。i18n 64 项、Prettier 通过；只构建 Web（`7ac6c7ac7749`），compose 与脚本与仓库一致，备份 `*.bak-20261029b-pre`（指向 web 20261029），readiness `ready`、v34、2/2 Worker、Web healthy、0 条 WARN/ERROR，磁盘 47%。线上核对：生产下发的页面脚本只含新副标题、不含旧文案（用户账号当前没有学科，未再建测试数据）。
 
 ## B02 共享资料版本、结构化解析与阅读（2026-10-05，已上线）
 
