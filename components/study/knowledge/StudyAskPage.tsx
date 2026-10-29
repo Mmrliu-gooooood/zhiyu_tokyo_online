@@ -9,7 +9,9 @@
  * An answer is shown in three parts that are never mixed: "From your
  * materials" (each claim with its passages; a passage opens the exact version,
  * page and block in the reader), "Additional explanation" (model knowledge,
- * not from the materials) and "Not found in your materials".
+ * not from the materials) and "Not found in your materials". With nothing
+ * indexed a question can still be asked: the answer is only the model's
+ * explanation, without the "not found" part.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -199,7 +201,9 @@ export function StudyAskPage({ spaceId }: { spaceId: string }) {
     );
   }
 
-  const canAsk = status.available && currentSearchable + pinned.length > 0;
+  // Asking works without materials (the model answers alone); search needs an index.
+  const canAsk = status.available;
+  const canSearch = canAsk && currentSearchable + pinned.length > 0;
   const history = answers.filter((answer) => answer.answerId !== current?.answerId);
 
   return (
@@ -268,8 +272,10 @@ export function StudyAskPage({ spaceId }: { spaceId: string }) {
                 </button>
               </p>
             ) : (
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t('study.qa.defaultScope', { count: currentSearchable })}
+              <p className="mt-2 text-xs text-muted-foreground" data-testid="study-qa-scope">
+                {currentSearchable > 0
+                  ? t('study.qa.defaultScope', { count: currentSearchable })
+                  : t('study.qa.noScope')}
               </p>
             )}
             <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
@@ -287,7 +293,7 @@ export function StudyAskPage({ spaceId }: { spaceId: string }) {
               <Button
                 type="button"
                 variant="outline"
-                disabled={!canAsk || busy !== null || !question.trim()}
+                disabled={!canSearch || busy !== null || !question.trim()}
                 onClick={() => void submit('search')}
                 data-testid="study-qa-search"
               >
@@ -442,6 +448,7 @@ const RETRIEVAL_LABEL: Record<StudyRetrievalKind, string> = {
   keyword: 'study.qa.keyword',
   hybrid: 'study.qa.hybrid',
   lexical: 'study.qa.lexicalOnly',
+  none: 'study.qa.noRetrieval',
 };
 
 const STATE_TONE: Record<StudyIndexState, string> = {
@@ -658,7 +665,7 @@ function AnswerCard({
         </section>
       ) : null}
 
-      {answer.status === 'not_found' ? (
+      {answer.status === 'not_found' && answer.retrieval !== 'none' ? (
         <section className="mb-3 rounded-xl bg-muted/60 px-3 py-2" data-testid="study-qa-not-found">
           <h4 className="flex items-center gap-1 text-xs font-semibold text-foreground">
             <FileSearch className="size-3.5" />
@@ -673,9 +680,13 @@ function AnswerCard({
       {supplement.length > 0 ? (
         <section className="mb-3" data-testid="study-qa-supplement">
           <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
-            {t('study.qa.supplement')}
+            {t(answer.retrieval === 'none' ? 'study.qa.modelAnswer' : 'study.qa.supplement')}
           </h4>
-          <p className="mb-1.5 text-[11px] text-muted-foreground">{t('study.qa.supplementHint')}</p>
+          <p className="mb-1.5 text-[11px] text-muted-foreground">
+            {t(
+              answer.retrieval === 'none' ? 'study.qa.modelAnswerHint' : 'study.qa.supplementHint',
+            )}
+          </p>
           {supplement.map((segment, index) => (
             <p
               key={index}

@@ -113,7 +113,8 @@ export interface StudyAnswerView {
   /**
    * keyword: keyword-only retrieval (no embedding model configured); hybrid:
    * semantic + keyword; lexical: keyword only because the configured embedding
-   * model failed for this question.
+   * model failed for this question; none: the space had nothing indexed, so
+   * the answer is the model's own knowledge only.
    */
   retrieval: StudyRetrievalKind;
   pinnedVersionIds: string[];
@@ -139,7 +140,7 @@ export interface StudySearchHitView {
   lexicalRank: number | null;
 }
 
-export type StudyRetrievalKind = 'keyword' | 'hybrid' | 'lexical';
+export type StudyRetrievalKind = 'keyword' | 'hybrid' | 'lexical' | 'none';
 
 export interface StudySearchResult {
   retrieval: StudyRetrievalKind;

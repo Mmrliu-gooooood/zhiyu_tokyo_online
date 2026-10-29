@@ -3,7 +3,9 @@
  *
  * One question = one budgeted operation on the server:
  *   1. scope: the space's live materials (current versions, or the pinned
- *      ones) with a usable index — computed here, never taken from the client;
+ *      ones) with a usable index — computed here, never taken from the client.
+ *      A space with nothing indexed is still answered, from the model's own
+ *      knowledge only (no retrieval; retrieval "none");
  *   2. keyword-only retrieval by default (no external call); with an
  *      embedding model configured, at most one query embedding through the
  *      gateway (operator-funded) — if it fails the search falls back to
@@ -300,25 +302,28 @@ export async function askSpace(
     ),
     recent: await recentAnswerCount(tx, input.ownerId),
   }));
-  if (scope.length === 0) throw new StudyError('STUDY_QA_NOT_INDEXED');
   if (recent >= STUDY_QA_LIMITS.answersPerHour) throw new StudyError('STUDY_QA_RATE_LIMITED');
 
   const usage = emptyUsage(input.model.funding.kind);
   let usageKnown = true;
-  const vector = await embedQuestion(input, deps, usage);
+  // Nothing indexed: no embedding call and no search, the model answers alone.
+  const searched = scope.length > 0;
+  const vector = searched ? await embedQuestion(input, deps, usage) : null;
   if (input.embedding && usage.embeddingInputTokens === null) usageKnown = false;
-  const hits = selectEvidence(
-    await transact((tx) =>
-      searchStudyKnowledge(
-        tx,
-        input.ownerId,
-        scope,
-        questionTerms(input.question),
-        vector,
-        STUDY_QA_LIMITS.evidenceChunks,
-      ),
-    ),
-  );
+  const hits = searched
+    ? selectEvidence(
+        await transact((tx) =>
+          searchStudyKnowledge(
+            tx,
+            input.ownerId,
+            scope,
+            questionTerms(input.question),
+            vector,
+            STUDY_QA_LIMITS.evidenceChunks,
+          ),
+        ),
+      )
+    : [];
   input.signal.throwIfAborted();
   const refs = hits.map((_, index) => `E${index + 1}`);
   const allowed = new Set(refs);
@@ -327,7 +332,11 @@ export async function askSpace(
   const prompt = [
     `问题：${input.question}`,
     '',
-    hits.length > 0 ? '资料片段：' : '资料片段：无（学生的资料中没有找到相关内容）。',
+    hits.length > 0
+      ? '资料片段：'
+      : searched
+        ? '资料片段：无（学生的资料中没有找到相关内容）。'
+        : '资料片段：无（这个学科还没有可检索的资料，请直接用你自己的知识在补充说明中回答）。',
     ...hits.map((hit, index) => evidenceBlock(refs[index]!, hit)),
   ].join('\n\n');
   const call = async (messages: string): Promise<GatewayResult> => {
@@ -386,7 +395,7 @@ export async function askSpace(
       body: {
         segments: parsed.segments,
         notFoundNote: parsed.notFoundNote,
-        retrieval: retrievalKind(input, vector),
+        retrieval: searched ? retrievalKind(input, vector) : 'none',
       },
       pinnedVersionIds: input.pinnedVersionIds,
       modelString: usage.modelCalls > 0 ? input.model.modelString : null,

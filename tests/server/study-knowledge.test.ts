@@ -407,6 +407,51 @@ describe.skipIf(!adminUrl)('study knowledge on PostgreSQL + vector + pgroonga', 
     expect(answer.usage).toMatchObject({ embeddingCalls: 0, modelCalls: 1 });
   });
 
+  it('answers from the model alone when nothing in the space is indexed', async () => {
+    let prompt = '';
+    const faux = createFauxGateway({
+      responses: [
+        (context) => {
+          prompt = JSON.stringify(context.messages);
+          return fauxAssistantMessage(
+            fauxText(
+              JSON.stringify({
+                status: 'not_found',
+                segments: [{ kind: 'supplement', text: '中值定理要求函数在闭区间上连续。' }],
+                not_found_note: '没有资料',
+              }),
+            ),
+          );
+        },
+      ],
+    });
+    const answer = await askSpace(
+      transact,
+      {
+        ownerId: B,
+        spaceId: seeded.spaceIds.B,
+        question: '拉格朗日中值定理的条件是什么？',
+        pinnedVersionIds: [],
+        model: faux.binding(),
+        embedding: binding,
+        // No index was built with this signature, so the scope is empty.
+        signature: 'unindexed@1',
+        signal: new AbortController().signal,
+        requestId: 'req-ask-unindexed',
+      },
+      { gateway: faux.gateway, embeddings: fakeEmbeddings },
+    );
+    expect(answer).toMatchObject({
+      status: 'not_found',
+      retrieval: 'none',
+      citations: [],
+      segments: [{ kind: 'supplement', text: '中值定理要求函数在闭区间上连续。' }],
+    });
+    expect(prompt).toContain('这个学科还没有可检索的资料');
+    // No query embedding is spent when there is nothing to search.
+    expect(answer.usage).toMatchObject({ embeddingCalls: 0, modelCalls: 1 });
+  });
+
   it('keeps the serving index until a rebuild commits, and a fenced build writes nothing', async () => {
     const before = await pool.query(
       `SELECT id FROM study_knowledge_indexes WHERE version_id='sver_eval_ds_1' AND active`,
