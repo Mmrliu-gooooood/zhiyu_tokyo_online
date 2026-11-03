@@ -1873,6 +1873,13 @@ Pi 路径（`NEXT_PUBLIC_PI_CHAT_ENABLED=true` 重启后，课堂页真实界面
 
 经用户确认（2026-10-05）：**以实际项目代码为准**，原方案只要求逻辑相同或相近。上文“设计决策”中的偏离（进度接口挂在 `/api/study/progress/[stageId]`、本批不建 `learning_events` 表等）即为后续批次的基准，后续批次不需要再改回方案原写法。
 
+### 重置密码链接被邮箱扫描提前用掉 + 介绍页大页脚（2026-11-03，Web release-20261103，main `b35f5a01`）
+
+- 问题：用户点重置邮件里的链接立刻显示“链接无效”。原因（据代码推断，生产认证日志未查）：`GET /auth/confirm` 直接 verifyOtp，QQ 邮箱等会先替用户打开信里的链接做安全扫描，一次性 `token_hash` 被扫描器用掉。修复：GET 只转到新页面 `/auth/verify`（不消耗令牌），用户按“继续设置新密码 / 确认邮箱”后表单 POST 回 `/auth/confirm` 才 verifyOtp，303 到 `/auth/update-password`（或 next）；按钮防重复提交、不自动提交。重置链接失败时错误页带 `flow=recovery`，主按钮改为“重新发送重置邮件”（→ `/auth/forgot-password`）。PKCE `code` 分支不变。前提：Supabase 重置模板必须是 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`（`{{ .ConfirmationURL }}` 会在 Supabase `/verify` 的 GET 上就消耗令牌）——待用户在 Dashboard 核对。
+- 介绍页页脚改为多栏：品牌 + 一句介绍 + 联系邮箱 2470034737@qq.com；产品（互动课堂 / 学习工具 / 能学什么，页内锚点，话题区新增 `id="topics"`）、使用指南（三步开始一节课 / 常见问题 / 注册账号 / 找回密码）、联系我们（邮件联系 / 问题反馈 / 合作交流，mailto 带主题）；底栏 © 年份 + “基于 OpenMAIC 开源项目构建”（链接上游 MIT 仓库）。不放职位、备案号、公司名、隐私政策/用户协议（尚无真实内容）。12 种语言（`check:i18n-keys` 通过）。
+- 测试：`tests/auth` 全部通过（确认路由改写为 GET 转页 / POST 校验 7 项），i18n 158 项，`tsc` 与 Prettier 通过；本地预览页脚（桌面 / 手机无横向溢出）、`/auth/verify`、恢复流程错误页。
+- 发布（用户指示）：只构建 Web（`58739fb991f4`）标为 `release-20261103`；compose 与 `supabase-compose.sh` 与仓库一致（仅换行差异）；无排队/运行中任务；备份 `*.bak-20261103-pre`（指向 web 20261029b），env 只改 `ZHIYU_WEB_IMAGE`；readiness `ready`、v34、2/2 Worker、Web healthy、0 条 WARN/ERROR，磁盘 48%。线上核对（未登录）：`/auth/confirm?token_hash=…&type=recovery` 307 → `/auth/verify`（未调用 Supabase），`/auth/verify` 200，`/welcome` 页脚文字与链接齐全。真实重置邮件端到端尚未验证（需用户收信点击）。
+
 ### 介绍页充实与动效（2026-10-26，Web release-20261026b，main `0d0bc028`）
 
 - 首屏插图改为动画：输入框逐字打出请求并发送 → 备课骨架 → 课件曲线画出 → 老师（先显示输入中）与同学发言 → 随堂练习；在视野内循环播放、离开时暂停。新增：两行反向滚动的学科话题、“课堂里有什么”四个标签（课件讲解 / 白板推导 / 随堂测验 / 同学讨论，约 7 秒自动切换并有进度条，点选或悬停后停止；各带小动画；面板高度固定不跳动）、常见问题（5 条）。各区块进入视野时淡入，三步之间的连线绘出，学习工具图标悬停微动，导航滚动后出现阴影。遵守“减少动态效果”（MotionConfig `user`：首屏直接显示终态，标签不自动切换）。12 种语言（`check:i18n-keys` 通过）。
