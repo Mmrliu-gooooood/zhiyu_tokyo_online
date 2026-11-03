@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Đặt lại mật khẩu",
+    "verifyRecoveryDescription": "Nhấn nút bên dưới để tiếp tục đặt mật khẩu mới.",
+    "verifyRecoverySubmit": "Tiếp tục đặt mật khẩu mới",
+    "verifyEmailTitle": "Xác nhận email",
+    "verifyEmailDescription": "Nhấn nút bên dưới để hoàn tất xác nhận email.",
+    "verifyEmailSubmit": "Xác nhận email",
+    "requestNewReset": "Gửi lại email đặt lại mật khẩu",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "Tài liệu tôi tải lên có an toàn không?",
     "faq4a": "Tài liệu chỉ lưu trong tài khoản của bạn, người khác không truy cập được; bạn có thể xóa khóa học và tài liệu bất cứ lúc nào.",
     "faq5q": "Tôi có dùng mô hình riêng được không?",
-    "faq5a": "Được. Mặc định dùng mô hình của nền tảng; nếu có dịch vụ mô hình riêng (ví dụ OpenRouter), bạn có thể kết nối trong phần Cài đặt."
+    "faq5a": "Được. Mặc định dùng mô hình của nền tảng; nếu có dịch vụ mô hình riêng (ví dụ OpenRouter), bạn có thể kết nối trong phần Cài đặt.",
+    "footer": {
+      "tagline": "Chỉ cần nói bạn muốn học gì. Giáo viên AI và các bạn học cùng bạn qua cả buổi, phần ôn tập tiếp nối ngay sau giờ học.",
+      "emailLabel": "Email",
+      "product": "Sản phẩm",
+      "productTour": "Lớp học tương tác",
+      "productFeatures": "Công cụ học tập",
+      "productTopics": "Có thể học gì",
+      "guide": "Hướng dẫn",
+      "guideSteps": "Bắt đầu buổi học trong 3 bước",
+      "guideFaq": "Câu hỏi thường gặp",
+      "guideSignUp": "Tạo tài khoản",
+      "guideReset": "Quên mật khẩu",
+      "contact": "Liên hệ",
+      "contactEmail": "Gửi email",
+      "contactFeedback": "Báo lỗi",
+      "contactPartner": "Hợp tác",
+      "feedbackSubject": "Góp ý cho ZHIYU",
+      "partnerSubject": "Hợp tác với ZHIYU",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Xây dựng trên dự án mã nguồn mở OpenMAIC"
+    }
   }
 }

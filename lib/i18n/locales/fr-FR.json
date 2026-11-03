@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Réinitialiser le mot de passe",
+    "verifyRecoveryDescription": "Appuyez sur le bouton ci-dessous pour définir un nouveau mot de passe.",
+    "verifyRecoverySubmit": "Continuer vers le nouveau mot de passe",
+    "verifyEmailTitle": "Confirmer votre e-mail",
+    "verifyEmailDescription": "Appuyez sur le bouton ci-dessous pour confirmer votre adresse e-mail.",
+    "verifyEmailSubmit": "Confirmer l’e-mail",
+    "requestNewReset": "Renvoyer un e-mail de réinitialisation",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "Mes documents sont-ils en sécurité ?",
     "faq4a": "Ils sont stockés uniquement dans votre compte et les autres utilisateurs n’y ont pas accès ; vous pouvez supprimer cours et documents à tout moment.",
     "faq5q": "Puis-je utiliser mon propre modèle ?",
-    "faq5a": "Oui. Les modèles de la plateforme sont utilisés par défaut ; si vous avez votre propre service (par exemple OpenRouter), connectez-le dans les paramètres."
+    "faq5a": "Oui. Les modèles de la plateforme sont utilisés par défaut ; si vous avez votre propre service (par exemple OpenRouter), connectez-le dans les paramètres.",
+    "footer": {
+      "tagline": "Dites ce que vous voulez apprendre. Un professeur IA et des camarades suivent le cours avec vous, et la révision reprend là où le cours s’arrête.",
+      "emailLabel": "E-mail",
+      "product": "Produit",
+      "productTour": "Cours interactif",
+      "productFeatures": "Outils d’étude",
+      "productTopics": "Ce que vous pouvez apprendre",
+      "guide": "Bien démarrer",
+      "guideSteps": "Lancer un cours en 3 étapes",
+      "guideFaq": "Questions fréquentes",
+      "guideSignUp": "Créer un compte",
+      "guideReset": "Mot de passe oublié",
+      "contact": "Contact",
+      "contactEmail": "Nous écrire",
+      "contactFeedback": "Signaler un problème",
+      "contactPartner": "Partenariats",
+      "feedbackSubject": "Retour sur ZHIYU",
+      "partnerSubject": "Partenariat ZHIYU",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Construit sur le projet open source OpenMAIC"
+    }
   }
 }

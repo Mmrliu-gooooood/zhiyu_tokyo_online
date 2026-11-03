@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Сброс пароля",
+    "verifyRecoveryDescription": "Нажмите кнопку ниже, чтобы перейти к созданию нового пароля.",
+    "verifyRecoverySubmit": "Перейти к новому паролю",
+    "verifyEmailTitle": "Подтверждение почты",
+    "verifyEmailDescription": "Нажмите кнопку ниже, чтобы подтвердить адрес почты.",
+    "verifyEmailSubmit": "Подтвердить почту",
+    "requestNewReset": "Отправить новое письмо для сброса",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "Мои материалы в безопасности?",
     "faq4a": "Материалы хранятся только в вашем аккаунте, другим пользователям они недоступны; курсы и материалы можно удалить в любой момент.",
     "faq5q": "Можно подключить свою модель?",
-    "faq5a": "Да. По умолчанию используются модели платформы; собственный сервис моделей (например, OpenRouter) подключается в настройках."
+    "faq5a": "Да. По умолчанию используются модели платформы; собственный сервис моделей (например, OpenRouter) подключается в настройках.",
+    "footer": {
+      "tagline": "Скажите, что хотите изучить. ИИ-учитель и одноклассники пройдут урок вместе с вами, а повторение продолжится с того места, где закончился урок.",
+      "emailLabel": "Почта",
+      "product": "Продукт",
+      "productTour": "Интерактивный урок",
+      "productFeatures": "Инструменты для учёбы",
+      "productTopics": "Что можно изучать",
+      "guide": "Как начать",
+      "guideSteps": "Урок за 3 шага",
+      "guideFaq": "Частые вопросы",
+      "guideSignUp": "Создать аккаунт",
+      "guideReset": "Восстановить пароль",
+      "contact": "Контакты",
+      "contactEmail": "Написать нам",
+      "contactFeedback": "Сообщить о проблеме",
+      "contactPartner": "Сотрудничество",
+      "feedbackSubject": "Отзыв о ZHIYU",
+      "partnerSubject": "Сотрудничество с ZHIYU",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Создано на основе открытого проекта OpenMAIC"
+    }
   }
 }

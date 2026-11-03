@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "إعادة تعيين كلمة المرور",
+    "verifyRecoveryDescription": "اضغط على الزر أدناه لمتابعة تعيين كلمة مرور جديدة.",
+    "verifyRecoverySubmit": "متابعة تعيين كلمة مرور جديدة",
+    "verifyEmailTitle": "تأكيد البريد الإلكتروني",
+    "verifyEmailDescription": "اضغط على الزر أدناه لإكمال تأكيد بريدك الإلكتروني.",
+    "verifyEmailSubmit": "تأكيد البريد",
+    "requestNewReset": "إرسال رسالة إعادة تعيين جديدة",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "هل موادي المرفوعة آمنة؟",
     "faq4a": "تُحفظ المواد في حسابك فقط ولا يمكن لغيرك الوصول إليها؛ ويمكنك حذف المقررات والمواد في أي وقت.",
     "faq5q": "هل يمكنني استخدام نموذجي الخاص؟",
-    "faq5a": "نعم. تُستخدم نماذج المنصة افتراضيًا؛ وإن كانت لديك خدمة نماذج خاصة (مثل OpenRouter) فاربطها من الإعدادات."
+    "faq5a": "نعم. تُستخدم نماذج المنصة افتراضيًا؛ وإن كانت لديك خدمة نماذج خاصة (مثل OpenRouter) فاربطها من الإعدادات.",
+    "footer": {
+      "tagline": "قل ما تريد تعلّمه، وسيرافقك معلم ذكاء اصطناعي وزملاء طوال الدرس، وتكمل المراجعة من حيث انتهى.",
+      "emailLabel": "البريد",
+      "product": "المنتج",
+      "productTour": "الفصل التفاعلي",
+      "productFeatures": "أدوات الدراسة",
+      "productTopics": "ماذا يمكنك أن تتعلم",
+      "guide": "البدء",
+      "guideSteps": "ابدأ درسًا في 3 خطوات",
+      "guideFaq": "الأسئلة الشائعة",
+      "guideSignUp": "إنشاء حساب",
+      "guideReset": "استعادة كلمة المرور",
+      "contact": "تواصل معنا",
+      "contactEmail": "راسلنا",
+      "contactFeedback": "الإبلاغ عن مشكلة",
+      "contactPartner": "الشراكات",
+      "feedbackSubject": "ملاحظات حول ZHIYU",
+      "partnerSubject": "شراكة مع ZHIYU",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "مبني على مشروع OpenMAIC مفتوح المصدر"
+    }
   }
 }

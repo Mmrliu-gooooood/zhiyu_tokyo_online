@@ -13,12 +13,14 @@ import Link from 'next/link';
 import { MotionConfig, motion, useMotionValueEvent, useScroll } from 'motion/react';
 import {
   ArrowRight,
+  ArrowUpRight,
   Bookmark,
   Check,
   ChevronDown,
   FolderOpen,
   Languages,
   ListChecks,
+  Mail,
   NotebookPen,
   Presentation,
   Users,
@@ -42,6 +44,8 @@ import { cn } from '@/lib/utils';
 
 const SIGN_UP_HREF = '/auth/sign-up';
 const LOGIN_HREF = '/auth/login';
+const CONTACT_EMAIL = '2470034737@qq.com';
+const OPENMAIC_URL = 'https://github.com/THU-MAIC/OpenMAIC';
 
 type Tone = 'primary' | 'ai' | 'peer' | 'review' | 'mistake' | 'correct';
 
@@ -154,7 +158,11 @@ export function LandingPage() {
           </section>
 
           {/* ═══ What it can teach ═══ */}
-          <section aria-label={t('landing.topicsLabel')} className="pb-16 lg:pb-20">
+          <section
+            id="topics"
+            aria-label={t('landing.topicsLabel')}
+            className="scroll-mt-20 pb-16 lg:pb-20"
+          >
             <Reveal className="mx-auto mb-5 w-full max-w-6xl px-4 text-center text-sm font-medium text-muted-foreground sm:px-6">
               {t('landing.topicsLabel')}
             </Reveal>
@@ -314,12 +322,7 @@ export function LandingPage() {
           </section>
         </main>
 
-        <footer className="border-t border-border">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <ZhiyuLockup size="sm" />
-            <p>{t('home.footer')}</p>
-          </div>
-        </footer>
+        <LandingFooter />
       </div>
     </MotionConfig>
   );
@@ -440,6 +443,110 @@ function LandingHeader() {
         </Button>
       </div>
     </header>
+  );
+}
+
+/**
+ * Site footer: brand + contact email, link columns into this page and the
+ * auth flow, then copyright and the OpenMAIC attribution (MIT upstream).
+ */
+function LandingFooter() {
+  const { t } = useI18n();
+  const mailto = (subjectKey?: string) =>
+    subjectKey
+      ? `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t(subjectKey))}`
+      : `mailto:${CONTACT_EMAIL}`;
+  const columns = [
+    {
+      title: 'landing.footer.product',
+      links: [
+        { label: 'landing.footer.productTour', href: '#tour' },
+        { label: 'landing.footer.productFeatures', href: '#features' },
+        { label: 'landing.footer.productTopics', href: '#topics' },
+      ],
+    },
+    {
+      title: 'landing.footer.guide',
+      links: [
+        { label: 'landing.footer.guideSteps', href: '#how' },
+        { label: 'landing.footer.guideFaq', href: '#faq' },
+        { label: 'landing.footer.guideSignUp', href: SIGN_UP_HREF },
+        { label: 'landing.footer.guideReset', href: '/auth/forgot-password' },
+      ],
+    },
+    {
+      title: 'landing.footer.contact',
+      links: [
+        { label: 'landing.footer.contactEmail', href: mailto() },
+        { label: 'landing.footer.contactFeedback', href: mailto('landing.footer.feedbackSubject') },
+        { label: 'landing.footer.contactPartner', href: mailto('landing.footer.partnerSubject') },
+      ],
+    },
+  ];
+
+  return (
+    <footer className="border-t border-border bg-card/60">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-14 sm:px-6 lg:pt-16">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))] lg:gap-8">
+          <div className="max-w-sm">
+            <ZhiyuLockup />
+            <p className="mt-4 text-pretty text-sm leading-6 text-muted-foreground">
+              {t('landing.footer.tagline')}
+            </p>
+            <p className="mt-6 text-xs font-semibold text-muted-foreground">
+              {t('landing.footer.emailLabel')}
+            </p>
+            <a
+              href={mailto()}
+              className="mt-1.5 inline-flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
+            >
+              <Mail className="size-4 text-primary" />
+              {CONTACT_EMAIL}
+            </a>
+          </div>
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:contents">
+            {columns.map(({ title, links }) => (
+              <nav key={title} aria-label={t(title)}>
+                <h3 className="text-sm font-semibold text-foreground">{t(title)}</h3>
+                <ul className="mt-4 space-y-3">
+                  {links.map(({ label, href }) => (
+                    <li key={label}>
+                      {href.startsWith('/') ? (
+                        <Link
+                          href={href}
+                          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {t(label)}
+                        </Link>
+                      ) : (
+                        <a
+                          href={href}
+                          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {t(label)}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
+        </div>
+        <div className="mt-12 flex flex-col gap-2 border-t border-border pt-6 text-[13px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <p>{t('landing.footer.copyright', { year: new Date().getFullYear() })}</p>
+          <a
+            href={OPENMAIC_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+          >
+            {t('landing.footer.builtOn')}
+            <ArrowUpRight className="size-3.5" />
+          </a>
+        </div>
+      </div>
+    </footer>
   );
 }
 

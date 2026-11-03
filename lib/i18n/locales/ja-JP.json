@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "パスワードの再設定",
+    "verifyRecoveryDescription": "下のボタンを押して、新しいパスワードの設定に進んでください。",
+    "verifyRecoverySubmit": "新しいパスワードを設定する",
+    "verifyEmailTitle": "メールアドレスの確認",
+    "verifyEmailDescription": "下のボタンを押して、メールアドレスの確認を完了してください。",
+    "verifyEmailSubmit": "メールアドレスを確認",
+    "requestNewReset": "再設定メールをもう一度送る",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "アップロードした資料は安全ですか？",
     "faq4a": "資料はあなたのアカウントにだけ保存され、他のユーザーはアクセスできません。不要なコースや資料はいつでも削除できます。",
     "faq5q": "自分のモデルを使えますか？",
-    "faq5a": "使えます。標準ではプラットフォームのモデルを使いますが、OpenRouter などのモデルサービスを設定から接続できます。"
+    "faq5a": "使えます。標準ではプラットフォームのモデルを使いますが、OpenRouter などのモデルサービスを設定から接続できます。",
+    "footer": {
+      "tagline": "学びたいことを一言伝えるだけ。AI の先生とクラスメイトが一緒に授業を進め、復習もそのまま続けられます。",
+      "emailLabel": "メール",
+      "product": "プロダクト",
+      "productTour": "インタラクティブ授業",
+      "productFeatures": "学習ツール",
+      "productTopics": "学べること",
+      "guide": "使い方",
+      "guideSteps": "3 ステップで授業を始める",
+      "guideFaq": "よくある質問",
+      "guideSignUp": "アカウント登録",
+      "guideReset": "パスワードを忘れた",
+      "contact": "お問い合わせ",
+      "contactEmail": "メールで連絡",
+      "contactFeedback": "不具合の報告",
+      "contactPartner": "提携・協業",
+      "feedbackSubject": "ZHIYU へのフィードバック",
+      "partnerSubject": "ZHIYU 提携のご相談",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "オープンソースの OpenMAIC をもとに構築"
+    }
   }
 }

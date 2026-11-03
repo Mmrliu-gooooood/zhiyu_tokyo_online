@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Restablecer contraseña",
+    "verifyRecoveryDescription": "Pulsa el botón de abajo para continuar y crear una nueva contraseña.",
+    "verifyRecoverySubmit": "Continuar con la nueva contraseña",
+    "verifyEmailTitle": "Confirma tu correo",
+    "verifyEmailDescription": "Pulsa el botón de abajo para terminar de confirmar tu correo.",
+    "verifyEmailSubmit": "Confirmar correo",
+    "requestNewReset": "Enviar otro correo de restablecimiento",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "¿Mis materiales están seguros?",
     "faq4a": "Se guardan solo en tu cuenta y otros usuarios no pueden verlos; puedes borrar clases y materiales cuando quieras.",
     "faq5q": "¿Puedo usar mi propio modelo?",
-    "faq5a": "Sí. Por defecto se usan los modelos de la plataforma; si tienes tu propio servicio (por ejemplo, OpenRouter), conéctalo en Configuración."
+    "faq5a": "Sí. Por defecto se usan los modelos de la plataforma; si tienes tu propio servicio (por ejemplo, OpenRouter), conéctalo en Configuración.",
+    "footer": {
+      "tagline": "Di qué quieres aprender. Un profesor de IA y compañeros toman la clase contigo, y el repaso sigue donde terminó la clase.",
+      "emailLabel": "Correo",
+      "product": "Producto",
+      "productTour": "Clase interactiva",
+      "productFeatures": "Herramientas de estudio",
+      "productTopics": "Qué puedes aprender",
+      "guide": "Primeros pasos",
+      "guideSteps": "Empieza una clase en 3 pasos",
+      "guideFaq": "Preguntas frecuentes",
+      "guideSignUp": "Crear una cuenta",
+      "guideReset": "Recuperar contraseña",
+      "contact": "Contacto",
+      "contactEmail": "Escríbenos",
+      "contactFeedback": "Reportar un problema",
+      "contactPartner": "Colaboraciones",
+      "feedbackSubject": "Comentarios sobre ZHIYU",
+      "partnerSubject": "Colaboración con ZHIYU",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Basado en el proyecto de código abierto OpenMAIC"
+    }
   }
 }

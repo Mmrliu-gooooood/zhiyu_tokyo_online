@@ -34,7 +34,7 @@ Subject: `重置智域密码`
 <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery">重置密码</a></p>
 ```
 
-点开后由 `/auth/confirm` 校验，再跳到 `/auth/update-password`（不要改密码除非你在测重置）。
+点开后 `/auth/confirm`（GET）**不会**消耗令牌，只转到 `/auth/verify`；用户按“继续设置新密码”后才 POST 回 `/auth/confirm` 调 verifyOtp，再跳到 `/auth/update-password`。原因：QQ 邮箱等会先替用户“打开”信里的链接做安全扫描，一次性令牌如果在 GET 时就被用掉，用户自己点开就只剩“链接无效”。所以模板里绝不能用 `{{ .ConfirmationURL }}`（Supabase 的 `/verify` 在 GET 时就消耗令牌）。
 
 ## Magic Link / Invite
 

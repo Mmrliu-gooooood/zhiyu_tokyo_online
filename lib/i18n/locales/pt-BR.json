@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Redefinir senha",
+    "verifyRecoveryDescription": "Toque no botão abaixo para continuar e criar uma nova senha.",
+    "verifyRecoverySubmit": "Continuar para a nova senha",
+    "verifyEmailTitle": "Confirme seu e-mail",
+    "verifyEmailDescription": "Toque no botão abaixo para concluir a confirmação do e-mail.",
+    "verifyEmailSubmit": "Confirmar e-mail",
+    "requestNewReset": "Enviar novo e-mail de redefinição",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "Meus materiais estão seguros?",
     "faq4a": "Eles ficam só na sua conta e outros usuários não têm acesso; você pode excluir aulas e materiais quando quiser.",
     "faq5q": "Posso usar meu próprio modelo?",
-    "faq5a": "Sim. Por padrão são usados os modelos da plataforma; se você tiver seu próprio serviço (por exemplo, OpenRouter), conecte-o nas Configurações."
+    "faq5a": "Sim. Por padrão são usados os modelos da plataforma; se você tiver seu próprio serviço (por exemplo, OpenRouter), conecte-o nas Configurações.",
+    "footer": {
+      "tagline": "Diga o que você quer aprender. Um professor de IA e colegas fazem a aula com você, e a revisão continua de onde a aula parou.",
+      "emailLabel": "E-mail",
+      "product": "Produto",
+      "productTour": "Aula interativa",
+      "productFeatures": "Ferramentas de estudo",
+      "productTopics": "O que você pode aprender",
+      "guide": "Primeiros passos",
+      "guideSteps": "Comece uma aula em 3 passos",
+      "guideFaq": "Perguntas frequentes",
+      "guideSignUp": "Criar conta",
+      "guideReset": "Recuperar senha",
+      "contact": "Contato",
+      "contactEmail": "Fale por e-mail",
+      "contactFeedback": "Relatar um problema",
+      "contactPartner": "Parcerias",
+      "feedbackSubject": "Feedback do ZHIYU",
+      "partnerSubject": "Parceria com o ZHIYU",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Construído sobre o projeto de código aberto OpenMAIC"
+    }
   }
 }

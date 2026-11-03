@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "비밀번호 재설정",
+    "verifyRecoveryDescription": "아래 버튼을 눌러 새 비밀번호 설정을 계속하세요.",
+    "verifyRecoverySubmit": "새 비밀번호 설정하기",
+    "verifyEmailTitle": "이메일 확인",
+    "verifyEmailDescription": "아래 버튼을 눌러 이메일 확인을 완료하세요.",
+    "verifyEmailSubmit": "이메일 확인",
+    "requestNewReset": "재설정 메일 다시 보내기",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "올린 자료는 안전한가요?",
     "faq4a": "자료는 내 계정에만 저장되며 다른 사용자는 접근할 수 없습니다. 필요 없는 수업과 자료는 언제든 삭제할 수 있어요.",
     "faq5q": "내 모델을 쓸 수 있나요?",
-    "faq5a": "네. 기본은 플랫폼 모델이며, OpenRouter 같은 자체 모델 서비스가 있다면 설정에서 연결할 수 있습니다."
+    "faq5a": "네. 기본은 플랫폼 모델이며, OpenRouter 같은 자체 모델 서비스가 있다면 설정에서 연결할 수 있습니다.",
+    "footer": {
+      "tagline": "배우고 싶은 것을 한 문장으로 말하면, AI 선생님과 친구들이 함께 수업하고 복습도 이어서 할 수 있어요.",
+      "emailLabel": "이메일",
+      "product": "제품",
+      "productTour": "인터랙티브 수업",
+      "productFeatures": "학습 도구",
+      "productTopics": "배울 수 있는 것",
+      "guide": "이용 안내",
+      "guideSteps": "3단계로 수업 시작하기",
+      "guideFaq": "자주 묻는 질문",
+      "guideSignUp": "회원가입",
+      "guideReset": "비밀번호 찾기",
+      "contact": "문의하기",
+      "contactEmail": "이메일 문의",
+      "contactFeedback": "문제 신고",
+      "contactPartner": "제휴 문의",
+      "feedbackSubject": "ZHIYU 피드백",
+      "partnerSubject": "ZHIYU 제휴 문의",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "오픈소스 OpenMAIC 기반"
+    }
   }
 }

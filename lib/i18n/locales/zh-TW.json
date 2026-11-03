@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "就緒",
     "notReady": "未就緒",
+    "verifyRecoveryTitle": "重設密碼",
+    "verifyRecoveryDescription": "點擊下方按鈕，繼續設定新密碼。",
+    "verifyRecoverySubmit": "繼續設定新密碼",
+    "verifyEmailTitle": "確認信箱",
+    "verifyEmailDescription": "點擊下方按鈕，完成信箱確認。",
+    "verifyEmailSubmit": "確認信箱",
+    "requestNewReset": "重新寄送重設郵件",
     "errors": {
       "missing_token": "確認連結缺少必要資訊。",
       "confirm_failed": "確認連結無效、已過期或已經使用過。",
@@ -4173,6 +4180,27 @@
     "faq4q": "我上傳的資料安全嗎？",
     "faq4a": "資料只保存在你的帳號下，其他使用者無法存取；不需要的課程和資料可以隨時刪除。",
     "faq5q": "可以使用自己的模型嗎？",
-    "faq5a": "可以。預設使用平台模型；如果你有自己的模型服務（例如 OpenRouter），可以在設定中接入。"
+    "faq5a": "可以。預設使用平台模型；如果你有自己的模型服務（例如 OpenRouter），可以在設定中接入。",
+    "footer": {
+      "tagline": "說一句想學什麼，AI 老師和同學陪你上完一堂課，課後的複習也有地方接著做。",
+      "emailLabel": "聯絡信箱",
+      "product": "產品",
+      "productTour": "互動課堂",
+      "productFeatures": "學習工具",
+      "productTopics": "能學什麼",
+      "guide": "使用指南",
+      "guideSteps": "三步開始一堂課",
+      "guideFaq": "常見問題",
+      "guideSignUp": "註冊帳號",
+      "guideReset": "找回密碼",
+      "contact": "聯絡我們",
+      "contactEmail": "郵件聯絡",
+      "contactFeedback": "問題回報",
+      "contactPartner": "合作交流",
+      "feedbackSubject": "智域問題回報",
+      "partnerSubject": "智域合作交流",
+      "copyright": "© {{year}} 智域 ZHIYU",
+      "builtOn": "基於 OpenMAIC 開源專案打造"
+    }
   }
 }

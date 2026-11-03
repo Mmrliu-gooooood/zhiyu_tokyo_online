@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Passwort zurücksetzen",
+    "verifyRecoveryDescription": "Klicke auf die Schaltfläche, um ein neues Passwort festzulegen.",
+    "verifyRecoverySubmit": "Weiter zum neuen Passwort",
+    "verifyEmailTitle": "E-Mail bestätigen",
+    "verifyEmailDescription": "Klicke auf die Schaltfläche, um deine E-Mail-Adresse zu bestätigen.",
+    "verifyEmailSubmit": "E-Mail bestätigen",
+    "requestNewReset": "Neue Zurücksetzungs-E-Mail senden",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "Sind meine Unterlagen sicher?",
     "faq4a": "Unterlagen liegen nur in deinem Konto, andere Nutzer haben keinen Zugriff; Kurse und Unterlagen kannst du jederzeit löschen.",
     "faq5q": "Kann ich mein eigenes Modell nutzen?",
-    "faq5a": "Ja. Standardmäßig laufen die Modelle der Plattform; einen eigenen Modelldienst (z. B. OpenRouter) verbindest du in den Einstellungen."
+    "faq5a": "Ja. Standardmäßig laufen die Modelle der Plattform; einen eigenen Modelldienst (z. B. OpenRouter) verbindest du in den Einstellungen.",
+    "footer": {
+      "tagline": "Sag, was du lernen willst. Eine KI-Lehrkraft und Mitschüler gehen die Stunde mit dir durch, und die Wiederholung schließt direkt daran an.",
+      "emailLabel": "E-Mail",
+      "product": "Produkt",
+      "productTour": "Interaktiver Unterricht",
+      "productFeatures": "Lernwerkzeuge",
+      "productTopics": "Was du lernen kannst",
+      "guide": "Erste Schritte",
+      "guideSteps": "In 3 Schritten zur Stunde",
+      "guideFaq": "Häufige Fragen",
+      "guideSignUp": "Konto erstellen",
+      "guideReset": "Passwort vergessen",
+      "contact": "Kontakt",
+      "contactEmail": "E-Mail schreiben",
+      "contactFeedback": "Problem melden",
+      "contactPartner": "Kooperationen",
+      "feedbackSubject": "ZHIYU Feedback",
+      "partnerSubject": "ZHIYU Kooperation",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Basiert auf dem Open-Source-Projekt OpenMAIC"
+    }
   }
 }

@@ -2463,6 +2463,13 @@
     "adminWorker": "Worker",
     "ready": "Ready",
     "notReady": "Not ready",
+    "verifyRecoveryTitle": "Reset your password",
+    "verifyRecoveryDescription": "Press the button below to continue to setting a new password.",
+    "verifyRecoverySubmit": "Continue to set a new password",
+    "verifyEmailTitle": "Confirm your email",
+    "verifyEmailDescription": "Press the button below to finish confirming your email.",
+    "verifyEmailSubmit": "Confirm email",
+    "requestNewReset": "Send a new reset email",
     "errors": {
       "missing_token": "The confirmation link is missing required information.",
       "confirm_failed": "This confirmation link is invalid, expired, or already used.",
@@ -4173,6 +4180,27 @@
     "faq4q": "Are my uploaded materials safe?",
     "faq4a": "Materials are stored under your account only and other users can’t access them; you can delete courses and materials any time.",
     "faq5q": "Can I use my own model?",
-    "faq5a": "Yes. The platform’s models are the default; if you have your own model service (such as OpenRouter), connect it in Settings."
+    "faq5a": "Yes. The platform’s models are the default; if you have your own model service (such as OpenRouter), connect it in Settings.",
+    "footer": {
+      "tagline": "Say what you want to learn. An AI teacher and classmates take the lesson with you, and your review picks up where class left off.",
+      "emailLabel": "Email",
+      "product": "Product",
+      "productTour": "Live classroom",
+      "productFeatures": "Study tools",
+      "productTopics": "What you can learn",
+      "guide": "Getting started",
+      "guideSteps": "Start a lesson in 3 steps",
+      "guideFaq": "FAQ",
+      "guideSignUp": "Create an account",
+      "guideReset": "Reset your password",
+      "contact": "Contact",
+      "contactEmail": "Email us",
+      "contactFeedback": "Report a problem",
+      "contactPartner": "Partnerships",
+      "feedbackSubject": "ZHIYU feedback",
+      "partnerSubject": "ZHIYU partnership",
+      "copyright": "© {{year}} ZHIYU",
+      "builtOn": "Built on the open-source OpenMAIC project"
+    }
   }
 }
